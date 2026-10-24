@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { FinanceIcon } from '../../core/components/FinanceIcon'
+import { getStoredUser } from '../../auth/api/authApi'
 
 type Props = { onNotify: (message: string) => void; onAddTransaction: () => void }
 
@@ -18,6 +19,13 @@ const accounts = [
 ]
 
 export function DashboardScreen({ onNotify, onAddTransaction }: Props) {
+  const user = getStoredUser()
+  const now = new Date()
+  const hours = now.getHours()
+  const greeting = hours >= 5 && hours < 11 ? 'Chào buổi sáng' : hours >= 11 && hours < 14 ? 'Chào buổi trưa' : hours >= 14 && hours < 18 ? 'Chào buổi chiều' : 'Chào buổi tối'
+  const daysOfWeek = ['Chủ Nhật', 'Thứ Hai', 'Thứ Ba', 'Thứ Tư', 'Thứ Năm', 'Thứ Sáu', 'Thứ Bảy']
+  const dateFormatted = `${daysOfWeek[now.getDay()]}, Ngày ${String(now.getDate()).padStart(2, '0')} Tháng ${String(now.getMonth() + 1).padStart(2, '0')} Năm ${now.getFullYear()}`
+
   const [month, setMonth] = useState('09/2025')
   const [showTransactions, setShowTransactions] = useState(false)
   const weeks = [
@@ -29,7 +37,7 @@ export function DashboardScreen({ onNotify, onAddTransaction }: Props) {
   const visibleTransactions = showTransactions ? [...transactions, ...transactions.slice(0, 2)] : transactions
 
   return <main id="overview" className="dashboard-content mx-auto w-full max-w-[1560px] px-3 pb-24 pt-6 sm:px-[22px] lg:px-[34px] lg:pb-12 lg:pt-8">
-    <section className="welcome-row mb-5 flex flex-col items-start justify-between gap-3 sm:flex-row sm:items-end sm:gap-5"><div><p className="eyebrow"><span className="live-dot" /> HỒ SƠ TÀI CHÍNH CÁ NHÂN</p><h1>Chào buổi sáng, Nguyễn Văn A</h1><p className="welcome-meta">Thứ Năm, ngày 25 tháng 09, 2025 <span>·</span> <strong>Ngân sách đang ổn định</strong></p></div><div className="welcome-tools"><label className="month-picker"><FinanceIcon name="calendar" size={17} /><span className="sr-only">Chọn tháng</span><select value={month} onChange={(event) => setMonth(event.target.value)} aria-label="Chọn tháng"><option value="09/2025">Tháng 09/2025</option><option value="08/2025">Tháng 08/2025</option><option value="07/2025">Tháng 07/2025</option></select></label><button className="icon-button" type="button" aria-label="Làm mới dữ liệu" onClick={() => onNotify('Dữ liệu đã được cập nhật')}><FinanceIcon name="refresh" size={17} /></button><button className="icon-button" type="button" aria-label="Tải xuống báo cáo" onClick={() => onNotify('Báo cáo đang được tải xuống')}><FinanceIcon name="download" size={17} /></button></div></section>
+    <section className="welcome-row mb-5 flex flex-col items-start justify-between gap-3 sm:flex-row sm:items-end sm:gap-5"><div><p className="eyebrow"><span className="live-dot" /> HỒ SƠ TÀI CHÍNH CÁ NHÂN</p><h1>{greeting}, {user?.fullName || 'Nguyễn Văn A'}</h1><p className="welcome-meta">{dateFormatted}</p></div><div className="welcome-tools"><label className="month-picker"><FinanceIcon name="calendar" size={17} /><span className="sr-only">Chọn tháng</span><select value={month} onChange={(event) => setMonth(event.target.value)} aria-label="Chọn tháng"><option value="09/2025">Tháng 09/2025</option><option value="08/2025">Tháng 08/2025</option><option value="07/2025">Tháng 07/2025</option></select></label><button className="icon-button" type="button" aria-label="Làm mới dữ liệu" onClick={() => onNotify('Dữ liệu đã được cập nhật')}><FinanceIcon name="refresh" size={17} /></button><button className="icon-button" type="button" aria-label="Tải xuống báo cáo" onClick={() => onNotify('Báo cáo đang được tải xuống')}><FinanceIcon name="download" size={17} /></button></div></section>
 
     <section className="summary-grid mb-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:mb-5 lg:grid-cols-3 lg:gap-4" aria-label="Tổng quan tài chính">
       <article className="summary-card balance-card"><div className="summary-top"><span className="summary-label">TỔNG SỐ DƯ KHẢ DỤNG</span><span className="summary-icon"><FinanceIcon name="wallet" size={19} /></span></div><div className="summary-amount">12.850.000 <small>₫</small></div><div className="summary-foot"><span className="trend-pill"><FinanceIcon name="trend" size={13} /> +2,5%</span><span>so với tháng trước</span></div><span className="balance-decoration" aria-hidden="true">₫</span></article>

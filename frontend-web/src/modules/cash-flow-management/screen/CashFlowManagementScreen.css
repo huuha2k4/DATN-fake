@@ -1,0 +1,557 @@
+/* CashFlowManagementScreen.css - Luxury Fintech Styling */
+
+.cashflow-management-page {
+  animation: fadeIn 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Metric Summary Cards */
+.cashflow-metric-card {
+  position: relative;
+  background: #ffffff;
+  border-radius: 20px;
+  border: 1px solid #e7eee9;
+  padding: 22px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  min-height: 165px;
+  box-shadow: 0 4px 18px -4px rgba(18, 38, 30, 0.05);
+  transition: all 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+  overflow: hidden;
+}
+
+.cashflow-metric-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 12px 28px -6px rgba(18, 38, 30, 0.09);
+  border-color: #cbdad0;
+}
+
+.cashflow-metric-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3.5px;
+  background: var(--card-accent, #07543f);
+  opacity: 0.85;
+}
+
+/* Net Surplus Gradient Card */
+.cashflow-metric-hero {
+  position: relative;
+  background: linear-gradient(135deg, #053b2d 0%, #07543f 55%, #0b6c52 100%);
+  border-radius: 20px;
+  padding: 22px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  min-height: 165px;
+  color: #ffffff;
+  box-shadow: 0 10px 28px -6px rgba(7, 84, 63, 0.32);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  overflow: hidden;
+}
+
+.cashflow-metric-hero::after {
+  content: '';
+  position: absolute;
+  top: -40px;
+  right: -40px;
+  width: 160px;
+  height: 160px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.15) 0%, transparent 70%);
+  pointer-events: none;
+}
+
+/* Transaction Filter Pills */
+.cashflow-tab-pill {
+  padding: 6px 14px;
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 600;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.cashflow-tab-pill.is-active {
+  background: #07543f;
+  color: #ffffff;
+  box-shadow: 0 2px 8px rgba(7, 84, 63, 0.2);
+}
+
+.cashflow-tab-pill:not(.is-active) {
+  background: #f1f5f2;
+  color: #52665a;
+}
+
+.cashflow-tab-pill:not(.is-active):hover {
+  background: #e3ece6;
+  color: #1a2d24;
+}
+
+/* Transaction Table */
+.cashflow-table-container {
+  background: #ffffff;
+  border-radius: 20px;
+  border: 1px solid #e5ede7;
+  box-shadow: 0 4px 20px -4px rgba(18, 38, 30, 0.05);
+  overflow: hidden;
+}
+
+.cashflow-table tr:hover td {
+  background-color: #f9fbf9;
+}
+
+/* Category drawer / modal */
+.category-item-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 10px;
+  font-size: 11px;
+  font-weight: 600;
+  border: 1px solid transparent;
+}
+
+/* ==========================================================================
+   DARK MODE STYLING FOR CASH FLOW MANAGEMENT SCREEN
+   ========================================================================== */
+
+/* 1. Page Background & Metric Cards (Kiểu màu chuẩn theo Quản lý ví) */
+html.dark .cashflow-management-page {
+  background-color: #081622 !important;
+  color: #cbd5e1 !important;
+}
+
+html.dark .cashflow-metric-card {
+  background: #0e2333 !important;
+  border-color: #173852 !important;
+  box-shadow: 0 10px 28px -6px rgba(0, 0, 0, 0.45) !important;
+}
+
+html.dark .cashflow-metric-card::before {
+  opacity: 0.95;
+}
+
+/* Thẻ 1: Tổng thu nhập (giống thẻ Tổng tài sản khả dụng: Xanh Navy điểm ngọc) */
+html.dark .cashflow-metric-card.is-income {
+  background: radial-gradient(circle at top left, rgba(16, 185, 129, 0.15) 0%, transparent 70%), #0e2333 !important;
+  border-color: #1b454e !important;
+}
+
+html.dark .cashflow-metric-card.is-income h3,
+html.dark .cashflow-metric-card.is-income .text-emerald-700 {
+  color: #10b981 !important;
+}
+
+html.dark .cashflow-metric-card.is-income .bg-emerald-50 {
+  background: #113636 !important;
+  border-color: #1a5654 !important;
+  color: #10b981 !important;
+}
+
+/* Thẻ 2: Tổng chi tiêu (giống thẻ Dư nợ thẻ & nợ: Nền tối điểm ánh đỏ hồng) */
+html.dark .cashflow-metric-card.is-expense {
+  background: radial-gradient(circle at top left, rgba(244, 63, 94, 0.15) 0%, transparent 70%), #0e2333 !important;
+  border-color: #442232 !important;
+}
+
+html.dark .cashflow-metric-card.is-expense h3,
+html.dark .cashflow-metric-card.is-expense .text-rose-600,
+html.dark .cashflow-metric-card.is-expense .text-rose-700 {
+  color: #f43f5e !important;
+}
+
+html.dark .cashflow-metric-card.is-expense .bg-rose-50 {
+  background: #3b1724 !important;
+  border-color: #581f33 !important;
+  color: #f43f5e !important;
+}
+
+html.dark .cashflow-metric-card .border-t {
+  border-top-color: #16364a !important;
+}
+
+html.dark .cashflow-metric-card .text-\[\#718579\] {
+  color: #8da6b8 !important;
+}
+
+html.dark .cashflow-metric-card .text-\[\#14261e\] {
+  color: #9cb1c1 !important;
+}
+
+/* Thẻ 3: Thặng dư ròng Net Cashflow (giống thẻ Tổng giá trị ròng Net Worth: Tông xanh dương đậm đà sang trọng) */
+html.dark .cashflow-metric-hero {
+  background: linear-gradient(135deg, #0a3d91 0%, #072864 60%, #041838 100%) !important;
+  border: 1px solid #144b9e !important;
+  box-shadow: 0 10px 26px -6px rgba(0, 0, 0, 0.45) !important;
+}
+
+html.dark .cashflow-metric-hero::after {
+  display: none !important;
+}
+
+html.dark .cashflow-metric-hero h3 {
+  color: #e2eaf0 !important;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+}
+
+html.dark .cashflow-metric-hero .text-emerald-200 {
+  color: #93c5fd !important;
+}
+
+html.dark .cashflow-metric-hero .bg-white\/20 {
+  background-color: rgba(255, 255, 255, 0.1) !important;
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+  color: #93c5fd !important;
+}
+
+html.dark .cashflow-metric-hero .border-white\/15 {
+  border-top-color: rgba(255, 255, 255, 0.12) !important;
+}
+
+html.dark .cashflow-metric-hero .text-emerald-100 {
+  color: #94a9bf !important;
+}
+
+html.dark .cashflow-metric-hero .text-white {
+  color: #e2eaf0 !important;
+}
+
+/* 2. Filters & Search Section */
+html.dark section.rounded-2xl.border.bg-white {
+  background-color: #0b1a26 !important;
+  border-color: #132a3a !important;
+}
+
+html.dark .inline-flex.rounded-xl.bg-\[\#f0f5f2\] {
+  background-color: #07141f !important;
+  border: 1px solid #132a3a;
+}
+
+/* Tab Pills */
+html.dark .inline-flex.rounded-xl.bg-\[\#f0f5f2\] button.bg-\[\#07543f\] {
+  background: linear-gradient(135deg, #0e7a56 0%, #085a3e 100%) !important;
+  color: #ffffff !important;
+  border: 1px solid rgba(16, 185, 129, 0.3) !important;
+  box-shadow: 0 2px 8px rgba(5, 122, 85, 0.35) !important;
+}
+
+html.dark .inline-flex.rounded-xl.bg-\[\#f0f5f2\] button:not(.bg-\[\#07543f\]) {
+  color: #9cb1c1 !important;
+}
+
+html.dark .inline-flex.rounded-xl.bg-\[\#f0f5f2\] button:not(.bg-\[\#07543f\]):hover {
+  background-color: #102636 !important;
+  color: #e2eaf0 !important;
+}
+
+/* Ô tìm kiếm */
+html.dark form input.bg-\[\#f8faf8\] {
+  background-color: #07141f !important;
+  border-color: #132a3a !important;
+  color: #cbd5e1 !important;
+}
+
+html.dark form input.bg-\[\#f8faf8\]:focus {
+  background-color: #091a27 !important;
+  border-color: #10b981 !important;
+}
+
+html.dark form input.bg-\[\#f8faf8\]::placeholder {
+  color: #557288 !important;
+}
+
+/* Các dropdown button (Danh mục, Nguồn tiền, Thời gian): đồng bộ nền tối #07141f, viền mảnh, chữ xanh xám dịu */
+html.dark button[class*="bg-[#f8faf8]"],
+html.dark button[class*="bg-[#eef7f2]"] {
+  background-color: #07141f !important;
+  border-color: #132a3a !important;
+  color: #9cb1c1 !important;
+}
+
+/* Đảm bảo toàn bộ chữ span bên trong cả 3 nút đều có màu #9cb1c1 đồng bộ */
+html.dark button[class*="bg-[#f8faf8]"] span,
+html.dark button[class*="bg-[#eef7f2]"] span {
+  color: #9cb1c1 !important;
+}
+
+html.dark button[class*="bg-[#f8faf8]"]:hover,
+html.dark button[class*="bg-[#eef7f2]"]:hover {
+  background-color: #0e2230 !important;
+  border-color: #1a3c52 !important;
+  color: #e2eaf0 !important;
+}
+
+html.dark button[class*="bg-[#f8faf8]"]:hover span,
+html.dark button[class*="bg-[#eef7f2]"]:hover span {
+  color: #e2eaf0 !important;
+}
+
+/* Icon (grid, credit-card, calendar) trong cả 3 nút: đồng bộ màu xanh ngọc dịu mát */
+html.dark button[class*="bg-[#f8faf8]"] svg,
+html.dark button[class*="bg-[#eef7f2]"] svg,
+html.dark button[class*="bg-[#f8faf8]"] .text-\[\#07543f\],
+html.dark button[class*="bg-[#eef7f2]"] .text-\[\#07543f\] {
+  color: #34d399 !important;
+}
+
+/* Mũi tên chevron xuống ở cuối cả 3 nút */
+html.dark button[class*="bg-[#f8faf8]"] > svg:last-child,
+html.dark button[class*="bg-[#eef7f2]"] > svg:last-child {
+  color: #64748b !important;
+}
+
+/* Dropdown Menu thả xuống */
+html.dark .absolute.rounded-xl.border.bg-white {
+  background-color: #0b1d2a !important;
+  border-color: #16364a !important;
+  box-shadow: 0 14px 32px rgba(0, 0, 0, 0.6) !important;
+}
+
+html.dark .absolute.rounded-xl.border.bg-white button {
+  color: #9cb1c1 !important;
+}
+
+html.dark .absolute.rounded-xl.border.bg-white button:hover {
+  background-color: #102738 !important;
+  color: #e2eaf0 !important;
+}
+
+html.dark .absolute.rounded-xl.border.bg-white button.bg-emerald-50 {
+  background-color: #0f3028 !important;
+  color: #34d399 !important;
+}
+
+html.dark .absolute.rounded-xl.border.bg-white .border-t {
+  border-top-color: #142e40 !important;
+}
+
+/* 2 nút hành động: Danh mục thu chi & Xuất báo cáo (Màu xanh ngọc tươi rõ màu, có chiều sâu, chữ rõ nét) */
+html.dark button.bg-\[\#07543f\] {
+  background: linear-gradient(135deg, #0c6a50 0%, #064b38 100%) !important;
+  color: #f1f8f5 !important;
+  border: 1px solid rgba(16, 185, 129, 0.3) !important;
+  box-shadow: 0 4px 12px rgba(6, 75, 56, 0.4) !important;
+}
+
+html.dark button.bg-\[\#07543f\]:hover {
+  background: linear-gradient(135deg, #108564 0%, #095c46 100%) !important;
+  color: #ffffff !important;
+  border-color: rgba(16, 185, 129, 0.5) !important;
+}
+
+/* Tab button active (Tất cả, Khoản chi...): Xanh ngọc nổi bật sắc nét */
+html.dark .inline-flex.rounded-xl.bg-\[\#f0f5f2\] button.bg-\[\#07543f\] {
+  background: linear-gradient(135deg, #0c6a50 0%, #064b38 100%) !important;
+  color: #f1f8f5 !important;
+  border: 1px solid rgba(16, 185, 129, 0.35) !important;
+  box-shadow: 0 2px 8px rgba(6, 75, 56, 0.45) !important;
+}
+
+/* 3. Bảng Giao Dịch (Cash Flow Table) */
+html.dark .cashflow-table-container {
+  background-color: #0b1a26 !important;
+  border-color: #132a3a !important;
+  box-shadow: 0 4px 20px -4px rgba(0, 0, 0, 0.4) !important;
+}
+
+html.dark .cashflow-table thead {
+  background-color: #07141f !important;
+  border-bottom-color: #132a3a !important;
+  color: #7b96a8 !important;
+}
+
+html.dark .cashflow-table tbody {
+  background-color: #0b1a26 !important;
+}
+
+html.dark .cashflow-table tbody.divide-y > * + * {
+  border-top-color: #102433 !important;
+}
+
+html.dark .cashflow-table tr {
+  background-color: transparent !important;
+  transition: background-color 0.15s ease;
+}
+
+html.dark .cashflow-table tr:hover,
+html.dark .cashflow-table tr:hover td {
+  background-color: #0e2434 !important;
+}
+
+html.dark .cashflow-table td .text-\[\#0f172a\] {
+  color: #9cb1c1 !important;
+}
+
+html.dark .cashflow-table tr:hover td .text-\[\#0f172a\] {
+  color: #e2eaf0 !important;
+}
+
+html.dark .cashflow-table td .text-\[\#64748b\],
+html.dark .cashflow-table td .text-\[\#718579\],
+html.dark .cashflow-table td .text-\[\#94a3b8\] {
+  color: #6d889b !important;
+}
+
+/* Icon Danh mục giao dịch (Cột 1): Nền tối có màu tương ứng, icon tươi sáng rõ ràng */
+html.dark .cashflow-table td:first-child span.rounded-2xl {
+  border-width: 1px !important;
+  border-style: solid !important;
+}
+
+/* Biểu tượng Icon tài khoản/thẻ vuông trong bảng: Nền tối navy dịu, icon màu tươi rõ */
+html.dark .cashflow-table td span.bg-\[\#ecfdf5\] {
+  background-color: #08281e !important;
+  border-color: #11503c !important;
+  color: #10b981 !important;
+}
+
+html.dark .cashflow-table td span.bg-\[\#eff6ff\],
+html.dark .cashflow-table td span.bg-\[\#f0f9ff\] {
+  background-color: #082338 !important;
+  border-color: #0f466d !important;
+  color: #38bdf8 !important;
+}
+
+/* Các badge phân loại: Màu sắc tươi rõ, đậm đà, chữ dễ đọc không chói lóa */
+html.dark .cashflow-table .bg-\[\#dcfce7\] {
+  background-color: #072a1e !important;
+  border-color: #10593f !important;
+  color: #10b981 !important;
+}
+
+html.dark .cashflow-table .bg-\[\#e0f2fe\] {
+  background-color: #072439 !important;
+  border-color: #0d4a72 !important;
+  color: #38bdf8 !important;
+}
+
+/* Số tiền trong bảng */
+html.dark .cashflow-table .text-\[\#16a34a\] {
+  color: #10b981 !important;
+}
+
+html.dark .cashflow-table .text-\[\#0284c7\] {
+  color: #38bdf8 !important;
+}
+
+html.dark .cashflow-table .text-\[\#dc2626\] {
+  color: #f43f5e !important;
+}
+
+/* Footer phân trang cuối bảng: Xóa mảng trắng bg-[#fafcfb] */
+html.dark .cashflow-table-container footer,
+html.dark .cashflow-table-container .bg-\[\#fafcfb\] {
+  background-color: #07141f !important;
+  border-top-color: #132a3a !important;
+  color: #7b96a8 !important;
+}
+
+html.dark .cashflow-table-container footer strong {
+  color: #9cb1c1 !important;
+}
+
+html.dark .cashflow-table-container footer button {
+  background-color: #0b1d2a !important;
+  border-color: #16364a !important;
+  color: #9cb1c1 !important;
+}
+
+html.dark .cashflow-table-container footer button:hover:not(:disabled) {
+  background-color: #102738 !important;
+  color: #e2eaf0 !important;
+}
+
+/* 4. Modal / Drawer (Bao gồm Modal Chi tiết giao dịch & Modal Xóa) */
+html.dark .fixed.inset-0 .bg-white {
+  background-color: #0b1d2a !important;
+  border-color: #16364a !important;
+  color: #cbd5e1 !important;
+}
+
+/* Khung hiển thị số tiền giao dịch trên đầu Modal */
+html.dark .fixed.inset-0 .bg-\[\#fafcfa\] {
+  background-color: #071520 !important;
+  border-color: #132a3a !important;
+}
+
+html.dark .fixed.inset-0 .bg-\[\#fafcfa\] .bg-white {
+  background-color: #0e2333 !important;
+  border-color: #17384f !important;
+  color: #e2eaf0 !important;
+}
+
+html.dark .fixed.inset-0 .bg-\[\#fafbfa\],
+html.dark .fixed.inset-0 .bg-\[\#f8faf8\] {
+  background-color: #071520 !important;
+  border-color: #132a3a !important;
+}
+
+/* Các nhãn tiêu đề và thông tin bên trong modal */
+html.dark .fixed.inset-0 .border-\[\#edf2ee\] {
+  border-color: #132a3a !important;
+}
+
+html.dark .fixed.inset-0 .text-\[\#14261e\] {
+  color: #e2eaf0 !important;
+}
+
+html.dark .fixed.inset-0 .text-\[\#718579\] {
+  color: #8da6b8 !important;
+}
+
+/* Khung Tài khoản đích nhận (khi là giao dịch Chuyển ví) */
+html.dark .fixed.inset-0 .bg-sky-50\/50,
+html.dark .fixed.inset-0 [class*="bg-sky-50"] {
+  background: linear-gradient(135deg, rgba(2, 132, 199, 0.15) 0%, rgba(14, 165, 233, 0.08) 100%) !important;
+  border: 1px solid rgba(56, 189, 248, 0.3) !important;
+}
+
+html.dark .fixed.inset-0 .text-sky-800 {
+  color: #7dd3fc !important;
+}
+
+html.dark .fixed.inset-0 .text-sky-900 {
+  color: #38bdf8 !important;
+  font-weight: 800 !important;
+}
+
+html.dark .fixed.inset-0 .text-sky-700 {
+  color: #bae6fd !important;
+}
+
+/* Nút Đóng trong modal chi tiết */
+html.dark .fixed.inset-0 button.bg-\[\#07543f\] {
+  background: linear-gradient(135deg, #0c6a50 0%, #064b38 100%) !important;
+  color: #f1f8f5 !important;
+  border: 1px solid rgba(16, 185, 129, 0.3) !important;
+}
+
+html.dark .fixed.inset-0 input,
+html.dark .fixed.inset-0 select {
+  background-color: #071520 !important;
+  border-color: #16364a !important;
+  color: #cbd5e1 !important;
+}
+
+html.dark .fixed.inset-0 button.bg-white {
+  background-color: #0e2333 !important;
+  border-color: #1a3c54 !important;
+  color: #9cb1c1 !important;
+}
+

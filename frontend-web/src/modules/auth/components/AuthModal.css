@@ -1,0 +1,429 @@
+/* Modern FinAI Auth Modal Styling */
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(7, 34, 27, 0.65);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 16px;
+  animation: modalFadeIn 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes modalFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.modal-sheet {
+  background: #ffffff;
+  border-radius: 24px;
+  width: 100%;
+  max-width: 440px;
+  padding: 30px 28px 26px;
+  position: relative;
+  box-shadow: 
+    0 24px 70px -12px rgba(6, 40, 31, 0.35),
+    0 0 0 1px rgba(7, 84, 63, 0.08);
+  animation: modalScaleUp 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Wider modal for 2-column layout to fit without scrolling */
+.modal-register-sheet {
+  max-width: 520px;
+  padding: 28px 30px 24px;
+}
+
+/* Modern, ultra-slim scrollbar styling if needed on very small laptop screens */
+.modal-sheet::-webkit-scrollbar {
+  width: 5px;
+}
+
+.modal-sheet::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.modal-sheet::-webkit-scrollbar-thumb {
+  background: #cbd8d1;
+  border-radius: 10px;
+}
+
+.modal-sheet::-webkit-scrollbar-thumb:hover {
+  background: #a3b8ad;
+}
+
+@keyframes modalScaleUp {
+  from {
+    transform: scale(0.96) translateY(8px);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1) translateY(0);
+    opacity: 1;
+  }
+}
+
+.modal-close-btn {
+  position: absolute;
+  top: 18px;
+  right: 18px;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: #f4f7f5;
+  border: 1px solid #e2ebe5;
+  color: #52635a;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-size: 15px;
+  line-height: 1;
+  z-index: 2;
+}
+
+.modal-close-btn:hover {
+  background: #e6ede8;
+  color: #0d2820;
+  transform: rotate(90deg);
+}
+
+.modal-top-header {
+  margin-bottom: 20px;
+}
+
+.modal-brand-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  background: #ebf7f1;
+  color: #07543f;
+  border: 1px solid rgba(7, 84, 63, 0.15);
+  padding: 4px 12px;
+  border-radius: 9999px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.4px;
+  margin-bottom: 12px;
+}
+
+.modal-brand-badge .badge-icon {
+  width: 16px;
+  height: 16px;
+  background: #07543f;
+  color: #dff5ec;
+  border-radius: 5px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.modal-header-title {
+  font-size: 24px;
+  font-weight: 800;
+  color: #0d231d;
+  letter-spacing: -0.02em;
+  margin: 0 0 6px 0;
+  line-height: 1.25;
+}
+
+.modal-subtitle {
+  font-size: 13.5px;
+  color: #63756c;
+  margin: 0 0 22px 0;
+  line-height: 1.5;
+}
+
+.modal-top-header {
+  margin-bottom: 22px;
+}
+
+.auth-form {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.compact-form {
+  gap: 13px;
+}
+
+/* 2-column flex row for compact, balanced inputs */
+.form-row-2col {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.form-field {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.form-label {
+  font-size: 12.5px;
+  font-weight: 700;
+  color: #24352f;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.form-optional-tag {
+  color: #8fa097;
+  font-weight: 400;
+  font-size: 11px;
+}
+
+.form-input-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.input-icon {
+  position: absolute;
+  left: 12px;
+  color: #8c9c93;
+  display: flex;
+  align-items: center;
+  pointer-events: none;
+  font-size: 14px;
+  transition: color 0.2s ease;
+}
+
+.input-icon-btn {
+  position: absolute;
+  right: 10px;
+  background: transparent;
+  border: none;
+  color: #8c9c93;
+  cursor: pointer;
+  padding: 4px;
+  display: flex;
+  align-items: center;
+  border-radius: 6px;
+  font-size: 14px;
+  transition: color 0.2s;
+}
+
+.input-icon-btn:hover {
+  color: #14251f;
+}
+
+.form-input-wrapper input {
+  width: 100%;
+  padding: 10px 12px 10px 38px;
+  font-size: 13.5px;
+  color: #14251f;
+  background: #f9fbf9;
+  border: 1.5px solid #e1e8e3;
+  border-radius: 11px;
+  outline: none;
+  transition: all 0.2s ease;
+  font-family: inherit;
+}
+
+.form-input-wrapper input.with-toggle {
+  padding-right: 38px;
+}
+
+.form-input-wrapper input:focus {
+  background: #ffffff;
+  border-color: #07543f;
+  box-shadow: 0 0 0 3px rgba(7, 84, 63, 0.1);
+}
+
+.form-input-wrapper:focus-within .input-icon {
+  color: #07543f;
+}
+
+.password-policy-hint {
+  font-size: 11px;
+  color: #6d8276;
+  margin: 0;
+  background: #f4f8f5;
+  padding: 8px 12px;
+  border-radius: 9px;
+  border: 1px solid #e3ede6;
+  line-height: 1.4;
+}
+
+/* Alert notifications */
+.form-alert {
+  padding: 10px 14px;
+  border-radius: 10px;
+  font-size: 12.5px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  line-height: 1.4;
+  margin-bottom: 6px;
+}
+
+.form-alert.error {
+  background: #fff1f0;
+  border: 1px solid #ffd8d6;
+  color: #d9383a;
+}
+
+/* Primary submit button */
+.btn-submit-emerald {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  padding: 11px 20px;
+  font-size: 14.5px;
+  font-weight: 700;
+  color: #ffffff;
+  background: linear-gradient(135deg, #087557 0%, #064b38 100%);
+  border: none;
+  border-radius: 11px;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 4px 14px rgba(7, 84, 63, 0.25);
+  margin-top: 4px;
+}
+
+.btn-submit-emerald:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 18px rgba(7, 84, 63, 0.35);
+  background: linear-gradient(135deg, #098b67 0%, #07543f 100%);
+}
+
+.btn-submit-emerald:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.btn-submit-emerald:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-radius: 50%;
+  border-top-color: #ffffff;
+  animation: spin 0.7s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.modal-footer-box {
+  margin-top: 18px;
+  padding-top: 14px;
+  border-top: 1px solid #edf2ee;
+  text-align: center;
+}
+
+.compact-footer {
+  margin-top: 14px;
+  padding-top: 12px;
+}
+
+.modal-footer-text {
+  font-size: 12.5px;
+  color: #6d7f76;
+  margin: 0;
+}
+
+.btn-text-emerald {
+  background: none;
+  border: none;
+  color: #087557;
+  font-weight: 700;
+  cursor: pointer;
+  padding: 0 4px;
+  transition: color 0.15s;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.btn-text-emerald:hover {
+  color: #053b2d;
+}
+
+@media (max-width: 520px) {
+  .form-row-2col {
+    grid-template-columns: 1fr;
+  }
+  
+  .modal-sheet {
+    padding: 24px 18px 20px;
+    border-radius: 20px;
+  }
+}
+
+/* Dark Mode for Auth Modals (Login & Register) */
+html.dark .modal-sheet {
+  background: #0b1d2a !important;
+  border: 1px solid #163042 !important;
+  box-shadow: 0 24px 70px -12px rgba(0, 0, 0, 0.7) !important;
+}
+
+html.dark .modal-header-title {
+  color: #e2eaf0 !important;
+}
+
+html.dark .modal-subtitle {
+  color: #8da6b8 !important;
+}
+
+html.dark .modal-close-btn {
+  background: #0f2536 !important;
+  border-color: #17354a !important;
+  color: #8da6b8 !important;
+}
+
+html.dark .modal-close-btn:hover {
+  background: #153248 !important;
+  color: #38bdf8 !important;
+}
+
+html.dark .form-label {
+  color: #cbd5e1 !important;
+}
+
+html.dark .form-input-wrapper input {
+  background: #0d2130 !important;
+  border-color: #173246 !important;
+  color: #e2eaf0 !important;
+}
+
+html.dark .form-input-wrapper input::placeholder {
+  color: #557288 !important;
+}
+
+html.dark .form-input-wrapper .input-icon,
+html.dark .btn-password-toggle {
+  color: #7b99ad !important;
+}
+
+html.dark .modal-footer-box {
+  border-top-color: #142a38 !important;
+}
+
+html.dark .modal-footer-text {
+  color: #8da6b8 !important;
+}
+
+html.dark .btn-text-emerald {
+  color: #38bdf8 !important;
+}
+
+html.dark .btn-text-emerald:hover {
+  color: #7dd3fc !important;
+}
+

@@ -1,0 +1,650 @@
+### =====================================================
+### Goals API Testing
+### Kiểm thử các API quản lý mục tiêu tài chính
+### =====================================================
+
+### Variables
+@baseUrl = http://localhost:8080/api
+@token = Bearer eyJhbGciOiJIUzI1NiJ9...
+@goalId = 1
+
+### =====================================================
+### 1. CREATE GOAL - Tạo mục tiêu mới
+### POST /api/goals
+### =====================================================
+
+### 1.1. Tạo quỹ khẩn cấp
+POST {{baseUrl}}/goals
+Authorization: {{token}}
+Content-Type: application/json
+
+{
+  "name": "Quỹ dự phòng khẩn cấp",
+  "goalType": "EMERGENCY_FUND",
+  "targetAmount": 50000000,
+  "currencyCode": "VND",
+  "targetDate": "2025-12-31",
+  "priority": "HIGH",
+  "icon": "shield",
+  "color": "#FF6B6B",
+  "description": "Quỹ dự phòng tương đương 6 tháng lương"
+}
+
+### 1.2. Tạo mục tiêu mua laptop
+POST {{baseUrl}}/goals
+Authorization: {{token}}
+Content-Type: application/json
+
+{
+  "name": "Mua MacBook Pro M3",
+  "goalType": "PURCHASE",
+  "targetAmount": 45000000,
+  "currencyCode": "VND",
+  "targetDate": "2025-06-01",
+  "priority": "MEDIUM",
+  "icon": "laptop",
+  "color": "#4ECDC4",
+  "description": "MacBook Pro 14 inch M3 cho công việc",
+  "autoSaveEnabled": true,
+  "autoSaveAmount": 3000000,
+  "autoSaveFrequency": "MONTHLY",
+  "accountId": 1
+}
+
+### 1.3. Tạo mục tiêu du lịch
+POST {{baseUrl}}/goals
+Authorization: {{token}}
+Content-Type: application/json
+
+{
+  "name": "Du lịch Nhật Bản",
+  "goalType": "VACATION",
+  "targetAmount": 60000000,
+  "currencyCode": "VND",
+  "targetDate": "2025-10-15",
+  "priority": "MEDIUM",
+  "icon": "plane",
+  "color": "#95E1D3",
+  "description": "Chuyến du lịch Tokyo - Osaka 7 ngày"
+}
+
+### 1.4. Tạo mục tiêu học MBA
+POST {{baseUrl}}/goals
+Authorization: {{token}}
+Content-Type: application/json
+
+{
+  "name": "Học MBA",
+  "goalType": "EDUCATION",
+  "targetAmount": 300000000,
+  "currencyCode": "VND",
+  "targetDate": "2027-09-01",
+  "priority": "HIGH",
+  "icon": "graduation-cap",
+  "color": "#FFE66D",
+  "description": "Chương trình MBA tại trường quốc tế"
+}
+
+### 1.5. Tạo mục tiêu nghỉ hưu
+POST {{baseUrl}}/goals
+Authorization: {{token}}
+Content-Type: application/json
+
+{
+  "name": "Quỹ hưu trí",
+  "goalType": "RETIREMENT",
+  "targetAmount": 5000000000,
+  "currencyCode": "VND",
+  "targetDate": "2050-01-01",
+  "priority": "HIGH",
+  "icon": "piggy-bank",
+  "color": "#FF6B9D",
+  "description": "Quỹ hưu trí để sống thoải mái sau 60 tuổi",
+  "autoSaveEnabled": true,
+  "autoSaveAmount": 5000000,
+  "autoSaveFrequency": "MONTHLY",
+  "accountId": 2
+}
+
+### 1.6. Tạo mục tiêu trả nợ
+POST {{baseUrl}}/goals
+Authorization: {{token}}
+Content-Type: application/json
+
+{
+  "name": "Trả hết nợ thẻ tín dụng",
+  "goalType": "DEBT_PAYOFF",
+  "targetAmount": 15000000,
+  "currencyCode": "VND",
+  "targetDate": "2025-03-31",
+  "priority": "HIGH",
+  "icon": "credit-card",
+  "color": "#F38181",
+  "description": "Trả hết nợ thẻ Visa"
+}
+
+### 1.7. Tạo mục tiêu đầu tư
+POST {{baseUrl}}/goals
+Authorization: {{token}}
+Content-Type: application/json
+
+{
+  "name": "Đầu tư chứng khoán",
+  "goalType": "INVESTMENT",
+  "targetAmount": 100000000,
+  "currencyCode": "VND",
+  "targetDate": "2026-12-31",
+  "priority": "MEDIUM",
+  "icon": "trending-up",
+  "color": "#A8E6CF",
+  "description": "Xây dựng danh mục đầu tư cổ phiếu"
+}
+
+### 1.8. Validation: Thiếu tên mục tiêu
+POST {{baseUrl}}/goals
+Authorization: {{token}}
+Content-Type: application/json
+
+{
+  "goalType": "PURCHASE",
+  "targetAmount": 10000000,
+  "currencyCode": "VND"
+}
+
+### 1.9. Validation: Target amount âm
+POST {{baseUrl}}/goals
+Authorization: {{token}}
+Content-Type: application/json
+
+{
+  "name": "Invalid Goal",
+  "goalType": "OTHER",
+  "targetAmount": -5000000,
+  "currencyCode": "VND"
+}
+
+### 1.10. Validation: Auto-save không hợp lệ
+POST {{baseUrl}}/goals
+Authorization: {{token}}
+Content-Type: application/json
+
+{
+  "name": "Invalid Auto-save",
+  "goalType": "PURCHASE",
+  "targetAmount": 10000000,
+  "currencyCode": "VND",
+  "autoSaveEnabled": true,
+  "autoSaveAmount": 500000
+}
+
+### =====================================================
+### 2. GET GOALS - Lấy danh sách mục tiêu
+### GET /api/goals
+### =====================================================
+
+### 2.1. Lấy tất cả mục tiêu (mặc định)
+GET {{baseUrl}}/goals
+Authorization: {{token}}
+
+### 2.2. Lấy mục tiêu đang thực hiện
+GET {{baseUrl}}/goals?status=IN_PROGRESS
+Authorization: {{token}}
+
+### 2.3. Lấy mục tiêu đã hoàn thành
+GET {{baseUrl}}/goals?status=ACHIEVED
+Authorization: {{token}}
+
+### 2.4. Lấy mục tiêu theo loại EMERGENCY_FUND
+GET {{baseUrl}}/goals?goalType=EMERGENCY_FUND
+Authorization: {{token}}
+
+### 2.5. Lấy mục tiêu ưu tiên cao
+GET {{baseUrl}}/goals?priority=HIGH
+Authorization: {{token}}
+
+### 2.6. Tìm kiếm mục tiêu theo tên
+GET {{baseUrl}}/goals?search=laptop
+Authorization: {{token}}
+
+### 2.7. Lọc kết hợp nhiều điều kiện
+GET {{baseUrl}}/goals?status=IN_PROGRESS&priority=HIGH&goalType=RETIREMENT
+Authorization: {{token}}
+
+### 2.8. Phân trang
+GET {{baseUrl}}/goals?page=0&size=5&sort=targetDate,asc
+Authorization: {{token}}
+
+### 2.9. Sắp xếp theo target amount giảm dần
+GET {{baseUrl}}/goals?sort=targetAmount,desc
+Authorization: {{token}}
+
+### 2.10. Sắp xếp theo percentage tăng dần
+GET {{baseUrl}}/goals?sort=currentAmount,asc
+Authorization: {{token}}
+
+### =====================================================
+### 3. GET GOAL BY ID - Lấy chi tiết mục tiêu
+### GET /api/goals/{id}
+### =====================================================
+
+### 3.1. Lấy chi tiết mục tiêu hợp lệ
+GET {{baseUrl}}/goals/{{goalId}}
+Authorization: {{token}}
+
+### 3.2. Lấy mục tiêu không tồn tại
+GET {{baseUrl}}/goals/99999
+Authorization: {{token}}
+
+### 3.3. Lấy mục tiêu của người dùng khác
+GET {{baseUrl}}/goals/1
+Authorization: Bearer <other_user_token>
+
+### =====================================================
+### 4. UPDATE GOAL - Cập nhật mục tiêu
+### PUT /api/goals/{id}
+### =====================================================
+
+### 4.1. Cập nhật tên và mô tả
+PUT {{baseUrl}}/goals/{{goalId}}
+Authorization: {{token}}
+Content-Type: application/json
+
+{
+  "name": "Quỹ dự phòng khẩn cấp (Updated)",
+  "description": "Quỹ dự phòng 8 tháng lương - đã tăng mục tiêu"
+}
+
+### 4.2. Cập nhật target amount và target date
+PUT {{baseUrl}}/goals/{{goalId}}
+Authorization: {{token}}
+Content-Type: application/json
+
+{
+  "targetAmount": 80000000,
+  "targetDate": "2026-06-30"
+}
+
+### 4.3. Cập nhật priority và màu sắc
+PUT {{baseUrl}}/goals/{{goalId}}
+Authorization: {{token}}
+Content-Type: application/json
+
+{
+  "priority": "HIGH",
+  "color": "#FF0000",
+  "icon": "fire"
+}
+
+### 4.4. Bật auto-save
+PUT {{baseUrl}}/goals/{{goalId}}
+Authorization: {{token}}
+Content-Type: application/json
+
+{
+  "autoSaveEnabled": true,
+  "autoSaveAmount": 5000000,
+  "autoSaveFrequency": "MONTHLY",
+  "accountId": 1
+}
+
+### 4.5. Tắt auto-save
+PUT {{baseUrl}}/goals/{{goalId}}
+Authorization: {{token}}
+Content-Type: application/json
+
+{
+  "autoSaveEnabled": false
+}
+
+### 4.6. Cập nhật không hợp lệ: auto-save thiếu thông tin
+PUT {{baseUrl}}/goals/{{goalId}}
+Authorization: {{token}}
+Content-Type: application/json
+
+{
+  "autoSaveEnabled": true,
+  "autoSaveAmount": 1000000
+}
+
+### =====================================================
+### 5. DELETE GOAL - Xóa mục tiêu
+### DELETE /api/goals/{id}
+### =====================================================
+
+### 5.1. Xóa mục tiêu hợp lệ
+DELETE {{baseUrl}}/goals/5
+Authorization: {{token}}
+
+### 5.2. Xóa mục tiêu không tồn tại
+DELETE {{baseUrl}}/goals/99999
+Authorization: {{token}}
+
+### 5.3. Xóa mục tiêu của người dùng khác
+DELETE {{baseUrl}}/goals/1
+Authorization: Bearer <other_user_token>
+
+### =====================================================
+### 6. CONTRIBUTE - Đóng góp vào mục tiêu
+### POST /api/goals/{id}/contribute
+### =====================================================
+
+### 6.1. Đóng góp có ghi chú và source account
+POST {{baseUrl}}/goals/{{goalId}}/contribute
+Authorization: {{token}}
+Content-Type: application/json
+
+{
+  "amount": 5000000,
+  "note": "Tiết kiệm từ lương tháng 1",
+  "sourceAccountId": 1
+}
+
+### 6.2. Đóng góp không có ghi chú
+POST {{baseUrl}}/goals/{{goalId}}/contribute
+Authorization: {{token}}
+Content-Type: application/json
+
+{
+  "amount": 2000000,
+  "sourceAccountId": 2
+}
+
+### 6.3. Đóng góp lớn vượt target
+POST {{baseUrl}}/goals/{{goalId}}/contribute
+Authorization: {{token}}
+Content-Type: application/json
+
+{
+  "amount": 100000000,
+  "note": "Thưởng cuối năm - vượt mục tiêu"
+}
+
+### 6.4. Validation: Amount âm
+POST {{baseUrl}}/goals/{{goalId}}/contribute
+Authorization: {{token}}
+Content-Type: application/json
+
+{
+  "amount": -1000000
+}
+
+### 6.5. Validation: Amount bằng 0
+POST {{baseUrl}}/goals/{{goalId}}/contribute
+Authorization: {{token}}
+Content-Type: application/json
+
+{
+  "amount": 0
+}
+
+### 6.6. Đóng góp vào mục tiêu đã hoàn thành
+POST {{baseUrl}}/goals/3/contribute
+Authorization: {{token}}
+Content-Type: application/json
+
+{
+  "amount": 1000000
+}
+
+### =====================================================
+### 7. GET PROGRESS - Lấy tiến độ mục tiêu
+### GET /api/goals/{id}/progress
+### =====================================================
+
+### 7.1. Lấy progress của mục tiêu đang thực hiện
+GET {{baseUrl}}/goals/{{goalId}}/progress
+Authorization: {{token}}
+
+### 7.2. Lấy progress của mục tiêu đã hoàn thành
+GET {{baseUrl}}/goals/3/progress
+Authorization: {{token}}
+
+### 7.3. Lấy progress của mục tiêu có milestones
+GET {{baseUrl}}/goals/1/progress
+Authorization: {{token}}
+
+### 7.4. Lấy progress mục tiêu không tồn tại
+GET {{baseUrl}}/goals/99999/progress
+Authorization: {{token}}
+
+### =====================================================
+### 8. CREATE MILESTONE - Tạo mốc quan trọng
+### POST /api/goals/{id}/milestones
+### =====================================================
+
+### 8.1. Tạo milestone 25%
+POST {{baseUrl}}/goals/{{goalId}}/milestones
+Authorization: {{token}}
+Content-Type: application/json
+
+{
+  "name": "Đạt 1/4 mục tiêu",
+  "percentage": 25,
+  "reward": "Ăn buffet để ăn mừng"
+}
+
+### 8.2. Tạo milestone 50%
+POST {{baseUrl}}/goals/{{goalId}}/milestones
+Authorization: {{token}}
+Content-Type: application/json
+
+{
+  "name": "Đạt nửa chặng đường",
+  "percentage": 50,
+  "reward": "Mua quà tặng bản thân"
+}
+
+### 8.3. Tạo milestone 75%
+POST {{baseUrl}}/goals/{{goalId}}/milestones
+Authorization: {{token}}
+Content-Type: application/json
+
+{
+  "name": "Gần đến đích rồi!",
+  "percentage": 75,
+  "reward": "Đi xem phim"
+}
+
+### 8.4. Tạo milestone 100%
+POST {{baseUrl}}/goals/{{goalId}}/milestones
+Authorization: {{token}}
+Content-Type: application/json
+
+{
+  "name": "Hoàn thành mục tiêu!",
+  "percentage": 100,
+  "reward": "Đi du lịch cuối tuần"
+}
+
+### 8.5. Validation: Percentage không hợp lệ (> 100)
+POST {{baseUrl}}/goals/{{goalId}}/milestones
+Authorization: {{token}}
+Content-Type: application/json
+
+{
+  "name": "Invalid",
+  "percentage": 150
+}
+
+### 8.6. Validation: Percentage không hợp lệ (≤ 0)
+POST {{baseUrl}}/goals/{{goalId}}/milestones
+Authorization: {{token}}
+Content-Type: application/json
+
+{
+  "name": "Invalid",
+  "percentage": 0
+}
+
+### 8.7. Validation: Thiếu tên milestone
+POST {{baseUrl}}/goals/{{goalId}}/milestones
+Authorization: {{token}}
+Content-Type: application/json
+
+{
+  "percentage": 50
+}
+
+### =====================================================
+### 9. COMPLETE GOAL - Đánh dấu hoàn thành
+### PUT /api/goals/{id}/complete
+### =====================================================
+
+### 9.1. Hoàn thành mục tiêu với ghi chú
+PUT {{baseUrl}}/goals/{{goalId}}/complete
+Authorization: {{token}}
+Content-Type: application/json
+
+{
+  "completedNote": "Đã đạt được mục tiêu trước thời hạn!",
+  "actualAmountUsed": 48000000
+}
+
+### 9.2. Hoàn thành mục tiêu không có ghi chú
+PUT {{baseUrl}}/goals/2/complete
+Authorization: {{token}}
+Content-Type: application/json
+
+{
+  "actualAmountUsed": 45000000
+}
+
+### 9.3. Hoàn thành mục tiêu chưa đủ số tiền (force complete)
+PUT {{baseUrl}}/goals/4/complete
+Authorization: {{token}}
+Content-Type: application/json
+
+{
+  "completedNote": "Quyết định hoàn thành sớm dù chưa đủ tiền",
+  "actualAmountUsed": 20000000
+}
+
+### 9.4. Validation: Actual amount âm
+PUT {{baseUrl}}/goals/{{goalId}}/complete
+Authorization: {{token}}
+Content-Type: application/json
+
+{
+  "actualAmountUsed": -1000000
+}
+
+### 9.5. Hoàn thành mục tiêu đã complete rồi
+PUT {{baseUrl}}/goals/3/complete
+Authorization: {{token}}
+Content-Type: application/json
+
+{
+  "completedNote": "Already completed"
+}
+
+### =====================================================
+### 10. GET SUMMARY - Tổng quan mục tiêu
+### GET /api/goals/summary
+### =====================================================
+
+### 10.1. Lấy tổng quan tất cả mục tiêu
+GET {{baseUrl}}/goals/summary
+Authorization: {{token}}
+
+### 10.2. Kiểm tra summary khi chưa có mục tiêu nào
+GET {{baseUrl}}/goals/summary
+Authorization: Bearer <new_user_token>
+
+### =====================================================
+### ADDITIONAL TEST SCENARIOS
+### =====================================================
+
+### Test concurrent contributions
+POST {{baseUrl}}/goals/1/contribute
+Authorization: {{token}}
+Content-Type: application/json
+
+{
+  "amount": 1000000,
+  "note": "Contribution 1"
+}
+
+###
+POST {{baseUrl}}/goals/1/contribute
+Authorization: {{token}}
+Content-Type: application/json
+
+{
+  "amount": 2000000,
+  "note": "Contribution 2"
+}
+
+### Test milestone auto-achievement
+GET {{baseUrl}}/goals/1/progress
+Authorization: {{token}}
+
+### Test overdue goals
+GET {{baseUrl}}/goals?status=IN_PROGRESS
+Authorization: {{token}}
+
+### Test sorting by remaining amount
+GET {{baseUrl}}/goals?sort=targetAmount&sort=currentAmount,desc
+Authorization: {{token}}
+
+### Test full workflow: Create -> Contribute -> Add Milestones -> Complete
+# Step 1: Create
+POST {{baseUrl}}/goals
+Authorization: {{token}}
+Content-Type: application/json
+
+{
+  "name": "Test Workflow Goal",
+  "goalType": "PURCHASE",
+  "targetAmount": 10000000,
+  "currencyCode": "VND",
+  "targetDate": "2025-12-31",
+  "priority": "MEDIUM"
+}
+
+# Step 2: Get ID and contribute (use returned ID)
+POST {{baseUrl}}/goals/10/contribute
+Authorization: {{token}}
+Content-Type: application/json
+
+{
+  "amount": 5000000,
+  "note": "First contribution"
+}
+
+# Step 3: Add milestones
+POST {{baseUrl}}/goals/10/milestones
+Authorization: {{token}}
+Content-Type: application/json
+
+{
+  "name": "Halfway there",
+  "percentage": 50
+}
+
+# Step 4: Contribute more
+POST {{baseUrl}}/goals/10/contribute
+Authorization: {{token}}
+Content-Type: application/json
+
+{
+  "amount": 5000000,
+  "note": "Final contribution"
+}
+
+# Step 5: Complete
+PUT {{baseUrl}}/goals/10/complete
+Authorization: {{token}}
+Content-Type: application/json
+
+{
+  "completedNote": "Successfully completed test workflow",
+  "actualAmountUsed": 10000000
+}
+
+# Step 6: Verify completion
+GET {{baseUrl}}/goals/10
+Authorization: {{token}}
+
+### =====================================================
+### END OF TESTS
+### =====================================================

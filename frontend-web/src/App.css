@@ -25,20 +25,29 @@
 .brand {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 2px 9px 28px;
+  gap: 12px;
+  padding: 2px 9px 24px;
   color: inherit;
   text-decoration: none;
 }
 
 .brand-mark {
-  display: grid;
-  width: 40px;
-  height: 40px;
-  place-items: center;
-  border-radius: 12px;
-  background: #07543f;
-  color: #c7f4df;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  background: transparent;
+  flex-shrink: 0;
+  overflow: hidden;
+}
+
+.brand-mark img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
 }
 
 .brand strong,
@@ -49,14 +58,16 @@
 }
 
 .brand strong {
-  font-size: 17px;
-  line-height: 20px;
+  font-size: 19px;
+  font-weight: 800;
+  line-height: 22px;
+  letter-spacing: -0.01em;
 }
 
 .brand small {
   margin-top: 2px;
   color: var(--green);
-  font-size: 9px;
+  font-size: 10px;
   font-weight: 700;
   letter-spacing: 1.6px;
 }
@@ -1135,20 +1146,21 @@
 
 .toast {
   position: fixed;
-  z-index: 10;
-  right: 24px;
-  bottom: 24px;
+  z-index: 9999;
+  bottom: 28px;
+  right: 86px;
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 12px 12px 12px 14px;
-  border: 1px solid #d8e8de;
-  border-radius: 8px;
-  background: #fff;
-  box-shadow: 0 10px 30px rgb(22 45 33 / 12%);
-  color: #304338;
-  font-size: 12px;
-  animation: toast-in 180ms ease-out;
+  padding: 11px 16px;
+  border: 1px solid #c8e6d4;
+  border-radius: 14px;
+  background: #ffffff;
+  box-shadow: 0 10px 30px -4px rgba(7, 84, 63, 0.16);
+  color: #14251f;
+  font-size: 13px;
+  font-weight: 500;
+  animation: toast-in 220ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .toast-check {
@@ -1158,19 +1170,26 @@
   place-items: center;
   border-radius: 50%;
   background: #e3f4e9;
-  color: #12794f;
+  color: #07543f;
   font-weight: 700;
+  font-size: 12px;
+  flex-shrink: 0;
 }
 
 .toast button {
   margin-left: 8px;
-  padding: 0 3px;
+  padding: 0 4px;
   border: 0;
   background: transparent;
-  color: #829087;
+  color: #94a39b;
   cursor: pointer;
   font: inherit;
   font-size: 18px;
+  line-height: 1;
+}
+
+.toast button:hover {
+  color: #14251f;
 }
 
 .mobile-nav {
@@ -1486,6 +1505,7 @@
   }
 
   .toast {
+    top: auto;
     right: 14px;
     bottom: 82px;
     left: 14px;
@@ -1493,3 +1513,560 @@
     font-size: 11px;
   }
 }
+
+/* ==========================================================================
+   THEME TOGGLE BUTTON & DARK MODE STYLING
+   ========================================================================== */
+
+.theme-toggle-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: transform 0.2s ease, background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+}
+
+.theme-toggle-btn:hover {
+  transform: rotate(15deg) scale(1.05);
+}
+
+.theme-toggle-btn:active {
+  transform: scale(0.95);
+}
+
+/* --- LUXURY DEEP NAVY BLUE DARK MODE (Tông xanh dương thẫm chuẩn ảnh mẫu) --- */
+html.dark,
+html[data-theme='dark'],
+.dark .finance-app {
+  --ink: #e2e8f0;
+  --muted: #8fa7b7;
+  --line: #162c3b;
+  --green: #10b981;
+  --green-dark: #0f766e;
+  --mint: #0c273b;
+  background: #07131d;
+  color: #cbd5e1;
+}
+
+html.dark {
+  background: #07131d;
+}
+
+html.dark body {
+  background: #07131d;
+  color: #cbd5e1;
+}
+
+/* Topbar in Dark Mode: Xanh dương đêm mờ ảo */
+html.dark .topbar {
+  background: rgba(8, 22, 33, 0.94);
+  border-bottom-color: #142a38;
+}
+
+html.dark .header-page-title {
+  color: #e2eaf0;
+}
+
+html.dark .topbar p {
+  color: #8da6b8;
+}
+
+html.dark .icon-button {
+  background: #0d2130;
+  border-color: #173246;
+  color: #8da6b8;
+}
+
+html.dark .icon-button:hover {
+  background: #122b3e;
+  color: #38bdf8;
+  border-color: #1e425c;
+}
+
+html.dark .notification-button i {
+  border-color: #0d2130;
+}
+
+/* Sidebar in Dark Mode: Xanh navy thẫm đồng nhất */
+html.dark .sidebar {
+  background: #091722;
+  border-right-color: #142a38;
+}
+
+html.dark .brand strong {
+  color: #e2eaf0;
+}
+
+html.dark .nav-caption {
+  color: #557288;
+}
+
+html.dark .nav-item {
+  color: #8da6b8;
+}
+
+html.dark .nav-item:hover {
+  background: #0f2434;
+  color: #e2eaf0;
+}
+
+/* Nút Active trong Dark Mode: Tông xanh ngọc biển êm mắt */
+html.dark .nav-item.active {
+  background: #0f494c;
+  color: #e6f6ee;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.35);
+}
+
+html.dark .nav-item.active svg {
+  color: #5eead4;
+}
+
+html.dark .sidebar-user {
+  border-top-color: #142a38;
+}
+
+html.dark .sidebar-user strong {
+  color: #e2eaf0;
+}
+
+html.dark .sidebar-user small {
+  color: #8da6b8;
+}
+
+html.dark .upgrade-card {
+  background: linear-gradient(145deg, #0e2434, #0a1b27);
+  border-color: #18374d;
+}
+
+html.dark .upgrade-card strong {
+  color: #e2eaf0;
+}
+
+html.dark .upgrade-card p {
+  color: #8da6b8;
+}
+
+/* Panels and Cards in Dark Mode */
+html.dark .panel,
+html.dark .summary-card,
+html.dark .account-card,
+html.dark .budget-card,
+html.dark .goal-card,
+html.dark .reminder-card,
+html.dark .report-card {
+  background: #0b1d2a;
+  border-color: #163042;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+  color: #cbd5e1;
+}
+
+html.dark .summary-card:not(.balance-card) .summary-amount {
+  color: #e2eaf0;
+}
+
+html.dark .summary-label {
+  color: #8da6b8;
+}
+
+html.dark .summary-icon {
+  background: #11293a;
+  color: #38bdf8;
+}
+
+html.dark .panel-heading h2,
+html.dark .section-heading h2 {
+  color: #e2eaf0;
+}
+
+html.dark .panel-heading p {
+  color: #8da6b8;
+}
+
+html.dark .chart-plot {
+  border-bottom-color: #18374d;
+}
+
+html.dark .chart-gridline {
+  border-top-color: #132a3a;
+}
+
+html.dark .chart-y-labels {
+  color: #648196;
+}
+
+html.dark .chart-legend {
+  color: #8da6b8;
+}
+
+html.dark .search-box {
+  background: #0d2130;
+  border-color: #173246;
+  color: #8da6b8;
+}
+
+html.dark .search-box input {
+  color: #e2eaf0;
+}
+
+html.dark .search-box input::placeholder {
+  color: #557288;
+}
+
+html.dark .month-picker {
+  background: #0d2130;
+  border-color: #173246;
+  color: #8da6b8;
+}
+
+html.dark .month-picker select {
+  color: #cbd5e1;
+  background: #0d2130;
+}
+
+/* Tables and Lists in Dark Mode */
+html.dark table th {
+  background: #0d2130;
+  color: #8da6b8;
+  border-color: #173246;
+}
+
+html.dark table td {
+  border-color: #142a38;
+  color: #cbd5e1;
+}
+
+html.dark .transaction-row {
+  border-color: #142a38;
+}
+
+html.dark .transaction-row:hover {
+  background: #102637;
+}
+
+html.dark .transaction-info strong {
+  color: #e2eaf0;
+}
+
+html.dark .transaction-info small {
+  color: #8da6b8;
+}
+
+/* User Greeting & Dropdown in Dark Mode */
+html.dark .greeting-headline {
+  color: #e2eaf0;
+}
+
+html.dark .greeting-sub-meta {
+  color: #7b99ad;
+}
+
+html.dark .user-tier-badge {
+  background: #0a3540;
+  border-color: #115e59;
+  color: #5eead4;
+}
+
+html.dark .user-profile-menu-dropdown {
+  background: #0d2232;
+  border-color: #18384f;
+  box-shadow: 0 16px 36px -8px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255, 255, 255, 0.04);
+}
+
+html.dark .menu-user-name {
+  color: #e2eaf0;
+}
+
+html.dark .menu-user-email {
+  color: #8da6b8;
+}
+
+html.dark .menu-divider {
+  background: #17354a;
+}
+
+html.dark .menu-item-row {
+  color: #cbd5e1;
+}
+
+html.dark .menu-item-icon {
+  color: #7b99ad;
+}
+
+html.dark .menu-item-row:hover {
+  background: #132f44;
+  color: #38bdf8;
+}
+
+html.dark .menu-item-row:hover .menu-item-icon {
+  color: #38bdf8;
+}
+
+html.dark .profile-hero-card,
+html.dark .profile-card-layout {
+  background: #0b1d2a;
+  border-color: #163042;
+}
+
+html.dark .profile-hero-meta h2 {
+  color: #e2eaf0 !important;
+}
+
+html.dark .profile-input-group label {
+  color: #cbd5e1;
+}
+
+html.dark .profile-input-group input,
+html.dark .profile-input-group select {
+  background: #0d2130;
+  border-color: #173246;
+  color: #e2eaf0;
+}
+
+html.dark .profile-input-group input:disabled {
+  background: #081721;
+  color: #557288;
+  border-color: #112433;
+}
+
+html.dark .tag-verified {
+  background: #06281e !important;
+  color: #10b981 !important;
+  border-color: #0d4d38 !important;
+}
+
+html.dark .tag-tier {
+  background: #2a1c07 !important;
+  color: #fbbf24 !important;
+  border-color: #573a0e !important;
+}
+
+html.dark .tag-user-id {
+  color: #7b96a8 !important;
+}
+
+html.dark .btn-upload-text {
+  background: #0e2738 !important;
+  color: #38bdf8 !important;
+  border-color: #163f5c !important;
+}
+
+html.dark .btn-upload-text:hover {
+  background: #12334a !important;
+  color: #e2eaf0 !important;
+}
+
+html.dark .btn-remove-avatar {
+  color: #f87171 !important;
+}
+
+html.dark .btn-remove-avatar:hover {
+  color: #fca5a5 !important;
+}
+
+
+/* --- TOÀN BỘ MÀN HÌNH CHỨC NĂNG (Add Transaction, Budget, Wallets, etc.) TRONG DARK MODE --- */
+
+/* Nền màn hình chính: than chì xám nhẹ, không tối thui cũng không tương phản gắt */
+html.dark main,
+html.dark .main-shell {
+  background-color: #060e15 !important;
+  color: #cbd5e1 !important;
+}
+
+/* Các khung card bên trong: Tông Deep Navy đậm hơn, sâu và liền mạch (#0a1722) */
+html.dark main .bg-white,
+html.dark .main-shell .bg-white,
+html.dark [class*="bg-[#f6f8f6]"],
+html.dark [class*="bg-[#f9fbf9]"] {
+  background-color: #0a1722 !important;
+  color: #cbd5e1;
+}
+
+/* Giữ nguyên màu nền banner trên cùng của trang Thêm giao dịch như ban đầu (sáng) */
+
+html.dark main .border-\[\#e2ece5\],
+html.dark main .border-\[\#d5ded8\],
+html.dark main .border-\[\#edf2ee\],
+html.dark main .border-\[\#edf0ed\],
+html.dark main .divide-\[\#edf2ee\] > * + *,
+html.dark main .border-\[\#cbe0d3\] {
+  border-color: #122432 !important;
+}
+
+/* Màu chữ tiêu đề & nội dung chính: màu xanh xám nhạt dịu mắt (như màu chữ Tiền mặt) */
+html.dark main .text-\[\#14251f\],
+html.dark main .text-\[\#14261e\],
+html.dark main .text-\[\#17261f\],
+html.dark main .text-\[\#1c2c23\],
+html.dark main h1,
+html.dark main h2,
+html.dark main h3,
+html.dark main h4,
+html.dark .header-page-title,
+html.dark .brand strong,
+html.dark .sidebar-user strong,
+html.dark .upgrade-card strong {
+  color: #9cb1c1 !important;
+}
+
+/* Số tiền lớn trên banner: chữ trắng bạc sáng rõ */
+html.dark #hero-amount-input {
+  color: #f8fafc !important;
+}
+
+/* 2 dòng trên banner (nhãn "SỐ TIỀN MUỐN CHI" và ký hiệu tiền tệ "₫") chuyển qua màu xanh tươi hơn */
+html.dark [class*="text-emerald-200"],
+html.dark [class*="text-emerald-300"],
+html.dark .text-emerald-200,
+html.dark .text-emerald-300 {
+  color: #34d399 !important;
+}
+
+/* 2 dòng "Số dư còn lại dự kiến" và nút "Xem tất cả →" cùng các số tiền xanh dương/xanh lá sáng tươi như +50.000đ */
+html.dark main .text-\[\#07543f\],
+html.dark main [class*="text-[#07543f]"],
+html.dark main button.text-\[\#07543f\] {
+  color: #10b981 !important;
+}
+
+html.dark main .text-emerald-600 {
+  color: #10b981 !important;
+}
+
+html.dark main .text-blue-600 {
+  color: #3b82f6 !important;
+}
+
+html.dark main .text-rose-600 {
+  color: #f43f5e !important;
+}
+
+/* Chữ trắng trên banner và các nút preset chuyển sang màu xanh xám nhạt như chữ 'Tiền mặt' */
+html.dark .rounded-full.border.border-white\/20.bg-white\/10,
+html.dark .rounded-xl.bg-white\/10 button:not(.bg-white),
+html.dark button[title*="Tự động nhận diện"],
+html.dark .bg-white\/15 {
+  color: #9cb1c1 !important;
+}
+
+/* Các nhãn phụ, ngày giờ, số dư nhỏ: màu xanh xám khói */
+html.dark main .text-\[\#718579\],
+html.dark main .text-\[\#77837b\],
+html.dark main .text-\[\#68786e\],
+html.dark main .text-\[\#869189\],
+html.dark main .text-\[\#89958e\],
+html.dark main .text-gray-500,
+html.dark .topbar p,
+html.dark .greeting-sub-meta {
+  color: #7b96a8 !important;
+}
+
+/* Tên người dùng góc trên bên phải */
+html.dark .greeting-headline {
+  color: #d8e5ee !important;
+}
+
+/* Input, Select và Button lựa chọn trong màn hình con: Đậm đà, chìm vào nền card */
+html.dark main input:not(#hero-amount-input),
+html.dark main select,
+html.dark main textarea {
+  background-color: #0c1c28 !important;
+  border-color: #142a3a !important;
+  color: #d8e5ee !important;
+}
+
+html.dark main input::placeholder,
+html.dark main textarea::placeholder {
+  color: #4b667a !important;
+}
+
+/* Dropdown list (như chọn ví, chọn danh mục) */
+html.dark main .rounded-2xl.border.bg-white,
+html.dark main [class*="shadow-2xl"] {
+  background-color: #0c1c28 !important;
+  border-color: #162f42 !important;
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.55) !important;
+}
+
+/* Các vùng phụ màu xám/xanh sáng trong Form (như hàng Lặp lại hàng tháng, Đính kèm ảnh hóa đơn) */
+html.dark main [class*="bg-[#f8faf8]"],
+html.dark main [class*="bg-[#f2faf6]"] {
+  background-color: #0d1e2b !important;
+  border-color: #142a3a !important;
+}
+
+/* Nút đính kèm ảnh hóa đơn */
+html.dark main button[class*="border-[#cbe0d3]"] {
+  background-color: #102738 !important;
+  border-color: #193c54 !important;
+  color: #38bdf8 !important;
+}
+
+/* Các nút phụ ở footer: Hủy, Lưu & Tiếp tục thêm */
+html.dark main button.bg-gray-100 {
+  background-color: #102332 !important;
+  color: #cbd5e1 !important;
+}
+
+html.dark main button.bg-gray-100:hover {
+  background-color: #162f44 !important;
+}
+
+html.dark main button[class*="bg-[#e3f4e9]"] {
+  background-color: #0b343c !important;
+  color: #5eead4 !important;
+}
+
+html.dark main button[class*="bg-[#e3f4e9]"]:hover {
+  background-color: #0e444e !important;
+}
+
+/* Các nút FAB nổi tròn ở góc dưới bên phải (Floating Action Buttons) */
+html.dark .fab-scanner {
+  background: #0c1c28 !important;
+  border-color: #162f42 !important;
+  color: #38bdf8 !important;
+}
+
+html.dark .fab-ai {
+  background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%) !important;
+  color: #ffffff !important;
+}
+
+html.dark .fab-primary.fab-add {
+  background: linear-gradient(135deg, #0d9488 0%, #0f766e 100%) !important;
+  color: #ffffff !important;
+}
+
+html.dark .fab-tooltip {
+  background: rgba(6, 14, 21, 0.96) !important;
+  color: #cbd5e1 !important;
+  border: 1px solid #162f42;
+}
+
+/* Hộp icon ví nguồn và ví đích nhận trong trang Thêm giao dịch: Tông dark navy dịu mắt, icon màu tươi rõ */
+html.dark main .bg-sky-50 {
+  background-color: #082338 !important;
+  border-color: #0f466d !important;
+  color: #38bdf8 !important;
+}
+
+html.dark main .text-sky-700,
+html.dark main .text-sky-800 {
+  color: #38bdf8 !important;
+}
+
+html.dark main .bg-emerald-50 {
+  background-color: #08281e !important;
+  border-color: #11503c !important;
+  color: #10b981 !important;
+}
+
+html.dark main .bg-gray-100.text-gray-700 {
+  background-color: #0f2738 !important;
+  color: #9cb1c1 !important;
+}
+
+
+
+

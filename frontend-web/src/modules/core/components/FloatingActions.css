@@ -1,0 +1,125 @@
+/* Floating Action Buttons (FAB) at Bottom Right */
+.floating-actions-dock {
+  position: fixed;
+  bottom: 28px;
+  right: 28px;
+  z-index: 99;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+
+.fab-item {
+  position: relative;
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 14px rgba(7, 43, 33, 0.16);
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  outline: none;
+}
+
+.fab-item:hover {
+  transform: translateY(-2px) scale(1.06);
+}
+
+.fab-item:active {
+  transform: translateY(0) scale(0.96);
+}
+
+/* Tooltip on hover */
+.fab-tooltip {
+  position: absolute;
+  right: calc(100% + 10px);
+  background: rgba(14, 38, 30, 0.92);
+  color: #ffffff;
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 11.5px;
+  font-weight: 600;
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  transform: translateX(6px);
+  transition: all 0.2s ease;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.fab-tooltip::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 100%;
+  transform: translateY(-50%);
+  border-width: 4px;
+  border-style: solid;
+  border-color: transparent transparent transparent rgba(14, 38, 30, 0.92);
+}
+
+.fab-item:hover .fab-tooltip {
+  opacity: 1;
+  transform: translateX(0);
+}
+
+/* Specific button appearances */
+.fab-scanner {
+  background: #ffffff;
+  color: #07543f;
+  border: 1.5px solid #d7e4dc;
+}
+
+.fab-scanner:hover {
+  background: #f2faf6;
+  border-color: #07543f;
+  box-shadow: 0 6px 18px rgba(7, 84, 63, 0.25);
+}
+
+.fab-ai {
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  color: #ffffff;
+}
+
+.fab-ai:hover {
+  box-shadow: 0 6px 18px rgba(16, 185, 129, 0.4);
+}
+
+.fab-primary.fab-add {
+  width: 42px;
+  height: 42px;
+  background: linear-gradient(135deg, #07543f 0%, #04392a 100%);
+  color: #ffffff;
+  box-shadow: 0 4px 14px rgba(7, 84, 63, 0.3);
+}
+
+.fab-primary.fab-add:hover {
+  background: linear-gradient(135deg, #098865 0%, #07543f 100%);
+  box-shadow: 0 6px 20px rgba(7, 84, 63, 0.4);
+}
+
+@media (max-width: 768px) {
+  .floating-actions-dock {
+    bottom: 80px;
+    right: 18px;
+    gap: 10px;
+  }
+
+  .fab-item {
+    width: 44px;
+    height: 44px;
+  }
+
+  .fab-primary.fab-add {
+    width: 50px;
+    height: 50px;
+  }
+
+  .fab-tooltip {
+    display: none;
+  }
+}

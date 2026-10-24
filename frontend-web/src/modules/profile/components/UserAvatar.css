@@ -1,0 +1,253 @@
+/* User Area in Topbar */
+.topbar-user-area {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.topbar-greeting-box {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  text-align: left;
+  line-height: 1.3;
+}
+
+.topbar-greeting-primary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.greeting-headline {
+  font-size: 15px;
+  font-weight: 800;
+  color: #0f271f;
+  letter-spacing: -0.02em;
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.user-tier-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: #ecfdf5;
+  border: 1px solid #a7f3d0;
+  color: #065f46;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.2;
+  white-space: nowrap;
+  box-shadow: 0 1px 2px rgba(16, 185, 129, 0.08);
+}
+
+.user-tier-icon {
+  font-size: 11px;
+}
+
+.greeting-sub-meta {
+  margin: 2px 0 0;
+  font-size: 11.5px;
+  color: #71847a;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-weight: 500;
+}
+
+.greeting-dot {
+  opacity: 0.6;
+}
+
+.greeting-status-highlight {
+  color: #087557;
+  font-weight: 600;
+}
+
+/* Avatar Button: Clean, round, only this is clickable */
+.avatar-interactive-trigger {
+  background: transparent;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  border-radius: 50%;
+  outline: none;
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.avatar-interactive-trigger:hover {
+  transform: scale(1.08);
+}
+
+.avatar-interactive-trigger:active {
+  transform: scale(0.96);
+}
+
+/* Enlarged high-definition avatar circle */
+.avatar-circle-lg {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #07543f 0%, #10b981 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #ffffff;
+  font-weight: 800;
+  font-size: 17px;
+  overflow: hidden;
+  border: 2.5px solid #ffffff;
+  box-shadow: 0 4px 14px rgba(7, 84, 63, 0.22);
+  flex-shrink: 0;
+}
+
+.avatar-circle-lg img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* Dropdown positioning */
+.avatar-dropdown-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.avatar-interactive-trigger.is-active {
+  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.35);
+  border-radius: 50%;
+}
+
+/* Glassmorphic Dropdown Menu */
+.user-profile-menu-dropdown {
+  position: absolute;
+  top: calc(100% + 10px);
+  right: 0;
+  width: 240px;
+  background: #ffffff;
+  border-radius: 16px;
+  border: 1px solid #e5ece8;
+  box-shadow: 0 16px 36px -8px rgba(15, 39, 31, 0.18), 0 0 0 1px rgba(0, 0, 0, 0.03);
+  padding: 8px 6px;
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  animation: menuDropFade 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes menuDropFade {
+  from {
+    opacity: 0;
+    transform: translateY(-8px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.menu-user-brief {
+  padding: 8px 12px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.menu-user-name {
+  font-size: 13.5px;
+  font-weight: 700;
+  color: #142921;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.menu-user-email {
+  font-size: 11.5px;
+  color: #71847a;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.menu-divider {
+  height: 1px;
+  background: #f0f4f1;
+  margin: 4px 6px;
+}
+
+.menu-item-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 9px 12px;
+  border: none;
+  background: transparent;
+  border-radius: 10px;
+  color: #244034;
+  font-size: 13.5px;
+  font-weight: 600;
+  cursor: pointer;
+  text-align: left;
+  transition: all 0.15s ease;
+}
+
+.menu-item-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #557264;
+  transition: color 0.15s ease;
+}
+
+.menu-item-row:hover {
+  background: #f1f7f4;
+  color: #07543f;
+}
+
+.menu-item-row:hover .menu-item-icon {
+  color: #07543f;
+}
+
+.menu-item-row.logout-item {
+  color: #a83232;
+}
+
+.menu-item-row.logout-item .menu-item-icon {
+  color: #a83232;
+}
+
+.menu-item-row.logout-item:hover {
+  background: #fef2f2;
+  color: #b91c1c;
+}
+
+.menu-item-row.logout-item:hover .menu-item-icon {
+  color: #b91c1c;
+}
+
+@media (max-width: 640px) {
+  .topbar-greeting-box {
+    display: none;
+  }
+  
+  .avatar-circle-lg {
+    width: 42px;
+    height: 42px;
+  }
+
+  .user-profile-menu-dropdown {
+    right: -6px;
+    width: 220px;
+  }
+}

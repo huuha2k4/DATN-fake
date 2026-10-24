@@ -1,0 +1,239 @@
+/* GoalsManagementScreen.css - Luxury Fintech & Dark Mode Styling */
+
+.goals-management-page {
+  animation: fadeIn 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Card số liệu tổng quan */
+.goal-stat-card {
+  position: relative;
+  background: #ffffff;
+  border-radius: 20px;
+  border: 1px solid #e7ece8;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  min-height: 140px;
+  box-shadow: 0 4px 18px -4px rgba(18, 38, 30, 0.05);
+  transition: all 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.goal-stat-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 24px -6px rgba(18, 38, 30, 0.08);
+  border-color: #cbdad0;
+}
+
+/* Nút Tạo mục tiêu mới */
+.btn-goal-create {
+  height: 38px !important;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 12px;
+  padding: 0 16px;
+  font-size: 12px;
+  font-weight: 600;
+  transition: all 0.2s ease;
+}
+
+/* Card 3 Gradient - FinAI Dự báo */
+.goal-hero-card {
+  position: relative;
+  background: linear-gradient(135deg, #053b2d 0%, #07543f 55%, #0b6c52 100%);
+  border-radius: 20px;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  min-height: 140px;
+  color: #ffffff;
+  box-shadow: 0 10px 28px -6px rgba(7, 84, 63, 0.32);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  overflow: hidden;
+}
+
+/* Thẻ từng mục tiêu tài chính */
+.goal-item-card {
+  position: relative;
+  background: #ffffff;
+  border-radius: 20px;
+  border: 1px solid #e7ece8;
+  padding: 20px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.03);
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.goal-item-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px -4px rgba(7, 84, 63, 0.1);
+  border-color: rgba(7, 84, 63, 0.4);
+}
+
+/* --- DARK MODE STYLES --- */
+html.dark .goals-management-page {
+  background-color: #060e15 !important;
+  color: #cbd5e1 !important;
+}
+
+html.dark .goal-stat-card,
+html.dark .goal-item-card {
+  background-color: #0a1722 !important;
+  border-color: #122432 !important;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4) !important;
+}
+
+html.dark .goal-item-card:hover {
+  background-color: #0e1f2d !important;
+  border-color: #1a3c54 !important;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.5) !important;
+}
+
+/* Tiêu đề & Chữ */
+html.dark .goals-management-page h1,
+html.dark .goals-management-page h2,
+html.dark .goal-item-title {
+  color: #e2eaf0 !important;
+}
+
+html.dark .goal-stat-card p.text-2xl:not(.goal-saved-amount):not(.goal-missing-amount) {
+  color: #e2eaf0 !important;
+}
+
+html.dark .goal-saved-amount {
+  color: #10b981 !important;
+}
+
+html.dark .goal-missing-amount {
+  color: #f43f5e !important;
+}
+
+html.dark .goal-stat-card p.text-\[\#718078\],
+html.dark .goal-item-sub,
+html.dark .goals-management-page p.text-\[\#718078\] {
+  color: #8da4b4 !important;
+}
+
+/* Card 3 Gradient Hero */
+html.dark .goal-hero-card {
+  background: linear-gradient(135deg, #072620 0%, #0a3d32 60%, #064032 100%) !important;
+  border-color: #114c3e !important;
+}
+
+html.dark .goal-hero-card .bg-white\/10 {
+  background-color: rgba(255, 255, 255, 0.08) !important;
+  color: #34d399 !important;
+}
+
+/* Thanh ray tiến độ */
+html.dark .goal-progress-track {
+  background-color: #102332 !important;
+}
+
+/* Cụm bộ lọc Filter pill */
+html.dark .goal-filter-box {
+  background-color: #0c1c28 !important;
+  border: 1px solid #162f42 !important;
+}
+
+html.dark .goal-filter-box button.is-active {
+  background: #0d6d4d !important;
+  color: #ffffff !important;
+  border: 1px solid #148a63 !important;
+}
+
+html.dark .goal-filter-box button:not(.is-active) {
+  color: #7b96a8 !important;
+}
+
+html.dark .goal-filter-box button:not(.is-active):hover {
+  background-color: #122838 !important;
+  color: #e2eaf0 !important;
+}
+
+/* Nút Tạo mục tiêu mới */
+html.dark .btn-goal-create {
+  background: #0d6d4d !important;
+  color: #e6f6ee !important;
+  border: 1px solid #148a63 !important;
+}
+
+html.dark .btn-goal-create:hover {
+  background: #11815b !important;
+  border-color: #1aa074 !important;
+  color: #ffffff !important;
+}
+
+/* Nút Nạp thêm tiền */
+html.dark .btn-goal-deposit {
+  background-color: #0d6d4d !important;
+  border: 1px solid #148a63 !important;
+  color: #ffffff !important;
+}
+
+html.dark .btn-goal-deposit:hover {
+  background-color: #11815b !important;
+  border-color: #1aa074 !important;
+}
+
+/* Nút Chi tiết / Sửa */
+html.dark .btn-goal-detail {
+  background-color: #102332 !important;
+  border: 1px solid #193c56 !important;
+  color: #cbd5e1 !important;
+}
+
+html.dark .btn-goal-detail:hover {
+  background-color: #16364a !important;
+  color: #ffffff !important;
+}
+
+/* Nút Xóa */
+html.dark .btn-goal-delete {
+  background-color: #1a1014 !important;
+  border-color: #3b1d24 !important;
+  color: #f43f5e !important;
+}
+
+html.dark .btn-goal-delete:hover {
+  background-color: #27141a !important;
+  color: #fb7185 !important;
+}
+
+/* Modal styling */
+html.dark .goal-modal-card {
+  background-color: #0b1d2a !important;
+  border: 1px solid #16364a !important;
+  color: #cbd5e1 !important;
+}
+
+html.dark .goal-modal-card input,
+html.dark .goal-modal-card select,
+html.dark .goal-modal-card textarea {
+  background-color: #071520 !important;
+  border-color: #16364a !important;
+  color: #cbd5e1 !important;
+}
+
+html.dark .goal-modal-card input:focus,
+html.dark .goal-modal-card select:focus,
+html.dark .goal-modal-card textarea:focus {
+  border-color: #10b981 !important;
+}
+
+html.dark .goal-modal-card .goal-modal-box {
+  background-color: #071520 !important;
+  border-color: #132a3a !important;
+}
