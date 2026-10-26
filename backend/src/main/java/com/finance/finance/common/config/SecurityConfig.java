@@ -75,6 +75,8 @@ public class SecurityConfig {
             "http://localhost:*",
             "http://127.0.0.1:*",
             "https://*.ngrok-free.dev",
+            "http://180.93.193.138:*",
+            "htpps://finora.3congian.top",
             "https://*.ngrok-free.app",
             "https://*.ngrok.io",
             "https://*.ngrok.app"
