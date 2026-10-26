@@ -7,6 +7,7 @@ import {
   type TransactionItem 
 } from '../../cash-flow-management/api/transactionApi'
 import { accountApi, type AccountItem } from '../../account-management/api/accountApi'
+import { formatDate } from '../../core/utils/dateUtils'
 
 type Props = { 
   onCancel: () => void; 
@@ -241,13 +242,13 @@ export function AddTransactionScreen({ onCancel, onNotify, onOpenInvoiceScanner 
   }
 
   return (
-    <main className="mx-auto flex min-h-[calc(100vh-64px)] w-full max-w-[1560px] flex-col gap-6 bg-[#f6f8f6] px-4 pb-20 pt-6 text-[#14251f] sm:px-6">
-      {/* Two-Column Responsive Workspace */}
-      <div className="grid gap-6 lg:grid-cols-[minmax(0,1.6fr)_minmax(340px,1fr)] items-start">
-        {/* LEFT COLUMN: Main Form Container */}
-        <div className="overflow-hidden rounded-3xl border border-[#e2ece5] bg-white shadow-xl">
+    <main className="mx-auto flex h-[calc(100vh-68px)] w-full max-w-[1600px] flex-col overflow-hidden bg-[#f6f8f6] p-3 text-[#14251f] sm:p-4">
+      {/* Two-Column Responsive Workspace: Full Height Flex / Grid */}
+      <div className="grid h-full w-full gap-4 md:grid-cols-[minmax(0,1.55fr)_minmax(320px,1fr)] items-stretch">
+        {/* LEFT COLUMN: Main Form Container fills 100% height */}
+        <div className="flex h-full flex-col justify-between overflow-hidden rounded-2xl border border-[#e2ece5] bg-white shadow-md">
         {/* HERO BANNER: Type Toggle & Big Amount Display */}
-        <div className={`relative p-6 sm:p-8 text-white transition-colors duration-300 ${
+        <div className={`relative px-6 py-4 text-white transition-colors duration-300 shrink-0 ${
           type === 'EXPENSE'
             ? 'bg-gradient-to-br from-[#1c2c24] via-[#163a2b] to-[#124230]'
             : type === 'INCOME'
@@ -311,11 +312,11 @@ export function AddTransactionScreen({ onCancel, onNotify, onOpenInvoiceScanner 
           </div>
 
           {/* Large Hero Amount Input */}
-          <div className="mt-6 flex flex-col items-center justify-center">
-            <span className="text-xs sm:text-sm font-bold uppercase tracking-widest text-emerald-200">
+          <div className="mt-3.5 flex flex-col items-center justify-center">
+            <span className="text-xs font-bold uppercase tracking-wider text-emerald-200">
               {type === 'EXPENSE' ? 'Số tiền muốn chi' : type === 'INCOME' ? 'Số tiền nhận được' : 'Số tiền muốn chuyển'}
             </span>
-            <div className="mt-2 flex items-center justify-center">
+            <div className="mt-1.5 flex items-center justify-center">
               <div className="relative inline-flex items-center justify-center">
                 <input
                   id="hero-amount-input"
@@ -329,8 +330,8 @@ export function AddTransactionScreen({ onCancel, onNotify, onOpenInvoiceScanner 
                   }}
                   style={{ 
                     width: `${Math.max(1, (amount ? Number(amount).toLocaleString('vi-VN') : '0').length)}ch`,
-                    fontSize: 'clamp(26px, 3.8vw, 36px)',
-                    lineHeight: '1',
+                    fontSize: 'clamp(28px, 3.2vw, 38px)',
+                    lineHeight: '1.1',
                     outline: 'none',
                     border: 'none',
                     boxShadow: 'none',
@@ -339,7 +340,7 @@ export function AddTransactionScreen({ onCancel, onNotify, onOpenInvoiceScanner 
                   autoFocus
                 />
                 <span 
-                  style={{ fontSize: 'clamp(20px, 2.8vw, 28px)' }} 
+                  style={{ fontSize: 'clamp(20px, 2.4vw, 28px)' }} 
                   className="absolute left-full ml-1.5 font-extrabold text-emerald-300 select-none self-center leading-none"
                 >
                   ₫
@@ -348,13 +349,13 @@ export function AddTransactionScreen({ onCancel, onNotify, onOpenInvoiceScanner 
             </div>
 
             {/* Quick Increment Presets */}
-            <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
+            <div className="mt-2.5 flex flex-wrap items-center justify-center gap-2">
               {presets.map((preset) => (
                 <button
                   key={preset.value}
                   type="button"
                   onClick={() => setAmount(String((Number(amount) || 0) + preset.value))}
-                  className="rounded-full border border-white/20 bg-white/10 px-3 py-1 text-[11px] font-semibold text-white backdrop-blur-sm hover:bg-white/20 hover:scale-105 active:scale-95 transition"
+                  className="rounded-full border border-white/20 bg-white/10 px-3 py-1 text-xs font-semibold text-white backdrop-blur-sm hover:bg-white/20 hover:scale-105 active:scale-95 transition"
                 >
                   {preset.label}
                 </button>
@@ -363,7 +364,7 @@ export function AddTransactionScreen({ onCancel, onNotify, onOpenInvoiceScanner 
                 <button
                   type="button"
                   onClick={() => setAmount('')}
-                  className="rounded-full border border-rose-300/40 bg-rose-500/25 px-3 py-1 text-[11px] font-semibold text-rose-200 backdrop-blur-sm hover:bg-rose-500/40 transition"
+                  className="rounded-full border border-rose-300/40 bg-rose-500/25 px-3 py-1 text-xs font-semibold text-rose-200 backdrop-blur-sm hover:bg-rose-500/40 transition"
                 >
                   Xóa
                 </button>
@@ -372,95 +373,18 @@ export function AddTransactionScreen({ onCancel, onNotify, onOpenInvoiceScanner 
           </div>
         </div>
 
-        {/* FORM BODY */}
-        <form onSubmit={handleSubmit} className="p-6 sm:p-8 flex flex-col gap-6">
-          {/* Row 1: Source Account & Category Selection */}
-          <div className="grid gap-4 sm:grid-cols-2">
-            {/* Account / Wallet Dropdown Picker */}
-            <div className="relative" ref={accountPickerRef}>
-              <label className="mb-1.5 flex items-center justify-between text-xs font-bold text-[#14261e]">
-                <span>{type === 'TRANSFER' ? 'Từ tài khoản (Nguồn)' : 'Nguồn tiền thanh toán'}</span>
-                {selectedAccountObj && (
-                  <span className="text-[11px] font-medium text-[#718579]">
-                    Số dư: <strong className="text-[#07543f]">{formatAmount(selectedAccountObj.balance)} ₫</strong>
-                  </span>
-                )}
-              </label>
-
-              <button
-                type="button"
-                onClick={() => {
-                  setIsAccountPickerOpen((prev) => !prev)
-                  setIsCategoryPickerOpen(false)
-                  setIsToAccountPickerOpen(false)
-                }}
-                className={`flex h-12 w-full items-center justify-between rounded-xl border bg-[#f9fbf9] px-3.5 text-left transition ${
-                  isAccountPickerOpen
-                    ? 'border-[#07543f] bg-white ring-2 ring-[#07543f]/20'
-                    : 'border-[#d5ded8] hover:border-[#b0c2b7]'
-                }`}
-              >
-                <div className="flex items-center gap-3 min-w-0">
-                  <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-emerald-50 text-[#07543f] border border-emerald-100">
-                    <FinanceIcon name="wallet" size={16} />
-                  </span>
-                  <div className="min-w-0">
-                    <p className="truncate text-xs font-bold text-[#14261e]">
-                      {selectedAccountObj?.name || 'Chọn tài khoản'}
-                    </p>
-                    <p className="text-[10px] text-[#718579] truncate">
-                      {selectedAccountObj?.currencyCode || 'VND'} · Số dư: {formatAmount(selectedAccountObj?.balance || 0)} ₫
-                    </p>
-                  </div>
-                </div>
-
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className={`text-gray-400 transition-transform ${isAccountPickerOpen ? 'rotate-180' : ''}`}>
-                  <polyline points="6 9 12 15 18 9" />
-                </svg>
-              </button>
-
-              {/* Account Dropdown Menu */}
-              {isAccountPickerOpen && (
-                <div className="absolute left-0 right-0 top-full mt-1.5 z-40 max-h-56 overflow-y-auto rounded-2xl border border-[#d5ded8] bg-white p-1.5 shadow-2xl animate-fadeIn">
-                  {accounts.map((acc) => {
-                    const isSelected = selectedAccountId === acc.id
-                    return (
-                      <button
-                        key={acc.id}
-                        type="button"
-                        onClick={() => {
-                          setSelectedAccountId(acc.id)
-                          setIsAccountPickerOpen(false)
-                        }}
-                        className={`flex w-full items-center justify-between rounded-xl px-3 py-2 text-left transition ${
-                          isSelected ? 'bg-emerald-50 text-[#07543f]' : 'hover:bg-[#f3f7f4] text-[#14261e]'
-                        }`}
-                      >
-                        <div className="flex items-center gap-2.5 truncate">
-                          <span className="grid size-7 place-items-center rounded-lg bg-gray-100 text-gray-700 shrink-0">
-                            <FinanceIcon name="wallet" size={14} />
-                          </span>
-                          <div className="truncate">
-                            <p className="truncate text-xs font-bold">{acc.name}</p>
-                            <p className="text-[10px] text-gray-500">{formatAmount(acc.balance)} ₫</p>
-                          </div>
-                        </div>
-                        {isSelected && <span className="font-bold text-[#07543f] ml-2">✓</span>}
-                      </button>
-                    )
-                  })}
-                </div>
-              )}
-            </div>
-
-            {/* If TRANSFER: Destination Account. If EXPENSE/INCOME: Category Picker */}
-            {type === 'TRANSFER' ? (
-              <div className="relative" ref={toAccountPickerRef}>
+        {/* FORM BODY: Fills remaining height proportionally */}
+        <form onSubmit={handleSubmit} className="flex flex-1 flex-col justify-between p-5 sm:p-6 gap-3">
+          <div className="flex flex-col gap-3.5">
+            {/* Row 1: Source Account & Category Selection */}
+            <div className="grid gap-4 sm:grid-cols-2">
+              {/* Account / Wallet Dropdown Picker */}
+              <div className="relative" ref={accountPickerRef}>
                 <label className="mb-1.5 flex items-center justify-between text-xs font-bold text-[#14261e]">
-                  <span>Đến tài khoản (Đích)</span>
-                  {toAccountObj && (
+                  <span>{type === 'TRANSFER' ? 'Từ tài khoản (Nguồn)' : 'Nguồn tiền thanh toán'}</span>
+                  {selectedAccountObj && (
                     <span className="text-[11px] font-medium text-[#718579]">
-                      Số dư: <strong className="text-[#07543f]">{formatAmount(toAccountObj.balance)} ₫</strong>
+                      Số dư: <strong className="text-[#07543f]">{formatAmount(selectedAccountObj.balance)} ₫</strong>
                     </span>
                   )}
                 </label>
@@ -468,54 +392,54 @@ export function AddTransactionScreen({ onCancel, onNotify, onOpenInvoiceScanner 
                 <button
                   type="button"
                   onClick={() => {
-                    setIsToAccountPickerOpen((prev) => !prev)
-                    setIsAccountPickerOpen(false)
+                    setIsAccountPickerOpen((prev) => !prev)
                     setIsCategoryPickerOpen(false)
+                    setIsToAccountPickerOpen(false)
                   }}
-                  className={`flex h-12 w-full items-center justify-between rounded-xl border bg-[#f9fbf9] px-3.5 text-left transition ${
-                    isToAccountPickerOpen
+                  className={`flex h-11 w-full items-center justify-between rounded-xl border bg-[#f9fbf9] px-3.5 text-left transition ${
+                    isAccountPickerOpen
                       ? 'border-[#07543f] bg-white ring-2 ring-[#07543f]/20'
                       : 'border-[#d5ded8] hover:border-[#b0c2b7]'
                   }`}
                 >
                   <div className="flex items-center gap-3 min-w-0">
-                    <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-sky-50 text-sky-700 border border-sky-100">
-                      <FinanceIcon name="arrows" size={16} />
+                    <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-emerald-50 text-[#07543f] border border-emerald-100">
+                      <FinanceIcon name="wallet" size={16} />
                     </span>
                     <div className="min-w-0">
                       <p className="truncate text-xs font-bold text-[#14261e]">
-                        {toAccountObj?.name || 'Chọn ví nhận'}
+                        {selectedAccountObj?.name || 'Chọn tài khoản'}
                       </p>
-                      <p className="text-[10px] text-[#718579] truncate">
-                        Số dư hiện tại: {formatAmount(toAccountObj?.balance || 0)} ₫
+                      <p className="text-[11px] text-[#718579] truncate">
+                        {selectedAccountObj?.currencyCode || 'VND'} · Số dư: {formatAmount(selectedAccountObj?.balance || 0)} ₫
                       </p>
                     </div>
                   </div>
 
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className={`text-gray-400 transition-transform ${isToAccountPickerOpen ? 'rotate-180' : ''}`}>
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className={`text-gray-400 transition-transform ${isAccountPickerOpen ? 'rotate-180' : ''}`}>
                     <polyline points="6 9 12 15 18 9" />
                   </svg>
                 </button>
 
-                {/* To Account Dropdown */}
-                {isToAccountPickerOpen && (
+                {/* Account Dropdown Menu */}
+                {isAccountPickerOpen && (
                   <div className="absolute left-0 right-0 top-full mt-1.5 z-40 max-h-56 overflow-y-auto rounded-2xl border border-[#d5ded8] bg-white p-1.5 shadow-2xl animate-fadeIn">
-                    {accounts.filter((a) => a.id !== selectedAccountId).map((acc) => {
-                      const isSelected = toAccountId === acc.id
+                    {accounts.map((acc) => {
+                      const isSelected = selectedAccountId === acc.id
                       return (
                         <button
                           key={acc.id}
                           type="button"
                           onClick={() => {
-                            setToAccountId(acc.id)
-                            setIsToAccountPickerOpen(false)
+                            setSelectedAccountId(acc.id)
+                            setIsAccountPickerOpen(false)
                           }}
                           className={`flex w-full items-center justify-between rounded-xl px-3 py-2 text-left transition ${
-                            isSelected ? 'bg-sky-50 text-sky-800' : 'hover:bg-[#f3f7f4] text-[#14261e]'
+                            isSelected ? 'bg-emerald-50 text-[#07543f]' : 'hover:bg-[#f3f7f4] text-[#14261e]'
                           }`}
                         >
                           <div className="flex items-center gap-2.5 truncate">
-                            <span className="grid size-7 place-items-center rounded-lg bg-sky-50 text-sky-700 shrink-0">
+                            <span className="grid size-7 place-items-center rounded-lg bg-gray-100 text-gray-700 shrink-0">
                               <FinanceIcon name="wallet" size={14} />
                             </span>
                             <div className="truncate">
@@ -523,144 +447,222 @@ export function AddTransactionScreen({ onCancel, onNotify, onOpenInvoiceScanner 
                               <p className="text-[10px] text-gray-500">{formatAmount(acc.balance)} ₫</p>
                             </div>
                           </div>
-                          {isSelected && <span className="font-bold text-sky-700 ml-2">✓</span>}
+                          {isSelected && <span className="font-bold text-[#07543f] ml-2">✓</span>}
                         </button>
                       )
                     })}
                   </div>
                 )}
               </div>
-            ) : (
-              /* Category Picker */
-              <div className="relative" ref={categoryPickerRef}>
-                <label className="mb-1.5 flex items-center justify-between text-xs font-bold text-[#14261e]">
-                  <span>Phân loại danh mục</span>
-                  <span className="text-[11px] text-[#718579]">{filteredCategories.length} danh mục</span>
-                </label>
 
-                <button
-                  type="button"
-                  onClick={() => {
-                    setIsCategoryPickerOpen((prev) => !prev)
-                    setIsAccountPickerOpen(false)
-                    setIsToAccountPickerOpen(false)
-                  }}
-                  className={`flex h-12 w-full items-center justify-between rounded-xl border bg-[#f9fbf9] px-3.5 text-left transition ${
-                    isCategoryPickerOpen
-                      ? 'border-[#07543f] bg-white ring-2 ring-[#07543f]/20'
-                      : 'border-[#d5ded8] hover:border-[#b0c2b7]'
-                  }`}
-                >
-                  <div className="flex items-center gap-3 min-w-0">
-                    <span 
-                      className="grid size-8 shrink-0 place-items-center rounded-lg"
-                      style={{
-                        backgroundColor: selectedCategoryObj?.color ? `${selectedCategoryObj.color}15` : '#f0f4f1',
-                        color: selectedCategoryObj?.color || (type === 'INCOME' ? '#10b981' : '#f43f5e'),
-                      }}
-                    >
-                      {renderCategoryIcon(selectedCategoryObj?.icon, type, 16)}
-                    </span>
-                    <div className="min-w-0">
-                      <p className="truncate text-xs font-bold text-[#14261e]">
-                        {selectedCategoryObj?.name || 'Chọn danh mục'}
-                      </p>
-                      <p className="text-[10px] text-[#718579] truncate">
-                        {type === 'EXPENSE' ? 'Danh mục chi tiêu' : 'Danh mục thu nhập'}
-                      </p>
+              {/* If TRANSFER: Destination Account. If EXPENSE/INCOME: Category Picker */}
+              {type === 'TRANSFER' ? (
+                <div className="relative" ref={toAccountPickerRef}>
+                  <label className="mb-1.5 flex items-center justify-between text-xs font-bold text-[#14261e]">
+                    <span>Đến tài khoản (Đích)</span>
+                    {toAccountObj && (
+                      <span className="text-[11px] font-medium text-[#718579]">
+                        Số dư: <strong className="text-[#07543f]">{formatAmount(toAccountObj.balance)} ₫</strong>
+                      </span>
+                    )}
+                  </label>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsToAccountPickerOpen((prev) => !prev)
+                      setIsAccountPickerOpen(false)
+                      setIsCategoryPickerOpen(false)
+                    }}
+                    className={`flex h-11 w-full items-center justify-between rounded-xl border bg-[#f9fbf9] px-3.5 text-left transition ${
+                      isToAccountPickerOpen
+                        ? 'border-[#07543f] bg-white ring-2 ring-[#07543f]/20'
+                        : 'border-[#d5ded8] hover:border-[#b0c2b7]'
+                    }`}
+                  >
+                    <div className="flex items-center gap-3 min-w-0">
+                      <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-sky-50 text-sky-700 border border-sky-100">
+                        <FinanceIcon name="arrows" size={16} />
+                      </span>
+                      <div className="min-w-0">
+                        <p className="truncate text-xs font-bold text-[#14261e]">
+                          {toAccountObj?.name || 'Chọn ví nhận'}
+                        </p>
+                        <p className="text-[11px] text-[#718579] truncate">
+                          Số dư hiện tại: {formatAmount(toAccountObj?.balance || 0)} ₫
+                        </p>
+                      </div>
                     </div>
-                  </div>
 
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className={`text-gray-400 transition-transform ${isCategoryPickerOpen ? 'rotate-180' : ''}`}>
-                    <polyline points="6 9 12 15 18 9" />
-                  </svg>
-                </button>
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className={`text-gray-400 transition-transform ${isToAccountPickerOpen ? 'rotate-180' : ''}`}>
+                      <polyline points="6 9 12 15 18 9" />
+                    </svg>
+                  </button>
 
-                {/* Category Dropdown Grid */}
-                {isCategoryPickerOpen && (
-                  <div className="absolute left-0 right-0 top-full mt-1.5 z-40 max-h-64 overflow-y-auto rounded-2xl border border-[#d5ded8] bg-white p-2 shadow-2xl animate-fadeIn">
-                    <div className="grid grid-cols-2 gap-1.5">
-                      {filteredCategories.map((cat) => {
-                        const isSelected = selectedCategoryId === cat.id
+                  {/* To Account Dropdown */}
+                  {isToAccountPickerOpen && (
+                    <div className="absolute left-0 right-0 top-full mt-1.5 z-40 max-h-56 overflow-y-auto rounded-2xl border border-[#d5ded8] bg-white p-1.5 shadow-2xl animate-fadeIn">
+                      {accounts.filter((a) => a.id !== selectedAccountId).map((acc) => {
+                        const isSelected = toAccountId === acc.id
                         return (
                           <button
-                            key={cat.id}
+                            key={acc.id}
                             type="button"
                             onClick={() => {
-                              setSelectedCategoryId(cat.id)
-                              setIsCategoryPickerOpen(false)
+                              setToAccountId(acc.id)
+                              setIsToAccountPickerOpen(false)
                             }}
-                            className={`flex items-center gap-2 rounded-xl p-2 text-left transition border ${
-                              isSelected
-                                ? 'border-[#07543f] bg-emerald-50 text-[#07543f] font-bold'
-                                : 'border-transparent hover:bg-[#f3f7f4] text-[#14261e]'
+                            className={`flex w-full items-center justify-between rounded-xl px-3 py-2 text-left transition ${
+                              isSelected ? 'bg-sky-50 text-sky-800' : 'hover:bg-[#f3f7f4] text-[#14261e]'
                             }`}
                           >
-                            <span
-                              className="grid size-7 place-items-center rounded-lg text-sm shrink-0"
-                              style={{
-                                backgroundColor: cat.color ? `${cat.color}15` : '#f0f4f1',
-                                color: cat.color || (cat.kind === 'INCOME' ? '#10b981' : '#f43f5e'),
-                              }}
-                            >
-                              {renderCategoryIcon(cat.icon, cat.kind, 14)}
-                            </span>
-                            <span className="truncate text-xs">{cat.name}</span>
+                            <div className="flex items-center gap-2.5 truncate">
+                              <span className="grid size-7 place-items-center rounded-lg bg-sky-50 text-sky-700 shrink-0">
+                                <FinanceIcon name="wallet" size={14} />
+                              </span>
+                              <div className="truncate">
+                                <p className="truncate text-xs font-bold">{acc.name}</p>
+                                <p className="text-[10px] text-gray-500">{formatAmount(acc.balance)} ₫</p>
+                              </div>
+                            </div>
+                            {isSelected && <span className="font-bold text-sky-700 ml-2">✓</span>}
                           </button>
                         )
                       })}
                     </div>
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
+                  )}
+                </div>
+              ) : (
+                /* Category Picker */
+                <div className="relative" ref={categoryPickerRef}>
+                  <label className="mb-1.5 flex items-center justify-between text-xs font-bold text-[#14261e]">
+                    <span>Phân loại danh mục</span>
+                    <span className="text-[11px] text-[#718579]">{filteredCategories.length} danh mục</span>
+                  </label>
 
-          {/* Row 2: Date & Time Picker */}
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div>
-              <label className="mb-1.5 block text-xs font-bold text-[#14261e]">
-                Ngày giao dịch
-              </label>
-              <div className="relative">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsCategoryPickerOpen((prev) => !prev)
+                      setIsAccountPickerOpen(false)
+                      setIsToAccountPickerOpen(false)
+                    }}
+                    className={`flex h-11 w-full items-center justify-between rounded-xl border bg-[#f9fbf9] px-3.5 text-left transition ${
+                      isCategoryPickerOpen
+                        ? 'border-[#07543f] bg-white ring-2 ring-[#07543f]/20'
+                        : 'border-[#d5ded8] hover:border-[#b0c2b7]'
+                    }`}
+                  >
+                    <div className="flex items-center gap-3 min-w-0">
+                      <span 
+                        className="grid size-8 shrink-0 place-items-center rounded-lg"
+                        style={{
+                          backgroundColor: selectedCategoryObj?.color ? `${selectedCategoryObj.color}15` : '#f0f4f1',
+                          color: selectedCategoryObj?.color || (type === 'INCOME' ? '#10b981' : '#f43f5e'),
+                        }}
+                      >
+                        {renderCategoryIcon(selectedCategoryObj?.icon, type, 16)}
+                      </span>
+                      <div className="min-w-0">
+                        <p className="truncate text-xs font-bold text-[#14261e]">
+                          {selectedCategoryObj?.name || 'Chọn danh mục'}
+                        </p>
+                        <p className="text-[11px] text-[#718579] truncate">
+                          {type === 'EXPENSE' ? 'Danh mục chi tiêu' : 'Danh mục thu nhập'}
+                        </p>
+                      </div>
+                    </div>
+
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className={`text-gray-400 transition-transform ${isCategoryPickerOpen ? 'rotate-180' : ''}`}>
+                      <polyline points="6 9 12 15 18 9" />
+                    </svg>
+                  </button>
+
+                  {/* Category Dropdown Grid */}
+                  {isCategoryPickerOpen && (
+                    <div className="absolute left-0 right-0 top-full mt-1.5 z-40 max-h-64 overflow-y-auto rounded-2xl border border-[#d5ded8] bg-white p-2 shadow-2xl animate-fadeIn">
+                      <div className="grid grid-cols-2 gap-1.5">
+                        {filteredCategories.map((cat) => {
+                          const isSelected = selectedCategoryId === cat.id
+                          return (
+                            <button
+                              key={cat.id}
+                              type="button"
+                              onClick={() => {
+                                setSelectedCategoryId(cat.id)
+                                setIsCategoryPickerOpen(false)
+                              }}
+                              className={`flex items-center gap-2 rounded-xl p-2 text-left transition border ${
+                                isSelected
+                                  ? 'border-[#07543f] bg-emerald-50 text-[#07543f] font-bold'
+                                  : 'border-transparent hover:bg-[#f3f7f4] text-[#14261e]'
+                              }`}
+                            >
+                              <span
+                                className="grid size-7 place-items-center rounded-lg text-sm shrink-0"
+                                style={{
+                                  backgroundColor: cat.color ? `${cat.color}15` : '#f0f4f1',
+                                  color: cat.color || (cat.kind === 'INCOME' ? '#10b981' : '#f43f5e'),
+                                }}
+                              >
+                                {renderCategoryIcon(cat.icon, cat.kind, 14)}
+                              </span>
+                              <span className="truncate text-xs">{cat.name}</span>
+                            </button>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* Row 2: Date & Time Picker */}
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div>
+                <label className="mb-1.5 block text-xs font-bold text-[#14261e]">
+                  Ngày giao dịch
+                </label>
+                <div className="relative">
+                  <input
+                    type="date"
+                    value={date}
+                    onChange={(e) => setDate(e.target.value)}
+                    className="h-10 w-full rounded-xl border border-[#d5ded8] bg-[#f9fbf9] px-3.5 text-xs font-medium text-[#14261e] outline-none focus:border-[#07543f] focus:bg-white focus:ring-1 focus:ring-[#07543f] transition"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="mb-1.5 block text-xs font-bold text-[#14261e]">
+                  Thời gian thực hiện
+                </label>
                 <input
-                  type="date"
-                  value={date}
-                  onChange={(e) => setDate(e.target.value)}
-                  className="h-11 w-full rounded-xl border border-[#d5ded8] bg-[#f9fbf9] px-3.5 text-xs font-medium text-[#14261e] outline-none focus:border-[#07543f] focus:bg-white focus:ring-1 focus:ring-[#07543f] transition"
+                  type="time"
+                  value={time}
+                  onChange={(e) => setTime(e.target.value)}
+                  className="h-10 w-full rounded-xl border border-[#d5ded8] bg-[#f9fbf9] px-3.5 text-xs font-medium text-[#14261e] outline-none focus:border-[#07543f] focus:bg-white focus:ring-1 focus:ring-[#07543f] transition"
                 />
               </div>
             </div>
 
+            {/* Row 3: Description Note */}
             <div>
               <label className="mb-1.5 block text-xs font-bold text-[#14261e]">
-                Thời gian thực hiện
+                Ghi chú / Diễn giải
               </label>
               <input
-                type="time"
-                value={time}
-                onChange={(e) => setTime(e.target.value)}
-                className="h-11 w-full rounded-xl border border-[#d5ded8] bg-[#f9fbf9] px-3.5 text-xs font-medium text-[#14261e] outline-none focus:border-[#07543f] focus:bg-white focus:ring-1 focus:ring-[#07543f] transition"
+                type="text"
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                placeholder="Ví dụ: Ăn trưa bún bò, Đổ xăng xe máy, Tiền thưởng dự án..."
+                className="h-10 w-full rounded-xl border border-[#d5ded8] bg-[#f9fbf9] px-3.5 text-xs text-[#14261e] outline-none placeholder:text-gray-400 focus:border-[#07543f] focus:bg-white focus:ring-1 focus:ring-[#07543f] transition"
               />
             </div>
-          </div>
-
-          {/* Row 3: Description Note */}
-          <div>
-            <label className="mb-1.5 block text-xs font-bold text-[#14261e]">
-              Ghi chú / Diễn giải
-            </label>
-            <input
-              type="text"
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              placeholder="Ví dụ: Ăn trưa bún bò, Đổ xăng xe máy, Tiền thưởng dự án..."
-              className="h-11 w-full rounded-xl border border-[#d5ded8] bg-[#f9fbf9] px-3.5 text-xs text-[#14261e] outline-none placeholder:text-gray-400 focus:border-[#07543f] focus:bg-white focus:ring-1 focus:ring-[#07543f] transition"
-            />
-          </div>
 
             {/* Row 4: Recurring Monthly Switch & Receipt Attachment */}
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 rounded-xl border border-[#e2ece5] bg-[#f8faf8] p-3.5">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 rounded-xl border border-[#e2ece5] bg-[#f8faf8] px-3.5 py-2">
               <div className="flex items-center gap-3 text-xs">
                 <span className="text-[#718579]">Lặp lại giao dịch hàng tháng:</span>
                 <button
@@ -668,13 +670,13 @@ export function AddTransactionScreen({ onCancel, onNotify, onOpenInvoiceScanner 
                   role="switch"
                   aria-checked={recurring}
                   onClick={() => setRecurring(!recurring)}
-                  className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                  className={`relative inline-flex h-5 w-10 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
                     recurring ? 'bg-[#07543f]' : 'bg-[#cbd7cf]'
                   }`}
                 >
                   <span
                     aria-hidden="true"
-                    className={`pointer-events-none inline-block size-5 transform rounded-full bg-white shadow-sm ring-0 transition duration-200 ease-in-out ${
+                    className={`pointer-events-none inline-block size-4 transform rounded-full bg-white shadow-sm ring-0 transition duration-200 ease-in-out ${
                       recurring ? 'translate-x-5' : 'translate-x-0'
                     }`}
                   />
@@ -720,49 +722,50 @@ export function AddTransactionScreen({ onCancel, onNotify, onOpenInvoiceScanner 
 
             {/* Error Notice */}
             {error && (
-              <div className="rounded-xl bg-rose-50 p-3 text-xs font-bold text-rose-700 border border-rose-200 animate-fadeIn">
+              <div className="rounded-xl bg-rose-50 p-2.5 text-xs font-bold text-rose-700 border border-rose-200 animate-fadeIn">
                 ⚠️ {error}
               </div>
             )}
+          </div>
 
-            {/* Footer Action Buttons */}
-            <div className="flex flex-col-reverse justify-end gap-3 border-t border-[#edf0ed] pt-4 sm:flex-row">
-              <button
-                type="button"
-                disabled={submitting}
-                onClick={onCancel}
-                className="h-11 rounded-xl bg-gray-100 px-6 text-xs font-bold text-gray-700 hover:bg-gray-200 transition"
-              >
-                Hủy
-              </button>
-              <button
-                type="button"
-                disabled={submitting}
-                onClick={() => handleSaveTransaction(true)}
-                className="h-11 rounded-xl bg-[#e3f4e9] px-6 text-xs font-bold text-[#07543f] hover:bg-[#d2edd9] transition"
-              >
-                Lưu &amp; Tiếp tục thêm
-              </button>
-              <button
-                type="submit"
-                disabled={submitting}
-                className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-[#07543f] px-8 text-xs font-bold text-white shadow-md hover:bg-[#0b6c52] transition disabled:opacity-50"
-              >
-                <FinanceIcon name="plus" size={15} />
-                <span>{submitting ? 'Đang lưu vào ví...' : 'Lưu giao dịch ngay'}</span>
-              </button>
-            </div>
-          </form>
+          {/* Footer Action Buttons */}
+          <div className="flex flex-col-reverse justify-end gap-3 border-t border-[#edf0ed] pt-3 sm:flex-row shrink-0">
+            <button
+              type="button"
+              disabled={submitting}
+              onClick={onCancel}
+              className="h-10 rounded-xl bg-gray-100 px-6 text-xs font-bold text-gray-700 hover:bg-gray-200 transition"
+            >
+              Hủy
+            </button>
+            <button
+              type="button"
+              disabled={submitting}
+              onClick={() => handleSaveTransaction(true)}
+              className="h-10 rounded-xl bg-[#e3f4e9] px-6 text-xs font-bold text-[#07543f] hover:bg-[#d2edd9] transition"
+            >
+              Lưu &amp; Tiếp tục thêm
+            </button>
+            <button
+              type="submit"
+              disabled={submitting}
+              className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-[#07543f] px-8 text-xs font-bold text-white shadow-md hover:bg-[#0b6c52] transition disabled:opacity-50"
+            >
+              <FinanceIcon name="plus" size={15} />
+              <span>{submitting ? 'Đang lưu vào ví...' : 'Lưu giao dịch ngay'}</span>
+            </button>
+          </div>
+        </form>
         </div>
 
-        {/* RIGHT COLUMN: Projected Balance Card & Recent Transactions Panel */}
-        <div className="flex flex-col gap-6">
+        {/* RIGHT COLUMN: 2 Cards fill full height proportionally */}
+        <div className="flex h-full flex-col justify-between gap-4">
           {/* Card 1: Số tiền còn lại / Dự tính số dư */}
-          <div className="rounded-3xl border border-[#e2ece5] bg-white p-6 shadow-md">
-            <div className="flex items-center justify-between pb-4 border-b border-[#edf2ee]">
+          <div className="flex flex-col justify-between rounded-2xl border border-[#e2ece5] bg-white p-5 shadow-sm">
+            <div className="flex items-center justify-between pb-3 border-b border-[#edf2ee]">
               <div className="flex items-center gap-2.5">
-                <span className="grid size-9 place-items-center rounded-xl bg-[#e3f4e9] text-[#07543f] font-bold">
-                  <FinanceIcon name="trend" size={17} />
+                <span className="grid size-8 place-items-center rounded-xl bg-[#e3f4e9] text-[#07543f] font-bold">
+                  <FinanceIcon name="trend" size={16} />
                 </span>
                 <div>
                   <h3 className="text-sm font-bold text-[#14261e]">Dự tính số dư sau khi lưu</h3>
@@ -771,7 +774,7 @@ export function AddTransactionScreen({ onCancel, onNotify, onOpenInvoiceScanner 
               </div>
             </div>
 
-            <div className="mt-5 flex flex-col gap-3">
+            <div className="mt-3.5 flex flex-col gap-2.5">
               <div className="flex items-center justify-between text-xs">
                 <span className="text-[#718579]">Số dư hiện tại:</span>
                 <strong className="text-[#14261e] font-bold">
@@ -805,9 +808,9 @@ export function AddTransactionScreen({ onCancel, onNotify, onOpenInvoiceScanner 
             </div>
           </div>
 
-          {/* Card 2: Bảng giao dịch gần đây */}
-          <div className="rounded-3xl border border-[#e2ece5] bg-white p-6 shadow-md">
-            <div className="flex items-center justify-between pb-3 border-b border-[#edf2ee]">
+          {/* Card 2: Bảng giao dịch gần đây fills the rest */}
+          <div className="flex flex-1 flex-col justify-between rounded-2xl border border-[#e2ece5] bg-white p-5 shadow-sm min-h-0">
+            <div className="flex items-center justify-between pb-3 border-b border-[#edf2ee] shrink-0">
               <div>
                 <h3 className="text-sm font-bold text-[#14261e]">Giao dịch gần đây</h3>
                 <p className="text-[11px] text-[#718579]">Lịch sử ghi chép thu chi mới nhất</p>
@@ -821,27 +824,27 @@ export function AddTransactionScreen({ onCancel, onNotify, onOpenInvoiceScanner 
               </button>
             </div>
 
-            <div className="mt-4 flex flex-col divide-y divide-[#edf2ee]">
+            <div className="mt-2 flex flex-1 flex-col divide-y divide-[#edf2ee] overflow-y-auto pr-1">
               {recentTransactions.length === 0 ? (
-                <div className="py-8 text-center text-xs text-[#718579]">
+                <div className="grid h-full place-items-center text-center text-xs text-[#718579]">
                   Chưa có giao dịch nào được ghi nhận gần đây.
                 </div>
               ) : (
-                recentTransactions.map((tx) => {
+                recentTransactions.slice(0, 5).map((tx) => {
                   const isInc = tx.transactionType === 'INCOME'
                   const isTrf = tx.transactionType === 'TRANSFER'
                   return (
-                    <div key={tx.id} className="py-3 flex items-center justify-between gap-3">
+                    <div key={tx.id} className="py-2.5 flex items-center justify-between gap-3">
                       <div className="flex items-center gap-3 min-w-0">
                         <span 
-                          className="grid size-9 shrink-0 place-items-center rounded-xl border text-xs"
+                          className="grid size-8 shrink-0 place-items-center rounded-xl border text-xs"
                           style={{
                             backgroundColor: tx.category?.color ? `${tx.category.color}15` : isInc ? '#ecfdf5' : '#fef2f2',
                             borderColor: tx.category?.color ? `${tx.category.color}30` : isInc ? '#a7f3d0' : '#fecaca',
                             color: tx.category?.color || (isInc ? '#059669' : '#dc2626')
                           }}
                         >
-                          {renderCategoryIcon(tx.category?.icon, tx.transactionType, 16)}
+                          {renderCategoryIcon(tx.category?.icon, tx.transactionType, 15)}
                         </span>
                         <div className="min-w-0">
                           <p className="truncate text-xs font-bold text-[#14261e]">
@@ -853,13 +856,13 @@ export function AddTransactionScreen({ onCancel, onNotify, onOpenInvoiceScanner 
                         </div>
                       </div>
                       <div className="text-right shrink-0">
-                        <span className={`text-xs font-extrabold ${
+                        <span className={`text-xs font-bold ${
                           isInc ? 'text-emerald-600' : isTrf ? 'text-blue-600' : 'text-rose-600'
                         }`}>
                           {isInc ? '+' : isTrf ? '' : '-'}{formatAmount(tx.amount)} ₫
                         </span>
                         <p className="text-[10px] text-gray-400">
-                          {tx.transactionDate}
+                          {formatDate(tx.transactionDate)}
                         </p>
                       </div>
                     </div>

@@ -7,11 +7,12 @@ services:
       POSTGRES_DB: ${POSTGRES_DB}
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      TZ: Asia/Ho_Chi_Minh
+      PGTZ: Asia/Ho_Chi_Minh
     ports:
       - "${POSTGRES_PORT}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./backend/src/main/resources/db/migration:/docker-entrypoint-initdb.d:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER}"]
       interval: 10s
@@ -56,12 +57,14 @@ services:
       JWT_EXPIRATION: ${JWT_EXPIRATION}
       SUPER_ADMIN_USER: ${SUPER_ADMIN_USER}
       SUPER_ADMIN_PASSWORD: ${SUPER_ADMIN_PASSWORD}
+      TZ: Asia/Ho_Chi_Minh
     ports:
       - "${API_PORT}:8080"
     volumes:
       - ./backend/src:/app/src
       - ./backend/pom.xml:/app/pom.xml
       - maven_cache:/root/.m2
+      - upload_data:/app/uploads
     depends_on:
       postgres:
         condition: service_healthy
@@ -115,6 +118,7 @@ volumes:
   redis_data:
   maven_cache:
   frontend_node_modules:
+  upload_data:
 
 networks:
   finance_network:

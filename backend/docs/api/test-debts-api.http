@@ -1,0 +1,836 @@
+### =====================================================
+### Debts API Testing
+### Kiểm thử các API quản lý nợ vay/cho vay
+### =====================================================
+
+### Variables
+@baseUrl = http://localhost:8080/api/v1
+@token = Bearer eyJhbGciOiJIUzI1NiJ9...
+@debtId = 1
+
+### =====================================================
+### 1. CREATE DEBT - Tạo khoản nợ mới
+### POST /api/v1/debts
+### =====================================================
+
+### 1.1. Tạo khoản vay mua nhà từ ngân hàng
+POST {{baseUrl}}/debts
+Authorization: {{token}}
+Content-Type: application/json
+
+{
+  "debt_type": "BORROWING",
+  "creditor_name": "Ngân hàng Techcombank",
+  "creditor_phone": "1800588822",
+  "creditor_email": "support@techcombank.com.vn",
+  "principal_amount": 500000000,
+  "currency_code": "VND",
+  "interest_rate": 12.5,
+  "interest_type": "FIXED",
+  "start_date": "2026-01-01",
+  "due_date": "2031-01-01",
+  "payment_frequency": "MONTHLY",
+  "payment_amount": 11000000,
+  "next_payment_date": "2026-11-01",
+  "description": "Vay mua nhà tại Hà Nội",
+  "account_id": "550e8400-e29b-41d4-a716-446655440001",
+  "category_id": "550e8400-e29b-41d4-a716-446655440011",
+  "reminder_enabled": true,
+  "reminder_days_before": 3
+}
+
+### 1.2. Tạo khoản vay mua xe ô tô
+POST {{baseUrl}}/debts
+Authorization: {{token}}
+Content-Type: application/json
+
+{
+  "debt_type": "BORROWING",
+  "creditor_name": "Công ty Tài chính Honda",
+  "creditor_phone": "0281234567",
+  "principal_amount": 300000000,
+  "currency_code": "VND",
+  "interest_rate": 8.5,
+  "interest_type": "FIXED",
+  "start_date": "2026-06-01",
+  "due_date": "2029-06-01",
+  "payment_frequency": "MONTHLY",
+  "payment_amount": 9500000,
+  "description": "Vay trả góp mua xe Honda City",
+  "reminder_enabled": true,
+  "reminder_days_before": 5
+}
+
+### 1.3. Tạo khoản vay thẻ tín dụng
+POST {{baseUrl}}/debts
+Authorization: {{token}}
+Content-Type: application/json
+
+{
+  "debt_type": "BORROWING",
+  "creditor_name": "Ngân hàng VPBank - Thẻ Visa",
+  "principal_amount": 15000000,
+  "currency_code": "VND",
+  "interest_rate": 18.0,
+  "interest_type": "VARIABLE",
+  "start_date": "2026-09-15",
+  "due_date": "2027-03-15",
+  "payment_frequency": "MONTHLY",
+  "payment_amount": 2600000,
+  "description": "Nợ thẻ tín dụng cần thanh toán",
+  "reminder_enabled": true
+}
+
+### 1.4. Tạo khoản cho bạn vay không lãi
+POST {{baseUrl}}/debts
+Authorization: {{token}}
+Content-Type: application/json
+
+{
+  "debt_type": "LENDING",
+  "debtor_name": "Nguyễn Văn A",
+  "debtor_phone": "+84901234567",
+  "debtor_email": "nguyenvana@example.com",
+  "principal_amount": 50000000,
+  "currency_code": "VND",
+  "interest_rate": 0,
+  "interest_type": "NONE",
+  "start_date": "2026-10-01",
+  "due_date": "2027-10-01",
+  "payment_frequency": "ONE_TIME",
+  "description": "Cho bạn thân vay không lãi, hẹn trả trong 1 năm",
+  "reminder_enabled": true,
+  "reminder_days_before": 7
+}
+
+### 1.5. Tạo khoản cho em vay có lãi
+POST {{baseUrl}}/debts
+Authorization: {{token}}
+Content-Type: application/json
+
+{
+  "debt_type": "LENDING",
+  "debtor_name": "Trần Thị B",
+  "debtor_phone": "+84987654321",
+  "principal_amount": 30000000,
+  "currency_code": "VND",
+  "interest_rate": 3.0,
+  "interest_type": "FIXED",
+  "start_date": "2026-08-01",
+  "due_date": "2027-08-01",
+  "payment_frequency": "MONTHLY",
+  "payment_amount": 2600000,
+  "description": "Cho em vay kinh doanh, lãi suất 3%/năm",
+  "note": "Có giấy tờ cam kết",
+  "reminder_enabled": true
+}
+
+### 1.6. Tạo khoản vay ngắn hạn từ người thân
+POST {{baseUrl}}/debts
+Authorization: {{token}}
+Content-Type: application/json
+
+{
+  "debt_type": "BORROWING",
+  "creditor_name": "Bố mẹ",
+  "principal_amount": 20000000,
+  "currency_code": "VND",
+  "interest_rate": 0,
+  "interest_type": "NONE",
+  "start_date": "2026-10-05",
+  "due_date": "2026-12-31",
+  "payment_frequency": "ONE_TIME",
+  "description": "Vay bố mẹ để sửa nhà",
+  "note": "Không tính lãi, trả khi có tiền"
+}
+
+### 1.7. Tạo khoản vay cá nhân có trả góp hàng tuần
+POST {{baseUrl}}/debts
+Authorization: {{token}}
+Content-Type: application/json
+
+{
+  "debt_type": "BORROWING",
+  "creditor_name": "Lê Văn C",
+  "creditor_phone": "+84912345678",
+  "principal_amount": 10000000,
+  "currency_code": "VND",
+  "interest_rate": 5.0,
+  "interest_type": "FIXED",
+  "start_date": "2026-10-07",
+  "due_date": "2027-01-07",
+  "payment_frequency": "WEEKLY",
+  "payment_amount": 800000,
+  "description": "Vay ngắn hạn để kinh doanh online",
+  "reminder_enabled": true,
+  "reminder_days_before": 2
+}
+
+### 1.8. Validation: Thiếu creditor_name khi BORROWING
+POST {{baseUrl}}/debts
+Authorization: {{token}}
+Content-Type: application/json
+
+{
+  "debt_type": "BORROWING",
+  "principal_amount": 10000000,
+  "currency_code": "VND",
+  "start_date": "2026-10-01"
+}
+
+### 1.9. Validation: Thiếu debtor_name khi LENDING
+POST {{baseUrl}}/debts
+Authorization: {{token}}
+Content-Type: application/json
+
+{
+  "debt_type": "LENDING",
+  "principal_amount": 10000000,
+  "currency_code": "VND",
+  "start_date": "2026-10-01"
+}
+
+### 1.10. Validation: Due date trước start date
+POST {{baseUrl}}/debts
+Authorization: {{token}}
+Content-Type: application/json
+
+{
+  "debt_type": "BORROWING",
+  "creditor_name": "Test Bank",
+  "principal_amount": 10000000,
+  "currency_code": "VND",
+  "start_date": "2026-12-01",
+  "due_date": "2026-10-01"
+}
+
+### 1.11. Validation: Principal amount âm
+POST {{baseUrl}}/debts
+Authorization: {{token}}
+Content-Type: application/json
+
+{
+  "debt_type": "BORROWING",
+  "creditor_name": "Test Bank",
+  "principal_amount": -10000000,
+  "currency_code": "VND",
+  "start_date": "2026-10-01"
+}
+
+### =====================================================
+### 2. LIST DEBTS - Lấy danh sách khoản nợ
+### GET /api/v1/debts
+### =====================================================
+
+### 2.1. Lấy tất cả khoản nợ
+GET {{baseUrl}}/debts
+Authorization: {{token}}
+
+### 2.2. Lấy khoản vay (BORROWING)
+GET {{baseUrl}}/debts?debt_type=BORROWING
+Authorization: {{token}}
+
+### 2.3. Lấy khoản cho vay (LENDING)
+GET {{baseUrl}}/debts?debt_type=LENDING
+Authorization: {{token}}
+
+### 2.4. Lấy khoản nợ đang ACTIVE
+GET {{baseUrl}}/debts?status=ACTIVE
+Authorization: {{token}}
+
+### 2.5. Lấy khoản nợ đã trả hết (PAID_OFF)
+GET {{baseUrl}}/debts?status=PAID_OFF
+Authorization: {{token}}
+
+### 2.6. Lấy khoản nợ quá hạn (OVERDUE)
+GET {{baseUrl}}/debts?status=OVERDUE
+Authorization: {{token}}
+
+### 2.7. Lấy khoản vay đang ACTIVE
+GET {{baseUrl}}/debts?debt_type=BORROWING&status=ACTIVE
+Authorization: {{token}}
+
+### 2.8. Lấy khoản cho vay đang ACTIVE
+GET {{baseUrl}}/debts?debt_type=LENDING&status=ACTIVE
+Authorization: {{token}}
+
+### =====================================================
+### 3. GET DEBT DETAIL - Chi tiết khoản nợ
+### GET /api/v1/debts/{id}
+### =====================================================
+
+### 3.1. Xem chi tiết khoản nợ ID = 1
+GET {{baseUrl}}/debts/{{debtId}}
+Authorization: {{token}}
+
+### 3.2. Xem chi tiết khoản nợ ID = 2
+GET {{baseUrl}}/debts/2
+Authorization: {{token}}
+
+### 3.3. Xem chi tiết khoản nợ ID = 3
+GET {{baseUrl}}/debts/3
+Authorization: {{token}}
+
+### 3.4. Xem chi tiết khoản nợ không tồn tại
+GET {{baseUrl}}/debts/99999
+Authorization: {{token}}
+
+### =====================================================
+### 4. UPDATE DEBT - Cập nhật khoản nợ
+### PUT /api/v1/debts/{id}
+### =====================================================
+
+### 4.1. Cập nhật thông tin người cho vay
+PUT {{baseUrl}}/debts/{{debtId}}
+Authorization: {{token}}
+Content-Type: application/json
+
+{
+  "creditor_name": "Ngân hàng Techcombank - Chi nhánh Hà Nội",
+  "creditor_phone": "1800588822",
+  "creditor_email": "hanoi@techcombank.com.vn",
+  "version": 0
+}
+
+### 4.2. Cập nhật lãi suất và kỳ hạn trả
+PUT {{baseUrl}}/debts/{{debtId}}
+Authorization: {{token}}
+Content-Type: application/json
+
+{
+  "interest_rate": 11.5,
+  "payment_amount": 10800000,
+  "next_payment_date": "2026-12-01",
+  "version": 0
+}
+
+### 4.3. Cập nhật ngày đến hạn
+PUT {{baseUrl}}/debts/{{debtId}}
+Authorization: {{token}}
+Content-Type: application/json
+
+{
+  "due_date": "2032-01-01",
+  "version": 0
+}
+
+### 4.4. Cập nhật trạng thái
+PUT {{baseUrl}}/debts/{{debtId}}
+Authorization: {{token}}
+Content-Type: application/json
+
+{
+  "status": "OVERDUE",
+  "version": 0
+}
+
+### 4.5. Cập nhật mô tả và ghi chú
+PUT {{baseUrl}}/debts/{{debtId}}
+Authorization: {{token}}
+Content-Type: application/json
+
+{
+  "description": "Vay mua nhà tại Hà Nội - Đã đàm phán giảm lãi suất",
+  "note": "Đã ký phụ lục hợp đồng điều chỉnh lãi suất",
+  "version": 0
+}
+
+### 4.6. Cập nhật cài đặt nhắc nhở
+PUT {{baseUrl}}/debts/{{debtId}}
+Authorization: {{token}}
+Content-Type: application/json
+
+{
+  "reminder_enabled": true,
+  "reminder_days_before": 5,
+  "version": 0
+}
+
+### 4.7. Cập nhật tài khoản và danh mục
+PUT {{baseUrl}}/debts/{{debtId}}
+Authorization: {{token}}
+Content-Type: application/json
+
+{
+  "account_id": "550e8400-e29b-41d4-a716-446655440002",
+  "category_id": "550e8400-e29b-41d4-a716-446655440012",
+  "version": 0
+}
+
+### 4.8. Optimistic locking - Version sai
+PUT {{baseUrl}}/debts/{{debtId}}
+Authorization: {{token}}
+Content-Type: application/json
+
+{
+  "description": "Test optimistic locking",
+  "version": 999
+}
+
+### 4.9. Cập nhật khoản nợ không tồn tại
+PUT {{baseUrl}}/debts/99999
+Authorization: {{token}}
+Content-Type: application/json
+
+{
+  "description": "Test not found",
+  "version": 0
+}
+
+### =====================================================
+### 5. DELETE DEBT - Xóa khoản nợ (soft delete)
+### DELETE /api/v1/debts/{id}
+### =====================================================
+
+### 5.1. Xóa khoản nợ ID = 7 (soft delete)
+DELETE {{baseUrl}}/debts/7
+Authorization: {{token}}
+
+### 5.2. Xóa khoản nợ ID = 6 (soft delete)
+DELETE {{baseUrl}}/debts/6
+Authorization: {{token}}
+
+### 5.3. Xóa khoản nợ không tồn tại
+DELETE {{baseUrl}}/debts/99999
+Authorization: {{token}}
+
+### 5.4. Xác nhận khoản nợ đã bị xóa (should return 404)
+GET {{baseUrl}}/debts/7
+Authorization: {{token}}
+
+### =====================================================
+### 6. RECORD PAYMENT - Ghi nhận trả nợ
+### POST /api/v1/debts/{id}/payments
+### =====================================================
+
+### 6.1. Trả nợ lần 1 - Tháng 1/2026
+POST {{baseUrl}}/debts/{{debtId}}/payments
+Authorization: {{token}}
+Content-Type: application/json
+
+{
+  "amount": 11000000,
+  "principal_paid": 9900000,
+  "interest_paid": 1100000,
+  "payment_date": "2026-01-01",
+  "payment_method": "Chuyển khoản",
+  "account_id": "550e8400-e29b-41d4-a716-446655440001",
+  "note": "Thanh toán kỳ đầu tiên"
+}
+
+### 6.2. Trả nợ lần 2 - Tháng 2/2026
+POST {{baseUrl}}/debts/{{debtId}}/payments
+Authorization: {{token}}
+Content-Type: application/json
+
+{
+  "amount": 11000000,
+  "principal_paid": 9950000,
+  "interest_paid": 1050000,
+  "payment_date": "2026-02-01",
+  "payment_method": "Chuyển khoản",
+  "note": "Thanh toán tháng 2"
+}
+
+### 6.3. Trả nợ lần 3 - Tháng 3/2026
+POST {{baseUrl}}/debts/{{debtId}}/payments
+Authorization: {{token}}
+Content-Type: application/json
+
+{
+  "amount": 11000000,
+  "principal_paid": 10000000,
+  "interest_paid": 1000000,
+  "payment_date": "2026-03-01",
+  "payment_method": "Chuyển khoản"
+}
+
+### 6.4. Trả nợ chỉ ghi tổng amount (tự động tính breakdown)
+POST {{baseUrl}}/debts/2/payments
+Authorization: {{token}}
+Content-Type: application/json
+
+{
+  "amount": 9500000,
+  "payment_date": "2026-06-01",
+  "payment_method": "Tiền mặt",
+  "note": "Trả nợ xe hơi - kỳ đầu"
+}
+
+### 6.5. Trả nợ một lần cho khoản cho vay
+POST {{baseUrl}}/debts/4/payments
+Authorization: {{token}}
+Content-Type: application/json
+
+{
+  "amount": 50000000,
+  "principal_paid": 50000000,
+  "interest_paid": 0,
+  "payment_date": "2027-10-01",
+  "payment_method": "Chuyển khoản",
+  "note": "Bạn trả hết một lần"
+}
+
+### 6.6. Trả nợ với transaction_id (liên kết với transaction)
+POST {{baseUrl}}/debts/{{debtId}}/payments
+Authorization: {{token}}
+Content-Type: application/json
+
+{
+  "amount": 11000000,
+  "principal_paid": 10050000,
+  "interest_paid": 950000,
+  "payment_date": "2026-04-01",
+  "payment_method": "Chuyển khoản",
+  "transaction_id": "550e8400-e29b-41d4-a716-446655440100",
+  "note": "Liên kết với transaction"
+}
+
+### 6.7. Trả nợ với attachment
+POST {{baseUrl}}/debts/{{debtId}}/payments
+Authorization: {{token}}
+Content-Type: application/json
+
+{
+  "amount": 11000000,
+  "principal_paid": 10100000,
+  "interest_paid": 900000,
+  "payment_date": "2026-05-01",
+  "payment_method": "Chuyển khoản",
+  "attachment_url": "https://storage.example.com/receipts/payment-202605.pdf",
+  "note": "Có biên lai đính kèm"
+}
+
+### 6.8. Validation: Amount = 0
+POST {{baseUrl}}/debts/{{debtId}}/payments
+Authorization: {{token}}
+Content-Type: application/json
+
+{
+  "amount": 0,
+  "payment_date": "2026-06-01"
+}
+
+### 6.9. Validation: Amount âm
+POST {{baseUrl}}/debts/{{debtId}}/payments
+Authorization: {{token}}
+Content-Type: application/json
+
+{
+  "amount": -1000000,
+  "payment_date": "2026-06-01"
+}
+
+### 6.10. Validation: Principal + Interest != Amount
+POST {{baseUrl}}/debts/{{debtId}}/payments
+Authorization: {{token}}
+Content-Type: application/json
+
+{
+  "amount": 11000000,
+  "principal_paid": 8000000,
+  "interest_paid": 2000000,
+  "payment_date": "2026-06-01"
+}
+
+### 6.11. Trả nợ cho khoản nợ không tồn tại
+POST {{baseUrl}}/debts/99999/payments
+Authorization: {{token}}
+Content-Type: application/json
+
+{
+  "amount": 1000000,
+  "payment_date": "2026-06-01"
+}
+
+### =====================================================
+### 7. PAYMENT SCHEDULE - Lịch trả nợ dự kiến
+### GET /api/v1/debts/{id}/schedule
+### =====================================================
+
+### 7.1. Xem lịch trả nợ cho khoản vay mua nhà
+GET {{baseUrl}}/debts/{{debtId}}/schedule
+Authorization: {{token}}
+
+### 7.2. Xem lịch trả nợ cho khoản vay mua xe
+GET {{baseUrl}}/debts/2/schedule
+Authorization: {{token}}
+
+### 7.3. Xem lịch trả nợ cho khoản vay thẻ tín dụng
+GET {{baseUrl}}/debts/3/schedule
+Authorization: {{token}}
+
+### 7.4. Xem lịch trả nợ cho khoản cho vay
+GET {{baseUrl}}/debts/4/schedule
+Authorization: {{token}}
+
+### 7.5. Xem lịch trả nợ cho khoản vay hàng tuần
+GET {{baseUrl}}/debts/7/schedule
+Authorization: {{token}}
+
+### 7.6. Xem lịch trả nợ cho khoản nợ không tồn tại
+GET {{baseUrl}}/debts/99999/schedule
+Authorization: {{token}}
+
+### =====================================================
+### 8. DEBTS SUMMARY - Tổng quan tất cả khoản nợ
+### GET /api/v1/debts/summary
+### =====================================================
+
+### 8.1. Xem tổng quan tất cả khoản nợ
+GET {{baseUrl}}/debts/summary
+Authorization: {{token}}
+
+### =====================================================
+### 9. EDGE CASES & SCENARIOS
+### =====================================================
+
+### 9.1. Tạo nhiều khoản nợ cùng lúc để test summary
+POST {{baseUrl}}/debts
+Authorization: {{token}}
+Content-Type: application/json
+
+{
+  "debt_type": "BORROWING",
+  "creditor_name": "Ngân hàng BIDV",
+  "principal_amount": 200000000,
+  "currency_code": "VND",
+  "interest_rate": 10.0,
+  "interest_type": "FIXED",
+  "start_date": "2026-05-01",
+  "due_date": "2030-05-01",
+  "payment_frequency": "MONTHLY",
+  "payment_amount": 5000000,
+  "description": "Vay kinh doanh"
+}
+
+###
+POST {{baseUrl}}/debts
+Authorization: {{token}}
+Content-Type: application/json
+
+{
+  "debt_type": "LENDING",
+  "debtor_name": "Phạm Văn D",
+  "debtor_phone": "+84909999999",
+  "principal_amount": 80000000,
+  "currency_code": "VND",
+  "interest_rate": 2.0,
+  "interest_type": "FIXED",
+  "start_date": "2026-07-01",
+  "due_date": "2028-07-01",
+  "payment_frequency": "QUARTERLY",
+  "payment_amount": 11000000,
+  "description": "Cho vay mua đất"
+}
+
+### 9.2. Scenario: Trả hết nợ và kiểm tra status
+# Step 1: Tạo khoản nợ nhỏ
+POST {{baseUrl}}/debts
+Authorization: {{token}}
+Content-Type: application/json
+
+{
+  "debt_type": "BORROWING",
+  "creditor_name": "Test Creditor",
+  "principal_amount": 5000000,
+  "currency_code": "VND",
+  "interest_rate": 0,
+  "interest_type": "NONE",
+  "start_date": "2026-10-01",
+  "due_date": "2026-11-01",
+  "payment_frequency": "ONE_TIME",
+  "description": "Test trả hết nợ"
+}
+
+# Step 2: Note debt_id from response, then pay it all
+# (Replace {debt_id} with actual ID)
+###
+POST {{baseUrl}}/debts/{debt_id}/payments
+Authorization: {{token}}
+Content-Type: application/json
+
+{
+  "amount": 5000000,
+  "principal_paid": 5000000,
+  "interest_paid": 0,
+  "payment_date": "2026-10-15",
+  "payment_method": "Tiền mặt",
+  "note": "Trả hết một lần"
+}
+
+# Step 3: Verify status changed to PAID_OFF
+###
+GET {{baseUrl}}/debts/{debt_id}
+Authorization: {{token}}
+
+### 9.3. Scenario: Multiple payments trên cùng một khoản nợ
+POST {{baseUrl}}/debts/{{debtId}}/payments
+Authorization: {{token}}
+Content-Type: application/json
+
+{
+  "amount": 11000000,
+  "principal_paid": 10150000,
+  "interest_paid": 850000,
+  "payment_date": "2026-06-01",
+  "payment_method": "Chuyển khoản"
+}
+
+###
+POST {{baseUrl}}/debts/{{debtId}}/payments
+Authorization: {{token}}
+Content-Type: application/json
+
+{
+  "amount": 11000000,
+  "principal_paid": 10200000,
+  "interest_paid": 800000,
+  "payment_date": "2026-07-01",
+  "payment_method": "Chuyển khoản"
+}
+
+###
+POST {{baseUrl}}/debts/{{debtId}}/payments
+Authorization: {{token}}
+Content-Type: application/json
+
+{
+  "amount": 11000000,
+  "principal_paid": 10250000,
+  "interest_paid": 750000,
+  "payment_date": "2026-08-01",
+  "payment_method": "Chuyển khoản"
+}
+
+# Verify accumulated payments
+###
+GET {{baseUrl}}/debts/{{debtId}}
+Authorization: {{token}}
+
+### 9.4. Test với số tiền lớn (tỷ đồng)
+POST {{baseUrl}}/debts
+Authorization: {{token}}
+Content-Type: application/json
+
+{
+  "debt_type": "BORROWING",
+  "creditor_name": "Ngân hàng MB Bank",
+  "principal_amount": 2000000000,
+  "currency_code": "VND",
+  "interest_rate": 9.5,
+  "interest_type": "FIXED",
+  "start_date": "2026-01-01",
+  "due_date": "2036-01-01",
+  "payment_frequency": "MONTHLY",
+  "payment_amount": 25000000,
+  "description": "Vay mua chung cư cao cấp"
+}
+
+### 9.5. Test payment_frequency khác nhau
+# WEEKLY
+POST {{baseUrl}}/debts
+Authorization: {{token}}
+Content-Type: application/json
+
+{
+  "debt_type": "BORROWING",
+  "creditor_name": "Cho vay nhanh XYZ",
+  "principal_amount": 5000000,
+  "currency_code": "VND",
+  "interest_rate": 15.0,
+  "interest_type": "FIXED",
+  "start_date": "2026-10-07",
+  "due_date": "2026-12-31",
+  "payment_frequency": "WEEKLY",
+  "payment_amount": 500000,
+  "description": "Vay ngắn hạn trả hàng tuần"
+}
+
+# BIWEEKLY
+###
+POST {{baseUrl}}/debts
+Authorization: {{token}}
+Content-Type: application/json
+
+{
+  "debt_type": "LENDING",
+  "debtor_name": "Hoàng Văn E",
+  "principal_amount": 10000000,
+  "currency_code": "VND",
+  "interest_rate": 4.0,
+  "interest_type": "FIXED",
+  "start_date": "2026-10-01",
+  "due_date": "2027-04-01",
+  "payment_frequency": "BIWEEKLY",
+  "payment_amount": 800000,
+  "description": "Cho vay trả 2 tuần một lần"
+}
+
+# QUARTERLY
+###
+POST {{baseUrl}}/debts
+Authorization: {{token}}
+Content-Type: application/json
+
+{
+  "debt_type": "BORROWING",
+  "creditor_name": "Quỹ tín dụng ABC",
+  "principal_amount": 100000000,
+  "currency_code": "VND",
+  "interest_rate": 7.0,
+  "interest_type": "FIXED",
+  "start_date": "2026-01-01",
+  "due_date": "2028-01-01",
+  "payment_frequency": "QUARTERLY",
+  "payment_amount": 13500000,
+  "description": "Vay trả theo quý"
+}
+
+# YEARLY
+###
+POST {{baseUrl}}/debts
+Authorization: {{token}}
+Content-Type: application/json
+
+{
+  "debt_type": "LENDING",
+  "debtor_name": "Công ty TNHH DEF",
+  "debtor_email": "contact@def.com",
+  "principal_amount": 500000000,
+  "currency_code": "VND",
+  "interest_rate": 6.0,
+  "interest_type": "FIXED",
+  "start_date": "2026-01-01",
+  "due_date": "2031-01-01",
+  "payment_frequency": "YEARLY",
+  "payment_amount": 110000000,
+  "description": "Cho công ty vay trả hàng năm"
+}
+
+### =====================================================
+### 10. UNAUTHORIZED ACCESS TESTS
+### =====================================================
+
+### 10.1. Truy cập không có token
+GET {{baseUrl}}/debts
+
+### 10.2. Tạo debt không có token
+POST {{baseUrl}}/debts
+Content-Type: application/json
+
+{
+  "debt_type": "BORROWING",
+  "creditor_name": "Test",
+  "principal_amount": 1000000,
+  "currency_code": "VND",
+  "start_date": "2026-10-01"
+}
+
+### 10.3. Token không hợp lệ
+GET {{baseUrl}}/debts
+Authorization: Bearer invalid_token_here
+
+### =====================================================
+### END OF TESTS
+### =====================================================

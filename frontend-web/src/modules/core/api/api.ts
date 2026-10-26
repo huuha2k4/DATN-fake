@@ -56,8 +56,10 @@ apiClient.interceptors.response.use(
           }
         }
       } catch (refreshError) {
-        // Refresh failed - redirect to login
-        localStorage.clear();
+        // Refresh failed - chỉ xóa thông tin xác thực phiên làm việc, giữ nguyên theme và cài đặt thiết bị
+        localStorage.removeItem('access_token');
+        localStorage.removeItem('refresh_token');
+        localStorage.removeItem('user');
         window.location.href = '/';
         return Promise.reject(refreshError);
       }

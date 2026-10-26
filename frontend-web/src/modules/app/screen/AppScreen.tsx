@@ -12,6 +12,7 @@ import { FinancialForecastScreen } from '../../financial-forecast/screen/Financi
 import { FinancialRemindersScreen } from '../../financial-reminders/screen/FinancialRemindersScreen'
 import { InvoiceOcrScreen } from '../../invoice-ocr/screen/InvoiceOcrScreen'
 import { SpendingAnalysisScreen } from '../../spending-analysis/screen/SpendingAnalysisScreen'
+import { DebtManagementScreen } from '../../debt-management/screen/DebtManagementScreen'
 import { DashboardHeaderSection } from '../../core/components/DashboardHeaderSection'
 import { FinancialNavigationSection } from '../../core/components/FinancialNavigationSection'
 import { FloatingActions } from '../../core/components/FloatingActions'
@@ -66,7 +67,8 @@ export default function AppScreen() {
     '/transactions': 'Quản lý Thu & Chi',
     '/budget': 'Quản lý Ngân sách',
     '/goals': 'Mục tiêu Tài chính',
-    '/reminders': 'Nhắc nhở tài chính',
+    '/schedules': 'Lịch tài chính',
+    '/debts': 'Quản lý Nợ',
     '/reports': 'Báo cáo & Thống kê',
     '/ai-assistant': 'AI Thông minh',
     '/forecast': 'Dự báo tài chính',
@@ -88,7 +90,8 @@ export default function AppScreen() {
             'Quản lý Thu & Chi': '/transactions',
             'Quản lý Ngân sách': '/budget',
             'Mục tiêu Tài chính': '/goals',
-            'Nhắc nhở tài chính': '/reminders',
+            'Lịch tài chính': '/schedules',
+            'Quản lý Nợ': '/debts',
             'Báo cáo & Thống kê': '/reports',
             'AI Thông minh': '/ai-assistant',
             'Dự báo tài chính': '/forecast',
@@ -118,7 +121,9 @@ export default function AppScreen() {
           <Route path="/transactions" element={<CashFlowManagementScreen onNotify={setNotice} onAddTransaction={() => navigate('/add-transaction')} />} />
           <Route path="/budget" element={<BudgetManagementScreen onNotify={setNotice} />} />
           <Route path="/goals" element={<GoalsManagementScreen onNotify={setNotice} />} />
+          <Route path="/schedules" element={<FinancialRemindersScreen onNotify={setNotice} />} />
           <Route path="/reminders" element={<FinancialRemindersScreen onNotify={setNotice} />} />
+          <Route path="/debts" element={<DebtManagementScreen onNotify={setNotice} />} />
           <Route path="/reports" element={<FinancialReportsDashboardScreen onNotify={setNotice} />} />
           <Route path="/ai-assistant" element={<AIAssistantScreen onNotify={setNotice} />} />
           <Route path="/forecast" element={<FinancialForecastScreen onNotify={setNotice} />} />

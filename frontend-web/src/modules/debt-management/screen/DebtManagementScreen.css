@@ -1,0 +1,622 @@
+.debt-page-container {
+  padding: 24px;
+  max-width: 1400px;
+  margin: 0 auto;
+  min-height: calc(100vh - 68px);
+}
+
+.debt-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.debt-stat-card {
+  padding: 20px;
+  border-radius: 20px;
+  border-width: 1px;
+  border-style: solid;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.02);
+}
+
+/* Thẻ thống kê Đi vay ở giao diện sáng - Dùng màu #e11d48 theo Quản lý ví */
+html:not(.dark) .debt-stat-card.border-rose-200 {
+  background: #fff5f6 !important;
+  border-color: #fbdad8 !important;
+}
+
+html:not(.dark) .debt-stat-card.border-rose-200 p,
+html:not(.dark) .debt-stat-card.border-rose-200 span.text-\[\#e11d48\] {
+  color: #e11d48 !important; /* Chuẩn màu đỏ quản lý ví */
+}
+
+html:not(.dark) .debt-stat-card.border-rose-200 .bg-rose-100 {
+  background-color: #ffe4e6 !important;
+  color: #e11d48 !important;
+}
+
+.debt-filter-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 24px;
+  padding: 12px 16px;
+  background: #ffffff;
+  border-radius: 16px;
+  border: 1px solid #e2ece5;
+}
+
+html:not(.dark) .debt-filter-bar button.text-rose-700 {
+  color: #ef4444 !important; /* Đỏ tươi ở tab Đi vay giao diện sáng */
+}
+
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  background: rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+
+.modal-box {
+  width: 100%;
+  background: #ffffff;
+  border-radius: 20px;
+  padding: 24px;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
+  border: 1px solid #e2ece5;
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE and Edge */
+}
+
+.debt-type-badge-icon {
+  display: inline-grid;
+  width: 36px;
+  height: 36px;
+  place-items: center;
+  border-radius: 12px;
+  font-weight: 700;
+  flex-shrink: 0;
+  transition: all 0.2s ease;
+}
+
+.debt-type-badge-icon.borrowing {
+  background-color: #fff1f2; /* bg-rose-50 chuẩn quản lý ví */
+  color: #e11d48; /* #e11d48 chuẩn quản lý ví */
+  border: 1px solid #ffe4e6; /* border-rose-100 */
+}
+
+.debt-type-badge-icon.lending {
+  background-color: #ecfdf5;
+  color: #059669;
+  border: 1px solid #a7f3d0;
+}
+
+.debt-type-label {
+  display: inline-block;
+  font-size: 10px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.debt-type-label.borrowing {
+  color: #e11d48; /* Chuẩn quản lý ví */
+}
+
+.debt-type-label.lending {
+  color: #047857;
+}
+
+/* Thanh tiến độ - Giao diện sáng (Light Mode) */
+.debt-progress-track {
+  position: relative;
+  width: 100%;
+  height: 8px;
+  overflow: hidden;
+  border-radius: 9999px;
+  background-color: #f1f5f3;
+  border: 1px solid #e2ece5;
+}
+
+.debt-progress-bar {
+  height: 100%;
+  border-radius: 9999px;
+  transition: all 0.5s ease;
+}
+
+.debt-progress-bar.borrowing {
+  background-color: #f43f5e; /* Màu accent #f43f5e chuẩn quản lý ví */
+}
+
+.debt-progress-bar.lending {
+  background-color: #059669; /* Xanh ngọc tươi sáng */
+}
+
+/* Nhãn và giá trị thông tin trong thẻ nợ (Giao diện sáng) */
+.debt-field-label {
+  color: #475569 !important; /* Xám than đậm đà, rõ nét 100%, không bị mờ */
+  font-weight: 500;
+}
+
+.debt-field-value {
+  color: #0f172a !important; /* Đen đậm rõ ràng */
+  font-weight: 700;
+}
+
+/* Số tiền nợ nổi bật */
+.debt-amount-highlight {
+  font-weight: 800;
+  font-size: 13px;
+}
+
+.debt-amount-highlight.borrowing {
+  color: #e11d48 !important; /* Chuẩn quản lý ví text-[#e11d48] */
+}
+
+.debt-amount-highlight.lending {
+  color: #059669 !important; /* Xanh ngọc Finora tươi tắn */
+}
+
+/* Modal chi tiết khoản nợ ở giao diện sáng */
+.modal-box strong.text-rose-700 {
+  color: #e11d48 !important;
+}
+
+.modal-box button.text-rose-700 {
+  color: #e11d48 !important;
+}
+
+.modal-box button.border-rose-200 {
+  border-color: #fecdd3 !important;
+  color: #e11d48 !important;
+}
+
+.modal-box button.border-rose-200:hover {
+  background-color: #fff1f2 !important;
+}
+
+/* Footer thẻ nợ - Giao diện sáng (Light Mode) */
+.debt-card-footer {
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px solid #f0f4f2;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 11px;
+}
+
+.debt-card-footer-due {
+  color: #64748b; /* Xám than rõ ràng, không bị mờ bay chữ */
+}
+
+.debt-card-footer-due strong {
+  color: #0f172a; /* Đen đậm rõ nét */
+  font-weight: 700;
+}
+
+.debt-card-footer-action {
+  font-weight: 700;
+  color: #07543f;
+  transition: all 0.15s ease;
+}
+
+.debt-card-footer-action:hover {
+  text-decoration: underline;
+  color: #0b6c52;
+}
+
+/* ========================================================
+   DARK MODE FINORA LUXURY FINTECH STYLE
+   ======================================================== */
+html.dark .debt-page-container {
+  color: #e2eaf0;
+}
+
+/* Thẻ thống kê 2 cột Dark Mode */
+html.dark .debt-stat-card {
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25);
+}
+
+html.dark .debt-stat-card.border-rose-200 {
+  background: linear-gradient(145deg, rgba(80, 7, 26, 0.4) 0%, rgba(13, 24, 37, 0.9) 100%) !important;
+  border-color: rgba(159, 18, 57, 0.3) !important;
+}
+
+html.dark .debt-stat-card.border-rose-200 p,
+html.dark .debt-stat-card.border-rose-200 span.text-\[\#e11d48\] {
+  color: #fb7185 !important;
+}
+
+html.dark .debt-stat-card.border-rose-200 .bg-rose-100 {
+  background-color: rgba(225, 29, 72, 0.25) !important;
+  color: #fb7185 !important;
+}
+
+html.dark .debt-stat-card.border-emerald-200 {
+  background: linear-gradient(145deg, rgba(16, 185, 129, 0.1) 0%, rgba(13, 33, 48, 0.8) 100%) !important;
+  border-color: rgba(16, 185, 129, 0.25) !important;
+}
+
+html.dark .debt-stat-card.border-emerald-200 p,
+html.dark .debt-stat-card.border-emerald-200 span.text-emerald-800 {
+  color: #34d399 !important;
+}
+
+html.dark .debt-stat-card.border-emerald-200 .bg-emerald-100 {
+  background-color: rgba(16, 185, 129, 0.2) !important;
+  color: #10b981 !important;
+}
+
+html.dark .debt-stat-card span.text-\[\#718579\] {
+  color: #94a3b8 !important;
+}
+
+/* Thanh bộ lọc & Tabs */
+html.dark .debt-filter-bar {
+  background: #0d2130 !important;
+  border-color: #173246 !important;
+  color: #e2eaf0 !important;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+}
+
+html.dark .debt-filter-bar .bg-gray-100 {
+  background-color: #081722 !important;
+  border-color: #1a384e !important;
+}
+
+html.dark .debt-filter-bar button.bg-white {
+  background-color: #163347 !important;
+  color: #ffffff !important;
+}
+
+html.dark .debt-filter-bar button.text-gray-600 {
+  color: #94a3b8 !important;
+}
+html.dark .debt-filter-bar button.text-gray-600:hover {
+  color: #f1f5f9 !important;
+}
+
+html.dark .debt-filter-bar button.text-rose-700 {
+  color: #fb7185 !important;
+}
+
+html.dark .debt-filter-bar select {
+  background-color: #081722 !important;
+  border-color: #1a384e !important;
+  color: #e2eaf0 !important;
+}
+
+/* Thẻ nợ trong danh sách chính */
+html.dark .group.relative.cursor-pointer.rounded-2xl {
+  background-color: #0d2130 !important;
+  border-color: #173246 !important;
+  color: #e2eaf0 !important;
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.2);
+}
+
+html.dark .group.relative.cursor-pointer.rounded-2xl:hover {
+  border-color: #059669 !important;
+  box-shadow: 0 8px 24px rgba(5, 150, 105, 0.15) !important;
+}
+
+html.dark .group.relative.cursor-pointer.rounded-2xl .border-gray-100 {
+  border-color: #173246 !important;
+}
+
+html.dark .group.relative.cursor-pointer.rounded-2xl h4.text-\[\#14261e\],
+html.dark .group.relative.cursor-pointer.rounded-2xl strong.text-\[\#14261e\],
+html.dark .group.relative.cursor-pointer.rounded-2xl span.text-\[\#14261e\] {
+  color: #f1f5f9 !important;
+}
+
+html.dark .group.relative.cursor-pointer.rounded-2xl span.text-\[\#718579\] {
+  color: #94a3b8 !important;
+}
+
+/* Badge Icon thẻ nợ trong Dark Mode - Đỏ chuẩn FinTech, sáng rõ vừa vặn */
+html.dark .debt-type-badge-icon.borrowing {
+  background-color: rgba(244, 63, 94, 0.18) !important;
+  color: #f43f5e !important;
+  border-color: rgba(244, 63, 94, 0.35) !important;
+}
+
+html.dark .debt-type-badge-icon.lending {
+  background-color: rgba(16, 185, 129, 0.15) !important;
+  color: #34d399 !important;
+  border-color: rgba(16, 185, 129, 0.3) !important;
+}
+
+html.dark .debt-type-label.borrowing {
+  color: #f43f5e !important; /* Đỏ tươi tắn vừa phải, không bị thâm đậm */
+}
+
+html.dark .debt-type-label.lending {
+  color: #34d399 !important;
+}
+
+/* Thanh tiến độ - Giao diện tối (Dark Mode) */
+html.dark .debt-progress-track {
+  background-color: #0b1f2e !important;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+html.dark .debt-progress-bar.borrowing {
+  background-color: #e11d48 !important; /* Màu đỏ rõ nét, không bị tối đen như #9f1239 */
+}
+
+html.dark .debt-progress-bar.lending {
+  background-color: #34d399 !important;
+}
+
+/* Thông tin thẻ nợ trong Dark Mode */
+html.dark .debt-field-label {
+  color: #8da4b4 !important;
+}
+
+html.dark .debt-field-value {
+  color: #f1f5f9 !important;
+}
+
+html.dark .debt-amount-highlight.borrowing {
+  color: #f43f5e !important; /* Đỏ sáng rõ, đọc rõ số tiền */
+}
+
+html.dark .debt-amount-highlight.lending {
+  color: #34d399 !important;
+}
+
+html.dark .group.relative.cursor-pointer.rounded-2xl .bg-amber-100 {
+  background-color: rgba(245, 158, 11, 0.2) !important;
+  color: #fde68a !important;
+}
+
+html.dark .group.relative.cursor-pointer.rounded-2xl strong.text-rose-700,
+html.dark .group.relative.cursor-pointer.rounded-2xl strong.text-rose-600 {
+  color: #f43f5e !important;
+}
+
+html.dark .group.relative.cursor-pointer.rounded-2xl strong.text-\[\#07543f\] {
+  color: #34d399 !important;
+}
+
+html.dark .group.relative.cursor-pointer.rounded-2xl .border-emerald-100 {
+  background-color: rgba(16, 185, 129, 0.1) !important;
+  border-color: rgba(16, 185, 129, 0.25) !important;
+}
+
+html.dark .group.relative.cursor-pointer.rounded-2xl .text-emerald-800 {
+  color: #6ee7b7 !important;
+}
+
+/* Footer thẻ nợ: Hạn trả và Chi tiết trong Dark Mode */
+html.dark .debt-card-footer {
+  border-top-color: #162f42 !important;
+}
+
+html.dark .debt-card-footer-due {
+  color: #8da4b4 !important;
+}
+
+html.dark .debt-card-footer-due strong {
+  color: #e2eaf0 !important;
+}
+
+html.dark .debt-card-footer-action {
+  color: #10b981 !important;
+}
+
+/* Empty State */
+html.dark .border-dashed.bg-white {
+  background-color: #0d2130 !important;
+  border-color: #1a384e !important;
+}
+
+html.dark .border-dashed h3.text-\[\#14261e\] {
+  color: #f1f5f9 !important;
+}
+
+/* Modals (Tạo nợ, Chi tiết, Trả nợ) */
+html.dark .modal-box {
+  background: #0d2130 !important;
+  border-color: #1c3b52 !important;
+  color: #e2eaf0 !important;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5) !important;
+}
+
+html.dark .modal-box .border-gray-100,
+html.dark .modal-box .border-gray-200,
+html.dark .modal-box .border-b,
+html.dark .modal-box .border-t {
+  border-color: #173246 !important;
+}
+
+html.dark .modal-box h2,
+html.dark .modal-box h3,
+html.dark .modal-box h4 {
+  color: #f8fafc !important;
+}
+
+html.dark .modal-box label {
+  color: #cbd5e1 !important;
+}
+
+html.dark .modal-box p.text-xs,
+html.dark .modal-box span.text-xs,
+html.dark .modal-box span.text-\[\#718579\] {
+  color: #94a3b8 !important;
+}
+
+/* Switch Type (Đi vay / Cho vay) */
+html.dark .modal-box .grid.grid-cols-2.bg-gray-100 {
+  background-color: #081722 !important;
+  border-color: #1a384e !important;
+}
+
+html.dark .modal-box .grid.grid-cols-2 button.bg-white {
+  background-color: #163347 !important;
+  color: #f8fafc !important;
+}
+
+html.dark .modal-box .grid.grid-cols-2 button.text-rose-700 {
+  color: #fda4af !important;
+}
+
+html.dark .modal-box .grid.grid-cols-2 button.text-gray-600 {
+  color: #94a3b8 !important;
+}
+
+/* Inputs, Selects & Textareas trong modal */
+html.dark .modal-box input:not([type="checkbox"]),
+html.dark .modal-box select,
+html.dark .modal-box textarea {
+  background-color: #081722 !important;
+  border-color: #1a384e !important;
+  color: #e2eaf0 !important;
+}
+
+html.dark .modal-box input:focus,
+html.dark .modal-box select:focus,
+html.dark .modal-box textarea:focus {
+  border-color: #10b981 !important;
+  box-shadow: 0 0 0 1px #10b981 !important;
+}
+
+html.dark .modal-box input::placeholder,
+html.dark .modal-box textarea::placeholder {
+  color: #64748b !important;
+}
+
+/* Các box cấu hình Trả theo kỳ & Đồng bộ Lịch */
+html.dark .modal-box .rounded-2xl.border-emerald-100,
+html.dark .modal-box .bg-\[\#f8fbf9\] {
+  background-color: #081926 !important;
+  border-color: #193e34 !important;
+}
+
+html.dark .modal-box .rounded-xl.border-emerald-100 {
+  background-color: #0d2130 !important;
+  border-color: #193e34 !important;
+}
+
+html.dark .modal-box .border-emerald-100 {
+  border-color: #193e34 !important;
+}
+
+html.dark .modal-box button.border-gray-200.bg-white {
+  background-color: #0d2130 !important;
+  border-color: #1c3b52 !important;
+  color: #cbd5e1 !important;
+}
+
+html.dark .modal-box button.border-\[\#07543f\].bg-emerald-50 {
+  background-color: #064e3b !important;
+  border-color: #10b981 !important;
+  color: #6ee7b7 !important;
+}
+
+html.dark .modal-box .bg-emerald-50\/60 {
+  background-color: rgba(6, 78, 59, 0.3) !important;
+  border-color: #065f46 !important;
+}
+
+html.dark .modal-box .text-emerald-950 {
+  color: #a7f3d0 !important;
+}
+
+html.dark .modal-box .text-emerald-800,
+html.dark .modal-box .text-emerald-700 {
+  color: #6ee7b7 !important;
+}
+
+html.dark .modal-box .bg-gray-100.text-gray-700 {
+  background-color: #163347 !important;
+  color: #e2eaf0 !important;
+}
+html.dark .modal-box .bg-gray-100.text-gray-700:hover {
+  background-color: #1e4560 !important;
+}
+
+/* ========================================================
+   MODAL CHI TIẾT KHOẢN NỢ (KHẮC PHỤC CHỮ TỐI TRÊN NỀN ĐEN)
+   ======================================================== */
+html.dark .modal-box .bg-gray-50 {
+  background-color: #091a27 !important;
+  border-color: #19374d !important;
+  color: #cbd5e1 !important;
+}
+
+/* Các nhãn text bên trong thẻ tóm tắt và hộp chi tiết */
+html.dark .modal-box .text-gray-600,
+html.dark .modal-box .text-gray-500 {
+  color: #94a3b8 !important;
+}
+
+/* Số tiền tổng nợ ban đầu và các chữ đậm đen #14261e -> Đổi sang sáng trắng */
+html.dark .modal-box strong.text-\[\#14261e\],
+html.dark .modal-box p.text-\[\#14261e\],
+html.dark .modal-box h3.text-\[\#14261e\],
+html.dark .modal-box span.text-\[\#14261e\] {
+  color: #f8fafc !important;
+}
+
+/* Đã thanh toán */
+html.dark .modal-box strong.text-emerald-700 {
+  color: #34d399 !important;
+}
+
+/* Còn lại cần trả: Đỏ đô sang trọng, đậm nét */
+html.dark .modal-box strong.text-rose-700 {
+  color: #e11d48 !important;
+}
+
+/* Ô Chu kỳ trả và Hạn thanh toán */
+html.dark .modal-box .p-3.bg-white.rounded-xl {
+  background-color: #091a27 !important;
+  border-color: #19374d !important;
+  color: #cbd5e1 !important;
+}
+
+html.dark .modal-box .p-3.bg-white.rounded-xl p {
+  color: #f8fafc !important;
+}
+
+html.dark .modal-box .divide-gray-100 > * {
+  border-color: #173246 !important;
+}
+
+html.dark .modal-box .bg-emerald-50\/50 {
+  background-color: rgba(16, 185, 129, 0.15) !important;
+  border-color: rgba(16, 185, 129, 0.3) !important;
+}
+
+html.dark .modal-box .bg-rose-50\/50 {
+  background-color: rgba(136, 19, 55, 0.25) !important;
+  border-color: rgba(190, 18, 60, 0.35) !important;
+}
+
+html.dark .modal-box .grid.size-5.bg-white {
+  background-color: #163347 !important;
+  color: #f1f5f9 !important;
+}
+
+/* Nút xóa khoản nợ: Đỏ đô tinh tế */
+html.dark .modal-box button.border-rose-200 {
+  background-color: rgba(136, 19, 55, 0.2) !important;
+  border-color: rgba(190, 18, 60, 0.45) !important;
+  color: #e11d48 !important;
+}
+html.dark .modal-box button.border-rose-200:hover {
+  background-color: rgba(136, 19, 55, 0.35) !important;
+  border-color: rgba(225, 29, 72, 0.6) !important;
+}
+
+

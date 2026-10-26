@@ -1,19 +1,40 @@
-/* Floating Action Buttons (FAB) at Bottom Right */
+/* Floating Action Buttons (FAB) Dock ở góc dưới bên phải */
 .floating-actions-dock {
   position: fixed;
-  bottom: 28px;
-  right: 28px;
+  bottom: 24px;
+  right: 24px;
   z-index: 99;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
 }
 
+/* Khối 3 nút con: Mặc định ẩn, khi isOpen thì bung trượt lên trên */
+.fab-menu-items {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(12px) scale(0.9);
+  pointer-events: none;
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.fab-menu-items.active {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0) scale(1);
+  pointer-events: auto;
+}
+
+/* Các nút con bên trong */
 .fab-item {
   position: relative;
-  width: 42px;
-  height: 42px;
+  width: 40px;
+  height: 40px;
   border-radius: 50%;
   border: none;
   cursor: pointer;
@@ -21,23 +42,66 @@
   align-items: center;
   justify-content: center;
   box-shadow: 0 4px 14px rgba(7, 43, 33, 0.16);
-  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
   outline: none;
 }
 
 .fab-item:hover {
-  transform: translateY(-2px) scale(1.06);
+  transform: translateY(-2px) scale(1.08);
 }
 
 .fab-item:active {
-  transform: translateY(0) scale(0.96);
+  transform: translateY(0) scale(0.95);
 }
 
-/* Tooltip on hover */
+/* Nút Trigger Chính: Luôn hiển thị gọn gàng ở góc */
+.fab-trigger {
+  position: relative;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #07543f 0%, #04392a 100%);
+  color: #ffffff;
+  box-shadow: 0 6px 18px rgba(7, 84, 63, 0.35);
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  outline: none;
+}
+
+.fab-trigger:hover {
+  transform: scale(1.08);
+  box-shadow: 0 8px 22px rgba(7, 84, 63, 0.45);
+}
+
+.fab-trigger:active {
+  transform: scale(0.94);
+}
+
+/* Khi đang mở: Đổi sang màu xám đen hoặc đỏ cam cảnh báo nhẹ, icon X */
+.fab-trigger.open {
+  background: #1e293b;
+  box-shadow: 0 6px 18px rgba(15, 23, 42, 0.4);
+}
+
+.fab-trigger-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 17px;
+  font-weight: 700;
+  line-height: 1;
+  transition: transform 0.2s ease;
+}
+
+/* Tooltip hiển thị khi hover qua từng nút */
 .fab-tooltip {
   position: absolute;
   right: calc(100% + 10px);
-  background: rgba(14, 38, 30, 0.92);
+  background: rgba(14, 38, 30, 0.94);
   color: #ffffff;
   padding: 4px 10px;
   border-radius: 6px;
@@ -47,8 +111,8 @@
   pointer-events: none;
   opacity: 0;
   transform: translateX(6px);
-  transition: all 0.2s ease;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  transition: all 0.18s ease;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
 }
 
 .fab-tooltip::after {
@@ -59,7 +123,7 @@
   transform: translateY(-50%);
   border-width: 4px;
   border-style: solid;
-  border-color: transparent transparent transparent rgba(14, 38, 30, 0.92);
+  border-color: transparent transparent transparent rgba(14, 38, 30, 0.94);
 }
 
 .fab-item:hover .fab-tooltip {
@@ -67,7 +131,7 @@
   transform: translateX(0);
 }
 
-/* Specific button appearances */
+/* Màu sắc các nút thao tác phụ */
 .fab-scanner {
   background: #ffffff;
   color: #07543f;
@@ -90,11 +154,8 @@
 }
 
 .fab-primary.fab-add {
-  width: 42px;
-  height: 42px;
   background: linear-gradient(135deg, #07543f 0%, #04392a 100%);
   color: #ffffff;
-  box-shadow: 0 4px 14px rgba(7, 84, 63, 0.3);
 }
 
 .fab-primary.fab-add:hover {
@@ -102,24 +163,39 @@
   box-shadow: 0 6px 20px rgba(7, 84, 63, 0.4);
 }
 
+/* Chế độ tối (Dark mode) */
+html.dark .fab-scanner {
+  background-color: #0c1c28;
+  border-color: #1a3c54;
+  color: #34d399;
+}
+
+html.dark .fab-scanner:hover {
+  background-color: #122838;
+}
+
+html.dark .fab-tooltip {
+  background: rgba(10, 23, 34, 0.95);
+  border: 1px solid #1a3c54;
+}
+
+html.dark .fab-tooltip::after {
+  border-color: transparent transparent transparent rgba(10, 23, 34, 0.95);
+}
+
+html.dark .fab-trigger {
+  background: linear-gradient(135deg, #059669 0%, #047857 100%);
+  box-shadow: 0 6px 20px rgba(5, 150, 105, 0.4);
+}
+
+html.dark .fab-trigger.open {
+  background: #334155;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.5);
+}
+
 @media (max-width: 768px) {
   .floating-actions-dock {
     bottom: 80px;
     right: 18px;
-    gap: 10px;
-  }
-
-  .fab-item {
-    width: 44px;
-    height: 44px;
-  }
-
-  .fab-primary.fab-add {
-    width: 50px;
-    height: 50px;
-  }
-
-  .fab-tooltip {
-    display: none;
   }
 }

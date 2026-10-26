@@ -5,7 +5,7 @@ export type IconName =
   | 'search' | 'plus' | 'receipt' | 'bell' | 'calendar' | 'refresh' | 'download'
   | 'trend' | 'income' | 'expense' | 'coffee' | 'bolt' | 'more' | 'arrow' | 'shield' | 'clock' | 'user' | 'logout' | 'key' | 'lock'
   | 'edit' | 'delete' | 'shopping-bag' | 'car' | 'home' | 'heart' | 'zap' | 'book' | 'film' | 'map' | 'piggy-bank' | 'credit-card' | 'help-circle' | 'briefcase' | 'gift' | 'trending-up' | 'store' | 'plus-circle' | 'eye'
-  | 'sun' | 'moon'
+  | 'sun' | 'moon' | 'borrowing' | 'lending' | 'hand-coins'
 
 export function FinanceIcon({ name, size = 18, className }: { name: IconName; size?: number; className?: string }) {
   const drawings: Record<IconName, ReactNode> = {
@@ -57,6 +57,9 @@ export function FinanceIcon({ name, size = 18, className }: { name: IconName; si
     eye: <><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z" /><circle cx="12" cy="12" r="3" /></>,
     sun: <><circle cx="12" cy="12" r="4" /><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41" /></>,
     moon: <path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z" />,
+    borrowing: <><path d="M11 15h2a2 2 0 1 0 0-4h-3c-.6 0-1.1.2-1.4.6L3 17" /><path d="m7 21 1.6-1.4c.3-.4.8-.6 1.4-.6h4c1.1 0 2.1-.6 2.6-1.5l2.2-4.1a2 2 0 0 0-.8-2.7l-2.5-1.4a2 2 0 0 0-2.3.2L11 11" /><circle cx="17" cy="5" r="3" /><path d="M17 12V8" /></>,
+    lending: <><path d="M18 11V6a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v0" /><path d="M14 10V4a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v2" /><path d="M10 10.5V6a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v8" /><path d="M18 8a2 2 0 1 1 4 0v6a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.86-5.99-2.34l-3.6-3.6a2 2 0 0 1 2.83-2.82L7 15" /><circle cx="18" cy="4" r="2" /></>,
+    'hand-coins': <><circle cx="8" cy="8" r="5" /><circle cx="16" cy="6" r="3" /><path d="M3 17a3 3 0 0 0 3 3h7c.8 0 1.5-.4 1.9-1l3.1-4.7a2 2 0 0 0-2-3h-4" /></>,
   }
 
   return <svg aria-hidden="true" className={className} width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">{drawings[name] || drawings.grid}</svg>

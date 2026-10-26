@@ -115,7 +115,7 @@ export function LoginModal({ onClose, onSuccess, onSwitchToRegister }: LoginModa
               </>
             ) : (
               <>
-                <span>Vào trang tổng quan</span>
+                <span>Đăng nhập</span>
                 <FinanceIcon name="arrow" size={17} />
               </>
             )}

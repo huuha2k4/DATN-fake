@@ -1,0 +1,516 @@
+/* FinancialRemindersScreen.css - Luxury Fintech Style chuẩn thiết kế hệ thống Finora */
+
+.financial-schedule-page {
+  animation: fadeIn 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Thẻ thống kê tổng quan */
+.schedule-stat-card {
+  position: relative;
+  background: #ffffff;
+  border-radius: 20px;
+  border: 1px solid #e7ece8;
+  padding: 18px 20px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  min-height: 125px;
+  box-shadow: 0 4px 18px -4px rgba(18, 38, 30, 0.05);
+  transition: all 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.schedule-stat-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 24px -6px rgba(18, 38, 30, 0.08);
+  border-color: #cbdad0;
+}
+
+/* Thẻ Gradient đặc sắc (Card 4) */
+.schedule-hero-card {
+  position: relative;
+  background: linear-gradient(135deg, #053b2d 0%, #07543f 55%, #0b6c52 100%);
+  border-radius: 20px;
+  padding: 18px 20px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  min-height: 125px;
+  color: #ffffff;
+  box-shadow: 0 10px 28px -6px rgba(7, 84, 63, 0.32);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+}
+
+/* ========================================================
+   QUICK PRESET CHIPS (Gợi ý cài đặt 1 chạm phong cách luxury)
+   ======================================================== */
+.quick-preset-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 14px 6px 10px;
+  background: #ffffff;
+  border: 1px solid #e2e8e4;
+  border-radius: 9999px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #26372e;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.quick-preset-chip:hover {
+  border-color: #07543f;
+  background: #f0fdf4;
+  color: #07543f;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px -2px rgba(7, 84, 63, 0.12);
+}
+
+.quick-preset-chip:active {
+  transform: scale(0.98);
+}
+
+.quick-preset-icon {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 9999px;
+  font-size: 13px;
+  transition: transform 0.2s ease;
+}
+
+.quick-preset-chip:hover .quick-preset-icon {
+  transform: scale(1.1);
+}
+
+/* ========================================================
+   CALENDAR GRID STYLING
+   ======================================================== */
+.calendar-cell {
+  transition: all 0.15s ease-in-out;
+}
+
+.calendar-cell:hover {
+  background-color: #f7faf8;
+  border-color: #07543f;
+  z-index: 10;
+}
+
+.calendar-cell.selected {
+  border-color: #07543f;
+  box-shadow: 0 0 0 2px rgba(7, 84, 63, 0.25);
+  background-color: #f7faf8;
+}
+
+.calendar-cell.today {
+  background-color: transparent;
+}
+
+/* Event badges bên trong ô ngày */
+.event-pill {
+  transition: transform 0.1s ease;
+}
+
+.event-pill:hover {
+  transform: scale(1.02);
+}
+
+.event-pill-income {
+  background-color: #ecfdf5;
+  color: #065f46;
+  border-left: 3px solid #10b981;
+}
+
+.event-pill-expense {
+  background-color: #fef2f2;
+  color: #991b1b;
+  border-left: 3px solid #ef4444;
+}
+
+.event-pill-reminder {
+  background-color: #fffbeb;
+  color: #92400e;
+  border-left: 3px solid #f59e0b;
+}
+
+/* Thẻ từng dòng Lịch tài chính (Timeline) */
+.schedule-row-card {
+  position: relative;
+  background: #ffffff;
+  border-radius: 18px;
+  border: 1px solid #e7ece8;
+  padding: 16px 20px;
+  box-shadow: 0 3px 12px -2px rgba(18, 38, 30, 0.04);
+  transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.schedule-row-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px -4px rgba(7, 84, 63, 0.1);
+  border-color: rgba(7, 84, 63, 0.4);
+}
+
+/* Modal Backdrop Blur */
+.modal-backdrop-blur {
+  backdrop-filter: blur(6px);
+  background-color: rgba(15, 23, 42, 0.45);
+}
+
+/* Ẩn hoàn toàn thanh trượt nhưng vẫn cho phép cuộn mượt mà (Clean & No Scrollbar UI) */
+.custom-scrollbar {
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE và Edge cũ */
+}
+
+.custom-scrollbar::-webkit-scrollbar {
+  display: none; /* Chrome, Safari, Edge mới */
+  width: 0 !important;
+  height: 0 !important;
+}
+
+/* ========================================================
+   DARK MODE STYLING (Chuẩn Luxury Fintech Finora)
+   ======================================================== */
+/* 1. Nền trang chính */
+html.dark .financial-schedule-page {
+  background-color: #060e15 !important;
+  color: #cbd5e1 !important;
+}
+
+/* 2. Các thẻ thống kê & Card chung */
+html.dark .schedule-stat-card,
+html.dark .schedule-row-card {
+  background-color: #0a1722 !important;
+  border-color: #122432 !important;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4) !important;
+  color: #cbd5e1 !important;
+}
+
+html.dark .schedule-stat-card:hover,
+html.dark .schedule-row-card:hover {
+  background-color: #0e1f2d !important;
+  border-color: #1a3c54 !important;
+}
+
+html.dark .schedule-stat-card p.text-2xl {
+  color: #e2eaf0 !important;
+}
+
+html.dark .schedule-stat-card p.text-2xl.text-\[\#059669\] {
+  color: #10b981 !important;
+}
+
+html.dark .schedule-stat-card p.text-2xl.text-\[\#dc2626\] {
+  color: #f43f5e !important;
+}
+
+html.dark .schedule-stat-card .bg-\[\#eaf0fb\] {
+  background-color: #082338 !important;
+  color: #38bdf8 !important;
+  border: 1px solid #0f466d !important;
+}
+
+html.dark .schedule-stat-card .bg-\[\#ecfdf5\] {
+  background-color: #08281e !important;
+  color: #10b981 !important;
+  border: 1px solid #11503c !important;
+}
+
+html.dark .schedule-stat-card .bg-\[\#fef2f2\] {
+  background-color: #2a0b12 !important;
+  color: #f43f5e !important;
+  border: 1px solid #4c1d24 !important;
+}
+
+/* Hero Gradient Card */
+html.dark .schedule-hero-card {
+  background: linear-gradient(135deg, #072620 0%, #0a3d32 60%, #064032 100%) !important;
+  border-color: #114c3e !important;
+}
+
+/* 3. Khối điều khiển Toolbar & Quick Presets */
+html.dark .financial-schedule-page section.rounded-2xl.border,
+html.dark .financial-schedule-page div.rounded-2xl.border {
+  background-color: #0a1722 !important;
+  border-color: #122432 !important;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4) !important;
+}
+
+html.dark .financial-schedule-page h2,
+html.dark .financial-schedule-page h3 {
+  color: #e2eaf0 !important;
+}
+
+html.dark .financial-schedule-page p.text-\[\#718078\],
+html.dark .financial-schedule-page span.text-\[\#718078\] {
+  color: #8da4b4 !important;
+}
+
+html.dark .financial-schedule-page .border-t,
+html.dark .financial-schedule-page .border-b {
+  border-color: #162f42 !important;
+}
+
+/* Segmented Control Chuyển Chế độ xem */
+html.dark .financial-schedule-page .bg-\[\#f0f5f2\] {
+  background-color: #0c1c28 !important;
+  border: 1px solid #162f42 !important;
+}
+
+html.dark .financial-schedule-page .bg-\[\#f0f5f2\] button:not(.bg-\[\#07543f\]) {
+  color: #8da4b4 !important;
+}
+
+html.dark .financial-schedule-page .bg-\[\#f0f5f2\] button:not(.bg-\[\#07543f\]):hover {
+  background-color: #122838 !important;
+  color: #e2eaf0 !important;
+}
+
+/* Quick Preset Chips trong Dark Mode */
+html.dark .quick-preset-chip {
+  background-color: #0c1c28 !important;
+  border-color: #1a3c54 !important;
+  color: #cbd5e1 !important;
+}
+
+html.dark .quick-preset-chip:hover {
+  background-color: #0f2738 !important;
+  border-color: #10b981 !important;
+  color: #10b981 !important;
+}
+
+/* 4. Bàn lịch tháng (Calendar Grid) */
+html.dark .financial-schedule-page .text-\[\#6b7c72\] {
+  color: #cbd5e1 !important;
+}
+
+html.dark .financial-schedule-page .text-\[\#07543f\] {
+  color: #34d399 !important;
+}
+
+html.dark .calendar-cell {
+  border-color: #122432 !important;
+  background-color: #091520 !important;
+  color: #cbd5e1 !important;
+}
+
+html.dark .calendar-cell:hover {
+  background-color: #0f2334 !important;
+  border-color: #1a4968 !important;
+}
+
+html.dark .calendar-cell.selected {
+  border-color: #10b981 !important;
+  box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.3) !important;
+  background-color: #0c202d !important;
+}
+
+html.dark .calendar-cell.today {
+  background: transparent !important;
+}
+
+html.dark .calendar-cell .text-\[\#c2cbc5\] {
+  color: #2a4356 !important;
+}
+
+/* Ô ngày điều hướng tháng ‹ › */
+html.dark .financial-schedule-page button[title='Tháng trước'],
+html.dark .financial-schedule-page button[title='Tháng sau'] {
+  background-color: #0c1c28 !important;
+  border-color: #162f42 !important;
+  color: #cbd5e1 !important;
+}
+
+html.dark .financial-schedule-page button[title='Tháng trước']:hover,
+html.dark .financial-schedule-page button[title='Tháng sau']:hover {
+  background-color: #122838 !important;
+  color: #ffffff !important;
+}
+
+/* Event badges bên trong ô lịch */
+html.dark .event-pill-income {
+  background-color: #08281e !important;
+  color: #34d399 !important;
+  border-left-color: #10b981 !important;
+}
+
+html.dark .event-pill-expense {
+  background-color: #2a0b12 !important;
+  color: #fb7185 !important;
+  border-left-color: #f43f5e !important;
+}
+
+html.dark .event-pill-reminder {
+  background-color: #2a1c07 !important;
+  color: #fcd34d !important;
+  border-left-color: #f59e0b !important;
+}
+
+/* 5. Cột phải chi tiết ngày */
+html.dark aside .divide-\[\#f1f5f2\] > * + * {
+  border-color: #162f42 !important;
+}
+
+html.dark aside h4 {
+  color: #e2eaf0 !important;
+}
+
+html.dark aside .bg-\[\#f3f7f4\] {
+  background-color: #0c1c28 !important;
+  color: #8da4b4 !important;
+}
+
+html.dark aside .bg-\[\#f8faf9\] {
+  background-color: #0c1c28 !important;
+  border-color: #162f42 !important;
+  color: #8da4b4 !important;
+}
+
+/* 6. Modal / Popup Dialog */
+html.dark .modal-backdrop-blur > div {
+  background-color: #0a1722 !important;
+  border: 1px solid #16364a !important;
+  color: #cbd5e1 !important;
+}
+
+html.dark .modal-backdrop-blur h2,
+html.dark .modal-backdrop-blur h3 {
+  color: #f8fafc !important;
+}
+
+html.dark .modal-backdrop-blur p {
+  color: #94a3b8 !important;
+}
+
+/* Các nhãn tiêu đề form */
+html.dark .modal-backdrop-blur label,
+html.dark .modal-backdrop-blur .text-\[\#34463b\] {
+  color: #e2e8f0 !important;
+}
+
+html.dark .modal-backdrop-blur .text-\[\#718078\],
+html.dark .modal-backdrop-blur .text-\[\#829087\],
+html.dark .modal-backdrop-blur .text-\[\#6b7c72\],
+html.dark .modal-backdrop-blur .text-\[\#52665a\] {
+  color: #cbd5e1 !important;
+}
+
+html.dark .modal-backdrop-blur .border-b,
+html.dark .modal-backdrop-blur .border-t,
+html.dark .modal-backdrop-blur .border-\[\#e2e8e4\],
+html.dark .modal-backdrop-blur .border-\[\#f1f5f2\] {
+  border-color: #1e3a4f !important;
+}
+
+/* Các input, select, textarea */
+html.dark .modal-backdrop-blur input,
+html.dark .modal-backdrop-blur select,
+html.dark .modal-backdrop-blur textarea {
+  background-color: #0b1c28 !important;
+  border-color: #1e3a4f !important;
+  color: #f8fafc !important;
+}
+
+html.dark .modal-backdrop-blur input::placeholder,
+html.dark .modal-backdrop-blur textarea::placeholder {
+  color: #64748b !important;
+}
+
+html.dark .modal-backdrop-blur input:focus,
+html.dark .modal-backdrop-blur select:focus,
+html.dark .modal-backdrop-blur textarea:focus {
+  border-color: #10b981 !important;
+  background-color: #0d2232 !important;
+}
+
+html.dark .modal-backdrop-blur select option {
+  background-color: #0b1c28 !important;
+  color: #f8fafc !important;
+}
+
+/* Khối bao quanh các nhóm trường */
+html.dark .modal-backdrop-blur .bg-\[\#fafcfa\],
+html.dark .modal-backdrop-blur .bg-\[\#f8faf9\],
+html.dark .modal-backdrop-blur .bg-\[\#f9fbf9\] {
+  background-color: #0c1d2a !important;
+  border-color: #1e3a4f !important;
+}
+
+/* Nút dạng unselected (Chi tiêu / Thu nhập / Chuyển tiền & Chỉ nhắc nhở) trong form tạo mới */
+html.dark .modal-backdrop-blur form button.bg-white,
+html.dark .modal-backdrop-blur form button:not([class*="bg-[#07543f]"]):not([class*="bg-[#e6f7ef]"]):not([class*="bg-[#fff8e6]"]):not([class*="bg-[#122838]"]) {
+  border-color: #1e3a4f !important;
+  color: #cbd5e1 !important;
+}
+
+/* 3 Nút dưới cùng ở Modal Chi tiết lịch - Màu sắc trực quan sống động */
+html.dark .modal-backdrop-blur .btn-detail-toggle {
+  background-color: #064e3b !important;
+  border-color: #059669 !important;
+  color: #6ee7b7 !important;
+}
+html.dark .modal-backdrop-blur .btn-detail-toggle:hover {
+  background-color: #047857 !important;
+  color: #ffffff !important;
+}
+
+html.dark .modal-backdrop-blur .btn-detail-delete {
+  background-color: #450a0a !important;
+  border-color: #991b1b !important;
+  color: #fca5a5 !important;
+}
+html.dark .modal-backdrop-blur .btn-detail-delete:hover {
+  background-color: #7f1d1d !important;
+  color: #ffffff !important;
+}
+
+html.dark .modal-backdrop-blur .btn-detail-close {
+  background-color: #162f42 !important;
+  border-color: #274b67 !important;
+  color: #e2e8f0 !important;
+}
+html.dark .modal-backdrop-blur .btn-detail-close:hover {
+  background-color: #1e3d54 !important;
+  color: #ffffff !important;
+}
+
+/* Nút đã chọn (Active tabs) */
+html.dark .modal-backdrop-blur .bg-\[\#e6f7ef\] {
+  background-color: #064e3b !important;
+  border-color: #10b981 !important;
+  color: #6ee7b7 !important;
+}
+
+html.dark .modal-backdrop-blur .bg-\[\#fff8e6\] {
+  background-color: #451a03 !important;
+  border-color: #f59e0b !important;
+  color: #fde68a !important;
+}
+
+html.dark .modal-backdrop-blur button.bg-\[\#07543f\] {
+  background-color: #059669 !important;
+  color: #ffffff !important;
+}
+
+html.dark .modal-backdrop-blur button.bg-\[\#f1f5f2\] {
+  background-color: #162f42 !important;
+  color: #e2e8f0 !important;
+}
+
+html.dark .modal-backdrop-blur button.bg-\[\#f1f5f2\]:hover {
+  background-color: #1e3d54 !important;
+}

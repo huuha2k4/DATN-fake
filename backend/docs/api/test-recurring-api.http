@@ -1,0 +1,777 @@
+### =====================================================
+### Recurring Schedules API Testing
+### Kiểm thử các API quản lý lịch định kỳ và nhắc nhở
+### =====================================================
+
+### Variables
+@baseUrl = http://localhost:8080/api/v1
+@token = Bearer eyJhbGciOiJIUzI1NiJ9...
+@scheduleId = 1
+@occurrenceId = 1
+
+### =====================================================
+### 1. CREATE SCHEDULE - Tạo lịch định kỳ mới
+### POST /api/v1/schedules
+### =====================================================
+
+### 1.1. Tạo lịch giao dịch - Lương hàng tháng
+POST {{baseUrl}}/schedules
+Authorization: {{token}}
+Content-Type: application/json
+
+{
+  "schedule_type": "TRANSACTION",
+  "name": "Lương hàng tháng",
+  "recurrence_rule": "FREQ=MONTHLY;BYMONTHDAY=1",
+  "start_date": "2026-01-01",
+  "transaction_template": {
+    "transaction_type": "INCOME",
+    "account_id": 1,
+    "amount": 15000000,
+    "currency_code": "VND",
+    "category_id": 1,
+    "description": "Lương tháng từ công ty"
+  },
+  "auto_execute": true,
+  "notification_enabled": true,
+  "notification_time_before_minutes": 60,
+  "notification_channels": ["PUSH", "EMAIL"]
+}
+
+### 1.2. Tạo lịch giao dịch - Tiền điện hàng tháng
+POST {{baseUrl}}/schedules
+Authorization: {{token}}
+Content-Type: application/json
+
+{
+  "schedule_type": "TRANSACTION",
+  "name": "Tiền điện",
+  "recurrence_rule": "FREQ=MONTHLY;BYMONTHDAY=5",
+  "start_date": "2026-01-05",
+  "end_date": "2027-12-31",
+  "transaction_template": {
+    "transaction_type": "EXPENSE",
+    "account_id": 1,
+    "amount": 500000,
+    "currency_code": "VND",
+    "category_id": 5,
+    "description": "Tiền điện tháng"
+  },
+  "auto_execute": false,
+  "notification_enabled": true,
+  "notification_time_before_minutes": 1440
+}
+
+### 1.3. Tạo lịch giao dịch - Tiết kiệm hàng tuần
+POST {{baseUrl}}/schedules
+Authorization: {{token}}
+Content-Type: application/json
+
+{
+  "schedule_type": "TRANSACTION",
+  "name": "Tiết kiệm hàng tuần",
+  "recurrence_rule": "FREQ=WEEKLY;BYDAY=FR",
+  "start_date": "2026-01-02",
+  "transaction_template": {
+    "transaction_type": "TRANSFER",
+    "account_id": 1,
+    "to_account_id": 2,
+    "amount": 1000000,
+    "currency_code": "VND",
+    "description": "Chuyển tiền tiết kiệm mỗi tuần"
+  },
+  "auto_execute": true,
+  "notification_enabled": true
+}
+
+### 1.4. Tạo lịch giao dịch - Hàng ngày
+POST {{baseUrl}}/schedules
+Authorization: {{token}}
+Content-Type: application/json
+
+{
+  "schedule_type": "TRANSACTION",
+  "name": "Ăn sáng hàng ngày",
+  "recurrence_rule": "FREQ=DAILY",
+  "start_date": "2026-10-11",
+  "end_date": "2026-12-31",
+  "transaction_template": {
+    "transaction_type": "EXPENSE",
+    "account_id": 1,
+    "amount": 50000,
+    "currency_code": "VND",
+    "category_id": 3,
+    "description": "Ăn sáng"
+  },
+  "auto_execute": false,
+  "notification_enabled": false
+}
+
+### 1.5. Tạo lịch giao dịch - 2 ngày 1 lần
+POST {{baseUrl}}/schedules
+Authorization: {{token}}
+Content-Type: application/json
+
+{
+  "schedule_type": "TRANSACTION",
+  "name": "Tập gym 2 ngày 1 lần",
+  "recurrence_rule": "FREQ=DAILY;INTERVAL=2",
+  "start_date": "2026-10-11",
+  "transaction_template": {
+    "transaction_type": "EXPENSE",
+    "account_id": 1,
+    "amount": 100000,
+    "currency_code": "VND",
+    "category_id": 8,
+    "description": "Phí tập gym"
+  },
+  "auto_execute": false,
+  "notification_enabled": true,
+  "notification_time_before_minutes": 120
+}
+
+### 1.6. Tạo lịch giao dịch - Thứ 2, 4, 6 hàng tuần
+POST {{baseUrl}}/schedules
+Authorization: {{token}}
+Content-Type: application/json
+
+{
+  "schedule_type": "TRANSACTION",
+  "name": "Đi làm bằng Grab",
+  "recurrence_rule": "FREQ=WEEKLY;BYDAY=MO,WE,FR",
+  "start_date": "2026-10-13",
+  "transaction_template": {
+    "transaction_type": "EXPENSE",
+    "account_id": 1,
+    "amount": 80000,
+    "currency_code": "VND",
+    "category_id": 6,
+    "merchant_id": 2,
+    "description": "Grab đi làm"
+  },
+  "auto_execute": false,
+  "notification_enabled": true
+}
+
+### 1.7. Tạo lịch giao dịch - Thứ 6 cuối cùng của tháng
+POST {{baseUrl}}/schedules
+Authorization: {{token}}
+Content-Type: application/json
+
+{
+  "schedule_type": "TRANSACTION",
+  "name": "Tiệc công ty cuối tháng",
+  "recurrence_rule": "FREQ=MONTHLY;BYDAY=-1FR",
+  "start_date": "2026-01-01",
+  "transaction_template": {
+    "transaction_type": "EXPENSE",
+    "account_id": 1,
+    "amount": 200000,
+    "currency_code": "VND",
+    "category_id": 4,
+    "description": "Team building cuối tháng"
+  },
+  "auto_execute": false,
+  "notification_enabled": true
+}
+
+### 1.8. Tạo lịch giao dịch - Hàng năm (sinh nhật)
+POST {{baseUrl}}/schedules
+Authorization: {{token}}
+Content-Type: application/json
+
+{
+  "schedule_type": "TRANSACTION",
+  "name": "Quà sinh nhật mẹ",
+  "recurrence_rule": "FREQ=YEARLY;BYMONTH=5;BYMONTHDAY=15",
+  "start_date": "2026-05-15",
+  "transaction_template": {
+    "transaction_type": "EXPENSE",
+    "account_id": 1,
+    "amount": 2000000,
+    "currency_code": "VND",
+    "category_id": 7,
+    "description": "Quà sinh nhật mẹ"
+  },
+  "auto_execute": false,
+  "notification_enabled": true,
+  "notification_time_before_minutes": 10080,
+  "notification_channels": ["PUSH", "EMAIL", "SMS"]
+}
+
+### 1.9. Tạo nhắc nhở - Trả tiền internet
+POST {{baseUrl}}/schedules
+Authorization: {{token}}
+Content-Type: application/json
+
+{
+  "schedule_type": "REMINDER",
+  "name": "Nhắc trả tiền internet",
+  "recurrence_rule": "FREQ=MONTHLY;BYMONTHDAY=10",
+  "start_date": "2026-01-10",
+  "reminder_message": "Nhớ trả tiền internet FPT trước ngày 15",
+  "notification_enabled": true,
+  "notification_channels": ["PUSH", "EMAIL"]
+}
+
+### 1.10. Tạo nhắc nhở - Họp team hàng tuần
+POST {{baseUrl}}/schedules
+Authorization: {{token}}
+Content-Type: application/json
+
+{
+  "schedule_type": "REMINDER",
+  "name": "Họp team meeting",
+  "recurrence_rule": "FREQ=WEEKLY;BYDAY=MO",
+  "start_date": "2026-10-13",
+  "reminder_message": "Team meeting lúc 9h sáng thứ 2",
+  "notification_enabled": true,
+  "notification_time_before_minutes": 30,
+  "notification_channels": ["PUSH"]
+}
+
+### 1.11. Validation: Thiếu schedule_type
+POST {{baseUrl}}/schedules
+Authorization: {{token}}
+Content-Type: application/json
+
+{
+  "name": "Invalid schedule",
+  "recurrence_rule": "FREQ=DAILY",
+  "start_date": "2026-10-11"
+}
+
+### 1.12. Validation: Transaction thiếu template
+POST {{baseUrl}}/schedules
+Authorization: {{token}}
+Content-Type: application/json
+
+{
+  "schedule_type": "TRANSACTION",
+  "name": "Invalid transaction",
+  "recurrence_rule": "FREQ=DAILY",
+  "start_date": "2026-10-11"
+}
+
+### 1.13. Validation: Reminder thiếu message
+POST {{baseUrl}}/schedules
+Authorization: {{token}}
+Content-Type: application/json
+
+{
+  "schedule_type": "REMINDER",
+  "name": "Invalid reminder",
+  "recurrence_rule": "FREQ=DAILY",
+  "start_date": "2026-10-11"
+}
+
+### 1.14. Validation: End date trước start date
+POST {{baseUrl}}/schedules
+Authorization: {{token}}
+Content-Type: application/json
+
+{
+  "schedule_type": "TRANSACTION",
+  "name": "Invalid dates",
+  "recurrence_rule": "FREQ=DAILY",
+  "start_date": "2026-10-11",
+  "end_date": "2026-10-01",
+  "transaction_template": {
+    "transaction_type": "EXPENSE",
+    "account_id": 1,
+    "amount": 100000,
+    "currency_code": "VND"
+  }
+}
+
+### 1.15. Validation: Transfer thiếu to_account_id
+POST {{baseUrl}}/schedules
+Authorization: {{token}}
+Content-Type: application/json
+
+{
+  "schedule_type": "TRANSACTION",
+  "name": "Invalid transfer",
+  "recurrence_rule": "FREQ=DAILY",
+  "start_date": "2026-10-11",
+  "transaction_template": {
+    "transaction_type": "TRANSFER",
+    "account_id": 1,
+    "amount": 100000,
+    "currency_code": "VND"
+  }
+}
+
+### =====================================================
+### 2. GET SCHEDULES - Lấy danh sách lịch định kỳ
+### GET /api/v1/schedules
+### =====================================================
+
+### 2.1. Lấy tất cả schedules
+GET {{baseUrl}}/schedules
+Authorization: {{token}}
+
+### 2.2. Lấy schedules đang active
+GET {{baseUrl}}/schedules?status=ACTIVE
+Authorization: {{token}}
+
+### 2.3. Lấy schedules đã paused
+GET {{baseUrl}}/schedules?status=PAUSED
+Authorization: {{token}}
+
+### 2.4. Lấy schedules loại TRANSACTION
+GET {{baseUrl}}/schedules?schedule_type=TRANSACTION
+Authorization: {{token}}
+
+### 2.5. Lấy schedules loại REMINDER
+GET {{baseUrl}}/schedules?schedule_type=REMINDER
+Authorization: {{token}}
+
+### 2.6. Lọc kết hợp: TRANSACTION + ACTIVE
+GET {{baseUrl}}/schedules?schedule_type=TRANSACTION&status=ACTIVE
+Authorization: {{token}}
+
+### 2.7. Tìm kiếm theo tên
+GET {{baseUrl}}/schedules?search=lương
+Authorization: {{token}}
+
+### 2.8. Tìm kiếm kết hợp status
+GET {{baseUrl}}/schedules?search=tiền&status=ACTIVE
+Authorization: {{token}}
+
+### 2.9. Phân trang
+GET {{baseUrl}}/schedules?page=0&size=5&sort=createdAt,desc
+Authorization: {{token}}
+
+### 2.10. Sắp xếp theo tên
+GET {{baseUrl}}/schedules?sort=name,asc
+Authorization: {{token}}
+
+### =====================================================
+### 3. GET SCHEDULE DETAIL - Chi tiết lịch
+### GET /api/v1/schedules/{id}
+### =====================================================
+
+### 3.1. Lấy chi tiết schedule hợp lệ
+GET {{baseUrl}}/schedules/{{scheduleId}}
+Authorization: {{token}}
+
+### 3.2. Lấy schedule không tồn tại
+GET {{baseUrl}}/schedules/99999
+Authorization: {{token}}
+
+### 3.3. Lấy schedule của user khác
+GET {{baseUrl}}/schedules/1
+Authorization: Bearer <other_user_token>
+
+### =====================================================
+### 4. UPDATE SCHEDULE - Cập nhật lịch
+### PUT /api/v1/schedules/{id}
+### =====================================================
+
+### 4.1. Cập nhật tên
+PUT {{baseUrl}}/schedules/{{scheduleId}}
+Authorization: {{token}}
+Content-Type: application/json
+
+{
+  "name": "Lương hàng tháng (Updated)"
+}
+
+### 4.2. Cập nhật recurrence rule
+PUT {{baseUrl}}/schedules/{{scheduleId}}
+Authorization: {{token}}
+Content-Type: application/json
+
+{
+  "recurrence_rule": "FREQ=MONTHLY;BYMONTHDAY=5"
+}
+
+### 4.3. Cập nhật end date
+PUT {{baseUrl}}/schedules/{{scheduleId}}
+Authorization: {{token}}
+Content-Type: application/json
+
+{
+  "end_date": "2027-12-31"
+}
+
+### 4.4. Cập nhật transaction template
+PUT {{baseUrl}}/schedules/{{scheduleId}}
+Authorization: {{token}}
+Content-Type: application/json
+
+{
+  "transaction_template": {
+    "transaction_type": "INCOME",
+    "account_id": 1,
+    "amount": 18000000,
+    "currency_code": "VND",
+    "category_id": 1,
+    "description": "Lương tháng tăng lương"
+  }
+}
+
+### 4.5. Cập nhật notification settings
+PUT {{baseUrl}}/schedules/{{scheduleId}}
+Authorization: {{token}}
+Content-Type: application/json
+
+{
+  "notification_enabled": true,
+  "notification_time_before_minutes": 120,
+  "notification_channels": ["PUSH", "EMAIL", "SMS"]
+}
+
+### 4.6. Bật auto execute
+PUT {{baseUrl}}/schedules/{{scheduleId}}
+Authorization: {{token}}
+Content-Type: application/json
+
+{
+  "auto_execute": true
+}
+
+### 4.7. Cập nhật reminder message
+PUT {{baseUrl}}/schedules/10
+Authorization: {{token}}
+Content-Type: application/json
+
+{
+  "reminder_message": "Nhớ trả tiền internet và TV cable trước ngày 15"
+}
+
+### =====================================================
+### 5. DELETE SCHEDULE - Xóa lịch
+### DELETE /api/v1/schedules/{id}
+### =====================================================
+
+### 5.1. Xóa schedule hợp lệ
+DELETE {{baseUrl}}/schedules/5
+Authorization: {{token}}
+
+### 5.2. Xóa schedule không tồn tại
+DELETE {{baseUrl}}/schedules/99999
+Authorization: {{token}}
+
+### 5.3. Xóa schedule của user khác
+DELETE {{baseUrl}}/schedules/1
+Authorization: Bearer <other_user_token>
+
+### =====================================================
+### 6. PAUSE SCHEDULE - Tạm dừng lịch
+### POST /api/v1/schedules/{id}/pause
+### =====================================================
+
+### 6.1. Tạm dừng với lý do
+POST {{baseUrl}}/schedules/{{scheduleId}}/pause
+Authorization: {{token}}
+Content-Type: application/json
+
+{
+  "reason": "Nghỉ việc tạm thời"
+}
+
+### 6.2. Tạm dừng không có lý do
+POST {{baseUrl}}/schedules/2/pause
+Authorization: {{token}}
+Content-Type: application/json
+
+{}
+
+### 6.3. Tạm dừng schedule đã paused
+POST {{baseUrl}}/schedules/{{scheduleId}}/pause
+Authorization: {{token}}
+Content-Type: application/json
+
+{
+  "reason": "Already paused"
+}
+
+### =====================================================
+### 7. RESUME SCHEDULE - Tiếp tục lịch
+### POST /api/v1/schedules/{id}/resume
+### =====================================================
+
+### 7.1. Tiếp tục schedule đã paused
+POST {{baseUrl}}/schedules/{{scheduleId}}/resume
+Authorization: {{token}}
+
+### 7.2. Tiếp tục schedule chưa paused
+POST {{baseUrl}}/schedules/3/resume
+Authorization: {{token}}
+
+### =====================================================
+### 8. GET UPCOMING OCCURRENCES - Các lần sắp tới
+### GET /api/v1/schedules/{id}/occurrences
+### =====================================================
+
+### 8.1. Lấy occurrences 3 tháng tới (mặc định)
+GET {{baseUrl}}/schedules/{{scheduleId}}/occurrences
+Authorization: {{token}}
+
+### 8.2. Lấy occurrences 1 tháng tới
+GET {{baseUrl}}/schedules/{{scheduleId}}/occurrences?months_ahead=1
+Authorization: {{token}}
+
+### 8.3. Lấy occurrences 6 tháng tới
+GET {{baseUrl}}/schedules/{{scheduleId}}/occurrences?months_ahead=6
+Authorization: {{token}}
+
+### 8.4. Lấy occurrences 12 tháng tới
+GET {{baseUrl}}/schedules/{{scheduleId}}/occurrences?months_ahead=12
+Authorization: {{token}}
+
+### 8.5. Lấy occurrences cho daily schedule
+GET {{baseUrl}}/schedules/4/occurrences?months_ahead=1
+Authorization: {{token}}
+
+### 8.6. Lấy occurrences cho weekly schedule
+GET {{baseUrl}}/schedules/3/occurrences?months_ahead=3
+Authorization: {{token}}
+
+### 8.7. Lấy occurrences cho yearly schedule
+GET {{baseUrl}}/schedules/8/occurrences?months_ahead=24
+Authorization: {{token}}
+
+### =====================================================
+### 9. SKIP OCCURRENCE - Bỏ qua lần này
+### POST /api/v1/schedules/{id}/occurrences/{occ_id}/skip
+### =====================================================
+
+### 9.1. Bỏ qua với lý do
+POST {{baseUrl}}/schedules/{{scheduleId}}/occurrences/{{occurrenceId}}/skip
+Authorization: {{token}}
+Content-Type: application/json
+
+{
+  "skip_reason": "Đã nhận lương sớm"
+}
+
+### 9.2. Bỏ qua không có lý do
+POST {{baseUrl}}/schedules/2/occurrences/2/skip
+Authorization: {{token}}
+Content-Type: application/json
+
+{}
+
+### 9.3. Bỏ qua occurrence không tồn tại
+POST {{baseUrl}}/schedules/1/occurrences/99999/skip
+Authorization: {{token}}
+Content-Type: application/json
+
+{
+  "skip_reason": "Test"
+}
+
+### 9.4. Bỏ qua occurrence đã executed
+POST {{baseUrl}}/schedules/1/occurrences/1/skip
+Authorization: {{token}}
+Content-Type: application/json
+
+{
+  "skip_reason": "Already executed"
+}
+
+### =====================================================
+### 10. EXECUTE OCCURRENCE - Thực hiện ngay
+### POST /api/v1/schedules/{id}/occurrences/{occ_id}/execute
+### =====================================================
+
+### 10.1. Thực hiện ngay với ngày hôm nay
+POST {{baseUrl}}/schedules/{{scheduleId}}/occurrences/{{occurrenceId}}/execute
+Authorization: {{token}}
+Content-Type: application/json
+
+{
+  "execute_date": "2026-10-11"
+}
+
+### 10.2. Thực hiện sớm hơn scheduled date
+POST {{baseUrl}}/schedules/1/occurrences/2/execute
+Authorization: {{token}}
+Content-Type: application/json
+
+{
+  "execute_date": "2026-10-10"
+}
+
+### 10.3. Thực hiện occurrence không tồn tại
+POST {{baseUrl}}/schedules/1/occurrences/99999/execute
+Authorization: {{token}}
+Content-Type: application/json
+
+{
+  "execute_date": "2026-10-11"
+}
+
+### 10.4. Thực hiện occurrence của reminder (should fail)
+POST {{baseUrl}}/schedules/9/occurrences/1/execute
+Authorization: {{token}}
+Content-Type: application/json
+
+{
+  "execute_date": "2026-10-11"
+}
+
+### 10.5. Validation: Thiếu execute_date
+POST {{baseUrl}}/schedules/1/occurrences/1/execute
+Authorization: {{token}}
+Content-Type: application/json
+
+{}
+
+### =====================================================
+### COMPLEX TEST SCENARIOS
+### =====================================================
+
+### Scenario 1: Tạo schedule -> Pause -> Resume -> Delete
+# Step 1: Create
+POST {{baseUrl}}/schedules
+Authorization: {{token}}
+Content-Type: application/json
+
+{
+  "schedule_type": "TRANSACTION",
+  "name": "Test Workflow Schedule",
+  "recurrence_rule": "FREQ=WEEKLY;BYDAY=TU",
+  "start_date": "2026-10-15",
+  "transaction_template": {
+    "transaction_type": "EXPENSE",
+    "account_id": 1,
+    "amount": 100000,
+    "currency_code": "VND",
+    "category_id": 3
+  },
+  "auto_execute": false,
+  "notification_enabled": true
+}
+
+# Step 2: Pause
+POST {{baseUrl}}/schedules/20/pause
+Authorization: {{token}}
+Content-Type: application/json
+
+{
+  "reason": "Testing pause"
+}
+
+# Step 3: Resume
+POST {{baseUrl}}/schedules/20/resume
+Authorization: {{token}}
+
+# Step 4: Delete
+DELETE {{baseUrl}}/schedules/20
+Authorization: {{token}}
+
+### Scenario 2: Tạo schedule -> Update nhiều lần -> Xem detail
+# Step 1: Create
+POST {{baseUrl}}/schedules
+Authorization: {{token}}
+Content-Type: application/json
+
+{
+  "schedule_type": "TRANSACTION",
+  "name": "Test Update Schedule",
+  "recurrence_rule": "FREQ=MONTHLY;BYMONTHDAY=15",
+  "start_date": "2026-10-15",
+  "transaction_template": {
+    "transaction_type": "EXPENSE",
+    "account_id": 1,
+    "amount": 500000,
+    "currency_code": "VND"
+  }
+}
+
+# Step 2: Update name
+PUT {{baseUrl}}/schedules/21
+Authorization: {{token}}
+Content-Type: application/json
+
+{
+  "name": "Updated Schedule Name"
+}
+
+# Step 3: Update amount
+PUT {{baseUrl}}/schedules/21
+Authorization: {{token}}
+Content-Type: application/json
+
+{
+  "transaction_template": {
+    "transaction_type": "EXPENSE",
+    "account_id": 1,
+    "amount": 750000,
+    "currency_code": "VND"
+  }
+}
+
+# Step 4: Update recurrence
+PUT {{baseUrl}}/schedules/21
+Authorization: {{token}}
+Content-Type: application/json
+
+{
+  "recurrence_rule": "FREQ=MONTHLY;BYMONTHDAY=1"
+}
+
+# Step 5: View detail
+GET {{baseUrl}}/schedules/21
+Authorization: {{token}}
+
+### Scenario 3: Test all recurrence patterns
+# Daily
+POST {{baseUrl}}/schedules
+Authorization: {{token}}
+Content-Type: application/json
+
+{
+  "schedule_type": "REMINDER",
+  "name": "Daily reminder",
+  "recurrence_rule": "FREQ=DAILY",
+  "start_date": "2026-10-11",
+  "reminder_message": "Daily task"
+}
+
+# Weekly
+POST {{baseUrl}}/schedules
+Authorization: {{token}}
+Content-Type: application/json
+
+{
+  "schedule_type": "REMINDER",
+  "name": "Weekly reminder",
+  "recurrence_rule": "FREQ=WEEKLY;BYDAY=MO",
+  "start_date": "2026-10-13",
+  "reminder_message": "Weekly task"
+}
+
+# Monthly
+POST {{baseUrl}}/schedules
+Authorization: {{token}}
+Content-Type: application/json
+
+{
+  "schedule_type": "REMINDER",
+  "name": "Monthly reminder",
+  "recurrence_rule": "FREQ=MONTHLY;BYMONTHDAY=1",
+  "start_date": "2026-11-01",
+  "reminder_message": "Monthly task"
+}
+
+# Yearly
+POST {{baseUrl}}/schedules
+Authorization: {{token}}
+Content-Type: application/json
+
+{
+  "schedule_type": "REMINDER",
+  "name": "Yearly reminder",
+  "recurrence_rule": "FREQ=YEARLY;BYMONTH=1;BYMONTHDAY=1",
+  "start_date": "2027-01-01",
+  "reminder_message": "Happy New Year"
+}
+
+### =====================================================
+### END OF TESTS
+### =====================================================

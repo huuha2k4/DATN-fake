@@ -54,7 +54,7 @@ const quickActions: QuickAction[] = [
   { label: 'Quét hóa đơn\nOCR', asset: 'receipt' },
   { label: 'Giao dịch', asset: 'transactions' },
   { label: 'Mục tiêu tài chính', asset: 'goal' },
-  { label: 'Nhắc nhở', asset: 'reminder' },
+  { label: 'Lịch tài chính', asset: 'reminder' },
   { label: 'Trợ lý AI tài chính', asset: 'assistant' },
 ];
 
@@ -122,7 +122,7 @@ export function HomeScreen({ onViewTransactions, onAddTransaction, onScanInvoice
       onViewGoals();
       return;
     }
-    if (label === 'Nhắc nhở') {
+    if (label === 'Lịch tài chính') {
       onViewReminders();
       return;
     }

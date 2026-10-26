@@ -1,0 +1,600 @@
+### ============================================================
+### GROUPS MANAGEMENT API - TEST FILE
+### 53 endpoints covering 9 modules
+### Base URL: http://localhost:8080/api/v1
+### ============================================================
+
+### Variables
+@baseUrl = http://localhost:8080/api/v1
+@token = YOUR_JWT_TOKEN_HERE
+@groupId = REPLACE_WITH_GROUP_ID
+@userId = REPLACE_WITH_USER_ID
+@expenseId = REPLACE_WITH_EXPENSE_ID
+@settlementId = REPLACE_WITH_SETTLEMENT_ID
+@commentId = REPLACE_WITH_COMMENT_ID
+@messageId = REPLACE_WITH_MESSAGE_ID
+@walletId = REPLACE_WITH_WALLET_ID
+@requestId = REPLACE_WITH_REQUEST_ID
+@choreId = REPLACE_WITH_CHORE_ID
+@activityId = REPLACE_WITH_ACTIVITY_ID
+@categoryId = REPLACE_WITH_CATEGORY_ID
+@currencyId = REPLACE_WITH_CURRENCY_ID
+
+### ============================================================
+### 1. GROUPS & MEMBERS MANAGEMENT (12 endpoints)
+### ============================================================
+
+### 1.1 Create Group
+POST {{baseUrl}}/groups
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "name": "Family Budget 2024",
+  "groupType": "FAMILY",
+  "baseCurrencyId": "{{currencyId}}",
+  "settings": {
+    "defaultSplitMethod": "EQUAL",
+    "allowMemberExpenses": true,
+    "requireApprovalForExpenses": false,
+    "autoSettlement": false
+  }
+}
+
+### 1.2 Get All Groups (with pagination)
+GET {{baseUrl}}/groups?page=0&size=10&sort=createdAt,desc
+Authorization: Bearer {{token}}
+
+### 1.3 Get Group Detail
+GET {{baseUrl}}/groups/{{groupId}}
+Authorization: Bearer {{token}}
+
+### 1.4 Update Group
+PUT {{baseUrl}}/groups/{{groupId}}
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "name": "Updated Family Budget",
+  "settings": {
+    "defaultSplitMethod": "PERCENTAGE",
+    "allowMemberExpenses": true,
+    "requireApprovalForExpenses": true,
+    "autoSettlement": false
+  }
+}
+
+### 1.5 Archive Group
+POST {{baseUrl}}/groups/{{groupId}}/archive
+Authorization: Bearer {{token}}
+
+### 1.6 Unarchive Group
+POST {{baseUrl}}/groups/{{groupId}}/unarchive
+Authorization: Bearer {{token}}
+
+### 1.7 Delete Group
+DELETE {{baseUrl}}/groups/{{groupId}}
+Authorization: Bearer {{token}}
+
+### 1.8 Add Member to Group
+POST {{baseUrl}}/groups/{{groupId}}/members
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "userId": "{{userId}}",
+  "role": "MEMBER",
+  "contributionRatio": 1.0
+}
+
+### 1.9 Get All Members
+GET {{baseUrl}}/groups/{{groupId}}/members
+Authorization: Bearer {{token}}
+
+### 1.10 Get Single Member
+GET {{baseUrl}}/groups/{{groupId}}/members/{{userId}}
+Authorization: Bearer {{token}}
+
+### 1.11 Update Member
+PUT {{baseUrl}}/groups/{{groupId}}/members/{{userId}}
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "role": "ADMIN",
+  "contributionRatio": 1.5
+}
+
+### 1.12 Remove Member
+DELETE {{baseUrl}}/groups/{{groupId}}/members/{{userId}}
+Authorization: Bearer {{token}}
+
+### ============================================================
+### 2. EXPENSES & BALANCES (6 endpoints)
+### ============================================================
+
+### 2.1 Create Expense
+POST {{baseUrl}}/groups/{{groupId}}/expenses
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "description": "Grocery shopping at Walmart",
+  "amount": 150.50,
+  "paidByUserId": "{{userId}}",
+  "categoryId": "{{categoryId}}",
+  "splitMethod": "EQUAL",
+  "expenseDate": "2024-01-15T10:30:00",
+  "receiptKey": "receipts/2024/01/receipt_001.jpg",
+  "location": {
+    "name": "Walmart Supercenter",
+    "address": "123 Main St",
+    "latitude": 40.7128,
+    "longitude": -74.0060
+  },
+  "splits": [
+    {
+      "userId": "{{userId}}",
+      "amount": 75.25,
+      "percentage": null,
+      "shares": null
+    }
+  ]
+}
+
+### 2.2 Get Expenses (with pagination)
+GET {{baseUrl}}/groups/{{groupId}}/expenses?page=0&size=20&sort=expenseDate,desc
+Authorization: Bearer {{token}}
+
+### 2.3 Get Single Expense
+GET {{baseUrl}}/groups/{{groupId}}/expenses/{{expenseId}}
+Authorization: Bearer {{token}}
+
+### 2.4 Update Expense
+PUT {{baseUrl}}/groups/{{groupId}}/expenses/{{expenseId}}
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "description": "Updated: Grocery shopping",
+  "amount": 155.75,
+  "categoryId": "{{categoryId}}",
+  "splitMethod": "PERCENTAGE",
+  "splits": [
+    {
+      "userId": "{{userId}}",
+      "amount": null,
+      "percentage": 60.0,
+      "shares": null
+    }
+  ]
+}
+
+### 2.5 Delete Expense
+DELETE {{baseUrl}}/groups/{{groupId}}/expenses/{{expenseId}}
+Authorization: Bearer {{token}}
+
+### 2.6 Get Balances (with simplified debts)
+GET {{baseUrl}}/groups/{{groupId}}/balances
+Authorization: Bearer {{token}}
+
+### ============================================================
+### 3. SETTLEMENTS (4 endpoints)
+### ============================================================
+
+### 3.1 Create Settlement
+POST {{baseUrl}}/groups/{{groupId}}/settlements
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "fromUserId": "{{userId}}",
+  "toUserId": "{{userId}}",
+  "amount": 50.00,
+  "settlementDate": "2024-01-20T14:00:00",
+  "proofKey": "settlements/proof_payment_001.jpg"
+}
+
+### 3.2 Get Settlements (with status filter)
+GET {{baseUrl}}/groups/{{groupId}}/settlements?status=PENDING&page=0&size=10
+Authorization: Bearer {{token}}
+
+### 3.3 Confirm Settlement
+POST {{baseUrl}}/groups/{{groupId}}/settlements/{{settlementId}}/confirm
+Authorization: Bearer {{token}}
+
+### 3.4 Reject Settlement
+POST {{baseUrl}}/groups/{{groupId}}/settlements/{{settlementId}}/reject
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "reason": "Payment proof is not clear"
+}
+
+### ============================================================
+### 4. COMMENTS (5 endpoints)
+### ============================================================
+
+### 4.1 Create Comment
+POST {{baseUrl}}/groups/{{groupId}}/comments
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "commentableType": "GROUP_EXPENSE",
+  "commentableId": "{{expenseId}}",
+  "content": "Did this include the drinks?",
+  "parentCommentId": null
+}
+
+### 4.2 Get Comments for Resource (transaction or expense)
+GET {{baseUrl}}/groups/{{groupId}}/comments?commentableType=GROUP_EXPENSE&commentableId={{expenseId}}&page=0&size=20
+Authorization: Bearer {{token}}
+
+### 4.3 Get Comment Thread (replies)
+GET {{baseUrl}}/groups/{{groupId}}/comments/{{commentId}}/thread
+Authorization: Bearer {{token}}
+
+### 4.4 Update Comment
+PUT {{baseUrl}}/groups/{{groupId}}/comments/{{commentId}}
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "content": "Updated: Did this include both food and drinks?"
+}
+
+### 4.5 Delete Comment
+DELETE {{baseUrl}}/groups/{{groupId}}/comments/{{commentId}}
+Authorization: Bearer {{token}}
+
+### ============================================================
+### 5. GROUP MESSAGES / CHAT (7 endpoints)
+### ============================================================
+
+### 5.1 Send Message
+POST {{baseUrl}}/groups/{{groupId}}/messages
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "messageType": "TEXT",
+  "content": "Hey everyone, don't forget about tonight's dinner!",
+  "replyToMessageId": null,
+  "expenseId": null,
+  "mentionedUserIds": ["{{userId}}"],
+  "attachments": []
+}
+
+### 5.2 Send Message with Attachment
+POST {{baseUrl}}/groups/{{groupId}}/messages
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "messageType": "IMAGE",
+  "content": "Check out this receipt",
+  "replyToMessageId": null,
+  "expenseId": null,
+  "mentionedUserIds": [],
+  "attachments": [
+    {
+      "fileKey": "messages/receipt_20240115.jpg",
+      "fileName": "receipt.jpg",
+      "mimeType": "image/jpeg",
+      "fileSize": 245678,
+      "thumbnailKey": "messages/thumbs/receipt_20240115_thumb.jpg"
+    }
+  ]
+}
+
+### 5.3 Send Expense Card Message
+POST {{baseUrl}}/groups/{{groupId}}/messages
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "messageType": "EXPENSE_CARD",
+  "content": "New expense added",
+  "replyToMessageId": null,
+  "expenseId": "{{expenseId}}",
+  "mentionedUserIds": [],
+  "attachments": []
+}
+
+### 5.4 Get Messages (with pagination)
+GET {{baseUrl}}/groups/{{groupId}}/messages?page=0&size=50&sort=createdAt,desc
+Authorization: Bearer {{token}}
+
+### 5.5 Get Single Message
+GET {{baseUrl}}/groups/{{groupId}}/messages/{{messageId}}
+Authorization: Bearer {{token}}
+
+### 5.6 Update Message
+PUT {{baseUrl}}/groups/{{groupId}}/messages/{{messageId}}
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "content": "Updated: Don't forget about tomorrow's dinner!"
+}
+
+### 5.7 Delete Message
+DELETE {{baseUrl}}/groups/{{groupId}}/messages/{{messageId}}
+Authorization: Bearer {{token}}
+
+### 5.8 Mark Messages as Read
+POST {{baseUrl}}/groups/{{groupId}}/messages/mark-read
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "messageIds": [
+    "{{messageId}}",
+    "another-message-id"
+  ]
+}
+
+### 5.9 Get Unread Count
+GET {{baseUrl}}/groups/{{groupId}}/messages/unread-count
+Authorization: Bearer {{token}}
+
+### ============================================================
+### 6. CHILD WALLETS (7 endpoints)
+### ============================================================
+
+### 6.1 Create Child Wallet
+POST {{baseUrl}}/groups/{{groupId}}/child-wallets
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "childName": "Emma Johnson",
+  "dateOfBirth": "2010-05-15",
+  "privacyLevel": "PARENT_SUPERVISED",
+  "spendLimitDaily": 20.00,
+  "spendLimitWeekly": 100.00,
+  "allowedCategories": ["{{categoryId}}"],
+  "requireApprovalAbove": 50.00,
+  "settings": {
+    "allowOnlinePurchases": false,
+    "requirePhotoProof": true,
+    "parentNotifications": true
+  }
+}
+
+### 6.2 Get Child Wallets
+GET {{baseUrl}}/groups/{{groupId}}/child-wallets?page=0&size=10
+Authorization: Bearer {{token}}
+
+### 6.3 Get Single Child Wallet
+GET {{baseUrl}}/groups/{{groupId}}/child-wallets/{{walletId}}
+Authorization: Bearer {{token}}
+
+### 6.4 Update Child Wallet
+PUT {{baseUrl}}/groups/{{groupId}}/child-wallets/{{walletId}}
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "childName": "Emma Rose Johnson",
+  "privacyLevel": "FULL_ACCESS",
+  "spendLimitDaily": 25.00,
+  "spendLimitWeekly": 120.00,
+  "requireApprovalAbove": 75.00
+}
+
+### 6.5 Delete Child Wallet
+DELETE {{baseUrl}}/groups/{{groupId}}/child-wallets/{{walletId}}
+Authorization: Bearer {{token}}
+
+### 6.6 Deposit to Wallet
+POST {{baseUrl}}/groups/{{groupId}}/child-wallets/{{walletId}}/deposit
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "amount": 50.00,
+  "description": "Weekly allowance"
+}
+
+### 6.7 Withdraw from Wallet
+POST {{baseUrl}}/groups/{{groupId}}/child-wallets/{{walletId}}/withdraw
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "amount": 15.00,
+  "description": "Emergency withdrawal"
+}
+
+### ============================================================
+### 7. SPEND REQUESTS (5 endpoints)
+### ============================================================
+
+### 7.1 Create Spend Request
+POST {{baseUrl}}/groups/{{groupId}}/child-wallets/{{walletId}}/spend-requests
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "amount": 35.00,
+  "categoryId": "{{categoryId}}",
+  "description": "New video game"
+}
+
+### 7.2 Get Spend Requests (with status filter)
+GET {{baseUrl}}/groups/{{groupId}}/child-wallets/{{walletId}}/spend-requests?status=PENDING&page=0&size=10
+Authorization: Bearer {{token}}
+
+### 7.3 Approve Spend Request
+POST {{baseUrl}}/groups/{{groupId}}/child-wallets/{{walletId}}/spend-requests/{{requestId}}/approve
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "transactionId": "REPLACE_WITH_TRANSACTION_ID",
+  "notes": "Approved for good grades"
+}
+
+### 7.4 Reject Spend Request
+POST {{baseUrl}}/groups/{{groupId}}/child-wallets/{{walletId}}/spend-requests/{{requestId}}/reject
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "reason": "Too expensive, please choose something under $20"
+}
+
+### 7.5 Cancel Spend Request
+DELETE {{baseUrl}}/groups/{{groupId}}/child-wallets/{{walletId}}/spend-requests/{{requestId}}
+Authorization: Bearer {{token}}
+
+### ============================================================
+### 8. CHORES (6 endpoints)
+### ============================================================
+
+### 8.1 Create Chore
+POST {{baseUrl}}/groups/{{groupId}}/child-wallets/{{walletId}}/chores
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "title": "Clean your room",
+  "description": "Make bed, organize desk, vacuum floor",
+  "rewardAmount": 10.00,
+  "frequency": "WEEKLY",
+  "difficulty": "EASY",
+  "dueDate": "2024-01-20T18:00:00"
+}
+
+### 8.2 Get Chores (with status filter)
+GET {{baseUrl}}/groups/{{groupId}}/child-wallets/{{walletId}}/chores?status=ASSIGNED&page=0&size=10
+Authorization: Bearer {{token}}
+
+### 8.3 Complete Chore (child submits)
+POST {{baseUrl}}/groups/{{groupId}}/child-wallets/{{walletId}}/chores/{{choreId}}/complete
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "proofKey": "chores/proof_cleaned_room.jpg"
+}
+
+### 8.4 Approve Chore (parent approves)
+POST {{baseUrl}}/groups/{{groupId}}/child-wallets/{{walletId}}/chores/{{choreId}}/approve
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "feedback": "Great job! Room looks spotless!"
+}
+
+### 8.5 Reject Chore (parent rejects)
+POST {{baseUrl}}/groups/{{groupId}}/child-wallets/{{walletId}}/chores/{{choreId}}/reject
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "reason": "Desk is still messy, please clean it properly"
+}
+
+### 8.6 Delete Chore
+DELETE {{baseUrl}}/groups/{{groupId}}/child-wallets/{{walletId}}/chores/{{choreId}}
+Authorization: Bearer {{token}}
+
+### ============================================================
+### 9. ACTIVITIES & STATISTICS (3 endpoints)
+### ============================================================
+
+### 9.1 Get Activities (with filters)
+GET {{baseUrl}}/groups/{{groupId}}/activities?activityType=EXPENSE_ADDED&userId={{userId}}&page=0&size=20
+Authorization: Bearer {{token}}
+
+### 9.2 Get Activities with Date Range
+GET {{baseUrl}}/groups/{{groupId}}/activities?startDate=2024-01-01T00:00:00&endDate=2024-01-31T23:59:59&page=0&size=50
+Authorization: Bearer {{token}}
+
+### 9.3 Get Single Activity
+GET {{baseUrl}}/groups/{{groupId}}/activities/{{activityId}}
+Authorization: Bearer {{token}}
+
+### 9.4 Get Group Statistics
+GET {{baseUrl}}/groups/{{groupId}}/statistics
+Authorization: Bearer {{token}}
+
+### ============================================================
+### TESTING SCENARIOS
+### ============================================================
+
+### Scenario 1: Create Group and Add Members
+# 1. Create group (use response groupId)
+# 2. Add member 1
+# 3. Add member 2
+# 4. Get all members
+
+### Scenario 2: Create Expense and Split
+# 1. Create expense with EQUAL split
+# 2. Get balances to see who owes whom
+# 3. Create settlement
+# 4. Confirm settlement
+# 5. Check balances again
+
+### Scenario 3: Family Mode - Child Wallet
+# 1. Create child wallet
+# 2. Deposit allowance
+# 3. Child creates spend request
+# 4. Parent approves spend request
+# 5. Check wallet balance
+
+### Scenario 4: Chores Gamification
+# 1. Create chore for child
+# 2. Child completes chore (submits proof)
+# 3. Parent approves chore
+# 4. Check wallet balance (should increase by reward)
+
+### Scenario 5: Group Chat
+# 1. Send text message
+# 2. Send expense card message
+# 3. Reply to message
+# 4. Mark messages as read
+# 5. Check unread count
+
+### ============================================================
+### NOTES
+### ============================================================
+
+# Activity Types:
+# - MEMBER_JOINED, MEMBER_LEFT, MEMBER_ROLE_CHANGED
+# - EXPENSE_ADDED, EXPENSE_UPDATED, EXPENSE_DELETED
+# - SETTLEMENT_CREATED, SETTLEMENT_CONFIRMED, SETTLEMENT_REJECTED
+# - COMMENT_ADDED, MESSAGE_SENT
+# - CHILD_WALLET_CREATED, SPEND_REQUEST_SUBMITTED, CHORE_COMPLETED
+
+# Split Methods:
+# - EQUAL: divide equally among members
+# - PERCENTAGE: each member has percentage
+# - EXACT: exact amounts for each member
+# - SHARES: divide by shares (e.g., 1 share, 2 shares)
+
+# Group Types:
+# - FAMILY: family group with children features
+# - TRAVEL: travel group for trip expenses
+# - ROOMMATES: roommates sharing expenses
+# - COUPLE: couple managing finances together
+# - FRIENDS: friends group for shared costs
+# - PROJECT: project-based expense group
+# - EVENT: one-time event expenses
+# - OTHER: other types
+
+# Chore Frequencies:
+# - ONCE: one-time task
+# - DAILY: repeat daily
+# - WEEKLY: repeat weekly
+# - MONTHLY: repeat monthly
+
+# Privacy Levels:
+# - FULL_ACCESS: child has full access
+# - PARENT_SUPERVISED: parent must approve all
+# - VIEW_ONLY: child can only view balance
