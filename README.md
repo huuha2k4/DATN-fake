@@ -164,3 +164,33 @@ docker compose up -d
 ---
 
 Đơn giản vậy thôi! 🚀
+
+## 🚢 Production Deployment
+
+Xem file **[DEPLOYMENT.md](./DEPLOYMENT.md)** để hướng dẫn chi tiết deploy lên production server.
+
+**Quick production deploy:**
+```bash
+# Copy và cấu hình env
+cp .env.production.example .env.production
+nano .env.production  # Sửa passwords và secrets
+
+# Deploy
+docker compose -f docker-compose.prod.yml --env-file .env.production up -d --build
+```
+
+**Security Features:**
+- ✅ Chỉ nginx (port 80/443) được expose ra ngoài
+- ✅ Backend, database, redis chỉ giao tiếp internal
+- ✅ Multi-stage Docker builds (optimized size)
+- ✅ Non-root user trong containers
+- ✅ Health checks cho tất cả services
+
+## 📝 Files
+
+- `.env.example` - Template cho development
+- `.env.production.example` - Template cho production
+- `docker-compose.yml` - Development setup
+- `docker-compose.prod.yml` - Production setup
+- `DEPLOYMENT.md` - Chi tiết hướng dẫn deploy
+- `SETUP-CHECKLIST.md` - Checklist cho người clone về

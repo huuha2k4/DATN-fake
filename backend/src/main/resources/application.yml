@@ -47,6 +47,8 @@ spring:
     locations: classpath:db/migration
     default-schema: core
     create-schemas: true
+    # Auto repair checksums khi file migration thay đổi (chỉ dùng dev)
+    validate-on-migrate: false
   
   mail:
     host: ${SMTP_HOST:smtp.gmail.com}

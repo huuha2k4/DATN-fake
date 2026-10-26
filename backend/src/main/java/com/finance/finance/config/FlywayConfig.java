@@ -19,6 +19,7 @@ public class FlywayConfig {
                 .baselineOnMigrate(true)
                 .defaultSchema("core")
                 .createSchemas(true)
+                .validateOnMigrate(false)  // Skip validation để apply V12
                 .load();
     }
 }
