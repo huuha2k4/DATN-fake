@@ -425,7 +425,18 @@ export function LandingScreen({ onAuthenticated }: LandingScreenProps) {
           </div>
 
           <div className="footer-copyright">
-            © {new Date().getFullYear()} Finora Intelligence. Tất cả các quyền được bảo lưu. Thiết kế giao diện tài chính chuẩn mực.
+            <p>© {new Date().getFullYear()} Finora Intelligence. Tất cả các quyền được bảo lưu.</p>
+            <p style={{ marginTop: '6px' }}>
+              Được phát triển bởi{' '}
+              <a 
+                href="https://dev.3congian.top" 
+                target="_blank" 
+                rel="noopener noreferrer" 
+                style={{ color: '#047857', fontWeight: 'bold', textDecoration: 'underline' }}
+              >
+                nhóm 3 con gián
+              </a>
+            </p>
           </div>
         </footer>
       </div>

@@ -20,7 +20,98 @@
   padding: 24px 16px 18px;
   border-right: 1px solid #e9eeea;
   background: #fff;
+  transition: width 0.25s cubic-bezier(0.4, 0, 0.2, 1), padding 0.25s ease;
 }
+
+/* Khi thu nhỏ sidebar trên Desktop */
+@media (min-width: 769px) {
+  .sidebar.collapsed {
+    width: 72px;
+    padding: 16px 8px;
+    align-items: center;
+  }
+
+  .sidebar.collapsed .brand {
+    justify-content: center;
+    padding: 4px 0 16px;
+    width: 100%;
+  }
+
+  .sidebar.collapsed .brand-text,
+  .sidebar.collapsed .nav-caption,
+  .sidebar.collapsed .nav-item-label,
+  .sidebar.collapsed .nav-item > span:nth-child(2),
+  .sidebar.collapsed .nav-chevron,
+  .sidebar.collapsed .sidebar-bottom,
+  .sidebar.collapsed .sidebar-user {
+    display: none !important;
+  }
+
+
+
+  .sidebar.collapsed .nav-list {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .sidebar.collapsed .nav-item {
+    width: 48px;
+    height: 48px;
+    min-height: 48px;
+    padding: 0;
+    justify-content: center;
+    border-radius: 12px;
+  }
+
+  .main-shell.sidebar-collapsed {
+    margin-left: 72px !important;
+  }
+}
+
+.desktop-sidebar-toggle {
+  border: none;
+  background: transparent;
+  color: #3f5247;
+  padding: 6px;
+  border-radius: 8px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.desktop-sidebar-toggle:hover {
+  background: #eaf2ed;
+  color: #07543f;
+}
+
+html.dark .desktop-sidebar-toggle {
+  color: #94a3b8;
+}
+
+html.dark .desktop-sidebar-toggle:hover {
+  background: #1e293b;
+  color: #ffffff;
+}
+
+/* Ẩn hoàn toàn nút mobile trên desktop và ngược lại */
+.mobile-sidebar-toggle {
+  display: none !important;
+}
+
+@media (max-width: 768px) {
+  .mobile-sidebar-toggle {
+    display: inline-flex !important;
+  }
+  .desktop-sidebar-toggle {
+    display: none !important;
+  }
+}
+
 
 .brand {
   display: flex;
@@ -223,6 +314,7 @@
 .main-shell {
   min-height: 100vh;
   margin-left: 264px;
+  transition: margin-left 0.25s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .topbar {
@@ -233,8 +325,8 @@
   min-height: 68px;
   align-items: center;
   justify-content: space-between;
-  gap: 24px;
-  padding: 0 32px;
+  gap: 16px;
+  padding: 0 24px 0 16px;
   border-bottom: 1px solid #e9eeea;
   background: rgb(255 255 255 / 92%);
   backdrop-filter: blur(14px);
@@ -1253,28 +1345,30 @@
 }
 
 @media (max-width: 1024px) and (min-width: 769px) {
-  .sidebar {
+  .sidebar.collapsed {
     width: 72px;
     padding: 16px 8px;
     align-items: center;
   }
 
-  .sidebar .brand {
+  .sidebar.collapsed .brand {
     justify-content: center;
     padding: 4px 0 16px;
   }
 
-  .sidebar .brand-text,
-  .sidebar .nav-caption,
-  .sidebar .nav-item-label,
-  .sidebar .nav-item > span:nth-child(2),
-  .sidebar .nav-chevron,
-  .sidebar-bottom,
-  .sidebar-user {
+  .sidebar.collapsed .brand-text,
+  .sidebar.collapsed .nav-caption,
+  .sidebar.collapsed .nav-item-label,
+  .sidebar.collapsed .nav-item > span:nth-child(2),
+  .sidebar.collapsed .nav-chevron,
+  .sidebar.collapsed .sidebar-bottom,
+  .sidebar.collapsed .sidebar-user {
     display: none !important;
   }
 
-  .sidebar .nav-list {
+
+
+  .sidebar.collapsed .nav-list {
     width: 100%;
     display: flex;
     flex-direction: column;
@@ -1282,7 +1376,7 @@
     gap: 6px;
   }
 
-  .sidebar .nav-item {
+  .sidebar.collapsed .nav-item {
     width: 48px;
     height: 48px;
     min-height: 48px;
@@ -1291,8 +1385,8 @@
     border-radius: 12px;
   }
 
-  .main-shell {
-    margin-left: 72px;
+  .main-shell.sidebar-collapsed {
+    margin-left: 72px !important;
   }
 
   .topbar {
@@ -2243,6 +2337,783 @@ html.dark main .bg-gray-100.text-gray-700 {
   color: #9cb1c1 !important;
 }
 
+/* ==========================================================================
+   FINANCIAL REPORTS & DASHBOARD SUITE (Chuẩn UI SaaS hiện đại - Light & Dark)
+   ========================================================================== */
+
+/* Hàng 1: Tabs phân hệ (Thu-Chi / Danh mục / So sánh) */
+.reports-tab-group {
+  display: inline-flex;
+  align-items: center;
+  background-color: #eef2ef;
+  border-radius: 12px;
+  padding: 4px;
+  gap: 3px;
+  border: 1px solid #e1e9e3;
+}
+
+html.dark .reports-tab-group {
+  background-color: #0c1c28 !important;
+  border-color: #162f42 !important;
+}
+
+.reports-tab-item {
+  height: 36px;
+  padding: 0 16px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 700;
+  border-radius: 8px;
+  color: #55675c;
+  background: transparent;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  cursor: pointer;
+}
+
+.reports-tab-item:hover {
+  color: #07543f;
+}
+
+.reports-tab-item.active {
+  background: #ffffff;
+  color: #07543f;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+html.dark .reports-tab-item {
+  color: #7b96a8 !important;
+}
+
+html.dark .reports-tab-item:hover {
+  color: #38bdf8 !important;
+}
+
+html.dark .reports-tab-item.active {
+  background: #143044 !important;
+  color: #38bdf8 !important;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.35) !important;
+}
+
+/* Các nút xuất báo cáo (Excel / PDF) */
+/* Các nút xuất báo cáo (Excel / PDF) */
+.reports-action-btn {
+  height: 38px;
+  padding: 0 16px;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 700;
+  background: #ffffff;
+  border: 1px solid #d4ded7;
+  color: #17382b;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  transition: all 0.2s ease;
+  cursor: pointer;
+}
+
+.reports-action-btn:hover {
+  border-color: #07543f;
+  color: #07543f;
+  background: #eef7f2;
+}
+
+.reports-action-btn svg {
+  color: #07543f !important;
+}
+
+html.dark .reports-action-btn {
+  background: #0a1722 !important;
+  border-color: #162f42 !important;
+  color: #cbd5e1 !important;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2) !important;
+}
+
+html.dark .reports-action-btn:hover {
+  border-color: #34d399 !important;
+  color: #34d399 !important;
+  background: #09261e !important;
+}
+
+html.dark .reports-action-btn svg {
+  color: #34d399 !important;
+}
+
+/* Hàng 2: Thanh filter bao bọc */
+.reports-filter-container {
+  background: #ffffff;
+  border: 1px solid #e2ece5;
+  border-radius: 16px;
+  padding: 10px 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.02);
+}
+
+html.dark .reports-filter-container {
+  background: #0a1722 !important;
+  border-color: #162f42 !important;
+}
+
+/* Nhóm 4 nút thời gian preset */
+.reports-preset-group {
+  height: 44px;
+  background: #f2f5f3;
+  border-radius: 10px;
+  padding: 3px;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  border: 1px solid #e5ece6;
+}
+
+html.dark .reports-preset-group {
+  background: #07131e !important;
+  border-color: #122432 !important;
+}
+
+.reports-preset-btn {
+  flex: 1;
+  height: 100%;
+  border-radius: 7px;
+  font-size: 13px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #55675c;
+  background: transparent;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.reports-preset-btn:hover {
+  color: #07543f;
+}
+
+.reports-preset-btn.active {
+  background: #ffffff;
+  color: #07543f;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+}
+
+html.dark .reports-preset-btn {
+  color: #7b96a8 !important;
+}
+
+html.dark .reports-preset-btn:hover {
+  color: #34d399 !important;
+}
+
+html.dark .reports-preset-btn.active {
+  background: #103328 !important;
+  color: #34d399 !important;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4) !important;
+}
+
+/* Ô Date Range Picker */
+.reports-date-picker-box {
+  height: 44px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border-radius: 10px;
+  border: 1px solid #d4ded7;
+  background: #ffffff;
+  padding: 0 12px;
+  transition: border-color 0.2s ease;
+}
+
+.reports-date-picker-box:focus-within {
+  border-color: #07543f;
+  box-shadow: 0 0 0 3px rgba(7, 84, 63, 0.1);
+}
+
+html.dark .reports-date-picker-box {
+  background: #07131e !important;
+  border-color: #162f42 !important;
+}
+
+html.dark .reports-date-picker-box:focus-within {
+  border-color: #34d399 !important;
+  box-shadow: 0 0 0 3px rgba(52, 211, 153, 0.15) !important;
+}
+
+.reports-date-picker-box input[type="date"] {
+  border: none !important;
+  background: transparent !important;
+  padding: 0 !important;
+  font-size: 13px !important;
+  font-weight: 600 !important;
+  color: #1a2c22 !important;
+  outline: none !important;
+  box-shadow: none !important;
+  cursor: pointer;
+}
+
+html.dark .reports-date-picker-box input[type="date"] {
+  color: #e2edf5 !important;
+  background: transparent !important;
+}
+
+/* Ô Wallet Select thiết kế hiện đại, đồng bộ */
+.reports-wallet-select-box {
+  height: 44px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border-radius: 10px;
+  border: 1px solid #d4ded7;
+  background: #ffffff;
+  padding: 0 12px;
+  transition: all 0.2s ease;
+  position: relative;
+}
+
+.reports-wallet-select-box:hover {
+  border-color: #a3c4b1;
+  background: #fbfdfc;
+}
+
+.reports-wallet-select-box:focus-within {
+  border-color: #07543f;
+  box-shadow: 0 0 0 3px rgba(7, 84, 63, 0.12);
+  background: #ffffff;
+}
+
+html.dark .reports-wallet-select-box {
+  background: #07131e !important;
+  border-color: #162f42 !important;
+}
+
+html.dark .reports-wallet-select-box:hover {
+  border-color: #1f4738 !important;
+  background: #0a1926 !important;
+}
+
+html.dark .reports-wallet-select-box:focus-within {
+  border-color: #34d399 !important;
+  box-shadow: 0 0 0 3px rgba(52, 211, 153, 0.15) !important;
+}
+
+.reports-wallet-select-box select {
+  border: none !important;
+  background: transparent !important;
+  padding: 0 24px 0 0 !important;
+  font-size: 13px !important;
+  font-weight: 700 !important;
+  color: #1a2c22 !important;
+  outline: none !important;
+  box-shadow: none !important;
+  cursor: pointer;
+  width: 100%;
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+}
+
+html.dark .reports-wallet-select-box select {
+  color: #e2edf5 !important;
+  background: transparent !important;
+}
+
+/* Card số liệu & biểu đồ chung */
+.reports-card {
+  background: #ffffff;
+  border: 1px solid #e1e9e3;
+  border-radius: 16px;
+  padding: 20px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
+  transition: all 0.2s ease;
+}
+
+html.dark .reports-card {
+  background: #0a1722 !important;
+  border-color: #162f42 !important;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25) !important;
+}
+
+/* Thẻ KPI nhỏ */
+.reports-kpi-card {
+  background: #ffffff;
+  border: 1px solid #e1e9e3;
+  border-radius: 16px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
+  transition: all 0.2s ease;
+}
+
+html.dark .reports-kpi-card {
+  background: #0a1722 !important;
+  border-color: #162f42 !important;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25) !important;
+}
+
+/* FinAI Advisor Banner */
+.reports-advisor-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  border-radius: 16px;
+  padding: 12px 18px;
+  border: 1px solid #b7dfc8;
+  background: linear-gradient(90deg, #eaf7ee 0%, #dcf1e3 100%);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
+}
+
+.reports-advisor-text {
+  color: #113423;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.reports-advisor-badge {
+  font-weight: 700;
+  color: #07543f;
+  font-size: 12px;
+}
+
+html.dark .reports-advisor-card {
+  background: linear-gradient(90deg, #09261a 0%, #061e14 100%) !important;
+  border-color: #0d5f47 !important;
+}
+
+html.dark .reports-advisor-text {
+  color: #d1fae5 !important;
+}
+
+html.dark .reports-advisor-badge {
+  color: #34d399 !important;
+}
+
+/* Typography & Contrast Utilities cho Trang Báo Cáo */
+.reports-title-dark {
+  color: #112219 !important;
+  font-weight: 800;
+}
+
+html.dark .reports-title-dark {
+  color: #f1f5f9 !important;
+}
+
+.reports-subtitle {
+  color: #4b6354 !important;
+  font-weight: 500;
+}
+
+html.dark .reports-subtitle {
+  color: #94a3b8 !important;
+}
+
+.reports-card-label {
+  color: #435b4c !important;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  font-size: 11.5px;
+  text-transform: uppercase;
+}
+
+html.dark .reports-card-label {
+  color: #9cb1c1 !important;
+}
+
+.reports-card-meta {
+  color: #3d5345 !important;
+  font-weight: 600;
+  font-size: 12px;
+}
+
+html.dark .reports-card-meta {
+  color: #8da6b8 !important;
+}
+
+/* Trục ngang biểu đồ cột */
+.reports-chart-line {
+  height: 1px;
+  flex: 1;
+  background-color: #e2ece5;
+}
+
+html.dark .reports-chart-line {
+  background-color: #162f42 !important;
+}
+
+/* Thẻ badge chú thích chân biểu đồ */
+.reports-sub-footer {
+  margin-top: 16px;
+  padding: 10px 14px;
+  border-radius: 12px;
+  background: #f1f5f3 !important;
+  color: #1e293b !important;
+  border: 1px solid #dce6e0 !important;
+  font-size: 12px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+html:not(.dark) .reports-sub-footer {
+  background: #f1f5f3 !important;
+  color: #0f172a !important;
+  border: 1px solid #dce6e0 !important;
+}
+
+html:not(.dark) .reports-sub-footer span {
+  color: #1e293b !important;
+}
+
+html:not(.dark) .reports-sub-footer strong {
+  color: #047857 !important;
+  font-weight: 800 !important;
+}
+
+html:not(.dark) .reports-sub-footer strong.text-\[\#0f172a\] {
+  color: #0f172a !important;
+}
+
+html.dark .reports-sub-footer {
+  background: #0d2130 !important;
+  color: #cbd5e1 !important;
+  border-color: #16364d !important;
+}
 
 
+/* Vòng tròn ở tâm của biểu đồ Donut */
+.reports-donut-center {
+  background-color: #ffffff;
+  color: #112219;
+  box-shadow: 0 1px 5px rgba(0, 0, 0, 0.1);
+}
+
+html.dark .reports-donut-center {
+  background-color: #0a1722 !important;
+  color: #e2edf5 !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4) !important;
+}
+
+/* ==========================================================================
+   BẢO ĐẢM TƯƠNG PHẢN ĐẬM RÕ NÉT Ở LIGHT MODE (TRÁNH CHỮ BỊ LÓA SÁNG/MỜ NHẠT)
+   ========================================================================== */
+
+/* Trong Light Mode (khi không có html.dark) */
+html:not(.dark) .reports-card,
+html:not(.dark) .reports-kpi-card {
+  color: #14251f;
+}
+
+/* Đảm bảo toàn bộ chữ mô tả, tên giao dịch, danh mục đều đen sẫm rõ ràng */
+html:not(.dark) .reports-tx-name {
+  color: #0f172a !important;
+  font-weight: 700;
+}
+
+html:not(.dark) .reports-tx-meta {
+  color: #334155 !important;
+  font-weight: 500;
+}
+
+html:not(.dark) .reports-cat-name {
+  color: #0f172a !important;
+  font-weight: 700;
+}
+
+html:not(.dark) .reports-wallet-select-box {
+  background: #ffffff !important;
+  border: 1px solid #d4ded7 !important;
+}
+
+html:not(.dark) .reports-wallet-select-box select {
+  background: transparent !important;
+  color: #1a2c22 !important;
+}
+
+html:not(.dark) .reports-wallet-select-box select option {
+  background-color: #ffffff !important;
+  color: #1a2c22 !important;
+}
+
+html:not(.dark) .reports-footer-text {
+  color: #1e293b !important;
+  font-weight: 600;
+}
+
+html:not(.dark) .reports-kpi-amount-income {
+  color: #047857 !important;
+}
+
+html:not(.dark) .reports-kpi-amount-expense {
+  color: #e11d48 !important;
+}
+
+html:not(.dark) .reports-kpi-amount-net-pos {
+  color: #047857 !important;
+}
+
+html:not(.dark) .reports-kpi-amount-net-neg {
+  color: #e11d48 !important;
+}
+
+html:not(.dark) .reports-kpi-amount-savings {
+  color: #0f172a !important;
+}
+
+/* Bảng phân bổ cơ cấu theo danh mục */
+.reports-table {
+  width: 100%;
+  min-width: 650px;
+  border-collapse: collapse;
+  text-align: left;
+  font-size: 13px;
+}
+
+.reports-table th {
+  padding: 12px 16px;
+  font-size: 11.5px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  background-color: #f1f5f3 !important;
+  color: #1e3328 !important;
+  border-bottom: 2px solid #e1e9e3 !important;
+}
+
+.reports-table td {
+  padding: 14px 16px;
+  border-bottom: 1px solid #edf2ee;
+  color: #14251f;
+  background: transparent;
+}
+
+html:not(.dark) .reports-table tr:hover td {
+  background-color: #f8faf8 !important;
+}
+
+/* Bảng trong Dark Mode */
+html.dark .reports-table th {
+  background-color: #112636 !important;
+  color: #9cb1c1 !important;
+  border-bottom-color: #18374d !important;
+}
+
+html.dark .reports-table td {
+  border-bottom-color: #162f42 !important;
+  color: #cbd5e1 !important;
+}
+
+html.dark .reports-table tr:hover td {
+  background-color: #102638 !important;
+}
+
+/* ==========================================================================
+   TĂNG ĐỘ TƯƠNG PHẢN ICON VÀ NHÃN PHỤ TRONG LIGHT MODE
+   ========================================================================== */
+
+/* 4 Hộp Icon trên 4 ô KPI */
+html:not(.dark) .kpi-icon-income {
+  background-color: #d1fae5 !important;
+  color: #047857 !important;
+  border: 1px solid #a7f3d0;
+}
+
+html:not(.dark) .kpi-icon-expense {
+  background-color: #ffe4e6 !important;
+  color: #e11d48 !important;
+  border: 1px solid #fecdd3;
+}
+
+html:not(.dark) .kpi-icon-net-pos {
+  background-color: #d1fae5 !important;
+  color: #047857 !important;
+  border: 1px solid #a7f3d0;
+}
+
+html:not(.dark) .kpi-icon-net-neg {
+  background-color: #ffe4e6 !important;
+  color: #e11d48 !important;
+  border: 1px solid #fecdd3;
+}
+
+html:not(.dark) .kpi-icon-savings {
+  background-color: #e0f2fe !important;
+  color: #0284c7 !important;
+  border: 1px solid #bae6fd;
+}
+
+/* Dòng chữ phụ ở chân 4 ô KPI: Màu sẫm đậm rõ ràng */
+html:not(.dark) .kpi-sub-text {
+  color: #334155 !important;
+  font-weight: 600 !important;
+  font-size: 12px !important;
+}
+
+html:not(.dark) .kpi-sub-text strong {
+  color: #0f172a !important;
+  font-weight: 800 !important;
+}
+
+/* Badge Tỷ trọng % trong Bảng: Nền xanh rõ, chữ xanh đậm */
+html:not(.dark) .reports-percentage-badge {
+  background-color: #dcfce7 !important;
+  color: #15803d !important;
+  border: 1px solid #bbf7d0;
+  font-weight: 800 !important;
+  font-size: 12px !important;
+}
+
+/* Badge Thâm hụt / Thặng dư chi tiêu */
+.reports-badge-deficit {
+  background-color: #fee2e2 !important;
+  color: #b91c1c !important;
+  border: 1px solid #fca5a5 !important;
+  font-weight: 700 !important;
+  border-radius: 6px;
+  padding: 3px 9px;
+  font-size: 11.5px;
+  display: inline-flex;
+  align-items: center;
+}
+
+.reports-badge-surplus {
+  background-color: #dcfce7 !important;
+  color: #15803d !important;
+  border: 1px solid #86efac !important;
+  font-weight: 700 !important;
+  border-radius: 6px;
+  padding: 3px 9px;
+  font-size: 11.5px;
+  display: inline-flex;
+  align-items: center;
+}
+
+/* Icon tròn giao dịch chi tiêu lớn nhất */
+.reports-tx-icon-box {
+  background-color: #fee2e2 !important;
+  color: #dc2626 !important;
+  border: 1px solid #fecdd3 !important;
+}
+
+/* Footer đếm số giao dịch chi lớn nhất */
+html:not(.dark) .reports-tx-footer {
+  color: #334155 !important;
+  font-weight: 600 !important;
+}
+
+/* Chế độ Dark mode cho các thành phần trên */
+html.dark .reports-badge-deficit {
+  background-color: rgba(136, 19, 55, 0.45) !important;
+  color: #fda4af !important;
+  border-color: #9f1239 !important;
+}
+
+html.dark .reports-badge-surplus {
+  background-color: rgba(6, 78, 59, 0.45) !important;
+  color: #6ee7b7 !important;
+  border-color: #065f46 !important;
+}
+
+html.dark .reports-tx-icon-box {
+  background-color: rgba(136, 19, 55, 0.4) !important;
+  color: #fda4af !important;
+  border: 1px solid #9f1239 !important;
+}
+
+html.dark .reports-tx-footer {
+  color: #94a3b8 !important;
+}
+
+/* Hộp chú thích Thu / Chi trên biểu đồ */
+.reports-legend-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  border-radius: 12px;
+  padding: 6px 12px;
+  font-size: 12px;
+  font-weight: 700;
+  background-color: #f1f5f3 !important;
+  color: #172c21 !important;
+  border: 1px solid #e1e9e4 !important;
+}
+
+html.dark .reports-legend-pill {
+  background-color: #0c1f2d !important;
+  color: #cbd5e1 !important;
+  border-color: #16364d !important;
+}
+
+/* Badge số nhóm trên header Cơ cấu chi tiêu */
+.reports-category-count-badge {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 10px;
+  padding: 4px 10px;
+  font-size: 11px;
+  font-weight: 800;
+  background-color: #e3f4e9 !important;
+  color: #07543f !important;
+  border: 1px solid #bce6cf !important;
+}
+
+html.dark .reports-category-count-badge {
+  background-color: rgba(7, 84, 63, 0.35) !important;
+  color: #34d399 !important;
+  border-color: #07543f !important;
+}
+
+/* ==========================================================================
+   CHUYÊN NGHIỆP HÓA XUẤT BẢN IN PDF (WINDOW.PRINT)
+   ========================================================================== */
+@media print {
+  aside,
+  header.nav-header,
+  .sidebar,
+  .reports-tab-group,
+  .reports-action-btn,
+  .reports-filter-container,
+  button {
+    display: none !important;
+  }
+
+  body {
+    background-color: #ffffff !important;
+    color: #000000 !important;
+    font-size: 11pt !important;
+  }
+
+  main {
+    max-width: 100% !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+
+  .reports-card,
+  .reports-kpi-card {
+    box-shadow: none !important;
+    border: 1px solid #cccccc !important;
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
+
+  .reports-table th {
+    background-color: #f2f2f2 !important;
+    color: #000000 !important;
+    border-bottom: 2px solid #999999 !important;
+  }
+
+  .reports-table td {
+    border-bottom: 1px solid #eeeeee !important;
+    color: #111111 !important;
+  }
+
+  @page {
+    margin: 1.2cm;
+    size: A4 portrait;
+  }
+}
 

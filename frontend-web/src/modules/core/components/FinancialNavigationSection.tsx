@@ -21,9 +21,10 @@ type Props = {
   onNavigate: (label: string) => void;
   isOpen?: boolean;
   onClose?: () => void;
+  isCollapsed?: boolean;
 }
 
-export function FinancialNavigationSection({ active, onNavigate, isOpen, onClose }: Props) {
+export function FinancialNavigationSection({ active, onNavigate, isOpen, onClose, isCollapsed }: Props) {
   const navigate = (item: (typeof navigation)[number]) => {
     onNavigate(item.label)
     if (onClose) onClose()
@@ -38,7 +39,8 @@ export function FinancialNavigationSection({ active, onNavigate, isOpen, onClose
         aria-hidden="true"
       />
     )}
-    <aside className={`sidebar fixed inset-y-0 left-0 z-50 flex flex-col transition-all duration-300 ${isOpen ? 'mobile-open' : ''}`}>
+    <aside className={`sidebar fixed inset-y-0 left-0 z-50 flex flex-col transition-all duration-300 ${isOpen ? 'mobile-open' : ''} ${isCollapsed ? 'collapsed' : ''}`}>
+      {/* Sidebar header logo & brand */}
       <div className="flex items-center justify-between">
         <a className="brand flex-1" href="#overview" aria-label="Finora, tổng quan" onClick={() => onClose && onClose()}>
           <span className="brand-mark overflow-hidden p-0 shrink-0">
@@ -46,6 +48,8 @@ export function FinancialNavigationSection({ active, onNavigate, isOpen, onClose
           </span>
           <span className="brand-text"><strong>Finora</strong><small>INTELLIGENCE</small></span>
         </a>
+
+        {/* Nút đóng trên Mobile */}
         {onClose && (
           <button
             type="button"
@@ -76,3 +80,4 @@ export function FinancialNavigationSection({ active, onNavigate, isOpen, onClose
     </aside>
   </>
 }
+

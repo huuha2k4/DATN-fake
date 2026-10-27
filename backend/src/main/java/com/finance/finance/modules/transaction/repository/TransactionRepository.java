@@ -184,6 +184,48 @@ public interface TransactionRepository extends JpaRepository<Transaction, UUID> 
             @Param("userId") UUID userId,
             @Param("categoryId") UUID categoryId,
             @Param("fromDate") LocalDate fromDate);
+
+    /**
+     * Get monthly income and expense flow across months
+     */
+    @Query("SELECT " +
+           "FUNCTION('TO_CHAR', t.occurredDate, 'YYYY-MM') as month, " +
+           "COALESCE(SUM(CASE WHEN t.type = 'INCOME' THEN t.baseAmount ELSE 0 END), 0) as income, " +
+           "COALESCE(SUM(CASE WHEN t.type = 'EXPENSE' THEN t.baseAmount ELSE 0 END), 0) as expense, " +
+           "COUNT(t) as transactionCount " +
+           "FROM Transaction t " +
+           "WHERE t.userId = :userId " +
+           "AND t.occurredDate BETWEEN :fromDate AND :toDate " +
+           "AND (CAST(:isExcluded AS boolean) IS NULL OR t.isExcludedFromReport = :isExcluded) " +
+           "AND t.deletedAt IS NULL " +
+           "GROUP BY FUNCTION('TO_CHAR', t.occurredDate, 'YYYY-MM') " +
+           "ORDER BY month ASC")
+    List<Object[]> getMonthlyFlow(
+            @Param("userId") UUID userId,
+            @Param("fromDate") LocalDate fromDate,
+            @Param("toDate") LocalDate toDate,
+            @Param("isExcluded") Boolean isExcluded);
+
+    /**
+     * Get daily income and expense flow across days
+     */
+    @Query("SELECT " +
+           "FUNCTION('TO_CHAR', t.occurredDate, 'YYYY-MM-DD') as day, " +
+           "COALESCE(SUM(CASE WHEN t.type = 'INCOME' THEN t.baseAmount ELSE 0 END), 0) as income, " +
+           "COALESCE(SUM(CASE WHEN t.type = 'EXPENSE' THEN t.baseAmount ELSE 0 END), 0) as expense, " +
+           "COUNT(t) as transactionCount " +
+           "FROM Transaction t " +
+           "WHERE t.userId = :userId " +
+           "AND t.occurredDate BETWEEN :fromDate AND :toDate " +
+           "AND (CAST(:isExcluded AS boolean) IS NULL OR t.isExcludedFromReport = :isExcluded) " +
+           "AND t.deletedAt IS NULL " +
+           "GROUP BY FUNCTION('TO_CHAR', t.occurredDate, 'YYYY-MM-DD') " +
+           "ORDER BY day ASC")
+    List<Object[]> getDailyFlow(
+            @Param("userId") UUID userId,
+            @Param("fromDate") LocalDate fromDate,
+            @Param("toDate") LocalDate toDate,
+            @Param("isExcluded") Boolean isExcluded);
     
     /**
      * Get most frequent category

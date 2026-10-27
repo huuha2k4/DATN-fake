@@ -459,17 +459,34 @@ public class TransactionService {
         log.debug("Getting transaction summary for user: {}, from: {}, to: {}", userId, fromDate, toDate);
         
         // Get summary data
-        Object[] summaryData = transactionRepository.getSummary(userId, fromDate, toDate, false);
-        BigDecimal totalIncome = (BigDecimal) summaryData[0];
-        BigDecimal totalExpense = (BigDecimal) summaryData[1];
-        Long transactionCount = (Long) summaryData[2];
+        BigDecimal totalIncome = BigDecimal.ZERO;
+        BigDecimal totalExpense = BigDecimal.ZERO;
+        Long transactionCount = 0L;
+        try {
+            Object raw = transactionRepository.getSummary(userId, fromDate, toDate, false);
+            Object[] summaryData = null;
+            if (raw instanceof Object[] arr) {
+                if (arr.length > 0 && arr[0] instanceof Object[] nested) {
+                    summaryData = nested;
+                } else {
+                    summaryData = arr;
+                }
+            }
+            if (summaryData != null && summaryData.length >= 3) {
+                totalIncome = toBigDecimal(summaryData[0]);
+                totalExpense = toBigDecimal(summaryData[1]);
+                if (summaryData[2] instanceof Number num) transactionCount = num.longValue();
+            }
+        } catch (Exception e) {
+            log.warn("getSummary failed, fallback to defaults: {}", e.getMessage());
+        }
         
         // Calculate net cash flow
         BigDecimal netCashFlow = totalIncome.subtract(totalExpense);
         
         // Calculate average daily expense
         long days = java.time.temporal.ChronoUnit.DAYS.between(fromDate, toDate) + 1;
-        BigDecimal averageDailyExpense = totalExpense.divide(BigDecimal.valueOf(days), 2, RoundingMode.HALF_UP);
+        BigDecimal averageDailyExpense = days > 0 ? totalExpense.divide(BigDecimal.valueOf(days), 2, RoundingMode.HALF_UP) : BigDecimal.ZERO;
         
         // Get largest expense
         List<Transaction> largestExpenses = transactionRepository.findLargestExpenses(
@@ -515,21 +532,51 @@ public class TransactionService {
         List<Object[]> categoryData = transactionRepository.groupByCategory(
                 userId, TransactionType.EXPENSE, fromDate, toDate);
         
+        final BigDecimal finalTotalExpense = totalExpense != null ? totalExpense : BigDecimal.ZERO;
         List<TransactionSummaryResponse.CategoryItemDto> byCategory = categoryData.stream()
                 .map(data -> {
                     UUID catId = (UUID) data[0];
                     String catName = catId != null ? categoryRepository.findById(catId).map(Category::getName).orElse("") : "";
+                    BigDecimal amount = toBigDecimal(data[1]);
+                    BigDecimal percentage = (finalTotalExpense.compareTo(BigDecimal.ZERO) > 0)
+                            ? amount.divide(finalTotalExpense, 4, RoundingMode.HALF_UP).multiply(BigDecimal.valueOf(100))
+                            : BigDecimal.ZERO;
+                    Number count = data[2] instanceof Number num ? num : 0;
+                    BigDecimal avgAmount = toBigDecimal(data[3]);
                     return TransactionSummaryResponse.CategoryItemDto.builder()
                             .categoryId(catId)
                             .categoryName(catName)
-                            .totalAmount((BigDecimal) data[1])
-                            .percentage(((BigDecimal) data[1]).divide(totalExpense, 4, RoundingMode.HALF_UP)
-                                    .multiply(BigDecimal.valueOf(100)))
-                            .transactionCount(((Long) data[2]).intValue())
-                            .averageAmount((BigDecimal) data[3])
+                            .totalAmount(amount)
+                            .percentage(percentage)
+                            .transactionCount(count.intValue())
+                            .averageAmount(avgAmount)
                             .build();
                 })
                 .toList();
+        
+        // Get by period (flow by day or month)
+        List<TransactionSummaryResponse.PeriodItemDto> byPeriod = new ArrayList<>();
+        try {
+            boolean isDaily = "day".equalsIgnoreCase(groupBy);
+            List<Object[]> flowData = isDaily 
+                    ? transactionRepository.getDailyFlow(userId, fromDate, toDate, false)
+                    : transactionRepository.getMonthlyFlow(userId, fromDate, toDate, false);
+            for (Object[] item : flowData) {
+                String dateStr = (String) item[0];
+                BigDecimal inc = toBigDecimal(item[1]);
+                BigDecimal exp = toBigDecimal(item[2]);
+                Number count = (Number) item[3];
+                byPeriod.add(TransactionSummaryResponse.PeriodItemDto.builder()
+                        .date(dateStr)
+                        .income(inc)
+                        .expense(exp)
+                        .net(inc.subtract(exp))
+                        .transactionCount(count != null ? count.intValue() : 0)
+                        .build());
+            }
+        } catch (Exception e) {
+            log.warn("Failed to get flow for summary (groupBy: {}): {}", groupBy, e.getMessage());
+        }
         
         return TransactionSummaryResponse.builder()
                 .period(TransactionSummaryResponse.PeriodDto.builder()
@@ -539,6 +586,7 @@ public class TransactionService {
                         .build())
                 .summary(summary)
                 .byCategory(byCategory)
+                .byPeriod(byPeriod)
                 .currencyCode("VND") // TODO: Get from user's base currency
                 .build();
     }
@@ -731,6 +779,17 @@ public class TransactionService {
                 .netCashFlow(netCashFlow)
                 .transactionCount(transactionCount)
                 .build();
+    }
+
+    private BigDecimal toBigDecimal(Object obj) {
+        if (obj == null) return BigDecimal.ZERO;
+        if (obj instanceof BigDecimal bd) return bd;
+        if (obj instanceof Number num) return BigDecimal.valueOf(num.doubleValue());
+        try {
+            return new BigDecimal(obj.toString());
+        } catch (Exception e) {
+            return BigDecimal.ZERO;
+        }
     }
 
     private TransactionResponse.CategoryDto mapToCategoryDto(Category category) {

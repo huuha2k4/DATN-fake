@@ -27,8 +27,25 @@ export default function AppScreen() {
   const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false)
   const [walletCount, setWalletCount] = useState<number | null>(null)
   const [isMobileNavOpen, setIsMobileNavOpen] = useState(false)
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState<boolean>(() => {
+    return localStorage.getItem('sidebar_collapsed') === 'true'
+  })
   const navigate = useNavigate()
   const location = useLocation()
+
+  const handleToggleSidebar = () => {
+    // If mobile (< 769px), toggle drawer
+    if (window.innerWidth <= 768) {
+      setIsMobileNavOpen(prev => !prev)
+    } else {
+      // Desktop: toggle collapsed state
+      setIsSidebarCollapsed(prev => {
+        const next = !prev
+        localStorage.setItem('sidebar_collapsed', String(next))
+        return next
+      })
+    }
+  }
 
   useEffect(() => {
     setIsLoggedIn(isAuthenticated())
@@ -89,6 +106,7 @@ export default function AppScreen() {
         active={activeSection} 
         isOpen={isMobileNavOpen}
         onClose={() => setIsMobileNavOpen(false)}
+        isCollapsed={isSidebarCollapsed}
         onNavigate={(section) => {
           // Map sections to routes
           const routes: Record<string, string> = {
@@ -111,14 +129,15 @@ export default function AppScreen() {
         }} 
       />
       
-      <div className="main-shell">
+      <div className={`main-shell ${isSidebarCollapsed ? 'sidebar-collapsed' : ''}`}>
         <DashboardHeaderSection 
           onNotify={setNotice} 
           onOpenProfile={() => navigate('/profile')}
           onOpenChangePassword={() => setIsPasswordModalOpen(true)}
           onLogout={handleLogout}
           walletCount={walletCount}
-          onToggleSidebar={() => setIsMobileNavOpen(prev => !prev)}
+          onToggleSidebar={handleToggleSidebar}
+          isSidebarCollapsed={isSidebarCollapsed}
         />
         
         <Routes>

@@ -10,6 +10,7 @@ type Props = {
   onLogout: () => void;
   walletCount?: number | null;
   onToggleSidebar?: () => void;
+  isSidebarCollapsed?: boolean;
 }
 
 // Map route path to human-readable screen title
@@ -33,7 +34,7 @@ const routeTitles: Record<string, { title: string; subtitle?: string }> = {
   '/scan-invoice': { title: 'Quét hóa đơn thông minh (OCR)', subtitle: 'Tải ảnh hóa đơn để tự động trích xuất thông tin' },
 }
 
-export function DashboardHeaderSection({ onNotify, onOpenProfile, onOpenChangePassword, onLogout, walletCount, onToggleSidebar }: Props) {
+export function DashboardHeaderSection({ onNotify, onOpenProfile, onOpenChangePassword, onLogout, walletCount, onToggleSidebar, isSidebarCollapsed }: Props) {
   const location = useLocation();
   const { theme, toggleTheme } = useTheme();
   const currentInfo = routeTitles[location.pathname] || { title: 'Hệ thống tài chính Finora', subtitle: '' };
@@ -42,9 +43,10 @@ export function DashboardHeaderSection({ onNotify, onOpenProfile, onOpenChangePa
   const isDark = theme === 'dark';
 
   return (
-    <header className="topbar sticky top-0 z-10 flex min-h-16 items-center justify-between gap-3 px-3 backdrop-blur sm:px-6 lg:px-8">
-      {/* Left: Mobile hamburger menu toggle + Active Screen Name */}
-      <div className="flex items-center gap-2.5 py-2">
+    <header className="topbar sticky top-0 z-10 flex min-h-16 items-center justify-between gap-3 !pl-3.5 !pr-6 backdrop-blur">
+      {/* Left: Nút thu vào / đẩy ra cột sidebar và tiêu đề trang */}
+      <div className="flex items-center gap-2 py-2">
+        {/* Nút đóng/mở trên Mobile */}
         {onToggleSidebar && (
           <button
             type="button"
@@ -55,6 +57,36 @@ export function DashboardHeaderSection({ onNotify, onOpenProfile, onOpenChangePa
             <FinanceIcon name="menu" size={22} />
           </button>
         )}
+
+        {/* Nút thu vào / mở ra trên Desktop: không viền, nằm sát bên trái cạnh tiêu đề trang */}
+        {onToggleSidebar && (
+          <button
+            type="button"
+            className="desktop-sidebar-toggle hidden md:flex items-center justify-center size-8 p-1 text-[#43574c] hover:text-[#07543f] hover:bg-[#eef5f1] dark:text-[#94a3b8] dark:hover:text-white dark:hover:bg-[#1e293b] rounded-lg transition-colors cursor-pointer"
+            onClick={onToggleSidebar}
+            title={isSidebarCollapsed ? 'Mở rộng thanh điều hướng' : 'Thu gọn thanh điều hướng'}
+            aria-label={isSidebarCollapsed ? 'Mở rộng thanh điều hướng' : 'Thu gọn thanh điều hướng'}
+          >
+            {isSidebarCollapsed ? (
+              /* Icon mở ra khi đang thu gọn: 3 vạch với tam giác chỉ sang phải */
+              <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M3.5 4.5H16.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                <path d="M5.5 10H16.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                <path d="M3.5 15.5H16.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                <path d="M2.5 8L5 10L2.5 12" fill="currentColor" />
+              </svg>
+            ) : (
+              /* Icon thu vào như ảnh mẫu: 3 vạch ngang không viền, vạch giữa thụt lùi kèm mũi tên tam giác đen chỉ sang trái */
+              <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M3.5 4.5H16.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                <path d="M8 10H16.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                <path d="M3.5 15.5H16.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                <path d="M6.5 8L3.5 10L6.5 12V8Z" fill="currentColor" />
+              </svg>
+            )}
+          </button>
+        )}
+
         <div className="flex flex-col justify-center">
           <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
             <h1 className="header-page-title text-[15px] sm:text-[19px] font-bold tracking-tight leading-tight m-0 line-clamp-1">
