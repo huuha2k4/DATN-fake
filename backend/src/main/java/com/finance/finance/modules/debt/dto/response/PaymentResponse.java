@@ -20,10 +20,10 @@ import java.util.UUID;
 public class PaymentResponse {
 
     @JsonProperty("payment_id")
-    private Long paymentId;
+    private UUID paymentId;
 
     @JsonProperty("debt_id")
-    private Long debtId;
+    private UUID debtId;
 
     @JsonProperty("amount")
     private BigDecimal amount;

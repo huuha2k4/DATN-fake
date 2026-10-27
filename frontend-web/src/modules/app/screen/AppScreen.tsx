@@ -26,6 +26,7 @@ export default function AppScreen() {
   const [notice, setNotice] = useState('')
   const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false)
   const [walletCount, setWalletCount] = useState<number | null>(null)
+  const [isMobileNavOpen, setIsMobileNavOpen] = useState(false)
   const navigate = useNavigate()
   const location = useLocation()
 
@@ -41,6 +42,11 @@ export default function AppScreen() {
     }, 5000);
     return () => clearTimeout(timer);
   }, [notice])
+
+  // Tự động đóng menu trên mobile khi đổi route
+  useEffect(() => {
+    setIsMobileNavOpen(false);
+  }, [location.pathname])
 
   const handleAuthenticated = () => {
     setIsLoggedIn(true)
@@ -81,6 +87,8 @@ export default function AppScreen() {
     <div className="finance-app">
       <FinancialNavigationSection 
         active={activeSection} 
+        isOpen={isMobileNavOpen}
+        onClose={() => setIsMobileNavOpen(false)}
         onNavigate={(section) => {
           // Map sections to routes
           const routes: Record<string, string> = {
@@ -110,6 +118,7 @@ export default function AppScreen() {
           onOpenChangePassword={() => setIsPasswordModalOpen(true)}
           onLogout={handleLogout}
           walletCount={walletCount}
+          onToggleSidebar={() => setIsMobileNavOpen(prev => !prev)}
         />
         
         <Routes>

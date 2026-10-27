@@ -89,7 +89,7 @@ public class SummaryResponse {
     public static class UpcomingPayment {
 
         @JsonProperty("debt_id")
-        private Long debtId;
+        private UUID debtId;
 
         @JsonProperty("creditor_name")
         private String creditorName;

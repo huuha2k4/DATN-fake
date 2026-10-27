@@ -9,6 +9,7 @@ type Props = {
   onOpenChangePassword: () => void;
   onLogout: () => void;
   walletCount?: number | null;
+  onToggleSidebar?: () => void;
 }
 
 // Map route path to human-readable screen title
@@ -32,7 +33,7 @@ const routeTitles: Record<string, { title: string; subtitle?: string }> = {
   '/scan-invoice': { title: 'Quét hóa đơn thông minh (OCR)', subtitle: 'Tải ảnh hóa đơn để tự động trích xuất thông tin' },
 }
 
-export function DashboardHeaderSection({ onNotify, onOpenProfile, onOpenChangePassword, onLogout, walletCount }: Props) {
+export function DashboardHeaderSection({ onNotify, onOpenProfile, onOpenChangePassword, onLogout, walletCount, onToggleSidebar }: Props) {
   const location = useLocation();
   const { theme, toggleTheme } = useTheme();
   const currentInfo = routeTitles[location.pathname] || { title: 'Hệ thống tài chính Finora', subtitle: '' };
@@ -41,25 +42,37 @@ export function DashboardHeaderSection({ onNotify, onOpenProfile, onOpenChangePa
   const isDark = theme === 'dark';
 
   return (
-    <header className="topbar sticky top-0 z-10 flex min-h-16 items-center justify-between gap-3 px-4 backdrop-blur sm:px-6 lg:px-8">
-      {/* Left: Active Screen Name and Context Subtitle with balanced proportions */}
-      <div className="flex flex-col justify-center py-2">
-        <div className="flex items-center gap-3">
-          <h1 className="header-page-title text-[17px] sm:text-[19px] font-bold tracking-tight leading-tight m-0">
-            {currentInfo.title}
-          </h1>
-          {isWalletPage && (
-            <span id="wallet-count-pill" className="inline-flex items-center gap-1.5 rounded-full bg-[#e3f4e9] px-2.5 py-0.5 text-[11px] font-semibold text-[#07543f]">
-              <span className="size-2 rounded-full bg-[#10b981]" />
-              <span id="wallet-count-text">{walletCount ?? 0} nguồn tiền đang theo dõi</span>
-            </span>
+    <header className="topbar sticky top-0 z-10 flex min-h-16 items-center justify-between gap-3 px-3 backdrop-blur sm:px-6 lg:px-8">
+      {/* Left: Mobile hamburger menu toggle + Active Screen Name */}
+      <div className="flex items-center gap-2.5 py-2">
+        {onToggleSidebar && (
+          <button
+            type="button"
+            className="mobile-sidebar-toggle flex md:hidden items-center justify-center p-2 rounded-xl text-[#244034] hover:bg-[#eaf3ee] dark:text-[#cbd5e1] dark:hover:bg-[#122838] transition-colors"
+            onClick={onToggleSidebar}
+            aria-label="Mở menu danh mục"
+          >
+            <FinanceIcon name="menu" size={22} />
+          </button>
+        )}
+        <div className="flex flex-col justify-center">
+          <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
+            <h1 className="header-page-title text-[15px] sm:text-[19px] font-bold tracking-tight leading-tight m-0 line-clamp-1">
+              {currentInfo.title}
+            </h1>
+            {isWalletPage && (
+              <span id="wallet-count-pill" className="inline-flex items-center gap-1.5 rounded-full bg-[#e3f4e9] px-2.5 py-0.5 text-[11px] font-semibold text-[#07543f]">
+                <span className="size-2 rounded-full bg-[#10b981]" />
+                <span id="wallet-count-text">{walletCount ?? 0} nguồn tiền đang theo dõi</span>
+              </span>
+            )}
+          </div>
+          {currentInfo.subtitle && (
+            <p className="text-[12px] text-[#71847a] font-normal hidden sm:block mt-0.5 m-0">
+              {currentInfo.subtitle}
+            </p>
           )}
         </div>
-        {currentInfo.subtitle && (
-          <p className="text-[12px] text-[#71847a] font-normal hidden sm:block mt-0.5 m-0">
-            {currentInfo.subtitle}
-          </p>
-        )}
       </div>
 
       {/* Right: Theme Toggle, Notifications & Profile Avatar */}

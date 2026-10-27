@@ -1,5 +1,7 @@
 package com.finance.finance.modules.debt.exception;
 
+import java.util.UUID;
+
 /**
  * Exception khi không tìm thấy debt
  */
@@ -9,7 +11,7 @@ public class DebtNotFoundException extends RuntimeException {
         super(message);
     }
     
-    public DebtNotFoundException(Long debtId) {
+    public DebtNotFoundException(UUID debtId) {
         super("Debt not found with id: " + debtId);
     }
 }

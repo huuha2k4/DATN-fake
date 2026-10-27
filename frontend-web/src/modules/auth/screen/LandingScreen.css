@@ -833,12 +833,32 @@
 }
 
 @media (max-width: 768px) {
+  .landing-navbar {
+    padding: 12px 14px;
+  }
+
+  .nav-auth-actions {
+    gap: 6px;
+  }
+
+  .btn-nav-login {
+    padding: 7px 12px;
+    font-size: 13px;
+  }
+
+  .btn-nav-cta {
+    padding: 8px 14px;
+    font-size: 13px;
+  }
+
   .hero-h1 {
-    font-size: 34px;
+    font-size: 28px !important;
+    line-height: 1.25;
   }
 
   .hero-subtitle {
-    font-size: 16px;
+    font-size: 14px;
+    padding: 0 10px;
   }
 
   .nav-links-desktop {
@@ -854,13 +874,19 @@
   }
 
   .metrics-banner {
-    padding: 36px 20px;
+    padding: 28px 16px;
+  }
+
+  .metrics-grid {
+    grid-template-columns: 1fr !important;
+    gap: 16px;
   }
 
   .trust-card-grid {
     grid-template-columns: 1fr;
   }
 }
+
 
 /* ==========================================================================
    LANDING PAGE THEME TOGGLE & DARK MODE STYLING

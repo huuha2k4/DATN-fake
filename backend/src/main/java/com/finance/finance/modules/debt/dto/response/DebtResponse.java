@@ -21,7 +21,7 @@ import java.util.UUID;
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public class DebtResponse {
 
-    private Long id;
+    private UUID id;
 
     @JsonProperty("debt_type")
     private com.finance.finance.common.enums.DebtType debtType;

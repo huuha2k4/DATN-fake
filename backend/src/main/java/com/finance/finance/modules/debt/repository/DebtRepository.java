@@ -15,13 +15,13 @@ import java.util.Optional;
 import java.util.UUID;
 
 @Repository
-public interface DebtRepository extends JpaRepository<Debt, Long> {
+public interface DebtRepository extends JpaRepository<Debt, UUID> {
 
     /**
      * Tìm debt theo ID và user ID (không bao gồm deleted)
      */
     @Query("SELECT d FROM Debt d WHERE d.id = :id AND d.user.id = :userId AND d.deletedAt IS NULL")
-    Optional<Debt> findByIdAndUserId(@Param("id") Long id, @Param("userId") UUID userId);
+    Optional<Debt> findByIdAndUserId(@Param("id") UUID id, @Param("userId") UUID userId);
 
     /**
      * Tìm debt theo ID và user ID (bao gồm payments)
@@ -29,7 +29,7 @@ public interface DebtRepository extends JpaRepository<Debt, Long> {
     @Query("SELECT d FROM Debt d LEFT JOIN FETCH d.payments p " +
            "WHERE d.id = :id AND d.user.id = :userId AND d.deletedAt IS NULL " +
            "ORDER BY p.paymentDate DESC")
-    Optional<Debt> findByIdWithPayments(@Param("id") Long id, @Param("userId") UUID userId);
+    Optional<Debt> findByIdWithPayments(@Param("id") UUID id, @Param("userId") UUID userId);
 
     /**
      * Lấy tất cả debts của user
@@ -186,7 +186,7 @@ public interface DebtRepository extends JpaRepository<Debt, Long> {
             @Param("userId") UUID userId,
             @Param("type") DebtType type,
             @Param("name") String name,
-            @Param("debtId") Long debtId
+            @Param("debtId") UUID debtId
     );
 
     /**

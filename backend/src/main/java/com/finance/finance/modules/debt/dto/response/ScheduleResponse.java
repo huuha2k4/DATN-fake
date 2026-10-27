@@ -39,7 +39,7 @@ public class ScheduleResponse {
     public static class DebtInfo {
 
         @JsonProperty("id")
-        private Long id;
+        private UUID id;
 
         @JsonProperty("creditor_name")
         private String creditorName;

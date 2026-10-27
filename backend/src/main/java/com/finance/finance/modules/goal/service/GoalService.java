@@ -1,6 +1,7 @@
 package com.finance.finance.modules.goal.service;
 
 import com.finance.finance.common.enums.GoalStatus;
+import com.finance.finance.common.enums.TransactionType;
 import com.finance.finance.modules.goal.dto.request.*;
 import com.finance.finance.modules.goal.dto.response.*;
 import com.finance.finance.modules.goal.entity.Goal;
@@ -10,6 +11,10 @@ import com.finance.finance.modules.goal.exception.GoalNotFoundException;
 import com.finance.finance.modules.goal.repository.GoalContributionRepository;
 import com.finance.finance.modules.goal.repository.GoalMilestoneRepository;
 import com.finance.finance.modules.goal.repository.GoalRepository;
+import com.finance.finance.modules.account.entity.Account;
+import com.finance.finance.modules.account.repository.AccountRepository;
+import com.finance.finance.modules.transaction.dto.request.CreateTransactionRequest;
+import com.finance.finance.modules.transaction.service.TransactionService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -31,6 +36,8 @@ public class GoalService {
     private final GoalRepository goalRepository;
     private final GoalContributionRepository contributionRepository;
     private final GoalMilestoneRepository milestoneRepository;
+    private final TransactionService transactionService;
+    private final AccountRepository accountRepository;
 
     @Transactional
     public GoalResponse createGoal(UUID userId, CreateGoalRequest request) {
@@ -170,6 +177,31 @@ public class GoalService {
 
         if (goal.getStatus() != GoalStatus.IN_PROGRESS) {
             throw new IllegalStateException("Chỉ có thể đóng góp vào mục tiêu đang thực hiện");
+        }
+
+        // Create EXPENSE transaction with "Savings/Investment" category
+        // This will deduct money from the account and record it in transaction history
+        UUID transactionId = null;
+        if (request.getSourceAccountId() != null) {
+            // Get account to retrieve currency code
+            Account account = accountRepository.findByIdAndUserId(request.getSourceAccountId(), userId)
+                    .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy tài khoản"));
+            
+            // Hard-coded savings category ID - "Tiết kiệm, đầu tư"
+            UUID savingsCategoryId = UUID.fromString("275610c7-90a8-4a8f-87f2-2d7304f9ae13");
+            
+            CreateTransactionRequest transactionRequest = CreateTransactionRequest.builder()
+                    .accountId(request.getSourceAccountId())
+                    .categoryId(savingsCategoryId)
+                    .transactionType(TransactionType.EXPENSE)
+                    .amount(request.getAmount())
+                    .currencyCode(account.getCurrencyCode())
+                    .transactionDate(LocalDate.now())
+                    .description("Đóng góp vào mục tiêu: " + goal.getName())
+                    .note(request.getNote())
+                    .build();
+            
+            transactionId = transactionService.createTransaction(userId, transactionRequest).getId();
         }
 
         GoalContribution contribution = GoalContribution.builder()

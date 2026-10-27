@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { FinanceIcon } from '../../core/components/FinanceIcon';
+import { FinanceIcon, resolveCategoryIconName } from '../../core/components/FinanceIcon';
 import { 
   transactionApi, 
   type TransactionItem, 
@@ -570,33 +570,35 @@ export function CashFlowManagementScreen({ onNotify, onAddTransaction }: Props) 
     return list;
   }, []);
 
+  // Deduplicate categories by normalized name & kind to prevent duplicate seeded data (e.g. 2 'Ăn uống')
+  const uniqueCategories = useMemo(() => {
+    return categories.filter((cat, index, self) => {
+      const key = `${cat.kind}_${cat.name.trim().toLowerCase()}`;
+      return index === self.findIndex((c) => `${c.kind}_${c.name.trim().toLowerCase()}` === key);
+    });
+  }, [categories]);
+
   // Only show categories matching the currently selected tab (or both if ALL)
   const availableCategories = useMemo(() => {
     if (activeTab === 'INCOME') {
-      return categories.filter((c) => c.kind === 'INCOME');
+      return uniqueCategories.filter((c) => c.kind === 'INCOME');
     }
     if (activeTab === 'EXPENSE') {
-      return categories.filter((c) => c.kind === 'EXPENSE');
+      return uniqueCategories.filter((c) => c.kind === 'EXPENSE');
     }
     if (activeTab === 'TRANSFER') {
       return [];
     }
-    return categories;
-  }, [categories, activeTab]);
+    return uniqueCategories;
+  }, [uniqueCategories, activeTab]);
 
   const filteredCategoriesForTab = useMemo(() => {
-    return categories.filter((c) => c.kind === categoryKindTab);
-  }, [categories, categoryKindTab]);
+    return uniqueCategories.filter((c) => c.kind === categoryKindTab);
+  }, [uniqueCategories, categoryKindTab]);
 
-  const renderCategoryIcon = (iconName?: string, kind?: string, size = 16) => {
-    if (!iconName) {
-      return <FinanceIcon name={kind === 'INCOME' ? 'income' : 'expense'} size={size} />;
-    }
-    // Check if iconName is an emoji
-    if (/\p{Extended_Pictographic}/u.test(iconName)) {
-      return <span>{iconName}</span>;
-    }
-    return <FinanceIcon name={iconName as any} size={size} />;
+  const renderCategoryIcon = (iconName?: string, kind?: string, size = 16, categoryName?: string) => {
+    const resolved = resolveCategoryIconName(iconName, kind, categoryName);
+    return <FinanceIcon name={resolved} size={size} />;
   };
 
   return (
@@ -1169,7 +1171,7 @@ export function CashFlowManagementScreen({ onNotify, onAddTransaction }: Props) 
                             style={{ backgroundColor: iconBg, color: iconColor }}
                           >
                             {tx.category ? (
-                              renderCategoryIcon(tx.category.icon, tx.transactionType, 18)
+                              renderCategoryIcon(tx.category.icon, tx.transactionType, 18, tx.category.name)
                             ) : (
                               <FinanceIcon 
                                 name={isIncome ? 'income' : isTransfer ? 'arrows' : 'expense'} 
@@ -1443,7 +1445,7 @@ export function CashFlowManagementScreen({ onNotify, onAddTransaction }: Props) 
                             border: `1px solid ${cat.color ? `${cat.color}35` : '#d9e4dd'}`,
                           }}
                         >
-                          {renderCategoryIcon(cat.icon, cat.kind, 16)}
+                          {renderCategoryIcon(cat.icon, cat.kind, 16, cat.name)}
                         </span>
                         <div className="min-w-0">
                           <p className="truncate text-xs font-semibold text-[#14261e]" title={cat.name}>
@@ -1593,7 +1595,7 @@ export function CashFlowManagementScreen({ onNotify, onAddTransaction }: Props) 
                   }}
                 >
                   {selectedTxDetail.category ? (
-                    renderCategoryIcon(selectedTxDetail.category.icon, selectedTxDetail.transactionType, 22)
+                    renderCategoryIcon(selectedTxDetail.category.icon, selectedTxDetail.transactionType, 22, selectedTxDetail.category.name)
                   ) : (
                     <FinanceIcon 
                       name={selectedTxDetail.transactionType === 'INCOME' ? 'income' : selectedTxDetail.transactionType === 'TRANSFER' ? 'arrows' : 'expense'} 

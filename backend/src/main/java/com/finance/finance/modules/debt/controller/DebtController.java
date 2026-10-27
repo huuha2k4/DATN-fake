@@ -17,6 +17,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.UUID;
 
 /**
  * Controller cho quản lý nợ vay/cho vay
@@ -73,7 +74,7 @@ public class DebtController {
      */
     @GetMapping("/{id}")
     public ResponseEntity<Map<String, Object>> getDebtById(
-            @PathVariable Long id,
+            @PathVariable UUID id,
             @AuthenticationPrincipal User user
     ) {
         DebtDetailResponse response = debtService.getDebtById(user.getId(), id);
@@ -91,7 +92,7 @@ public class DebtController {
      */
     @PutMapping("/{id}")
     public ResponseEntity<Map<String, Object>> updateDebt(
-            @PathVariable Long id,
+            @PathVariable UUID id,
             @Valid @RequestBody UpdateDebtRequest request,
             @AuthenticationPrincipal User user
     ) {
@@ -111,7 +112,7 @@ public class DebtController {
      */
     @DeleteMapping("/{id}")
     public ResponseEntity<Map<String, Object>> deleteDebt(
-            @PathVariable Long id,
+            @PathVariable UUID id,
             @AuthenticationPrincipal User user
     ) {
         debtService.deleteDebt(user.getId(), id);
@@ -129,7 +130,7 @@ public class DebtController {
      */
     @PostMapping("/{id}/payments")
     public ResponseEntity<Map<String, Object>> recordPayment(
-            @PathVariable Long id,
+            @PathVariable UUID id,
             @Valid @RequestBody RecordPaymentRequest request,
             @AuthenticationPrincipal User user
     ) {
@@ -149,7 +150,7 @@ public class DebtController {
      */
     @GetMapping("/{id}/schedule")
     public ResponseEntity<Map<String, Object>> getPaymentSchedule(
-            @PathVariable Long id,
+            @PathVariable UUID id,
             @AuthenticationPrincipal User user
     ) {
         ScheduleResponse response = debtService.getPaymentSchedule(user.getId(), id);

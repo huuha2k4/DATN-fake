@@ -9,6 +9,7 @@ import lombok.NoArgsConstructor;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.UUID;
 
 /**
  * Response DTO cho danh sách debts
@@ -29,7 +30,7 @@ public class DebtListResponse {
     @Builder
     @JsonInclude(JsonInclude.Include.NON_NULL)
     public static class DebtSummaryItem {
-        private Long id;
+        private UUID id;
 
         @JsonProperty("debt_type")
         private com.finance.finance.common.enums.DebtType debtType;

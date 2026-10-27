@@ -297,3 +297,37 @@ html.dark .btn-budget-close:hover {
   background-color: #18354b !important;
   color: #ffffff !important;
 }
+
+/* ========================================================
+   RESPONSIVE DESIGN CHO ĐIỆN THOẠI (<= 768px)
+   ======================================================== */
+@media (max-width: 768px) {
+  .budget-management-page {
+    padding-left: 10px !important;
+    padding-right: 10px !important;
+    padding-bottom: 95px !important;
+  }
+
+  .budget-stat-card,
+  .budget-hero-alert-card {
+    border-radius: 16px;
+    padding: 14px 16px;
+    min-height: auto;
+  }
+
+  .budget-stat-card p.text-2xl,
+  .budget-hero-alert-card p.text-2xl {
+    font-size: 20px !important;
+  }
+
+  .budget-item-card {
+    padding: 14px 16px;
+    border-radius: 16px;
+  }
+
+  .budget-modal-card {
+    max-height: 90vh !important;
+    border-radius: 20px !important;
+    padding: 18px 16px !important;
+  }
+}

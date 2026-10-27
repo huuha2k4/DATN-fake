@@ -215,6 +215,19 @@ export function GoalsManagementScreen({ onNotify }: Props) {
     }
   };
 
+  // Mở modal chi tiết mục tiêu (fetch đầy đủ lịch sử đóng góp)
+  const handleOpenDetailGoal = async (g: GoalResponse) => {
+    setDetailGoal(g);
+    try {
+      const fullGoal = await goalApi.getGoalById(g.id);
+      if (fullGoal) {
+        setDetailGoal(fullGoal);
+      }
+    } catch {
+      // Dùng dữ liệu hiện tại
+    }
+  };
+
   // Lấy icon hợp lệ và màu sắc cho mục tiêu
   const getGoalVisual = (goal: GoalResponse) => {
     const matched = goalTypeOptions.find((o) => o.value === goal.goalType);
@@ -409,7 +422,7 @@ export function GoalsManagementScreen({ onNotify }: Props) {
                   <div className="flex items-center justify-end gap-2 border-t border-[#f1f5f2] pt-3" onClick={(e) => e.stopPropagation()}>
                     <button
                       type="button"
-                      onClick={() => setDetailGoal(g)}
+                      onClick={() => handleOpenDetailGoal(g)}
                       className="btn-goal-detail rounded-xl border border-[#d2dcd5] bg-[#f8fafc] px-3.5 py-1.5 text-xs font-semibold text-[#52665a] hover:bg-[#edf2f7] transition"
                     >
                       Chi tiết
@@ -665,7 +678,7 @@ export function GoalsManagementScreen({ onNotify }: Props) {
 
         return (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm" onClick={() => setDetailGoal(null)}>
-            <div className="goal-modal-card w-full max-w-sm rounded-2xl bg-white p-6 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <div className="goal-modal-card w-full max-w-md rounded-2xl bg-white p-5 sm:p-6 shadow-2xl max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   <span
@@ -729,6 +742,33 @@ export function GoalsManagementScreen({ onNotify }: Props) {
                   &quot;{detailGoal.description}&quot;
                 </p>
               )}
+
+              {/* Lịch sử nạp tiền / tích lũy thực tế vào mục tiêu */}
+              <div className="mt-4 pt-3 border-t border-gray-100 dark:border-gray-800">
+                <h4 className="text-xs font-bold text-[#14261e] dark:text-gray-200 mb-2">
+                  Lịch sử thanh toán &amp; nạp tiền ({detailGoal.contributions?.length || 0})
+                </h4>
+
+                {(!detailGoal.contributions || detailGoal.contributions.length === 0) ? (
+                  <p className="text-xs text-gray-400 italic py-2 text-center">Chưa có giao dịch nạp tiền nào được ghi nhận</p>
+                ) : (
+                  <div className="max-h-48 overflow-y-auto divide-y divide-gray-100 dark:divide-gray-800 pr-1">
+                    {detailGoal.contributions.map((ct) => (
+                      <div key={ct.id || Math.random()} className="py-2 flex items-center justify-between text-xs">
+                        <div className="min-w-0 pr-2">
+                          <p className="font-bold text-[#10b981]">
+                            +{Number(ct.amount || 0).toLocaleString('vi-VN')} đ
+                          </p>
+                          <span className="text-[10.5px] text-gray-500">
+                            {ct.contributedAt ? ct.contributedAt.split('T')[0] : 'Vừa xong'} {ct.note ? `· ${ct.note}` : ''}
+                          </span>
+                        </div>
+                        <span className="text-[10px] text-emerald-600 font-semibold shrink-0">Đã nạp ✓</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
 
               <div className="mt-5 flex gap-2">
                 <button

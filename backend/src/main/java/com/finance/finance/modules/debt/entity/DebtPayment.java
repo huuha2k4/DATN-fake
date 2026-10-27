@@ -27,8 +27,8 @@ import java.util.UUID;
 public class DebtPayment {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    @GeneratedValue(strategy = GenerationType.UUID)
+    private UUID id;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "debt_id", nullable = false)
@@ -81,12 +81,6 @@ public class DebtPayment {
      */
     @Column(columnDefinition = "TEXT")
     private String note;
-
-    /**
-     * Đường dẫn file đính kèm (biên lai, hóa đơn)
-     */
-    @Column(name = "attachment_url", length = 500)
-    private String attachmentUrl;
 
     @Column(name = "created_at", nullable = false, updatable = false)
     @Builder.Default

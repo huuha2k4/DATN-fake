@@ -1,7 +1,7 @@
 import { useEffect, useState, useMemo } from 'react';
 import { FinanceIcon, type IconName } from '../../core/components/FinanceIcon';
 import { budgetApi, type BudgetResponse, type BudgetItemResponse } from '../api/budgetApi';
-import { transactionApi, type CategoryItem } from '../../cash-flow-management/api/transactionApi';
+import { transactionApi, type CategoryItem, type TransactionItem } from '../../cash-flow-management/api/transactionApi';
 import './BudgetManagementScreen.css';
 
 type Props = { onNotify: (message: string) => void };
@@ -43,6 +43,10 @@ export function BudgetManagementScreen({ onNotify }: Props) {
   const [editAmount, setEditAmount] = useState('');
   const [editThreshold, setEditThreshold] = useState('80');
   const [isSavingEdit, setIsSavingEdit] = useState(false);
+
+  // Lịch sử giao dịch chi tiêu thực tế thuộc ngân sách
+  const [itemTransactions, setItemTransactions] = useState<TransactionItem[]>([]);
+  const [isLoadingTx, setIsLoadingTx] = useState(false);
 
   // Danh sách các tháng để chọn: gồm các tháng tới (2-3 tháng tới để lập ngân sách trước) và các tháng quá khứ
   const availableMonths = useMemo(() => {
@@ -197,12 +201,43 @@ export function BudgetManagementScreen({ onNotify }: Props) {
   };
 
   // Mở modal chi tiết
-  const handleOpenDetail = (item: BudgetItemResponse) => {
+  const handleOpenDetail = async (item: BudgetItemResponse) => {
     setSelectedItem(item);
     setIsEditing(false);
     setEditName(item.name || item.category?.name || item.categoryName || '');
     setEditAmount((item.amount || 0).toLocaleString('vi-VN'));
     setEditThreshold(String(item.alertThresholdPercentage || 80));
+    setItemTransactions([]);
+
+    // Tải các giao dịch chi tiêu thuộc danh mục ngân sách này trong tháng đang chọn
+    const catId = item.category?.id || item.categoryId;
+    if (catId) {
+      try {
+        setIsLoadingTx(true);
+        const [yStr, mStr] = selectedMonth.split('-');
+        const year = parseInt(yStr, 10);
+        const month = parseInt(mStr, 10);
+        const fromDate = `${year}-${String(month).padStart(2, '0')}-01`;
+        const lastDay = new Date(year, month, 0).getDate();
+        const toDate = `${year}-${String(month).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
+
+        const txRes = await transactionApi.getTransactions({
+          categoryId: catId,
+          transactionType: 'EXPENSE',
+          fromDate,
+          toDate,
+          pageSize: 50,
+        });
+
+        const list = txRes.transactions || (txRes as any)?.data?.transactions || [];
+        setItemTransactions(Array.isArray(list) ? list : []);
+      } catch (e) {
+        console.error('Lỗi tải giao dịch ngân sách:', e);
+        setItemTransactions([]);
+      } finally {
+        setIsLoadingTx(false);
+      }
+    }
   };
 
   // Lưu chỉnh sửa ngân sách danh mục
@@ -654,7 +689,7 @@ export function BudgetManagementScreen({ onNotify }: Props) {
         const modalCatTheme = getCategoryTheme(selectedItem);
         return (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm" onClick={() => setSelectedItem(null)}>
-            <div className="budget-modal-card w-full max-w-sm rounded-2xl bg-white p-6 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <div className="budget-modal-card w-full max-w-md rounded-2xl bg-white p-5 sm:p-6 shadow-2xl max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   <span
@@ -774,7 +809,42 @@ export function BudgetManagementScreen({ onNotify }: Props) {
                   </div>
                 </div>
 
-                <div className="mt-5 flex gap-2">
+                {/* Lịch sử thanh toán chi tiêu thực tế thuộc ngân sách này */}
+                <div className="mt-4 pt-3 border-t border-gray-100 dark:border-gray-800">
+                  <div className="flex items-center justify-between mb-2">
+                    <h4 className="text-xs font-bold text-[#14261e] dark:text-gray-200">
+                      Lịch sử thanh toán thực tế ({itemTransactions.length})
+                    </h4>
+                    <span className="text-[10px] text-[#718078]">Tháng {selectedMonth.split('-')[1]}/{selectedMonth.split('-')[0]}</span>
+                  </div>
+
+                  {isLoadingTx ? (
+                    <div className="py-4 text-center text-xs text-gray-400">Đang tải lịch sử chi tiêu...</div>
+                  ) : itemTransactions.length === 0 ? (
+                    <p className="text-xs text-gray-400 italic py-2 text-center">Chưa có giao dịch chi tiêu nào trong tháng này</p>
+                  ) : (
+                    <div className="max-h-48 overflow-y-auto divide-y divide-gray-100 dark:divide-gray-800 pr-1">
+                      {itemTransactions.map((tx) => (
+                        <div key={tx.id} className="py-2 flex items-center justify-between text-xs">
+                          <div className="min-w-0 pr-2">
+                            <p className="font-bold text-[#14261e] dark:text-gray-200 truncate">{tx.description || tx.accountName || 'Chi tiêu'}</p>
+                            <span className="text-[10.5px] text-gray-500">
+                              {tx.transactionDate} {tx.accountName ? `· ${tx.accountName}` : ''}
+                            </span>
+                          </div>
+                          <div className="text-right shrink-0">
+                            <span className="font-bold text-[#dc2626]">
+                              -{Number(tx.amount || 0).toLocaleString('vi-VN')} đ
+                            </span>
+                            <span className="block text-[10px] text-emerald-600 font-semibold">Đã thanh toán ✓</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                <div className="mt-4 flex gap-2">
                   <button
                     type="button"
                     onClick={() => handleDeleteItem(selectedItem)}

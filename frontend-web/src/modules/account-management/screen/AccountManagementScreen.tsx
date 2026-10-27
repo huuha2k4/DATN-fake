@@ -6,6 +6,7 @@ import {
   type AccountTypeCode,
   type CreateAccountPayload 
 } from '../api/accountApi';
+import { transactionApi, type TransactionItem } from '../../cash-flow-management/api/transactionApi';
 import { 
   POPULAR_BANKS_AND_WALLETS, 
   findBankOrWalletPreset, 
@@ -29,6 +30,11 @@ export function AccountManagementScreen({ onNotify, onAccountsChange }: Props) {
   const [initialBalanceInput, setInitialBalanceInput] = useState<string>('0');
   const [creditLimitInput, setCreditLimitInput] = useState<string>('0');
 
+  // Modal Xem chi tiết tài khoản & Lịch sử thanh toán
+  const [selectedAccountDetail, setSelectedAccountDetail] = useState<AccountItem | null>(null);
+  const [accountTransactions, setAccountTransactions] = useState<TransactionItem[]>([]);
+  const [isLoadingAccountTx, setIsLoadingAccountTx] = useState(false);
+
   // Bank & Wallet selection state
   const [bankSearchQuery, setBankSearchQuery] = useState('');
   const [selectedPreset, setSelectedPreset] = useState<BankOrWalletPreset | null>(null);
@@ -51,6 +57,26 @@ export function AccountManagementScreen({ onNotify, onAccountsChange }: Props) {
     description: '',
     isIncludedInTotal: true,
   });
+
+  // Mở modal chi tiết tài khoản và tải lịch sử giao dịch thực tế của tài khoản này
+  const handleOpenAccountDetail = async (account: AccountItem) => {
+    setSelectedAccountDetail(account);
+    setAccountTransactions([]);
+    setIsLoadingAccountTx(true);
+    try {
+      const res = await transactionApi.getTransactions({
+        accountId: account.id,
+        pageSize: 50,
+      });
+      const list = res.transactions || (res as any)?.data?.transactions || [];
+      setAccountTransactions(Array.isArray(list) ? list : []);
+    } catch (e) {
+      console.error('Lỗi tải giao dịch của tài khoản:', e);
+      setAccountTransactions([]);
+    } finally {
+      setIsLoadingAccountTx(false);
+    }
+  };
 
   const loadData = async () => {
     try {
@@ -198,8 +224,8 @@ export function AccountManagementScreen({ onNotify, onAccountsChange }: Props) {
       return;
     }
 
-    const cleanedBalance = parseFloat(initialBalanceInput.replace(/[^0-9.-]/g, '')) || 0;
-    const cleanedLimit = parseFloat(creditLimitInput.replace(/[^0-9.-]/g, '')) || 0;
+    const cleanedBalance = parseFloat(initialBalanceInput.replace(/\./g, '').replace(/[^0-9-]/g, '')) || 0;
+    const cleanedLimit = parseFloat(creditLimitInput.replace(/\./g, '').replace(/[^0-9-]/g, '')) || 0;
 
     const payload: CreateAccountPayload = {
       name: formData.name.trim(),
@@ -282,8 +308,8 @@ export function AccountManagementScreen({ onNotify, onAccountsChange }: Props) {
       paymentDueDay: account.paymentDueDay || 15,
       isIncludedInTotal: account.isIncludedInTotal ?? true,
     });
-    setEditBalanceInput((account.balance ?? 0).toString());
-    setCreditLimitInput((account.creditLimit || 0).toString());
+    setEditBalanceInput(formatNumberWithDots(account.balance ?? 0));
+    setCreditLimitInput(formatNumberWithDots(account.creditLimit || 0));
     setIsEditModalOpen(true);
   };
 
@@ -296,7 +322,7 @@ export function AccountManagementScreen({ onNotify, onAccountsChange }: Props) {
     }
 
     try {
-      const newCleanedBalance = parseFloat(editBalanceInput.replace(/[^0-9.-]/g, '')) || 0;
+      const newCleanedBalance = parseFloat(editBalanceInput.replace(/\./g, '').replace(/[^0-9-]/g, '')) || 0;
       const isBalanceChanged = Math.abs(newCleanedBalance - (selectedAccountForEdit.balance ?? 0)) > 0.001;
 
       const payload: any = {
@@ -311,7 +337,7 @@ export function AccountManagementScreen({ onNotify, onAccountsChange }: Props) {
       }
 
       if (selectedAccountForEdit.accountType === 'CREDIT_CARD') {
-        const cleanedLimit = parseFloat(creditLimitInput.replace(/[^0-9.-]/g, '')) || 0;
+        const cleanedLimit = parseFloat(creditLimitInput.replace(/\./g, '').replace(/[^0-9-]/g, '')) || 0;
         payload.creditLimit = cleanedLimit;
         payload.billingCycleDay = editFormData.billingCycleDay;
         payload.paymentDueDay = editFormData.paymentDueDay;
@@ -370,6 +396,14 @@ export function AccountManagementScreen({ onNotify, onAccountsChange }: Props) {
 
   const formatVND = (val: number) => {
     return new Intl.NumberFormat('vi-VN').format(val) + ' ₫';
+  };
+
+  // Hàm định dạng số có dấu chấm ngăn cách hàng nghìn khi người dùng gõ phím (ví dụ: 1314211 -> 1.314.211)
+  const formatNumberWithDots = (val: string | number) => {
+    if (val == null || val === '') return '';
+    const cleanStr = String(val).replace(/\D/g, '');
+    if (!cleanStr) return '';
+    return cleanStr.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
   };
 
   const getAccountTypeMeta = (type: AccountTypeCode, item?: AccountItem) => {
@@ -665,7 +699,8 @@ export function AccountManagementScreen({ onNotify, onAccountsChange }: Props) {
             return (
               <article
                 key={account.id}
-                className={`wallet-item-card ${meta.cardClass} ${!isAccountActive ? 'is-inactive' : ''} group`}
+                onClick={() => handleOpenAccountDetail(account)}
+                className={`wallet-item-card ${meta.cardClass} ${!isAccountActive ? 'is-inactive' : ''} group cursor-pointer hover:shadow-xl transition-all`}
                 style={{
                   '--card-bg-gradient': cardGradient,
                   '--brand-color': brandPreset ? brandPreset.brandColor : meta.accentColor
@@ -754,11 +789,19 @@ export function AccountManagementScreen({ onNotify, onAccountsChange }: Props) {
                         {/* Dropdown Menu */}
                         {activeMenuId === account.id && (
                           <>
-                            <div 
-                              className="fixed inset-0 z-20 cursor-default" 
-                              onClick={() => setActiveMenuId(null)} 
-                            />
-                            <div className="absolute right-0 top-full mt-1.5 w-44 z-30 rounded-xl border border-gray-100 bg-white p-1.5 shadow-2xl animate-fadeIn text-[#14261e]">
+                            <div className="absolute right-0 top-full mt-1.5 w-48 z-30 rounded-xl border border-gray-100 bg-white p-1.5 shadow-2xl animate-fadeIn text-[#14261e]">
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setActiveMenuId(null);
+                                  handleOpenAccountDetail(account);
+                                }}
+                                className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left text-xs font-medium text-[#14261e] hover:bg-[#f0f7f3] hover:text-[#07543f] transition whitespace-nowrap"
+                              >
+                                <FinanceIcon name="eye" size={14} className="text-[#07543f] shrink-0" />
+                                <span>Xem chi tiết &amp; Lịch sử</span>
+                              </button>
                               <button
                                 type="button"
                                 onClick={(e) => {
@@ -1136,14 +1179,14 @@ export function AccountManagementScreen({ onNotify, onAccountsChange }: Props) {
 
               <div className="grid grid-cols-2 gap-2.5">
                 <div>
-                  <label className="block text-[11px] font-semibold text-[#34463b]">Số dư ban đầu *</label>
+                  <label className="block text-[11px] font-semibold text-[#34463b]">Số dư ban đầu (VND) *</label>
                   <input
                     type="text"
                     inputMode="numeric"
                     required
                     placeholder="0"
                     value={initialBalanceInput}
-                    onChange={(e) => setInitialBalanceInput(e.target.value)}
+                    onChange={(e) => setInitialBalanceInput(formatNumberWithDots(e.target.value))}
                     className="mt-1 h-8.5 w-full rounded-xl border border-[#d5ded8] px-3 text-xs font-bold text-[#07543f] outline-none focus:border-[#07543f] focus:ring-1 focus:ring-[#07543f]"
                   />
                 </div>
@@ -1214,13 +1257,13 @@ export function AccountManagementScreen({ onNotify, onAccountsChange }: Props) {
                 <>
                   <div className="grid grid-cols-2 gap-2.5">
                     <div>
-                      <label className="block text-[11px] font-semibold text-[#34463b]">Hạn mức thẻ *</label>
+                      <label className="block text-[11px] font-semibold text-[#34463b]">Hạn mức thẻ (VND) *</label>
                       <input
                         type="text"
                         inputMode="numeric"
                         placeholder="0"
                         value={creditLimitInput}
-                        onChange={(e) => setCreditLimitInput(e.target.value)}
+                        onChange={(e) => setCreditLimitInput(formatNumberWithDots(e.target.value))}
                         className="mt-1 h-8.5 w-full rounded-xl border border-[#d5ded8] px-3 text-xs outline-none focus:border-[#07543f] focus:ring-1 focus:ring-[#07543f]"
                       />
                     </div>
@@ -1344,7 +1387,7 @@ export function AccountManagementScreen({ onNotify, onAccountsChange }: Props) {
                   required
                   inputMode="numeric"
                   value={editBalanceInput}
-                  onChange={(e) => setEditBalanceInput(e.target.value)}
+                  onChange={(e) => setEditBalanceInput(formatNumberWithDots(e.target.value))}
                   className="mt-1 h-8.5 w-full rounded-xl border border-[#d5ded8] px-3 text-xs font-bold text-[#07543f] outline-none focus:border-[#07543f] focus:ring-1 focus:ring-[#07543f]"
                   placeholder="0"
                 />
@@ -1361,7 +1404,7 @@ export function AccountManagementScreen({ onNotify, onAccountsChange }: Props) {
                       type="text"
                       inputMode="numeric"
                       value={creditLimitInput}
-                      onChange={(e) => setCreditLimitInput(e.target.value)}
+                      onChange={(e) => setCreditLimitInput(formatNumberWithDots(e.target.value))}
                       className="mt-1 h-8.5 w-full rounded-xl border border-[#d5ded8] px-3 text-xs outline-none focus:border-[#07543f] focus:ring-1 focus:ring-[#07543f]"
                     />
                   </div>
@@ -1528,6 +1571,150 @@ export function AccountManagementScreen({ onNotify, onAccountsChange }: Props) {
           </div>
         </div>
       )}
+
+      {/* 9. Modal Chi tiết ví & Lịch sử thanh toán */}
+      {selectedAccountDetail && (() => {
+        const isCredit = selectedAccountDetail.accountType === 'CREDIT_CARD';
+        const brandPreset = findBankOrWalletPreset(selectedAccountDetail.bank?.id || selectedAccountDetail.name);
+        return (
+          <div 
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 p-4 backdrop-blur-sm animate-fadeIn"
+            onClick={() => setSelectedAccountDetail(null)}
+          >
+            <div 
+              className="w-full max-w-md rounded-2xl bg-white p-5 sm:p-6 shadow-2xl border border-gray-100 max-h-[90vh] overflow-y-auto"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Header Modal */}
+              <div className="flex items-center justify-between pb-3 border-b border-gray-100">
+                <div className="flex items-center gap-3">
+                  {brandPreset?.logoUrl ? (
+                    <span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-white p-1 border border-gray-100 shadow-sm">
+                      <img src={brandPreset.logoUrl} alt={brandPreset.shortName} className="size-full object-contain" />
+                    </span>
+                  ) : (
+                    <span className="grid size-11 shrink-0 place-items-center rounded-xl bg-[#e3f4e9] text-[#07543f]">
+                      <FinanceIcon name="wallet" size={20} />
+                    </span>
+                  )}
+                  <div>
+                    <h3 className="text-base font-bold text-[#14261e]">{selectedAccountDetail.name}</h3>
+                    <p className="text-xs text-[#718579]">
+                      {selectedAccountDetail.accountNumberMasked ? `STK: ${selectedAccountDetail.accountNumberMasked}` : (selectedAccountDetail.phoneNumber || 'Chi tiết nguồn tiền')}
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setSelectedAccountDetail(null)}
+                  className="grid size-8 place-items-center rounded-lg text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+                >
+                  ✕
+                </button>
+              </div>
+
+              {/* Thông tin số dư & Hạn mức */}
+              <div className="mt-4 rounded-xl bg-[#f8faf8] p-4 border border-[#e5ebe7] space-y-2.5 text-xs">
+                <div className="flex items-center justify-between">
+                  <span className="text-[#718579] font-medium">{isCredit ? 'Dư nợ hiện tại:' : 'Số dư khả dụng:'}</span>
+                  <span className={`text-base font-black ${isCredit ? 'text-[#e11d48]' : 'text-[#07543f]'}`}>
+                    {formatVND(selectedAccountDetail.balance)}
+                  </span>
+                </div>
+
+                {isCredit && selectedAccountDetail.creditLimit && selectedAccountDetail.creditLimit > 0 && (
+                  <>
+                    <div className="flex items-center justify-between">
+                      <span className="text-[#718579]">Hạn mức thẻ:</span>
+                      <strong className="text-[#14261e]">{formatVND(selectedAccountDetail.creditLimit)}</strong>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-[#718579]">Hạn mức còn lại:</span>
+                      <strong className="text-emerald-600">
+                        {formatVND(Math.max(0, selectedAccountDetail.creditLimit - selectedAccountDetail.balance))}
+                      </strong>
+                    </div>
+                    {(selectedAccountDetail.billingCycleDay || selectedAccountDetail.paymentDueDay) && (
+                      <div className="flex items-center justify-between pt-1 border-t border-gray-200/60 text-[11px] text-[#718579]">
+                        <span>Chốt sao kê: Ngày {selectedAccountDetail.billingCycleDay || 20}</span>
+                        <span className="font-semibold text-rose-600">Hạn thanh toán: Ngày {selectedAccountDetail.paymentDueDay || 15}</span>
+                      </div>
+                    )}
+                  </>
+                )}
+
+                <div className="flex items-center justify-between pt-1 border-t border-gray-200/60 text-[11px]">
+                  <span className="text-[#718579]">Trạng thái:</span>
+                  <span className={`font-bold ${selectedAccountDetail.isActive !== false ? 'text-emerald-700' : 'text-rose-600'}`}>
+                    {selectedAccountDetail.isActive !== false ? 'Đang hoạt động ✓' : 'Đang tạm dừng'}
+                  </span>
+                </div>
+              </div>
+
+              {/* Lịch sử thanh toán và nạp tiền của ví này */}
+              <div className="mt-4 pt-3 border-t border-gray-100">
+                <div className="flex items-center justify-between mb-2">
+                  <h4 className="text-xs font-bold text-[#14261e]">
+                    Lịch sử thanh toán và nạp tiền
+                  </h4>
+                  <span className="text-[10px] text-[#718579]">Giao dịch gần đây</span>
+                </div>
+
+                {isLoadingAccountTx ? (
+                  <div className="py-4 text-center text-xs text-gray-400">Đang tải lịch sử thanh toán...</div>
+                ) : accountTransactions.length === 0 ? (
+                  <p className="text-xs text-gray-400 italic py-3 text-center">Chưa có giao dịch thu/chi nào trên ví này</p>
+                ) : (
+                  <div className="max-h-48 overflow-y-auto divide-y divide-gray-100 pr-1">
+                    {accountTransactions.map((tx) => {
+                      const isIncome = tx.transactionType === 'INCOME';
+                      return (
+                        <div key={tx.id} className="py-2.5 flex items-center justify-between text-xs">
+                          <div className="min-w-0 pr-2">
+                            <p className="font-bold text-[#14261e] truncate">{tx.description || tx.category?.name || 'Giao dịch'}</p>
+                            <span className="text-[10.5px] text-gray-500">
+                              {tx.transactionDate} {tx.category?.name ? `· ${tx.category.name}` : ''}
+                            </span>
+                          </div>
+                          <div className="text-right shrink-0">
+                            <span className={`font-bold ${isIncome ? 'text-[#10b981]' : 'text-[#dc2626]'}`}>
+                              {isIncome ? '+' : '-'}{Number(tx.amount || 0).toLocaleString('vi-VN')} đ
+                            </span>
+                            <span className="block text-[10px] text-emerald-600 font-semibold">Đã ghi nhận ✓</span>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+
+              {/* Nút hành động */}
+              <div className="mt-5 flex gap-2 border-t border-gray-100 pt-3">
+                <button
+                  type="button"
+                  onClick={() => {
+                    const acc = selectedAccountDetail;
+                    setSelectedAccountDetail(null);
+                    handleOpenEdit(acc);
+                  }}
+                  className="flex-1 rounded-xl border border-[#07543f] bg-[#07543f]/5 py-2.5 text-xs font-semibold text-[#07543f] hover:bg-[#07543f]/10 transition flex items-center justify-center gap-1.5"
+                >
+                  <FinanceIcon name="edit" size={14} />
+                  Sửa ví
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSelectedAccountDetail(null)}
+                  className="flex-1 rounded-xl bg-[#07543f] py-2.5 text-xs font-semibold text-white hover:bg-[#064232] transition"
+                >
+                  Đóng
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
     </main>
   );
 }

@@ -3,6 +3,9 @@ package com.finance.finance.modules.debt.service;
 import com.finance.finance.common.enums.DebtStatus;
 import com.finance.finance.common.enums.DebtType;
 import com.finance.finance.common.enums.PaymentFrequency;
+import com.finance.finance.common.enums.TransactionType;
+import com.finance.finance.modules.account.entity.Account;
+import com.finance.finance.modules.account.repository.AccountRepository;
 import com.finance.finance.modules.debt.dto.request.CreateDebtRequest;
 import com.finance.finance.modules.debt.dto.request.RecordPaymentRequest;
 import com.finance.finance.modules.debt.dto.request.UpdateDebtRequest;
@@ -12,6 +15,8 @@ import com.finance.finance.modules.debt.entity.DebtPayment;
 import com.finance.finance.modules.debt.exception.DebtNotFoundException;
 import com.finance.finance.modules.debt.repository.DebtPaymentRepository;
 import com.finance.finance.modules.debt.repository.DebtRepository;
+import com.finance.finance.modules.transaction.dto.request.CreateTransactionRequest;
+import com.finance.finance.modules.transaction.service.TransactionService;
 import com.finance.finance.modules.user.entity.User;
 import com.finance.finance.modules.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -34,6 +39,8 @@ public class DebtService {
     private final DebtRepository debtRepository;
     private final DebtPaymentRepository debtPaymentRepository;
     private final UserRepository userRepository;
+    private final TransactionService transactionService;
+    private final AccountRepository accountRepository;
 
     // ==================== CREATE DEBT ====================
 
@@ -141,7 +148,7 @@ public class DebtService {
     // ==================== GET DEBT DETAIL ====================
 
     @Transactional(readOnly = true)
-    public DebtDetailResponse getDebtById(UUID userId, Long debtId) {
+    public DebtDetailResponse getDebtById(UUID userId, UUID debtId) {
         log.info("Getting debt detail: {}", debtId);
 
         Debt debt = debtRepository.findByIdWithPayments(debtId, userId)
@@ -153,7 +160,7 @@ public class DebtService {
     // ==================== UPDATE DEBT ====================
 
     @Transactional
-    public DebtResponse updateDebt(UUID userId, Long debtId, UpdateDebtRequest request) {
+    public DebtResponse updateDebt(UUID userId, UUID debtId, UpdateDebtRequest request) {
         log.info("Updating debt: {}", debtId);
 
         Debt debt = debtRepository.findByIdAndUserId(debtId, userId)
@@ -192,7 +199,7 @@ public class DebtService {
     // ==================== DELETE DEBT ====================
 
     @Transactional
-    public void deleteDebt(UUID userId, Long debtId) {
+    public void deleteDebt(UUID userId, UUID debtId) {
         log.info("Deleting debt: {}", debtId);
 
         Debt debt = debtRepository.findByIdAndUserId(debtId, userId)
@@ -208,7 +215,7 @@ public class DebtService {
     // ==================== RECORD PAYMENT ====================
 
     @Transactional
-    public PaymentResponse recordPayment(UUID userId, Long debtId, RecordPaymentRequest request) {
+    public PaymentResponse recordPayment(UUID userId, UUID debtId, RecordPaymentRequest request) {
         log.info("Recording payment for debt: {}, amount: {}", debtId, request.getAmount());
 
         Debt debt = debtRepository.findByIdAndUserId(debtId, userId)
@@ -233,6 +240,40 @@ public class DebtService {
             throw new IllegalArgumentException("Tổng gốc + lãi phải bằng tổng số tiền trả");
         }
 
+        // Create EXPENSE transaction for debt payment
+        // This will deduct money from the account and record it in transaction history
+        UUID transactionId = null;
+        if (request.getAccountId() != null) {
+            // Get account to retrieve currency code
+            Account account = accountRepository.findByIdAndUserId(request.getAccountId(), userId)
+                    .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy tài khoản"));
+            
+            // Hard-coded debt payment category ID - "Trả nợ"
+            UUID debtPaymentCategoryId = UUID.fromString("ec716575-0533-46ab-a3b2-798d0b95598c");
+            
+            // Get counterparty name based on debt type
+            String counterpartyName = debt.getDebtType() == DebtType.BORROWING 
+                    ? debt.getCreditorName()  // I owe this person (borrowing)
+                    : debt.getDebtorName();   // This person owes me (lending)
+            
+            String description = debt.getDebtType() == DebtType.BORROWING 
+                    ? "Trả nợ: " + (counterpartyName != null ? counterpartyName : "")
+                    : "Thu nợ từ: " + (counterpartyName != null ? counterpartyName : "");
+            
+            CreateTransactionRequest transactionRequest = CreateTransactionRequest.builder()
+                    .accountId(request.getAccountId())
+                    .categoryId(debtPaymentCategoryId)
+                    .transactionType(TransactionType.EXPENSE)
+                    .amount(request.getAmount())
+                    .currencyCode(account.getCurrencyCode())
+                    .transactionDate(request.getPaymentDate() != null ? request.getPaymentDate() : LocalDate.now())
+                    .description(description)
+                    .note(request.getNote())
+                    .build();
+            
+            transactionId = transactionService.createTransaction(userId, transactionRequest).getId();
+        }
+
         // Create payment record
         DebtPayment payment = DebtPayment.builder()
                 .debt(debt)
@@ -242,8 +283,8 @@ public class DebtService {
                 .paymentDate(request.getPaymentDate() != null ? request.getPaymentDate() : LocalDate.now())
                 .paymentMethod(request.getPaymentMethod())
                 .accountId(request.getAccountId())
+                .transactionId(transactionId)
                 .note(request.getNote())
-                .attachmentUrl(request.getAttachmentUrl())
                 .build();
 
         payment = debtPaymentRepository.save(payment);
@@ -277,7 +318,7 @@ public class DebtService {
     // ==================== GET PAYMENT SCHEDULE ====================
 
     @Transactional(readOnly = true)
-    public ScheduleResponse getPaymentSchedule(UUID userId, Long debtId) {
+    public ScheduleResponse getPaymentSchedule(UUID userId, UUID debtId) {
         log.info("Getting payment schedule for debt: {}", debtId);
 
         Debt debt = debtRepository.findByIdWithPayments(debtId, userId)

@@ -1,0 +1,451 @@
+/* DashboardScreen.css - Pixel-Perfect Clean Aesthetic as User Provided */
+
+.dashboard-content {
+  animation: fadeIn 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  background-color: #f7faf8;
+  color: #14261e;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ========================================================
+   1. TOP KPI CARDS
+   ======================================================== */
+
+/* Card 1: Tổng số dư khả dụng (Gradient Ngọc lục bảo sang trọng như Quản lý thu chi & Quản lý ví) */
+.overview-balance-card {
+  position: relative;
+  background: linear-gradient(135deg, #053b2d 0%, #07543f 55%, #0b6c52 100%);
+  border-radius: 20px;
+  padding: 22px 24px;
+  color: #ffffff;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  min-height: 165px;
+  box-shadow: 0 10px 28px -6px rgba(7, 84, 63, 0.32);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  overflow: hidden;
+  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.overview-balance-card::after {
+  content: '';
+  position: absolute;
+  top: -40px;
+  right: -40px;
+  width: 160px;
+  height: 160px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.18) 0%, transparent 70%);
+  pointer-events: none;
+}
+
+.overview-balance-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 14px 32px -6px rgba(7, 84, 63, 0.42);
+}
+
+/* Biểu tượng thẻ góc phải của Card 1 */
+.overview-balance-card .wallet-icon-box {
+  width: 42px;
+  height: 42px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.15);
+  backdrop-filter: blur(4px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  display: grid;
+  place-items: center;
+  color: #a8ebca;
+}
+
+/* Card 2 & 3: Thẻ trắng có viền bo tròn */
+.overview-white-card {
+  position: relative;
+  background: #ffffff;
+  border-radius: 18px;
+  border: 1px solid #eef2ef;
+  padding: 22px 24px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  min-height: 160px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.02);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.overview-white-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.05);
+}
+
+/* Icon tròn bo góc của Card 2 & 3 */
+.overview-white-card .icon-box-mint {
+  width: 42px;
+  height: 42px;
+  border-radius: 12px;
+  background: #e8f7f0;
+  display: grid;
+  place-items: center;
+  color: #10b981;
+}
+
+.overview-white-card .icon-box-red {
+  width: 42px;
+  height: 42px;
+  border-radius: 12px;
+  background: #feecef;
+  display: grid;
+  place-items: center;
+  color: #f43f5e;
+}
+
+/* ========================================================
+   2. MIDDLE PANELS (DÒNG TIỀN THEO TUẦN & GIAO DỊCH GẦN ĐÂY)
+   ======================================================== */
+.overview-main-panel {
+  background: #ffffff;
+  border-radius: 20px;
+  border: 1px solid #edf2ee;
+  padding: 24px 26px;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.02);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.overview-main-panel:hover {
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.04);
+}
+
+/* Hộp Net Savings xanh nhạt bo tròn ở dưới biểu đồ */
+.net-savings-pill-box {
+  background: #eef6f2;
+  border-radius: 14px;
+  padding: 14px 18px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+/* Quick add button ở cuối danh sách giao dịch */
+.quick-add-bar-btn {
+  background: #f0f6ff;
+  color: #07543f;
+  border-radius: 14px;
+  padding: 12px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 700;
+  transition: all 0.2s ease;
+}
+
+.quick-add-bar-btn:hover {
+  background: #e1efff;
+  color: #04382a;
+}
+
+/* ========================================================
+   3. BOTTOM ROW: TÀI KHOẢN & NGUỒN TIỀN
+   ======================================================== */
+.overview-account-card {
+  background: #ffffff;
+  border-radius: 18px;
+  border: 1px solid #edf2ee;
+  padding: 22px 24px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  min-height: 175px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.02);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.overview-account-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.06);
+}
+
+.overview-account-card .acc-icon-box {
+  width: 44px;
+  height: 44px;
+  border-radius: 14px;
+  display: grid;
+  place-items: center;
+}
+
+/* ========================================================
+   4. LIGHT MODE EXPLICIT RULES (Đồng bộ Quản lý thu chi & Quản lý ví)
+   ======================================================== */
+html:not(.dark) .dashboard-content {
+  background-color: #f6f8f6 !important;
+  color: #14251f !important;
+}
+
+html:not(.dark) .overview-white-card,
+html:not(.dark) .overview-main-panel,
+html:not(.dark) .overview-account-card {
+  background-color: #ffffff !important;
+  border-color: #e2ece5 !important;
+  color: #14251f !important;
+  box-shadow: 0 4px 20px -4px rgba(18, 38, 30, 0.05) !important;
+}
+
+html:not(.dark) .dashboard-content .text-headline {
+  color: #14251f !important;
+}
+
+html:not(.dark) .dashboard-content .text-sub {
+  color: #64748b !important;
+}
+
+html:not(.dark) .dashboard-content h2,
+html:not(.dark) .dashboard-content h3 {
+  color: #0f172a !important;
+}
+
+html:not(.dark) .net-savings-pill-box {
+  background-color: #eef7f2 !important;
+  border: 1px solid #d8eade !important;
+}
+
+html:not(.dark) .quick-add-bar-btn {
+  background-color: #edf7f2 !important;
+  color: #07543f !important;
+  border: 1px solid #cbe4d6 !important;
+}
+
+html:not(.dark) .quick-add-bar-btn:hover {
+  background-color: #deefe6 !important;
+  color: #04382a !important;
+}
+
+html:not(.dark) .overview-white-card .icon-box-mint,
+html:not(.dark) .overview-account-card .acc-icon-box {
+  background-color: #e8f7f0 !important;
+  color: #10b981 !important;
+  border: 1px solid #c9eee0 !important;
+}
+
+html:not(.dark) .overview-white-card .icon-box-red {
+  background-color: #fff1f2 !important;
+  color: #f43f5e !important;
+  border: 1px solid #fecdd3 !important;
+}
+
+/* Giao diện sáng: Icon giao dịch, nhãn danh mục và số tiền đỏ tươi nổi bật */
+html:not(.dark) .tx-icon-expense {
+  background-color: #fff1f2 !important;
+  color: #ef4444 !important;
+  border: 1px solid #fecdd3 !important;
+}
+
+html:not(.dark) .tx-icon-income {
+  background-color: #ecfdf5 !important;
+  color: #10b981 !important;
+  border: 1px solid #a7f3d0 !important;
+}
+
+html:not(.dark) .tx-category-badge {
+  background-color: #f1f5f9 !important;
+  color: #475569 !important;
+  border: 1px solid #e2e8f0 !important;
+}
+
+html:not(.dark) .tx-amount-expense {
+  color: #ef4444 !important; /* Đỏ tươi nổi bật, rực rỡ */
+}
+
+html:not(.dark) .tx-amount-income {
+  color: #10b981 !important;
+}
+
+/* Màu cột biểu đồ Dòng tiền theo tuần (chuẩn ảnh mẫu: Thu nhập xanh lá đậm #056247, Chi tiêu xanh mint/ngọc nhạt #93e6be) */
+.chart-bar-income,
+.chart-legend-income {
+  background-color: #056247;
+}
+
+.chart-bar-expense,
+.chart-legend-expense {
+  background-color: #9fe7c7;
+}
+
+html:not(.dark) .chart-bar-income,
+html:not(.dark) .chart-legend-income {
+  background-color: #065e44 !important;
+}
+
+html:not(.dark) .chart-bar-expense,
+html:not(.dark) .chart-legend-expense {
+  background-color: #9de4c4 !important;
+}
+
+/* Thanh hạn mức chi tiêu giao diện sáng */
+html:not(.dark) .budget-progress-track {
+  background-color: #f1f5f9 !important;
+}
+
+html:not(.dark) .budget-progress-fill {
+  background: linear-gradient(90deg, #fb7185 0%, #ef4444 100%) !important;
+}
+
+/* ========================================================
+   5. DARK MODE STYLES (Tông Deep Navy & Emerald mượt mà theo Quản lý thu chi & Quản lý ví)
+   ======================================================== */
+html.dark .dashboard-content {
+  background-color: #081622 !important;
+  color: #cbd5e1 !important;
+}
+
+/* Các thẻ chỉ số & khung panel: Nền xanh navy #0e2333, viền #173852 sắc nét, không bị đen xì */
+html.dark .overview-white-card,
+html.dark .overview-main-panel,
+html.dark .overview-account-card {
+  background-color: #0e2333 !important;
+  border-color: #173852 !important;
+  box-shadow: 0 10px 28px -6px rgba(0, 0, 0, 0.45) !important;
+  color: #e2eaf0 !important;
+}
+
+/* Card 1 Tổng số dư: Giữ tông xanh lục bảo đậm đà / Forest Emerald sang trọng trong Dark Mode */
+html.dark .overview-balance-card {
+  background: linear-gradient(135deg, #032b1f 0%, #064e3b 55%, #08634c 100%) !important;
+  border: 1px solid rgba(16, 185, 129, 0.28) !important;
+  box-shadow: 0 10px 28px -6px rgba(0, 0, 0, 0.5) !important;
+}
+
+html.dark .overview-balance-card::after {
+  display: block !important;
+  opacity: 0.12;
+}
+
+html.dark .overview-balance-card .wallet-icon-box {
+  background-color: rgba(255, 255, 255, 0.12) !important;
+  border-color: rgba(255, 255, 255, 0.18) !important;
+  color: #a7f3d0 !important;
+}
+
+html.dark .dashboard-content h2,
+html.dark .dashboard-content h3,
+html.dark .dashboard-content .text-headline {
+  color: #f1f5f9 !important;
+}
+
+/* Các nhãn tiêu đề thẻ (TỔNG THU NHẬP THÁNG, TỔNG CHI TIÊU THÁNG, TÊN VÍ...):
+   Chuyển sang màu trắng xám sáng dịu (#cbd5e1 / #e2e8f0), hoàn toàn rõ nét trên nền tối */
+html.dark .overview-white-card span.uppercase,
+html.dark .overview-account-card span.uppercase {
+  color: #cbd5e1 !important;
+  font-weight: 700 !important;
+}
+
+/* Tiêu đề trên thẻ Tổng số dư khả dụng */
+html.dark .overview-balance-card span.uppercase {
+  color: #a7f3d0 !important;
+  font-weight: 700 !important;
+}
+
+html.dark .dashboard-content .text-sub {
+  color: #94a3b8 !important;
+}
+
+/* Các dòng thông tin phụ như số tài khoản (•••• 7890 · Hoạt động) */
+html.dark .overview-account-card .text-sub {
+  color: #94a3b8 !important;
+}
+
+html.dark .net-savings-pill-box {
+  background: #09202f !important;
+  border: 1px solid #14354c !important;
+}
+
+html.dark .quick-add-bar-btn {
+  background: #0f273b !important;
+  border: 1px solid #183e5a !important;
+  color: #38bdf8 !important;
+}
+
+html.dark .quick-add-bar-btn:hover {
+  background: #153854 !important;
+  border-color: #22567c !important;
+  color: #7dd3fc !important;
+}
+
+/* Icon box trong Dark Mode */
+html.dark .overview-white-card .icon-box-mint,
+html.dark .overview-account-card .acc-icon-box {
+  background-color: #0b3426 !important;
+  border: 1px solid #145941 !important;
+  color: #34d399 !important;
+}
+
+html.dark .overview-white-card .icon-box-red {
+  background-color: #3b1724 !important;
+  border: 1px solid #581f33 !important;
+  color: #fb7185 !important;
+}
+
+/* Giao diện tối: Icon và nhãn danh mục giao dịch */
+html.dark .tx-icon-expense {
+  background-color: #3b1724 !important;
+  color: #fb7185 !important;
+  border: 1px solid #581f33 !important;
+}
+
+html.dark .tx-icon-income {
+  background-color: #0b3426 !important;
+  color: #34d399 !important;
+  border: 1px solid #145941 !important;
+}
+
+html.dark .tx-category-badge {
+  background-color: #0b1d2a !important;
+  color: #9cb1c1 !important;
+  border: 1px solid #16364a !important;
+}
+
+html.dark .tx-amount-expense {
+  color: #fb7185 !important;
+}
+
+html.dark .tx-amount-income {
+  color: #34d399 !important;
+}
+
+/* Thanh hạn mức chi tiêu giao diện tối */
+html.dark .budget-progress-track {
+  background-color: #071520 !important;
+  border: 1px solid #132a3a !important;
+}
+
+html.dark .budget-progress-fill {
+  background: linear-gradient(90deg, #f43f5e 0%, #fb7185 100%) !important;
+}
+
+/* Biểu đồ Dòng tiền theo tuần trong Dark Mode:
+   - Thu nhập: Xanh ngọc lục bảo tươi sáng, nổi bật trên nền tối (#10b981 / #059669)
+   - Chi tiêu: Xanh mint / bạc hà êm mắt (#6ee7b7 / #a7f3d0) đúng tinh thần ảnh mẫu */
+html.dark .chart-bar-income,
+html.dark .chart-legend-income {
+  background-color: #10b981 !important;
+}
+
+html.dark .chart-bar-expense,
+html.dark .chart-legend-expense {
+  background-color: #5eead4 !important;
+}
+

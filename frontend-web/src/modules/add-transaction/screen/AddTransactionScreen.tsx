@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type ChangeEvent, type FormEvent } from 'react'
-import { FinanceIcon } from '../../core/components/FinanceIcon'
+import { FinanceIcon, resolveCategoryIconName } from '../../core/components/FinanceIcon'
 import { 
   transactionApi, 
   type TransactionType, 
@@ -113,13 +113,19 @@ export function AddTransactionScreen({ onCancel, onNotify, onOpenInvoiceScanner 
     loadData()
   }, [])
 
+  // Deduplicate categories by normalized name & kind to prevent duplicate seeded data (e.g. 2 'Ăn uống')
+  const uniqueCategories = categories.filter((cat, index, self) => {
+    const key = `${cat.kind}_${cat.name.trim().toLowerCase()}`
+    return index === self.findIndex((c) => `${c.kind}_${c.name.trim().toLowerCase()}` === key)
+  })
+
   // Auto pick default category based on transaction type
   useEffect(() => {
     if (type === 'TRANSFER') {
       setSelectedCategoryId('')
       return
     }
-    const filtered = categories.filter((c) => c.kind === type)
+    const filtered = uniqueCategories.filter((c) => c.kind === type)
     if (filtered.length > 0) {
       const exists = filtered.some((c) => c.id === selectedCategoryId)
       if (!exists) {
@@ -128,23 +134,18 @@ export function AddTransactionScreen({ onCancel, onNotify, onOpenInvoiceScanner 
     } else {
       setSelectedCategoryId('')
     }
-  }, [type, categories])
+  }, [type, uniqueCategories])
 
-  const filteredCategories = categories.filter((c) => c.kind === type)
+  const filteredCategories = uniqueCategories.filter((c) => c.kind === type)
   const selectedAccountObj = accounts.find((a) => a.id === selectedAccountId)
   const toAccountObj = accounts.find((a) => a.id === toAccountId)
-  const selectedCategoryObj = categories.find((c) => c.id === selectedCategoryId)
+  const selectedCategoryObj = uniqueCategories.find((c) => c.id === selectedCategoryId)
 
   const formatAmount = (val: number) => new Intl.NumberFormat('vi-VN').format(val)
 
-  const renderCategoryIcon = (iconName?: string, fallbackKind?: string, size = 16) => {
-    if (!iconName) {
-      return <FinanceIcon name={fallbackKind === 'INCOME' ? 'income' : 'expense'} size={size} />
-    }
-    if (/\p{Extended_Pictographic}/u.test(iconName)) {
-      return <span style={{ fontSize: `${size}px` }}>{iconName}</span>
-    }
-    return <FinanceIcon name={iconName as any} size={size} />
+  const renderCategoryIcon = (iconName?: string, fallbackKind?: string, size = 16, categoryName?: string) => {
+    const resolved = resolveCategoryIconName(iconName, fallbackKind, categoryName)
+    return <FinanceIcon name={resolved} size={size} />
   }
 
   const handleFileChange = (event: ChangeEvent<HTMLInputElement>) => {
@@ -561,7 +562,7 @@ export function AddTransactionScreen({ onCancel, onNotify, onOpenInvoiceScanner 
                           color: selectedCategoryObj?.color || (type === 'INCOME' ? '#10b981' : '#f43f5e'),
                         }}
                       >
-                        {renderCategoryIcon(selectedCategoryObj?.icon, type, 16)}
+                        {renderCategoryIcon(selectedCategoryObj?.icon, type, 16, selectedCategoryObj?.name)}
                       </span>
                       <div className="min-w-0">
                         <p className="truncate text-xs font-bold text-[#14261e]">
@@ -605,7 +606,7 @@ export function AddTransactionScreen({ onCancel, onNotify, onOpenInvoiceScanner 
                                   color: cat.color || (cat.kind === 'INCOME' ? '#10b981' : '#f43f5e'),
                                 }}
                               >
-                                {renderCategoryIcon(cat.icon, cat.kind, 14)}
+                                {renderCategoryIcon(cat.icon, cat.kind, 14, cat.name)}
                               </span>
                               <span className="truncate text-xs">{cat.name}</span>
                             </button>
@@ -844,7 +845,7 @@ export function AddTransactionScreen({ onCancel, onNotify, onOpenInvoiceScanner 
                             color: tx.category?.color || (isInc ? '#059669' : '#dc2626')
                           }}
                         >
-                          {renderCategoryIcon(tx.category?.icon, tx.transactionType, 15)}
+                          {renderCategoryIcon(tx.category?.icon, tx.transactionType, 15, tx.category?.name)}
                         </span>
                         <div className="min-w-0">
                           <p className="truncate text-xs font-bold text-[#14261e]">
