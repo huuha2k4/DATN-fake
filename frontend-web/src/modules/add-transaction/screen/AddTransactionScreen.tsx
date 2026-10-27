@@ -243,11 +243,11 @@ export function AddTransactionScreen({ onCancel, onNotify, onOpenInvoiceScanner 
   }
 
   return (
-    <main className="mx-auto flex h-[calc(100vh-68px)] w-full max-w-[1600px] flex-col overflow-hidden bg-[#f6f8f6] p-3 text-[#14251f] sm:p-4">
-      {/* Two-Column Responsive Workspace: Full Height Flex / Grid */}
-      <div className="grid h-full w-full gap-4 md:grid-cols-[minmax(0,1.55fr)_minmax(320px,1fr)] items-stretch">
-        {/* LEFT COLUMN: Main Form Container fills 100% height */}
-        <div className="flex h-full flex-col justify-between overflow-hidden rounded-2xl border border-[#e2ece5] bg-white shadow-md">
+    <main className="mx-auto flex min-h-[calc(100vh-68px)] lg:h-[calc(100vh-68px)] w-full max-w-[1600px] flex-col overflow-y-auto lg:overflow-hidden bg-[#f6f8f6] p-3 text-[#14251f] sm:p-4">
+      {/* Two-Column Responsive Workspace: Stacks on mobile, 2-col full height on desktop */}
+      <div className="grid w-full gap-4 lg:grid-cols-[minmax(0,1.55fr)_minmax(320px,1fr)] lg:h-full items-stretch">
+        {/* LEFT COLUMN: Main Form Container */}
+        <div className="flex flex-col justify-between rounded-2xl border border-[#e2ece5] bg-white shadow-md lg:h-full lg:overflow-hidden">
         {/* HERO BANNER: Type Toggle & Big Amount Display */}
         <div className={`relative px-6 py-4 text-white transition-colors duration-300 shrink-0 ${
           type === 'EXPENSE'
@@ -374,9 +374,9 @@ export function AddTransactionScreen({ onCancel, onNotify, onOpenInvoiceScanner 
           </div>
         </div>
 
-        {/* FORM BODY: Fills remaining height proportionally */}
-        <form onSubmit={handleSubmit} className="flex flex-1 flex-col justify-between p-5 sm:p-6 gap-3">
-          <div className="flex flex-col gap-3.5">
+        {/* FORM BODY: Scrollable body so footer buttons & inputs are accessible on all screens */}
+        <form onSubmit={handleSubmit} className="flex flex-1 flex-col justify-between overflow-hidden">
+          <div className="flex-1 overflow-y-auto p-4 sm:p-6 flex flex-col gap-3.5">
             {/* Row 1: Source Account & Category Selection */}
             <div className="grid gap-4 sm:grid-cols-2">
               {/* Account / Wallet Dropdown Picker */}
@@ -729,8 +729,8 @@ export function AddTransactionScreen({ onCancel, onNotify, onOpenInvoiceScanner 
             )}
           </div>
 
-          {/* Footer Action Buttons */}
-          <div className="flex flex-col-reverse justify-end gap-3 border-t border-[#edf0ed] pt-3 sm:flex-row shrink-0">
+          {/* Footer Action Buttons: Pinned cleanly at bottom */}
+          <div className="flex flex-col-reverse justify-end gap-2.5 border-t border-[#edf0ed] bg-[#fafcfa] p-3 sm:p-4 sm:flex-row shrink-0">
             <button
               type="button"
               disabled={submitting}
@@ -759,8 +759,8 @@ export function AddTransactionScreen({ onCancel, onNotify, onOpenInvoiceScanner 
         </form>
         </div>
 
-        {/* RIGHT COLUMN: 2 Cards fill full height proportionally */}
-        <div className="flex h-full flex-col justify-between gap-4">
+        {/* RIGHT COLUMN: 2 Cards fill full height proportionally on desktop, stacks gracefully on mobile */}
+        <div className="flex flex-col justify-between gap-4 lg:h-full">
           {/* Card 1: Số tiền còn lại / Dự tính số dư */}
           <div className="flex flex-col justify-between rounded-2xl border border-[#e2ece5] bg-white p-5 shadow-sm">
             <div className="flex items-center justify-between pb-3 border-b border-[#edf2ee]">
