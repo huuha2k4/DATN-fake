@@ -8,6 +8,7 @@ export default defineConfig({
   server: {
     host: true,
     allowedHosts: true,
+    hmr: false,
     proxy: {
       '/api': {
         target: 'http://localhost:1116',
