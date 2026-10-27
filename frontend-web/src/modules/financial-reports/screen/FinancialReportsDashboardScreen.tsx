@@ -57,13 +57,22 @@ function getCategoryIcon(name: string): IconName {
 export function FinancialReportsDashboardScreen({ onNotify }: Props) {
   const [activeTab, setActiveTab] = useState('Thu - Chi');
   const [selectedPeriod, setSelectedPeriod] = useState('this_month');
+  // Helper format ngày theo giờ địa phương YYYY-MM-DD chuẩn xác không bị lệch timezone UTC
+  const formatLocalDate = (d: Date): string => {
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
   const [dateRange, setDateRange] = useState<{ fromDate: string; toDate: string }>(() => {
     const now = new Date();
     const firstDay = new Date(now.getFullYear(), now.getMonth(), 1);
     const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+    const pad = (n: number) => String(n).padStart(2, '0');
     return {
-      fromDate: firstDay.toISOString().split('T')[0],
-      toDate: lastDay.toISOString().split('T')[0],
+      fromDate: `${firstDay.getFullYear()}-${pad(firstDay.getMonth() + 1)}-${pad(firstDay.getDate())}`,
+      toDate: `${lastDay.getFullYear()}-${pad(lastDay.getMonth() + 1)}-${pad(lastDay.getDate())}`,
     };
   });
 
@@ -87,25 +96,25 @@ export function FinancialReportsDashboardScreen({ onNotify }: Props) {
     if (val === 'this_month') {
       const first = new Date(now.getFullYear(), now.getMonth(), 1);
       const last = new Date(now.getFullYear(), now.getMonth() + 1, 0);
-      from = first.toISOString().split('T')[0];
-      to = last.toISOString().split('T')[0];
+      from = formatLocalDate(first);
+      to = formatLocalDate(last);
     } else if (val === 'last_month') {
       const first = new Date(now.getFullYear(), now.getMonth() - 1, 1);
       const last = new Date(now.getFullYear(), now.getMonth(), 0);
-      from = first.toISOString().split('T')[0];
-      to = last.toISOString().split('T')[0];
+      from = formatLocalDate(first);
+      to = formatLocalDate(last);
     } else if (val === '3_months') {
       const first = new Date(now.getFullYear(), now.getMonth() - 2, 1);
-      from = first.toISOString().split('T')[0];
-      to = now.toISOString().split('T')[0];
+      from = formatLocalDate(first);
+      to = formatLocalDate(now);
     } else if (val === '6_months') {
       const first = new Date(now.getFullYear(), now.getMonth() - 5, 1);
-      from = first.toISOString().split('T')[0];
-      to = now.toISOString().split('T')[0];
+      from = formatLocalDate(first);
+      to = formatLocalDate(now);
     } else if (val === 'this_year') {
       const first = new Date(now.getFullYear(), 0, 1);
-      from = first.toISOString().split('T')[0];
-      to = now.toISOString().split('T')[0];
+      from = formatLocalDate(first);
+      to = formatLocalDate(now);
     }
 
     if (from && to) {
@@ -130,13 +139,49 @@ export function FinancialReportsDashboardScreen({ onNotify }: Props) {
     return diffDays <= 35; // Khoảng 1 tháng hoặc ít hơn -> Hiển thị theo ngày
   }, [selectedPeriod, dateRange]);
 
-  // Năm hiện tại của khoảng thời gian đang xem
-  const currentReportYear = useMemo(() => {
-    if (dateRange.toDate) {
-      return dateRange.toDate.split('-')[0];
+  // Nhãn hiển thị kỳ báo cáo động theo khoảng thời gian được chọn
+  const { currentPeriodLabel, periodShortLabel, currentReportYear } = useMemo(() => {
+    const year = dateRange.toDate ? dateRange.toDate.split('-')[0] : new Date().getFullYear().toString();
+
+    if (selectedPeriod === 'this_month') {
+      if (dateRange.toDate) {
+        const parts = dateRange.toDate.split('-');
+        const label = `Tháng ${parseInt(parts[1], 10)}/${parts[0]}`;
+        return { currentPeriodLabel: label, periodShortLabel: label, currentReportYear: year };
+      }
+      return { currentPeriodLabel: 'Tháng này', periodShortLabel: 'Tháng này', currentReportYear: year };
     }
-    return new Date().getFullYear().toString();
-  }, [dateRange.toDate]);
+    if (selectedPeriod === 'last_month') {
+      if (dateRange.fromDate) {
+        const parts = dateRange.fromDate.split('-');
+        const label = `Tháng ${parseInt(parts[1], 10)}/${parts[0]}`;
+        return { currentPeriodLabel: label, periodShortLabel: label, currentReportYear: year };
+      }
+      return { currentPeriodLabel: 'Tháng trước', periodShortLabel: 'Tháng trước', currentReportYear: year };
+    }
+    if (selectedPeriod === '3_months') {
+      return { currentPeriodLabel: '3 tháng qua', periodShortLabel: '3 tháng', currentReportYear: year };
+    }
+    if (selectedPeriod === '6_months') {
+      return { currentPeriodLabel: '6 tháng qua', periodShortLabel: '6 tháng', currentReportYear: year };
+    }
+    if (selectedPeriod === 'this_year') {
+      return { currentPeriodLabel: `Năm ${year}`, periodShortLabel: year, currentReportYear: year };
+    }
+    // Tùy chỉnh (custom)
+    if (dateRange.fromDate && dateRange.toDate) {
+      const fParts = dateRange.fromDate.split('-');
+      const tParts = dateRange.toDate.split('-');
+      const fromStr = `${fParts[2]}/${fParts[1]}`;
+      const toStr = `${tParts[2]}/${tParts[1]}/${tParts[0]}`;
+      return { 
+        currentPeriodLabel: `${fromStr} - ${toStr}`, 
+        periodShortLabel: `${fromStr}-${tParts[2]}/${tParts[1]}`,
+        currentReportYear: year
+      };
+    }
+    return { currentPeriodLabel: 'Kỳ này', periodShortLabel: 'Kỳ này', currentReportYear: year };
+  }, [selectedPeriod, dateRange]);
 
   // Tải dữ liệu báo cáo chính
   const loadReportData = useCallback(async () => {
@@ -895,7 +940,7 @@ export function FinancialReportsDashboardScreen({ onNotify }: Props) {
               <div>
                 <header className="flex items-center justify-between gap-2">
                   <div>
-                    <h2 className="reports-title-dark text-base sm:text-lg">Cơ Cấu Chi Tiêu (Năm {currentReportYear})</h2>
+                    <h2 className="reports-title-dark text-base sm:text-lg">Cơ Cấu Chi Tiêu ({currentPeriodLabel})</h2>
                     <p className="reports-subtitle text-xs">Phân bổ theo nhóm danh mục</p>
                   </div>
                   <span className="reports-category-count-badge">
@@ -910,9 +955,11 @@ export function FinancialReportsDashboardScreen({ onNotify }: Props) {
                       className="relative grid size-32 place-items-center rounded-full shadow-inner" 
                       style={{ background: conicGradient }}
                     >
-                      <div className="reports-donut-center grid size-20 place-content-center rounded-full text-center">
+                      <div className="reports-donut-center grid size-20 place-content-center rounded-full text-center px-1">
                         <strong className="text-xs font-black">{formatShortCurrency(summary.totalExpense)}</strong>
-                        <span className="text-[9px] font-bold uppercase tracking-wider text-[#07543f] dark:text-[#34d399]">{currentReportYear}</span>
+                        <span className="text-[9px] font-bold uppercase tracking-wider text-[#07543f] dark:text-[#34d399] truncate max-w-[68px]" title={currentPeriodLabel}>
+                          {periodShortLabel}
+                        </span>
                       </div>
                     </div>
                   </div>

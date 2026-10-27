@@ -116,7 +116,8 @@ export function DashboardHeaderSection({ onNotify, onOpenProfile, onOpenChangePa
           onClick={toggleTheme}
           title={isDark ? 'Chế độ tối (Bấm để chuyển sáng)' : 'Chế độ sáng (Bấm để chuyển tối)'}
         >
-          <FinanceIcon name={isDark ? 'sun' : 'moon'} size={18} />
+          {/* Khi đang ở chế độ Sáng thì hiển thị biểu tượng Mặt trời (Sun) thể hiện rõ đang là Light Mode. Khi ở Tối thì hiển thị Mặt trăng (Moon) */}
+          <FinanceIcon name={isDark ? 'moon' : 'sun'} size={18} />
         </button>
 
         <button 
