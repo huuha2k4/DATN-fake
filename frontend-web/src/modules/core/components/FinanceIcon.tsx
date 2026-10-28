@@ -6,7 +6,7 @@ export type IconName =
   | 'trend' | 'income' | 'expense' | 'coffee' | 'bolt' | 'more' | 'arrow' | 'shield' | 'clock' | 'user' | 'logout' | 'key' | 'lock'
   | 'edit' | 'delete' | 'shopping-bag' | 'car' | 'home' | 'heart' | 'zap' | 'book' | 'film' | 'map' | 'piggy-bank' | 'credit-card' | 'help-circle' | 'briefcase' | 'gift' | 'trending-up' | 'store' | 'plus-circle' | 'eye'
   | 'sun' | 'moon' | 'borrowing' | 'lending' | 'hand-coins' | 'menu' | 'close'
-  | 'burger' | 'pill' | 'users' | 'file-text' | 'utensils' | 'banknote'
+  | 'burger' | 'pill' | 'users' | 'file-text' | 'utensils' | 'banknote' | 'paperclip' | 'image' | 'message-square'
 
 export function FinanceIcon({ name, size = 18, className }: { name: IconName; size?: number; className?: string }) {
   const drawings: Record<IconName, ReactNode> = {
@@ -69,6 +69,9 @@ export function FinanceIcon({ name, size = 18, className }: { name: IconName; si
     users: <><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M22 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" /></>,
     'file-text': <><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /><line x1="16" y1="13" x2="8" y2="13" /><line x1="16" y1="17" x2="8" y2="17" /><polyline points="10 9 9 9 8 9" /></>,
     banknote: <><rect width="20" height="12" x="2" y="6" rx="2" /><circle cx="12" cy="12" r="2.5" /><path d="M6 12h.01M18 12h.01" /></>,
+    paperclip: <path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l8.57-8.57A4 4 0 1 1 18 8.84l-8.59 8.57a2 2 0 0 1-2.83-2.83l8.49-8.48" />,
+    image: <><rect width="18" height="18" x="3" y="3" rx="2" ry="2" /><circle cx="9" cy="9" r="2" /><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21" /></>,
+    'message-square': <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />,
   }
 
   return <svg aria-hidden="true" className={className} width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">{drawings[name] || drawings.grid}</svg>

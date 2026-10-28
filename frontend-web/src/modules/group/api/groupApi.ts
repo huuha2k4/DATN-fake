@@ -37,6 +37,7 @@ export interface GroupMemberResponse {
     fullName: string;
     email: string;
     avatarUrl?: string;
+    avatarKey?: string;
   };
 }
 
@@ -115,12 +116,17 @@ export interface SettlementResponse {
 export interface ChildWalletResponse {
   id: string;
   groupId: string;
+  userId?: string;
+  childUsername?: string;
   childName: string;
   dateOfBirth?: string;
   age?: number;
   balance: number;
   currency: string;
   weeklyAllowance?: number;
+  privacyLevel?: 'FULL_ACCESS' | 'PARENT_SUPERVISED' | 'VIEW_ONLY';
+  spendLimitDaily?: number;
+  spendLimitWeekly?: number;
   spentToday?: number;
   spentThisWeek?: number;
   stats?: {
@@ -164,10 +170,14 @@ export interface CreateSettlementRequest {
 
 export interface CreateChildWalletRequest {
   childName: string;
+  username?: string;
+  password?: string;
   dateOfBirth?: string;
-  initialBalance?: number;
-  currency?: string;
+  balance?: number;
   weeklyAllowance?: number;
+  privacyLevel?: 'FULL_ACCESS' | 'PARENT_SUPERVISED' | 'VIEW_ONLY';
+  spendLimitDaily?: number;
+  spendLimitWeekly?: number;
 }
 
 export interface UserSearchResult {
@@ -188,6 +198,15 @@ export interface UserSearchResult {
   status: 'PENDING' | 'ACCEPTED' | 'REJECTED' | 'CANCELLED';
 }
 
+export interface MessageAttachmentItem {
+  id?: string;
+  fileKey: string;
+  fileName?: string;
+  mimeType?: string;
+  fileSize?: number;
+  thumbnailKey?: string;
+}
+
 export interface GroupMessageResponse {
   id: string;
   groupId: string;
@@ -196,6 +215,9 @@ export interface GroupMessageResponse {
   content: string;
   replyToMessageId?: string;
   expenseId?: string;
+  attachments?: MessageAttachmentItem[];
+  readByCount?: number;
+  readByUserIds?: string[];
   createdAt: string;
   sender?: {
     id: string;
@@ -203,6 +225,42 @@ export interface GroupMessageResponse {
     displayName: string;
     avatarKey?: string;
   };
+}
+
+export interface SpendRequestItem {
+  id: string;
+  walletId: string;
+  amount: number;
+  currency?: string;
+  categoryId?: string;
+  description: string;
+  notes?: string;
+  imageKey?: string;
+  status: 'PENDING' | 'APPROVED' | 'REJECTED' | 'CANCELLED';
+  respondedByUserId?: string;
+  respondedAt?: string;
+  responseNotes?: string;
+  rejectionReason?: string;
+  createdAt: string;
+  category?: {
+    id: string;
+    name: string;
+    icon?: string;
+    color?: string;
+  };
+  child?: {
+    name: string;
+    age?: number;
+    avatarKey?: string;
+  };
+}
+
+export interface CreateChildSpendRequestPayload {
+  amount: number;
+  categoryId: string;
+  description: string;
+  notes?: string;
+  imageKey?: string;
 }
 
 export const groupApi = {
@@ -373,8 +431,16 @@ export const groupApi = {
     return res.data?.data || res.data;
   },
 
-  async depositChildWallet(groupId: string, walletId: string, amount: number, note?: string): Promise<void> {
-    await api.post(`/groups/${groupId}/child-wallets/${walletId}/deposit`, { amount, note });
+  async depositChildWallet(groupId: string, walletId: string, amount: number, description?: string, source: string = 'allowance'): Promise<void> {
+    await api.post(`/groups/${groupId}/child-wallets/${walletId}/deposit`, {
+      amount,
+      description: description || 'Nạp tiền vào ví',
+      source,
+    });
+  },
+
+  async deleteChildWallet(groupId: string, walletId: string): Promise<void> {
+    await api.delete(`/groups/${groupId}/child-wallets/${walletId}`);
   },
 
   // 6. Tin nhắn nhóm (Chat)
@@ -391,12 +457,86 @@ export const groupApi = {
     }
   },
 
-  async sendMessage(groupId: string, content: string, expenseId?: string): Promise<GroupMessageResponse> {
+  async sendMessage(
+    groupId: string,
+    content: string,
+    expenseId?: string,
+    attachments?: MessageAttachmentItem[]
+  ): Promise<GroupMessageResponse> {
+    const isImage = attachments && attachments.some(a => a.mimeType?.startsWith('image/'));
+    const messageType = expenseId ? 'EXPENSE_CARD' : (isImage ? 'IMAGE' : 'TEXT');
     const res = await api.post(`/groups/${groupId}/messages`, {
-      content,
-      messageType: expenseId ? 'EXPENSE_CARD' : 'TEXT',
+      content: content || (isImage ? 'Đã gửi một ảnh' : 'Đã gửi tệp đính kèm'),
+      messageType,
       expenseId,
+      attachments,
     });
+    return res.data?.data || res.data;
+  },
+
+  async markMessagesAsRead(groupId: string, messageIds: string[]): Promise<void> {
+    if (!messageIds || messageIds.length === 0) return;
+    try {
+      await api.post(`/groups/${groupId}/messages/mark-read`, { messageIds });
+    } catch {
+      // Ignore background read receipt errors
+    }
+  },
+
+  async reportTyping(groupId: string, typing: boolean): Promise<void> {
+    try {
+      await api.post(`/groups/${groupId}/messages/typing?typing=${typing}`);
+    } catch {
+      // Ignore background typing reports
+    }
+  },
+
+  async getTypingUsers(groupId: string): Promise<string[]> {
+    try {
+      const res = await api.get(`/groups/${groupId}/messages/typing`);
+      return res.data?.typingUserIds || [];
+    } catch {
+      return [];
+    }
+  },
+
+  async uploadMessageAttachment(groupId: string, file: File): Promise<MessageAttachmentItem> {
+    const formData = new FormData();
+    formData.append('file', file);
+    const res = await api.post(`/groups/${groupId}/messages/upload`, formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+    return res.data?.data || res.data;
+  },
+
+  // 7. Yêu cầu chi tiêu của bé (Xin tiền bố mẹ)
+  async getSpendRequests(groupId: string, walletId: string): Promise<SpendRequestItem[]> {
+    try {
+      const res = await api.get(`/groups/${groupId}/child-wallets/${walletId}/spend-requests`);
+      const data = res.data;
+      if (Array.isArray(data)) return data;
+      if (data?.content && Array.isArray(data.content)) return data.content;
+      if (data?.data && Array.isArray(data.data)) return data.data;
+      return [];
+    } catch {
+      return [];
+    }
+  },
+
+  async createSpendRequest(groupId: string, walletId: string, payload: CreateChildSpendRequestPayload): Promise<SpendRequestItem> {
+    const res = await api.post(`/groups/${groupId}/child-wallets/${walletId}/spend-requests`, payload);
+    return res.data?.data || res.data;
+  },
+
+  async approveSpendRequest(groupId: string, walletId: string, requestId: string, notes?: string): Promise<SpendRequestItem> {
+    const res = await api.post(`/groups/${groupId}/child-wallets/${walletId}/spend-requests/${requestId}/approve`, { notes });
+    return res.data?.data || res.data;
+  },
+
+  async rejectSpendRequest(groupId: string, walletId: string, requestId: string, reason: string): Promise<SpendRequestItem> {
+    const res = await api.post(`/groups/${groupId}/child-wallets/${walletId}/spend-requests/${requestId}/reject`, { reason });
     return res.data?.data || res.data;
   },
 };

@@ -499,3 +499,18 @@ html.dark .notification-panel-footer {
   background-color: #0b1329;
   border-color: #1e293b;
 }
+
+/* Responsive for Mobile Devices */
+@media (max-width: 640px) {
+  .notification-panel {
+    position: fixed;
+    top: 60px;
+    left: 12px;
+    right: 12px;
+    width: auto;
+    max-width: none;
+    max-height: calc(100vh - 120px);
+    border-radius: 16px;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.25);
+  }
+}

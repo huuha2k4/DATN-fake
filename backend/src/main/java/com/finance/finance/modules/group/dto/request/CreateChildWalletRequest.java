@@ -22,6 +22,10 @@ public class CreateChildWalletRequest {
     @Size(max = 150, message = "Tên con không được quá 150 ký tự")
     private String childName;
 
+    // Optional account creation for the child (Mode 2)
+    private String username;
+    private String password;
+
     @NotNull(message = "Ngày sinh không được để trống")
     private LocalDate dateOfBirth;
 

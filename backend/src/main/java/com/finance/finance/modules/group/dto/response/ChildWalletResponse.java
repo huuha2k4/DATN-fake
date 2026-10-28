@@ -19,6 +19,8 @@ import java.util.UUID;
 public class ChildWalletResponse {
     private UUID id;
     private UUID groupId;
+    private UUID userId;
+    private String childUsername;
     private String childName;
     private LocalDate dateOfBirth;
     private Integer age;

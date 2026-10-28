@@ -28,6 +28,12 @@ public class ChildWallet {
     @Column(name = "group_id", nullable = false)
     private UUID groupId;
 
+    @Column(name = "user_id")
+    private UUID userId;
+
+    @Column(name = "child_username", length = 50)
+    private String childUsername;
+
     @Column(name = "child_name", nullable = false, length = 150)
     private String childName;
 

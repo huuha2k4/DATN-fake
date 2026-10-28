@@ -87,12 +87,18 @@ export function NotificationDropdown({ onNotify }: NotificationDropdownProps) {
   useEffect(() => {
     fetchNotifications();
 
-    // Poll every 45s for fresh notifications
-    const interval = setInterval(() => {
-      notificationApi.getUnreadCount().then((count) => {
-        if (count !== undefined) setUnreadCount(count);
-      });
-    }, 45000);
+    // Real-time polling for notifications (every 10 seconds)
+    const interval = setInterval(async () => {
+      try {
+        const res = await notificationApi.getNotifications({ page_size: 15 });
+        if (res.notifications) {
+          setNotifications(res.notifications);
+          setUnreadCount(res.unread_count ?? res.notifications.filter((n) => !n.is_read).length);
+        }
+      } catch {
+        // Silently ignore background polling failure
+      }
+    }, 10000);
 
     return () => clearInterval(interval);
   }, []);

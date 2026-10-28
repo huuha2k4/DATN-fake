@@ -14,10 +14,12 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -334,6 +336,21 @@ public class GroupController {
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
+    @PostMapping(value = "/{groupId}/messages/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<MessageResponse.AttachmentSummary> uploadMessageAttachment(
+            @PathVariable UUID groupId,
+            @RequestParam("file") MultipartFile file,
+            @AuthenticationPrincipal User currentUser) {
+        try {
+            MessageResponse.AttachmentSummary summary = messageService.uploadAttachment(groupId, file, currentUser.getId());
+            return ResponseEntity.status(HttpStatus.CREATED).body(summary);
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().build();
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
+    }
+
     @GetMapping("/{groupId}/messages")
     public ResponseEntity<Page<MessageResponse>> getMessages(
             @PathVariable UUID groupId,
@@ -378,6 +395,23 @@ public class GroupController {
             @AuthenticationPrincipal User currentUser) {
         messageService.markAsRead(groupId, request, currentUser.getId());
         return ResponseEntity.noContent().build();
+    }
+
+    @PostMapping("/{groupId}/messages/typing")
+    public ResponseEntity<Void> reportTyping(
+            @PathVariable UUID groupId,
+            @RequestParam(defaultValue = "true") boolean typing,
+            @AuthenticationPrincipal User currentUser) {
+        messageService.setTyping(groupId, currentUser.getId(), typing);
+        return ResponseEntity.ok().build();
+    }
+
+    @GetMapping("/{groupId}/messages/typing")
+    public ResponseEntity<Map<String, Object>> getTypingUsers(
+            @PathVariable UUID groupId,
+            @AuthenticationPrincipal User currentUser) {
+        List<UUID> typingUserIds = messageService.getTypingUsers(groupId, currentUser.getId());
+        return ResponseEntity.ok(Map.of("typingUserIds", typingUserIds));
     }
 
     @GetMapping("/{groupId}/messages/unread-count")

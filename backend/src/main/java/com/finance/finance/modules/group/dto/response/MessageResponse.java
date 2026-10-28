@@ -30,6 +30,7 @@ public class MessageResponse {
     private ExpensePreview expensePreview;
     private List<AttachmentSummary> attachments;
     private Integer readByCount;
+    private List<UUID> readByUserIds;
     private Boolean isReadByMe;
     private Boolean isEdited;
 

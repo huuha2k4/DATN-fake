@@ -9,19 +9,58 @@ import com.finance.finance.modules.group.dto.response.MessageResponse;
 import com.finance.finance.modules.group.entity.*;
 import com.finance.finance.modules.group.repository.*;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.nio.file.StandardCopyOption;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class GroupMessageService {
+
+    private static final String ATTACHMENT_UPLOAD_DIR = "uploads/group-messages";
+
+    // Track typing status in memory: groupId -> (userId -> lastTypingTimestamp)
+    private static final ConcurrentHashMap<UUID, ConcurrentHashMap<UUID, Long>> TYPING_STATUS = new ConcurrentHashMap<>();
+
+    public void setTyping(UUID groupId, UUID userId, boolean typing) {
+        if (!groupMemberRepository.existsByGroup_IdAndUser_Id(groupId, userId)) {
+            return;
+        }
+        ConcurrentHashMap<UUID, Long> groupTyping = TYPING_STATUS.computeIfAbsent(groupId, k -> new ConcurrentHashMap<>());
+        if (typing) {
+            groupTyping.put(userId, System.currentTimeMillis());
+        } else {
+            groupTyping.remove(userId);
+        }
+    }
+
+    public List<UUID> getTypingUsers(UUID groupId, UUID excludeUserId) {
+        ConcurrentHashMap<UUID, Long> groupTyping = TYPING_STATUS.get(groupId);
+        if (groupTyping == null || groupTyping.isEmpty()) {
+            return List.of();
+        }
+        long now = System.currentTimeMillis();
+        // Expire after 5 seconds
+        return groupTyping.entrySet().stream()
+                .filter(entry -> !entry.getKey().equals(excludeUserId) && (now - entry.getValue() < 5000))
+                .map(java.util.Map.Entry::getKey)
+                .collect(Collectors.toList());
+    }
 
     private final GroupMessageRepository messageRepository;
     private final GroupMessageAttachmentRepository attachmentRepository;
@@ -29,6 +68,44 @@ public class GroupMessageService {
     private final GroupMemberRepository groupMemberRepository;
     private final GroupExpenseRepository expenseRepository;
     private final com.finance.finance.modules.user.repository.UserRepository userRepository;
+
+    @Transactional
+    public MessageResponse.AttachmentSummary uploadAttachment(UUID groupId, MultipartFile file, UUID currentUserId) throws IOException {
+        if (!groupMemberRepository.existsByGroup_IdAndUser_Id(groupId, currentUserId)) {
+            throw new ResourceNotFoundException("User is not a member of this group");
+        }
+
+        if (file == null || file.isEmpty()) {
+            throw new IllegalArgumentException("File không được để trống");
+        }
+
+        Path uploadPath = Paths.get(ATTACHMENT_UPLOAD_DIR);
+        if (!Files.exists(uploadPath)) {
+            Files.createDirectories(uploadPath);
+        }
+
+        String originalFilename = file.getOriginalFilename() != null ? file.getOriginalFilename() : "file";
+        String fileExtension = "";
+        int extIndex = originalFilename.lastIndexOf(".");
+        if (extIndex > 0) {
+            fileExtension = originalFilename.substring(extIndex);
+        }
+
+        String newFilename = groupId + "_" + UUID.randomUUID() + fileExtension;
+        Path filePath = uploadPath.resolve(newFilename);
+        Files.copy(file.getInputStream(), filePath, StandardCopyOption.REPLACE_EXISTING);
+
+        String fileKey = "/" + ATTACHMENT_UPLOAD_DIR + "/" + newFilename;
+        String mimeType = file.getContentType();
+        long fileSize = file.getSize();
+
+        return MessageResponse.AttachmentSummary.builder()
+                .fileKey(fileKey)
+                .fileName(originalFilename)
+                .mimeType(mimeType)
+                .fileSize(fileSize)
+                .build();
+    }
 
     @Transactional
     public MessageResponse sendMessage(UUID groupId, SendMessageRequest request, UUID currentUserId) {
@@ -192,8 +269,11 @@ public class GroupMessageService {
         // Get attachments
         List<GroupMessageAttachment> attachments = attachmentRepository.findByMessageId(message.getId());
 
-        // Get read count
-        long readCount = readRepository.countByMessageId(message.getId());
+        // Get reads
+        List<GroupMessageRead> reads = readRepository.findByMessageId(message.getId());
+        List<UUID> readByUserIds = reads.stream()
+                .map(GroupMessageRead::getUserId)
+                .collect(Collectors.toList());
 
         // Get sender info
         MessageResponse.SenderSummary senderSummary = userRepository.findById(message.getSenderId())
@@ -225,7 +305,8 @@ public class GroupMessageService {
                                 .thumbnailKey(att.getThumbnailKey())
                                 .build())
                         .collect(Collectors.toList()))
-                .readByCount((int) readCount)
+                .readByCount(readByUserIds.size())
+                .readByUserIds(readByUserIds)
                 .createdAt(message.getCreatedAt())
                 .updatedAt(message.getUpdatedAt())
                 .deletedAt(message.getDeletedAt())

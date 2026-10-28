@@ -24,9 +24,6 @@
   font-weight: 800;
   color: #0f271f;
   letter-spacing: -0.02em;
-  max-width: 220px;
-  overflow: hidden;
-  text-overflow: ellipsis;
   white-space: nowrap;
 }
 
