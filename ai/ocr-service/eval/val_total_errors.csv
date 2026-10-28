@@ -1,0 +1,123 @@
+﻿img_id,split,ground_truth,predicted_total,error_type,primary_cause,notes,true_in_ocr,lines_with_true,ocr_relevant
+mcocr_public_145013tmibr.jpg,val,16200,8900,B,wrong_line_kw_mixed,Dòng có cả keyword tổng lẫn loại trừ — bị lọc nhầm,True,VAT10%  VAT10X  VAT10%  VAT10%  VAT10%  VAT10%  VAT0%  VAT10 | VAT10%  VAT10%  Giagoc:  Giagoc  the  The Ngan Hang  1  Phuc,"[05] VAT10%  VAT10X  VAT10%  VAT10%  VAT10%  VAT10%  VAT0%  VAT10%  Giagoc 
+[06] VAT10%  VAT10%  Giagoc:  Giagoc  the  The Ngan Hang  1  Phucng thuc th
+[09] thuong  doiTem:  dau ngay  su dung trong  0  0  0  O   hoa don:  AFX20
+[11] 28694"
+mcocr_public_145013jyzhp.jpg,val,840000,420000,B,wrong_line_nokw,Không có keyword tổng — ML/rule chọn số lớn hơn,True,"30  840,000","[05] SL  Dongia  Thanh tien
+[07] 14.0000  420,000
+[10] 14,000  420,000
+[11] 30  840,000"
+mcocr_public_145013wkuuf.jpg,val,198000,33000,A,ocr_missing,Số đúng không xuất hiện trong OCR text,False,,"[06] 6  33,000  198,000"
+mcocr_public_145013nwbcg.jpg,val,716000,8000,B,wrong_line_nokw,Không có keyword tổng — ML/rule chọn số lớn hơn,True,dngcang  VPF Lo2  50  1  2.000  0  716.000d  2.000d | ongc6thant toan  716.000d,"[06] Anh8  114.000  14.000d
+[07] Sinh8  1  18.000  0  18.000d
+[08] Lichs8  12000  0  12.000d
+[09] Dial8  13.000  0  13.000d
+[10] Cong nghe8  17.000  0  17.000d
+[11] Am nhac&mi thuat  15.000  0  15.000d"
+mcocr_public_145013borvc.jpg,val,10101000,6000,A,ocr_missing,Số đúng không xuất hiện trong OCR text,False,,[03] TT  1  3  2  Khach hang:  (vua)  Thu ngancash1  Banh Mi Que  Thanhtien
+mcocr_public_145013wuprd.jpg,val,640000,120000,B,wrong_line_nokw,Không có keyword tổng — ML/rule chọn số lớn hơn,True,640.000d | 640.000d,"[12] 1  Banhtrang  cuön thit heo  1  125.000  125.000
+[14] 2Lau ca Keo nho  1  265.000  265.000
+[15] Binh nuvöi  10.000  10.000
+[16] 4  ca keo nuong  1  120.000  120.000
+[18] 5  Ca keo them 10  1  120.000  120.000
+[20] 640.000d"
+mcocr_public_145013gxbkt.jpg,val,70000,25000,B,wrong_line_kw,Có keyword tổng nhưng chọn nhầm dòng khác,True,Töng thanh toän  70.000d,"[05] HOADON THANH TOAN
+[11] Sua chua viet  35.000  35.000
+[12] 2  matcha  sua chua  25.000  25.000
+[13] 3  Tran chau  1  10.000  10.000
+[15] Töng thanh toän  70.000d
+[17] Tra lai khach  130.000d"
+mcocr_public_145013waefm.jpg,val,38000,36000,A,ocr_missing,Số đúng không xuất hiện trong OCR text,False,,"[06] Ngu van 10/2  10.000  0  10.000d
+[07] Ngurvan 10/1  10.000  0  10.000d
+[08] Dais10  10.000  0  10.000d
+[09] Hinh hoc 10  6.000  0  6.000d
+[10] Tong cong:  36.000d
+[12] Töng sö thanh toän:  36.000d"
+mcocr_public_145013emvhs.jpg,val,116000,97000,B,wrong_line_nokw,Không có keyword tổng — ML/rule chọn số lớn hơn,True,"Cong tien hang  116,000","[05] SL  Do'n gia  Thanh tien
+[07] 1  3,000  3,000
+[09] 5  3,200  16,000
+[11] 1  97,000  97.000
+[12] Cong tien hang  116,000"
+mcocr_public_145014pbtzz.jpg,val,92000,10000,B,wrong_line_kw_mixed,Dòng có cả keyword tổng lẫn loại trừ — bị lọc nhầm,True,Ten hang  Boc säch GK  boc sach GK  Tongcong:  Nhan v conan.,"[03] Ten hang  Boc säch GK  boc sach GK  Tongcong:  Nhan v conan.  Nhan v S
+[04] Töng sö thanh toan  XIN CAM ON QUI KHACH!"
+mcocr_public_145014mjfti.jpg,val,63000,25000,B,wrong_line_nokw,Không có keyword tổng — ML/rule chọn số lớn hơn,True,"T&ngcong:  63,000 | Tien khach trä:  VND  63,000","[04] Ten häng SL DVT Don gia Thanh tien
+[06] 1  CAI  13,000  13,000
+[08] 1  BIC  25,000  25,000
+[09] 1  GOI  25,000  25,000
+[11] T&ngcong:  63,000
+[12] Tien khach trä:  VND  63,000"
+mcocr_public_145014urapv.jpg,val,125000,45000,B,wrong_line_kw,Có keyword tổng nhưng chọn nhầm dòng khác,True,"Thanh tien:125,000","[08] 45,000  1  45,000
+[10] 35,000  35,000
+[12] 45,000  1  45,000
+[13] Thanh tien:125,000
+[15] 112112"
+mcocr_public_145014iznli.jpg,val,200000,40000,A,ocr_missing,Số đúng không xuất hiện trong OCR text,False,,"[05] SL  Don gia  Thanh tien
+[07] 5  40.000  200,000"
+mcocr_public_145014xlpvu.jpg,val,236000,140000,B,wrong_line_nokw,Không có keyword tổng — ML/rule chọn số lớn hơn,True,"Cong tien hang  236,000","[04] SL.  Dongia  Thanh tien
+[06] 10  8,300  83,000
+[08] 1  13,000  13.000
+[10] 1  140,000  140.000
+[11] Cong tien hang  236,000"
+mcocr_public_145014mtdoy.jpg,val,9238110,8831870,B,wrong_line_kw,Có keyword tổng nhưng chọn nhầm dòng khác,True,Tong thanh toan  9.238.110,"[11] Tong trudc thue  8.364.721
+[12] Tone thue  726.389
+[13] Tong sau thus  9.091110
+[14] Phai tra vInID  147.000
+[16] Tong thanh toan  9.238.110
+[18] MOTA  SL  SO TIEN"
+mcocr_public_145014whgiz.jpg,val,200381,158500,A,ocr_missing,Số đúng không xuất hiện trong OCR text,False,,"[07] 8934954007261  VMGOOD Täm thdm ien Bien 5 kg  158.500  158.500
+[08] 2600984009549  Mit quä43.900/KG X 0,954KG  41.881  1  41.881
+[09] TIEN MAT  TIEN TRA LAI  TIEN KHACH TRA  TONG TIEN DA GIAM  TONG TIEN P"
+mcocr_public_145014eyfwj.jpg,val,89000,39000,A,ocr_missing,Số đúng không xuất hiện trong OCR text,False,,"[07] 1 Nuocép dua hau  1  39,000  39,000
+[08] Sotien:  39,000
+[11] Thanh toan:  39,000"
+mcocr_public_145014zncnq.jpg,val,126000,62000,B,wrong_line_nokw,Không có keyword tổng — ML/rule chọn số lớn hơn,True,"Cong tien hang  126,000","[05] SL  Dongia  Thanh tien
+[06] NRC Sunlight chanh10.750ml
+[07] 1  21,000  21,000
+[09] 1  43,000  43,000
+[11] 1  62,000  62,000
+[12] Cong tien hang  126,000"
+mcocr_public_145014mwhyh.jpg,val,931931,15000,A,ocr_missing,Số đúng không xuất hiện trong OCR text,False,,"[10] Dongia  SL  Thanh tien
+[12] 15.000  1  15,000
+[13] Cong tien hang:  15,000
+[15] 15,000
+[16] Tien khach dura  15,000"
+mcocr_public_145014zqryn.jpg,val,209000,54600,A,ocr_missing,Số đúng không xuất hiện trong OCR text,False,,"[06] 8936036020380  CHOCOPIE Bänh Orion hp 396g Te  54.900  54.900
+[08] 80001218  27.300  54.600
+[10] 8936011771009  19.900  5  99.500
+[11] TONG TIEN PHAI T.TOAN  209.000
+[12] TONG TIEN A GIAM  0
+[14] TIEN MAT  220.000"
+mcocr_public_145014bbnco.jpg,val,42412,5756312,A,ocr_missing,Số đúng không xuất hiện trong OCR text,False,,"[07] TIENMAT  5.756.312
+[08] Vinto..  he ghi nd  The tin duno  me tra trudc  Pi ben td3  Phieu qua 
+[10] Tong Tien  6.025.412
+[11] THANH TOAN THUA
+[16] Tong Tien  6.971.000
+[17] TIEN BAT AU KINH DOANH  500.000"
+mcocr_public_145014huitj.jpg,val,243000,120000,B,wrong_line_nokw,Không có keyword tổng — ML/rule chọn số lớn hơn,True,"Cong tien hang  243,000","[04] SL  Don gia  Thanh tien
+[06] 1  120,000  120,000
+[08] 1  123,000  123,000
+[09] Cong tien hang  243,000"
+mcocr_public_145014mzrbm.jpg,val,61800,2000,B,wrong_line_kw_mixed,Dòng có cả keyword tổng lẫn loại trừ — bị lọc nhầm,True,1155156000011  XUdng üc ga cP 1KG  30.900  2  61.800 | VinID  TIEN MAT  TIEN TRA LAI  TIEN KHACH TRA  TONG TIEN A G,"[07] 1155156000011  XUdng üc ga cP 1KG  30.900  2  61.800
+[08] VinID  TIEN MAT  TIEN TRA LAI  TIEN KHACH TRA  TONG TIEN A GIAM  TONG "
+mcocr_public_145014iriei.jpg,val,392000,28000,B,wrong_line_nokw,Không có keyword tổng — ML/rule chọn số lớn hơn,True,"T&ngs:  17  392,000","[09] CAI  8,000  16,000
+[11] 1  GOT  28,000  28,000
+[13] 1  HOP  50,000  50,000
+[15] 4  GOI  15,000  60,000
+[17] GOI  20,000  20,000
+[19] 1  GOI  22,000  22,000"
+mcocr_public_145014sydpm.jpg,val,224000,32000,B,wrong_line_nokw,Không có keyword tổng — ML/rule chọn số lớn hơn,True,"Chiét khau  224,000 | Tien khach dua  224,000","[09] 12  11,000  132,000
+[11] 6  2,000  12,000
+[13] 8  2,000  16,000
+[15] 32,000
+[16] 32,000
+[18] 1  Cong tlen hang  32,000  32,000"
+mcocr_public_145014nircs.jpg,val,133000,74000,B,wrong_line_nokw,Không có keyword tổng — ML/rule chọn số lớn hơn,True,"Cong tién hang  133,000","[03] SL  Do'n gia  Thanh tien
+[05] 1  24,000  24,000
+[07] 1  19,000  19,000
+[09] 1  16,000  16.000
+[11] 1  74,000  74,000
+[12] Cong tién hang  133,000"
+mcocr_public_145014bvfay.jpg,val,99000,37000,B,wrong_line_nokw,Không có keyword tổng — ML/rule chọn số lớn hơn,True,"Cong tien hang  99,000","[04] SL  Don gia  Thanh tien
+[06] 1  62,000  62,000
+[08] 1  37,000  37,000
+[09] Cong tien hang  99,000"

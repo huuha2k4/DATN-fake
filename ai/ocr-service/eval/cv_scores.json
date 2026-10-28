@@ -1,0 +1,18 @@
+{
+  "LogisticRegression": {
+    "accuracy_real": 0.6429,
+    "macro_f1_real": 0.6743,
+    "accuracy_all": 0.5907,
+    "macro_f1_all": 0.6072,
+    "n_real": 238,
+    "n_present_labels": 15
+  },
+  "LightGBM": {
+    "accuracy_real": 0.5462,
+    "macro_f1_real": 0.5269,
+    "accuracy_all": 0.4893,
+    "macro_f1_all": 0.4468,
+    "n_real": 238,
+    "n_present_labels": 15
+  }
+}

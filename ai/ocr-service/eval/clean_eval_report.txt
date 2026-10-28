@@ -1,0 +1,29 @@
+=== SỐ SẠCH — sau khi loại bỏ data leakage ===
+
+Phương pháp đánh giá:
+  - Train: transactions_manual.csv (viết tay thuần túy, không lấy từ ảnh test)
+  - Test : split='test' trong labels.csv (809 ảnh, không nhìn khi sửa)
+  - CV   : GroupKFold 5-fold theo thương hiệu
+  - Chỉ tính macro-F1 trên lớp có mẫu thật (15/15 lớp)
+
+Kết quả:
+  LogisticRegression : macro_f1_real=0.6743  acc_real=0.6387  ← BEST
+  LightGBM           : macro_f1_real=0.5269  acc_real=0.5462
+  Từ điển coverage   : 48.3%  precision: 92.4% (alias Big C và nhà sách thêm từ brands.csv, không từ mẫu train)
+  t_auto=0.75 (precision ≥ 92% khi tự gán)
+
+So sánh với số bị leakage:
+  Số leaky (không dùng)  : macro_f1=0.7048, coverage=48.4%
+  Số sạch (báo cáo này) : macro_f1=0.6743, coverage=48.3%
+  Chênh lệch            : -0.0305 macro-F1 (3 điểm — đây là phần bị thổi phồng)
+
+Giải thích:
+  - Coverage từ điển (48.3% vs 48.4%) hầu như không thay đổi vì alias Big C/nhà sách
+    vẫn giữ trong brands.csv — alias trong từ điển không phải data leakage.
+    Leakage xảy ra khi đưa tên từ ảnh test vào tập TRAIN ML.
+  - macro-F1 giảm 3 điểm là phần mô hình ML đã "học thuộc" 2 ảnh test.
+
+Kết luận cho báo cáo:
+  Phân loại giao dịch đạt macro-F1 = 0.674 (trên 238 mẫu thật, 15 lớp).
+  Từ điển phủ 48% với precision 92%.
+  Kết hợp từ điển + ML tự gán được 27% giao dịch với accuracy 92%.

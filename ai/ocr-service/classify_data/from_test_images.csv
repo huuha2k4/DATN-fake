@@ -1,0 +1,10 @@
+# Mẫu lấy từ tên cửa hàng trong ảnh TEST — KHÔNG đưa vào train
+# Chỉ dùng để thêm alias vào brands.csv (từ điển)
+# Nếu đưa vào train → data leakage với tập test
+#
+# Nguồn: mcocr_public_145014izcur.jpg (test), mcocr_public_145014wbtei.jpg (test)
+text,category,group,note
+BIG CAN PHU,shopping,big c,from_test_izcur
+BIG C Can Tho,shopping,big c,from_test_izcur
+NHA SACH GD-TC CAM PHA,education,nha sach,from_test_wbtei
+NHASACH GD TC,education,nha sach,from_test_wbtei
