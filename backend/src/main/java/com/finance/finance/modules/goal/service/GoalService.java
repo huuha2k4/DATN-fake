@@ -13,6 +13,8 @@ import com.finance.finance.modules.goal.repository.GoalMilestoneRepository;
 import com.finance.finance.modules.goal.repository.GoalRepository;
 import com.finance.finance.modules.account.entity.Account;
 import com.finance.finance.modules.account.repository.AccountRepository;
+import com.finance.finance.modules.category.entity.Category;
+import com.finance.finance.modules.category.repository.CategoryRepository;
 import com.finance.finance.modules.transaction.dto.request.CreateTransactionRequest;
 import com.finance.finance.modules.transaction.service.TransactionService;
 import lombok.RequiredArgsConstructor;
@@ -38,6 +40,7 @@ public class GoalService {
     private final GoalMilestoneRepository milestoneRepository;
     private final TransactionService transactionService;
     private final AccountRepository accountRepository;
+    private final CategoryRepository categoryRepository;
     private final com.finance.finance.modules.notification.service.NotificationService notificationService;
 
     @Transactional
@@ -188,8 +191,14 @@ public class GoalService {
             Account account = accountRepository.findByIdAndUserId(request.getSourceAccountId(), userId)
                     .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy tài khoản"));
             
-            // Hard-coded savings category ID - "Tiết kiệm, đầu tư"
-            UUID savingsCategoryId = UUID.fromString("275610c7-90a8-4a8f-87f2-2d7304f9ae13");
+            // Find savings category dynamically by code, fallback to first available expense category
+            UUID savingsCategoryId = categoryRepository.findByCode("SAVINGS_INVESTMENT")
+                    .map(Category::getId)
+                    .orElseGet(() -> categoryRepository.findByUserIdOrSystemAndKind(userId, com.finance.finance.common.enums.CategoryKind.EXPENSE)
+                            .stream()
+                            .findFirst()
+                            .map(Category::getId)
+                            .orElseThrow(() -> new IllegalStateException("Không tìm thấy danh mục chi tiêu hợp lệ")));
             
             CreateTransactionRequest transactionRequest = CreateTransactionRequest.builder()
                     .accountId(request.getSourceAccountId())

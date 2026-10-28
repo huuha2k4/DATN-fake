@@ -24,6 +24,11 @@ public interface CategoryRepository extends JpaRepository<Category, UUID> {
     Optional<Category> findByIdAndUserIdOrSystem(@Param("id") UUID id, @Param("userId") UUID userId);
 
     /**
+     * Tìm category theo code (dùng cho system category có mã cố định)
+     */
+    Optional<Category> findByCode(String code);
+
+    /**
      * Lấy tất cả categories của user (bao gồm cả system categories)
      */
     @Query("SELECT c FROM Category c WHERE c.deletedAt IS NULL " +

@@ -6,6 +6,8 @@ import com.finance.finance.common.enums.PaymentFrequency;
 import com.finance.finance.common.enums.TransactionType;
 import com.finance.finance.modules.account.entity.Account;
 import com.finance.finance.modules.account.repository.AccountRepository;
+import com.finance.finance.modules.category.entity.Category;
+import com.finance.finance.modules.category.repository.CategoryRepository;
 import com.finance.finance.modules.debt.dto.request.CreateDebtRequest;
 import com.finance.finance.modules.debt.dto.request.RecordPaymentRequest;
 import com.finance.finance.modules.debt.dto.request.UpdateDebtRequest;
@@ -41,6 +43,7 @@ public class DebtService {
     private final UserRepository userRepository;
     private final TransactionService transactionService;
     private final AccountRepository accountRepository;
+    private final CategoryRepository categoryRepository;
     private final com.finance.finance.modules.notification.service.NotificationService notificationService;
 
     // ==================== CREATE DEBT ====================
@@ -249,8 +252,14 @@ public class DebtService {
             Account account = accountRepository.findByIdAndUserId(request.getAccountId(), userId)
                     .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy tài khoản"));
             
-            // Hard-coded debt payment category ID - "Trả nợ"
-            UUID debtPaymentCategoryId = UUID.fromString("ec716575-0533-46ab-a3b2-798d0b95598c");
+            // Find debt payment category dynamically by code, fallback to first available expense category
+            UUID debtPaymentCategoryId = categoryRepository.findByCode("DEBT_PAYMENT")
+                    .map(Category::getId)
+                    .orElseGet(() -> categoryRepository.findByUserIdOrSystemAndKind(userId, com.finance.finance.common.enums.CategoryKind.EXPENSE)
+                            .stream()
+                            .findFirst()
+                            .map(Category::getId)
+                            .orElseThrow(() -> new IllegalStateException("Không tìm thấy danh mục chi tiêu hợp lệ")));
             
             // Get counterparty name based on debt type
             String counterpartyName = debt.getDebtType() == DebtType.BORROWING 
