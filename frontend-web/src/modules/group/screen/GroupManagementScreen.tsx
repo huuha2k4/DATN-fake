@@ -1401,8 +1401,18 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
                               nextMessage.senderId !== msg.senderId ||
                               nextDiffMins >= 10;
 
-                            // Find members who have seen this message as their latest
-                            const seenByMembers = members.filter((m) => lastSeenMap[m.userId] === msg.id);
+                            // Find members who have seen this message as their latest (exclude sender themselves)
+                            const seenByMembers = members.filter(
+                              (m) => String(m.userId).toLowerCase() !== String(msg.senderId).toLowerCase() && lastSeenMap[m.userId] === msg.id
+                            );
+
+                            // Find all members who have read this message (for on-click reveal on older messages)
+                            const readList = (msg.readByUserIds || []).map((id) => String(id).toLowerCase());
+                            const allReadersOfMessage = members.filter(
+                              (m) =>
+                                String(m.userId).toLowerCase() !== String(msg.senderId).toLowerCase() &&
+                                readList.includes(String(m.userId).toLowerCase())
+                            );
 
                             // Find member profile to get avatar
                             const senderMember = members.find((m) => m.userId === msg.senderId);
@@ -1445,7 +1455,7 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
                                   }`}
                                 >
                                   {/* Avatar placeholder / icon: Only show on the LAST message of consecutive group */}
-                                  <div className="size-8 shrink-0 flex items-center justify-center">
+                                  <div className="size-8 shrink-0 flex items-center justify-center self-end mb-1">
                                     {isLastInBlock ? (
                                       <div
                                         className={`size-8 rounded-full overflow-hidden flex items-center justify-center font-bold text-xs shadow-2xs ${
@@ -1472,7 +1482,7 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
                                   </div>
 
                                   {/* Bubble & Click to see time */}
-                                  <div className={`flex flex-col ${isMe ? 'items-end' : 'items-start'} max-w-full`}>
+                                  <div className={`flex flex-col ${isMe ? 'items-end' : 'items-start'} max-w-full relative`}>
                                     {/* Sender name on FIRST message of the group block */}
                                     {isFirstInBlock && (
                                       <span className="text-[10px] font-bold text-[#647c6e] dark:text-slate-400 mb-1 px-1">
@@ -1543,16 +1553,48 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
                                       )}
                                     </div>
 
-                                    {/* Timestamp: Shown ONLY when this message is clicked */}
+                                    {/* Timestamp & Clicked details: Shown ONLY when this message is clicked */}
                                     {selectedMessageTimeId === msg.id && (
-                                      <span className="text-[9px] text-[#8fa397] dark:text-slate-500 mt-1 px-1 animate-fadeIn">
-                                        {timeStr}
-                                      </span>
+                                      <div className={`flex items-center gap-1.5 mt-1 px-1 animate-fadeIn ${isMe ? 'self-end' : 'self-start'}`}>
+                                        <span className="text-[9px] text-[#8fa397] dark:text-slate-500">
+                                          {timeStr}
+                                        </span>
+                                        {/* If clicked on an older message where seenByMembers is empty, show who read this message */}
+                                        {seenByMembers.length === 0 && allReadersOfMessage.length > 0 && (
+                                          <div className="flex items-center -space-x-1 ml-1" title="Những người đã xem tin nhắn này">
+                                            {allReadersOfMessage.map((sm) => {
+                                              const smName = sm.user?.fullName || sm.nickname || sm.user?.email || 'Thành viên';
+                                              const rawUrl = sm.userId === currentUser?.id ? currentUser?.avatarUrl : (sm.user?.avatarUrl || sm.user?.avatarKey);
+                                              const smAvatar = rawUrl ? userApi.getAvatarUrl(rawUrl) : null;
+                                              return (
+                                                <div
+                                                  key={sm.userId}
+                                                  className="size-3.5 rounded-full border border-white dark:border-slate-850 overflow-hidden bg-emerald-100 dark:bg-slate-700 text-[#07543f] dark:text-emerald-300 text-[7px] font-bold flex items-center justify-center shadow-xs"
+                                                  title={`${smName} đã xem`}
+                                                >
+                                                  {smAvatar ? (
+                                                    <img
+                                                      src={smAvatar}
+                                                      alt={smName}
+                                                      className="size-full object-cover"
+                                                      onError={(e) => {
+                                                        (e.target as HTMLElement).style.display = 'none';
+                                                      }}
+                                                    />
+                                                  ) : (
+                                                    smName.charAt(0).toUpperCase()
+                                                  )}
+                                                </div>
+                                              );
+                                            })}
+                                          </div>
+                                        )}
+                                      </div>
                                     )}
 
-                                    {/* Seen status / Read receipts (Messenger style mini avatars only, no text) */}
+                                    {/* Default Seen status / Read receipts (Shown automatically on the LATEST read message) */}
                                     {seenByMembers.length > 0 && (
-                                      <div className={`flex items-center -space-x-1.5 mt-1 ${isMe ? 'self-end' : 'self-start'} px-1`}>
+                                      <div className={`flex items-center -space-x-1.5 mt-0.5 ${isMe ? 'self-end' : 'self-start'} px-0.5`}>
                                         {seenByMembers.map((sm) => {
                                           const smName = sm.user?.fullName || sm.nickname || sm.user?.email || 'Thành viên';
                                           const rawUrl = sm.userId === currentUser?.id ? currentUser?.avatarUrl : (sm.user?.avatarUrl || sm.user?.avatarKey);
@@ -1560,7 +1602,7 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
                                           return (
                                             <div
                                               key={sm.userId}
-                                              className="size-4 rounded-full border-2 border-white dark:border-slate-850 overflow-hidden bg-emerald-100 dark:bg-slate-700 text-[#07543f] dark:text-emerald-300 text-[8px] font-bold flex items-center justify-center shadow-xs"
+                                              className="size-3.5 rounded-full border border-white dark:border-slate-850 overflow-hidden bg-emerald-100 dark:bg-slate-700 text-[#07543f] dark:text-emerald-300 text-[7px] font-bold flex items-center justify-center shadow-xs"
                                               title={`${smName} đã xem`}
                                             >
                                               {smAvatar ? (
