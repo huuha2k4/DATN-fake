@@ -43,6 +43,7 @@ public class GroupMessage {
     private UUID expenseId;
 
     @Column(columnDefinition = "jsonb")
+    @org.hibernate.annotations.JdbcTypeCode(org.hibernate.type.SqlTypes.JSON)
     private String mentionedUserIds;
 
     @CreationTimestamp

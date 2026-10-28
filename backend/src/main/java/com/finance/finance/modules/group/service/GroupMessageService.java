@@ -28,6 +28,7 @@ public class GroupMessageService {
     private final GroupMessageReadRepository readRepository;
     private final GroupMemberRepository groupMemberRepository;
     private final GroupExpenseRepository expenseRepository;
+    private final com.finance.finance.modules.user.repository.UserRepository userRepository;
 
     @Transactional
     public MessageResponse sendMessage(UUID groupId, SendMessageRequest request, UUID currentUserId) {
@@ -194,10 +195,21 @@ public class GroupMessageService {
         // Get read count
         long readCount = readRepository.countByMessageId(message.getId());
 
+        // Get sender info
+        MessageResponse.SenderSummary senderSummary = userRepository.findById(message.getSenderId())
+                .map(u -> MessageResponse.SenderSummary.builder()
+                        .id(u.getId())
+                        .fullName(u.getFullName() != null ? u.getFullName() : (u.getUsername() != null ? u.getUsername() : u.getEmail()))
+                        .displayName(u.getUsername())
+                        .avatarKey(u.getAvatarUrl())
+                        .build())
+                .orElse(null);
+
         return MessageResponse.builder()
                 .id(message.getId())
                 .groupId(message.getGroupId())
                 .senderId(message.getSenderId())
+                .sender(senderSummary)
                 .messageType(message.getMessageType().name())
                 .content(message.getContent())
                 .replyToMessageId(message.getReplyToMessageId())

@@ -1,5 +1,5 @@
 import { useEffect, useState, useMemo } from 'react';
-import { FinanceIcon, type IconName } from '../../core/components/FinanceIcon';
+import { FinanceIcon, resolveCategoryIconName, type IconName } from '../../core/components/FinanceIcon';
 import { budgetApi, type BudgetResponse, type BudgetItemResponse } from '../api/budgetApi';
 import { transactionApi, type CategoryItem, type TransactionItem } from '../../cash-flow-management/api/transactionApi';
 import './BudgetManagementScreen.css';
@@ -292,13 +292,9 @@ export function BudgetManagementScreen({ onNotify }: Props) {
   const totalRemaining = totalBudgeted - totalSpent;
   const overallPercent = totalBudgeted > 0 ? Math.round((totalSpent / totalBudgeted) * 100) : 0;
 
-  // Lấy icon hợp lệ cho danh mục
-  const getCategoryIcon = (iconName?: string): IconName => {
-    const validIcons: IconName[] = ['coffee', 'wallet', 'arrows', 'bolt', 'chart', 'bank', 'trend', 'spark', 'shield', 'calendar', 'plus', 'delete', 'edit', 'eye', 'shopping-bag', 'car', 'home', 'heart', 'book', 'film'];
-    if (iconName && validIcons.includes(iconName as IconName)) {
-      return iconName as IconName;
-    }
-    return 'wallet';
+  // Lấy icon hợp lệ đồng nhất cho danh mục
+  const getCategoryIcon = (iconName?: string, categoryName?: string): IconName => {
+    return resolveCategoryIconName(iconName, 'EXPENSE', categoryName);
   };
 
   // Lấy màu sắc nguyên bản của danh mục (hoặc fallback theo tên/icon nếu chưa có)
@@ -501,7 +497,7 @@ export function BudgetManagementScreen({ onNotify }: Props) {
               const isOver = pct > 100;
               const isWarn = pct >= 80 && pct <= 100;
               const catName = item.category?.name || item.categoryName || 'Danh mục';
-              const catIcon = getCategoryIcon(item.category?.icon || item.categoryIcon);
+              const catIcon = getCategoryIcon(item.category?.icon || item.categoryIcon, catName);
               const spent = item.spentAmount || 0;
               const limit = item.amount || 0;
               const rem = limit - spent;
@@ -702,7 +698,7 @@ export function BudgetManagementScreen({ onNotify }: Props) {
                       borderStyle: 'solid',
                     }}
                   >
-                    <FinanceIcon name={getCategoryIcon(selectedItem.category?.icon || selectedItem.categoryIcon)} size={22} />
+                    <FinanceIcon name={getCategoryIcon(selectedItem.category?.icon || selectedItem.categoryIcon, selectedItem.name || selectedItem.category?.name || selectedItem.categoryName)} size={22} />
                   </span>
                   <div>
                     <h3 className="text-base font-bold text-[#14251f]">

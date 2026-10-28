@@ -13,12 +13,14 @@ import { FinancialRemindersScreen } from '../../financial-reminders/screen/Finan
 import { InvoiceOcrScreen } from '../../invoice-ocr/screen/InvoiceOcrScreen'
 import { SpendingAnalysisScreen } from '../../spending-analysis/screen/SpendingAnalysisScreen'
 import { DebtManagementScreen } from '../../debt-management/screen/DebtManagementScreen'
+import { GroupManagementScreen } from '../../group/screen/GroupManagementScreen'
 import { DashboardHeaderSection } from '../../core/components/DashboardHeaderSection'
 import { FinancialNavigationSection } from '../../core/components/FinancialNavigationSection'
 import { FloatingActions } from '../../core/components/FloatingActions'
 import { LandingScreen } from '../../auth/screen/LandingScreen'
 import { ProfileScreen } from '../../profile/screen/ProfileScreen'
 import { ChangePasswordModal } from '../../profile/components/ChangePasswordModal'
+import { NotificationScreen } from '../../notification/screen/NotificationScreen'
 import { isAuthenticated, clearAuthData } from '../../auth/api/authApi'
 
 export default function AppScreen() {
@@ -92,11 +94,13 @@ export default function AppScreen() {
     '/goals': 'Mục tiêu Tài chính',
     '/schedules': 'Lịch tài chính',
     '/debts': 'Quản lý Nợ',
+    '/groups': 'Chi tiêu Nhóm',
     '/reports': 'Báo cáo & Thống kê',
     '/ai-assistant': 'AI Thông minh',
     '/forecast': 'Dự báo tài chính',
     '/analysis': 'Phân tích hành vi chi tiêu',
     '/profile': 'Quản lý Hồ sơ & Tài khoản',
+    '/notifications': 'Thông báo',
   }
   const activeSection = pathToSection[location.pathname] || 'Tổng quan'
 
@@ -118,6 +122,7 @@ export default function AppScreen() {
             'Mục tiêu Tài chính': '/goals',
             'Lịch tài chính': '/schedules',
             'Quản lý Nợ': '/debts',
+            'Chi tiêu Nhóm': '/groups',
             'Báo cáo & Thống kê': '/reports',
             'AI Thông minh': '/ai-assistant',
             'Dự báo tài chính': '/forecast',
@@ -144,6 +149,7 @@ export default function AppScreen() {
           <Route path="/" element={<DashboardScreen onNotify={setNotice} onAddTransaction={() => navigate('/add-transaction')} />} />
           <Route path="/dashboard" element={<DashboardScreen onNotify={setNotice} onAddTransaction={() => navigate('/add-transaction')} />} />
           <Route path="/profile" element={<ProfileScreen onLogout={handleLogout} />} />
+          <Route path="/notifications" element={<NotificationScreen onNotify={setNotice} />} />
           <Route path="/add-transaction" element={<AddTransactionScreen onCancel={() => navigate(-1)} onNotify={setNotice} onOpenInvoiceScanner={() => navigate('/scan-invoice')} />} />
           <Route path="/scan-invoice" element={<InvoiceOcrScreen onCancel={() => navigate(-1)} onNotify={setNotice} />} />
           <Route path="/transactions" element={<CashFlowManagementScreen onNotify={setNotice} onAddTransaction={() => navigate('/add-transaction')} />} />
@@ -152,6 +158,7 @@ export default function AppScreen() {
           <Route path="/schedules" element={<FinancialRemindersScreen onNotify={setNotice} />} />
           <Route path="/reminders" element={<FinancialRemindersScreen onNotify={setNotice} />} />
           <Route path="/debts" element={<DebtManagementScreen onNotify={setNotice} />} />
+          <Route path="/groups" element={<GroupManagementScreen onNotify={setNotice} />} />
           <Route path="/reports" element={<FinancialReportsDashboardScreen onNotify={setNotice} />} />
           <Route path="/ai-assistant" element={<AIAssistantScreen onNotify={setNotice} />} />
           <Route path="/forecast" element={<FinancialForecastScreen onNotify={setNotice} />} />

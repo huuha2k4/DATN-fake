@@ -53,6 +53,8 @@ public class TransactionService {
     private final TransactionMapper transactionMapper;
     private final AccountRepository accountRepository;
     private final CategoryRepository categoryRepository;
+    private final com.finance.finance.modules.budget.repository.BudgetItemRepository budgetItemRepository;
+    private final com.finance.finance.modules.notification.service.NotificationService notificationService;
     
     /**
      * Create a new transaction
@@ -113,6 +115,15 @@ public class TransactionService {
         Transaction saved = transactionRepository.save(transaction);
         
         log.info("Transaction created successfully: {}", saved.getId());
+
+        // Check and trigger Budget Alert if expense
+        if (request.getTransactionType() == TransactionType.EXPENSE && request.getCategoryId() != null) {
+            try {
+                checkAndTriggerBudgetAlert(userId, request.getCategoryId(), category != null ? category.getName() : "Danh mục");
+            } catch (Exception ex) {
+                log.error("Failed to check budget alert for transaction", ex);
+            }
+        }
         
         TransactionResponse.CategoryDto catDto = mapToCategoryDto(category);
         return transactionMapper.toResponse(
@@ -802,5 +813,53 @@ public class TransactionService {
                 .icon(category.getIcon())
                 .color(category.getColor())
                 .build();
+    }
+
+    private void checkAndTriggerBudgetAlert(UUID userId, UUID categoryId, String categoryName) {
+        List<com.finance.finance.modules.budget.entity.BudgetItem> items =
+                budgetItemRepository.findByUserIdAndCategoryId(userId, categoryId);
+
+        if (items == null || items.isEmpty()) return;
+
+        LocalDate today = LocalDate.now();
+        for (com.finance.finance.modules.budget.entity.BudgetItem item : items) {
+            com.finance.finance.modules.budget.entity.Budget budget = item.getBudget();
+            if (budget == null || budget.getDeletedAt() != null) continue;
+            if (today.isBefore(budget.getStartDate()) || today.isAfter(budget.getEndDate())) continue;
+
+            BigDecimal totalSpent = transactionRepository.sumSpentByUserIdAndCategoryAndDateRange(
+                    userId, categoryId, budget.getStartDate(), budget.getEndDate()
+            );
+            if (totalSpent == null) totalSpent = BigDecimal.ZERO;
+
+            if (item.getAmount() != null && item.getAmount().compareTo(BigDecimal.ZERO) > 0) {
+                double pct = totalSpent.divide(item.getAmount(), 4, RoundingMode.HALF_UP).multiply(BigDecimal.valueOf(100)).doubleValue();
+                double threshold = item.getAlertThresholdPercentage() != null ? item.getAlertThresholdPercentage() : 80.0;
+
+                if (pct >= 100.0) {
+                    notificationService.createNotification(
+                            userId,
+                            com.finance.finance.common.enums.NotificationType.BUDGET_EXCEEDED,
+                            com.finance.finance.common.enums.NotificationPriority.HIGH,
+                            "⚠️ Vượt ngân sách: " + categoryName,
+                            String.format("Bạn đã chi %,.0f VNĐ, vượt quá 100%% hạn mức ngân sách '%s' (%,.0f VNĐ). Hãy kiểm tra lại chi tiêu!",
+                                    totalSpent.doubleValue(), categoryName, item.getAmount().doubleValue()),
+                            "/budget",
+                            "Xem ngân sách"
+                    );
+                } else if (pct >= threshold) {
+                    notificationService.createNotification(
+                            userId,
+                            com.finance.finance.common.enums.NotificationType.BUDGET_ALERT,
+                            com.finance.finance.common.enums.NotificationPriority.HIGH,
+                            "Cảnh báo ngân sách: " + categoryName,
+                            String.format("Bạn đã sử dụng %.0f%% ngân sách cho '%s' (%,.0f / %,.0f VNĐ). Hãy chú ý các khoản chi sắp tới!",
+                                    pct, categoryName, totalSpent.doubleValue(), item.getAmount().doubleValue()),
+                            "/budget",
+                            "Xem ngân sách"
+                    );
+                }
+            }
+        }
     }
 }

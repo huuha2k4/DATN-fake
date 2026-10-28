@@ -55,6 +55,7 @@ public class ScheduleService {
     private final CategoryRepository categoryRepository;
     private final MerchantRepository merchantRepository;
     private final TransactionRepository transactionRepository;
+    private final com.finance.finance.modules.notification.service.NotificationService notificationService;
 
     /**
      * 1. Tạo schedule mới
@@ -471,6 +472,22 @@ public class ScheduleService {
         schedule.setNextOccurrenceDate(nextOccurrence);
 
         scheduleRepository.save(schedule);
+
+        // Send recurring execution notification
+        try {
+            notificationService.createNotification(
+                    userId,
+                    com.finance.finance.common.enums.NotificationType.RECURRING_DUE,
+                    com.finance.finance.common.enums.NotificationPriority.NORMAL,
+                    "Lịch tài chính: " + schedule.getName(),
+                    String.format("Giao dịch định kỳ '%s' đã được thực hiện thành công vào ngày %s.",
+                            schedule.getName(), request.getExecuteDate().toString()),
+                    "/schedules",
+                    "Xem lịch tài chính"
+            );
+        } catch (Exception ex) {
+            log.error("Failed to send schedule executed notification", ex);
+        }
 
         return OccurrenceResponse.builder()
                 .occurrenceId(occurrence.getId())

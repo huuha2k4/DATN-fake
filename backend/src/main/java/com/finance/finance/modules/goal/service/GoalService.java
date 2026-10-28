@@ -38,6 +38,7 @@ public class GoalService {
     private final GoalMilestoneRepository milestoneRepository;
     private final TransactionService transactionService;
     private final AccountRepository accountRepository;
+    private final com.finance.finance.modules.notification.service.NotificationService notificationService;
 
     @Transactional
     public GoalResponse createGoal(UUID userId, CreateGoalRequest request) {
@@ -217,9 +218,44 @@ public class GoalService {
         goal.setCurrentAmount(goal.getCurrentAmount().add(request.getAmount()));
         
         // Check if goal is achieved
-        if (goal.getCurrentAmount().compareTo(goal.getTargetAmount()) >= 0) {
+        boolean wasAchieved = goal.getStatus() == GoalStatus.ACHIEVED;
+        if (!wasAchieved && goal.getCurrentAmount().compareTo(goal.getTargetAmount()) >= 0) {
             goal.setStatus(GoalStatus.ACHIEVED);
             goal.setCompletedAt(LocalDateTime.now());
+            
+            try {
+                notificationService.createNotification(
+                        userId,
+                        com.finance.finance.common.enums.NotificationType.GOAL_ACHIEVED,
+                        com.finance.finance.common.enums.NotificationPriority.HIGH,
+                        "🎉 Chúc mừng bạn đã hoàn thành mục tiêu: " + goal.getName(),
+                        String.format("Bạn đã tích lũy thành công %,.0f VNĐ cho mục tiêu '%s'. Chúc mừng thành tích tài chính tuyệt vời này!",
+                                goal.getTargetAmount().doubleValue(), goal.getName()),
+                        "/goals",
+                        "Xem mục tiêu"
+                );
+            } catch (Exception ex) {
+                log.error("Failed to send goal achieved notification", ex);
+            }
+        } else {
+            // Milestone alert (e.g. 50%, 80%)
+            double pct = goal.getPercentageComplete();
+            if (pct >= 50.0 && pct < 55.0) {
+                try {
+                    notificationService.createNotification(
+                            userId,
+                            com.finance.finance.common.enums.NotificationType.GOAL_MILESTONE,
+                            com.finance.finance.common.enums.NotificationPriority.NORMAL,
+                            "Cột mốc mục tiêu: " + goal.getName(),
+                            String.format("Tuyệt vời! Mục tiêu '%s' đã đạt hơn 50%% chặng đường tích lũy (%,.0f / %,.0f VNĐ). Hãy tiếp tục duy trì!",
+                                    goal.getName(), goal.getCurrentAmount().doubleValue(), goal.getTargetAmount().doubleValue()),
+                            "/goals",
+                            "Xem mục tiêu"
+                    );
+                } catch (Exception ex) {
+                    log.error("Failed to send goal milestone notification", ex);
+                }
+            }
         }
         
         // Check and mark milestones as achieved

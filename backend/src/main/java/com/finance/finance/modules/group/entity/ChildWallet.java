@@ -61,12 +61,14 @@ public class ChildWallet {
     private BigDecimal spendLimitWeekly;
 
     @Column(name = "allowed_categories", columnDefinition = "jsonb")
+    @org.hibernate.annotations.JdbcTypeCode(org.hibernate.type.SqlTypes.JSON)
     private String allowedCategories;
 
     @Column(name = "require_approval_above", precision = 19, scale = 4)
     private BigDecimal requireApprovalAbove;
 
     @Column(columnDefinition = "jsonb")
+    @org.hibernate.annotations.JdbcTypeCode(org.hibernate.type.SqlTypes.JSON)
     private String settings;
 
     @CreationTimestamp

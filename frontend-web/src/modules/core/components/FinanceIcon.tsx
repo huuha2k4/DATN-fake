@@ -78,6 +78,22 @@ export function FinanceIcon({ name, size = 18, className }: { name: IconName; si
  * Đồng bộ toàn bộ icon danh mục về hệ thống SVG Line Icon hiện đại, sang trọng:
  * Tự động chuyển đổi emoji (🍔, 🚗, 💊, 👨‍👩‍👧, 📄...) hoặc các tên icon cũ về đúng IconName chuẩn.
  */
+/**
+ * Chuẩn hóa khóa nhận diện danh mục để loại bỏ trùng lặp giữa các bộ seed (ví dụ 'Di chuyển' và 'Đi lại')
+ */
+export function getCategoryCanonicalKey(kind: string = '', name: string = ''): string {
+  const n = name.trim().toLowerCase();
+  if (n === 'di chuyển' || n === 'đi lại') return `${kind}_transport`;
+  if (n.includes('hóa đơn') || n.includes('tiện ích')) return `${kind}_utilities`;
+  if (n.includes('sức khỏe') || n.includes('y tế')) return `${kind}_health`;
+  if (n.includes('gia đình') || n.includes('con cái')) return `${kind}_family`;
+  if (n.includes('đầu tư')) return `${kind}_investment`;
+  if (n.includes('kinh doanh')) return `${kind}_business`;
+  if (n.includes('thưởng') || n.includes('quà tặng')) return `${kind}_bonus`;
+  if (n.includes('ăn uống') || n.includes('ẩm thực')) return `${kind}_food`;
+  return `${kind}_${n}`;
+}
+
 export function resolveCategoryIconName(iconOrEmoji?: string, fallbackKind?: string, categoryName?: string): IconName {
   if (!iconOrEmoji && !categoryName) {
     return fallbackKind === 'INCOME' ? 'income' : 'expense';
@@ -85,91 +101,210 @@ export function resolveCategoryIconName(iconOrEmoji?: string, fallbackKind?: str
 
   const str = `${iconOrEmoji || ''} ${categoryName || ''}`.toLowerCase();
 
-  // 1. Ăn uống / Nhà hàng / Cafe
-  if (str.includes('🍔') || str.includes('🍕') || str.includes('🍜') || str.includes('ăn uống') || str.includes('ẩm thực') || str.includes('nhà hàng') || str.includes('utensils')) {
-    return 'utensils';
+  // 1. Trả nợ / Vay nợ / Thẻ tín dụng (Biểu tượng Minimal Line Icon thẻ thanh toán / tín dụng)
+  if (
+    str.includes('trả nợ') ||
+    str.includes('thanh toán nợ') ||
+    str.includes('trả vay') ||
+    str.includes('tiền nợ') ||
+    str.includes('khoản nợ') ||
+    str.includes('nợ') ||
+    str.includes('thẻ tín dụng') ||
+    str.includes('thẻ ngân hàng') ||
+    str.includes('credit-card') ||
+    str.includes('visa') ||
+    str.includes('mastercard') ||
+    iconOrEmoji === 'credit-card' ||
+    iconOrEmoji === 'borrowing' ||
+    iconOrEmoji === 'hand-coins'
+  ) {
+    return 'credit-card';
   }
-  if (str.includes('☕') || str.includes('cafe') || str.includes('cà phê') || str.includes('đồ uống') || str.includes('coffee')) {
-    return 'coffee';
-  }
-  if (str.includes('burger')) {
-    return 'burger';
-  }
-
-  // 2. Đi lại / Di chuyển / Xe cộ
-  if (str.includes('🚗') || str.includes('di chuyển') || str.includes('đi lại') || str.includes('xăng xe') || str.includes('ô tô') || str.includes('car')) {
-    return 'car';
-  }
-
-  // 3. Sức khỏe / Y tế / Thuốc
-  if (str.includes('💊') || str.includes('sức khỏe') || str.includes('y tế') || str.includes('thuốc') || str.includes('bệnh viện') || str.includes('khám') || str.includes('pill')) {
-    return 'pill';
-  }
-
-  // 4. Mua sắm / Shopping / Tạp hóa / Tiêu dùng
-  if (str.includes('🛍️') || str.includes('🛒') || str.includes('mua sắm') || str.includes('shopping') || str.includes('siêu thị') || str.includes('tạp hóa') || str.includes('shopping-bag')) {
-    return 'shopping-bag';
-  }
-
-  // 5. Hóa đơn / Điện nước / Tiện ích / Chi phí khác
-  if (str.includes('📄') || str.includes('hóa đơn') || str.includes('tiện ích') || str.includes('chi phí khác') || str.includes('điện nước') || str.includes('file-text')) {
-    return 'file-text';
-  }
-  if (str.includes('🧾') || str.includes('receipt') || str.includes('thuế') || str.includes('phí')) {
-    return 'receipt';
-  }
-
-  // 6. Nhà ở / Tiền phòng / Thuê nhà
-  if (str.includes('🏠') || str.includes('nhà ở') || str.includes('tiền nhà') || str.includes('thuê nhà') || str.includes('home')) {
-    return 'home';
-  }
-
-  // 7. Gia đình & Con cái
-  if (str.includes('👨‍👩‍👧') || str.includes('👪') || str.includes('gia đình') || str.includes('con cái') || str.includes('bố mẹ') || str.includes('users')) {
-    return 'users';
-  }
-
-  // 8. Giáo dục / Học tập / Sách vở
-  if (str.includes('📚') || str.includes('học tập') || str.includes('giáo dục') || str.includes('học phí') || str.includes('sách') || str.includes('book')) {
-    return 'book';
-  }
-
-  // 9. Giải trí / Phim ảnh / Du lịch
-  if (str.includes('🎬') || str.includes('phim') || str.includes('giải trí') || str.includes('film')) {
-    return 'film';
-  }
-  if (str.includes('✈️') || str.includes('du lịch') || str.includes('map')) {
-    return 'map';
-  }
-
-  // 10. Trả nợ / Cho vay
-  if (str.includes('trả nợ') || str.includes('borrowing')) {
-    return 'borrowing';
-  }
-  if (str.includes('thu nợ') || str.includes('cho vay') || str.includes('lending')) {
+  if (str.includes('thu nợ') || str.includes('cho vay') || str.includes('đòi nợ') || iconOrEmoji === 'lending') {
     return 'lending';
   }
 
-  // 11. Tiết kiệm / Đầu tư
-  if (str.includes('tiết kiệm') || str.includes('đầu tư') || str.includes('heo đất') || str.includes('piggy-bank')) {
+  // 2. Ăn uống / Nhà hàng / Cafe (Biểu tượng đồ ăn thức uống tối giản)
+  if (
+    str.includes('🍔') ||
+    str.includes('🍕') ||
+    str.includes('🍜') ||
+    str.includes('ăn uống') ||
+    str.includes('ẩm thực') ||
+    str.includes('nhà hàng') ||
+    str.includes('cà phê') ||
+    str.includes('cafe') ||
+    str.includes('coffee') ||
+    str.includes('đồ uống') ||
+    str.includes('burger') ||
+    iconOrEmoji === 'utensils' ||
+    iconOrEmoji === 'coffee' ||
+    iconOrEmoji === 'burger'
+  ) {
+    return 'utensils';
+  }
+
+  // 3. Đi lại / Di chuyển / Xe cộ (Biểu tượng phương tiện xe cộ)
+  if (
+    str.includes('🚗') ||
+    str.includes('di chuyển') ||
+    str.includes('đi lại') ||
+    str.includes('xăng xe') ||
+    str.includes('xăng') ||
+    str.includes('ô tô') ||
+    str.includes('xe máy') ||
+    str.includes('xe cộ') ||
+    str.includes('giao thông') ||
+    iconOrEmoji === 'car' ||
+    /\bcar\b/i.test(iconOrEmoji || '')
+  ) {
+    return 'car';
+  }
+
+  // 4. Sức khỏe / Y tế / Khám bệnh (Biểu tượng nhịp tim y tế)
+  if (
+    str.includes('💊') ||
+    str.includes('sức khỏe') ||
+    str.includes('y tế') ||
+    str.includes('thuốc') ||
+    str.includes('bệnh viện') ||
+    str.includes('khám') ||
+    iconOrEmoji === 'heart' ||
+    iconOrEmoji === 'pill'
+  ) {
+    return 'heart';
+  }
+
+  // 5. Mua sắm / Shopping / Tạp hóa / Tiêu dùng (Biểu tượng túi mua sắm)
+  if (
+    str.includes('🛍️') ||
+    str.includes('🛒') ||
+    str.includes('mua sắm') ||
+    str.includes('shopping') ||
+    str.includes('siêu thị') ||
+    str.includes('tạp hóa') ||
+    iconOrEmoji === 'shopping-bag'
+  ) {
+    return 'shopping-bag';
+  }
+
+  // 6. Giáo dục / Học tập / Sách vở (Biểu tượng cuốn sách)
+  if (
+    str.includes('📚') ||
+    str.includes('học tập') ||
+    str.includes('giáo dục') ||
+    str.includes('học phí') ||
+    str.includes('sách') ||
+    str.includes('khóa học') ||
+    iconOrEmoji === 'book'
+  ) {
+    return 'book';
+  }
+
+  // 7. Hóa đơn / Điện nước / Tiện ích / Chi phí khác (Đồng bộ biểu tượng biên lai receipt)
+  if (
+    str.includes('⚡') ||
+    str.includes('tiền điện') ||
+    str.includes('điện nước') ||
+    str.includes('tiện ích') ||
+    str.includes('📄') ||
+    str.includes('🧾') ||
+    str.includes('hóa đơn') ||
+    str.includes('thuế') ||
+    str.includes('chi phí khác') ||
+    iconOrEmoji === 'receipt' ||
+    iconOrEmoji === 'file-text' ||
+    iconOrEmoji === 'zap'
+  ) {
+    return 'receipt';
+  }
+
+  // 8. Nhà ở / Tiền phòng / Thuê nhà (Biểu tượng ngôi nhà)
+  if (
+    str.includes('🏠') ||
+    str.includes('nhà ở') ||
+    str.includes('tiền nhà') ||
+    str.includes('thuê nhà') ||
+    iconOrEmoji === 'home'
+  ) {
+    return 'home';
+  }
+
+  // 9. Gia đình & Con cái (Biểu tượng nhóm thành viên)
+  if (
+    str.includes('👨‍👩‍👧') ||
+    str.includes('👪') ||
+    str.includes('gia đình') ||
+    str.includes('con cái') ||
+    str.includes('bố mẹ') ||
+    iconOrEmoji === 'users'
+  ) {
+    return 'users';
+  }
+
+  // 10. Giải trí / Phim ảnh (Biểu tượng cuộn phim)
+  if (str.includes('🎬') || str.includes('phim') || str.includes('giải trí') || iconOrEmoji === 'film') {
+    return 'film';
+  }
+
+  // 11. Du lịch / Nghỉ dưỡng (Biểu tượng bản đồ)
+  if (
+    str.includes('✈️') ||
+    str.includes('du lịch') ||
+    str.includes('nghỉ dưỡng') ||
+    iconOrEmoji === 'map'
+  ) {
+    return 'map';
+  }
+
+  // 12. Tiết kiệm / Heo đất
+  if (str.includes('tiết kiệm') || str.includes('heo đất') || iconOrEmoji === 'piggy-bank') {
     return 'piggy-bank';
   }
-  if (str.includes('chứng khoán') || str.includes('cổ phiếu') || str.includes('trend') || str.includes('trending-up')) {
+
+  // 13. Đầu tư / Chứng khoán (Biểu tượng biểu đồ tăng trưởng)
+  if (
+    str.includes('đầu tư') ||
+    str.includes('chứng khoán') ||
+    str.includes('cổ phiếu') ||
+    iconOrEmoji === 'trending-up' ||
+    iconOrEmoji === 'trend'
+  ) {
     return 'trending-up';
   }
 
-  // 12. Quà tặng / Thưởng
-  if (str.includes('🎁') || str.includes('quà') || str.includes('thưởng') || str.includes('gift')) {
+  // 14. Bảo hiểm (Biểu tượng khiên bảo vệ)
+  if (str.includes('bảo hiểm') || iconOrEmoji === 'shield') {
+    return 'shield';
+  }
+
+  // 15. Quà tặng / Thưởng (Biểu tượng hộp quà)
+  if (str.includes('🎁') || str.includes('quà') || str.includes('thưởng') || iconOrEmoji === 'gift') {
     return 'gift';
   }
 
-  // 13. Lương / Thu nhập
-  if (str.includes('lương') || str.includes('thù lao') || str.includes('briefcase')) {
+  // 16. Lương / Thu nhập chính (Biểu tượng cặp công việc)
+  if (str.includes('lương') || str.includes('thù lao') || iconOrEmoji === 'briefcase') {
     return 'briefcase';
   }
 
+  // 17. Kinh doanh (Biểu tượng cửa hàng)
+  if (str.includes('kinh doanh') || iconOrEmoji === 'store') {
+    return 'store';
+  }
+
+  // 18. Thu nhập khác (Biểu tượng cộng tròn)
+  if (str.includes('thu nhập khác') || iconOrEmoji === 'plus-circle' || iconOrEmoji === 'banknote') {
+    return 'plus-circle';
+  }
+
+  // Chưa phân loại
+  if (str.includes('chưa phân loại') || iconOrEmoji === 'help-circle') {
+    return 'help-circle';
+  }
+
   // Nếu icon truyền vào là một IconName hợp lệ
-  const validIconNames = [
+  const validIconNames: IconName[] = [
     'grid', 'arrows', 'wallet', 'chart', 'spark', 'bank', 'settings',
     'search', 'plus', 'receipt', 'bell', 'calendar', 'refresh', 'download',
     'trend', 'income', 'expense', 'coffee', 'bolt', 'more', 'arrow', 'shield', 'clock', 'user', 'logout', 'key', 'lock',
@@ -177,7 +312,7 @@ export function resolveCategoryIconName(iconOrEmoji?: string, fallbackKind?: str
     'sun', 'moon', 'borrowing', 'lending', 'hand-coins', 'menu', 'close', 'burger', 'pill', 'users', 'file-text', 'utensils', 'banknote'
   ];
 
-  if (iconOrEmoji && validIconNames.includes(iconOrEmoji)) {
+  if (iconOrEmoji && validIconNames.includes(iconOrEmoji as IconName)) {
     return iconOrEmoji as IconName;
   }
 

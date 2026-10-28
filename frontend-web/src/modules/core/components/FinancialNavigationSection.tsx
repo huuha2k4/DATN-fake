@@ -10,6 +10,7 @@ const navigation: { label: string; icon: IconName }[] = [
   { label: 'Mục tiêu Tài chính', icon: 'trend' },
   { label: 'Lịch tài chính', icon: 'bell' },
   { label: 'Quản lý Nợ', icon: 'credit-card' },
+  { label: 'Chi tiêu Nhóm', icon: 'users' },
   { label: 'Báo cáo & Thống kê', icon: 'chart' },
   { label: 'Phân tích hành vi chi tiêu', icon: 'trend' },
   { label: 'AI Thông minh', icon: 'spark' },

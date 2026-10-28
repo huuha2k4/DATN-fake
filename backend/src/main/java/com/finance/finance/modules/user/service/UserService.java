@@ -57,6 +57,18 @@ public class UserService {
         User user = findUserByIdOrIdentifier(identifier);
         return userMapper.toResponse(user);
     }
+
+    @Transactional(readOnly = true)
+    public java.util.List<UserResponse> searchUsers(String query) {
+        if (query == null || query.trim().length() < 2) {
+            return java.util.Collections.emptyList();
+        }
+        org.springframework.data.domain.Pageable limit = org.springframework.data.domain.PageRequest.of(0, 10);
+        java.util.List<User> users = userRepository.searchUsersByKeyword(query.trim(), limit);
+        return users.stream()
+                .map(userMapper::toResponse)
+                .collect(java.util.stream.Collectors.toList());
+    }
     
     @Transactional
     public UserResponse updateProfileByIdentifier(String identifier, UpdateProfileRequest request) {

@@ -37,6 +37,9 @@ public class GroupService {
     private final GroupMessageReadRepository groupMessageReadRepository;
     private final GroupActivityRepository groupActivityRepository;
     private final ExpenseSplitRepository expenseSplitRepository;
+    private final com.finance.finance.modules.user.repository.UserRepository userRepository;
+    private final com.finance.finance.modules.group.repository.GroupInvitationRepository invitationRepository;
+    private final com.finance.finance.modules.notification.service.NotificationService notificationService;
 
     // ==================== Groups Management ====================
 
@@ -167,31 +170,168 @@ public class GroupService {
     // ==================== Members Management ====================
 
     @Transactional
-    public MemberResponse addMember(UUID groupId, AddMemberRequest request, UUID currentUserId) {
+    public com.finance.finance.modules.group.dto.response.GroupInvitationResponse inviteMember(UUID groupId, AddMemberRequest request, UUID currentUserId) {
         validateAdminOrOwner(groupId, currentUserId);
 
-        // Check if member already exists
+        Group group = findGroupOrThrow(groupId);
+
+        // Check if user is already a member
         if (groupMemberRepository.existsByGroupIdAndUserId(groupId, request.getUserId())) {
-            throw new IllegalArgumentException("User is already a member of this group");
+            throw new IllegalArgumentException("Người dùng đã là thành viên của nhóm này");
+        }
+
+        // Check if there is already a pending invitation
+        if (invitationRepository.existsByGroupIdAndInviteeIdAndStatus(
+                groupId, request.getUserId(), com.finance.finance.modules.group.entity.GroupInvitation.InvitationStatus.PENDING)) {
+            throw new IllegalArgumentException("Đã gửi lời mời tham gia nhóm cho người này, đang chờ phản hồi");
         }
 
         MemberRole role = MemberRole.valueOf(request.getRole());
 
-        GroupMember member = GroupMember.builder()
+        com.finance.finance.modules.group.entity.GroupInvitation invitation = com.finance.finance.modules.group.entity.GroupInvitation.builder()
                 .groupId(groupId)
-                .userId(request.getUserId())
+                .inviterId(currentUserId)
+                .inviteeId(request.getUserId())
                 .role(role)
-                .contributionRatio(request.getContributionRatio())
+                .status(com.finance.finance.modules.group.entity.GroupInvitation.InvitationStatus.PENDING)
                 .build();
 
-        member = groupMemberRepository.save(member);
+        invitation = invitationRepository.save(invitation);
+
+        // Get inviter name
+        String inviterName = userRepository.findById(currentUserId)
+                .map(u -> u.getFullName() != null ? u.getFullName() : u.getUsername())
+                .orElse("Một thành viên");
+
+        // Send notification to invitee
+        try {
+            notificationService.createNotification(
+                    request.getUserId(),
+                    com.finance.finance.common.enums.NotificationType.GROUP_INVITATION,
+                    com.finance.finance.common.enums.NotificationPriority.HIGH,
+                    "Lời mời tham gia nhóm " + group.getName(),
+                    inviterName + " đã mời bạn tham gia nhóm \"" + group.getName() + "\". Hãy vào mục Nhóm để xác nhận hoặc từ chối.",
+                    "/groups",
+                    "Xem lời mời"
+            );
+        } catch (Exception e) {
+            log.warn("Failed to create invitation notification: {}", e.getMessage());
+        }
 
         // Log activity
-        logActivity(groupId, currentUserId, ActivityType.MEMBER_JOINED, 
-                   "Added member to group", Map.of("userId", request.getUserId().toString()));
+        logActivity(groupId, currentUserId, ActivityType.MEMBER_JOINED,
+                "Sent invitation to user", Map.of("userId", request.getUserId().toString()));
 
-        return buildMemberResponse(member);
+        return com.finance.finance.modules.group.dto.response.GroupInvitationResponse.builder()
+                .id(invitation.getId())
+                .groupId(group.getId())
+                .groupName(group.getName())
+                .groupType(group.getGroupType().name())
+                .inviterId(currentUserId)
+                .inviterName(inviterName)
+                .inviteeId(request.getUserId())
+                .role(role.name())
+                .status(invitation.getStatus().name())
+                .createdAt(invitation.getCreatedAt())
+                .build();
     }
+
+    @Transactional
+    public MemberResponse acceptInvitation(UUID invitationId, UUID currentUserId) {
+        com.finance.finance.modules.group.entity.GroupInvitation invitation = invitationRepository.findById(invitationId)
+                .orElseThrow(() -> new NoSuchElementException("Không tìm thấy lời mời"));
+
+        if (!invitation.getInviteeId().equals(currentUserId)) {
+            throw new org.springframework.security.access.AccessDeniedException("Bạn không có quyền xử lý lời mời này");
+        }
+
+        if (invitation.getStatus() != com.finance.finance.modules.group.entity.GroupInvitation.InvitationStatus.PENDING) {
+            throw new IllegalStateException("Lời mời này không còn ở trạng thái chờ phản hồi");
+        }
+
+        invitation.setStatus(com.finance.finance.modules.group.entity.GroupInvitation.InvitationStatus.ACCEPTED);
+        invitationRepository.save(invitation);
+
+        // Add member to group
+        if (!groupMemberRepository.existsByGroupIdAndUserId(invitation.getGroupId(), currentUserId)) {
+            GroupMember member = GroupMember.builder()
+                    .groupId(invitation.getGroupId())
+                    .userId(currentUserId)
+                    .role(invitation.getRole())
+                    .build();
+            groupMemberRepository.save(member);
+
+            // Log activity
+            logActivity(invitation.getGroupId(), currentUserId, ActivityType.MEMBER_JOINED,
+                    "Accepted group invitation", Map.of("userId", currentUserId.toString()));
+
+            // Notify inviter
+            Group group = findGroupOrThrow(invitation.getGroupId());
+            String memberName = userRepository.findById(currentUserId)
+                    .map(u -> u.getFullName() != null ? u.getFullName() : u.getUsername())
+                    .orElse("Thành viên");
+            try {
+                notificationService.createNotification(
+                        invitation.getInviterId(),
+                        com.finance.finance.common.enums.NotificationType.SYSTEM,
+                        com.finance.finance.common.enums.NotificationPriority.NORMAL,
+                        "Lời mời được chấp nhận",
+                        memberName + " đã đồng ý tham gia nhóm \"" + group.getName() + "\"",
+                        "/groups",
+                        "Xem nhóm"
+                );
+            } catch (Exception e) {
+                log.warn("Failed to notify inviter: {}", e.getMessage());
+            }
+
+            return buildMemberResponse(member);
+        }
+
+        return getMember(invitation.getGroupId(), currentUserId, currentUserId);
+    }
+
+    @Transactional
+    public void rejectInvitation(UUID invitationId, UUID currentUserId) {
+        com.finance.finance.modules.group.entity.GroupInvitation invitation = invitationRepository.findById(invitationId)
+                .orElseThrow(() -> new NoSuchElementException("Không tìm thấy lời mời"));
+
+        if (!invitation.getInviteeId().equals(currentUserId)) {
+            throw new org.springframework.security.access.AccessDeniedException("Bạn không có quyền xử lý lời mời này");
+        }
+
+        if (invitation.getStatus() != com.finance.finance.modules.group.entity.GroupInvitation.InvitationStatus.PENDING) {
+            throw new IllegalStateException("Lời mời này không còn ở trạng thái chờ phản hồi");
+        }
+
+        invitation.setStatus(com.finance.finance.modules.group.entity.GroupInvitation.InvitationStatus.REJECTED);
+        invitationRepository.save(invitation);
+    }
+
+    @Transactional(readOnly = true)
+    public List<com.finance.finance.modules.group.dto.response.GroupInvitationResponse> getPendingInvitations(UUID currentUserId) {
+        List<com.finance.finance.modules.group.entity.GroupInvitation> list = invitationRepository.findByInviteeIdAndStatus(
+                currentUserId, com.finance.finance.modules.group.entity.GroupInvitation.InvitationStatus.PENDING);
+
+        return list.stream().map(inv -> {
+            Group group = groupRepository.findById(inv.getGroupId()).orElse(null);
+            String inviterName = userRepository.findById(inv.getInviterId())
+                    .map(u -> u.getFullName() != null ? u.getFullName() : u.getUsername())
+                    .orElse("Một thành viên");
+            return com.finance.finance.modules.group.dto.response.GroupInvitationResponse.builder()
+                    .id(inv.getId())
+                    .groupId(inv.getGroupId())
+                    .groupName(group != null ? group.getName() : "Nhóm")
+                    .groupType(group != null ? group.getGroupType().name() : "OTHER")
+                    .inviterId(inv.getInviterId())
+                    .inviterName(inviterName)
+                    .inviteeId(inv.getInviteeId())
+                    .role(inv.getRole().name())
+                    .status(inv.getStatus().name())
+                    .createdAt(inv.getCreatedAt())
+                    .build();
+        }).collect(Collectors.toList());
+    }
+
 
     @Transactional(readOnly = true)
     public List<MemberResponse> getMembers(UUID groupId, UUID currentUserId) {
@@ -424,11 +564,18 @@ public class GroupService {
     private MemberResponse buildMemberResponse(GroupMember member) {
         BigDecimal balance = calculateMemberBalance(member.getGroupId(), member.getUserId());
         
-        // TODO: Fetch user info from UserService/Repository
-        MemberResponse.UserSummary userSummary = MemberResponse.UserSummary.builder()
-                .id(member.getUserId())
-                .fullName("User " + member.getUserId()) // Placeholder
-                .build();
+        MemberResponse.UserSummary userSummary = userRepository.findById(member.getUserId())
+                .map(u -> MemberResponse.UserSummary.builder()
+                        .id(u.getId())
+                        .fullName(u.getFullName() != null ? u.getFullName() : (u.getUsername() != null ? u.getUsername() : u.getEmail()))
+                        .displayName(u.getUsername())
+                        .email(u.getEmail())
+                        .avatarKey(u.getAvatarUrl())
+                        .build())
+                .orElseGet(() -> MemberResponse.UserSummary.builder()
+                        .id(member.getUserId())
+                        .fullName("Thành viên")
+                        .build());
 
         return MemberResponse.builder()
                 .groupId(member.getGroupId())

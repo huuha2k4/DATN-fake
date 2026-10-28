@@ -101,12 +101,35 @@ public class GroupController {
     }
 
     @PostMapping("/{groupId}/members")
-    public ResponseEntity<MemberResponse> addMember(
+    public ResponseEntity<com.finance.finance.modules.group.dto.response.GroupInvitationResponse> addMember(
             @PathVariable UUID groupId,
             @Valid @RequestBody AddMemberRequest request,
             @AuthenticationPrincipal User currentUser) {
-        MemberResponse response = groupService.addMember(groupId, request, currentUser.getId());
+        com.finance.finance.modules.group.dto.response.GroupInvitationResponse response = groupService.inviteMember(groupId, request, currentUser.getId());
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
+    }
+
+    @GetMapping("/invitations/pending")
+    public ResponseEntity<List<com.finance.finance.modules.group.dto.response.GroupInvitationResponse>> getPendingInvitations(
+            @AuthenticationPrincipal User currentUser) {
+        List<com.finance.finance.modules.group.dto.response.GroupInvitationResponse> response = groupService.getPendingInvitations(currentUser.getId());
+        return ResponseEntity.ok(response);
+    }
+
+    @PostMapping("/invitations/{invitationId}/accept")
+    public ResponseEntity<MemberResponse> acceptInvitation(
+            @PathVariable UUID invitationId,
+            @AuthenticationPrincipal User currentUser) {
+        MemberResponse response = groupService.acceptInvitation(invitationId, currentUser.getId());
+        return ResponseEntity.ok(response);
+    }
+
+    @PostMapping("/invitations/{invitationId}/reject")
+    public ResponseEntity<Void> rejectInvitation(
+            @PathVariable UUID invitationId,
+            @AuthenticationPrincipal User currentUser) {
+        groupService.rejectInvitation(invitationId, currentUser.getId());
+        return ResponseEntity.noContent().build();
     }
 
     @GetMapping("/{groupId}/members")

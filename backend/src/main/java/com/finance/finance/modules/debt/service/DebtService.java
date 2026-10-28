@@ -41,6 +41,7 @@ public class DebtService {
     private final UserRepository userRepository;
     private final TransactionService transactionService;
     private final AccountRepository accountRepository;
+    private final com.finance.finance.modules.notification.service.NotificationService notificationService;
 
     // ==================== CREATE DEBT ====================
 
@@ -300,6 +301,26 @@ public class DebtService {
         debtRepository.save(debt);
 
         log.info("Payment recorded: {}", payment.getId());
+
+        // Send debt payment notification
+        try {
+            if (debt.getStatus() == DebtStatus.PAID_OFF) {
+                String counterparty = debt.getDebtType() == DebtType.BORROWING ? debt.getCreditorName() : debt.getDebtorName();
+                notificationService.createNotification(
+                        userId,
+                        com.finance.finance.common.enums.NotificationType.DEBT_REMINDER,
+                        com.finance.finance.common.enums.NotificationPriority.NORMAL,
+                        "🎉 Khoản nợ đã được tất toán thành công!",
+                        String.format("Khoản %s với %s đã hoàn tất 100%% dư nợ. Chúc mừng bạn đã thanh toán xong!",
+                                debt.getDebtType() == DebtType.BORROWING ? "vay" : "cho vay",
+                                counterparty != null ? counterparty : ""),
+                        "/debts",
+                        "Xem công nợ"
+                );
+            }
+        } catch (Exception ex) {
+            log.error("Failed to send debt payment notification", ex);
+        }
 
         // Build response
         return PaymentResponse.builder()

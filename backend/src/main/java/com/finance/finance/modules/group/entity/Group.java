@@ -49,6 +49,7 @@ public class Group {
     private GroupStatus status = GroupStatus.ACTIVE;
 
     @Column(columnDefinition = "jsonb")
+    @org.hibernate.annotations.JdbcTypeCode(org.hibernate.type.SqlTypes.JSON)
     private String settings;
 
     @CreationTimestamp

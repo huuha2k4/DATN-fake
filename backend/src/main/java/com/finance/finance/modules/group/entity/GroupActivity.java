@@ -36,6 +36,7 @@ public class GroupActivity {
     private String description;
 
     @Column(columnDefinition = "jsonb")
+    @org.hibernate.annotations.JdbcTypeCode(org.hibernate.type.SqlTypes.JSON)
     private String metadata;
 
     @CreationTimestamp
