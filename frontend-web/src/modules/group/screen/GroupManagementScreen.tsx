@@ -383,10 +383,24 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
       // Mark latest unread messages as read
       if (selectedGroup && messages.length > 0 && currentUser?.id) {
         const unreadIds = messages
-          .filter((m) => m.senderId !== currentUser.id && (!m.readByUserIds || !m.readByUserIds.includes(currentUser.id)))
+          .filter((m) => {
+            const readList = m.readByUserIds || [];
+            return !readList.some((uid) => String(uid).toLowerCase() === String(currentUser.id).toLowerCase());
+          })
           .map((m) => m.id);
         if (unreadIds.length > 0) {
-          groupApi.markMessagesAsRead(selectedGroup.id, unreadIds).catch(() => {});
+          groupApi.markMessagesAsRead(selectedGroup.id, unreadIds).then(() => {
+            // Optimistically update readByUserIds in state so seen status appears immediately
+            setMessages((prev) =>
+              prev.map((m) => {
+                if (unreadIds.includes(m.id)) {
+                  const currentReads = m.readByUserIds || [];
+                  return { ...m, readByUserIds: [...currentReads, currentUser.id] };
+                }
+                return m;
+              })
+            );
+          }).catch(() => {});
         }
       }
     }
@@ -1321,11 +1335,13 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
                     const lastSeenMap: Record<string, string> = {};
                     if (currentUser?.id) {
                       members.forEach((m) => {
-                        if (m.userId === currentUser.id) return;
+                        const mId = String(m.userId).toLowerCase();
+                        if (mId === String(currentUser.id).toLowerCase()) return;
                         // Find latest message read by this member
                         for (let i = messages.length - 1; i >= 0; i--) {
                           const msg = messages[i];
-                          if (msg.readByUserIds && msg.readByUserIds.includes(m.userId)) {
+                          const readList = (msg.readByUserIds || []).map((id) => String(id).toLowerCase());
+                          if (readList.includes(mId)) {
                             lastSeenMap[m.userId] = msg.id;
                             break;
                           }
@@ -1534,29 +1550,34 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
                                       </span>
                                     )}
 
-                                    {/* Seen status / Read receipts (Messenger style mini avatars) */}
+                                    {/* Seen status / Read receipts (Messenger style mini avatars only, no text) */}
                                     {seenByMembers.length > 0 && (
-                                      <div className={`flex items-center gap-1 mt-1 ${isMe ? 'justify-end' : 'justify-start'} px-1`}>
-                                        <span className="text-[9px] text-gray-400">Đã xem:</span>
-                                        <div className="flex -space-x-1.5 items-center">
-                                          {seenByMembers.map((sm) => {
-                                            const smName = sm.user?.fullName || sm.user?.email || 'Thành viên';
-                                            const smAvatar = sm.user?.avatarUrl ? userApi.getAvatarUrl(sm.user.avatarUrl) : null;
-                                            return (
-                                              <div
-                                                key={sm.userId}
-                                                className="size-4 rounded-full border border-white dark:border-slate-850 overflow-hidden bg-emerald-200 text-[#07543f] text-[8px] font-bold flex items-center justify-center shadow-xs"
-                                                title={`${smName} đã xem`}
-                                              >
-                                                {smAvatar ? (
-                                                  <img src={smAvatar} alt={smName} className="size-full object-cover" />
-                                                ) : (
-                                                  smName.charAt(0).toUpperCase()
-                                                )}
-                                              </div>
-                                            );
-                                          })}
-                                        </div>
+                                      <div className={`flex items-center -space-x-1.5 mt-1 ${isMe ? 'self-end' : 'self-start'} px-1`}>
+                                        {seenByMembers.map((sm) => {
+                                          const smName = sm.user?.fullName || sm.nickname || sm.user?.email || 'Thành viên';
+                                          const rawUrl = sm.userId === currentUser?.id ? currentUser?.avatarUrl : (sm.user?.avatarUrl || sm.user?.avatarKey);
+                                          const smAvatar = rawUrl ? userApi.getAvatarUrl(rawUrl) : null;
+                                          return (
+                                            <div
+                                              key={sm.userId}
+                                              className="size-4 rounded-full border-2 border-white dark:border-slate-850 overflow-hidden bg-emerald-100 dark:bg-slate-700 text-[#07543f] dark:text-emerald-300 text-[8px] font-bold flex items-center justify-center shadow-xs"
+                                              title={`${smName} đã xem`}
+                                            >
+                                              {smAvatar ? (
+                                                <img
+                                                  src={smAvatar}
+                                                  alt={smName}
+                                                  className="size-full object-cover"
+                                                  onError={(e) => {
+                                                    (e.target as HTMLElement).style.display = 'none';
+                                                  }}
+                                                />
+                                              ) : (
+                                                smName.charAt(0).toUpperCase()
+                                              )}
+                                            </div>
+                                          );
+                                        })}
                                       </div>
                                     )}
                                   </div>
@@ -1637,11 +1658,11 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
                       {/* Chat input form */}
                       <form
                         onSubmit={handleSendMessage}
-                        className="relative p-3 border-t border-[#edf3ee] dark:border-slate-800 bg-white dark:bg-slate-900 rounded-b-2xl flex items-center gap-2"
+                        className="relative p-2 sm:p-3 border-t border-[#edf3ee] dark:border-slate-800 bg-white dark:bg-slate-900 rounded-b-2xl flex items-center gap-1.5 sm:gap-2"
                       >
                         {/* Emoji Picker Popup */}
                         {showEmojiPicker && (
-                          <div className="absolute bottom-14 left-3 z-30 p-2.5 rounded-2xl bg-white dark:bg-slate-850 border border-gray-200 dark:border-slate-700 shadow-xl max-w-[280px]">
+                          <div className="absolute bottom-14 left-2 sm:left-3 z-30 p-2.5 rounded-2xl bg-white dark:bg-slate-850 border border-gray-200 dark:border-slate-700 shadow-xl max-w-[280px]">
                             <div className="text-[10px] font-bold text-gray-500 mb-1.5 px-1">Biểu cảm nhanh</div>
                             <div className="grid grid-cols-6 gap-1.5 text-lg">
                               {['👍', '❤️', '😂', '😮', '😢', '😡', '👏', '🎉', '🔥', '✨', '💸', '💰', '🍔', '☕', '👶', '🙏', '💯', '👌'].map((emoji) => (
@@ -1661,39 +1682,42 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
                           </div>
                         )}
 
-                        {/* Attach Image Button */}
-                        <button
-                          type="button"
-                          onClick={() => imageInputRef.current?.click()}
-                          title="Gửi hình ảnh"
-                          className="size-10 rounded-xl border border-gray-200 dark:border-slate-700 hover:border-emerald-300 hover:bg-emerald-50 dark:hover:bg-slate-800 text-gray-500 hover:text-[#07543f] dark:text-slate-400 grid place-items-center transition shrink-0"
-                        >
-                          <FinanceIcon name="image" size={17} />
-                        </button>
+                        {/* Action buttons (Compact on mobile) */}
+                        <div className="flex items-center gap-1 shrink-0">
+                          {/* Attach Image Button */}
+                          <button
+                            type="button"
+                            onClick={() => imageInputRef.current?.click()}
+                            title="Gửi hình ảnh"
+                            className="size-8 sm:size-10 rounded-lg sm:rounded-xl border border-gray-200 dark:border-slate-700 hover:border-emerald-300 hover:bg-emerald-50 dark:hover:bg-slate-800 text-gray-500 hover:text-[#07543f] dark:text-slate-400 grid place-items-center transition shrink-0"
+                          >
+                            <FinanceIcon name="image" size={15} />
+                          </button>
 
-                        {/* Attach Document / File Button */}
-                        <button
-                          type="button"
-                          onClick={() => fileInputRef.current?.click()}
-                          title="Đính kèm tệp"
-                          className="size-10 rounded-xl border border-gray-200 dark:border-slate-700 hover:border-emerald-300 hover:bg-emerald-50 dark:hover:bg-slate-800 text-gray-500 hover:text-[#07543f] dark:text-slate-400 grid place-items-center transition shrink-0"
-                        >
-                          <FinanceIcon name="paperclip" size={17} />
-                        </button>
+                          {/* Attach Document / File Button (Hidden on very small mobile to give space to input) */}
+                          <button
+                            type="button"
+                            onClick={() => fileInputRef.current?.click()}
+                            title="Đính kèm tệp"
+                            className="hidden sm:grid size-10 rounded-xl border border-gray-200 dark:border-slate-700 hover:border-emerald-300 hover:bg-emerald-50 dark:hover:bg-slate-800 text-gray-500 hover:text-[#07543f] dark:text-slate-400 place-items-center transition shrink-0"
+                          >
+                            <FinanceIcon name="paperclip" size={17} />
+                          </button>
 
-                        {/* Emoji Button (Messenger Style) */}
-                        <button
-                          type="button"
-                          onClick={() => setShowEmojiPicker((prev) => !prev)}
-                          title="Chèn biểu tượng cảm xúc"
-                          className={`size-10 rounded-xl border transition grid place-items-center shrink-0 text-base ${
-                            showEmojiPicker
-                              ? 'border-emerald-500 bg-emerald-50 text-[#07543f]'
-                              : 'border-gray-200 dark:border-slate-700 hover:border-emerald-300 hover:bg-emerald-50 dark:hover:bg-slate-800 text-gray-500 hover:text-[#07543f]'
-                          }`}
-                        >
-                          😊
-                        </button>
+                          {/* Emoji Button */}
+                          <button
+                            type="button"
+                            onClick={() => setShowEmojiPicker((prev) => !prev)}
+                            title="Chèn biểu tượng cảm xúc"
+                            className={`size-8 sm:size-10 rounded-lg sm:rounded-xl border transition grid place-items-center shrink-0 text-sm sm:text-base ${
+                              showEmojiPicker
+                                ? 'border-emerald-500 bg-emerald-50 text-[#07543f]'
+                                : 'border-gray-200 dark:border-slate-700 hover:border-emerald-300 hover:bg-emerald-50 dark:hover:bg-slate-800 text-gray-500 hover:text-[#07543f]'
+                            }`}
+                          >
+                            😊
+                          </button>
+                        </div>
 
                         <textarea
                           rows={1}
@@ -1723,16 +1747,16 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
                               }
                             }
                           }}
-                          placeholder={selectedAttachment ? 'Nhập lời nhắn cho tệp đính kèm...' : 'Nhập tin nhắn cho cả nhóm... (Shift + Enter để xuống dòng)'}
-                          className="flex-1 min-h-[40px] max-h-[120px] py-2 px-3.5 rounded-xl border border-gray-200 dark:border-slate-700 bg-[#f7faf8] dark:bg-slate-800 text-xs text-[#14261e] dark:text-slate-100 placeholder:text-gray-400 focus:outline-none focus:border-[#07543f] resize-none leading-relaxed transition-all"
+                          placeholder={selectedAttachment ? 'Lời nhắn kèm theo...' : 'Nhập tin nhắn...'}
+                          className="flex-1 min-w-0 min-h-[36px] sm:min-h-[40px] max-h-[120px] py-2 px-2.5 sm:px-3.5 rounded-xl border border-gray-200 dark:border-slate-700 bg-[#f7faf8] dark:bg-slate-800 text-xs text-[#14261e] dark:text-slate-100 placeholder:text-gray-400 focus:outline-none focus:border-[#07543f] resize-none leading-relaxed transition-all"
                         />
                         <button
                           type="submit"
                           disabled={isSendingMessage || (!newMessageText.trim() && !selectedAttachment)}
-                          className="h-10 px-4 rounded-xl bg-[#07543f] hover:bg-[#064232] disabled:opacity-50 text-xs font-bold text-white transition flex items-center gap-1.5 shadow-2xs shrink-0"
+                          className="h-9 sm:h-10 px-3 sm:px-4 rounded-xl bg-[#07543f] hover:bg-[#064232] disabled:opacity-50 text-xs font-bold text-white transition flex items-center justify-center gap-1 shadow-2xs shrink-0"
                         >
                           <FinanceIcon name="arrow" size={14} />
-                          <span>{isUploadingAttachment ? 'Đang tải...' : 'Gửi'}</span>
+                          <span className="hidden sm:inline">{isUploadingAttachment ? 'Đang tải...' : 'Gửi'}</span>
                         </button>
                       </form>
                     </div>
