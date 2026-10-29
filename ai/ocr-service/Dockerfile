@@ -7,27 +7,20 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libgomp1 \
     && rm -rf /var/lib/apt/lists/*
 
-WORKDIR /srv
+WORKDIR /app
 
 # Cài dependencies trước (tận dụng layer cache Docker)
 COPY requirements.txt .
-RUN pip install --no-cache-dir \
-    paddlepaddle==2.6.2 \
-    paddleocr==2.9.1 \
-    opencv-python==4.10.0.84 \
-    numpy==1.26.4 \
-    fastapi==0.115.0 \
-    "uvicorn[standard]==0.30.6" \
-    python-multipart==0.0.12 \
-    pydantic==2.9.2 \
-    rapidfuzz==3.10.0
+RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy source code
+# Copy source code và dữ liệu classify
 COPY app ./app
+COPY classify_data ./classify_data
 
-# Tải model PaddleOCR vào image (tránh tải lại mỗi lần start container)
-RUN python -c "from paddleocr import PaddleOCR; PaddleOCR(lang='vi', show_log=False)"
+# Model PaddleOCR sẽ được tải lần đầu khi container start
+# và được cache vào volume ocr_models (/root/.paddleocr)
+# để tránh tải lại mỗi lần restart container
 
-EXPOSE 8001
+EXPOSE 8000
 
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8001"]
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]

@@ -50,7 +50,8 @@ services:
     expose:
       - "8000"
     volumes:
-      - ocr_models:/app/models
+      # Cache PaddleOCR models (~/.paddleocr) để tránh download lại mỗi lần restart
+      - ocr_models:/root/.paddleocr
     networks:
       - finance_network
     restart: unless-stopped
