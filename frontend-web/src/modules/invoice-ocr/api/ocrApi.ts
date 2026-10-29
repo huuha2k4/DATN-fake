@@ -18,13 +18,14 @@ export interface OcrReceiptResult {
 }
 
 export interface OcrReceiptListResponse {
+  /** Normalized receipts array (always present after getReceipts()) */
   receipts: OcrReceiptResult[];
-  pagination: {
-    page: number;
-    pageSize: number;
-    totalItems: number;
-    totalPages: number;
-  };
+  /** Spring Page raw content field */
+  content?: OcrReceiptResult[];
+  totalElements?: number;
+  totalPages?: number;
+  size?: number;
+  number?: number;
 }
 
 export interface CreateTransactionFromOcrPayload {
@@ -38,7 +39,7 @@ export interface CreateTransactionFromOcrPayload {
 export const ocrApi = {
   scanReceipt: async (file: File): Promise<OcrReceiptResult> => {
     const formData = new FormData();
-    formData.append('file', file);
+    formData.append('image', file);
     const res = await api.post<OcrReceiptResult>('/ocr/receipts', formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
     });
@@ -59,7 +60,10 @@ export const ocrApi = {
     const res = await api.get<OcrReceiptListResponse>('/ocr/receipts', {
       params: { page, pageSize },
     });
-    return res.data;
+    const raw = res.data;
+    // Normalize: Spring Page uses 'content'; provide a unified 'receipts' alias
+    const items: OcrReceiptResult[] = raw.content ?? raw.receipts ?? [];
+    return { ...raw, receipts: items, content: items };
   },
 
   deleteReceipt: async (id: string): Promise<void> => {
