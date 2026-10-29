@@ -42,6 +42,19 @@ services:
       - finance_network
     restart: unless-stopped
 
+  # OCR AI Service
+  ocr-service:
+    build:
+      context: ./ai/ocr-service
+    container_name: ocr-service
+    expose:
+      - "8000"
+    volumes:
+      - ocr_models:/app/models
+    networks:
+      - finance_network
+    restart: unless-stopped
+
   # Spring Boot Backend
   backend:
     build:
@@ -60,6 +73,7 @@ services:
       SUPER_ADMIN_USER: ${SUPER_ADMIN_USER}
       SUPER_ADMIN_PASSWORD: ${SUPER_ADMIN_PASSWORD}
       TZ: Asia/Ho_Chi_Minh
+      OCR_SERVICE_URL: http://ocr-service:8000
     # Port chỉ dùng internal, không expose ra ngoài
     expose:
       - "8080"
@@ -73,6 +87,8 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+      ocr-service:
+        condition: service_started
     networks:
       - finance_network
     restart: unless-stopped
@@ -124,6 +140,7 @@ volumes:
   maven_cache:
   frontend_node_modules:
   upload_data:
+  ocr_models:
 
 networks:
   finance_network:

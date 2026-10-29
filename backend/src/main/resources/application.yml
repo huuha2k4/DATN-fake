@@ -11,8 +11,8 @@ spring:
   servlet:
     multipart:
       enabled: true
-      max-file-size: 5MB
-      max-request-size: 5MB
+      max-file-size: 15MB
+      max-request-size: 15MB
   
   datasource:
     url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:finance_db}
@@ -135,3 +135,6 @@ app:
   admin:
     email: ${SUPER_ADMIN_EMAIL:admin@finance.com}
     password: ${SUPER_ADMIN_PASSWORD:Admin@123456}
+
+  ai:
+    ocr-service-url: ${OCR_SERVICE_URL:http://ocr-service:8000}
