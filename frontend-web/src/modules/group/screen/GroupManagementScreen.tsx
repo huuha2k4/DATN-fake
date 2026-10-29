@@ -1682,41 +1682,18 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
                                                     return (
                                                       <div
                                                         key={attIdx}
-                                                        className={`block overflow-hidden ${roundedClasses} border border-black/10 max-w-[260px] group/img relative shadow-xs`}
+                                                        className={`block overflow-hidden ${roundedClasses} border border-black/10 max-w-[260px] shadow-xs cursor-pointer hover:opacity-95 transition`}
+                                                        onClick={(e) => {
+                                                          e.stopPropagation();
+                                                          setLightboxImageUrl(fileUrl);
+                                                        }}
+                                                        title="Bấm để phóng to ảnh"
                                                       >
                                                         <img
                                                           src={fileUrl}
                                                           alt={att.fileName || 'Attached Image'}
-                                                          className="w-full max-h-64 object-cover cursor-zoom-in"
-                                                          onClick={(e) => {
-                                                            e.stopPropagation();
-                                                            setLightboxImageUrl(fileUrl);
-                                                          }}
+                                                          className="w-full max-h-64 object-cover"
                                                         />
-                                                        {/* Action overlay on image: Zoom and Download */}
-                                                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover/img:opacity-100 transition flex items-center justify-center gap-2 p-2">
-                                                          <button
-                                                            type="button"
-                                                            onClick={(e) => {
-                                                              e.stopPropagation();
-                                                              setLightboxImageUrl(fileUrl);
-                                                            }}
-                                                            className="px-2.5 py-1 rounded-lg bg-black/60 hover:bg-black/80 text-white text-[11px] font-semibold flex items-center gap-1 transition shadow-sm"
-                                                            title="Phóng to ảnh"
-                                                          >
-                                                            <FinanceIcon name="search" size={12} />
-                                                            <span>Xem</span>
-                                                          </button>
-                                                          <button
-                                                            type="button"
-                                                            onClick={(e) => handleDownloadFile(e, fileUrl, att.fileName || 'image.png')}
-                                                            className="px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-semibold flex items-center gap-1 transition shadow-sm"
-                                                            title="Tải ảnh về máy"
-                                                          >
-                                                            <FinanceIcon name="arrow" size={12} />
-                                                            <span>Tải về</span>
-                                                          </button>
-                                                        </div>
                                                       </div>
                                                     );
                                                   }
@@ -1774,9 +1751,9 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
                                                   setActiveReactionMessageId(null);
                                                 }}
                                                 className={`size-7 rounded-full grid place-items-center transition text-gray-400 hover:text-gray-700 dark:hover:text-slate-200 hover:bg-gray-200/70 dark:hover:bg-slate-700/60 ${
-                                                  activeMenuMessageId === msg.id
+                                                  activeMenuMessageId === msg.id || selectedMessageTimeId === msg.id
                                                     ? 'opacity-100 bg-gray-200 dark:bg-slate-700 text-gray-700'
-                                                    : 'opacity-0 group-hover/msg:opacity-100'
+                                                    : 'opacity-0 sm:group-hover/msg:opacity-100 max-sm:opacity-40 max-sm:hover:opacity-100'
                                                 }`}
                                                 title="Tùy chọn tin nhắn"
                                               >
@@ -1842,9 +1819,9 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
                                                   setActiveMenuMessageId(null);
                                                 }}
                                                 className={`size-7 rounded-full grid place-items-center transition text-gray-400 hover:text-gray-700 dark:hover:text-slate-200 hover:bg-gray-200/70 dark:hover:bg-slate-700/60 ${
-                                                  activeReactionMessageId === msg.id
+                                                  activeReactionMessageId === msg.id || selectedMessageTimeId === msg.id
                                                     ? 'opacity-100 bg-gray-200 dark:bg-slate-700 text-gray-700'
-                                                    : 'opacity-0 group-hover/msg:opacity-100'
+                                                    : 'opacity-0 sm:group-hover/msg:opacity-100 max-sm:opacity-40 max-sm:hover:opacity-100'
                                                 }`}
                                                 title="Bày tỏ cảm xúc"
                                               >
@@ -3261,23 +3238,39 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
       {/* Modal 8: Lightbox Xem ảnh phóng to */}
       {lightboxImageUrl && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 p-4 backdrop-blur-md transition-all cursor-zoom-out"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 p-4 backdrop-blur-md transition-all cursor-zoom-out"
           onClick={() => setLightboxImageUrl(null)}
         >
-          <div className="relative max-w-4xl max-h-[90vh] flex flex-col items-center">
+          {/* Top Actions: Download & Close */}
+          <div
+            className="fixed top-4 right-4 z-50 flex items-center gap-2"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              type="button"
+              onClick={(e) => handleDownloadFile(e, lightboxImageUrl, 'image.png')}
+              className="h-9 px-3.5 rounded-full bg-white/20 hover:bg-white/35 text-white text-xs font-semibold flex items-center gap-1.5 transition backdrop-blur-sm shadow-lg cursor-pointer"
+              title="Tải ảnh về máy"
+            >
+              <FinanceIcon name="download" size={15} />
+              <span>Tải về</span>
+            </button>
             <button
               type="button"
               onClick={() => setLightboxImageUrl(null)}
-              className="absolute -top-10 right-0 size-8 rounded-full bg-white/20 hover:bg-white/40 text-white grid place-items-center transition"
+              className="size-9 rounded-full bg-white/20 hover:bg-white/35 text-white grid place-items-center transition backdrop-blur-sm shadow-lg cursor-pointer"
               title="Đóng (Esc)"
             >
               <FinanceIcon name="close" size={16} />
             </button>
+          </div>
+
+          <div className="relative max-w-5xl max-h-[90vh] flex flex-col items-center">
             <img
               src={lightboxImageUrl}
               alt="Ảnh phóng to"
               onClick={(e) => e.stopPropagation()}
-              className="max-w-full max-h-[85vh] rounded-2xl object-contain shadow-2xl border border-white/20"
+              className="max-w-full max-h-[85vh] rounded-2xl object-contain shadow-2xl border border-white/10 select-none"
             />
           </div>
         </div>
