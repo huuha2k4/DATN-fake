@@ -207,6 +207,12 @@ export interface MessageAttachmentItem {
   thumbnailKey?: string;
 }
 
+export interface GroupMessageReactionItem {
+  reaction: string;
+  userId: string;
+  userName?: string;
+}
+
 export interface GroupMessageResponse {
   id: string;
   groupId: string;
@@ -218,7 +224,12 @@ export interface GroupMessageResponse {
   attachments?: MessageAttachmentItem[];
   readByCount?: number;
   readByUserIds?: string[];
+  isEdited?: boolean;
+  isRecalled?: boolean;
+  reactions?: GroupMessageReactionItem[];
   createdAt: string;
+  updatedAt?: string;
+  deletedAt?: string;
   sender?: {
     id: string;
     fullName: string;
@@ -498,6 +509,25 @@ export const groupApi = {
     } catch {
       return [];
     }
+  },
+
+  async updateMessage(groupId: string, messageId: string, content: string): Promise<GroupMessageResponse> {
+    const res = await api.put(`/groups/${groupId}/messages/${messageId}`, { content });
+    return res.data?.data || res.data;
+  },
+
+  async recallMessage(groupId: string, messageId: string): Promise<GroupMessageResponse> {
+    const res = await api.post(`/groups/${groupId}/messages/${messageId}/recall`);
+    return res.data?.data || res.data;
+  },
+
+  async reactToMessage(groupId: string, messageId: string, reaction: string): Promise<GroupMessageResponse> {
+    const res = await api.post(`/groups/${groupId}/messages/${messageId}/react?reaction=${encodeURIComponent(reaction)}`);
+    return res.data?.data || res.data;
+  },
+
+  async deleteMessage(groupId: string, messageId: string): Promise<void> {
+    await api.delete(`/groups/${groupId}/messages/${messageId}`);
   },
 
   async uploadMessageAttachment(groupId: string, file: File): Promise<MessageAttachmentItem> {

@@ -379,6 +379,25 @@ public class GroupController {
         return ResponseEntity.ok(response);
     }
 
+    @PostMapping("/{groupId}/messages/{messageId}/recall")
+    public ResponseEntity<MessageResponse> recallMessage(
+            @PathVariable UUID groupId,
+            @PathVariable UUID messageId,
+            @AuthenticationPrincipal User currentUser) {
+        MessageResponse response = messageService.recallMessage(groupId, messageId, currentUser.getId());
+        return ResponseEntity.ok(response);
+    }
+
+    @PostMapping("/{groupId}/messages/{messageId}/react")
+    public ResponseEntity<MessageResponse> reactToMessage(
+            @PathVariable UUID groupId,
+            @PathVariable UUID messageId,
+            @RequestParam String reaction,
+            @AuthenticationPrincipal User currentUser) {
+        MessageResponse response = messageService.reactToMessage(groupId, messageId, reaction, currentUser.getId());
+        return ResponseEntity.ok(response);
+    }
+
     @DeleteMapping("/{groupId}/messages/{messageId}")
     public ResponseEntity<Void> deleteMessage(
             @PathVariable UUID groupId,

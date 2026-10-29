@@ -489,8 +489,9 @@ public class GoalService {
                 .build());
 
         if (includeDetails) {
-            // Contributions
-            builder.contributions(goal.getContributions().stream()
+            // Contributions sorted by contributedAt DESC
+            List<GoalContribution> contributions = contributionRepository.findByGoalId(goal.getId());
+            builder.contributions(contributions.stream()
                     .map(this::mapContributionToResponse)
                     .collect(Collectors.toList()));
 

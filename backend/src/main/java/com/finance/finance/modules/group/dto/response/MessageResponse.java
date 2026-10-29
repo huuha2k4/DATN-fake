@@ -33,6 +33,18 @@ public class MessageResponse {
     private List<UUID> readByUserIds;
     private Boolean isReadByMe;
     private Boolean isEdited;
+    private Boolean isRecalled;
+    private List<ReactionSummary> reactions;
+
+    @Data
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @Builder
+    public static class ReactionSummary {
+        private String reaction;
+        private UUID userId;
+        private String userName;
+    }
 
     @Data
     @NoArgsConstructor

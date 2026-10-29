@@ -118,6 +118,9 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
   const typingTimeoutRef = useRef<any>(null);
   const [loadingDetails, setLoadingDetails] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
+  const firstUnreadMessageRef = useRef<HTMLDivElement | null>(null);
+  const chatContainerRef = useRef<HTMLDivElement | null>(null);
+  const [showScrollBottomBtn, setShowScrollBottomBtn] = useState(false);
 
   // File / Image Attachment State
   const [selectedAttachment, setSelectedAttachment] = useState<File | null>(null);
@@ -128,6 +131,93 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
 
   // Lightbox Modal View Full Image State
   const [lightboxImageUrl, setLightboxImageUrl] = useState<string | null>(null);
+
+  // Message Actions (3 dots, React, Edit, Recall, Delete for me)
+  const [activeMenuMessageId, setActiveMenuMessageId] = useState<string | null>(null);
+  const [activeReactionMessageId, setActiveReactionMessageId] = useState<string | null>(null);
+  const [editingMessage, setEditingMessage] = useState<{ id: string; text: string } | null>(null);
+  const [viewingReactionModalMessage, setViewingReactionModalMessage] = useState<GroupMessageResponse | null>(null);
+  const [reactionModalTab, setReactionModalTab] = useState<string>('ALL');
+
+  const handleToggleReaction = async (msgId: string, emoji: string) => {
+    if (!selectedGroup) return;
+    try {
+      const updated = await groupApi.reactToMessage(selectedGroup.id, msgId, emoji);
+      setMessages((prev) => prev.map((m) => (m.id === msgId ? updated : m)));
+      setActiveReactionMessageId(null);
+      // Also update viewingReactionModalMessage if open
+      setViewingReactionModalMessage((prev) => (prev && prev.id === msgId ? updated : prev));
+    } catch {
+      onNotify('Không thể thả cảm xúc');
+    }
+  };
+  const [hiddenMessageIds, setHiddenMessageIds] = useState<string[]>(() => {
+    try {
+      const stored = localStorage.getItem('chat_hidden_message_ids');
+      return stored ? JSON.parse(stored) : [];
+    } catch {
+      return [];
+    }
+  });
+
+  const handleHideMessageForMe = (msgId: string) => {
+    setHiddenMessageIds((prev) => {
+      const next = [...prev, msgId];
+      try {
+        localStorage.setItem('chat_hidden_message_ids', JSON.stringify(next));
+      } catch {}
+      return next;
+    });
+    setActiveMenuMessageId(null);
+    onNotify('Đã xóa tin nhắn ở phía bạn');
+  };
+
+  const handleRecallMessage = async (msgId: string) => {
+    if (!selectedGroup) return;
+    try {
+      const updated = await groupApi.recallMessage(selectedGroup.id, msgId);
+      setMessages((prev) => prev.map((m) => (m.id === msgId ? updated : m)));
+      setActiveMenuMessageId(null);
+      onNotify('Đã thu hồi tin nhắn với mọi người');
+    } catch {
+      onNotify('Không thể thu hồi tin nhắn');
+    }
+  };
+
+  const handleSaveEditMessage = async () => {
+    if (!selectedGroup || !editingMessage) return;
+    const trimmed = editingMessage.text.trim();
+    if (!trimmed) {
+      onNotify('Nội dung tin nhắn không được để trống');
+      return;
+    }
+    try {
+      const updated = await groupApi.updateMessage(selectedGroup.id, editingMessage.id, trimmed);
+      setMessages((prev) => prev.map((m) => (m.id === editingMessage.id ? updated : m)));
+      setEditingMessage(null);
+      onNotify('Đã cập nhật tin nhắn');
+    } catch {
+      onNotify('Không thể sửa tin nhắn');
+    }
+  };
+
+  const handleDownloadFile = async (e: React.MouseEvent, url: string, fileName?: string) => {
+    e.stopPropagation();
+    try {
+      const response = await fetch(url);
+      const blob = await response.blob();
+      const blobUrl = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = blobUrl;
+      link.download = fileName || 'download';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(blobUrl);
+    } catch {
+      window.open(url, '_blank');
+    }
+  };
 
   // Modal Create Child Wallet State
   const [isChildWalletModalOpen, setIsChildWalletModalOpen] = useState(false);
@@ -376,21 +466,37 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
     return () => clearInterval(interval);
   }, [selectedGroup?.id, activeTab, currentUser?.id, members]);
 
-  // Auto-scroll chat to bottom when messages update or switching to CHAT tab
+  // Calculate unread messages in selected group for current user
+  const unreadMessagesList = messages.filter((m) => {
+    if (!currentUser?.id) return false;
+    if (m.senderId === currentUser.id) return false;
+    const readList = (m.readByUserIds || []).map((id) => String(id).toLowerCase());
+    return !readList.includes(String(currentUser.id).toLowerCase());
+  });
+  const unreadCount = unreadMessagesList.length;
+  const firstUnreadMessageId = unreadMessagesList.length > 0 ? unreadMessagesList[0].id : null;
+
+  // Auto-scroll chat: when entering CHAT tab, scroll to first unread message if available; otherwise scroll to bottom
+  const hasScrolledOnEnterChatRef = useRef(false);
+
   useEffect(() => {
     if (activeTab === 'CHAT') {
-      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-      // Mark latest unread messages as read
+      if (!hasScrolledOnEnterChatRef.current && messages.length > 0) {
+        hasScrolledOnEnterChatRef.current = true;
+        setTimeout(() => {
+          if (firstUnreadMessageRef.current) {
+            firstUnreadMessageRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          } else {
+            messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+          }
+        }, 150);
+      }
+
+      // Mark unread messages as read
       if (selectedGroup && messages.length > 0 && currentUser?.id) {
-        const unreadIds = messages
-          .filter((m) => {
-            const readList = m.readByUserIds || [];
-            return !readList.some((uid) => String(uid).toLowerCase() === String(currentUser.id).toLowerCase());
-          })
-          .map((m) => m.id);
+        const unreadIds = unreadMessagesList.map((m) => m.id);
         if (unreadIds.length > 0) {
           groupApi.markMessagesAsRead(selectedGroup.id, unreadIds).then(() => {
-            // Optimistically update readByUserIds in state so seen status appears immediately
             setMessages((prev) =>
               prev.map((m) => {
                 if (unreadIds.includes(m.id)) {
@@ -403,8 +509,20 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
           }).catch(() => {});
         }
       }
+    } else {
+      hasScrolledOnEnterChatRef.current = false;
     }
-  }, [messages.length, activeTab, selectedGroup?.id, currentUser?.id]);
+  }, [activeTab, selectedGroup?.id, currentUser?.id, messages.length]);
+
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  };
+
+  const handleChatScroll = (e: React.UIEvent<HTMLDivElement>) => {
+    const target = e.currentTarget;
+    const isAtBottom = target.scrollHeight - target.scrollTop - target.clientHeight < 70;
+    setShowScrollBottomBtn(!isAtBottom);
+  };
 
   // Handle Create Group
   const handleCreateGroup = async (e: React.FormEvent) => {
@@ -1037,6 +1155,11 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
                 >
                   <FinanceIcon name="message-square" size={15} />
                   <span>Trò chuyện</span>
+                  {unreadCount > 0 && (
+                    <span className="px-1.5 py-0.2 min-w-[18px] text-[10px] font-extrabold bg-red-500 text-white rounded-full grid place-items-center animate-pulse shadow-xs">
+                      {unreadCount > 99 ? '99+' : unreadCount}
+                    </span>
+                  )}
                 </button>
                 <button
                   type="button"
@@ -1350,9 +1473,13 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
                     }
 
                     return (
-                    <div className="flex flex-col rounded-2xl border border-[#edf3ee] dark:border-slate-800 bg-[#f9fbf9] dark:bg-slate-850 h-[480px]">
+                    <div className="flex flex-col rounded-2xl border border-[#edf3ee] dark:border-slate-800 bg-[#f9fbf9] dark:bg-slate-850 h-[480px] relative">
                       {/* Chat messages stream */}
-                      <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-1">
+                      <div
+                        ref={chatContainerRef}
+                        onScroll={handleChatScroll}
+                        className="flex-1 overflow-y-auto p-4 flex flex-col gap-1 relative"
+                      >
                         {messages.length === 0 ? (
                           <div className="h-full flex flex-col items-center justify-center text-center text-xs text-[#718579] dark:text-slate-400">
                             <div className="size-12 rounded-full bg-emerald-50 dark:bg-emerald-950/60 text-[#07543f] dark:text-emerald-400 grid place-items-center mb-2">
@@ -1366,8 +1493,16 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
                             </p>
                           </div>
                         ) : (
-                          messages.map((msg, index) => {
+                          messages
+                            .filter((msg) => !hiddenMessageIds.includes(msg.id))
+                            .map((msg, index) => {
                             const isMe = currentUser?.id && msg.senderId === currentUser.id;
+                            const isRecalled = msg.isRecalled || msg.content === 'Tin nhắn đã bị thu hồi';
+                            const isEdited = !isRecalled && (msg.isEdited || (msg.updatedAt && new Date(msg.updatedAt).getTime() - new Date(msg.createdAt).getTime() > 2000));
+                            const isFirstUnread = msg.id === firstUnreadMessageId;
+                            const hasAttachments = msg.attachments && msg.attachments.length > 0;
+                            const hasImagesOnly = hasAttachments && msg.attachments!.every(a => a.mimeType?.startsWith('image/') || /\.(jpg|jpeg|png|gif|webp)$/i.test(a.fileName || ''));
+                            const isImageOnlyMessage = hasImagesOnly && (!msg.content || msg.content === 'Đã gửi một ảnh');
                             const senderName = msg.sender?.fullName || msg.sender?.displayName || (isMe ? 'Bạn' : 'Thành viên');
                             const timeStr = msg.createdAt
                               ? new Date(msg.createdAt).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })
@@ -1438,7 +1573,21 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
                               : 'rounded-2xl rounded-tl-sm rounded-bl-sm';
 
                             return (
-                              <div key={msg.id} className={`flex flex-col ${isLastInBlock ? 'mb-2' : 'mb-0.5'}`}>
+                              <div
+                                key={msg.id}
+                                ref={isFirstUnread ? firstUnreadMessageRef : null}
+                                className={`flex flex-col ${isLastInBlock ? 'mb-2' : 'mb-0.5'}`}
+                              >
+                                {/* Unread Messages Divider (Chỉ hiện ngay trước tin nhắn chưa đọc đầu tiên) */}
+                                {isFirstUnread && (
+                                  <div className="flex items-center gap-2 my-2.5 px-2 animate-fadeIn">
+                                    <div className="flex-1 h-px bg-red-300 dark:bg-red-800/60" />
+                                    <span className="px-2.5 py-0.5 text-[10px] font-bold text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-950/60 rounded-full border border-red-200 dark:border-red-900 shadow-2xs select-none">
+                                      Tin nhắn chưa đọc
+                                    </span>
+                                    <div className="flex-1 h-px bg-red-300 dark:bg-red-800/60" />
+                                  </div>
+                                )}
                                 {/* Messenger-style Divider Header (e.g. "08:29 T3", "14:15 Hôm qua", "16:00") */}
                                 {showMessengerDivider && messengerDividerText && (
                                   <div className="flex items-center justify-center my-3">
@@ -1482,7 +1631,7 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
                                   </div>
 
                                   {/* Bubble & Click to see time */}
-                                  <div className={`flex flex-col ${isMe ? 'items-end' : 'items-start'} max-w-full relative`}>
+                                  <div className={`flex flex-col ${isMe ? 'items-end' : 'items-start'} max-w-full relative group/msg`}>
                                     {/* Sender name on FIRST message of the group block */}
                                     {isFirstInBlock && (
                                       <span className="text-[10px] font-bold text-[#647c6e] dark:text-slate-400 mb-1 px-1">
@@ -1490,68 +1639,271 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
                                       </span>
                                     )}
 
-                                    <div
-                                      onClick={() => setSelectedMessageTimeId(prev => prev === msg.id ? null : msg.id)}
-                                      className={`cursor-pointer px-3.5 py-2 text-xs leading-relaxed break-words shadow-2xs select-text transition hover:opacity-95 ${roundedClasses} ${
-                                        isMe
-                                          ? 'bg-[#07543f] text-white'
-                                          : 'bg-white dark:bg-slate-800 text-[#14261e] dark:text-slate-100 border border-[#e6eee8] dark:border-slate-700'
-                                      }`}
-                                      title="Bấm để xem thời gian gửi"
-                                    >
-                                      {/* Attachment Display */}
-                                      {msg.attachments && msg.attachments.length > 0 && (
-                                        <div className="flex flex-col gap-2 mb-2">
-                                          {msg.attachments.map((att, attIdx) => {
-                                            const fileUrl = att.fileKey ? userApi.getAvatarUrl(att.fileKey) : '';
-                                            const isImg = att.mimeType?.startsWith('image/') || /\.(jpg|jpeg|png|gif|webp)$/i.test(att.fileName || '');
+                                    {/* Message Row with 3-dot trigger button */}
+                                    <div className={`flex items-center gap-1.5 max-w-full ${isMe ? 'flex-row-reverse' : 'flex-row'}`}>
+                                      <div
+                                        onClick={() => setSelectedMessageTimeId(prev => prev === msg.id ? null : msg.id)}
+                                        className={`cursor-pointer text-xs leading-relaxed break-words shadow-2xs select-text transition hover:opacity-95 ${
+                                          isImageOnlyMessage
+                                            ? 'p-0 bg-transparent border-0 shadow-none'
+                                            : `px-3.5 py-2 ${roundedClasses} ${
+                                                isRecalled
+                                                  ? 'bg-gray-100 dark:bg-slate-800 text-gray-400 dark:text-slate-500 italic border border-dashed border-gray-300 dark:border-slate-700'
+                                                  : isMe
+                                                    ? 'bg-[#07543f] text-white'
+                                                    : 'bg-white dark:bg-slate-800 text-[#14261e] dark:text-slate-100 border border-[#e6eee8] dark:border-slate-700'
+                                              }`
+                                        }`}
+                                        title="Bấm để xem thời gian gửi"
+                                      >
+                                        {/* Edited indicator (small label at top of message) */}
+                                        {isEdited && !isRecalled && (
+                                          <div className={`text-[9px] mb-0.5 font-semibold ${isMe ? 'text-emerald-200' : 'text-gray-400 dark:text-slate-400'}`}>
+                                            Đã sửa
+                                          </div>
+                                        )}
 
-                                            if (isImg) {
-                                              return (
-                                                <div
-                                                  key={attIdx}
-                                                  onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    setLightboxImageUrl(fileUrl);
-                                                  }}
-                                                  className="block overflow-hidden rounded-xl border border-black/10 max-w-[240px] hover:opacity-90 transition cursor-zoom-in group relative"
-                                                  title="Bấm để phóng to ảnh"
-                                                >
-                                                  <img
-                                                    src={fileUrl}
-                                                    alt={att.fileName || 'Attached Image'}
-                                                    className="w-full max-h-56 object-cover rounded-xl"
-                                                  />
-                                                  <div className="absolute inset-0 bg-black/25 opacity-0 group-hover:opacity-100 transition flex items-center justify-center text-white text-[11px] font-bold">
-                                                    🔍 Xem ảnh lớn
-                                                  </div>
-                                                </div>
-                                              );
-                                            }
+                                        {/* Recalled Message */}
+                                        {isRecalled ? (
+                                          <div className="flex items-center gap-1.5 py-0.5">
+                                            <FinanceIcon name="alert-circle" size={13} />
+                                            <span>Tin nhắn đã bị thu hồi</span>
+                                          </div>
+                                        ) : (
+                                          <>
+                                            {/* Attachment Display */}
+                                            {msg.attachments && msg.attachments.length > 0 && (
+                                              <div className={`flex flex-col gap-2 ${msg.content && msg.content !== 'Đã gửi một ảnh' ? 'mb-2' : ''}`}>
+                                                {msg.attachments.map((att, attIdx) => {
+                                                  const fileUrl = att.fileKey ? userApi.getAvatarUrl(att.fileKey) : '';
+                                                  const isImg = att.mimeType?.startsWith('image/') || /\.(jpg|jpeg|png|gif|webp)$/i.test(att.fileName || '');
 
-                                            return (
-                                              <a
-                                                key={attIdx}
-                                                href={fileUrl}
-                                                target="_blank"
-                                                rel="noopener noreferrer"
-                                                onClick={(e) => e.stopPropagation()}
-                                                className={`flex items-center gap-2 p-2 rounded-xl text-xs font-semibold ${
-                                                  isMe ? 'bg-white/15 text-white hover:bg-white/25' : 'bg-gray-100 dark:bg-slate-700 text-gray-800 dark:text-slate-200 hover:bg-gray-200'
-                                                } transition`}
+                                                  if (isImg) {
+                                                    return (
+                                                      <div
+                                                        key={attIdx}
+                                                        className={`block overflow-hidden ${roundedClasses} border border-black/10 max-w-[260px] group/img relative shadow-xs`}
+                                                      >
+                                                        <img
+                                                          src={fileUrl}
+                                                          alt={att.fileName || 'Attached Image'}
+                                                          className="w-full max-h-64 object-cover cursor-zoom-in"
+                                                          onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            setLightboxImageUrl(fileUrl);
+                                                          }}
+                                                        />
+                                                        {/* Action overlay on image: Zoom and Download */}
+                                                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover/img:opacity-100 transition flex items-center justify-center gap-2 p-2">
+                                                          <button
+                                                            type="button"
+                                                            onClick={(e) => {
+                                                              e.stopPropagation();
+                                                              setLightboxImageUrl(fileUrl);
+                                                            }}
+                                                            className="px-2.5 py-1 rounded-lg bg-black/60 hover:bg-black/80 text-white text-[11px] font-semibold flex items-center gap-1 transition shadow-sm"
+                                                            title="Phóng to ảnh"
+                                                          >
+                                                            <FinanceIcon name="search" size={12} />
+                                                            <span>Xem</span>
+                                                          </button>
+                                                          <button
+                                                            type="button"
+                                                            onClick={(e) => handleDownloadFile(e, fileUrl, att.fileName || 'image.png')}
+                                                            className="px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-semibold flex items-center gap-1 transition shadow-sm"
+                                                            title="Tải ảnh về máy"
+                                                          >
+                                                            <FinanceIcon name="arrow" size={12} />
+                                                            <span>Tải về</span>
+                                                          </button>
+                                                        </div>
+                                                      </div>
+                                                    );
+                                                  }
+
+                                                  return (
+                                                    <div
+                                                      key={attIdx}
+                                                      className={`flex items-center justify-between gap-2 p-2 rounded-xl text-xs font-semibold ${
+                                                        isMe ? 'bg-white/15 text-white' : 'bg-gray-100 dark:bg-slate-700 text-gray-800 dark:text-slate-200'
+                                                      }`}
+                                                    >
+                                                      <a
+                                                        href={fileUrl}
+                                                        target="_blank"
+                                                        rel="noopener noreferrer"
+                                                        onClick={(e) => e.stopPropagation()}
+                                                        className="flex items-center gap-2 min-w-0 hover:underline"
+                                                      >
+                                                        <FinanceIcon name="paperclip" size={14} />
+                                                        <span className="truncate max-w-[150px]">{att.fileName || 'Tệp đính kèm'}</span>
+                                                      </a>
+                                                      <button
+                                                        type="button"
+                                                        onClick={(e) => handleDownloadFile(e, fileUrl, att.fileName || 'download')}
+                                                        className={`p-1.5 rounded-lg transition ${
+                                                          isMe ? 'hover:bg-white/20 text-white' : 'hover:bg-gray-200 dark:hover:bg-slate-600 text-gray-700 dark:text-slate-300'
+                                                        }`}
+                                                        title="Tải tệp xuống"
+                                                      >
+                                                        <FinanceIcon name="arrow" size={13} />
+                                                      </button>
+                                                    </div>
+                                                  );
+                                                })}
+                                              </div>
+                                            )}
+                                            {/* Only show content if it's not the auto image caption */}
+                                            {msg.content && msg.content !== 'Đã gửi một ảnh' && (
+                                              <p className="m-0 leading-relaxed whitespace-pre-wrap">{msg.content}</p>
+                                            )}
+                                          </>
+                                        )}
+                                      </div>
+
+                                      {/* Reactions & 3-dots Menu trigger (Messenger-style: appears on hover or when open) */}
+                                      {!isRecalled && (
+                                          <div className="flex items-center gap-0.5">
+                                            {/* 3-dots Menu trigger (vertical 3-dots: more-vertical) */}
+                                            <div className="relative">
+                                              <button
+                                                type="button"
+                                                onClick={(e) => {
+                                                  e.stopPropagation();
+                                                  setActiveMenuMessageId((prev) => (prev === msg.id ? null : msg.id));
+                                                  setActiveReactionMessageId(null);
+                                                }}
+                                                className={`size-7 rounded-full grid place-items-center transition text-gray-400 hover:text-gray-700 dark:hover:text-slate-200 hover:bg-gray-200/70 dark:hover:bg-slate-700/60 ${
+                                                  activeMenuMessageId === msg.id
+                                                    ? 'opacity-100 bg-gray-200 dark:bg-slate-700 text-gray-700'
+                                                    : 'opacity-0 group-hover/msg:opacity-100'
+                                                }`}
+                                                title="Tùy chọn tin nhắn"
                                               >
-                                                <FinanceIcon name="paperclip" size={14} />
-                                                <span className="truncate max-w-[180px]">{att.fileName || 'Tệp đính kèm'}</span>
-                                              </a>
-                                            );
-                                          })}
-                                        </div>
-                                      )}
-                                      {/* Only show content if it's not the auto image caption */}
-                                      {msg.content && msg.content !== 'Đã gửi một ảnh' && (
-                                        <p className="m-0 leading-relaxed">{msg.content}</p>
+                                                <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor">
+                                                  <circle cx="12" cy="5" r="2.2" />
+                                                  <circle cx="12" cy="12" r="2.2" />
+                                                  <circle cx="12" cy="19" r="2.2" />
+                                                </svg>
+                                              </button>
+
+                                              {/* Popover Actions Menu - No icons as requested */}
+                                              {activeMenuMessageId === msg.id && (
+                                                <div
+                                                  className={`absolute bottom-full mb-1 z-30 min-w-[145px] p-1.5 rounded-xl bg-white dark:bg-slate-850 border border-gray-200 dark:border-slate-750 shadow-xl flex flex-col gap-0.5 text-xs animate-fadeIn ${
+                                                    isMe ? 'right-0' : 'left-0'
+                                                  }`}
+                                                  onClick={(e) => e.stopPropagation()}
+                                                >
+                                                  {/* Edit Message */}
+                                                  {isMe && (!msg.attachments || msg.attachments.length === 0) && (
+                                                    <button
+                                                      type="button"
+                                                      onClick={() => {
+                                                        setEditingMessage({ id: msg.id, text: msg.content });
+                                                        setActiveMenuMessageId(null);
+                                                      }}
+                                                      className="w-full px-3 py-2 text-left rounded-lg hover:bg-gray-100 dark:hover:bg-slate-700/70 text-gray-700 dark:text-slate-200 font-medium transition"
+                                                    >
+                                                      Chỉnh sửa
+                                                    </button>
+                                                  )}
+
+                                                  {/* Recall */}
+                                                  {isMe && (
+                                                    <button
+                                                      type="button"
+                                                      onClick={() => handleRecallMessage(msg.id)}
+                                                      className="w-full px-3 py-2 text-left rounded-lg hover:bg-red-50 dark:hover:bg-red-950/40 text-red-600 dark:text-red-400 font-medium transition"
+                                                    >
+                                                      Thu hồi với mọi người
+                                                    </button>
+                                                  )}
+
+                                                  {/* Delete for me */}
+                                                  <button
+                                                    type="button"
+                                                    onClick={() => handleHideMessageForMe(msg.id)}
+                                                    className="w-full px-3 py-2 text-left rounded-lg hover:bg-gray-100 dark:hover:bg-slate-700/70 text-gray-700 dark:text-slate-200 font-medium transition"
+                                                  >
+                                                    Xóa ở phía tôi
+                                                  </button>
+                                                </div>
+                                              )}
+                                            </div>
+
+                                            {/* Emoji Reaction trigger button (circle outline smiley) */}
+                                            <div className="relative">
+                                              <button
+                                                type="button"
+                                                onClick={(e) => {
+                                                  e.stopPropagation();
+                                                  setActiveReactionMessageId((prev) => (prev === msg.id ? null : msg.id));
+                                                  setActiveMenuMessageId(null);
+                                                }}
+                                                className={`size-7 rounded-full grid place-items-center transition text-gray-400 hover:text-gray-700 dark:hover:text-slate-200 hover:bg-gray-200/70 dark:hover:bg-slate-700/60 ${
+                                                  activeReactionMessageId === msg.id
+                                                    ? 'opacity-100 bg-gray-200 dark:bg-slate-700 text-gray-700'
+                                                    : 'opacity-0 group-hover/msg:opacity-100'
+                                                }`}
+                                                title="Bày tỏ cảm xúc"
+                                              >
+                                                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                                  <circle cx="12" cy="12" r="10" />
+                                                  <path d="M8 14s1.5 2 4 2 4-2 4-2" />
+                                                  <line x1="9" y1="9" x2="9.01" y2="9" strokeWidth="2.5" />
+                                                  <line x1="15" y1="9" x2="15.01" y2="9" strokeWidth="2.5" />
+                                                </svg>
+                                              </button>
+
+                                              {/* Emoji Reaction Selector Bar (exact 6 emojis in order: Heart, Laugh, Surprised, Sad, Angry, Thumbs-up) */}
+                                              {activeReactionMessageId === msg.id && (
+                                                <div
+                                                  className={`absolute bottom-full mb-1.5 z-40 px-2 py-1.5 rounded-full bg-[#1e1e1e] border border-gray-700/70 shadow-2xl flex items-center gap-1.5 text-lg animate-fadeIn ${
+                                                    isMe ? 'right-0' : 'left-0'
+                                                  }`}
+                                                  onClick={(e) => e.stopPropagation()}
+                                                >
+                                                  {['❤️', '😆', '😮', '😢', '😡', '👍'].map((emoji) => (
+                                                    <button
+                                                      key={emoji}
+                                                      type="button"
+                                                      onClick={() => handleToggleReaction(msg.id, emoji)}
+                                                      className="size-8 rounded-full hover:scale-130 hover:bg-white/10 transition transform flex items-center justify-center cursor-pointer"
+                                                    >
+                                                      {emoji}
+                                                    </button>
+                                                  ))}
+                                                </div>
+                                              )}
+                                            </div>
+                                          </div>
                                       )}
                                     </div>
+
+                                    {/* Reactions badge beneath the message bubble (Messenger-style) */}
+                                    {msg.reactions && msg.reactions.length > 0 && !isRecalled && (
+                                      <button
+                                        type="button"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          setViewingReactionModalMessage(msg);
+                                        }}
+                                        className={`flex items-center gap-0.5 -mt-2 px-1.5 py-0.5 rounded-full bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 shadow-xs text-[11px] z-10 cursor-pointer hover:bg-gray-50 dark:hover:bg-slate-750 transition ${
+                                          isMe ? 'mr-1 self-end' : 'ml-1 self-start'
+                                        }`}
+                                        title="Bấm để xem ai đã thả cảm xúc"
+                                      >
+                                        <div className="flex items-center -space-x-1">
+                                          {Array.from(new Set(msg.reactions.map((r) => r.reaction))).map((emoji) => (
+                                            <span key={emoji} className="inline-block leading-none">{emoji}</span>
+                                          ))}
+                                        </div>
+                                        <span className="text-[10px] text-gray-500 dark:text-slate-400 font-semibold ml-0.5">
+                                          {msg.reactions.length}
+                                        </span>
+                                      </button>
+                                    )}
 
                                     {/* Timestamp & Clicked details: Shown ONLY when this message is clicked */}
                                     {selectedMessageTimeId === msg.id && (
@@ -1631,6 +1983,25 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
                         <div ref={messagesEndRef} />
                       </div>
 
+                      {/* Floating Scroll to Bottom Button */}
+                      {showScrollBottomBtn && (
+                        <button
+                          type="button"
+                          onClick={scrollToBottom}
+                          className="absolute right-4 bottom-20 z-20 size-9 rounded-full bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 shadow-lg text-[#07543f] dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-slate-750 transition flex items-center justify-center animate-bounce group"
+                          title="Cuộn xuống tin nhắn mới nhất"
+                        >
+                          <svg
+                            className="size-4 transform rotate-90 transition group-hover:translate-y-0.5"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M9 5l7 7-7 7" />
+                          </svg>
+                        </button>
+                      )}
+
                       {/* Typing indicator (Ai đó đang soạn tin nhắn...) */}
                       {typingMemberNames.length > 0 && (
                         <div className="px-4 py-1.5 flex items-center gap-2 text-xs text-[#718579] dark:text-slate-400 animate-fadeIn">
@@ -1661,6 +2032,40 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
                         className="hidden"
                         onChange={handleFileSelect}
                       />
+
+                      {/* Edit Message Banner */}
+                      {editingMessage && (
+                        <div className="mx-3 mb-2 p-2.5 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 flex items-center justify-between gap-3 animate-fadeIn">
+                          <div className="flex items-center gap-2 min-w-0">
+                            <div className="size-7 rounded-lg bg-amber-100 text-amber-800 dark:bg-amber-900/60 dark:text-amber-300 grid place-items-center shrink-0">
+                              <FinanceIcon name="edit" size={14} />
+                            </div>
+                            <div className="min-w-0">
+                              <p className="text-[11px] font-bold text-amber-800 dark:text-amber-300 m-0">Đang chỉnh sửa tin nhắn</p>
+                              <p className="text-xs text-gray-600 dark:text-slate-400 truncate m-0">
+                                Nhập nội dung mới vào ô bên dưới rồi nhấn Lưu
+                              </p>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-1.5 shrink-0">
+                            <button
+                              type="button"
+                              onClick={handleSaveEditMessage}
+                              className="px-2.5 py-1 rounded-lg bg-[#07543f] hover:bg-[#064232] text-white text-xs font-semibold shadow-xs transition"
+                            >
+                              Lưu
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setEditingMessage(null)}
+                              className="size-7 rounded-lg hover:bg-amber-200/60 text-amber-800 dark:text-amber-300 grid place-items-center transition"
+                              title="Hủy chỉnh sửa"
+                            >
+                              <FinanceIcon name="close" size={14} />
+                            </button>
+                          </div>
+                        </div>
+                      )}
 
                       {/* Attachment Preview Banner */}
                       {selectedAttachment && (
@@ -1763,33 +2168,39 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
 
                         <textarea
                           rows={1}
-                          value={newMessageText}
+                          value={editingMessage ? editingMessage.text : newMessageText}
+                          placeholder={editingMessage ? 'Nhập nội dung mới...' : (selectedAttachment ? 'Lời nhắn kèm theo...' : 'Nhập tin nhắn... (Enter để gửi)')}
                           onChange={(e) => {
                             const val = e.target.value;
-                            setNewMessageText(val);
+                            if (editingMessage) {
+                              setEditingMessage({ ...editingMessage, text: val });
+                            } else {
+                              setNewMessageText(val);
 
-                            // Auto adjust height according to content length
-                            e.target.style.height = 'auto';
-                            e.target.style.height = `${Math.min(e.target.scrollHeight, 120)}px`;
+                              // Auto adjust height according to content length
+                              e.target.style.height = 'auto';
+                              e.target.style.height = `${Math.min(e.target.scrollHeight, 120)}px`;
 
-                            if (selectedGroup) {
-                              groupApi.reportTyping(selectedGroup.id, val.trim().length > 0);
-                              if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
-                              typingTimeoutRef.current = setTimeout(() => {
-                                groupApi.reportTyping(selectedGroup.id, false);
-                              }, 3000);
+                              if (selectedGroup) {
+                                groupApi.reportTyping(selectedGroup.id, val.trim().length > 0);
+                                if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+                                typingTimeoutRef.current = setTimeout(() => {
+                                  groupApi.reportTyping(selectedGroup.id, false);
+                                }, 3000);
+                              }
                             }
                           }}
                           onKeyDown={(e) => {
                             if (e.key === 'Enter' && !e.shiftKey) {
                               e.preventDefault();
-                              if (newMessageText.trim() || selectedAttachment) {
-                                (e.target as HTMLTextAreaElement).form?.requestSubmit();
-                                (e.target as HTMLTextAreaElement).style.height = 'auto';
+                              if (editingMessage) {
+                                handleSaveEditMessage();
+                              } else if (newMessageText.trim() || selectedAttachment) {
+                                handleSendMessage(e);
                               }
+                              (e.target as HTMLTextAreaElement).style.height = 'auto';
                             }
                           }}
-                          placeholder={selectedAttachment ? 'Lời nhắn kèm theo...' : 'Nhập tin nhắn...'}
                           className="flex-1 min-w-0 min-h-[36px] sm:min-h-[40px] max-h-[120px] py-2 px-2.5 sm:px-3.5 rounded-xl border border-gray-200 dark:border-slate-700 bg-[#f7faf8] dark:bg-slate-800 text-xs text-[#14261e] dark:text-slate-100 placeholder:text-gray-400 focus:outline-none focus:border-[#07543f] resize-none leading-relaxed transition-all"
                         />
                         <button
@@ -3126,6 +3537,132 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
           </div>
         </div>
       )}
+
+      {/* Modal: View who reacted to message */}
+      {viewingReactionModalMessage && (() => {
+        const reactionsList = viewingReactionModalMessage.reactions || [];
+        const uniqueEmojis = Array.from(new Set(reactionsList.map((r) => r.reaction)));
+        const filteredList = reactionModalTab === 'ALL'
+          ? reactionsList
+          : reactionsList.filter((r) => r.reaction === reactionModalTab);
+
+        return (
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-xs animate-fadeIn"
+            onClick={() => setViewingReactionModalMessage(null)}
+          >
+            <div
+              className="w-full max-w-sm rounded-2xl bg-[#242526] text-white p-4 shadow-2xl border border-gray-700/60"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between pb-3">
+                <h4 className="text-sm font-bold text-white m-0">
+                  Cảm xúc về tin nhắn
+                </h4>
+                <button
+                  type="button"
+                  onClick={() => setViewingReactionModalMessage(null)}
+                  className="size-7 rounded-full grid place-items-center bg-[#3a3b3c] text-gray-300 hover:text-white hover:bg-[#4e4f50] transition"
+                >
+                  ✕
+                </button>
+              </div>
+
+              {/* Tabs list: "Tất cả N", "😆 N", etc. */}
+              <div className="flex items-center gap-4 border-b border-gray-700/80 mb-3 px-1 overflow-x-auto no-scrollbar">
+                <button
+                  type="button"
+                  onClick={() => setReactionModalTab('ALL')}
+                  className={`pb-2.5 text-xs font-bold transition flex items-center gap-1.5 whitespace-nowrap border-b-2 ${
+                    reactionModalTab === 'ALL'
+                      ? 'border-blue-500 text-blue-400'
+                      : 'border-transparent text-gray-400 hover:text-gray-200'
+                  }`}
+                >
+                  <span>Tất cả</span>
+                  <span>{reactionsList.length}</span>
+                </button>
+                {uniqueEmojis.map((emoji) => {
+                  const count = reactionsList.filter((r) => r.reaction === emoji).length;
+                  return (
+                    <button
+                      key={emoji}
+                      type="button"
+                      onClick={() => setReactionModalTab(emoji)}
+                      className={`pb-2.5 text-xs font-bold transition flex items-center gap-1.5 whitespace-nowrap border-b-2 ${
+                        reactionModalTab === emoji
+                          ? 'border-blue-500 text-blue-400'
+                          : 'border-transparent text-gray-400 hover:text-gray-200'
+                      }`}
+                    >
+                      <span className="text-sm">{emoji}</span>
+                      <span>{count}</span>
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* List of members who reacted */}
+              <div className="max-h-72 overflow-y-auto divide-y divide-gray-700/40 pr-0.5">
+                {filteredList.map((r, rIdx) => {
+                  const isCurrentUserReaction = r.userId === currentUser?.id;
+                  const memberInfo = members.find((m) => m.userId === r.userId);
+                  const displayName = isCurrentUserReaction
+                    ? (currentUser?.fullName || currentUser?.username || 'Bạn')
+                    : (r.userName || memberInfo?.user?.fullName || memberInfo?.nickname || 'Thành viên');
+                  const rawAvatar = memberInfo?.user?.avatarUrl || memberInfo?.user?.avatarKey;
+                  const avatarSrc = isCurrentUserReaction
+                    ? (currentUser?.avatarUrl ? userApi.getAvatarUrl(currentUser.avatarUrl) : null)
+                    : (rawAvatar ? userApi.getAvatarUrl(rawAvatar) : null);
+
+                  return (
+                    <div
+                      key={rIdx}
+                      onClick={() => {
+                        if (isCurrentUserReaction && viewingReactionModalMessage) {
+                          handleToggleReaction(viewingReactionModalMessage.id, r.reaction);
+                        }
+                      }}
+                      className={`py-2.5 flex items-center justify-between rounded-xl px-2 transition ${
+                        isCurrentUserReaction ? 'cursor-pointer hover:bg-white/5' : ''
+                      }`}
+                      title={isCurrentUserReaction ? 'Nhấp để gỡ cảm xúc của bạn' : undefined}
+                    >
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className="size-9 rounded-full overflow-hidden bg-gray-700 grid place-items-center text-white font-bold text-xs shrink-0">
+                          {avatarSrc ? (
+                            <img
+                              src={avatarSrc}
+                              alt={displayName}
+                              className="size-full object-cover"
+                              onError={(e) => {
+                                (e.target as HTMLElement).style.display = 'none';
+                              }}
+                            />
+                          ) : (
+                            displayName.charAt(0).toUpperCase()
+                          )}
+                        </div>
+                        <div className="flex flex-col min-w-0">
+                          <span className="text-xs font-bold text-gray-100 truncate">
+                            {displayName}
+                          </span>
+                          {isCurrentUserReaction && (
+                            <span className="text-[11px] text-gray-400 font-normal">
+                              Nhấp để gỡ
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                      <span className="text-2xl leading-none shrink-0">{r.reaction}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        );
+      })()}
     </main>
   );
 }

@@ -65,6 +65,7 @@ public class GroupMessageService {
     private final GroupMessageRepository messageRepository;
     private final GroupMessageAttachmentRepository attachmentRepository;
     private final GroupMessageReadRepository readRepository;
+    private final com.finance.finance.modules.group.repository.GroupMessageReactionRepository reactionRepository;
     private final GroupMemberRepository groupMemberRepository;
     private final GroupExpenseRepository expenseRepository;
     private final com.finance.finance.modules.user.repository.UserRepository userRepository;
@@ -211,10 +212,86 @@ public class GroupMessageService {
             throw new ResourceNotFoundException("Message has been deleted");
         }
 
+        if (Boolean.TRUE.equals(message.getIsRecalled())) {
+            throw new IllegalArgumentException("Cannot edit recalled message");
+        }
+
         message.setContent(request.getContent());
         message.setUpdatedAt(LocalDateTime.now());
 
         message = messageRepository.save(message);
+        return buildMessageResponse(message);
+    }
+
+    @Transactional
+    public MessageResponse recallMessage(UUID groupId, UUID messageId, UUID currentUserId) {
+        GroupMessage message = messageRepository.findById(messageId)
+                .orElseThrow(() -> new ResourceNotFoundException("Message not found"));
+
+        if (!message.getGroupId().equals(groupId)) {
+            throw new ResourceNotFoundException("Message does not belong to this group");
+        }
+
+        if (!message.getSenderId().equals(currentUserId)) {
+            throw new ResourceNotFoundException("You can only recall your own messages");
+        }
+
+        if (message.getDeletedAt() != null) {
+            throw new ResourceNotFoundException("Message has been deleted");
+        }
+
+        message.setIsRecalled(true);
+        message.setContent("Tin nhắn đã bị thu hồi");
+        message.setUpdatedAt(LocalDateTime.now());
+
+        // Delete attachments for recalled message
+        List<GroupMessageAttachment> attachments = attachmentRepository.findByMessageId(message.getId());
+        if (attachments != null && !attachments.isEmpty()) {
+            attachmentRepository.deleteAll(attachments);
+        }
+
+        message = messageRepository.save(message);
+        return buildMessageResponse(message);
+    }
+
+    @Transactional
+    public MessageResponse reactToMessage(UUID groupId, UUID messageId, String reaction, UUID currentUserId) {
+        if (!groupMemberRepository.existsByGroup_IdAndUser_Id(groupId, currentUserId)) {
+            throw new ResourceNotFoundException("User is not a member of this group");
+        }
+
+        GroupMessage message = messageRepository.findById(messageId)
+                .orElseThrow(() -> new ResourceNotFoundException("Message not found"));
+
+        if (!message.getGroupId().equals(groupId)) {
+            throw new ResourceNotFoundException("Message does not belong to this group");
+        }
+
+        if (message.getDeletedAt() != null) {
+            throw new ResourceNotFoundException("Message has been deleted");
+        }
+
+        // Check if existing reaction by this user
+        var existing = reactionRepository.findByMessageIdAndUserId(messageId, currentUserId);
+        if (existing.isPresent()) {
+            if (existing.get().getReaction().equals(reaction)) {
+                // If same reaction clicked again, toggle off (remove)
+                reactionRepository.delete(existing.get());
+            } else {
+                // Change reaction
+                existing.get().setReaction(reaction);
+                reactionRepository.save(existing.get());
+            }
+        } else {
+            // New reaction
+            var react = com.finance.finance.modules.group.entity.GroupMessageReaction.builder()
+                    .messageId(messageId)
+                    .userId(currentUserId)
+                    .reaction(reaction)
+                    .build();
+            reactionRepository.save(react);
+        }
+
         return buildMessageResponse(message);
     }
 
@@ -285,6 +362,25 @@ public class GroupMessageService {
                         .build())
                 .orElse(null);
 
+        // Get reactions
+        List<com.finance.finance.modules.group.entity.GroupMessageReaction> reactions = reactionRepository.findByMessageId(message.getId());
+        List<MessageResponse.ReactionSummary> reactionSummaries = reactions.stream()
+                .map(r -> {
+                    String uName = userRepository.findById(r.getUserId())
+                            .map(u -> u.getFullName() != null ? u.getFullName() : (u.getUsername() != null ? u.getUsername() : u.getEmail()))
+                            .orElse("Thành viên");
+                    return MessageResponse.ReactionSummary.builder()
+                            .reaction(r.getReaction())
+                            .userId(r.getUserId())
+                            .userName(uName)
+                            .build();
+                })
+                .collect(Collectors.toList());
+
+        boolean isEdited = message.getUpdatedAt() != null
+                && message.getCreatedAt() != null
+                && java.time.Duration.between(message.getCreatedAt(), message.getUpdatedAt()).getSeconds() > 2;
+
         return MessageResponse.builder()
                 .id(message.getId())
                 .groupId(message.getGroupId())
@@ -307,6 +403,9 @@ public class GroupMessageService {
                         .collect(Collectors.toList()))
                 .readByCount(readByUserIds.size())
                 .readByUserIds(readByUserIds)
+                .reactions(reactionSummaries)
+                .isEdited(isEdited && !Boolean.TRUE.equals(message.getIsRecalled()))
+                .isRecalled(Boolean.TRUE.equals(message.getIsRecalled()))
                 .createdAt(message.getCreatedAt())
                 .updatedAt(message.getUpdatedAt())
                 .deletedAt(message.getDeletedAt())

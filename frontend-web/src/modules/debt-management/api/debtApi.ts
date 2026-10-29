@@ -1,7 +1,7 @@
 import { api } from '../../core/api/api';
 
 export type DebtType = 'BORROWING' | 'LENDING';
-export type DebtStatus = 'ACTIVE' | 'PAID' | 'OVERDUE';
+export type DebtStatus = 'ACTIVE' | 'PAID' | 'PAID_OFF' | 'OVERDUE';
 export type InterestType = 'FIXED' | 'REDUCING' | 'NONE';
 export type PaymentFrequency = 'WEEKLY' | 'BIWEEKLY' | 'MONTHLY' | 'QUARTERLY' | 'YEARLY' | 'ONE_TIME';
 
