@@ -2,7 +2,7 @@
 -- V30: Create core.receipts table for OCR scan results
 -- =====================================================
 
-CREATE TABLE core.receipts (
+CREATE TABLE IF NOT EXISTS core.receipts (
     id                      UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id                 UUID        NOT NULL REFERENCES core.users(id) ON DELETE CASCADE,
     image_url               TEXT,
@@ -24,5 +24,5 @@ CREATE TABLE core.receipts (
     updated_at              TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-CREATE INDEX idx_receipts_user_id   ON core.receipts(user_id);
-CREATE INDEX idx_receipts_created_at ON core.receipts(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_receipts_user_id   ON core.receipts(user_id);
+CREATE INDEX IF NOT EXISTS idx_receipts_created_at ON core.receipts(created_at DESC);
