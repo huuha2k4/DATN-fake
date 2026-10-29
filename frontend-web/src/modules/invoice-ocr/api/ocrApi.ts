@@ -12,7 +12,6 @@ export interface OcrReceiptResult {
   needsReview: boolean;
   aiCategoryId?: string;
   aiCategoryName?: string;
-  imageUrl?: string;
   transactionId?: string;
   createdAt?: string;
 }
@@ -34,6 +33,8 @@ export interface CreateTransactionFromOcrPayload {
   categoryId?: string;
   description?: string;
   note?: string;
+  /** User-corrected amount (overrides the OCR-scanned value when provided). */
+  overrideAmount?: number;
 }
 
 export const ocrApi = {
@@ -52,6 +53,7 @@ export const ocrApi = {
       categoryId: payload.categoryId,
       description: payload.description,
       note: payload.note,
+      overrideAmount: payload.overrideAmount,
     });
     return res.data;
   },

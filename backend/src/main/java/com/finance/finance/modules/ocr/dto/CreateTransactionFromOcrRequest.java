@@ -6,6 +6,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.math.BigDecimal;
 import java.util.UUID;
 
 @Data
@@ -25,4 +26,7 @@ public class CreateTransactionFromOcrRequest {
     private String description;
 
     private String note;
+
+    /** Optional user-corrected amount. When present, overrides the OCR-scanned value. */
+    private BigDecimal overrideAmount;
 }

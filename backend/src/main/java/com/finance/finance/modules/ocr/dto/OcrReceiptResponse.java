@@ -27,6 +27,5 @@ public class OcrReceiptResponse {
     private String aiCategoryId;
     private String aiCategoryName;
     private Double aiCategoryConfidence;
-    private String imageUrl;
     private UUID transactionId;
 }

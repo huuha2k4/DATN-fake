@@ -110,12 +110,14 @@ export function InvoiceOcrScreen({ onCancel, onNotify }: Props) {
       return
     }
     try {
+      const parsedAmount = parseFloat(amount)
       await ocrApi.createTransaction({
         receiptId: scanResult.id,
         accountId: selectedAccountId,
         categoryId: selectedCategoryId || undefined,
         description: merchant,
         note: note || undefined,
+        overrideAmount: !isNaN(parsedAmount) && parsedAmount > 0 ? parsedAmount : undefined,
       })
       onNotify(`Đã xác nhận hóa đơn ${merchant}`)
       resetScan()

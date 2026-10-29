@@ -174,9 +174,15 @@ public class OcrService {
             }
         }
 
-        BigDecimal amount = receipt.getTotalAmount() != null
-                ? BigDecimal.valueOf(receipt.getTotalAmount())
-                : BigDecimal.ONE;
+        // Use user-supplied override if provided, otherwise fall back to OCR value
+        BigDecimal amount;
+        if (req.getOverrideAmount() != null && req.getOverrideAmount().compareTo(BigDecimal.ZERO) > 0) {
+            amount = req.getOverrideAmount();
+        } else {
+            amount = receipt.getTotalAmount() != null
+                    ? BigDecimal.valueOf(receipt.getTotalAmount())
+                    : BigDecimal.ONE;
+        }
 
         String currencyCode = receipt.getCurrency() != null ? receipt.getCurrency() : "VND";
         // Ensure currencyCode is exactly 3 chars uppercase
@@ -246,7 +252,6 @@ public class OcrService {
                 .aiCategoryName(r.getAiCategoryName())
                 .aiCategoryConfidence(r.getAiCategoryConfidence() != null
                         ? r.getAiCategoryConfidence().doubleValue() : null)
-                .imageUrl(r.getImageUrl())
                 .transactionId(r.getTransactionId())
                 .build();
     }
