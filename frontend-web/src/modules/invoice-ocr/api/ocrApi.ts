@@ -43,6 +43,7 @@ export const ocrApi = {
     formData.append('image', file);
     const res = await api.post<OcrReceiptResult>('/ocr/receipts', formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
+      timeout: 120000, // 120s — OCR có thể mất thời gian với ảnh phức tạp
     });
     return res.data;
   },
