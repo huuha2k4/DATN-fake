@@ -47,4 +47,10 @@ public interface UserRepository extends JpaRepository<User, UUID> {
     
     @Query("SELECT u FROM User u WHERE u.email = :email AND u.userStatus = :status AND u.deletedAt IS NULL")
     Optional<User> findByEmailAndStatus(@Param("email") String email, @Param("status") UserStatus status);
+
+    @Query("SELECT u FROM User u WHERE (LOWER(u.email) LIKE LOWER(CONCAT('%', :query, '%')) " +
+           "OR LOWER(u.username) LIKE LOWER(CONCAT('%', :query, '%')) " +
+           "OR LOWER(u.fullName) LIKE LOWER(CONCAT('%', :query, '%'))) " +
+           "AND u.deletedAt IS NULL")
+    java.util.List<User> searchUsersByKeyword(@Param("query") String query, org.springframework.data.domain.Pageable pageable);
 }

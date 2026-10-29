@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { FinanceIcon, resolveCategoryIconName } from '../../core/components/FinanceIcon';
+import { FinanceIcon, resolveCategoryIconName, getCategoryCanonicalKey } from '../../core/components/FinanceIcon';
 import { 
   transactionApi, 
   type TransactionItem, 
@@ -411,10 +411,11 @@ export function CashFlowManagementScreen({ onNotify, onAddTransaction }: Props) 
     }
     try {
       setIsCreatingCat(true);
+      const detectedIcon = resolveCategoryIconName(undefined, categoryKindTab, newCatName.trim());
       await transactionApi.createCategory({
         name: newCatName.trim(),
         kind: categoryKindTab,
-        icon: categoryKindTab === 'EXPENSE' ? '🛒' : '💰',
+        icon: detectedIcon,
         color: categoryKindTab === 'EXPENSE' ? '#f43f5e' : '#10b981',
       });
       onNotify(`Đã tạo danh mục "${newCatName.trim()}" thành công!`);
@@ -570,11 +571,11 @@ export function CashFlowManagementScreen({ onNotify, onAddTransaction }: Props) 
     return list;
   }, []);
 
-  // Deduplicate categories by normalized name & kind to prevent duplicate seeded data (e.g. 2 'Ăn uống')
+  // Deduplicate categories by normalized canonical key & kind to prevent duplicate seeded data (e.g. Di chuyển / Đi lại)
   const uniqueCategories = useMemo(() => {
     return categories.filter((cat, index, self) => {
-      const key = `${cat.kind}_${cat.name.trim().toLowerCase()}`;
-      return index === self.findIndex((c) => `${c.kind}_${c.name.trim().toLowerCase()}` === key);
+      const key = getCategoryCanonicalKey(cat.kind, cat.name);
+      return index === self.findIndex((c) => getCategoryCanonicalKey(c.kind, c.name) === key);
     });
   }, [categories]);
 
@@ -1388,7 +1389,7 @@ export function CashFlowManagementScreen({ onNotify, onAddTransaction }: Props) 
                   Tạo danh mục {categoryKindTab === 'EXPENSE' ? 'chi tiêu' : 'thu nhập'} mới
                 </span>
                 <span className="text-[10px] text-[#718579]">
-                  {categoryKindTab === 'EXPENSE' ? '🛒 Icon mặc định' : '💰 Icon mặc định'}
+                  {categoryKindTab === 'EXPENSE' ? 'Tự động nhận diện biểu tượng' : 'Tự động nhận diện biểu tượng'}
                 </span>
               </div>
               <div className="flex items-center gap-2">

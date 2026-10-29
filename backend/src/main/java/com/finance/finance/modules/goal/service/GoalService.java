@@ -13,6 +13,8 @@ import com.finance.finance.modules.goal.repository.GoalMilestoneRepository;
 import com.finance.finance.modules.goal.repository.GoalRepository;
 import com.finance.finance.modules.account.entity.Account;
 import com.finance.finance.modules.account.repository.AccountRepository;
+import com.finance.finance.modules.category.entity.Category;
+import com.finance.finance.modules.category.repository.CategoryRepository;
 import com.finance.finance.modules.transaction.dto.request.CreateTransactionRequest;
 import com.finance.finance.modules.transaction.service.TransactionService;
 import lombok.RequiredArgsConstructor;
@@ -38,6 +40,8 @@ public class GoalService {
     private final GoalMilestoneRepository milestoneRepository;
     private final TransactionService transactionService;
     private final AccountRepository accountRepository;
+    private final CategoryRepository categoryRepository;
+    private final com.finance.finance.modules.notification.service.NotificationService notificationService;
 
     @Transactional
     public GoalResponse createGoal(UUID userId, CreateGoalRequest request) {
@@ -187,8 +191,14 @@ public class GoalService {
             Account account = accountRepository.findByIdAndUserId(request.getSourceAccountId(), userId)
                     .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy tài khoản"));
             
-            // Hard-coded savings category ID - "Tiết kiệm, đầu tư"
-            UUID savingsCategoryId = UUID.fromString("275610c7-90a8-4a8f-87f2-2d7304f9ae13");
+            // Find savings category dynamically by code, fallback to first available expense category
+            UUID savingsCategoryId = categoryRepository.findByCode("SAVINGS_INVESTMENT")
+                    .map(Category::getId)
+                    .orElseGet(() -> categoryRepository.findByUserIdOrSystemAndKind(userId, com.finance.finance.common.enums.CategoryKind.EXPENSE)
+                            .stream()
+                            .findFirst()
+                            .map(Category::getId)
+                            .orElseThrow(() -> new IllegalStateException("Không tìm thấy danh mục chi tiêu hợp lệ")));
             
             CreateTransactionRequest transactionRequest = CreateTransactionRequest.builder()
                     .accountId(request.getSourceAccountId())
@@ -217,9 +227,44 @@ public class GoalService {
         goal.setCurrentAmount(goal.getCurrentAmount().add(request.getAmount()));
         
         // Check if goal is achieved
-        if (goal.getCurrentAmount().compareTo(goal.getTargetAmount()) >= 0) {
+        boolean wasAchieved = goal.getStatus() == GoalStatus.ACHIEVED;
+        if (!wasAchieved && goal.getCurrentAmount().compareTo(goal.getTargetAmount()) >= 0) {
             goal.setStatus(GoalStatus.ACHIEVED);
             goal.setCompletedAt(LocalDateTime.now());
+            
+            try {
+                notificationService.createNotification(
+                        userId,
+                        com.finance.finance.common.enums.NotificationType.GOAL_ACHIEVED,
+                        com.finance.finance.common.enums.NotificationPriority.HIGH,
+                        "🎉 Chúc mừng bạn đã hoàn thành mục tiêu: " + goal.getName(),
+                        String.format("Bạn đã tích lũy thành công %,.0f VNĐ cho mục tiêu '%s'. Chúc mừng thành tích tài chính tuyệt vời này!",
+                                goal.getTargetAmount().doubleValue(), goal.getName()),
+                        "/goals",
+                        "Xem mục tiêu"
+                );
+            } catch (Exception ex) {
+                log.error("Failed to send goal achieved notification", ex);
+            }
+        } else {
+            // Milestone alert (e.g. 50%, 80%)
+            double pct = goal.getPercentageComplete();
+            if (pct >= 50.0 && pct < 55.0) {
+                try {
+                    notificationService.createNotification(
+                            userId,
+                            com.finance.finance.common.enums.NotificationType.GOAL_MILESTONE,
+                            com.finance.finance.common.enums.NotificationPriority.NORMAL,
+                            "Cột mốc mục tiêu: " + goal.getName(),
+                            String.format("Tuyệt vời! Mục tiêu '%s' đã đạt hơn 50%% chặng đường tích lũy (%,.0f / %,.0f VNĐ). Hãy tiếp tục duy trì!",
+                                    goal.getName(), goal.getCurrentAmount().doubleValue(), goal.getTargetAmount().doubleValue()),
+                            "/goals",
+                            "Xem mục tiêu"
+                    );
+                } catch (Exception ex) {
+                    log.error("Failed to send goal milestone notification", ex);
+                }
+            }
         }
         
         // Check and mark milestones as achieved
@@ -444,8 +489,9 @@ public class GoalService {
                 .build());
 
         if (includeDetails) {
-            // Contributions
-            builder.contributions(goal.getContributions().stream()
+            // Contributions sorted by contributedAt DESC
+            List<GoalContribution> contributions = contributionRepository.findByGoalId(goal.getId());
+            builder.contributions(contributions.stream()
                     .map(this::mapContributionToResponse)
                     .collect(Collectors.toList()));
 

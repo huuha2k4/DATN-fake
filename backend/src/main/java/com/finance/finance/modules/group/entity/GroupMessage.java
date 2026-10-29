@@ -43,6 +43,7 @@ public class GroupMessage {
     private UUID expenseId;
 
     @Column(columnDefinition = "jsonb")
+    @org.hibernate.annotations.JdbcTypeCode(org.hibernate.type.SqlTypes.JSON)
     private String mentionedUserIds;
 
     @CreationTimestamp
@@ -55,4 +56,8 @@ public class GroupMessage {
 
     @Column(name = "deleted_at")
     private LocalDateTime deletedAt;
+
+    @Column(name = "is_recalled", nullable = false)
+    @Builder.Default
+    private Boolean isRecalled = false;
 }

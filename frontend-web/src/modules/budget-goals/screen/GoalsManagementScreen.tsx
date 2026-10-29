@@ -318,11 +318,10 @@ export function GoalsManagementScreen({ onNotify }: Props) {
                   key={val}
                   type="button"
                   onClick={() => setGoalFilter(val)}
-                  className={`h-full rounded-lg px-3.5 text-xs font-bold transition flex items-center justify-center whitespace-nowrap ${
-                    goalFilter === val
+                  className={`h-full rounded-lg px-3.5 text-xs font-bold transition flex items-center justify-center whitespace-nowrap ${goalFilter === val
                       ? 'is-active bg-[#07543f] text-white shadow-xs'
                       : 'text-[#52665a] hover:text-[#07543f] hover:bg-[#e4ede7]'
-                  }`}
+                    }`}
                 >
                   {label}
                 </button>
@@ -368,7 +367,7 @@ export function GoalsManagementScreen({ onNotify }: Props) {
                 <article
                   key={g.id}
                   className="goal-item-card group flex flex-col justify-between gap-4 rounded-2xl border border-[#e7ece8] bg-white p-5 shadow-sm transition hover:shadow-md cursor-pointer"
-                  onClick={() => setDetailGoal(g)}
+                  onClick={() => handleOpenDetailGoal(g)}
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex items-center gap-3">
@@ -746,7 +745,7 @@ export function GoalsManagementScreen({ onNotify }: Props) {
               {/* Lịch sử nạp tiền / tích lũy thực tế vào mục tiêu */}
               <div className="mt-4 pt-3 border-t border-gray-100 dark:border-gray-800">
                 <h4 className="text-xs font-bold text-[#14261e] dark:text-gray-200 mb-2">
-                  Lịch sử thanh toán &amp; nạp tiền ({detailGoal.contributions?.length || 0})
+                  Lịch sử nạp tiền ({detailGoal.contributions?.length || 0})
                 </h4>
 
                 {(!detailGoal.contributions || detailGoal.contributions.length === 0) ? (

@@ -14,10 +14,12 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -101,12 +103,35 @@ public class GroupController {
     }
 
     @PostMapping("/{groupId}/members")
-    public ResponseEntity<MemberResponse> addMember(
+    public ResponseEntity<com.finance.finance.modules.group.dto.response.GroupInvitationResponse> addMember(
             @PathVariable UUID groupId,
             @Valid @RequestBody AddMemberRequest request,
             @AuthenticationPrincipal User currentUser) {
-        MemberResponse response = groupService.addMember(groupId, request, currentUser.getId());
+        com.finance.finance.modules.group.dto.response.GroupInvitationResponse response = groupService.inviteMember(groupId, request, currentUser.getId());
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
+    }
+
+    @GetMapping("/invitations/pending")
+    public ResponseEntity<List<com.finance.finance.modules.group.dto.response.GroupInvitationResponse>> getPendingInvitations(
+            @AuthenticationPrincipal User currentUser) {
+        List<com.finance.finance.modules.group.dto.response.GroupInvitationResponse> response = groupService.getPendingInvitations(currentUser.getId());
+        return ResponseEntity.ok(response);
+    }
+
+    @PostMapping("/invitations/{invitationId}/accept")
+    public ResponseEntity<MemberResponse> acceptInvitation(
+            @PathVariable UUID invitationId,
+            @AuthenticationPrincipal User currentUser) {
+        MemberResponse response = groupService.acceptInvitation(invitationId, currentUser.getId());
+        return ResponseEntity.ok(response);
+    }
+
+    @PostMapping("/invitations/{invitationId}/reject")
+    public ResponseEntity<Void> rejectInvitation(
+            @PathVariable UUID invitationId,
+            @AuthenticationPrincipal User currentUser) {
+        groupService.rejectInvitation(invitationId, currentUser.getId());
+        return ResponseEntity.noContent().build();
     }
 
     @GetMapping("/{groupId}/members")
@@ -311,6 +336,21 @@ public class GroupController {
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
+    @PostMapping(value = "/{groupId}/messages/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<MessageResponse.AttachmentSummary> uploadMessageAttachment(
+            @PathVariable UUID groupId,
+            @RequestParam("file") MultipartFile file,
+            @AuthenticationPrincipal User currentUser) {
+        try {
+            MessageResponse.AttachmentSummary summary = messageService.uploadAttachment(groupId, file, currentUser.getId());
+            return ResponseEntity.status(HttpStatus.CREATED).body(summary);
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().build();
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
+    }
+
     @GetMapping("/{groupId}/messages")
     public ResponseEntity<Page<MessageResponse>> getMessages(
             @PathVariable UUID groupId,
@@ -339,6 +379,25 @@ public class GroupController {
         return ResponseEntity.ok(response);
     }
 
+    @PostMapping("/{groupId}/messages/{messageId}/recall")
+    public ResponseEntity<MessageResponse> recallMessage(
+            @PathVariable UUID groupId,
+            @PathVariable UUID messageId,
+            @AuthenticationPrincipal User currentUser) {
+        MessageResponse response = messageService.recallMessage(groupId, messageId, currentUser.getId());
+        return ResponseEntity.ok(response);
+    }
+
+    @PostMapping("/{groupId}/messages/{messageId}/react")
+    public ResponseEntity<MessageResponse> reactToMessage(
+            @PathVariable UUID groupId,
+            @PathVariable UUID messageId,
+            @RequestParam String reaction,
+            @AuthenticationPrincipal User currentUser) {
+        MessageResponse response = messageService.reactToMessage(groupId, messageId, reaction, currentUser.getId());
+        return ResponseEntity.ok(response);
+    }
+
     @DeleteMapping("/{groupId}/messages/{messageId}")
     public ResponseEntity<Void> deleteMessage(
             @PathVariable UUID groupId,
@@ -355,6 +414,23 @@ public class GroupController {
             @AuthenticationPrincipal User currentUser) {
         messageService.markAsRead(groupId, request, currentUser.getId());
         return ResponseEntity.noContent().build();
+    }
+
+    @PostMapping("/{groupId}/messages/typing")
+    public ResponseEntity<Void> reportTyping(
+            @PathVariable UUID groupId,
+            @RequestParam(defaultValue = "true") boolean typing,
+            @AuthenticationPrincipal User currentUser) {
+        messageService.setTyping(groupId, currentUser.getId(), typing);
+        return ResponseEntity.ok().build();
+    }
+
+    @GetMapping("/{groupId}/messages/typing")
+    public ResponseEntity<Map<String, Object>> getTypingUsers(
+            @PathVariable UUID groupId,
+            @AuthenticationPrincipal User currentUser) {
+        List<UUID> typingUserIds = messageService.getTypingUsers(groupId, currentUser.getId());
+        return ResponseEntity.ok(Map.of("typingUserIds", typingUserIds));
     }
 
     @GetMapping("/{groupId}/messages/unread-count")

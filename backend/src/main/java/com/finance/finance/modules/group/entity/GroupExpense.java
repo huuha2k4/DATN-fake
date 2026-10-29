@@ -57,6 +57,7 @@ public class GroupExpense {
     private String receiptKey;
 
     @Column(columnDefinition = "jsonb")
+    @org.hibernate.annotations.JdbcTypeCode(org.hibernate.type.SqlTypes.JSON)
     private String location;
 
     @Column(name = "created_by_user_id", nullable = false)

@@ -9,25 +9,104 @@ import com.finance.finance.modules.group.dto.response.MessageResponse;
 import com.finance.finance.modules.group.entity.*;
 import com.finance.finance.modules.group.repository.*;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.nio.file.StandardCopyOption;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class GroupMessageService {
+
+    private static final String ATTACHMENT_UPLOAD_DIR = "uploads/group-messages";
+
+    // Track typing status in memory: groupId -> (userId -> lastTypingTimestamp)
+    private static final ConcurrentHashMap<UUID, ConcurrentHashMap<UUID, Long>> TYPING_STATUS = new ConcurrentHashMap<>();
+
+    public void setTyping(UUID groupId, UUID userId, boolean typing) {
+        if (!groupMemberRepository.existsByGroup_IdAndUser_Id(groupId, userId)) {
+            return;
+        }
+        ConcurrentHashMap<UUID, Long> groupTyping = TYPING_STATUS.computeIfAbsent(groupId, k -> new ConcurrentHashMap<>());
+        if (typing) {
+            groupTyping.put(userId, System.currentTimeMillis());
+        } else {
+            groupTyping.remove(userId);
+        }
+    }
+
+    public List<UUID> getTypingUsers(UUID groupId, UUID excludeUserId) {
+        ConcurrentHashMap<UUID, Long> groupTyping = TYPING_STATUS.get(groupId);
+        if (groupTyping == null || groupTyping.isEmpty()) {
+            return List.of();
+        }
+        long now = System.currentTimeMillis();
+        // Expire after 5 seconds
+        return groupTyping.entrySet().stream()
+                .filter(entry -> !entry.getKey().equals(excludeUserId) && (now - entry.getValue() < 5000))
+                .map(java.util.Map.Entry::getKey)
+                .collect(Collectors.toList());
+    }
 
     private final GroupMessageRepository messageRepository;
     private final GroupMessageAttachmentRepository attachmentRepository;
     private final GroupMessageReadRepository readRepository;
+    private final com.finance.finance.modules.group.repository.GroupMessageReactionRepository reactionRepository;
     private final GroupMemberRepository groupMemberRepository;
     private final GroupExpenseRepository expenseRepository;
+    private final com.finance.finance.modules.user.repository.UserRepository userRepository;
+
+    @Transactional
+    public MessageResponse.AttachmentSummary uploadAttachment(UUID groupId, MultipartFile file, UUID currentUserId) throws IOException {
+        if (!groupMemberRepository.existsByGroup_IdAndUser_Id(groupId, currentUserId)) {
+            throw new ResourceNotFoundException("User is not a member of this group");
+        }
+
+        if (file == null || file.isEmpty()) {
+            throw new IllegalArgumentException("File không được để trống");
+        }
+
+        Path uploadPath = Paths.get(ATTACHMENT_UPLOAD_DIR);
+        if (!Files.exists(uploadPath)) {
+            Files.createDirectories(uploadPath);
+        }
+
+        String originalFilename = file.getOriginalFilename() != null ? file.getOriginalFilename() : "file";
+        String fileExtension = "";
+        int extIndex = originalFilename.lastIndexOf(".");
+        if (extIndex > 0) {
+            fileExtension = originalFilename.substring(extIndex);
+        }
+
+        String newFilename = groupId + "_" + UUID.randomUUID() + fileExtension;
+        Path filePath = uploadPath.resolve(newFilename);
+        Files.copy(file.getInputStream(), filePath, StandardCopyOption.REPLACE_EXISTING);
+
+        String fileKey = "/" + ATTACHMENT_UPLOAD_DIR + "/" + newFilename;
+        String mimeType = file.getContentType();
+        long fileSize = file.getSize();
+
+        return MessageResponse.AttachmentSummary.builder()
+                .fileKey(fileKey)
+                .fileName(originalFilename)
+                .mimeType(mimeType)
+                .fileSize(fileSize)
+                .build();
+    }
 
     @Transactional
     public MessageResponse sendMessage(UUID groupId, SendMessageRequest request, UUID currentUserId) {
@@ -133,10 +212,86 @@ public class GroupMessageService {
             throw new ResourceNotFoundException("Message has been deleted");
         }
 
+        if (Boolean.TRUE.equals(message.getIsRecalled())) {
+            throw new IllegalArgumentException("Cannot edit recalled message");
+        }
+
         message.setContent(request.getContent());
         message.setUpdatedAt(LocalDateTime.now());
 
         message = messageRepository.save(message);
+        return buildMessageResponse(message);
+    }
+
+    @Transactional
+    public MessageResponse recallMessage(UUID groupId, UUID messageId, UUID currentUserId) {
+        GroupMessage message = messageRepository.findById(messageId)
+                .orElseThrow(() -> new ResourceNotFoundException("Message not found"));
+
+        if (!message.getGroupId().equals(groupId)) {
+            throw new ResourceNotFoundException("Message does not belong to this group");
+        }
+
+        if (!message.getSenderId().equals(currentUserId)) {
+            throw new ResourceNotFoundException("You can only recall your own messages");
+        }
+
+        if (message.getDeletedAt() != null) {
+            throw new ResourceNotFoundException("Message has been deleted");
+        }
+
+        message.setIsRecalled(true);
+        message.setContent("Tin nhắn đã bị thu hồi");
+        message.setUpdatedAt(LocalDateTime.now());
+
+        // Delete attachments for recalled message
+        List<GroupMessageAttachment> attachments = attachmentRepository.findByMessageId(message.getId());
+        if (attachments != null && !attachments.isEmpty()) {
+            attachmentRepository.deleteAll(attachments);
+        }
+
+        message = messageRepository.save(message);
+        return buildMessageResponse(message);
+    }
+
+    @Transactional
+    public MessageResponse reactToMessage(UUID groupId, UUID messageId, String reaction, UUID currentUserId) {
+        if (!groupMemberRepository.existsByGroup_IdAndUser_Id(groupId, currentUserId)) {
+            throw new ResourceNotFoundException("User is not a member of this group");
+        }
+
+        GroupMessage message = messageRepository.findById(messageId)
+                .orElseThrow(() -> new ResourceNotFoundException("Message not found"));
+
+        if (!message.getGroupId().equals(groupId)) {
+            throw new ResourceNotFoundException("Message does not belong to this group");
+        }
+
+        if (message.getDeletedAt() != null) {
+            throw new ResourceNotFoundException("Message has been deleted");
+        }
+
+        // Check if existing reaction by this user
+        var existing = reactionRepository.findByMessageIdAndUserId(messageId, currentUserId);
+        if (existing.isPresent()) {
+            if (existing.get().getReaction().equals(reaction)) {
+                // If same reaction clicked again, toggle off (remove)
+                reactionRepository.delete(existing.get());
+            } else {
+                // Change reaction
+                existing.get().setReaction(reaction);
+                reactionRepository.save(existing.get());
+            }
+        } else {
+            // New reaction
+            var react = com.finance.finance.modules.group.entity.GroupMessageReaction.builder()
+                    .messageId(messageId)
+                    .userId(currentUserId)
+                    .reaction(reaction)
+                    .build();
+            reactionRepository.save(react);
+        }
+
         return buildMessageResponse(message);
     }
 
@@ -191,13 +346,46 @@ public class GroupMessageService {
         // Get attachments
         List<GroupMessageAttachment> attachments = attachmentRepository.findByMessageId(message.getId());
 
-        // Get read count
-        long readCount = readRepository.countByMessageId(message.getId());
+        // Get reads
+        List<GroupMessageRead> reads = readRepository.findByMessageId(message.getId());
+        List<UUID> readByUserIds = reads.stream()
+                .map(GroupMessageRead::getUserId)
+                .collect(Collectors.toList());
+
+        // Get sender info
+        MessageResponse.SenderSummary senderSummary = userRepository.findById(message.getSenderId())
+                .map(u -> MessageResponse.SenderSummary.builder()
+                        .id(u.getId())
+                        .fullName(u.getFullName() != null ? u.getFullName() : (u.getUsername() != null ? u.getUsername() : u.getEmail()))
+                        .displayName(u.getUsername())
+                        .avatarKey(u.getAvatarUrl())
+                        .build())
+                .orElse(null);
+
+        // Get reactions
+        List<com.finance.finance.modules.group.entity.GroupMessageReaction> reactions = reactionRepository.findByMessageId(message.getId());
+        List<MessageResponse.ReactionSummary> reactionSummaries = reactions.stream()
+                .map(r -> {
+                    String uName = userRepository.findById(r.getUserId())
+                            .map(u -> u.getFullName() != null ? u.getFullName() : (u.getUsername() != null ? u.getUsername() : u.getEmail()))
+                            .orElse("Thành viên");
+                    return MessageResponse.ReactionSummary.builder()
+                            .reaction(r.getReaction())
+                            .userId(r.getUserId())
+                            .userName(uName)
+                            .build();
+                })
+                .collect(Collectors.toList());
+
+        boolean isEdited = message.getUpdatedAt() != null
+                && message.getCreatedAt() != null
+                && java.time.Duration.between(message.getCreatedAt(), message.getUpdatedAt()).getSeconds() > 2;
 
         return MessageResponse.builder()
                 .id(message.getId())
                 .groupId(message.getGroupId())
                 .senderId(message.getSenderId())
+                .sender(senderSummary)
                 .messageType(message.getMessageType().name())
                 .content(message.getContent())
                 .replyToMessageId(message.getReplyToMessageId())
@@ -213,7 +401,11 @@ public class GroupMessageService {
                                 .thumbnailKey(att.getThumbnailKey())
                                 .build())
                         .collect(Collectors.toList()))
-                .readByCount((int) readCount)
+                .readByCount(readByUserIds.size())
+                .readByUserIds(readByUserIds)
+                .reactions(reactionSummaries)
+                .isEdited(isEdited && !Boolean.TRUE.equals(message.getIsRecalled()))
+                .isRecalled(Boolean.TRUE.equals(message.getIsRecalled()))
                 .createdAt(message.getCreatedAt())
                 .updatedAt(message.getUpdatedAt())
                 .deletedAt(message.getDeletedAt())

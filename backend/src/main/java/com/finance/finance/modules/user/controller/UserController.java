@@ -29,6 +29,12 @@ public class UserController {
         UserResponse user = userService.getCurrentUserByIdentifier(authentication.getName());
         return ResponseEntity.ok(user);
     }
+
+    @GetMapping("/search")
+    public ResponseEntity<java.util.List<UserResponse>> searchUsers(@RequestParam("q") String query) {
+        java.util.List<UserResponse> users = userService.searchUsers(query);
+        return ResponseEntity.ok(users);
+    }
     
     @PutMapping("/me")
     public ResponseEntity<UserResponse> updateProfile(

@@ -47,6 +47,7 @@ public class AuthService {
     private final JwtTokenProvider jwtTokenProvider;
     private final EmailService emailService;
     private final UserMapper userMapper;
+    private final com.finance.finance.modules.notification.service.NotificationService notificationService;
 
     @Value("${app.security.max-login-attempts:5}")
     private int maxLoginAttempts;
@@ -98,6 +99,21 @@ public class AuthService {
 
         user = userRepository.save(user);
         log.info("User registered successfully: {}", user.getId());
+
+        // Send automatic welcome notification
+        try {
+            notificationService.createNotification(
+                    user.getId(),
+                    com.finance.finance.common.enums.NotificationType.SYSTEM,
+                    com.finance.finance.common.enums.NotificationPriority.NORMAL,
+                    "Chào mừng bạn đến với FinAI!",
+                    "Hệ thống quản lý tài chính thông minh đã sẵn sàng. Hãy bắt đầu bằng cách thêm ví hoặc ghi nhận giao dịch đầu tiên của bạn.",
+                    "/dashboard",
+                    "Khám phá ngay"
+            );
+        } catch (Exception ex) {
+            log.error("Failed to create welcome notification for user: {}", user.getId(), ex);
+        }
 
         // Generate email verification token
         String verificationToken = generateVerificationToken(user);

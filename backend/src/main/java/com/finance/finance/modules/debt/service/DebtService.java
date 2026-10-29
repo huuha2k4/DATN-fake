@@ -6,6 +6,8 @@ import com.finance.finance.common.enums.PaymentFrequency;
 import com.finance.finance.common.enums.TransactionType;
 import com.finance.finance.modules.account.entity.Account;
 import com.finance.finance.modules.account.repository.AccountRepository;
+import com.finance.finance.modules.category.entity.Category;
+import com.finance.finance.modules.category.repository.CategoryRepository;
 import com.finance.finance.modules.debt.dto.request.CreateDebtRequest;
 import com.finance.finance.modules.debt.dto.request.RecordPaymentRequest;
 import com.finance.finance.modules.debt.dto.request.UpdateDebtRequest;
@@ -41,6 +43,8 @@ public class DebtService {
     private final UserRepository userRepository;
     private final TransactionService transactionService;
     private final AccountRepository accountRepository;
+    private final CategoryRepository categoryRepository;
+    private final com.finance.finance.modules.notification.service.NotificationService notificationService;
 
     // ==================== CREATE DEBT ====================
 
@@ -240,30 +244,47 @@ public class DebtService {
             throw new IllegalArgumentException("Tổng gốc + lãi phải bằng tổng số tiền trả");
         }
 
-        // Create EXPENSE transaction for debt payment
-        // This will deduct money from the account and record it in transaction history
+        // Create transaction for debt payment or collection
+        // BORROWING (Đi vay): Trả nợ -> EXPENSE (Trừ tiền tài khoản)
+        // LENDING (Cho vay): Thu nợ -> INCOME (Cộng tiền vào tài khoản)
         UUID transactionId = null;
         if (request.getAccountId() != null) {
             // Get account to retrieve currency code
             Account account = accountRepository.findByIdAndUserId(request.getAccountId(), userId)
                     .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy tài khoản"));
             
-            // Hard-coded debt payment category ID - "Trả nợ"
-            UUID debtPaymentCategoryId = UUID.fromString("ec716575-0533-46ab-a3b2-798d0b95598c");
+            boolean isBorrowing = debt.getDebtType() == DebtType.BORROWING;
+            TransactionType transactionType = isBorrowing ? TransactionType.EXPENSE : TransactionType.INCOME;
+            
+            // Find appropriate category dynamically by code:
+            // - BORROWING: DEBT_PAYMENT (or fallback expense category)
+            // - LENDING: DEBT_COLLECTION (or fallback income category)
+            String targetCategoryCode = isBorrowing ? "DEBT_PAYMENT" : "DEBT_COLLECTION";
+            com.finance.finance.common.enums.CategoryKind fallbackKind = isBorrowing 
+                    ? com.finance.finance.common.enums.CategoryKind.EXPENSE 
+                    : com.finance.finance.common.enums.CategoryKind.INCOME;
+            
+            UUID categoryId = categoryRepository.findByCode(targetCategoryCode)
+                    .map(Category::getId)
+                    .orElseGet(() -> categoryRepository.findByUserIdOrSystemAndKind(userId, fallbackKind)
+                            .stream()
+                            .findFirst()
+                            .map(Category::getId)
+                            .orElseThrow(() -> new IllegalStateException("Không tìm thấy danh mục phù hợp")));
             
             // Get counterparty name based on debt type
-            String counterpartyName = debt.getDebtType() == DebtType.BORROWING 
+            String counterpartyName = isBorrowing 
                     ? debt.getCreditorName()  // I owe this person (borrowing)
                     : debt.getDebtorName();   // This person owes me (lending)
             
-            String description = debt.getDebtType() == DebtType.BORROWING 
-                    ? "Trả nợ: " + (counterpartyName != null ? counterpartyName : "")
+            String description = isBorrowing 
+                    ? "Trả nợ cho: " + (counterpartyName != null ? counterpartyName : "")
                     : "Thu nợ từ: " + (counterpartyName != null ? counterpartyName : "");
             
             CreateTransactionRequest transactionRequest = CreateTransactionRequest.builder()
                     .accountId(request.getAccountId())
-                    .categoryId(debtPaymentCategoryId)
-                    .transactionType(TransactionType.EXPENSE)
+                    .categoryId(categoryId)
+                    .transactionType(transactionType)
                     .amount(request.getAmount())
                     .currencyCode(account.getCurrencyCode())
                     .transactionDate(request.getPaymentDate() != null ? request.getPaymentDate() : LocalDate.now())
@@ -300,6 +321,26 @@ public class DebtService {
         debtRepository.save(debt);
 
         log.info("Payment recorded: {}", payment.getId());
+
+        // Send debt payment notification
+        try {
+            if (debt.getStatus() == DebtStatus.PAID_OFF) {
+                String counterparty = debt.getDebtType() == DebtType.BORROWING ? debt.getCreditorName() : debt.getDebtorName();
+                notificationService.createNotification(
+                        userId,
+                        com.finance.finance.common.enums.NotificationType.DEBT_REMINDER,
+                        com.finance.finance.common.enums.NotificationPriority.NORMAL,
+                        "🎉 Khoản nợ đã được tất toán thành công!",
+                        String.format("Khoản %s với %s đã hoàn tất 100%% dư nợ. Chúc mừng bạn đã thanh toán xong!",
+                                debt.getDebtType() == DebtType.BORROWING ? "vay" : "cho vay",
+                                counterparty != null ? counterparty : ""),
+                        "/debts",
+                        "Xem công nợ"
+                );
+            }
+        } catch (Exception ex) {
+            log.error("Failed to send debt payment notification", ex);
+        }
 
         // Build response
         return PaymentResponse.builder()

@@ -41,7 +41,7 @@ export function DebtManagementScreen({ onNotify }: Props) {
   const [accounts, setAccounts] = useState<AccountItem[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [activeTab, setActiveTab] = useState<'ALL' | 'BORROWING' | 'LENDING'>('ALL');
-  const [statusFilter, setStatusFilter] = useState<'ALL' | 'ACTIVE' | 'PAID'>('ALL');
+  const [statusFilter, setStatusFilter] = useState<'ALL' | 'ACTIVE' | 'PAID' | 'PAID_OFF'>('ALL');
 
   // Modal Tạo khoản nợ mới
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
@@ -396,6 +396,7 @@ export function DebtManagementScreen({ onNotify }: Props) {
     }
 
     setIsSubmittingPayment(true);
+    const isBorrowing = selectedDebtDetail.debt_type === 'BORROWING';
     try {
       await debtApi.recordPayment(selectedDebtDetail.id, {
         amount: amountNum,
@@ -403,7 +404,7 @@ export function DebtManagementScreen({ onNotify }: Props) {
         account_id: paymentAccountId || undefined,
         note: paymentNote.trim() || undefined,
       });
-      onNotify('Ghi nhận thanh toán thành công!');
+      onNotify(isBorrowing ? 'Ghi nhận trả nợ thành công!' : 'Ghi nhận thu nợ thành công! Tiền đã được cộng vào ví.');
       setIsPaymentModalOpen(false);
       setPaymentAmount('');
       setPaymentNote('');
@@ -411,7 +412,7 @@ export function DebtManagementScreen({ onNotify }: Props) {
       handleOpenDetail(selectedDebtDetail.id);
       loadDebts();
     } catch (err: any) {
-      onNotify(err.response?.data?.message || 'Lỗi khi ghi nhận thanh toán');
+      onNotify(err.response?.data?.message || 'Lỗi khi ghi nhận giao dịch nợ');
     } finally {
       setIsSubmittingPayment(false);
     }
@@ -484,7 +485,7 @@ export function DebtManagementScreen({ onNotify }: Props) {
           >
             <option value="ALL">Mọi trạng thái</option>
             <option value="ACTIVE">Đang thực hiện (Chưa trả hết)</option>
-            <option value="PAID">Đã thanh toán xong</option>
+            <option value="PAID_OFF">Đã hoàn tất (Trả hết)</option>
           </select>
         </div>
 
@@ -526,7 +527,7 @@ export function DebtManagementScreen({ onNotify }: Props) {
           {debts.map((item) => {
             const isBorrowing = item.debt_type === 'BORROWING';
             const partnerName = isBorrowing ? item.creditor_name || 'Người cho vay' : item.debtor_name || 'Người vay';
-            const isPaid = item.status === 'PAID';
+            const isPaid = item.status === 'PAID_OFF' || item.status === 'PAID' || item.remaining <= 0;
 
             return (
               <div
@@ -1103,7 +1104,7 @@ export function DebtManagementScreen({ onNotify }: Props) {
                   Xóa khoản nợ
                 </button>
 
-                {selectedDebtDetail.status !== 'PAID' && (
+                {!(selectedDebtDetail.status === 'PAID_OFF' || selectedDebtDetail.status === 'PAID' || selectedDebtDetail.remaining_amount <= 0) ? (
                   <button
                     type="button"
                     onClick={() => {
@@ -1118,6 +1119,10 @@ export function DebtManagementScreen({ onNotify }: Props) {
                   >
                     {selectedDebtDetail.debt_type === 'BORROWING' ? 'Trả nợ' : 'Thu nợ'}
                   </button>
+                ) : (
+                  <span className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-emerald-50 text-emerald-800 text-xs font-bold border border-emerald-200">
+                    <span>✓ Đã thanh toán 100%</span>
+                  </span>
                 )}
               </div>
 
@@ -1150,9 +1155,16 @@ export function DebtManagementScreen({ onNotify }: Props) {
         <div className="modal-backdrop">
           <div className="modal-box max-w-md">
             <div className="flex items-center justify-between pb-3 border-b border-gray-100">
-              <h3 className="text-base font-bold text-[#14261e]">
-                {selectedDebtDetail.debt_type === 'BORROWING' ? 'Trả nợ' : 'Thu nợ'}
-              </h3>
+              <div>
+                <h3 className="text-base font-bold text-[#14261e]">
+                  {selectedDebtDetail.debt_type === 'BORROWING' ? 'Ghi nhận Trả nợ' : 'Ghi nhận Thu nợ'}
+                </h3>
+                <p className="text-[11px] text-[#718579] mt-0.5">
+                  {selectedDebtDetail.debt_type === 'BORROWING'
+                    ? `Thanh toán khoản tiền bạn đã vay từ ${selectedDebtDetail.creditor_name || 'người cho vay'}`
+                    : `Thu hồi tiền bạn đã cho ${selectedDebtDetail.debtor_name || 'người vay'} mượn`}
+                </p>
+              </div>
               <button
                 type="button"
                 onClick={() => setIsPaymentModalOpen(false)}
@@ -1164,7 +1176,9 @@ export function DebtManagementScreen({ onNotify }: Props) {
 
             <form onSubmit={handlePaymentSubmit} className="mt-4 space-y-3.5">
               <div>
-                <label className="mb-1 block text-xs font-bold text-[#14261e]">Số tiền trả (VND) *</label>
+                <label className="mb-1 block text-xs font-bold text-[#14261e]">
+                  {selectedDebtDetail.debt_type === 'BORROWING' ? 'Số tiền trả nợ (VND) *' : 'Số tiền thu nợ (VND) *'}
+                </label>
                 <input
                   type="text"
                   required
@@ -1175,7 +1189,9 @@ export function DebtManagementScreen({ onNotify }: Props) {
               </div>
 
               <div>
-                <label className="mb-1 block text-xs font-bold text-[#14261e]">Ngày trả</label>
+                <label className="mb-1 block text-xs font-bold text-[#14261e]">
+                  {selectedDebtDetail.debt_type === 'BORROWING' ? 'Ngày trả nợ' : 'Ngày thu tiền'}
+                </label>
                 <DatePicker
                   required
                   value={paymentDate}
@@ -1185,7 +1201,9 @@ export function DebtManagementScreen({ onNotify }: Props) {
               </div>
 
               <div>
-                <label className="mb-1 block text-xs font-bold text-[#14261e]">Nguồn ví / Tài khoản thanh toán</label>
+                <label className="mb-1 block text-xs font-bold text-[#14261e]">
+                  {selectedDebtDetail.debt_type === 'BORROWING' ? 'Ví / Tài khoản nguồn (Trừ tiền)' : 'Ví / Tài khoản nhận tiền (Cộng tiền)'}
+                </label>
                 <select
                   value={paymentAccountId}
                   onChange={(e) => setPaymentAccountId(e.target.value)}
@@ -1194,17 +1212,22 @@ export function DebtManagementScreen({ onNotify }: Props) {
                   <option value="">Không liên kết ví (Chỉ cập nhật số dư nợ)</option>
                   {accounts.map((acc) => (
                     <option key={acc.id} value={acc.id}>
-                      {acc.name} (Số dư: {formatCurrency(acc.balance)})
+                      {acc.name} (Số dư hiện tại: {formatCurrency(acc.balance)})
                     </option>
                   ))}
                 </select>
+                <p className="text-[10px] text-gray-500 mt-1">
+                  {selectedDebtDetail.debt_type === 'BORROWING'
+                    ? '💡 Số tiền trả nợ sẽ được trừ trực tiếp khỏi số dư tài khoản này.'
+                    : '💡 Số tiền thu nợ sẽ được cộng trực tiếp vào số dư tài khoản này.'}
+                </p>
               </div>
 
               <div>
-                <label className="mb-1 block text-xs font-bold text-[#14261e]">Ghi chú thanh toán</label>
+                <label className="mb-1 block text-xs font-bold text-[#14261e]">Ghi chú</label>
                 <input
                   type="text"
-                  placeholder="Ví dụ: Trả kỳ 1, chuyển khoản qua Vietcombank..."
+                  placeholder={selectedDebtDetail.debt_type === 'BORROWING' ? 'Ví dụ: Trả kỳ 1, chuyển khoản Vietcombank...' : 'Ví dụ: Khách trả tiền mặt, nhận chuyển khoản...'}
                   value={paymentNote}
                   onChange={(e) => setPaymentNote(e.target.value)}
                   className="h-10 w-full rounded-xl border border-gray-200 px-3 text-xs outline-none focus:border-[#07543f]"
@@ -1224,7 +1247,11 @@ export function DebtManagementScreen({ onNotify }: Props) {
                   disabled={isSubmittingPayment}
                   className="h-10 rounded-xl bg-[#07543f] px-5 text-xs font-bold text-white hover:bg-[#0b6c52] disabled:opacity-50"
                 >
-                  {isSubmittingPayment ? 'Đang lưu...' : 'Xác nhận thanh toán'}
+                  {isSubmittingPayment
+                    ? 'Đang lưu...'
+                    : selectedDebtDetail.debt_type === 'BORROWING'
+                    ? 'Xác nhận trả nợ'
+                    : 'Xác nhận thu nợ'}
                 </button>
               </div>
             </form>

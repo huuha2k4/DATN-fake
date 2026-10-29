@@ -28,6 +28,12 @@ public class ChildWallet {
     @Column(name = "group_id", nullable = false)
     private UUID groupId;
 
+    @Column(name = "user_id")
+    private UUID userId;
+
+    @Column(name = "child_username", length = 50)
+    private String childUsername;
+
     @Column(name = "child_name", nullable = false, length = 150)
     private String childName;
 
@@ -61,12 +67,14 @@ public class ChildWallet {
     private BigDecimal spendLimitWeekly;
 
     @Column(name = "allowed_categories", columnDefinition = "jsonb")
+    @org.hibernate.annotations.JdbcTypeCode(org.hibernate.type.SqlTypes.JSON)
     private String allowedCategories;
 
     @Column(name = "require_approval_above", precision = 19, scale = 4)
     private BigDecimal requireApprovalAbove;
 
     @Column(columnDefinition = "jsonb")
+    @org.hibernate.annotations.JdbcTypeCode(org.hibernate.type.SqlTypes.JSON)
     private String settings;
 
     @CreationTimestamp

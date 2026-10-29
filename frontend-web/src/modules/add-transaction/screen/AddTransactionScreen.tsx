@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type ChangeEvent, type FormEvent } from 'react'
-import { FinanceIcon, resolveCategoryIconName } from '../../core/components/FinanceIcon'
+import { FinanceIcon, resolveCategoryIconName, getCategoryCanonicalKey } from '../../core/components/FinanceIcon'
 import {
   transactionApi,
   type TransactionType,
@@ -113,10 +113,10 @@ export function AddTransactionScreen({ onCancel, onNotify, onOpenInvoiceScanner 
     loadData()
   }, [])
 
-  // Deduplicate categories by normalized name & kind to prevent duplicate seeded data (e.g. 2 'Ăn uống')
+  // Deduplicate categories by normalized canonical key & kind to prevent duplicate seeded data (e.g. Di chuyển / Đi lại)
   const uniqueCategories = categories.filter((cat, index, self) => {
-    const key = `${cat.kind}_${cat.name.trim().toLowerCase()}`
-    return index === self.findIndex((c) => `${c.kind}_${c.name.trim().toLowerCase()}` === key)
+    const key = getCategoryCanonicalKey(cat.kind, cat.name)
+    return index === self.findIndex((c) => getCategoryCanonicalKey(c.kind, c.name) === key)
   })
 
   // Auto pick default category based on transaction type

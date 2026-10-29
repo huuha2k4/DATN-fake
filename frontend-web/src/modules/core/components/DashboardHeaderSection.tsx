@@ -1,6 +1,7 @@
 import { useLocation } from 'react-router-dom'
 import { FinanceIcon } from './FinanceIcon'
 import { UserAvatar } from '../../profile/components/UserAvatar'
+import { NotificationDropdown } from '../../notification/components/NotificationDropdown'
 import { useTheme } from '../context/ThemeContext'
 
 type Props = { 
@@ -23,6 +24,7 @@ const routeTitles: Record<string, { title: string; subtitle?: string }> = {
   '/schedules': { title: 'Lịch tài chính', subtitle: 'Lịch giao dịch định kỳ, hóa đơn và nhắc nhở thanh toán' },
   '/reminders': { title: 'Lịch tài chính', subtitle: 'Lịch giao dịch định kỳ, hóa đơn và nhắc nhở thanh toán' },
   '/debts': { title: 'Quản lý Công nợ', subtitle: 'Theo dõi các khoản đi vay, cho vay và tiến độ trả nợ' },
+  '/groups': { title: 'Quản lý Chi tiêu Nhóm & Gia đình', subtitle: 'Hóa đơn chung, công nợ chéo và ví gia đình' },
   '/reports': { title: 'Báo cáo & Thống kê', subtitle: 'Biểu đồ phân tích tài chính đa chiều' },
   '/ai-assistant': { title: 'AI Thông minh', subtitle: 'Trợ lý ảo phân tích và tư vấn tài chính Finora' },
   '/forecast': { title: 'Dự báo tài chính', subtitle: 'Dự đoán số dư và kế hoạch tài chính tương lai' },
@@ -120,16 +122,7 @@ export function DashboardHeaderSection({ onNotify, onOpenProfile, onOpenChangePa
           <FinanceIcon name={isDark ? 'moon' : 'sun'} size={18} />
         </button>
 
-        <button 
-          className="icon-button notification-button relative" 
-          type="button" 
-          aria-label="Thông báo" 
-          onClick={() => onNotify('Bạn đã xem các thông báo mới nhất')}
-          title="Thông báo"
-        >
-          <FinanceIcon name="bell" size={19} />
-          <i className="absolute top-2 right-2 w-2 h-2 rounded-full bg-[#ef4444]" />
-        </button>
+        <NotificationDropdown onNotify={onNotify} />
         <UserAvatar 
           onOpenProfile={onOpenProfile} 
           onOpenChangePassword={onOpenChangePassword} 
