@@ -8,7 +8,13 @@ export default defineConfig({
   server: {
     host: true,
     allowedHosts: true,
-    hmr: false,
+    // Bật HMR để hot reload hoạt động
+    hmr: true,
+    // Polling cần thiết khi chạy Docker trên Windows (NTFS không gửi inotify events)
+    watch: {
+      usePolling: true,
+      interval: 300,
+    },
     proxy: {
       '/api': {
         target: 'http://localhost:1116',
