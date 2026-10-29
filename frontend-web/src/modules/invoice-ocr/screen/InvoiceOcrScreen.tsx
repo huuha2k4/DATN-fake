@@ -12,6 +12,7 @@ export function InvoiceOcrScreen({ onCancel, onNotify }: Props) {
   // Loading / scan states
   const [scanning, setScanning] = useState(false)
   const [scanResult, setScanResult] = useState<OcrReceiptResult | null>(null)
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null)
   const [recentReceipts, setRecentReceipts] = useState<OcrReceiptResult[]>([])
   const [loadingReceipts, setLoadingReceipts] = useState(false)
 
@@ -30,6 +31,13 @@ export function InvoiceOcrScreen({ onCancel, onNotify }: Props) {
 
   // Filter for recent receipts table
   const [filter, setFilter] = useState('')
+
+  // Revoke object URL khi component unmount để tránh memory leak
+  useEffect(() => {
+    return () => {
+      if (previewUrl) URL.revokeObjectURL(previewUrl)
+    }
+  }, [previewUrl])
 
   // Load reference data on mount
   useEffect(() => {
@@ -71,6 +79,12 @@ export function InvoiceOcrScreen({ onCancel, onNotify }: Props) {
       event.target.value = ''
       return
     }
+
+    // Tạo preview URL ngay lập tức, trước khi gọi API
+    if (previewUrl) URL.revokeObjectURL(previewUrl)
+    const newPreviewUrl = URL.createObjectURL(file)
+    setPreviewUrl(newPreviewUrl)
+
     setScanning(true)
     try {
       const result = await ocrApi.scanReceipt(file)
@@ -79,7 +93,20 @@ export function InvoiceOcrScreen({ onCancel, onNotify }: Props) {
       setDate(result.transactionDate ?? '')
       setTime(result.transactionTime ?? '')
       setAmount(result.totalAmount?.toString() ?? '')
-      setSelectedCategoryId(result.aiCategoryId ?? '')
+
+      // aiCategoryId từ AI là string key (vd: "food"), cần map sang UUID của hệ thống
+      // Thử tìm category có name khớp với aiCategoryName trước, sau đó mới thử id
+      if (result.aiCategoryId) {
+        const matched = categories.find(
+          (c) =>
+            c.id === result.aiCategoryId ||
+            c.name?.toLowerCase() === result.aiCategoryName?.toLowerCase()
+        )
+        setSelectedCategoryId(matched?.id ?? '')
+      } else {
+        setSelectedCategoryId('')
+      }
+
       onNotify(`Quét thành công: ${result.merchantName ?? file.name}`)
     } catch (err: any) {
       onNotify(err?.response?.data?.message ?? err?.message ?? 'Không thể quét hóa đơn. Vui lòng thử lại.')
@@ -91,6 +118,8 @@ export function InvoiceOcrScreen({ onCancel, onNotify }: Props) {
 
   const resetScan = () => {
     setScanResult(null)
+    if (previewUrl) URL.revokeObjectURL(previewUrl)
+    setPreviewUrl(null)
     setMerchant('')
     setDate('')
     setTime('')
@@ -206,7 +235,7 @@ export function InvoiceOcrScreen({ onCancel, onNotify }: Props) {
             <div className="absolute left-3 right-3 top-3 flex flex-wrap items-center justify-between gap-2 rounded-lg bg-white/10 px-3 py-2 backdrop-blur">
               <span className="flex items-center gap-2 text-[9px] font-semibold tracking-[.6px] text-[#a8ebca]">
                 <i className="size-2 rounded-full bg-[#6ffbbe]" />
-                FINAI OCR · {scanning ? 'ĐANG XỬ LÝ' : 'BẢN XEM TRƯỚC'}
+                FINAI OCR · {scanning ? 'ĐANG XỬ LÝ' : previewUrl ? 'ẢNH HÓA ĐƠN' : 'BẢN XEM TRƯỚC'}
               </span>
               <span className="flex items-center gap-1.5 text-[9px] text-[#eaf1ff]">
                 <FinanceIcon name="spark" size={12} />
@@ -216,8 +245,16 @@ export function InvoiceOcrScreen({ onCancel, onNotify }: Props) {
 
             {scanning ? (
               <div className="flex flex-col items-center gap-4 text-white">
+                {/* Hiển thị ảnh mờ trong khi đang scan */}
+                {previewUrl && (
+                  <img
+                    src={previewUrl}
+                    alt="Ảnh hóa đơn đang xử lý"
+                    className="absolute inset-0 h-full w-full object-contain opacity-30"
+                  />
+                )}
                 <svg
-                  className="size-12 animate-spin text-[#6ffbbe]"
+                  className="relative size-12 animate-spin text-[#6ffbbe]"
                   xmlns="http://www.w3.org/2000/svg"
                   fill="none"
                   viewBox="0 0 24 24"
@@ -230,39 +267,29 @@ export function InvoiceOcrScreen({ onCancel, onNotify }: Props) {
                     d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
                   />
                 </svg>
-                <p className="text-sm font-medium text-[#a8ebca]">Đang nhận diện hóa đơn…</p>
+                <p className="relative text-sm font-medium text-[#a8ebca]">Đang nhận diện hóa đơn…</p>
               </div>
-            ) : scanResult ? (
-              <article className="relative w-full max-w-[340px] rounded-lg bg-white p-4 shadow-2xl">
-                <div className="border-b border-dashed border-[#bfc9c4] pb-3 text-center">
-                  <span className="mx-auto grid size-9 place-items-center rounded-full bg-[#eaf0fb] text-[#47677f]">
-                    <FinanceIcon name="receipt" size={17} />
-                  </span>
-                  <h2 className="mt-1 text-lg font-bold tracking-[1px] text-[#07543f]">
-                    {scanResult.merchantName?.toUpperCase() ?? 'HÓA ĐƠN'}
-                  </h2>
-                  <p className="text-[10px] text-[#59675f]">{scanResult.aiCategoryName ?? ''}</p>
-                  <div className="mt-2 flex justify-between border-t border-[#edf0ed] pt-2 text-[8px] text-[#829087]">
-                    <span>ID: {scanResult.id.slice(0, 8)}</span>
-                    <span>
-                      {scanResult.transactionDate ?? ''}
-                      {scanResult.transactionTime ? ` · ${scanResult.transactionTime}` : ''}
-                    </span>
-                  </div>
-                </div>
-                <div className="space-y-1 border-t border-dashed border-[#bfc9c4] pt-3 text-[9px] text-[#718078]">
-                  <div className="flex justify-between pt-1 text-sm font-bold text-[#26372e]">
-                    <span>Tổng cộng</span>
-                    <span className="text-[#087557]">
+            ) : previewUrl ? (
+              /* Hiển thị ảnh thật sau khi upload */
+              <div className="relative flex h-full w-full items-center justify-center">
+                <img
+                  src={previewUrl}
+                  alt={`Hóa đơn ${scanResult?.merchantName ?? ''}`}
+                  className="max-h-[400px] w-full rounded-lg object-contain sm:max-h-[480px]"
+                />
+                {/* Overlay badge kết quả OCR góc dưới phải */}
+                {scanResult && (
+                  <div className="absolute bottom-2 right-2 rounded-lg bg-[#07543f]/90 px-3 py-2 text-[10px] text-white shadow-lg backdrop-blur-sm">
+                    <p className="font-bold">{scanResult.merchantName ?? 'Hóa đơn'}</p>
+                    {scanResult.aiCategoryName && (
+                      <p className="text-[#a8ebca]">{scanResult.aiCategoryName}</p>
+                    )}
+                    <p className="mt-0.5 font-semibold text-[#6ffbbe]">
                       {scanResult.totalAmount?.toLocaleString('vi-VN') ?? '—'} {scanResult.currency}
-                    </span>
+                    </p>
                   </div>
-                </div>
-                <p className="mt-2 flex items-center justify-center gap-1 text-[8px] font-semibold text-[#087557]">
-                  <FinanceIcon name="shield" size={10} />
-                  Hóa đơn được xử lý riêng tư
-                </p>
-              </article>
+                )}
+              </div>
             ) : (
               <article className="relative w-full max-w-[340px] rounded-lg bg-white p-4 shadow-2xl">
                 <div className="border-b border-dashed border-[#bfc9c4] pb-3 text-center">
