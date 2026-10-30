@@ -8,6 +8,8 @@ import {
 } from '../../cash-flow-management/api/transactionApi'
 import { accountApi, type AccountItem } from '../../account-management/api/accountApi'
 import { formatDate } from '../../core/utils/dateUtils'
+import { groupApi, type GroupFundResponse, type GroupMemberResponse, type GroupResponse } from '../../group/api/groupApi'
+import { getStoredUser } from '../../auth/api/authApi'
 
 type Props = {
   onCancel: () => void;
@@ -32,6 +34,10 @@ export function AddTransactionScreen({ onCancel, onNotify, onOpenInvoiceScanner 
   // Real database states
   const [categories, setCategories] = useState<CategoryItem[]>([])
   const [accounts, setAccounts] = useState<AccountItem[]>([])
+  const [groups, setGroups] = useState<GroupResponse[]>([])
+  const [groupFunds, setGroupFunds] = useState<Record<string, GroupFundResponse>>({})
+  const [selectedGroupFundId, setSelectedGroupFundId] = useState<string>('')
+  const [selectedGroupMembers, setSelectedGroupMembers] = useState<GroupMemberResponse[]>([])
   const [recentTransactions, setRecentTransactions] = useState<TransactionItem[]>([])
   const [loadingMetadata, setLoadingMetadata] = useState(true)
   const [submitting, setSubmitting] = useState(false)
@@ -83,14 +89,18 @@ export function AddTransactionScreen({ onCancel, onNotify, onOpenInvoiceScanner 
   const loadData = async () => {
     try {
       setLoadingMetadata(true)
-      const [catsRes, accsRes, txsRes] = await Promise.all([
+      const [catsRes, accsRes, txsRes, groupsRes] = await Promise.all([
         transactionApi.getCategories().catch(() => []),
         accountApi.getAccounts().catch(() => []),
         transactionApi.getTransactions({ pageSize: 5 }).catch(() => ({ transactions: [] })),
+        groupApi.getGroups().catch(() => []),
       ])
 
       setCategories(catsRes)
       setAccounts(accsRes)
+      setGroups(groupsRes)
+      const funds = await Promise.all(groupsRes.map(async (group) => [group.id, await groupApi.getFund(group.id).catch(() => null)] as const))
+      setGroupFunds(Object.fromEntries(funds.filter((entry): entry is readonly [string, GroupFundResponse] => entry[1] !== null)))
       if (txsRes?.transactions) {
         setRecentTransactions(txsRes.transactions)
       }
@@ -112,6 +122,14 @@ export function AddTransactionScreen({ onCancel, onNotify, onOpenInvoiceScanner 
   useEffect(() => {
     loadData()
   }, [])
+
+  useEffect(() => {
+    if (!selectedGroupFundId) {
+      setSelectedGroupMembers([])
+      return
+    }
+    groupApi.getMembers(selectedGroupFundId).then(setSelectedGroupMembers).catch(() => setSelectedGroupMembers([]))
+  }, [selectedGroupFundId])
 
   // Deduplicate categories by normalized canonical key & kind to prevent duplicate seeded data (e.g. Di chuyển / Đi lại)
   const uniqueCategories = categories.filter((cat, index, self) => {
@@ -138,6 +156,8 @@ export function AddTransactionScreen({ onCancel, onNotify, onOpenInvoiceScanner 
 
   const filteredCategories = uniqueCategories.filter((c) => c.kind === type)
   const selectedAccountObj = accounts.find((a) => a.id === selectedAccountId)
+  const selectedGroupFund = groups.find((group) => group.id === selectedGroupFundId)
+  const selectedGroupFundBalance = selectedGroupFundId ? (groupFunds[selectedGroupFundId]?.balance || 0) : 0
   const toAccountObj = accounts.find((a) => a.id === toAccountId)
   const selectedCategoryObj = uniqueCategories.find((c) => c.id === selectedCategoryId)
 
@@ -166,8 +186,17 @@ export function AddTransactionScreen({ onCancel, onNotify, onOpenInvoiceScanner 
       setError('Vui lòng nhập số tiền lớn hơn 0.')
       return
     }
-    if (!selectedAccountId) {
+    if (!selectedAccountId && !selectedGroupFundId) {
       setError('Vui lòng chọn tài khoản thanh toán.')
+      return
+    }
+    if (selectedGroupFundId && type !== 'EXPENSE') {
+      setError('Quỹ nhóm chỉ dùng để ghi khoản chi chung.')
+      return
+    }
+    if ((type === 'EXPENSE' || type === 'TRANSFER') && numericAmount > selectedSourceBalance) {
+      const sourceLabel = selectedGroupFund ? `quỹ chung “${selectedGroupFund.name}”` : `ví “${selectedAccountObj?.name || 'đã chọn'}”`
+      setError(`Số tiền trong ${sourceLabel} không đủ để thực hiện giao dịch.`)
       return
     }
     if (type !== 'TRANSFER' && !selectedCategoryId) {
@@ -183,19 +212,30 @@ export function AddTransactionScreen({ onCancel, onNotify, onOpenInvoiceScanner 
       setSubmitting(true)
       setError('')
 
-      await transactionApi.createTransaction({
-        transactionType: type,
-        accountId: selectedAccountId,
-        toAccountId: type === 'TRANSFER' ? toAccountId : undefined,
-        amount: numericAmount,
-        currencyCode: selectedAccountObj?.currencyCode || 'VND',
-        description: description.trim() || (type === 'INCOME' ? 'Khoản thu' : type === 'TRANSFER' ? 'Chuyển tiền nội bộ' : 'Khoản chi'),
-        transactionDate: date,
-        transactionTime: time ? `${time}:00` : undefined,
-        categoryId: type !== 'TRANSFER' ? selectedCategoryId : undefined,
-      })
+      if (selectedGroupFundId && selectedGroupFund) {
+        // API members only returns current group members; it does not expose an ACTIVE status field.
+        const members = selectedGroupMembers
+        if (!members.length) throw new Error('Không tìm thấy thành viên đang hoạt động trong nhóm')
+        const baseShare = Math.floor(numericAmount / members.length)
+        const remainder = numericAmount - baseShare * members.length
+        await groupApi.createExpense(selectedGroupFundId, {
+          description: description.trim() || selectedCategoryObj?.name || 'Khoản chi nhóm', amount: numericAmount,
+          currency: selectedGroupFund.baseCurrency, paidByUserId: getStoredUser()?.id || members[0].userId,
+          paymentSource: 'GROUP_FUND', categoryId: selectedCategoryId, splitMethod: 'EQUAL', expenseDate: date,
+          splits: members.map((member, index) => ({ userId: member.userId, amount: baseShare + (index === 0 ? remainder : 0) })),
+        })
+      } else {
+        await transactionApi.createTransaction({
+          transactionType: type, accountId: selectedAccountId,
+          toAccountId: type === 'TRANSFER' ? toAccountId : undefined, amount: numericAmount,
+          currencyCode: selectedAccountObj?.currencyCode || 'VND',
+          description: description.trim() || (type === 'INCOME' ? 'Khoản thu' : type === 'TRANSFER' ? 'Chuyển tiền nội bộ' : 'Khoản chi'),
+          transactionDate: date, transactionTime: time ? `${time}:00` : undefined,
+          categoryId: type !== 'TRANSFER' ? selectedCategoryId : undefined,
+        })
+      }
 
-      const typeLabel = type === 'EXPENSE' ? 'Khoản chi' : type === 'INCOME' ? 'Khoản thu' : 'Chuyển khoản'
+      const typeLabel = selectedGroupFund ? `Khoản chi từ quỹ ${selectedGroupFund.name}` : type === 'EXPENSE' ? 'Khoản chi' : type === 'INCOME' ? 'Khoản thu' : 'Chuyển khoản'
       onNotify(`Thành công! Đã ghi nhận ${typeLabel} ${formatAmount(numericAmount)} ₫`)
 
       // Refresh recent transactions & accounts balance
@@ -216,7 +256,7 @@ export function AddTransactionScreen({ onCancel, onNotify, onOpenInvoiceScanner 
         onCancel()
       }
     } catch (err: any) {
-      const msg = err.response?.data?.message || 'Có lỗi xảy ra khi lưu giao dịch vào cơ sở dữ liệu'
+      const msg = err.response?.data?.message || err.message || 'Có lỗi xảy ra khi lưu giao dịch vào cơ sở dữ liệu'
       setError(msg)
       onNotify(msg)
     } finally {
@@ -229,7 +269,8 @@ export function AddTransactionScreen({ onCancel, onNotify, onOpenInvoiceScanner 
     handleSaveTransaction(false)
   }
 
-  const projectedBalance = (selectedAccountObj?.balance || 0) + (type === 'INCOME' ? numericAmount : -numericAmount)
+  const selectedSourceBalance = selectedGroupFund ? selectedGroupFundBalance : (selectedAccountObj?.balance || 0)
+  const projectedBalance = selectedSourceBalance + (type === 'INCOME' ? numericAmount : -numericAmount)
 
   if (loadingMetadata) {
     return (
@@ -243,11 +284,11 @@ export function AddTransactionScreen({ onCancel, onNotify, onOpenInvoiceScanner 
   }
 
   return (
-    <main className="mx-auto flex min-h-[calc(100vh-68px)] lg:h-[calc(100vh-68px)] w-full max-w-[1600px] flex-col overflow-y-auto lg:overflow-hidden bg-[#f6f8f6] p-3 text-[#14251f] sm:p-4">
+    <main className="mx-auto flex min-h-[calc(100vh-68px)] w-full max-w-[1600px] flex-col bg-[#f6f8f6] p-3 text-[#14251f] sm:p-4">
       {/* Two-Column Responsive Workspace: Stacks on mobile, 2-col full height on desktop */}
-      <div className="grid w-full gap-4 lg:grid-cols-[minmax(0,1.55fr)_minmax(320px,1fr)] lg:h-full items-stretch">
+      <div className="grid w-full gap-4 lg:grid-cols-[minmax(0,1.55fr)_minmax(320px,1fr)] items-start">
         {/* LEFT COLUMN: Main Form Container */}
-        <div className="flex flex-col justify-between rounded-2xl border border-[#e2ece5] bg-white shadow-md lg:h-full lg:overflow-hidden">
+        <div className="flex flex-col justify-between rounded-2xl border border-[#e2ece5] bg-white shadow-md">
           {/* HERO BANNER: Type Toggle & Big Amount Display */}
           <div className={`relative px-6 py-4 text-white transition-colors duration-300 shrink-0 ${type === 'EXPENSE'
               ? 'bg-gradient-to-br from-[#1c2c24] via-[#163a2b] to-[#124230]'
@@ -371,17 +412,17 @@ export function AddTransactionScreen({ onCancel, onNotify, onOpenInvoiceScanner 
           </div>
 
           {/* FORM BODY: Scrollable body so footer buttons & inputs are accessible on all screens */}
-          <form onSubmit={handleSubmit} className="flex flex-1 flex-col justify-between overflow-hidden">
-            <div className="flex-1 overflow-y-auto p-4 sm:p-6 flex flex-col gap-3.5">
+          <form onSubmit={handleSubmit} className="flex flex-1 flex-col justify-between">
+            <div className="flex-1 p-4 sm:p-6 flex flex-col gap-3.5">
               {/* Row 1: Source Account & Category Selection */}
               <div className="grid gap-4 sm:grid-cols-2">
                 {/* Account / Wallet Dropdown Picker */}
                 <div className="relative" ref={accountPickerRef}>
                   <label className="mb-1.5 flex items-center justify-between text-xs font-bold text-[#14261e]">
                     <span>{type === 'TRANSFER' ? 'Từ tài khoản (Nguồn)' : 'Nguồn tiền thanh toán'}</span>
-                    {selectedAccountObj && (
+                    {(selectedAccountObj || selectedGroupFund) && (
                       <span className="text-[11px] font-medium text-[#718579]">
-                        Số dư: <strong className="text-[#07543f]">{formatAmount(selectedAccountObj.balance)} ₫</strong>
+                        Số dư: <strong className="text-[#07543f]">{formatAmount(selectedSourceBalance)} ₫</strong>
                       </span>
                     )}
                   </label>
@@ -404,10 +445,10 @@ export function AddTransactionScreen({ onCancel, onNotify, onOpenInvoiceScanner 
                       </span>
                       <div className="min-w-0">
                         <p className="truncate text-xs font-bold text-[#14261e]">
-                          {selectedAccountObj?.name || 'Chọn tài khoản'}
+                          {selectedGroupFund ? `Quỹ chung · ${selectedGroupFund.name}` : selectedAccountObj?.name || 'Chọn nguồn tiền'}
                         </p>
                         <p className="text-[11px] text-[#718579] truncate">
-                          {selectedAccountObj?.currencyCode || 'VND'} · Số dư: {formatAmount(selectedAccountObj?.balance || 0)} ₫
+                          {selectedGroupFund ? `Số dư quỹ: ${formatAmount(selectedGroupFundBalance)} ₫ · Ghi trong nhóm` : `${selectedAccountObj?.currencyCode || 'VND'} · Số dư: ${formatAmount(selectedAccountObj?.balance || 0)} ₫`}
                         </p>
                       </div>
                     </div>
@@ -428,6 +469,7 @@ export function AddTransactionScreen({ onCancel, onNotify, onOpenInvoiceScanner 
                             type="button"
                             onClick={() => {
                               setSelectedAccountId(acc.id)
+                              setSelectedGroupFundId('')
                               setIsAccountPickerOpen(false)
                             }}
                             className={`flex w-full items-center justify-between rounded-xl px-3 py-2 text-left transition ${isSelected ? 'bg-emerald-50 text-[#07543f]' : 'hover:bg-[#f3f7f4] text-[#14261e]'
@@ -446,6 +488,17 @@ export function AddTransactionScreen({ onCancel, onNotify, onOpenInvoiceScanner 
                           </button>
                         )
                       })}
+                      {type === 'EXPENSE' && groups.length > 0 && <div>
+                        <p className="px-3 pt-3 pb-1 text-[10px] font-bold uppercase tracking-wide text-[#718579]">Quỹ chung của nhóm</p>
+                        {groups.map((group) => {
+                          const isSelected = selectedGroupFundId === group.id
+                          return (
+                            <button key={group.id} type="button" onClick={() => { setSelectedGroupFundId(group.id); setSelectedAccountId(''); setIsAccountPickerOpen(false) }} className={isSelected ? 'flex w-full items-center justify-between rounded-xl bg-emerald-50 px-3 py-2 text-left text-[#07543f]' : 'flex w-full items-center justify-between rounded-xl px-3 py-2 text-left text-[#14261e] hover:bg-[#f3f7f4]'}>
+                              <div className="flex items-center gap-2.5 truncate"><span className="grid size-7 place-items-center rounded-lg bg-emerald-50 text-[#07543f] shrink-0"><FinanceIcon name="users" size={14} /></span><div className="truncate"><p className="truncate text-xs font-bold">Quỹ · {group.name}</p><p className="text-[10px] text-gray-500">Số dư quỹ: {formatAmount(groupFunds[group.id]?.balance || 0)} ₫</p></div></div>{isSelected && <span className="font-bold text-[#07543f] ml-2">✓</span>}
+                            </button>
+                          )
+                        })}
+                      </div>}
                     </div>
                   )}
                 </div>
@@ -748,7 +801,7 @@ export function AddTransactionScreen({ onCancel, onNotify, onOpenInvoiceScanner 
         </div>
 
         {/* RIGHT COLUMN: 2 Cards fill full height proportionally on desktop, stacks gracefully on mobile */}
-        <div className="flex flex-col justify-between gap-4 lg:h-full">
+        <div className="flex flex-col gap-4">
           {/* Card 1: Số tiền còn lại / Dự tính số dư */}
           <div className="flex flex-col justify-between rounded-2xl border border-[#e2ece5] bg-white p-5 shadow-sm">
             <div className="flex items-center justify-between pb-3 border-b border-[#edf2ee]">
@@ -758,7 +811,7 @@ export function AddTransactionScreen({ onCancel, onNotify, onOpenInvoiceScanner 
                 </span>
                 <div>
                   <h3 className="text-sm font-bold text-[#14261e]">Dự tính số dư sau khi lưu</h3>
-                  <p className="text-[11px] text-[#718579]">Tài khoản: {selectedAccountObj?.name || 'Chưa chọn'}</p>
+                  <p className="text-[11px] text-[#718579]">{selectedGroupFund ? `Quỹ chung: ${selectedGroupFund.name}` : `Tài khoản: ${selectedAccountObj?.name || 'Chưa chọn'}`}</p>
                 </div>
               </div>
             </div>
@@ -767,7 +820,7 @@ export function AddTransactionScreen({ onCancel, onNotify, onOpenInvoiceScanner 
               <div className="flex items-center justify-between text-xs">
                 <span className="text-[#718579]">Số dư hiện tại:</span>
                 <strong className="text-[#14261e] font-bold">
-                  {formatAmount(selectedAccountObj?.balance || 0)} ₫
+                  {formatAmount(selectedSourceBalance)} ₫
                 </strong>
               </div>
 
@@ -791,14 +844,14 @@ export function AddTransactionScreen({ onCancel, onNotify, onOpenInvoiceScanner 
 
               {projectedBalance < 0 && (
                 <div className="rounded-xl bg-amber-50 p-2.5 text-[11px] font-semibold text-amber-800 border border-amber-200">
-                  ⚠️ Cảnh báo: Khoản chi lớn hơn số dư hiện có trong ví ({formatAmount(projectedBalance)} ₫).
+                  ⚠️ Cảnh báo: Số tiền trong {selectedGroupFund ? `quỹ chung “${selectedGroupFund.name}”` : 'ví'} không đủ ({formatAmount(Math.abs(projectedBalance))} ₫).
                 </div>
               )}
             </div>
           </div>
 
           {/* Card 2: Bảng giao dịch gần đây fills the rest */}
-          <div className="flex flex-1 flex-col justify-between rounded-2xl border border-[#e2ece5] bg-white p-5 shadow-sm min-h-0">
+          <div className="flex flex-col rounded-2xl border border-[#e2ece5] bg-white p-5 shadow-sm">
             <div className="flex items-center justify-between pb-3 border-b border-[#edf2ee] shrink-0">
               <div>
                 <h3 className="text-sm font-bold text-[#14261e]">Giao dịch gần đây</h3>
@@ -828,9 +881,9 @@ export function AddTransactionScreen({ onCancel, onNotify, onOpenInvoiceScanner 
                         <span
                           className="grid size-8 shrink-0 place-items-center rounded-xl border text-xs"
                           style={{
-                            backgroundColor: tx.category?.color ? `${tx.category.color}15` : isInc ? '#ecfdf5' : '#fef2f2',
-                            borderColor: tx.category?.color ? `${tx.category.color}30` : isInc ? '#a7f3d0' : '#fecaca',
-                            color: tx.category?.color || (isInc ? '#059669' : '#dc2626')
+                            backgroundColor: isInc ? (tx.category?.color ? `${tx.category.color}15` : '#ecfdf5') : isTrf ? '#eff6ff' : '#fef2f2',
+                            borderColor: isInc ? (tx.category?.color ? `${tx.category.color}30` : '#a7f3d0') : isTrf ? '#bfdbfe' : '#fecaca',
+                            color: isInc ? (tx.category?.color || '#15803d') : isTrf ? '#2563eb' : '#dc2626'
                           }}
                         >
                           {renderCategoryIcon(tx.category?.icon, tx.transactionType, 15, tx.category?.name)}

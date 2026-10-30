@@ -26,6 +26,12 @@ public class CreateExpenseRequest {
     @NotNull(message = "Người trả tiền không được để trống")
     private UUID paidByUserId;
 
+    /** GROUP_FUND or PERSONAL_ACCOUNT. Account IDs are never returned in group history. */
+    @NotBlank(message = "Nguồn tiền không được để trống")
+    private String paymentSource;
+
+    private UUID sourceAccountId;
+
     private UUID categoryId;
 
     @NotBlank(message = "Phương thức chia không được để trống")

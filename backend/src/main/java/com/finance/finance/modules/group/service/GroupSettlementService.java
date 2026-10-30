@@ -3,6 +3,7 @@ package com.finance.finance.modules.group.service;
 import com.finance.finance.common.enums.SettlementStatus;
 import com.finance.finance.modules.group.dto.request.CreateSettlementRequest;
 import com.finance.finance.modules.group.dto.request.RejectSettlementRequest;
+import com.finance.finance.modules.group.dto.request.ConfirmSettlementRequest;
 import com.finance.finance.modules.group.dto.response.SettlementResponse;
 import com.finance.finance.modules.group.entity.GroupSettlement;
 import com.finance.finance.modules.group.repository.GroupMemberRepository;
@@ -19,6 +20,11 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.UUID;
+import com.finance.finance.modules.account.repository.AccountRepository;
+import com.finance.finance.modules.category.repository.CategoryRepository;
+import com.finance.finance.modules.transaction.service.TransactionService;
+import com.finance.finance.modules.transaction.dto.request.CreateTransactionRequest;
+import com.finance.finance.common.enums.TransactionType;
 
 @Service
 @RequiredArgsConstructor
@@ -28,15 +34,27 @@ public class GroupSettlementService {
     private final GroupSettlementRepository groupSettlementRepository;
     private final GroupMemberRepository groupMemberRepository;
     private final GroupRepository groupRepository;
+    private final AccountRepository accountRepository;
+    private final CategoryRepository categoryRepository;
+    private final TransactionService transactionService;
 
     @Transactional
     public SettlementResponse createSettlement(UUID groupId, CreateSettlementRequest request, UUID currentUserId) {
         validateMemberAccess(groupId, currentUserId);
 
+        var sourceAccount = accountRepository.findByIdAndUserId(request.getSourceAccountId(), currentUserId)
+                .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy ví nguồn"));
+        UUID expenseCategory = categoryRepository.findByCode("OTHER_EXPENSE")
+                .orElseThrow(() -> new IllegalStateException("Thiếu danh mục hệ thống")).getId();
+        var outgoing = transactionService.createTransaction(currentUserId, CreateTransactionRequest.builder()
+                .transactionType(TransactionType.EXPENSE).accountId(sourceAccount.getId()).categoryId(expenseCategory)
+                .amount(request.getAmount()).currencyCode(sourceAccount.getCurrencyCode()).transactionDate(request.getSettlementDate())
+                .description("Bù trừ nhóm").note(request.getNotes()).isExcludedFromReport(true).build());
         GroupSettlement settlement = GroupSettlement.builder()
                 .groupId(groupId)
-                .fromUserId(request.getFromUserId())
+                .fromUserId(currentUserId)
                 .toUserId(request.getToUserId())
+                .fromAccountId(sourceAccount.getId()).outgoingTransactionId(outgoing.getId())
                 .amount(request.getAmount())
                 .currency("VND")
                 .paymentMethod(request.getPaymentMethod())
@@ -67,13 +85,23 @@ public class GroupSettlementService {
     }
 
     @Transactional
-    public SettlementResponse confirmSettlement(UUID groupId, UUID settlementId, UUID currentUserId) {
+    public SettlementResponse confirmSettlement(UUID groupId, UUID settlementId, ConfirmSettlementRequest request, UUID currentUserId) {
         GroupSettlement settlement = findSettlementOrThrow(settlementId);
         
         if (!settlement.getToUserId().equals(currentUserId)) {
             throw new ResourceNotFoundException("Only the receiver can confirm the settlement");
         }
 
+        var receivingAccount = accountRepository.findByIdAndUserId(request.getReceivingAccountId(), currentUserId)
+                .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy ví nhận"));
+        UUID incomeCategory = categoryRepository.findByCode("OTHER_INCOME_SYS")
+                .orElseThrow(() -> new IllegalStateException("Thiếu danh mục hệ thống")).getId();
+        var incoming = transactionService.createTransaction(currentUserId, CreateTransactionRequest.builder()
+                .transactionType(TransactionType.INCOME).accountId(receivingAccount.getId()).categoryId(incomeCategory)
+                .amount(settlement.getAmount()).currencyCode(receivingAccount.getCurrencyCode()).transactionDate(settlement.getSettlementDate())
+                .description("Nhận bù trừ nhóm").note(settlement.getNotes()).isExcludedFromReport(true).build());
+        settlement.setToAccountId(receivingAccount.getId());
+        settlement.setIncomingTransactionId(incoming.getId());
         settlement.setStatus(SettlementStatus.CONFIRMED);
         settlement.setConfirmedAt(LocalDateTime.now());
         settlement = groupSettlementRepository.save(settlement);

@@ -40,6 +40,7 @@ public class GroupController {
     private final ChildWalletService childWalletService;
     private final ChildManagementService childManagementService;
     private final GroupActivityService activityService;
+    private final GroupFundService groupFundService;
 
     // ============================================================
     // 1. GROUPS & MEMBERS MANAGEMENT (12 endpoints)
@@ -59,6 +60,26 @@ public class GroupController {
             @AuthenticationPrincipal User currentUser) {
         Page<GroupResponse> response = groupService.getGroups(pageable, currentUser.getId());
         return ResponseEntity.ok(response);
+    }
+
+    @GetMapping("/{groupId}/fund")
+    public ResponseEntity<GroupFundResponse> getFund(
+            @PathVariable UUID groupId,
+            @AuthenticationPrincipal User currentUser) {
+        return ResponseEntity.ok(groupFundService.getFund(groupId, currentUser.getId()));
+    }
+
+    @PostMapping("/{groupId}/fund/contributions")
+    public ResponseEntity<GroupFundResponse> contributeToFund(
+            @PathVariable UUID groupId, @Valid @RequestBody ContributeGroupFundRequest request,
+            @AuthenticationPrincipal User currentUser) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(groupFundService.contribute(groupId, request, currentUser.getId()));
+    }
+
+    @GetMapping("/{groupId}/fund/contributions")
+    public ResponseEntity<List<com.finance.finance.modules.group.dto.response.GroupFundContributionResponse>> getFundContributions(
+            @PathVariable UUID groupId, @AuthenticationPrincipal User currentUser) {
+        return ResponseEntity.ok(groupFundService.getContributions(groupId, currentUser.getId()));
     }
 
     @GetMapping("/{groupId}")
@@ -170,6 +191,19 @@ public class GroupController {
         return ResponseEntity.noContent().build();
     }
 
+    @GetMapping("/{groupId}/invitations/pending")
+    public ResponseEntity<List<GroupInvitationResponse>> getSentPendingInvitations(
+            @PathVariable UUID groupId, @AuthenticationPrincipal User currentUser) {
+        return ResponseEntity.ok(groupService.getSentPendingInvitations(groupId, currentUser.getId()));
+    }
+
+    @DeleteMapping("/{groupId}/invitations/{invitationId}")
+    public ResponseEntity<Void> cancelInvitation(@PathVariable UUID groupId, @PathVariable UUID invitationId,
+            @AuthenticationPrincipal User currentUser) {
+        groupService.cancelInvitation(groupId, invitationId, currentUser.getId());
+        return ResponseEntity.noContent().build();
+    }
+
     // ============================================================
     // 2. EXPENSES & BALANCES (6 endpoints)
     // ============================================================
@@ -255,8 +289,9 @@ public class GroupController {
     public ResponseEntity<SettlementResponse> confirmSettlement(
             @PathVariable UUID groupId,
             @PathVariable UUID settlementId,
+            @Valid @RequestBody ConfirmSettlementRequest request,
             @AuthenticationPrincipal User currentUser) {
-        SettlementResponse response = settlementService.confirmSettlement(groupId, settlementId, currentUser.getId());
+        SettlementResponse response = settlementService.confirmSettlement(groupId, settlementId, request, currentUser.getId());
         return ResponseEntity.ok(response);
     }
 

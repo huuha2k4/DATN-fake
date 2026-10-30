@@ -35,6 +35,7 @@ export interface GroupMemberResponse {
   user?: {
     id: string;
     fullName: string;
+    displayName?: string;
     email: string;
     avatarUrl?: string;
     avatarKey?: string;
@@ -56,6 +57,7 @@ export interface GroupExpenseResponse {
   amount: number;
   currency: string;
   paidByUserId: string;
+  paymentSource: 'GROUP_FUND' | 'PERSONAL_ACCOUNT';
   categoryId?: string;
   splitMethod: SplitMethod;
   expenseDate: string;
@@ -92,6 +94,9 @@ export interface GroupBalanceResponse {
     balance: number;
     totalPaid: number;
     totalOwed: number;
+    personalExpensePaid?: number;
+    fundContribution?: number;
+    fundReserveShare?: number;
     user?: { fullName: string; avatarKey?: string };
   }[];
   simplifiedDebts: SimplifiedDebt[];
@@ -99,16 +104,51 @@ export interface GroupBalanceResponse {
   isFullySettled: boolean;
 }
 
+export interface GroupFundResponse {
+  id: string;
+  groupId: string;
+  currency: string;
+  balance: number;
+  updatedAt?: string;
+}
+
+export interface GroupFundContributionResponse {
+  id: string;
+  contributorUserId: string;
+  contributorName: string;
+  amount: number;
+  contributedAt: string;
+  createdAt?: string;
+  note?: string;
+}
+
+export interface GroupCommentResponse {
+  id: string;
+  commentableType: 'GROUP_EXPENSE' | 'FUND_CONTRIBUTION';
+  commentableId: string;
+  userId: string;
+  content: string;
+  parentCommentId?: string;
+  createdAt: string;
+  updatedAt?: string;
+  user?: { fullName?: string };
+}
+
 export interface SettlementResponse {
   id: string;
   groupId: string;
-  payerId: string;
-  payeeId: string;
+  /** API hiện dùng from/to; payer/payee được giữ để đọc dữ liệu cũ. */
+  fromUserId?: string;
+  toUserId?: string;
+  payerId?: string;
+  payeeId?: string;
   amount: number;
   currency: string;
   status: 'PENDING' | 'CONFIRMED' | 'REJECTED';
   settlementDate: string;
   notes?: string;
+  fromUser?: { fullName: string };
+  toUser?: { fullName: string };
   payer?: { fullName: string };
   payee?: { fullName: string };
 }
@@ -149,6 +189,8 @@ export interface CreateExpenseRequest {
   amount: number;
   currency?: string;
   paidByUserId: string;
+  paymentSource: 'GROUP_FUND' | 'PERSONAL_ACCOUNT';
+  sourceAccountId?: string;
   categoryId?: string;
   splitMethod: SplitMethod;
   expenseDate?: string;
@@ -163,6 +205,7 @@ export interface CreateExpenseRequest {
 
 export interface CreateSettlementRequest {
   payeeId: string;
+  sourceAccountId: string;
   amount: number;
   currency?: string;
   notes?: string;
@@ -186,7 +229,9 @@ export interface UserSearchResult {
   username: string;
   fullName: string;
   avatarUrl?: string;
-}export interface GroupInvitationResponse {
+}
+
+export interface GroupInvitationResponse {
   id: string;
   groupId: string;
   groupName: string;
@@ -196,6 +241,7 @@ export interface UserSearchResult {
   inviteeId: string;
   role: MemberRole;
   status: 'PENDING' | 'ACCEPTED' | 'REJECTED' | 'CANCELLED';
+  createdAt?: string;
 }
 
 export interface MessageAttachmentItem {
@@ -274,6 +320,15 @@ export interface CreateChildSpendRequestPayload {
   imageKey?: string;
 }
 
+export interface SpendRequestItem {
+  id: string;
+  amount: number;
+  description: string;
+  status: 'PENDING' | 'APPROVED' | 'REJECTED' | 'CANCELLED';
+  rejectionReason?: string;
+  createdAt: string;
+}
+
 export const groupApi = {
   // 1. Quản lý nhóm
   async getGroups(): Promise<GroupResponse[]> {
@@ -300,6 +355,11 @@ export const groupApi = {
 
   async createGroup(req: CreateGroupRequest): Promise<GroupResponse> {
     const res = await api.post('/groups', req);
+    return res.data?.data || res.data;
+  },
+
+  async updateGroup(groupId: string, req: Partial<CreateGroupRequest>): Promise<GroupResponse> {
+    const res = await api.put(`/groups/${groupId}`, req);
     return res.data?.data || res.data;
   },
 
@@ -359,6 +419,15 @@ export const groupApi = {
     await api.post(`/groups/invitations/${invitationId}/reject`);
   },
 
+  async getSentPendingInvitations(groupId: string): Promise<GroupInvitationResponse[]> {
+    const res = await api.get(`/groups/${groupId}/invitations/pending`);
+    return res.data?.data || res.data || [];
+  },
+
+  async cancelInvitation(groupId: string, invitationId: string): Promise<void> {
+    await api.delete(`/groups/${groupId}/invitations/${invitationId}`);
+  },
+
   async updateMember(groupId: string, userId: string, req: { role?: MemberRole; contributionRatio?: number }): Promise<GroupMemberResponse> {
     const res = await api.put(`/groups/${groupId}/members/${userId}`, req);
     return res.data?.data || res.data;
@@ -387,6 +456,14 @@ export const groupApi = {
     return res.data?.data || res.data;
   },
 
+  async getCategories(): Promise<{ id: string; name: string; kind?: 'INCOME' | 'EXPENSE'; type?: 'INCOME' | 'EXPENSE' }[]> {
+    const res = await api.get('/categories');
+    const data = res.data?.data || res.data;
+    if (Array.isArray(data)) return data;
+    if (Array.isArray(data?.categories)) return data.categories;
+    return [];
+  },
+
   async deleteExpense(groupId: string, expenseId: string): Promise<void> {
     await api.delete(`/groups/${groupId}/expenses/${expenseId}`);
   },
@@ -399,6 +476,39 @@ export const groupApi = {
       return null;
     }
   },
+
+  async getFund(groupId: string): Promise<GroupFundResponse | null> {
+    try {
+      const res = await api.get(`/groups/${groupId}/fund`);
+      return res.data?.data || res.data || null;
+    } catch { return null; }
+  },
+
+  async contributeToFund(groupId: string, req: { sourceAccountId: string; amount: number; contributedAt: string; note?: string }): Promise<GroupFundResponse> {
+    const res = await api.post(`/groups/${groupId}/fund/contributions`, req);
+    return res.data?.data || res.data;
+  },
+
+  async getFundContributions(groupId: string): Promise<GroupFundContributionResponse[]> {
+    const res = await api.get(`/groups/${groupId}/fund/contributions`);
+    return res.data?.data || res.data || [];
+  },
+
+  async getComments(groupId: string, commentableType: 'GROUP_EXPENSE' | 'FUND_CONTRIBUTION', commentableId: string): Promise<GroupCommentResponse[]> {
+    const res = await api.get(`/groups/${groupId}/comments`, { params: { commentableType, commentableId, page: 0, size: 50 } });
+    const data = res.data?.data || res.data;
+    return Array.isArray(data) ? data : data?.content || [];
+  },
+
+  async createComment(groupId: string, req: { commentableType: 'GROUP_EXPENSE' | 'FUND_CONTRIBUTION'; commentableId: string; content: string; parentCommentId?: string }): Promise<GroupCommentResponse> {
+    const res = await api.post(`/groups/${groupId}/comments`, req);
+    return res.data?.data || res.data;
+  },
+
+  async updateComment(groupId: string, commentId: string, content: string): Promise<GroupCommentResponse> {
+    const res = await api.put(`/groups/${groupId}/comments/${commentId}`, { content }); return res.data?.data || res.data;
+  },
+  async deleteComment(groupId: string, commentId: string): Promise<void> { await api.delete(`/groups/${groupId}/comments/${commentId}`); },
 
   // 4. Thanh toán nợ nhóm (Settlements)
   async getSettlements(groupId: string): Promise<SettlementResponse[]> {
@@ -415,12 +525,19 @@ export const groupApi = {
   },
 
   async createSettlement(groupId: string, req: CreateSettlementRequest): Promise<SettlementResponse> {
-    const res = await api.post(`/groups/${groupId}/settlements`, req);
+    const res = await api.post(`/groups/${groupId}/settlements`, {
+      toUserId: req.payeeId,
+      sourceAccountId: req.sourceAccountId,
+      amount: req.amount,
+      currency: req.currency,
+      notes: req.notes,
+      settlementDate: new Date().toISOString().slice(0, 10),
+    });
     return res.data?.data || res.data;
   },
 
-  async confirmSettlement(groupId: string, settlementId: string): Promise<void> {
-    await api.post(`/groups/${groupId}/settlements/${settlementId}/confirm`);
+  async confirmSettlement(groupId: string, settlementId: string, receivingAccountId: string): Promise<void> {
+    await api.post(`/groups/${groupId}/settlements/${settlementId}/confirm`, { receivingAccountId });
   },
 
   // 5. Ví trẻ em trong nhóm gia đình

@@ -40,6 +40,7 @@ public class GroupService {
     private final com.finance.finance.modules.user.repository.UserRepository userRepository;
     private final com.finance.finance.modules.group.repository.GroupInvitationRepository invitationRepository;
     private final com.finance.finance.modules.notification.service.NotificationService notificationService;
+    private final GroupFundRepository groupFundRepository;
 
     // ==================== Groups Management ====================
 
@@ -61,6 +62,13 @@ public class GroupService {
                 .build();
 
         group = groupRepository.save(group);
+
+        // Every group starts with an empty shared fund. It is intentionally not
+        // a user's account, so other members never gain access to private wallets.
+        groupFundRepository.save(com.finance.finance.modules.group.entity.GroupFund.builder()
+                .groupId(group.getId())
+                .currency(group.getBaseCurrency())
+                .build());
 
         // Add creator as owner member
         GroupMember ownerMember = GroupMember.builder()
@@ -87,6 +95,15 @@ public class GroupService {
     @Transactional(readOnly = true)
     public GroupDetailResponse getGroupDetail(UUID groupId, UUID currentUserId) {
         Group group = findGroupOrThrow(groupId);
+
+        if (group.getGroupType() == GroupType.COUPLE) {
+            long currentMembers = groupMemberRepository.findByGroupId(groupId).size();
+            long pendingInvitations = invitationRepository.countByGroupIdAndStatus(groupId,
+                    com.finance.finance.modules.group.entity.GroupInvitation.InvitationStatus.PENDING);
+            if (currentMembers + pendingInvitations >= 2) {
+                throw new IllegalArgumentException("Nhóm Cặp đôi chỉ có tối đa 2 thành viên");
+            }
+        }
         validateMemberAccess(groupId, currentUserId);
         
         return buildGroupDetailResponse(group, currentUserId);
@@ -304,6 +321,33 @@ public class GroupService {
         }
 
         invitation.setStatus(com.finance.finance.modules.group.entity.GroupInvitation.InvitationStatus.REJECTED);
+        invitationRepository.save(invitation);
+    }
+
+    @Transactional(readOnly = true)
+    public List<GroupInvitationResponse> getSentPendingInvitations(UUID groupId, UUID currentUserId) {
+        validateAdminOrOwner(groupId, currentUserId);
+        Group group = findGroupOrThrow(groupId);
+        String inviterName = userRepository.findById(currentUserId)
+                .map(u -> u.getFullName() != null ? u.getFullName() : u.getUsername()).orElse("Thành viên");
+        return invitationRepository.findByGroupIdAndStatusOrderByCreatedAtDesc(groupId,
+                        com.finance.finance.modules.group.entity.GroupInvitation.InvitationStatus.PENDING)
+                .stream().map(inv -> GroupInvitationResponse.builder().id(inv.getId()).groupId(groupId)
+                        .groupName(group.getName()).groupType(group.getGroupType().name()).inviterId(inv.getInviterId())
+                        .inviterName(inviterName).inviteeId(inv.getInviteeId()).role(inv.getRole().name())
+                        .status(inv.getStatus().name()).createdAt(inv.getCreatedAt()).build()).toList();
+    }
+
+    @Transactional
+    public void cancelInvitation(UUID groupId, UUID invitationId, UUID currentUserId) {
+        validateAdminOrOwner(groupId, currentUserId);
+        com.finance.finance.modules.group.entity.GroupInvitation invitation = invitationRepository.findById(invitationId)
+                .orElseThrow(() -> new NoSuchElementException("Không tìm thấy lời mời"));
+        if (!invitation.getGroupId().equals(groupId)) throw new IllegalArgumentException("Lời mời không thuộc nhóm này");
+        if (invitation.getStatus() != com.finance.finance.modules.group.entity.GroupInvitation.InvitationStatus.PENDING) {
+            throw new IllegalArgumentException("Chỉ có thể hủy lời mời đang chờ phản hồi");
+        }
+        invitation.setStatus(com.finance.finance.modules.group.entity.GroupInvitation.InvitationStatus.CANCELLED);
         invitationRepository.save(invitation);
     }
 

@@ -40,6 +40,16 @@ public class GroupExpense {
     @Column(name = "paid_by_user_id", nullable = false)
     private UUID paidByUserId;
 
+    @Column(name = "payment_source", nullable = false, length = 20)
+    @Builder.Default
+    private String paymentSource = "PERSONAL_ACCOUNT";
+
+    @Column(name = "source_account_id")
+    private UUID sourceAccountId;
+
+    @Column(name = "personal_transaction_id")
+    private UUID personalTransactionId;
+
     @Column(name = "category_id")
     private UUID categoryId;
 

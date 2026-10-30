@@ -1,4 +1,5 @@
 import { useEffect, useState, useRef } from 'react';
+import { isAxiosError } from 'axios';
 import { FinanceIcon, type IconName } from '../../core/components/FinanceIcon';
 import {
   groupApi,
@@ -6,20 +7,27 @@ import {
   type GroupMemberResponse,
   type GroupExpenseResponse,
   type GroupBalanceResponse,
+  type GroupFundResponse,
+  type GroupFundContributionResponse,
+  type GroupCommentResponse,
   type SettlementResponse,
   type ChildWalletResponse,
   type GroupType,
   type UserSearchResult,
   type GroupInvitationResponse,
   type GroupMessageResponse,
+  type SpendRequestItem,
 } from '../api/groupApi';
 import { getStoredUser } from '../../auth/api/authApi';
 import { userApi } from '../../user/api/userApi';
+import { accountApi, type AccountItem } from '../../account-management/api/accountApi';
 import './GroupManagementScreen.css';
 
 interface GroupManagementScreenProps {
   onNotify: (message: string) => void;
 }
+
+const LAST_SELECTED_GROUP_KEY = 'finora:last-selected-group-id';
 
 function getGroupTypeLabel(type: GroupType): { label: string; icon: IconName; bg: string; color: string } {
   switch (type) {
@@ -101,7 +109,7 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
   const [loading, setLoading] = useState(true);
 
   // Group Details Sub-tabs
-  const [activeTab, setActiveTab] = useState<'OVERVIEW' | 'EXPENSES' | 'CHAT' | 'BALANCES' | 'SETTLEMENTS' | 'MEMBERS' | 'CHILD_WALLETS'>('OVERVIEW');
+  const [activeTab, setActiveTab] = useState<'OVERVIEW' | 'EXPENSES' | 'CHAT' | 'BALANCES' | 'MEMBERS' | 'CHILD_WALLETS'>('OVERVIEW');
 
   // Tab Data
   const [members, setMembers] = useState<GroupMemberResponse[]>([]);
@@ -239,7 +247,7 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
   const [requestAmount, setRequestAmount] = useState('');
   const [requestDescription, setRequestDescription] = useState('');
   const [requestCategoryId, setRequestCategoryId] = useState('');
-  const [categoriesList, setCategoriesList] = useState<{ id: string; name: string }[]>([]);
+  const [categoriesList, setCategoriesList] = useState<{ id: string; name: string; kind?: 'INCOME' | 'EXPENSE'; type?: 'INCOME' | 'EXPENSE' }[]>([]);
   const [isSubmittingSpendRequest, setIsSubmittingSpendRequest] = useState(false);
   const [rejectingRequestId, setRejectingRequestId] = useState<string | null>(null);
   const [rejectionReason, setRejectionReason] = useState('');
@@ -256,12 +264,38 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
   const [newGroupType, setNewGroupType] = useState<GroupType>('FAMILY');
   const [newGroupDesc, setNewGroupDesc] = useState('');
   const [isSubmittingGroup, setIsSubmittingGroup] = useState(false);
+  const [isEditGroupModalOpen, setIsEditGroupModalOpen] = useState(false);
+  const [editGroupName, setEditGroupName] = useState('');
+  const [editGroupDesc, setEditGroupDesc] = useState('');
+  const [createInviteQuery, setCreateInviteQuery] = useState('');
+  const [createInviteResults, setCreateInviteResults] = useState<UserSearchResult[]>([]);
+  const [createInvitees, setCreateInvitees] = useState<Array<{ user: UserSearchResult; role: 'MEMBER' | 'ADMIN' }>>([]);
+  const [isSearchingCreateInvitees, setIsSearchingCreateInvitees] = useState(false);
 
   // Modal Add Expense
   const [isExpenseModalOpen, setIsExpenseModalOpen] = useState(false);
   const [expenseDesc, setExpenseDesc] = useState('');
   const [expenseAmount, setExpenseAmount] = useState('');
+  const [expensePaymentSource, setExpensePaymentSource] = useState<'GROUP_FUND' | 'PERSONAL_ACCOUNT'>('GROUP_FUND');
+  const [expenseAccountId, setExpenseAccountId] = useState('');
+  const [expenseCategoryId, setExpenseCategoryId] = useState('');
+  const [expenseDate, setExpenseDate] = useState(new Date().toISOString().slice(0, 10));
+  const [personalAccounts, setPersonalAccounts] = useState<AccountItem[]>([]);
+  const [groupFund, setGroupFund] = useState<GroupFundResponse | null>(null);
+  const [fundContributions, setFundContributions] = useState<GroupFundContributionResponse[]>([]);
+  const [commentsByTarget, setCommentsByTarget] = useState<Record<string, GroupCommentResponse[]>>({});
+  const [inlineCommentText, setInlineCommentText] = useState<Record<string, string>>({});
+  const [replyingTo, setReplyingTo] = useState<Record<string, string>>({});
+  const [expandedComments, setExpandedComments] = useState<Record<string, boolean>>({});
+  const [editingCommentText, setEditingCommentText] = useState('');
+  const [editingCommentTarget, setEditingCommentTarget] = useState<{ targetId: string; comment: GroupCommentResponse } | null>(null);
+  const [isFundModalOpen, setIsFundModalOpen] = useState(false);
+  const [fundAmount, setFundAmount] = useState('');
+  const [fundAccountId, setFundAccountId] = useState('');
+  const [fundNote, setFundNote] = useState('');
+  const [isSubmittingFund, setIsSubmittingFund] = useState(false);
   const [isSubmittingExpense, setIsSubmittingExpense] = useState(false);
+  const [isGroupActionMenuOpen, setIsGroupActionMenuOpen] = useState(false);
 
   // Modal Add Member (GitHub-style user search autocomplete)
   const [isMemberModalOpen, setIsMemberModalOpen] = useState(false);
@@ -276,6 +310,9 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
   const [isSettleModalOpen, setIsSettleModalOpen] = useState(false);
   const [settlePayeeId, setSettlePayeeId] = useState('');
   const [settleAmount, setSettleAmount] = useState('');
+  const [settleSourceAccountId, setSettleSourceAccountId] = useState('');
+  const [confirmingSettlementId, setConfirmingSettlementId] = useState<string | null>(null);
+  const [receivingAccountId, setReceivingAccountId] = useState('');
   const [isSubmittingSettle, setIsSubmittingSettle] = useState(false);
 
   // Group Invitations (Pending invitations sent to current user)
@@ -317,8 +354,13 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
       setLoading(true);
       const data = await groupApi.getGroups();
       setGroups(data);
-      if (data.length > 0 && !selectedGroup) {
-        setSelectedGroup(data[0]);
+      if (data.length > 0) {
+        const rememberedId = localStorage.getItem(LAST_SELECTED_GROUP_KEY);
+        const currentId = selectedGroup?.id;
+        const groupToOpen = data.find((group) => group.id === currentId)
+          || data.find((group) => group.id === rememberedId)
+          || data[0];
+        setSelectedGroup(groupToOpen);
       }
     } catch {
       onNotify('Không thể tải danh sách nhóm');
@@ -326,6 +368,10 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    if (selectedGroup?.id) localStorage.setItem(LAST_SELECTED_GROUP_KEY, selectedGroup.id);
+  }, [selectedGroup?.id]);
 
   // Helper sort messages from oldest to newest (chronological order)
   const sortMessagesChronologically = (list: GroupMessageResponse[]) => {
@@ -346,13 +392,15 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
   const loadGroupDetails = async (group: GroupResponse) => {
     try {
       setLoadingDetails(true);
-      const [membersData, expensesData, balancesData, settlementsData, walletsData, messagesData] = await Promise.all([
+      const [membersData, expensesData, balancesData, settlementsData, walletsData, messagesData, fundData, contributionsData] = await Promise.all([
         groupApi.getMembers(group.id),
         groupApi.getExpenses(group.id),
         groupApi.getBalances(group.id),
         groupApi.getSettlements(group.id),
         group.groupType === 'FAMILY' ? groupApi.getChildWallets(group.id) : Promise.resolve([]),
         groupApi.getMessages(group.id),
+        groupApi.getFund(group.id),
+        groupApi.getFundContributions(group.id),
       ]);
       setMembers(membersData);
       setExpenses(expensesData);
@@ -360,6 +408,11 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
       setSettlements(settlementsData);
       setChildWallets(walletsData);
       setMessages(sortMessagesChronologically(messagesData));
+      setGroupFund(fundData);
+      setFundContributions(contributionsData);
+      const commentTargets = [...expensesData.map((item) => ({ id: item.id, type: 'GROUP_EXPENSE' as const })), ...contributionsData.map((item) => ({ id: item.id, type: 'FUND_CONTRIBUTION' as const }))];
+      const commentResults = await Promise.all(commentTargets.map(async (target) => [target.id, await groupApi.getComments(group.id, target.type, target.id)] as const));
+      setCommentsByTarget(Object.fromEntries(commentResults));
     } catch {
       onNotify('Không thể tải chi tiết nhóm');
     } finally {
@@ -431,7 +484,17 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
   useEffect(() => {
     loadGroups();
     loadPendingInvitations();
+    accountApi.getAccounts().then(setPersonalAccounts).catch(() => setPersonalAccounts([]));
+    groupApi.getCategories().then(setCategoriesList).catch(() => setCategoriesList([]));
   }, []);
+
+  const expenseCategories = categoriesList.filter((category) => (category.kind || category.type) === 'EXPENSE');
+
+  useEffect(() => {
+    if (expenseCategoryId || expenseCategories.length === 0) return;
+    const foodCategory = expenseCategories.find((category) => category.name.trim().toLocaleLowerCase('vi-VN').includes('ăn uống'));
+    setExpenseCategoryId((foodCategory || expenseCategories[0]).id);
+  }, [expenseCategories, expenseCategoryId]);
 
   useEffect(() => {
     if (selectedGroup) {
@@ -539,10 +602,17 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
         description: newGroupDesc.trim() || undefined,
         baseCurrency: 'VND',
       });
+      await Promise.all(createInvitees.map((invitee) => groupApi.addMember(created.id, {
+        userId: invitee.user.id,
+        role: invitee.role,
+      })));
       onNotify(`Đã tạo nhóm "${created.name}" thành công!`);
       setIsCreateModalOpen(false);
       setNewGroupName('');
       setNewGroupDesc('');
+      setCreateInviteQuery('');
+      setCreateInviteResults([]);
+      setCreateInvitees([]);
       await loadGroups();
       setSelectedGroup(created);
     } catch {
@@ -552,11 +622,41 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
     }
   };
 
+  const handleUpdateGroup = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedGroup || !editGroupName.trim()) return;
+    try {
+      const updated = await groupApi.updateGroup(selectedGroup.id, { name: editGroupName.trim(), description: editGroupDesc.trim() || undefined });
+      setSelectedGroup(updated); setIsEditGroupModalOpen(false);
+      await loadGroups();
+      onNotify('Đã cập nhật nhóm');
+    } catch { onNotify('Không thể cập nhật nhóm'); }
+  };
+
+  const handleDeleteGroup = async () => {
+    if (!selectedGroup || !window.confirm(`Xóa nhóm "${selectedGroup.name}"?`)) return;
+    try {
+      await groupApi.deleteGroup(selectedGroup.id);
+      localStorage.removeItem(LAST_SELECTED_GROUP_KEY);
+      setSelectedGroup(null);
+      await loadGroups();
+      onNotify('Đã xóa nhóm');
+    } catch { onNotify('Không thể xóa nhóm. Hãy bảo đảm nhóm đã cân bằng.'); }
+  };
+
   // Handle Create Expense
   const handleCreateExpense = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedGroup || !expenseDesc.trim() || !expenseAmount) {
       onNotify('Vui lòng điền đủ thông tin khoản chi');
+      return;
+    }
+    if (!expenseCategoryId) {
+      onNotify('Vui lòng chọn danh mục chi');
+      return;
+    }
+    if (expensePaymentSource === 'PERSONAL_ACCOUNT' && !expenseAccountId) {
+      onNotify('Vui lòng chọn ví nguồn cho khoản chi cá nhân');
       return;
     }
     try {
@@ -573,8 +673,12 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
         description: expenseDesc.trim(),
         amount: amt,
         currency: 'VND',
-        paidByUserId: selectedGroup.ownerId, // Current user / owner
+        paidByUserId: currentUser?.id || selectedGroup.ownerId,
+        paymentSource: expensePaymentSource,
+        sourceAccountId: expensePaymentSource === 'PERSONAL_ACCOUNT' ? expenseAccountId : undefined,
+        categoryId: expenseCategoryId || undefined,
         splitMethod: 'EQUAL',
+        expenseDate,
         splits,
       });
 
@@ -582,12 +686,38 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
       setIsExpenseModalOpen(false);
       setExpenseDesc('');
       setExpenseAmount('');
+      setExpenseAccountId('');
+      setExpenseCategoryId('');
       loadGroupDetails(selectedGroup);
     } catch {
       onNotify('Ghi nhận khoản chi thất bại');
     } finally {
       setIsSubmittingExpense(false);
     }
+  };
+
+  const handleContributeToFund = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedGroup || !fundAmount || !fundAccountId) {
+      onNotify('Vui lòng chọn ví nguồn và số tiền nộp quỹ');
+      return;
+    }
+    try {
+      setIsSubmittingFund(true);
+      const fund = await groupApi.contributeToFund(selectedGroup.id, {
+        sourceAccountId: fundAccountId,
+        amount: Number(fundAmount),
+        contributedAt: new Date().toISOString().slice(0, 10),
+        note: fundNote || undefined,
+      });
+      setGroupFund(fund);
+      setIsFundModalOpen(false);
+      setFundAmount(''); setFundAccountId(''); setFundNote('');
+      onNotify('Đã nộp tiền vào quỹ chung');
+    } catch (error) {
+      const message = isAxiosError(error) ? error.response?.data?.message : undefined;
+      onNotify(message || 'Không thể nộp quỹ');
+    } finally { setIsSubmittingFund(false); }
   };
 
   // Search users only when a valid email format is entered (to avoid exposing user list and typing leaks)
@@ -617,6 +747,24 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
     return () => clearTimeout(timer);
   }, [memberSearchQuery, members]);
 
+  useEffect(() => {
+    const email = createInviteQuery.trim();
+    if (newGroupType === 'COUPLE' && createInvitees.length >= 1) {
+      setCreateInviteResults([]);
+      return;
+    }
+    if (!isValidEmail(email)) { setCreateInviteResults([]); return; }
+    const timer = setTimeout(async () => {
+      try {
+        setIsSearchingCreateInvitees(true);
+        const results = await groupApi.searchUsers(email);
+        const queued = new Set(createInvitees.map((item) => item.user.id));
+        setCreateInviteResults(results.filter((user) => user.id !== currentUser?.id && !queued.has(user.id)));
+      } finally { setIsSearchingCreateInvitees(false); }
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [createInviteQuery, createInvitees, currentUser?.id, newGroupType]);
+
   // Handle Add Member
   const handleAddMember = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -637,17 +785,77 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
       setMemberSearchQuery('');
       setSearchResults([]);
       loadGroupDetails(selectedGroup);
-    } catch {
+    } catch (error) {
+      const message = isAxiosError(error)
+        ? error.response?.data?.message
+        : undefined;
+      if (message) {
+        onNotify(message);
+      } else {
       onNotify('Thêm thành viên thất bại');
+      }
     } finally {
       setIsSubmittingMember(false);
     }
   };
 
+  const handleShareBalanceToChat = async (fromUserId: string, toUserId: string, amount: number) => {
+    if (!selectedGroup) return;
+    try {
+      const text = `[[BALANCE]]Đề xuất bù trừ: ${memberName(fromUserId)} cần bù ${amount.toLocaleString('vi-VN')} đ cho ${memberName(toUserId)}.`;
+      const message = await groupApi.sendMessage(selectedGroup.id, text);
+      setMessages((previous) => [...previous, message]);
+      setActiveTab('CHAT');
+      onNotify('Đã gửi đề xuất bù trừ vào trò chuyện nhóm');
+    } catch {
+      onNotify('Không thể gửi tin nhắn bù trừ');
+    }
+  };
+
+  const handleInlineComment = async (targetId: string, type: 'GROUP_EXPENSE' | 'FUND_CONTRIBUTION') => {
+    if (!selectedGroup || !inlineCommentText[targetId]?.trim()) return;
+    try {
+      const created = await groupApi.createComment(selectedGroup.id, { commentableType: type, commentableId: targetId, content: inlineCommentText[targetId].trim(), parentCommentId: replyingTo[targetId] });
+      setCommentsByTarget((previous) => ({ ...previous, [targetId]: [...(previous[targetId] || []), created] }));
+      setInlineCommentText((previous) => ({ ...previous, [targetId]: '' }));
+      setReplyingTo((previous) => ({ ...previous, [targetId]: '' }));
+    } catch { onNotify('Không thể gửi bình luận'); }
+  };
+
+  const handleEditComment = async (targetId: string, comment: GroupCommentResponse) => {
+    if (!editingCommentTarget) {
+      setEditingCommentTarget({ targetId, comment });
+      setEditingCommentText(comment.content);
+      return;
+    }
+    if (!selectedGroup) return;
+    const content = editingCommentText.trim();
+    if (!content || content === comment.content) return;
+    try {
+      const updated = await groupApi.updateComment(selectedGroup.id, comment.id, content);
+      setCommentsByTarget((previous) => ({ ...previous, [targetId]: (previous[targetId] || []).map((item) => item.id === comment.id ? updated : item) }));
+      setEditingCommentText('');
+      setEditingCommentTarget(null);
+    } catch { onNotify('Không thể sửa bình luận'); }
+  };
+
+  const handleDeleteComment = async (targetId: string, commentId: string) => {
+    if (!selectedGroup || !window.confirm('Xóa bình luận này?')) return;
+    try {
+      await groupApi.deleteComment(selectedGroup.id, commentId);
+      setCommentsByTarget((previous) => ({ ...previous, [targetId]: (previous[targetId] || []).filter((item) => item.id !== commentId && item.parentCommentId !== commentId) }));
+    } catch { onNotify('Không thể xóa bình luận'); }
+  };
+
+  const handleSendTransactionToChat = async (label: string, amount: number) => {
+    if (!selectedGroup) return;
+    try { const message = await groupApi.sendMessage(selectedGroup.id, `[[TRANSACTION]]${label}: ${amount.toLocaleString('vi-VN')} đ`); setMessages((previous) => [...previous, message]); setActiveTab('CHAT'); onNotify('Đã gửi khoản thu/chi vào trò chuyện nhóm'); } catch { onNotify('Không thể gửi vào trò chuyện'); }
+  };
+
   // Handle Settle Up
   const handleSettleUp = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedGroup || !settlePayeeId || !settleAmount) {
+    if (!selectedGroup || !settlePayeeId || !settleAmount || !settleSourceAccountId) {
       onNotify('Vui lòng chọn người nhận và số tiền');
       return;
     }
@@ -656,17 +864,32 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
       const amt = parseFloat(settleAmount.replace(/[^0-9.]/g, ''));
       await groupApi.createSettlement(selectedGroup.id, {
         payeeId: settlePayeeId,
+        sourceAccountId: settleSourceAccountId,
         amount: amt,
         currency: 'VND',
       });
       onNotify('Đã tạo đề xuất thanh toán nợ!');
       setIsSettleModalOpen(false);
       setSettleAmount('');
+      setSettleSourceAccountId('');
       loadGroupDetails(selectedGroup);
     } catch {
       onNotify('Tạo thanh toán nợ thất bại');
     } finally {
       setIsSubmittingSettle(false);
+    }
+  };
+
+  const handleConfirmSettlement = async (settlementId: string) => {
+    if (!selectedGroup || !receivingAccountId) { onNotify('Vui lòng chọn ví nhận tiền'); return; }
+    try {
+      await groupApi.confirmSettlement(selectedGroup.id, settlementId, receivingAccountId);
+      setConfirmingSettlementId(null);
+      setReceivingAccountId('');
+      onNotify('Đã xác nhận nhận tiền');
+      loadGroupDetails(selectedGroup);
+    } catch {
+      onNotify('Không thể xác nhận thanh toán');
     }
   };
 
@@ -897,6 +1120,21 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
   const myMemberInfo = members.find((m) => m.userId === currentUser?.id);
   const myRole = myMemberInfo?.role || (selectedGroup?.ownerId === currentUser?.id ? 'OWNER' : selectedGroup?.myRole);
   const isLeader = myRole === 'OWNER' || myRole === 'ADMIN' || selectedGroup?.ownerId === currentUser?.id;
+  const memberName = (userId?: string, suppliedName?: string) => {
+    const isPlaceholder = !suppliedName || /^user\s+[0-9a-f-]{16,}$/i.test(suppliedName.trim());
+    return (!isPlaceholder ? suppliedName : undefined)
+      || members.find((member) => member.userId === userId)?.user?.fullName
+      || 'Thành viên';
+  };
+  const formatGroupDateTime = (value?: string) => {
+    if (!value) return '';
+    const date = new Date(value);
+    return Number.isNaN(date.getTime()) ? value : date.toLocaleString('vi-VN', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit', year: 'numeric' });
+  };
+  const recentLedgerItems = [
+    ...expenses.map((expense) => ({ id: `expense-${expense.id}`, kind: 'CHI' as const, title: expense.description === 'Khoản chi nhóm' ? (expense.category?.name || expense.description) : expense.description, actor: memberName(expense.paidByUserId, expense.payer?.fullName), date: expense.createdAt || expense.expenseDate, amount: expense.amount })),
+    ...fundContributions.map((contribution) => ({ id: `fund-${contribution.id}`, kind: 'THU' as const, title: 'Nộp quỹ chung', actor: memberName(contribution.contributorUserId, contribution.contributorName), date: contribution.createdAt || contribution.contributedAt, amount: contribution.amount })),
+  ].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
   return (
     <main className="group-page mx-auto flex min-h-[calc(100vh-64px)] w-full max-w-7xl flex-col gap-5 p-4 sm:p-6 lg:p-8">
@@ -1095,26 +1333,21 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
                   </button>
 
                   {/* Chỉ Trưởng nhóm hoặc Quản trị viên mới thấy nút Mời thành viên */}
-                  {isLeader && (
-                    <button
-                      type="button"
-                      onClick={() => setIsMemberModalOpen(true)}
-                      className="h-9 px-3.5 rounded-xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-semibold text-gray-700 dark:text-slate-200 hover:bg-gray-50 dark:hover:bg-slate-750 transition flex items-center gap-1.5"
-                    >
-                      <FinanceIcon name="plus" size={13} />
-                      <span>Mời thành viên</span>
-                    </button>
+                  <button type="button" onClick={() => setIsFundModalOpen(true)} className="h-9 px-3.5 rounded-xl border border-emerald-300 text-xs font-bold text-[#07543f] hover:bg-emerald-50 transition flex items-center gap-1.5">
+                    <FinanceIcon name="wallet" size={14} />
+                    <span>Nộp quỹ</span>
+                  </button>
+
+                  {(isLeader || myMemberInfo?.role === 'OWNER') && (
+                    <div className="relative">
+                      <button type="button" onClick={() => setIsGroupActionMenuOpen((open) => !open)} className="h-9 w-9 rounded-xl border border-gray-200 text-lg font-bold text-gray-600 hover:bg-gray-50" aria-label="Tùy chọn nhóm">…</button>
+                      {isGroupActionMenuOpen && <div className="absolute right-0 top-11 z-20 w-44 rounded-xl border border-gray-100 bg-white p-1.5 shadow-lg">
+                        {isLeader && <button type="button" onClick={() => { setEditGroupName(selectedGroup.name); setEditGroupDesc(selectedGroup.description || ''); setIsEditGroupModalOpen(true); setIsGroupActionMenuOpen(false); }} className="flex w-full items-center gap-2 whitespace-nowrap rounded-lg px-2.5 py-2 text-left text-xs font-semibold text-gray-700 hover:bg-gray-50"><FinanceIcon name="edit" size={13} />Sửa nhóm</button>}
+                        {myMemberInfo?.role === 'OWNER' && <button type="button" onClick={() => { setIsGroupActionMenuOpen(false); handleDeleteGroup(); }} className="flex w-full items-center gap-2 whitespace-nowrap rounded-lg px-2.5 py-2 text-left text-xs font-semibold text-rose-600 hover:bg-rose-50"><FinanceIcon name="delete" size={13} />Xóa nhóm</button>}
+                      </div>}
+                    </div>
                   )}
 
-                  {selectedGroup.groupType !== 'FAMILY' && (
-                    <button
-                      type="button"
-                      onClick={() => setIsSettleModalOpen(true)}
-                      className="h-9 px-3.5 rounded-xl border border-emerald-200 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-950 text-xs font-bold text-[#07543f] dark:text-emerald-300 hover:bg-emerald-100 transition"
-                    >
-                      <span>Trả nợ nhóm</span>
-                    </button>
-                  )}
                 </div>
               </div>
 
@@ -1142,7 +1375,7 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
                   }`}
                 >
                   <FinanceIcon name="receipt" size={15} />
-                  <span>Khoản chi ({expenses.length})</span>
+                  <span>Thu & chi ({expenses.length + fundContributions.length})</span>
                 </button>
                 <button
                   type="button"
@@ -1187,7 +1420,7 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
                     <span>Ví trẻ em ({childWallets.length})</span>
                   </button>
                 )}
-                {selectedGroup.groupType !== 'FAMILY' && (
+                {selectedGroup.groupType !== 'FAMILY' && selectedGroup.groupType !== 'COUPLE' && (
                   <>
                     <button
                       type="button"
@@ -1199,19 +1432,7 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
                       }`}
                     >
                       <FinanceIcon name="refresh" size={15} />
-                      <span>Tính nợ ai nợ ai</span>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setActiveTab('SETTLEMENTS')}
-                      className={`pb-3 text-xs font-bold transition border-b-2 flex items-center gap-1.5 whitespace-nowrap ${
-                        activeTab === 'SETTLEMENTS'
-                          ? 'border-[#07543f] text-[#07543f] dark:text-emerald-400'
-                          : 'border-transparent text-gray-500 hover:text-gray-900 dark:text-slate-400 dark:hover:text-slate-200'
-                      }`}
-                    >
-                      <FinanceIcon name="clock" size={15} />
-                      <span>Lịch sử trả nợ ({settlements.length})</span>
+                      <span>Cân đối & bù trừ</span>
                     </button>
                   </>
                 )}
@@ -1235,10 +1456,10 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
                           </span>
                           <strong className="text-lg font-bold text-[#07543f] dark:text-emerald-400 mt-1 block">
                             {/* Quỹ chung của nhóm */}
-                            {((selectedGroup.totalExpenses || 0) > 0 ? (selectedGroup.totalExpenses || 0) : 0).toLocaleString('vi-VN')} đ
+                            {(groupFund?.balance || 0).toLocaleString('vi-VN')} đ
                           </strong>
                           <span className="text-[10px] text-[#718579] dark:text-slate-500 mt-0.5 block">
-                            Ngân sách theo dõi
+                            Số dư có thể chi
                           </span>
                         </div>
 
@@ -1323,7 +1544,7 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
                               return (
                                 <div
                                   key={mem.userId || mem.id}
-                                  className="flex items-center justify-between p-2.5 rounded-xl bg-[#f7faf8] dark:bg-slate-800 border border-[#eef4f0] dark:border-slate-700/60"
+                                  className="flex min-h-[72px] items-center justify-between gap-4 p-3.5 rounded-xl bg-[#f7faf8] dark:bg-slate-800 border border-[#eef4f0] dark:border-slate-700/60"
                                 >
                                   <div className="flex items-center gap-2.5 min-w-0">
                                     <div className="size-8 rounded-full bg-emerald-100 dark:bg-slate-700 text-[#07543f] dark:text-emerald-300 font-bold text-xs overflow-hidden grid place-items-center shrink-0 border border-black/5">
@@ -1372,38 +1593,42 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
                           <div className="flex items-center justify-between">
                             <h4 className="text-xs font-bold text-[#14261e] dark:text-slate-100 uppercase tracking-wider m-0 flex items-center gap-1.5">
                               <FinanceIcon name="receipt" size={14} />
-                              <span>Khoản chi gần đây</span>
+                              <span>Khoản thu chi gần đây</span>
                             </h4>
                             <button
                               type="button"
                               onClick={() => setActiveTab('EXPENSES')}
                               className="text-xs font-bold text-[#07543f] dark:text-emerald-400 hover:underline"
                             >
-                              Xem tất cả ({expenses.length})
+                              Xem tất cả ({recentLedgerItems.length})
                             </button>
                           </div>
 
-                          {expenses.length === 0 ? (
+                          {recentLedgerItems.length === 0 ? (
                             <p className="text-xs text-[#718579] dark:text-slate-400 py-6 text-center m-0">
-                              Chưa có khoản chi tiêu nào trong nhóm
+                              Chưa có khoản thu chi nào trong nhóm
                             </p>
                           ) : (
                             <div className="flex flex-col gap-2">
-                              {expenses.slice(0, 5).map((exp) => (
+                              {recentLedgerItems.slice(0, 5).map((item) => (
                                 <div
-                                  key={exp.id}
+                                  key={item.id}
                                   className="flex items-center justify-between p-2.5 rounded-xl bg-[#f7faf8] dark:bg-slate-800 border border-[#eef4f0] dark:border-slate-700/60"
                                 >
-                                  <div className="min-w-0 pr-2">
-                                    <p className="text-xs font-bold text-[#14261e] dark:text-slate-200 truncate m-0">
-                                      {exp.description}
-                                    </p>
-                                    <span className="text-[11px] text-[#718579] dark:text-slate-400 block mt-0.5">
-                                      {exp.payer?.fullName || 'Thành viên'} · {exp.expenseDate}
-                                    </span>
+                                  <div className={`mr-3 grid size-9 shrink-0 place-items-center rounded-xl ${item.kind === 'THU' ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-600'}`}>
+                                    <FinanceIcon name={item.kind === 'THU' ? 'wallet' : 'receipt'} size={16} />
                                   </div>
-                                  <strong className="text-xs font-bold text-rose-600 dark:text-rose-400 shrink-0">
-                                    -{exp.amount.toLocaleString('vi-VN')} đ
+                                  <div className="min-w-0 flex-1 pr-2">
+                                    <p className="text-xs font-bold text-[#14261e] dark:text-slate-200 truncate m-0">
+                                      {item.title}
+                                    </p>
+                                    <span className="text-[11px] text-[#718579] dark:text-slate-400 block mt-1">
+                                      {item.kind === 'THU' ? 'Nộp bởi' : 'Chi bởi'} {item.actor}
+                                    </span>
+                                    <span className="mt-0.5 block whitespace-nowrap text-[11px] text-[#718579] dark:text-slate-400">{formatGroupDateTime(item.date)}</span>
+                                  </div>
+                                  <strong className={`text-xs font-bold shrink-0 ${item.kind === 'THU' ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>
+                                    {item.kind === 'THU' ? '+' : '-'}{item.amount.toLocaleString('vi-VN')} đ
                                   </strong>
                                 </div>
                               ))}
@@ -1413,7 +1638,7 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
                       </div>
 
                       {/* Box 3 (Nếu là nhóm du lịch/phòng trọ thì hiện thêm công nợ cần thanh toán): */}
-                      {selectedGroup.groupType !== 'FAMILY' && balances?.simplifiedDebts && balances.simplifiedDebts.length > 0 && (
+                      {selectedGroup.groupType !== 'FAMILY' && selectedGroup.groupType !== 'COUPLE' && balances?.simplifiedDebts && balances.simplifiedDebts.length > 0 && (
                         <div className="rounded-2xl border border-emerald-200 dark:border-emerald-800/80 p-4 bg-emerald-50/40 dark:bg-emerald-950/20 flex flex-col gap-3">
                           <div className="flex items-center justify-between">
                             <h4 className="text-xs font-bold text-[#07543f] dark:text-emerald-300 uppercase tracking-wider m-0">
@@ -1424,26 +1649,16 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
                               onClick={() => setActiveTab('BALANCES')}
                               className="text-xs font-bold text-[#07543f] dark:text-emerald-400 hover:underline"
                             >
-                              Chi tiết nợ
+                              Xem cân đối
                             </button>
                           </div>
                           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                             {balances.simplifiedDebts.slice(0, 4).map((debt, idx) => (
                               <div
                                 key={idx}
-                                className="flex items-center justify-between p-2.5 rounded-xl bg-white dark:bg-slate-850 border border-emerald-100 dark:border-emerald-800/60 shadow-2xs"
+                                className="p-2.5 rounded-xl bg-white dark:bg-slate-850 border border-emerald-100 dark:border-emerald-800/60 shadow-2xs"
                               >
-                                <div className="min-w-0 pr-2">
-                                  <p className="text-xs font-bold text-[#14261e] dark:text-slate-200 truncate m-0">
-                                    {debt.fromUser?.fullName || 'Người nợ'} → {debt.toUser?.fullName || 'Người nhận'}
-                                  </p>
-                                  <span className="text-[10px] text-[#718579] dark:text-slate-400">
-                                    Cần trả
-                                  </span>
-                                </div>
-                                <strong className="text-xs font-bold text-[#07543f] dark:text-emerald-400 shrink-0">
-                                  {debt.amount.toLocaleString('vi-VN')} đ
-                                </strong>
+                                <div className="flex items-start justify-between gap-2"><div className="min-w-0"><p className="text-xs font-bold text-[#14261e] dark:text-slate-200 truncate m-0">{memberName(debt.fromUserId, debt.fromUser?.fullName)} → {memberName(debt.toUserId, debt.toUser?.fullName)}</p><span className="text-[10px] text-[#718579] dark:text-slate-400">Cần bù trừ</span></div><strong className="text-xs font-bold text-[#07543f] dark:text-emerald-400 shrink-0">{debt.amount.toLocaleString('vi-VN')} đ</strong></div>
                               </div>
                             ))}
                           </div>
@@ -1504,6 +1719,8 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
                             const hasImagesOnly = hasAttachments && msg.attachments!.every(a => a.mimeType?.startsWith('image/') || /\.(jpg|jpeg|png|gif|webp)$/i.test(a.fileName || ''));
                             const isImageOnlyMessage = hasImagesOnly && (!msg.content || msg.content === 'Đã gửi một ảnh');
                             const senderName = msg.sender?.fullName || msg.sender?.displayName || (isMe ? 'Bạn' : 'Thành viên');
+                            const isBalanceProposal = msg.content?.startsWith('[[BALANCE]]');
+                            const messageText = isBalanceProposal ? msg.content.replace('[[BALANCE]]', '') : msg.content;
                             const timeStr = msg.createdAt
                               ? new Date(msg.createdAt).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })
                               : '';
@@ -1731,8 +1948,8 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
                                               </div>
                                             )}
                                             {/* Only show content if it's not the auto image caption */}
-                                            {msg.content && msg.content !== 'Đã gửi một ảnh' && (
-                                              <p className="m-0 leading-relaxed whitespace-pre-wrap">{msg.content}</p>
+                                            {messageText && messageText !== 'Đã gửi một ảnh' && (
+                                              <><p className="m-0 leading-relaxed whitespace-pre-wrap">{messageText}</p>{isBalanceProposal && <button type="button" onClick={() => setActiveTab('BALANCES')} className={`mt-2 h-7 rounded-lg px-2 text-[10px] font-bold ${isMe ? 'bg-white/20 text-white' : 'border border-emerald-200 text-emerald-700'}`}>Xem cân đối</button>}</>
                                             )}
                                           </>
                                         )}
@@ -2196,26 +2413,36 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
                   {/* Tab 1: Chi tiêu chung */}
                   {activeTab === 'EXPENSES' && (
                 <div className="flex flex-col gap-3">
-                  {expenses.length === 0 ? (
+                  {expenses.length === 0 && fundContributions.length === 0 ? (
                     <div className="p-8 text-center text-xs text-[#718579] rounded-2xl bg-[#fafcfa] dark:bg-slate-850 border border-dashed border-[#d8e3dc]">
-                      Chưa có khoản chi tiêu chung nào trong nhóm này.
+                      Chưa có khoản thu hoặc chi nào trong nhóm này.
                     </div>
                   ) : (
-                    expenses.map((exp) => (
+                    <>
+                    {fundContributions.map((contribution) => (
+                      <div key={`income-${contribution.id}`} className={`group-ledger-item rounded-2xl border border-emerald-100 bg-emerald-50/40 p-4 transition ${expandedComments[contribution.id] ? 'comments-open' : ''}`}>
+                        <div onClick={() => setExpandedComments((previous) => ({ ...previous, [contribution.id]: !previous[contribution.id] }))} className="flex cursor-pointer items-center justify-between">
+                        <div className="flex items-center gap-3.5"><div className="size-10 rounded-xl bg-emerald-100 text-emerald-700 grid place-items-center shrink-0"><FinanceIcon name="wallet" size={18} /></div><div><h4 className="text-sm font-bold text-[#14261e] m-0">Nộp quỹ chung</h4><p className="text-xs text-[#718579] mt-0.5 m-0">{memberName(contribution.contributorUserId, contribution.contributorName)} · {contribution.createdAt ? new Date(contribution.createdAt).toLocaleString('vi-VN', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit', year: 'numeric' }) : contribution.contributedAt}</p>{contribution.note && <p className="text-[10px] text-[#718579] mt-1 m-0">{contribution.note}</p>}</div></div>
+                        <div className="text-right"><strong className="block text-sm font-bold text-emerald-600">+{contribution.amount.toLocaleString('vi-VN')} đ</strong><button type="button" onClick={(e) => { e.stopPropagation(); handleSendTransactionToChat('Nộp quỹ chung', contribution.amount); }} className="mt-1 rounded-md border border-sky-200 bg-sky-50 px-1.5 py-0.5 text-[8px] font-semibold text-sky-700 hover:bg-sky-100">Gửi vào nhóm</button></div></div>
+                        <div className="mt-3 border-t border-emerald-100 pt-3 space-y-2">{(commentsByTarget[contribution.id] || []).map((comment) => { const member = members.find((item) => item.userId === comment.userId); const parent = (commentsByTarget[contribution.id] || []).find((item) => item.id === comment.parentCommentId); const name = memberName(comment.userId, comment.user?.fullName); const avatar = member?.user?.avatarUrl || member?.user?.avatarKey; const mine = comment.userId === currentUser?.id; return <div key={comment.id} className={`flex items-start gap-2 ${parent ? 'ml-9' : ''}`}><div className="grid size-7 shrink-0 place-items-center overflow-hidden rounded-full bg-emerald-100 text-[10px] font-bold text-emerald-700">{avatar ? <img src={userApi.getAvatarUrl(avatar)} alt="" className="size-full object-cover" /> : name.charAt(0)}</div><div><div className="rounded-xl bg-white px-3 py-2 text-xs"><div className="flex min-w-48 justify-between gap-5"><strong>{name}</strong><span className="text-[10px] text-[#718579]">{new Date(comment.createdAt).toLocaleString('vi-VN', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit', year: 'numeric' })}</span></div><p className="m-0 mt-0.5 text-[#52665b]">{parent && <strong className="text-emerald-700">@{memberName(parent.userId, parent.user?.fullName)} </strong>}{comment.content}</p></div><div className="mt-1 flex items-center gap-2 pl-1"><button type="button" onClick={() => { setReplyingTo((previous) => ({ ...previous, [contribution.id]: comment.id })); setInlineCommentText((previous) => ({ ...previous, [contribution.id]: `@${name} ` })); }} className="comment-action font-bold text-emerald-700">Trả lời</button>{mine && <><button type="button" onClick={() => handleEditComment(contribution.id, comment)} className="comment-action text-[#718579]">Sửa</button><button type="button" onClick={() => handleDeleteComment(contribution.id, comment.id)} className="comment-action text-rose-600">Xóa</button></>}</div></div></div>; })}<div className="flex gap-2"><input value={inlineCommentText[contribution.id] || ''} onChange={(e) => setInlineCommentText((previous) => ({ ...previous, [contribution.id]: e.target.value }))} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleInlineComment(contribution.id, 'FUND_CONTRIBUTION'); } }} placeholder={replyingTo[contribution.id] ? 'Viết trả lời...' : 'Viết bình luận...'} className="h-8 flex-1 rounded-lg border border-emerald-100 bg-white px-2 text-xs" /><button type="button" onClick={() => handleInlineComment(contribution.id, 'FUND_CONTRIBUTION')} className="text-xs font-bold text-emerald-700">Gửi</button></div></div>
+                      </div>
+                    ))}
+                    {expenses.map((exp) => (
                       <div
                         key={exp.id}
-                        className="flex items-center justify-between p-4 rounded-2xl border border-[#edf3ee] dark:border-slate-800 bg-[#ffffff] dark:bg-slate-850 hover:bg-[#f6f9f7] transition"
+                        className={`group-ledger-item rounded-2xl border border-[#edf3ee] bg-[#ffffff] p-4 transition hover:bg-[#f6f9f7] ${expandedComments[exp.id] ? 'comments-open' : ''}`}
                       >
+                        <div onClick={() => setExpandedComments((previous) => ({ ...previous, [exp.id]: !previous[exp.id] }))} className="flex cursor-pointer items-center justify-between">
                         <div className="flex items-center gap-3.5">
                           <div className="size-10 rounded-xl bg-emerald-50 text-[#07543f] grid place-items-center shrink-0">
                             <FinanceIcon name="receipt" size={18} />
                           </div>
                           <div>
                             <h4 className="text-sm font-bold text-[#14261e] dark:text-slate-100 m-0">
-                              {exp.description}
+                              {exp.description === 'Khoản chi nhóm' ? (exp.category?.name || exp.description) : exp.description}
                             </h4>
                             <p className="text-xs text-[#718579] dark:text-slate-400 mt-0.5 m-0">
-                              Người trả: {exp.payer?.fullName || 'Thành viên'} · {exp.expenseDate}
+                              Người trả: {memberName(exp.paidByUserId, exp.payer?.fullName)} · {formatGroupDateTime(exp.createdAt || exp.expenseDate)}
                             </p>
                           </div>
                         </div>
@@ -2224,12 +2451,15 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
                           <strong className="text-sm font-bold text-rose-600 block">
                             -{exp.amount.toLocaleString('vi-VN')} đ
                           </strong>
-                          <span className="text-[10px] text-gray-400">
+                          <span className="text-[10px] text-gray-400 block">
                             Chia: {exp.splitMethod === 'EQUAL' ? 'Đều nhau' : exp.splitMethod}
                           </span>
-                        </div>
+                          <button type="button" onClick={(e) => { e.stopPropagation(); handleSendTransactionToChat(exp.description, exp.amount); }} className="mt-1 rounded-md border border-sky-200 bg-sky-50 px-1.5 py-0.5 text-[8px] font-semibold text-sky-700 hover:bg-sky-100">Gửi vào nhóm</button>
+                        </div></div>
+                        <div className="mt-3 border-t border-[#edf3ee] pt-3 space-y-2">{(commentsByTarget[exp.id] || []).map((comment) => { const member = members.find((item) => item.userId === comment.userId); const parent = (commentsByTarget[exp.id] || []).find((item) => item.id === comment.parentCommentId); const name = memberName(comment.userId, comment.user?.fullName); const avatar = member?.user?.avatarUrl || member?.user?.avatarKey; const mine = comment.userId === currentUser?.id; return <div key={comment.id} className={`flex items-start gap-2 ${parent ? 'ml-9' : ''}`}><div className="grid size-7 shrink-0 place-items-center overflow-hidden rounded-full bg-emerald-100 text-[10px] font-bold text-emerald-700">{avatar ? <img src={userApi.getAvatarUrl(avatar)} alt="" className="size-full object-cover" /> : name.charAt(0)}</div><div><div className="rounded-xl bg-[#f7faf8] px-3 py-2 text-xs"><div className="flex min-w-48 justify-between gap-5"><strong>{name}</strong><span className="text-[10px] text-[#718579]">{new Date(comment.createdAt).toLocaleString('vi-VN', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit', year: 'numeric' })}</span></div><p className="m-0 mt-0.5 text-[#52665b]">{parent && <strong className="text-[#07543f]">@{memberName(parent.userId, parent.user?.fullName)} </strong>}{comment.content}</p></div><div className="mt-1 flex items-center gap-2 pl-1"><button type="button" onClick={() => { setReplyingTo((previous) => ({ ...previous, [exp.id]: comment.id })); setInlineCommentText((previous) => ({ ...previous, [exp.id]: `@${name} ` })); }} className="comment-action font-bold text-[#07543f]">Trả lời</button>{mine && <><button type="button" onClick={() => handleEditComment(exp.id, comment)} className="comment-action text-[#718579]">Sửa</button><button type="button" onClick={() => handleDeleteComment(exp.id, comment.id)} className="comment-action text-rose-600">Xóa</button></>}</div></div></div>; })}<div className="flex gap-2"><input value={inlineCommentText[exp.id] || ''} onChange={(e) => setInlineCommentText((previous) => ({ ...previous, [exp.id]: e.target.value }))} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleInlineComment(exp.id, 'GROUP_EXPENSE'); } }} placeholder={replyingTo[exp.id] ? 'Viết trả lời...' : 'Viết bình luận...'} className="h-8 flex-1 rounded-lg border border-gray-200 px-2 text-xs" /><button type="button" onClick={() => handleInlineComment(exp.id, 'GROUP_EXPENSE')} className="text-xs font-bold text-[#07543f]">Gửi</button></div></div>
                       </div>
-                    ))
+                    ))}
+                    </>
                   )}
                 </div>
               )}
@@ -2237,6 +2467,16 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
               {/* Tab 2: Cân bằng công nợ chéo */}
               {activeTab === 'BALANCES' && (
                 <div className="flex flex-col gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    {balances?.balances.map((member) => (
+                      <div key={member.userId} className="rounded-xl border border-[#edf3ee] p-3 text-xs">
+                        <strong>{memberName(member.userId, member.user?.fullName)}</strong>
+                        <div className="mt-1 text-[#718579]">Đã chi cá nhân: {(member.personalExpensePaid || 0).toLocaleString('vi-VN')} đ</div>
+                        <div className="text-[#718579]">Đã nộp quỹ: {(member.fundContribution || 0).toLocaleString('vi-VN')} đ</div>
+                        <div className={member.balance >= 0 ? 'mt-1 font-bold text-emerald-700' : 'mt-1 font-bold text-rose-600'}>{member.balance >= 0 ? 'Được nhận: ' : 'Cần bù: '}{Math.abs(member.balance).toLocaleString('vi-VN')} đ</div>
+                      </div>
+                    ))}
+                  </div>
                   <h4 className="text-sm font-bold text-[#14261e] dark:text-slate-100 m-0">
                     Kế hoạch thanh toán tối ưu (Simplified Debts)
                   </h4>
@@ -2252,7 +2492,7 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
                           </span>
                           <div>
                             <p className="text-xs text-[#14261e] dark:text-slate-100 font-bold m-0">
-                              {debt.fromUser?.fullName || 'Người nợ'} cần trả cho {debt.toUser?.fullName || 'Người nhận'}
+                              {memberName(debt.fromUserId, debt.fromUser?.fullName)} cần bù cho {memberName(debt.toUserId, debt.toUser?.fullName)}
                             </p>
                             <span className="text-[11px] text-[#718579]">Thanh toán để xóa nợ nhóm</span>
                           </div>
@@ -2261,6 +2501,7 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
                         <strong className="text-base font-bold text-[#07543f] dark:text-emerald-400">
                           {debt.amount.toLocaleString('vi-VN')} đ
                         </strong>
+                        <div className="mt-2 flex flex-wrap justify-end gap-1.5">{debt.fromUserId === currentUser?.id ? <button type="button" onClick={() => { setSettlePayeeId(debt.toUserId); setSettleAmount(String(debt.amount)); setIsSettleModalOpen(true); }} className="h-7 rounded-lg bg-[#07543f] px-2 text-[10px] font-bold text-white">Đóng tiền bù trừ</button> : <span className="inline-flex h-7 items-center rounded-lg bg-gray-100 px-2 text-[10px] font-semibold text-gray-500">Chờ {memberName(debt.fromUserId, debt.fromUser?.fullName)} thanh toán</span>}<button type="button" onClick={() => handleShareBalanceToChat(debt.fromUserId, debt.toUserId, debt.amount)} className="h-7 rounded-lg border border-emerald-300 px-2 text-[10px] font-bold text-emerald-700">Gửi vào trò chuyện</button></div>
                       </div>
                     ))
                   ) : (
@@ -2271,37 +2512,31 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
                 </div>
               )}
 
-              {/* Tab 3: Lịch sử thanh toán nợ */}
-              {activeTab === 'SETTLEMENTS' && (
-                <div className="flex flex-col gap-3">
-                  {settlements.length === 0 ? (
-                    <div className="p-8 text-center text-xs text-[#718579] rounded-2xl bg-[#fafcfa] dark:bg-slate-850 border border-dashed border-[#d8e3dc]">
-                      Chưa có giao dịch trả nợ nào được thực hiện.
-                    </div>
-                  ) : (
-                    settlements.map((st) => (
-                      <div
-                        key={st.id}
-                        className="flex items-center justify-between p-4 rounded-2xl border border-[#edf3ee] dark:border-slate-800 bg-[#ffffff] dark:bg-slate-850"
-                      >
+              {activeTab === 'BALANCES' && settlements.length > 0 && (
+                <section className="rounded-2xl border border-[#edf3ee] p-4">
+                  <h4 className="text-sm font-bold m-0 mb-3">Các lượt bù trừ</h4>
+                  <div className="flex flex-col gap-2">
+                    {settlements.map((st) => {
+                      const payerId = st.fromUserId || st.payerId;
+                      const payeeId = st.toUserId || st.payeeId;
+                      return <div key={st.id} className="flex items-center justify-between gap-3 rounded-xl bg-[#fafcfa] p-3 text-xs">
                         <div>
-                          <p className="text-sm font-bold text-[#14261e] dark:text-slate-100 m-0">
-                            {st.payer?.fullName || 'Người trả'} → {st.payee?.fullName || 'Người nhận'}
-                          </p>
-                          <span className="text-xs text-[#718579] mt-0.5 block">{st.settlementDate}</span>
+                          <strong>{memberName(payerId, st.fromUser?.fullName || st.payer?.fullName)} → {memberName(payeeId, st.toUser?.fullName || st.payee?.fullName)}</strong>
+                          <span className="mt-0.5 block text-[#718579]">{st.settlementDate}</span>
                         </div>
                         <div className="text-right">
-                          <strong className="text-sm font-bold text-emerald-600 block">
-                            +{st.amount.toLocaleString('vi-VN')} đ
-                          </strong>
-                          <span className="text-[10px] font-bold uppercase text-[#07543f]">
-                            {st.status}
-                          </span>
+                          <strong className="block">{st.amount.toLocaleString('vi-VN')} đ</strong>
+                          <span className="text-[10px] font-bold text-[#07543f]">{st.status === 'PENDING' ? 'Chờ xác nhận' : st.status === 'CONFIRMED' ? 'Đã hoàn tất' : 'Đã từ chối'}</span>
+                          {st.status === 'PENDING' && payeeId === currentUser?.id && (
+                            confirmingSettlementId === st.id ? (
+                              <div className="mt-2 flex gap-1"><select value={receivingAccountId} onChange={(e) => setReceivingAccountId(e.target.value)} className="h-7 max-w-32 text-[10px] border rounded"><option value="">Ví nhận</option>{personalAccounts.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}</select><button type="button" onClick={() => handleConfirmSettlement(st.id)} className="h-7 px-2 rounded bg-emerald-600 text-white text-[10px]">Đã nhận</button></div>
+                            ) : <button type="button" onClick={() => setConfirmingSettlementId(st.id)} className="mt-2 h-7 px-2 rounded border border-emerald-300 text-[10px] text-emerald-700">Xác nhận nhận tiền</button>
+                          )}
                         </div>
-                      </div>
-                    ))
-                  )}
-                </div>
+                      </div>;
+                    })}
+                  </div>
+                </section>
               )}
 
               {/* Tab 4: Thành viên */}
@@ -2545,6 +2780,25 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
         </div>
       </div>
 
+      {isFundModalOpen && selectedGroup && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-xs" onClick={() => setIsFundModalOpen(false)}>
+          <div className="w-full max-w-md rounded-3xl bg-white dark:bg-slate-900 p-6 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <h3 className="text-base font-bold text-[#14261e] dark:text-slate-100 m-0">Nộp vào quỹ chung</h3>
+            <p className="text-xs text-[#718579] mt-1 mb-4">Tiền sẽ được trừ từ ví của bạn và cộng vào quỹ của nhóm.</p>
+            <form onSubmit={handleContributeToFund} className="flex flex-col gap-3">
+              <select value={fundAccountId} onChange={(e) => setFundAccountId(e.target.value)} required className="w-full h-10 px-3 rounded-xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs"><option value="">Chọn ví nguồn</option>{personalAccounts.filter((a) => a.currencyCode === selectedGroup.baseCurrency).map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}</select>
+              <input type="number" min="1" value={fundAmount} onChange={(e) => setFundAmount(e.target.value)} placeholder="Số tiền nộp" required className="w-full h-10 px-3 rounded-xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs" />
+              <input value={fundNote} onChange={(e) => setFundNote(e.target.value)} placeholder="Ghi chú (tuỳ chọn)" className="w-full h-10 px-3 rounded-xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs" />
+              <div className="flex justify-end gap-2 mt-2"><button type="button" onClick={() => setIsFundModalOpen(false)} className="h-9 px-4 rounded-xl border text-xs">Hủy</button><button type="submit" disabled={isSubmittingFund} className="h-9 px-5 rounded-xl bg-[#07543f] text-white text-xs font-bold">{isSubmittingFund ? 'Đang nộp...' : 'Nộp quỹ'}</button></div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {isEditGroupModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={() => setIsEditGroupModalOpen(false)}><div className="w-full max-w-md rounded-3xl bg-white dark:bg-slate-900 p-6 shadow-2xl" onClick={(e) => e.stopPropagation()}><h3 className="text-base font-bold m-0">Sửa thông tin nhóm</h3><form onSubmit={handleUpdateGroup} className="flex flex-col gap-3 mt-4"><input value={editGroupName} onChange={(e) => setEditGroupName(e.target.value)} required className="h-10 px-3 rounded-xl border text-sm" placeholder="Tên nhóm" /><textarea value={editGroupDesc} onChange={(e) => setEditGroupDesc(e.target.value)} className="p-3 rounded-xl border text-sm" rows={3} placeholder="Mô tả" /><div className="flex justify-end gap-2"><button type="button" onClick={() => setIsEditGroupModalOpen(false)} className="h-9 px-4 rounded-xl border text-xs">Hủy</button><button type="submit" className="h-9 px-5 rounded-xl bg-[#07543f] text-white text-xs font-bold">Lưu</button></div></form></div></div>
+      )}
+
       {/* Modal 1: Create Group Modal */}
       {isCreateModalOpen && (
         <div
@@ -2595,7 +2849,7 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
                 </select>
               </div>
 
-              <div>
+              <div className="order-3">
                 <label className="text-xs font-semibold text-[#14261e] dark:text-slate-300 block mb-1">
                   Mô tả (tùy chọn)
                 </label>
@@ -2608,10 +2862,16 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
                 />
               </div>
 
-              <div className="flex items-center justify-end gap-2.5 mt-2">
-                <button
-                  type="button"
-                  onClick={() => setIsCreateModalOpen(false)}
+              <div className="order-2">
+                <label className="text-xs font-semibold text-[#14261e] dark:text-slate-300 block mb-1">Mời thành viên (tuỳ chọn)</label>
+                <input type="email" value={createInviteQuery} onChange={(e) => setCreateInviteQuery(e.target.value)} placeholder="Nhập email chính xác để tìm" className="w-full h-10 px-3 rounded-xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs" />
+                {isSearchingCreateInvitees && <p className="text-[11px] text-gray-400 mt-1">Đang tìm...</p>}
+                {createInviteResults.map((user) => <button key={user.id} type="button" onClick={() => { setCreateInvitees((items) => [...items, { user, role: 'MEMBER' }]); setCreateInviteQuery(''); setCreateInviteResults([]); }} className="w-full mt-1 p-2 text-left rounded-lg hover:bg-emerald-50 text-xs"><strong>{user.fullName || user.username}</strong> — {user.email}</button>)}
+                {createInvitees.length > 0 && <div className="mt-2 flex flex-col gap-1">{createInvitees.map((item) => <div key={item.user.id} className="flex items-center gap-2 rounded-lg bg-emerald-50 p-2 text-xs"><span className="flex-1 truncate">{item.user.fullName || item.user.email}</span><select value={item.role} onChange={(e) => setCreateInvitees((items) => items.map((x) => x.user.id === item.user.id ? { ...x, role: e.target.value as 'MEMBER' | 'ADMIN' } : x))}><option value="MEMBER">Thành viên</option><option value="ADMIN">Quản trị viên</option></select><button type="button" onClick={() => setCreateInvitees((items) => items.filter((x) => x.user.id !== item.user.id))} className="text-rose-600">×</button></div>)}</div>}
+              </div>
+
+              <div className="order-4 flex items-center justify-end gap-2.5 mt-2">
+                <button type="button" onClick={() => setIsCreateModalOpen(false)}
                   className="h-9 px-4 rounded-xl border border-gray-200 dark:border-slate-700 text-xs font-semibold text-gray-700 dark:text-slate-300"
                 >
                   Hủy
@@ -2675,10 +2935,15 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
                 />
               </div>
 
+              <div>
+                <label className="text-xs font-semibold text-[#14261e] dark:text-slate-300 block mb-1">Nguồn tiền *</label>
+                <select value={expensePaymentSource} onChange={(e) => setExpensePaymentSource(e.target.value as 'GROUP_FUND' | 'PERSONAL_ACCOUNT')} className="w-full h-10 px-3 rounded-xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-medium"><option value="GROUP_FUND">Quỹ chung của nhóm</option><option value="PERSONAL_ACCOUNT">Ví cá nhân của tôi</option></select>
+              </div>
+              {expensePaymentSource === 'PERSONAL_ACCOUNT' && <div><label className="text-xs font-semibold text-[#14261e] dark:text-slate-300 block mb-1">Ví nguồn *</label><select value={expenseAccountId} onChange={(e) => setExpenseAccountId(e.target.value)} required className="w-full h-10 px-3 rounded-xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-medium"><option value="">Chọn ví cá nhân</option>{personalAccounts.filter((account) => account.currencyCode === selectedGroup?.baseCurrency).map((account) => <option key={account.id} value={account.id}>{account.name}</option>)}</select></div>}
+              <div><label className="text-xs font-semibold text-[#14261e] dark:text-slate-300 block mb-1">Danh mục chi *</label><select value={expenseCategoryId} onChange={(e) => setExpenseCategoryId(e.target.value)} required className="w-full h-10 px-3 rounded-xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-medium">{expenseCategories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}</select></div>
+              <div><label className="text-xs font-semibold text-[#14261e] dark:text-slate-300 block mb-1">Ngày chi *</label><input type="date" value={expenseDate} onChange={(e) => setExpenseDate(e.target.value)} required className="w-full h-10 px-3 rounded-xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-medium" /></div>
               <div className="flex items-center justify-end gap-2.5 mt-2">
-                <button
-                  type="button"
-                  onClick={() => setIsExpenseModalOpen(false)}
+                <button type="button" onClick={() => setIsExpenseModalOpen(false)}
                   className="h-9 px-4 rounded-xl border border-gray-200 dark:border-slate-700 text-xs font-semibold text-gray-700 dark:text-slate-300"
                 >
                   Hủy
@@ -2877,10 +3142,10 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
             onClick={(e) => e.stopPropagation()}
           >
             <h3 className="text-base font-bold text-[#14261e] dark:text-slate-100 m-0">
-              Thanh toán nợ nhóm (Settle Up)
+              Tạo lượt bù trừ
             </h3>
             <p className="text-xs text-[#718579] mt-1 mb-4">
-              Ghi nhận bạn đã chuyển tiền trả nợ cho thành viên khác trong nhóm.
+              Chọn ví cá nhân dùng để chuyển tiền. Người nhận sẽ chọn ví nhận và xác nhận sau.
             </p>
 
             <form onSubmit={handleSettleUp} className="flex flex-col gap-3.5">
@@ -2905,8 +3170,9 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
 
               <div>
                 <label className="text-xs font-semibold text-[#14261e] dark:text-slate-300 block mb-1">
-                  Số tiền trả (VNĐ) *
+                  Ví nguồn và số tiền bù trừ (VNĐ) *
                 </label>
+                <select value={settleSourceAccountId} onChange={(e) => setSettleSourceAccountId(e.target.value)} required className="w-full h-10 px-3 rounded-xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-medium mb-2"><option value="">-- Chọn ví trả tiền --</option>{personalAccounts.filter((a) => a.currencyCode === selectedGroup?.baseCurrency).map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}</select>
                 <input
                   type="number"
                   value={settleAmount}
@@ -2930,7 +3196,7 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
                   disabled={isSubmittingSettle}
                   className="h-9 px-5 rounded-xl bg-[#07543f] text-xs font-bold text-white hover:bg-[#064232] transition"
                 >
-                  {isSubmittingSettle ? 'Đang gửi...' : 'Xác nhận trả nợ'}
+                  {isSubmittingSettle ? 'Đang gửi...' : 'Tạo yêu cầu bù trừ'}
                 </button>
               </div>
             </form>
@@ -3656,6 +3922,15 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
           </div>
         );
       })()}
+      {editingCommentTarget && (
+        <div className="fixed inset-0 z-[100] grid place-items-center bg-black/35 p-4" onMouseDown={() => setEditingCommentTarget(null)}>
+          <form className="w-full max-w-md rounded-2xl bg-white p-5 shadow-2xl" onMouseDown={(event) => event.stopPropagation()} onSubmit={(event) => { event.preventDefault(); handleEditComment(editingCommentTarget.targetId, editingCommentTarget.comment); }}>
+            <h3 className="m-0 text-base font-bold text-[#14261e]">Chỉnh sửa bình luận</h3>
+            <textarea autoFocus value={editingCommentText} onChange={(event) => setEditingCommentText(event.target.value)} className="mt-3 min-h-24 w-full resize-none rounded-xl border border-emerald-200 p-3 text-sm outline-none focus:border-emerald-500" />
+            <div className="mt-3 flex justify-end gap-2"><button type="button" onClick={() => setEditingCommentTarget(null)} className="rounded-lg px-3 py-2 text-sm text-slate-600">Hủy</button><button type="submit" className="rounded-lg bg-emerald-700 px-3 py-2 text-sm font-semibold text-white">Lưu chỉnh sửa</button></div>
+          </form>
+        </div>
+      )}
     </main>
   );
 }

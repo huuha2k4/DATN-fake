@@ -1143,19 +1143,15 @@ export function CashFlowManagementScreen({ onNotify, onAddTransaction }: Props) 
                   const dt = formatTxDateTime(tx.transactionDate, tx.transactionTime);
 
                   // Colors for icon box
-                  const iconBg = tx.category?.color 
-                    ? `${tx.category.color}20` 
-                    : isIncome 
-                    ? '#dcfce7' 
-                    : isTransfer 
-                    ? '#e0f2fe' 
+                  const iconBg = isIncome
+                    ? (tx.category?.color ? `${tx.category.color}20` : '#dcfce7')
+                    : isTransfer
+                    ? '#e0f2fe'
                     : '#fee2e2';
-                  const iconColor = tx.category?.color 
-                    ? tx.category.color 
-                    : isIncome 
-                    ? '#15803d' 
-                    : isTransfer 
-                    ? '#0369a1' 
+                  const iconColor = isIncome
+                    ? (tx.category?.color || '#15803d')
+                    : isTransfer
+                    ? '#0369a1'
                     : '#dc2626';
 
                   return (
@@ -1234,9 +1230,9 @@ export function CashFlowManagementScreen({ onNotify, onAddTransaction }: Props) 
                           <span 
                             className="inline-flex max-w-full items-center justify-center gap-1 rounded-full px-3 py-1 text-[11px] font-bold border shadow-2xs"
                             style={{
-                              backgroundColor: tx.category?.color ? `${tx.category.color}15` : '#fee2e2',
-                              borderColor: tx.category?.color ? `${tx.category.color}40` : '#fca5a5',
-                              color: tx.category?.color || '#dc2626'
+                              backgroundColor: '#fee2e2',
+                              borderColor: '#fca5a5',
+                              color: '#dc2626'
                             }}
                             title={tx.category?.name || 'Chi tiêu'}
                           >

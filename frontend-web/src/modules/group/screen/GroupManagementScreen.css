@@ -50,3 +50,87 @@ html.dark .group-header-card {
 html.dark .group-nav-item.is-selected::before {
   background-color: #34d399;
 }
+/* Compact inline discussion actions without changing other group controls. */
+button[class*="pl-1"][class*="text-emerald-700"],
+button[class*="pl-1"][class*="text-\[\#07543f\]"] {
+  font-size: 11px !important;
+  line-height: 1.15 !important;
+}
+
+/* Actions beside each comment stay readable but do not compete with its text. */
+.comment-action {
+  display: inline-flex;
+  min-height: 20px;
+  align-items: center;
+  margin-top: -2px;
+  padding: 0 1px;
+  font-size: 13px;
+  line-height: 1.25;
+  vertical-align: middle;
+}
+
+/* Match the action row to the text inset inside the comment bubble. */
+.group-ledger-item .comment-action:first-child {
+  margin-left: 4px;
+}
+
+.group-ledger-item .rounded-xl > p.m-0.mt-0\.5 {
+  font-size: 13px;
+  line-height: 1.25;
+}
+
+/* The avatar aligns with the author line, not the outer edge of its bubble. */
+.group-ledger-item .flex.items-start.gap-2 > .size-7 {
+  margin-top: 14px;
+  width: 32px;
+  height: 32px;
+}
+
+.group-ledger-item > div:nth-child(2) .flex.items-start.gap-2 {
+  gap: 2px;
+}
+
+.group-ledger-item > div:nth-child(2) .flex.items-start.gap-2 > div:last-child > .rounded-xl {
+  padding-left: 8px;
+  padding-right: 8px;
+}
+
+/* A visible affordance makes the whole ledger header discoverable as discussion. */
+.group-ledger-item > div:first-child {
+  position: relative;
+  padding-bottom: 18px;
+}
+
+.group-ledger-item > div:first-child::after {
+  content: '💬 Bấm giao dịch để xem hoặc bình luận';
+  position: absolute;
+  bottom: 2px;
+  left: 50%;
+  transform: translateX(-50%);
+  white-space: nowrap;
+  color: #718579;
+  font-size: 11px;
+  line-height: 1.25;
+}
+
+/* Keep the discussion controls compact, while the submit control is explicit. */
+.group-ledger-item button[class*="text-xs"][class*="font-bold"][class*="text-emerald-700"],
+.group-ledger-item button[class*="text-xs"][class*="font-bold"][class*="text-\[\#07543f\]"] {
+  border: 1px solid currentColor;
+  border-radius: 6px;
+  padding: 2px 7px;
+  font-size: 11px;
+  line-height: 1.2;
+}
+
+.group-ledger-item button[class*="text-sky-700"] {
+  border-width: 1px;
+  padding: 3px 8px;
+  font-size: 10px !important;
+  line-height: 1.2;
+}
+
+/* The ledger remains scannable; click its header to reveal the discussion. */
+.group-ledger-item:not(.comments-open) > div:nth-child(2) {
+  display: none;
+}

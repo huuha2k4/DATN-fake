@@ -28,6 +28,9 @@ public class BalanceResponse {
         private BigDecimal balance;
         private BigDecimal totalPaid;
         private BigDecimal totalOwed;
+        private BigDecimal personalExpensePaid;
+        private BigDecimal fundContribution;
+        private BigDecimal fundReserveShare;
         private UserSummary user;
     }
 

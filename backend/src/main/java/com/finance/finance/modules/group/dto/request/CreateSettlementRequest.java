@@ -17,6 +17,9 @@ public class CreateSettlementRequest {
     @NotNull(message = "Người trả không được để trống")
     private UUID fromUserId;
 
+    @NotNull(message = "Ví nguồn không được để trống")
+    private UUID sourceAccountId;
+
     @NotNull(message = "Người nhận không được để trống")
     private UUID toUserId;
 
