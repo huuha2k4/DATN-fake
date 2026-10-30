@@ -423,8 +423,8 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (file.size > 15 * 1024 * 1024) {
-      onNotify('File vượt quá kích thước cho phép (tối đa 15MB)');
+    if (file.size > 100 * 1024 * 1024) {
+      onNotify('File vượt quá kích thước cho phép (tối đa 100MB)');
       return;
     }
     setSelectedAttachment(file);

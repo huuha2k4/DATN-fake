@@ -31,7 +31,7 @@ public class UserService {
     private final PasswordEncoder passwordEncoder;
     
     private static final String UPLOAD_DIR = "uploads/avatars";
-    private static final long MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
+    private static final long MAX_FILE_SIZE = 100 * 1024 * 1024; // 100MB
     private static final String[] ALLOWED_EXTENSIONS = {".jpg", ".jpeg", ".png", ".gif", ".webp"};
     
     private User findUserByIdOrIdentifier(String identifier) {
@@ -106,7 +106,7 @@ public class UserService {
         }
         
         if (file.getSize() > MAX_FILE_SIZE) {
-            throw new IllegalArgumentException("File size exceeds maximum allowed size of 5MB");
+            throw new IllegalArgumentException("File size exceeds maximum allowed size of 100MB");
         }
         
         String originalFilename = file.getOriginalFilename();

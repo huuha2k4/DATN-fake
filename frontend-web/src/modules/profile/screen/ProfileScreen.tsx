@@ -70,8 +70,8 @@ export function ProfileScreen({ onLogout: _onLogout }: ProfileScreenProps) {
   const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      if (file.size > 5 * 1024 * 1024) {
-        setError('Kích thước ảnh đại diện không được vượt quá 5MB');
+      if (file.size > 100 * 1024 * 1024) {
+        setError('Kích thước ảnh đại diện không được vượt quá 100MB');
         return;
       }
 
