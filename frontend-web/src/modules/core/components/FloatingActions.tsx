@@ -6,12 +6,14 @@ interface FloatingActionsProps {
   onAddTransaction: () => void;
   onOpenInvoiceScanner: () => void;
   onOpenAIAssistant: () => void;
+  isChildAccount?: boolean;
 }
 
 export function FloatingActions({
   onAddTransaction,
   onOpenInvoiceScanner,
   onOpenAIAssistant,
+  isChildAccount = false,
 }: FloatingActionsProps) {
   const [isOpen, setIsOpen] = useState(false);
   const dockRef = useRef<HTMLDivElement>(null);
@@ -35,7 +37,7 @@ export function FloatingActions({
     <aside ref={dockRef} className={`floating-actions-dock ${isOpen ? 'is-open' : ''}`} aria-label="Thao tác nhanh">
       {/* 3 Nút thao tác nhanh phụ (Chỉ hiển thị khi bấm mở) */}
       <div className={`fab-menu-items ${isOpen ? 'active' : ''}`}>
-        <button
+        {!isChildAccount && <button
           type="button"
           className="fab-item fab-scanner"
           onClick={() => {
@@ -47,9 +49,9 @@ export function FloatingActions({
         >
           <span className="fab-tooltip">Quét hóa đơn</span>
           <FinanceIcon name="receipt" size={17} />
-        </button>
+        </button>}
 
-        <button
+        {!isChildAccount && <button
           type="button"
           className="fab-item fab-ai"
           onClick={() => {
@@ -61,7 +63,7 @@ export function FloatingActions({
         >
           <span className="fab-tooltip">Trợ lý AI</span>
           <FinanceIcon name="spark" size={17} />
-        </button>
+        </button>}
 
         <button
           type="button"

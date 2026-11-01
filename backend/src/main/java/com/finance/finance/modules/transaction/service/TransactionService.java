@@ -17,6 +17,7 @@ import com.finance.finance.modules.account.exception.AccountNotFoundException;
 import com.finance.finance.modules.account.repository.AccountRepository;
 import com.finance.finance.modules.category.entity.Category;
 import com.finance.finance.modules.category.repository.CategoryRepository;
+import com.finance.finance.modules.group.repository.ChildWalletRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -55,12 +56,16 @@ public class TransactionService {
     private final CategoryRepository categoryRepository;
     private final com.finance.finance.modules.budget.repository.BudgetItemRepository budgetItemRepository;
     private final com.finance.finance.modules.notification.service.NotificationService notificationService;
+    private final ChildWalletRepository childWalletRepository;
     
     /**
      * Create a new transaction
      */
     @Transactional
     public TransactionResponse createTransaction(UUID userId, CreateTransactionRequest request) {
+        if (childWalletRepository.findByUserId(userId).isPresent()) {
+            throw new BusinessException("Tài khoản trẻ em chỉ có thể gửi yêu cầu chi tiêu từ ví do phụ huynh quản lý");
+        }
         log.info("Creating transaction for user: {}, type: {}", userId, request.getTransactionType());
         
         // Validate request based on transaction type

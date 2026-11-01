@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Routes, Route, useNavigate, useLocation } from 'react-router-dom'
+import { Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom'
 import { AddTransactionScreen } from '../../add-transaction/screen/AddTransactionScreen'
 import { AccountManagementScreen } from '../../account-management/screen/AccountManagementScreen'
 import { AIAssistantScreen } from '../../ai-assistant/screen/AIAssistantScreen'
@@ -21,7 +21,8 @@ import { LandingScreen } from '../../auth/screen/LandingScreen'
 import { ProfileScreen } from '../../profile/screen/ProfileScreen'
 import { ChangePasswordModal } from '../../profile/components/ChangePasswordModal'
 import { NotificationScreen } from '../../notification/screen/NotificationScreen'
-import { isAuthenticated, clearAuthData } from '../../auth/api/authApi'
+import { ChildWalletScreen } from '../../child-wallet/screen/ChildWalletScreen'
+import { isAuthenticated, clearAuthData, getStoredUser } from '../../auth/api/authApi'
 
 export default function AppScreen() {
   const [isLoggedIn, setIsLoggedIn] = useState(false)
@@ -34,6 +35,8 @@ export default function AppScreen() {
   })
   const navigate = useNavigate()
   const location = useLocation()
+  const isChildAccount = Boolean(getStoredUser()?.childAccount)
+  const childAllowedRoutes = new Set(['/dashboard', '/child-wallet', '/add-transaction', '/transactions', '/groups', '/profile', '/notifications'])
 
   const handleToggleSidebar = () => {
     // If mobile (< 769px), toggle drawer
@@ -86,6 +89,7 @@ export default function AppScreen() {
   const pathToSection: Record<string, string> = {
     '/': 'Tổng quan',
     '/dashboard': 'Tổng quan',
+    '/child-wallet': 'Ví của em',
     '/add-transaction': 'Thêm giao dịch',
     '/wallets': 'Quản lý Ví',
     '/accounts': 'Quản lý Ví',
@@ -111,9 +115,11 @@ export default function AppScreen() {
         isOpen={isMobileNavOpen}
         onClose={() => setIsMobileNavOpen(false)}
         isCollapsed={isSidebarCollapsed}
+        isChildAccount={isChildAccount}
         onNavigate={(section) => {
           // Map sections to routes
           const routes: Record<string, string> = {
+            '__CHILD_WALLET__': '/child-wallet',
             'Tổng quan': '/dashboard',
             'Thêm giao dịch': '/add-transaction',
             'Quản lý Ví': '/wallets',
@@ -146,25 +152,27 @@ export default function AppScreen() {
         />
         
         <Routes>
+          {isChildAccount && !childAllowedRoutes.has(location.pathname) && <Route path="*" element={<Navigate to="/dashboard" replace />} />}
           <Route path="/" element={<DashboardScreen onNotify={setNotice} onAddTransaction={() => navigate('/add-transaction')} />} />
           <Route path="/dashboard" element={<DashboardScreen onNotify={setNotice} onAddTransaction={() => navigate('/add-transaction')} />} />
+          {isChildAccount && <Route path="/child-wallet" element={<ChildWalletScreen onNotify={setNotice} />} />}
           <Route path="/profile" element={<ProfileScreen onLogout={handleLogout} />} />
           <Route path="/notifications" element={<NotificationScreen onNotify={setNotice} />} />
           <Route path="/add-transaction" element={<AddTransactionScreen onCancel={() => navigate(-1)} onNotify={setNotice} onOpenInvoiceScanner={() => navigate('/scan-invoice')} />} />
-          <Route path="/scan-invoice" element={<InvoiceOcrScreen onCancel={() => navigate(-1)} onNotify={setNotice} />} />
+          {!isChildAccount && <Route path="/scan-invoice" element={<InvoiceOcrScreen onCancel={() => navigate(-1)} onNotify={setNotice} />} />}
           <Route path="/transactions" element={<CashFlowManagementScreen onNotify={setNotice} onAddTransaction={() => navigate('/add-transaction')} />} />
-          <Route path="/budget" element={<BudgetManagementScreen onNotify={setNotice} />} />
-          <Route path="/goals" element={<GoalsManagementScreen onNotify={setNotice} />} />
-          <Route path="/schedules" element={<FinancialRemindersScreen onNotify={setNotice} />} />
-          <Route path="/reminders" element={<FinancialRemindersScreen onNotify={setNotice} />} />
-          <Route path="/debts" element={<DebtManagementScreen onNotify={setNotice} />} />
+          {!isChildAccount && <Route path="/budget" element={<BudgetManagementScreen onNotify={setNotice} />} />}
+          {!isChildAccount && <Route path="/goals" element={<GoalsManagementScreen onNotify={setNotice} />} />}
+          {!isChildAccount && <Route path="/schedules" element={<FinancialRemindersScreen onNotify={setNotice} />} />}
+          {!isChildAccount && <Route path="/reminders" element={<FinancialRemindersScreen onNotify={setNotice} />} />}
+          {!isChildAccount && <Route path="/debts" element={<DebtManagementScreen onNotify={setNotice} />} />}
           <Route path="/groups" element={<GroupManagementScreen onNotify={setNotice} />} />
-          <Route path="/reports" element={<FinancialReportsDashboardScreen onNotify={setNotice} />} />
-          <Route path="/ai-assistant" element={<AIAssistantScreen onNotify={setNotice} />} />
-          <Route path="/forecast" element={<FinancialForecastScreen onNotify={setNotice} />} />
-          <Route path="/analysis" element={<SpendingAnalysisScreen onNotify={setNotice} />} />
-          <Route path="/wallets" element={<AccountManagementScreen onNotify={setNotice} onAccountsChange={setWalletCount} />} />
-          <Route path="/accounts" element={<AccountManagementScreen onNotify={setNotice} onAccountsChange={setWalletCount} />} />
+          {!isChildAccount && <Route path="/reports" element={<FinancialReportsDashboardScreen onNotify={setNotice} />} />}
+          {!isChildAccount && <Route path="/ai-assistant" element={<AIAssistantScreen onNotify={setNotice} />} />}
+          {!isChildAccount && <Route path="/forecast" element={<FinancialForecastScreen onNotify={setNotice} />} />}
+          {!isChildAccount && <Route path="/analysis" element={<SpendingAnalysisScreen onNotify={setNotice} />} />}
+          {!isChildAccount && <Route path="/wallets" element={<AccountManagementScreen onNotify={setNotice} onAccountsChange={setWalletCount} />} />}
+          {!isChildAccount && <Route path="/accounts" element={<AccountManagementScreen onNotify={setNotice} onAccountsChange={setWalletCount} />} />}
         </Routes>
       </div>
 
@@ -173,6 +181,7 @@ export default function AppScreen() {
         onAddTransaction={() => navigate('/add-transaction')}
         onOpenInvoiceScanner={() => navigate('/scan-invoice')}
         onOpenAIAssistant={() => navigate('/ai-assistant')}
+        isChildAccount={isChildAccount}
       />
 
       {/* Change Password Modal */}

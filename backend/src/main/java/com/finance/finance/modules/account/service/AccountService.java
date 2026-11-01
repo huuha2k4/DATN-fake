@@ -2,6 +2,7 @@ package com.finance.finance.modules.account.service;
 
 import com.finance.finance.common.enums.AccountType;
 import com.finance.finance.common.enums.TransactionType;
+import com.finance.finance.common.exception.BusinessException;
 import com.finance.finance.modules.account.dto.request.AdjustBalanceRequest;
 import com.finance.finance.modules.account.dto.request.CreateAccountRequest;
 import com.finance.finance.modules.account.dto.request.UpdateAccountRequest;
@@ -13,6 +14,7 @@ import com.finance.finance.modules.account.exception.DuplicateAccountNameExcepti
 import com.finance.finance.modules.account.repository.AccountRepository;
 import com.finance.finance.modules.transaction.entity.Transaction;
 import com.finance.finance.modules.transaction.repository.TransactionRepository;
+import com.finance.finance.modules.group.repository.ChildWalletRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -34,6 +36,7 @@ public class AccountService {
 
     private final AccountRepository accountRepository;
     private final TransactionRepository transactionRepository;
+    private final ChildWalletRepository childWalletRepository;
 
     /**
      * Lấy danh sách các loại ví / tài khoản và cấu hình trường nhập liệu
@@ -108,6 +111,9 @@ public class AccountService {
      */
     @Transactional
     public AccountResponse createAccount(UUID userId, CreateAccountRequest request) {
+        if (childWalletRepository.findByUserId(userId).isPresent()) {
+            throw new BusinessException("Tài khoản trẻ em chỉ sử dụng ví do phụ huynh tạo, không thể thêm ví riêng");
+        }
         log.info("Creating account for user: {}, name: {}", userId, request.getName());
 
         // Validate duplicate name

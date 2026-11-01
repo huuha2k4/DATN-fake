@@ -2,20 +2,35 @@ package com.finance.finance.modules.group.service;
 
 import com.finance.finance.common.enums.MemberRole;
 import com.finance.finance.common.enums.SystemRole;
+import com.finance.finance.common.enums.TransactionSource;
+import com.finance.finance.common.enums.TransactionType;
 import com.finance.finance.common.enums.UserStatus;
 import com.finance.finance.common.exception.BusinessException;
+import com.finance.finance.modules.account.entity.Account;
+import com.finance.finance.modules.account.repository.AccountRepository;
+import com.finance.finance.modules.category.entity.Category;
+import com.finance.finance.modules.category.repository.CategoryRepository;
+import com.finance.finance.modules.group.entity.Group;
+import com.finance.finance.modules.group.entity.GroupExpense;
+import com.finance.finance.modules.group.entity.GroupFund;
 import com.finance.finance.modules.group.exception.ResourceNotFoundException;
 import com.finance.finance.modules.group.dto.request.CreateChildWalletRequest;
 import com.finance.finance.modules.group.dto.request.DepositWalletRequest;
 import com.finance.finance.modules.group.dto.request.UpdateChildWalletRequest;
 import com.finance.finance.modules.group.dto.request.WithdrawWalletRequest;
 import com.finance.finance.modules.group.dto.response.ChildWalletResponse;
+import com.finance.finance.modules.group.entity.ChildSpendRequest;
 import com.finance.finance.modules.group.entity.ChildWallet;
 import com.finance.finance.modules.group.entity.GroupMember;
 import com.finance.finance.modules.group.entity.GroupMemberId;
 import com.finance.finance.modules.group.repository.ChildSpendRequestRepository;
 import com.finance.finance.modules.group.repository.ChildWalletRepository;
+import com.finance.finance.modules.group.repository.GroupExpenseRepository;
+import com.finance.finance.modules.group.repository.GroupFundRepository;
 import com.finance.finance.modules.group.repository.GroupMemberRepository;
+import com.finance.finance.modules.group.repository.GroupRepository;
+import com.finance.finance.modules.transaction.entity.Transaction;
+import com.finance.finance.modules.transaction.repository.TransactionRepository;
 import com.finance.finance.modules.user.entity.User;
 import com.finance.finance.modules.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -41,6 +56,12 @@ public class ChildWalletService {
     private final GroupMemberRepository groupMemberRepository;
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
+    private final AccountRepository accountRepository;
+    private final TransactionRepository transactionRepository;
+    private final CategoryRepository categoryRepository;
+    private final GroupFundRepository groupFundRepository;
+    private final GroupExpenseRepository groupExpenseRepository;
+    private final GroupRepository groupRepository;
 
     @Transactional
     public ChildWalletResponse createWallet(UUID groupId, CreateChildWalletRequest request, UUID currentUserId) {
@@ -101,6 +122,8 @@ public class ChildWalletService {
                 .currency("VND")
                 .balance(initialBal)
                 .weeklyAllowance(request.getWeeklyAllowance())
+                .allowanceSource(request.getAllowanceSource() != null ? request.getAllowanceSource() : "PERSONAL_ACCOUNT")
+                .allowanceAccountId(request.getAllowanceAccountId())
                 .privacyLevel(request.getPrivacyLevel() != null ? request.getPrivacyLevel() : com.finance.finance.common.enums.PrivacyLevel.PARENT_SUPERVISED)
                 .spendLimitDaily(request.getSpendLimitDaily())
                 .spendLimitWeekly(request.getSpendLimitWeekly())
@@ -167,6 +190,15 @@ public class ChildWalletService {
         if (request.getDateOfBirth() != null) {
             wallet.setDateOfBirth(request.getDateOfBirth());
         }
+        if (request.getWeeklyAllowance() != null) {
+            wallet.setWeeklyAllowance(request.getWeeklyAllowance());
+        }
+        if (request.getAllowanceSource() != null) {
+            wallet.setAllowanceSource(request.getAllowanceSource());
+        }
+        if (request.getAllowanceAccountId() != null) {
+            wallet.setAllowanceAccountId(request.getAllowanceAccountId());
+        }
         if (request.getPrivacyLevel() != null) {
             wallet.setPrivacyLevel(request.getPrivacyLevel());
         }
@@ -204,18 +236,24 @@ public class ChildWalletService {
             throw new ResourceNotFoundException("Wallet does not belong to this group");
         }
 
-        // Check if wallet has balance
-        if (wallet.getBalance().compareTo(BigDecimal.ZERO) > 0) {
-            throw new IllegalStateException("Cannot delete wallet with remaining balance");
-        }
+        // Hoàn tiền còn dư (nếu có) về nguồn tiền nạp nếu cần, hoặc cho phép xóa kèm xóa các liên kết
+        UUID childUserId = wallet.getUserId();
 
         walletRepository.delete(wallet);
+
+        // Nếu bé có tài khoản độc lập trong nhóm, có thể xóa quyền thành viên nhóm
+        if (childUserId != null) {
+            try {
+                groupMemberRepository.deleteById(new GroupMemberId(groupId, childUserId));
+            } catch (Exception ignored) {
+            }
+        }
     }
 
     @Transactional
     public ChildWalletResponse deposit(UUID groupId, UUID walletId, DepositWalletRequest request, UUID currentUserId) {
-        // Validate user is admin or owner
-        validateAdminOrOwner(groupId, currentUserId);
+        // Mọi thành viên trong gia đình đều có thể nạp tiền cho bé
+        validateMember(groupId, currentUserId);
 
         ChildWallet wallet = walletRepository.findById(walletId)
                 .orElseThrow(() -> new ResourceNotFoundException("Child wallet not found"));
@@ -224,12 +262,100 @@ public class ChildWalletService {
             throw new ResourceNotFoundException("Wallet does not belong to this group");
         }
 
+        String source = request.getSource() != null ? request.getSource() : "allowance";
+        String note = request.getDescription() != null && !request.getDescription().trim().isEmpty()
+                ? request.getDescription().trim()
+                : "Nạp tiền cho ví bé: " + wallet.getChildName();
+
+        // Xử lý trừ tiền từ nguồn thực tế và lưu vết lịch sử giao dịch
+        if ("GROUP_FUND".equalsIgnoreCase(source)) {
+            GroupFund fund = groupFundRepository.findByGroupId(groupId)
+                    .orElseThrow(() -> new IllegalStateException("Nhóm chưa có quỹ chung"));
+            if (fund.getBalance().compareTo(request.getAmount()) < 0) {
+                throw new IllegalArgumentException("Số dư quỹ nhóm không đủ để cấp cho bé");
+            }
+            fund.setBalance(fund.getBalance().subtract(request.getAmount()));
+            groupFundRepository.save(fund);
+
+            // Ghi nhận khoản chi của quỹ nhóm thuộc danh mục "Gia đình & Con cái" (FAMILY)
+            UUID categoryId = categoryRepository.findByCode("FAMILY")
+                    .map(Category::getId)
+                    .orElseGet(() -> categoryRepository.findByUserIdOrSystemAndKind(currentUserId, com.finance.finance.common.enums.CategoryKind.EXPENSE)
+                            .stream().findFirst().map(Category::getId).orElse(null));
+
+            GroupExpense expense = GroupExpense.builder()
+                    .groupId(groupId)
+                    .description("Cấp tiền ví bé (" + wallet.getChildName() + "): " + note)
+                    .amount(request.getAmount())
+                    .currency("VND")
+                    .paidByUserId(currentUserId)
+                    .createdByUserId(currentUserId)
+                    .paymentSource("GROUP_FUND")
+                    .categoryId(categoryId)
+                    .splitMethod(com.finance.finance.common.enums.SplitMethod.EQUAL)
+                    .expenseDate(LocalDateTime.now().toLocalDate())
+                    .build();
+            groupExpenseRepository.save(expense);
+        } else if ("PERSONAL_ACCOUNT".equalsIgnoreCase(source) || request.getSourceAccountId() != null) {
+            if (request.getSourceAccountId() == null) {
+                throw new IllegalArgumentException("Vui lòng chọn ví cá nhân để trừ tiền nạp cho bé");
+            }
+            Account parentAccount = accountRepository.findByIdAndUserId(request.getSourceAccountId(), currentUserId)
+                    .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy ví cá nhân của bạn"));
+
+            if (parentAccount.getBalance().compareTo(request.getAmount()) < 0) {
+                throw new IllegalStateException("Số dư ví cá nhân không đủ để nạp cho bé");
+            }
+
+            parentAccount.setBalance(parentAccount.getBalance().subtract(request.getAmount()));
+            accountRepository.save(parentAccount);
+
+            // Ghi nhận giao dịch chi tiêu của bố mẹ thuộc danh mục "Gia đình & Con cái" (FAMILY)
+            UUID categoryId = categoryRepository.findByCode("FAMILY")
+                    .map(Category::getId)
+                    .orElseGet(() -> categoryRepository.findByUserIdOrSystemAndKind(currentUserId, com.finance.finance.common.enums.CategoryKind.EXPENSE)
+                            .stream().findFirst().map(Category::getId).orElse(null));
+
+            Transaction parentTx = Transaction.builder()
+                    .userId(currentUserId)
+                    .accountId(parentAccount.getId())
+                    .categoryId(categoryId)
+                    .type(TransactionType.EXPENSE)
+                    .amount(request.getAmount())
+                    .currencyCode(parentAccount.getCurrencyCode())
+                    .exchangeRate(BigDecimal.ONE)
+                    .baseAmount(request.getAmount())
+                    .occurredAt(java.time.Instant.now())
+                    .occurredDate(java.time.LocalDate.now())
+                    .descriptionRaw("Nạp tiền ví bé (" + wallet.getChildName() + "): " + note)
+                    .source(TransactionSource.MANUAL)
+                    .build();
+            transactionRepository.save(parentTx);
+        }
+
         // Add to balance
         wallet.setBalance(wallet.getBalance().add(request.getAmount()));
         wallet.setUpdatedAt(LocalDateTime.now());
         wallet = walletRepository.save(wallet);
 
-        // TODO: Log activity
+        // Ghi lại lịch sử nạp tiền vào ví bé (ChildSpendRequest dạng THU NHẬP [INCOME_DEPOSIT])
+        UUID childIncomeCategory = categoryRepository.findByCode("FAMILY")
+                .map(Category::getId)
+                .orElseGet(() -> categoryRepository.findByUserIdOrSystemAndKind(currentUserId, com.finance.finance.common.enums.CategoryKind.EXPENSE)
+                        .stream().findFirst().map(Category::getId).orElse(null));
+
+        ChildSpendRequest depositRecord = ChildSpendRequest.builder()
+                .walletId(walletId)
+                .amount(request.getAmount())
+                .categoryId(childIncomeCategory)
+                .description("[INCOME_DEPOSIT] " + note)
+                .status(com.finance.finance.common.enums.SpendRequestStatus.APPROVED)
+                .respondedByUserId(currentUserId)
+                .respondedAt(LocalDateTime.now())
+                .createdAt(LocalDateTime.now())
+                .updatedAt(LocalDateTime.now())
+                .build();
+        spendRequestRepository.save(depositRecord);
 
         return buildWalletResponse(wallet);
     }
@@ -261,6 +387,12 @@ public class ChildWalletService {
         return buildWalletResponse(wallet);
     }
 
+    private void validateMember(UUID groupId, UUID userId) {
+        if (!groupMemberRepository.existsByGroup_IdAndUser_Id(groupId, userId)) {
+            throw new ResourceNotFoundException("User is not a member of this group");
+        }
+    }
+
     private void validateAdminOrOwner(UUID groupId, UUID userId) {
         GroupMember member = groupMemberRepository.findById(new GroupMemberId(groupId, userId))
                 .orElseThrow(() -> new ResourceNotFoundException("User is not a member of this group"));
@@ -275,6 +407,11 @@ public class ChildWalletService {
         long totalRequests = spendRequestRepository.countByWalletId(wallet.getId());
         long pendingRequests = spendRequestRepository.countPendingByWalletId(wallet.getId());
 
+        Integer age = null;
+        if (wallet.getDateOfBirth() != null) {
+            age = java.time.Period.between(wallet.getDateOfBirth(), java.time.LocalDate.now()).getYears();
+        }
+
         return ChildWalletResponse.builder()
                 .id(wallet.getId())
                 .groupId(wallet.getGroupId())
@@ -282,8 +419,13 @@ public class ChildWalletService {
                 .childUsername(wallet.getChildUsername())
                 .childName(wallet.getChildName())
                 .dateOfBirth(wallet.getDateOfBirth())
+                .age(age)
                 .currency(wallet.getCurrency() != null ? wallet.getCurrency() : "VND")
                 .balance(wallet.getBalance())
+                .weeklyAllowance(wallet.getWeeklyAllowance())
+                .allowanceSource(wallet.getAllowanceSource())
+                .allowanceAccountId(wallet.getAllowanceAccountId())
+                .nextAllowanceDate(wallet.getNextAllowanceDate())
                 .privacyLevel(wallet.getPrivacyLevel() != null ? wallet.getPrivacyLevel().name() : "PARENT_SUPERVISED")
                 .spendLimitDaily(wallet.getSpendLimitDaily())
                 .spendLimitWeekly(wallet.getSpendLimitWeekly())

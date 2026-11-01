@@ -18,6 +18,7 @@ type Props = {
 const routeTitles: Record<string, { title: string; subtitle?: string }> = {
   '/': { title: 'Tổng quan tài chính', subtitle: 'Bảng điều khiển và số dư tổng hợp' },
   '/dashboard': { title: 'Tổng quan tài chính', subtitle: 'Bảng điều khiển và số dư tổng hợp' },
+  '/child-wallet': { title: 'Ví của em', subtitle: 'Số dư, yêu cầu xin tiền và nhiệm vụ nhận thưởng' },
   '/transactions': { title: 'Quản lý Thu & Chi', subtitle: 'Chi tiết các giao dịch phát sinh và dòng tiền' },
   '/budget': { title: 'Quản lý Ngân sách Chi tiêu', subtitle: 'Hạn mức chi tiêu định kỳ và theo dõi tiến độ chi dùng' },
   '/goals': { title: 'Mục tiêu Tài chính & Tích lũy', subtitle: 'Tiến độ mục tiêu tiết kiệm và quỹ tài chính tương lai' },

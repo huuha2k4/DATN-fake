@@ -44,6 +44,8 @@ public class GroupExpenseService {
     private final com.finance.finance.modules.account.repository.AccountRepository accountRepository;
     private final TransactionService transactionService;
     private final GroupFundContributionRepository groupFundContributionRepository;
+    private final com.finance.finance.modules.category.repository.CategoryRepository categoryRepository;
+    private final com.finance.finance.modules.user.repository.UserRepository userRepository;
 
     @Transactional
     public ExpenseResponse createExpense(UUID groupId, CreateExpenseRequest request, UUID currentUserId) {
@@ -356,6 +358,20 @@ public class GroupExpenseService {
     private ExpenseResponse buildExpenseResponse(GroupExpense expense, List<ExpenseSplit> splits) {
         Long commentCount = transactionCommentRepository.countByCommentableTypeAndId(
                 com.finance.finance.common.enums.CommentableType.GROUP_EXPENSE, expense.getId());
+        ExpenseResponse.PayerSummary payer = userRepository.findById(expense.getPaidByUserId())
+                .map(user -> ExpenseResponse.PayerSummary.builder()
+                        .fullName(user.getFullName())
+                        .avatarKey(user.getAvatarUrl())
+                        .build())
+                .orElse(null);
+        ExpenseResponse.CategorySummary category = expense.getCategoryId() == null ? null : categoryRepository.findById(expense.getCategoryId())
+                .map(item -> ExpenseResponse.CategorySummary.builder()
+                        .id(item.getId())
+                        .name(item.getName())
+                        .icon(item.getIcon())
+                        .color(item.getColor())
+                        .build())
+                .orElse(null);
 
         return ExpenseResponse.builder()
                 .id(expense.getId())
@@ -374,6 +390,8 @@ public class GroupExpenseService {
                 .createdAt(expense.getCreatedAt())
                 .updatedAt(expense.getUpdatedAt())
                 .version(expense.getVersion())
+                .payer(payer)
+                .category(category)
                 .commentCount(commentCount.intValue())
                 .build();
     }

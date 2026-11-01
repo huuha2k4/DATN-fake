@@ -24,6 +24,23 @@ const goalTypeOptions: { value: GoalType; label: string; icon: IconName; color: 
   { value: 'OTHER', label: 'Mục tiêu khác', icon: 'spark', color: '#64748b' },
 ];
 
+// Helper format ngày giờ dd/mm/yyyy hh:mm
+function formatGoalDateTime(dateStr?: string | null): string {
+  if (!dateStr) return '';
+  try {
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return dateStr;
+    const hours = String(d.getHours()).padStart(2, '0');
+    const minutes = String(d.getMinutes()).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const year = d.getFullYear();
+    return `${hours}:${minutes} ${day}/${month}/${year}`;
+  } catch {
+    return dateStr;
+  }
+}
+
 function ProgressBar({ percent, color = 'bg-[#006c49]', height = 'h-2' }: { percent: number; color?: string; height?: string }) {
   const bounded = Math.min(100, Math.max(0, percent));
   return (
@@ -190,10 +207,21 @@ export function GoalsManagementScreen({ onNotify }: Props) {
       });
 
       onNotify(`Đã nạp ${addNum.toLocaleString('vi-VN')} đ vào mục tiêu "${depositGoal.name}"!`);
+      const targetGoalId = depositGoal.id;
       setDepositGoal(null);
       setDepositAmount('');
       setDepositNote('');
       loadGoalsData();
+
+      // Cập nhật lại modal chi tiết nếu đang mở mục tiêu này
+      try {
+        const updatedGoal = await goalApi.getGoalById(targetGoalId);
+        if (updatedGoal) {
+          setDetailGoal(updatedGoal);
+        }
+      } catch {
+        // bỏ qua nếu lỗi
+      }
     } catch (err: any) {
       const msg = err.response?.data?.message || 'Nạp tiền vào mục tiêu thất bại';
       onNotify(msg);
@@ -745,11 +773,25 @@ export function GoalsManagementScreen({ onNotify }: Props) {
               {/* Lịch sử nạp tiền / tích lũy thực tế vào mục tiêu */}
               <div className="mt-4 pt-3 border-t border-gray-100 dark:border-gray-800">
                 <h4 className="text-xs font-bold text-[#14261e] dark:text-gray-200 mb-2">
-                  Lịch sử nạp tiền ({detailGoal.contributions?.length || 0})
+                  Lịch sử nạp tiền ({(detailGoal.contributions?.length || 0) + (current > (detailGoal.contributions?.reduce((s, c) => s + (c.amount || 0), 0) || 0) ? 1 : 0)})
                 </h4>
 
                 {(!detailGoal.contributions || detailGoal.contributions.length === 0) ? (
-                  <p className="text-xs text-gray-400 italic py-2 text-center">Chưa có giao dịch nạp tiền nào được ghi nhận</p>
+                  current > 0 ? (
+                    <div className="py-2.5 px-3 rounded-xl bg-emerald-50/60 dark:bg-emerald-950/30 border border-emerald-100 dark:border-emerald-800/50 flex items-center justify-between text-xs">
+                      <div className="min-w-0 pr-2">
+                        <p className="font-bold text-[#10b981]">
+                          +{current.toLocaleString('vi-VN')} đ
+                        </p>
+                        <span className="text-[10.5px] text-gray-500 dark:text-gray-400">
+                          {detailGoal.createdAt ? formatGoalDateTime(detailGoal.createdAt) : 'Ban đầu'} · Số tiền tích lũy ban đầu
+                        </span>
+                      </div>
+                      <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-semibold shrink-0">Tích lũy sẵn ✓</span>
+                    </div>
+                  ) : (
+                    <p className="text-xs text-gray-400 italic py-2 text-center">Chưa có giao dịch nạp tiền nào được ghi nhận</p>
+                  )
                 ) : (
                   <div className="max-h-48 overflow-y-auto divide-y divide-gray-100 dark:divide-gray-800 pr-1">
                     {detailGoal.contributions.map((ct) => (
@@ -758,13 +800,34 @@ export function GoalsManagementScreen({ onNotify }: Props) {
                           <p className="font-bold text-[#10b981]">
                             +{Number(ct.amount || 0).toLocaleString('vi-VN')} đ
                           </p>
-                          <span className="text-[10.5px] text-gray-500">
-                            {ct.contributedAt ? ct.contributedAt.split('T')[0] : 'Vừa xong'} {ct.note ? `· ${ct.note}` : ''}
+                          <span className="text-[10.5px] text-gray-500 dark:text-gray-400">
+                            {ct.contributedAt ? formatGoalDateTime(ct.contributedAt) : 'Vừa xong'} {ct.note ? `· ${ct.note}` : ''}
                           </span>
                         </div>
-                        <span className="text-[10px] text-emerald-600 font-semibold shrink-0">Đã nạp ✓</span>
+                        <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-semibold shrink-0">Đã nạp ✓</span>
                       </div>
                     ))}
+                    {/* Nếu số tiền hiện tại lớn hơn tổng các lần nạp (có số tiền tích lũy sẵn ban đầu), hiển thị thêm dòng ban đầu */}
+                    {(() => {
+                      const totalContributed = detailGoal.contributions.reduce((s, c) => s + (c.amount || 0), 0);
+                      const initialDiff = current - totalContributed;
+                      if (initialDiff > 0) {
+                        return (
+                          <div key="initial-seed" className="py-2 flex items-center justify-between text-xs">
+                            <div className="min-w-0 pr-2">
+                              <p className="font-bold text-[#10b981]">
+                                +{initialDiff.toLocaleString('vi-VN')} đ
+                              </p>
+                              <span className="text-[10.5px] text-gray-500 dark:text-gray-400">
+                                {detailGoal.createdAt ? formatGoalDateTime(detailGoal.createdAt) : 'Ban đầu'} · Số tiền tích lũy ban đầu
+                              </span>
+                            </div>
+                            <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-semibold shrink-0">Tích lũy sẵn ✓</span>
+                          </div>
+                        );
+                      }
+                      return null;
+                    })()}
                   </div>
                 )}
               </div>

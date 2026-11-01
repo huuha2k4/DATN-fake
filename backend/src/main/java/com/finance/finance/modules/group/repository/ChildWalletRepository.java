@@ -21,6 +21,9 @@ public interface ChildWalletRepository extends JpaRepository<ChildWallet, UUID> 
            "AND cw.deletedAt IS NULL " +
            "ORDER BY cw.createdAt ASC")
     List<ChildWallet> findByGroupId(@Param("groupId") UUID groupId);
+
+    @Query("SELECT cw FROM ChildWallet cw WHERE cw.userId = :userId AND cw.deletedAt IS NULL")
+    Optional<ChildWallet> findByUserId(@Param("userId") UUID userId);
     
     @Query("SELECT COUNT(cw) FROM ChildWallet cw " +
            "WHERE cw.groupId = :groupId AND cw.deletedAt IS NULL")

@@ -87,6 +87,17 @@ public class GoalService {
         goal = goalRepository.save(goal);
         log.info("Goal created: {}", goal.getId());
 
+        // Nếu lúc tạo mục tiêu đã có sẵn số tiền tích lũy ban đầu (> 0), tự động ghi nhận 1 bản ghi nạp tiền ban đầu
+        if (goal.getCurrentAmount() != null && goal.getCurrentAmount().compareTo(BigDecimal.ZERO) > 0) {
+            GoalContribution initialContribution = GoalContribution.builder()
+                    .goal(goal)
+                    .amount(goal.getCurrentAmount())
+                    .note("Số tiền tích lũy ban đầu khi tạo mục tiêu")
+                    .sourceAccountId(request.getAccountId())
+                    .build();
+            contributionRepository.save(initialContribution);
+        }
+
         return mapToResponse(goal, false);
     }
 
@@ -126,7 +137,7 @@ public class GoalService {
     public GoalResponse getGoalById(UUID userId, UUID goalId) {
         log.info("Getting goal: {}", goalId);
 
-        Goal goal = goalRepository.findByIdWithAll(goalId, userId)
+        Goal goal = goalRepository.findByIdAndUserId(goalId, userId)
                 .orElseThrow(() -> new GoalNotFoundException("Không tìm thấy mục tiêu"));
 
         return mapToResponse(goal, true);

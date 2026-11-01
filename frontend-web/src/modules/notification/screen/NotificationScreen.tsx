@@ -17,26 +17,56 @@ function getNotificationVisual(type: NotificationType): { icon: IconName; bg: st
   switch (type) {
     case 'BUDGET_ALERT':
     case 'BUDGET_EXCEEDED':
-      return { icon: 'bolt', bg: 'bg-rose-50 text-rose-600 border-rose-100', color: '#dc2626', label: 'Ngân sách' };
+      return {
+        icon: 'bolt',
+        bg: 'bg-rose-50 dark:bg-rose-950/50 text-rose-600 dark:text-rose-400 border-rose-100 dark:border-rose-900/60',
+        color: '#dc2626',
+        label: 'Ngân sách',
+      };
     case 'GOAL_MILESTONE':
     case 'GOAL_ACHIEVED':
     case 'GOAL_REMINDER':
-      return { icon: 'spark', bg: 'bg-emerald-50 text-emerald-600 border-emerald-100', color: '#059669', label: 'Mục tiêu' };
+      return {
+        icon: 'spark',
+        bg: 'bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400 border-emerald-100 dark:border-emerald-900/60',
+        color: '#059669',
+        label: 'Mục tiêu',
+      };
     case 'DEBT_REMINDER':
     case 'DEBT_OVERDUE':
-      return { icon: 'credit-card', bg: 'bg-pink-50 text-pink-600 border-pink-100', color: '#e11d48', label: 'Công nợ' };
+      return {
+        icon: 'credit-card',
+        bg: 'bg-pink-50 dark:bg-pink-950/50 text-pink-600 dark:text-pink-400 border-pink-100 dark:border-pink-900/60',
+        color: '#e11d48',
+        label: 'Công nợ',
+      };
     case 'TRANSACTION':
     case 'RECURRING_DUE':
     case 'RECURRING_FAILED':
-      return { icon: 'wallet', bg: 'bg-sky-50 text-sky-600 border-sky-100', color: '#2563eb', label: 'Giao dịch' };
+      return {
+        icon: 'wallet',
+        bg: 'bg-sky-50 dark:bg-sky-950/50 text-sky-600 dark:text-sky-400 border-sky-100 dark:border-sky-900/60',
+        color: '#2563eb',
+        label: 'Giao dịch',
+      };
     case 'ANOMALY_DETECTED':
     case 'INSIGHT_GENERATED':
     case 'WEEKLY_SUMMARY':
     case 'MONTHLY_REPORT':
-      return { icon: 'trend', bg: 'bg-emerald-50 text-emerald-700 border-emerald-100', color: '#16a34a', label: 'Báo cáo & Phân tích' };
+      return {
+        icon: 'trend',
+        bg: 'bg-teal-50 dark:bg-teal-950/50 text-teal-600 dark:text-teal-400 border-teal-100 dark:border-teal-900/60',
+        color: '#16a34a',
+        label: 'Báo cáo & Phân tích',
+      };
     case 'SYSTEM':
     default:
-      return { icon: 'bell', bg: 'bg-gray-100 text-gray-700 border-gray-200', color: '#4b5563', label: 'Hệ thống' };
+      return {
+        icon: 'bell',
+        bg: 'bg-gray-100 dark:bg-slate-800 text-gray-700 dark:text-slate-300 border-gray-200 dark:border-slate-700',
+        color: '#4b5563',
+        label: 'Hệ thống',
+      };
   }
 }
 

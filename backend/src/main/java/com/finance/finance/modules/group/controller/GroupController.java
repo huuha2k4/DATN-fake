@@ -561,6 +561,24 @@ public class GroupController {
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
+    @PostMapping("/{groupId}/child-wallets/{walletId}/money-requests")
+    public ResponseEntity<SpendRequestResponse> createMoneyRequest(
+            @PathVariable UUID groupId, @PathVariable UUID walletId,
+            @Valid @RequestBody CreateMoneyRequest request,
+            @AuthenticationPrincipal User currentUser) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(
+                childManagementService.createMoneyRequest(groupId, walletId, request, currentUser.getId()));
+    }
+
+    @PostMapping("/{groupId}/child-wallets/{walletId}/transactions")
+    public ResponseEntity<SpendRequestResponse> createChildTransaction(
+            @PathVariable UUID groupId, @PathVariable UUID walletId,
+            @Valid @RequestBody CreateSpendRequestRequest request,
+            @AuthenticationPrincipal User currentUser) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(
+                childManagementService.createDirectChildSpend(groupId, walletId, request, currentUser.getId()));
+    }
+
     @GetMapping("/{groupId}/child-wallets/{walletId}/spend-requests")
     public ResponseEntity<Page<SpendRequestResponse>> getSpendRequests(
             @PathVariable UUID groupId,

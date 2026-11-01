@@ -172,13 +172,16 @@ html.dark .desktop-sidebar-toggle:hover {
 }
 
 .nav-list {
-  display: grid;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
   gap: 4px;
   margin-top: 10px;
 }
 
 .nav-item {
   display: flex;
+  width: 100%;
   min-height: 44px;
   align-items: center;
   gap: 12px;

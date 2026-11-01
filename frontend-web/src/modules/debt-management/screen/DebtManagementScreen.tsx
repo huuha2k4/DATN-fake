@@ -549,8 +549,10 @@ export function DebtManagementScreen({ onNotify }: Props) {
                       </div>
                     </div>
 
-                    <span className={`shrink-0 rounded-md px-2 py-0.5 text-[10px] font-bold ${
-                      isPaid ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'
+                    <span className={`shrink-0 rounded-lg px-2.5 py-0.75 text-[10.5px] font-bold border transition ${
+                      isPaid
+                        ? 'bg-emerald-50 text-emerald-700 border-emerald-200/60 dark:bg-emerald-950/60 dark:text-emerald-300 dark:border-emerald-800/60'
+                        : 'bg-amber-50 text-amber-700 border-amber-200/60 dark:bg-amber-950/60 dark:text-amber-300 dark:border-amber-800/60'
                     }`}>
                       {isPaid ? 'Đã hoàn tất' : 'Đang nợ'}
                     </span>

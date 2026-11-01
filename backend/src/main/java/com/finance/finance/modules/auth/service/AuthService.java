@@ -18,6 +18,7 @@ import com.finance.finance.modules.user.dto.response.UserResponse;
 import com.finance.finance.modules.user.exception.UserNotFoundException;
 import com.finance.finance.modules.user.mapper.UserMapper;
 import com.finance.finance.modules.user.repository.UserRepository;
+import com.finance.finance.modules.group.repository.ChildWalletRepository;
 
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
@@ -47,6 +48,7 @@ public class AuthService {
     private final JwtTokenProvider jwtTokenProvider;
     private final EmailService emailService;
     private final UserMapper userMapper;
+    private final ChildWalletRepository childWalletRepository;
     private final com.finance.finance.modules.notification.service.NotificationService notificationService;
 
     @Value("${app.security.max-login-attempts:5}")
@@ -126,7 +128,7 @@ public class AuthService {
         RefreshToken refreshToken = tokenService.createRefreshToken(user, null, null);
 
         // Build response
-        UserResponse userResponse = userMapper.toResponse(user);
+        UserResponse userResponse = withChildWalletContext(userMapper.toResponse(user), user.getId());
         
         return AuthResponse.builder()
                 .user(userResponse)
@@ -203,7 +205,7 @@ public class AuthService {
         log.info("User logged in successfully: {}", user.getId());
 
         // Build response
-        UserResponse userResponse = userMapper.toResponse(user);
+        UserResponse userResponse = withChildWalletContext(userMapper.toResponse(user), user.getId());
         
         return AuthResponse.builder()
                 .user(userResponse)
@@ -394,6 +396,21 @@ public class AuthService {
     }
 
     // Helper methods
+
+    /**
+     * A child login is intentionally a reduced product surface.  Keep that fact in
+     * the authentication payload so the client can enforce the same scope even on
+     * a direct URL, rather than relying on a hidden menu item.
+     */
+    private UserResponse withChildWalletContext(UserResponse response, UUID userId) {
+        childWalletRepository.findByUserId(userId).ifPresentOrElse(wallet -> {
+            response.setChildAccount(true);
+            response.setChildWalletId(wallet.getId());
+            response.setChildWalletGroupId(wallet.getGroupId());
+            response.setChildWalletName(wallet.getChildName());
+        }, () -> response.setChildAccount(false));
+        return response;
+    }
 
     /**
      * Handle failed login attempt

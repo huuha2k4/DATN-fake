@@ -7,6 +7,8 @@ import {
   type CategoryItem 
 } from '../api/transactionApi';
 import { accountApi, type AccountItem } from '../../account-management/api/accountApi';
+import { getStoredUser } from '../../auth/api/authApi';
+import { groupApi } from '../../group/api/groupApi';
 import './CashFlowManagementScreen.css';
 
 type Props = { 
@@ -15,6 +17,8 @@ type Props = {
 };
 
 export function CashFlowManagementScreen({ onNotify, onAddTransaction }: Props) {
+  const currentUser = getStoredUser();
+  const isChildAccount = Boolean(currentUser?.childAccount && currentUser.childWalletId && currentUser.childWalletGroupId);
   // Data states
   const [transactions, setTransactions] = useState<TransactionItem[]>([]);
   const [summary, setSummary] = useState<TransactionSummaryData>({
@@ -32,7 +36,10 @@ export function CashFlowManagementScreen({ onNotify, onAddTransaction }: Props) 
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('ALL');
   const [selectedAccount, setSelectedAccount] = useState<string>('ALL');
-  const [selectedMonth, setSelectedMonth] = useState<string>('2026-10'); // default Tháng 10/2026
+  const [selectedMonth, setSelectedMonth] = useState<string>(() => {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  });
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [totalItems, setTotalItems] = useState(0);
@@ -79,6 +86,15 @@ export function CashFlowManagementScreen({ onNotify, onAddTransaction }: Props) 
 
   // Load Categories & Accounts
   const loadMetadata = async () => {
+    if (isChildAccount) {
+      const [cats, wallet] = await Promise.all([
+        transactionApi.getCategories().catch(() => []),
+        groupApi.getChildWallet(currentUser!.childWalletGroupId!, currentUser!.childWalletId!).catch(() => null),
+      ]);
+      setCategories(cats);
+      if (wallet) setAccounts([{ id: wallet.id, name: `Ví của ${wallet.childName}`, balance: wallet.balance, currencyCode: wallet.currency, accountType: 'CASH', isActive: true } as AccountItem]);
+      return;
+    }
     try {
       const [catsRes, accsRes] = await Promise.all([
         transactionApi.getCategories().catch(() => []),
@@ -107,6 +123,70 @@ export function CashFlowManagementScreen({ onNotify, onAddTransaction }: Props) 
   const loadTransactions = async () => {
     try {
       setLoading(true);
+      if (isChildAccount) {
+        const entries = await groupApi.getSpendRequests(currentUser!.childWalletGroupId!, currentUser!.childWalletId!);
+        const mapped = entries.filter((entry) => entry.status === 'APPROVED').map((entry) => {
+          const isDeposit = entry.description?.startsWith('[INCOME_DEPOSIT] ');
+          const isChoreReward = entry.description?.startsWith('[INCOME_CHORE] ');
+          const isMoneyReq = entry.description?.startsWith('[MONEY_REQUEST] ');
+          const income = isDeposit || isChoreReward || isMoneyReq;
+
+          let displayDesc = entry.description || 'Giao dịch';
+          if (isDeposit) {
+            displayDesc = `Bố/mẹ nạp ví: ${entry.description.replace('[INCOME_DEPOSIT] ', '')}`;
+          } else if (isChoreReward) {
+            displayDesc = `Thưởng nhiệm vụ: ${entry.description.replace('[INCOME_CHORE] ', '')}`;
+          } else if (isMoneyReq) {
+            displayDesc = `Bố/mẹ cấp tiền: ${entry.description.replace('[MONEY_REQUEST] ', '')}`;
+          }
+
+          return {
+            id: entry.id,
+            transactionType: income ? 'INCOME' : 'EXPENSE',
+            accountId: currentUser!.childWalletId!,
+            accountName: 'Ví của em',
+            amount: entry.amount,
+            currencyCode: entry.currency || 'VND',
+            description: displayDesc,
+            transactionDate: entry.createdAt?.slice(0, 10) || new Date().toISOString().slice(0, 10),
+            transactionTime: entry.createdAt?.slice(11, 16),
+            createdAt: entry.createdAt,
+            category: entry.category,
+          } as TransactionItem;
+        }).filter((entry) => activeTab === 'ALL' || entry.transactionType === activeTab)
+          .filter((entry) => !debouncedSearch || entry.description.toLowerCase().includes(debouncedSearch.toLowerCase()));
+        // Lọc theo bộ lọc Tháng
+        let filtered = mapped;
+        if (selectedMonth !== 'ALL') {
+          filtered = filtered.filter((entry) => entry.transactionDate.startsWith(selectedMonth));
+        }
+
+        // Lọc theo Danh mục
+        if (selectedCategory !== 'ALL') {
+          filtered = filtered.filter((entry) => entry.category?.id === selectedCategory);
+        }
+
+        // Lọc theo Nguồn tiền
+        if (selectedAccount !== 'ALL') {
+          filtered = filtered.filter((entry) => entry.accountId === selectedAccount);
+        }
+
+        const income = filtered.filter((entry) => entry.transactionType === 'INCOME').reduce((sum, entry) => sum + entry.amount, 0);
+        const expense = filtered.filter((entry) => entry.transactionType === 'EXPENSE').reduce((sum, entry) => sum + entry.amount, 0);
+
+        // Phân trang trên client cho ví của bé (15 giao dịch mỗi trang)
+        const pageSize = 15;
+        const totalItemsCount = filtered.length;
+        const totalPagesCount = Math.max(1, Math.ceil(totalItemsCount / pageSize));
+        const startIndex = (currentPage - 1) * pageSize;
+        const paginated = filtered.slice(startIndex, startIndex + pageSize);
+
+        setTransactions(paginated);
+        setSummary({ totalIncome: income, totalExpense: expense, netCashFlow: income - expense, transactionCount: totalItemsCount });
+        setTotalItems(totalItemsCount);
+        setTotalPages(totalPagesCount);
+        return;
+      }
       let fromDate: string | undefined = undefined;
       let toDate: string | undefined = undefined;
 
@@ -1154,18 +1234,27 @@ export function CashFlowManagementScreen({ onNotify, onAddTransaction }: Props) 
                     ? '#0369a1'
                     : '#dc2626';
 
+                  const iconBoxDarkClass = isIncome
+                    ? 'dark:bg-emerald-950/70 dark:border-emerald-800/60 dark:text-emerald-400'
+                    : isTransfer
+                    ? 'dark:bg-sky-950/70 dark:border-sky-800/60 dark:text-sky-400'
+                    : 'dark:bg-rose-950/70 dark:border-rose-800/60 dark:text-rose-400';
+
                   return (
                     <tr 
                       key={tx.id} 
                       onClick={() => setSelectedTxDetail(tx)}
-                      className="transition-colors hover:bg-[#f6faf7] cursor-pointer group"
+                      className="transition-colors hover:bg-[#f6faf7] dark:hover:bg-slate-800/60 cursor-pointer group"
                     >
                       {/* 1. GIAO DỊCH & HẠNG MỤC */}
                       <td className="px-4 py-3.5">
                         <div className="flex items-center gap-3">
                           <span 
-                            className="grid size-10 shrink-0 place-items-center rounded-2xl shadow-xs transition-transform group-hover:scale-105"
-                            style={{ backgroundColor: iconBg, color: iconColor }}
+                            className={`tx-category-icon-box ${isIncome ? 'is-income' : isTransfer ? 'is-transfer' : 'is-expense'} grid size-10 shrink-0 place-items-center rounded-2xl shadow-xs transition-transform group-hover:scale-105 border border-transparent ${iconBoxDarkClass}`}
+                            style={{ 
+                              ['--custom-icon-bg' as any]: iconBg,
+                              ['--custom-icon-color' as any]: iconColor 
+                            }}
                           >
                             {tx.category ? (
                               renderCategoryIcon(tx.category.icon, tx.transactionType, 18, tx.category.name)
@@ -1177,10 +1266,10 @@ export function CashFlowManagementScreen({ onNotify, onAddTransaction }: Props) 
                             )}
                           </span>
                           <div className="min-w-0 flex-1">
-                            <p className="truncate font-bold text-[#0f172a] text-[13px] group-hover:text-[#07543f] transition-colors" title={tx.description || 'Giao dịch'}>
+                            <p className="truncate font-bold text-[#0f172a] dark:text-slate-100 text-[13px] group-hover:text-[#07543f] dark:group-hover:text-emerald-400 transition-colors" title={tx.description || 'Giao dịch'}>
                               {tx.description || (isIncome ? 'Khoản thu' : isTransfer ? 'Chuyển tiền' : 'Khoản chi')}
                             </p>
-                            <p className="text-[11px] text-[#64748b] truncate mt-0.5">
+                            <p className="text-[11px] text-[#64748b] dark:text-slate-400 truncate mt-0.5">
                               {tx.category?.name 
                                 ? (tx.merchant?.name ? `${tx.category.name} • ${tx.merchant.name}` : tx.category.name)
                                 : isIncome ? 'Thu nhập' : isTransfer ? 'Chuyển quỹ' : 'Chi tiêu'}
@@ -1194,10 +1283,10 @@ export function CashFlowManagementScreen({ onNotify, onAddTransaction }: Props) 
                         <div className="flex items-center gap-2.5">
                           {renderAccountBadgeIcon(tx.accountName, tx.accountId)}
                           <div className="min-w-0 flex-1">
-                            <p className="font-bold text-[#0f172a] text-[12.5px] truncate" title={tx.accountName}>
+                            <p className="font-bold text-[#0f172a] dark:text-slate-100 text-[12.5px] truncate" title={tx.accountName}>
                               {tx.accountName}
                             </p>
-                            <p className="text-[10.5px] text-[#718579] font-medium truncate mt-0.5" title={isTransfer && tx.toAccountName ? `Chuyển sang: ${tx.toAccountName}` : getAccountTypeLabel(tx.accountId)}>
+                            <p className="text-[10.5px] text-[#718579] dark:text-slate-400 font-medium truncate mt-0.5" title={isTransfer && tx.toAccountName ? `Chuyển sang: ${tx.toAccountName}` : getAccountTypeLabel(tx.accountId)}>
                               {isTransfer && tx.toAccountName 
                                 ? `→ ${tx.toAccountName}` 
                                 : getAccountTypeLabel(tx.accountId)}
@@ -1208,32 +1297,27 @@ export function CashFlowManagementScreen({ onNotify, onAddTransaction }: Props) 
 
                       {/* 3. THỜI GIAN */}
                       <td className="px-3 py-3.5">
-                        <p className="font-bold text-[#0f172a] text-[12px] leading-tight">{dt.date}</p>
+                        <p className="font-bold text-[#0f172a] dark:text-slate-100 text-[12px] leading-tight">{dt.date}</p>
                         {dt.time && (
-                          <p className="text-[10.5px] text-[#64748b] mt-0.5 leading-tight">{dt.time}</p>
+                          <p className="text-[10.5px] text-[#64748b] dark:text-slate-400 mt-0.5 leading-tight">{dt.time}</p>
                         )}
                       </td>
 
                       {/* 4. PHÂN LOẠI BADGE: Không bị cắt ngắn, hiển thị rõ ràng */}
                       <td className="px-3 py-3.5 text-center">
                         {isIncome ? (
-                          <span className="inline-flex max-w-full items-center justify-center gap-1 rounded-full bg-[#dcfce7] px-3 py-1 text-[11px] font-bold text-[#15803d] border border-emerald-200/60 shadow-2xs">
+                          <span className="inline-flex max-w-full items-center justify-center gap-1 rounded-full bg-[#dcfce7] dark:bg-emerald-950/70 px-3 py-1 text-[11px] font-bold text-[#15803d] dark:text-emerald-400 border border-emerald-200/60 dark:border-emerald-800/60 shadow-2xs">
                             <span className="text-[12px] shrink-0">↓</span>
                             <span className="truncate">Thu nhập</span>
                           </span>
                         ) : isTransfer ? (
-                          <span className="inline-flex max-w-full items-center justify-center gap-1 rounded-full bg-[#e0f2fe] px-3 py-1 text-[11px] font-bold text-[#0284c7] border border-sky-200/60 shadow-2xs">
+                          <span className="inline-flex max-w-full items-center justify-center gap-1 rounded-full bg-[#e0f2fe] dark:bg-sky-950/70 px-3 py-1 text-[11px] font-bold text-[#0284c7] dark:text-sky-400 border border-sky-200/60 dark:border-sky-800/60 shadow-2xs">
                             <span className="text-[11px] shrink-0">⇄</span>
                             <span className="truncate">Chuyển ví</span>
                           </span>
                         ) : (
                           <span 
-                            className="inline-flex max-w-full items-center justify-center gap-1 rounded-full px-3 py-1 text-[11px] font-bold border shadow-2xs"
-                            style={{
-                              backgroundColor: '#fee2e2',
-                              borderColor: '#fca5a5',
-                              color: '#dc2626'
-                            }}
+                            className="cashflow-expense-badge inline-flex max-w-full items-center justify-center gap-1 rounded-full px-3 py-1 text-[11px] font-bold border shadow-2xs"
                             title={tx.category?.name || 'Chi tiêu'}
                           >
                             <span className="text-[12px] shrink-0">↑</span>

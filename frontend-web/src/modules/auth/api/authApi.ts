@@ -36,6 +36,10 @@ export interface User {
   language: string;
   lastLoginAt: string;
   createdAt: string;
+  childAccount?: boolean;
+  childWalletId?: string;
+  childWalletGroupId?: string;
+  childWalletName?: string;
 }
 
 export interface AuthResponse {

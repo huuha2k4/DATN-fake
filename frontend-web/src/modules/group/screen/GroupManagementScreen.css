@@ -134,3 +134,235 @@ button[class*="pl-1"][class*="text-\[\#07543f\]"] {
 .group-ledger-item:not(.comments-open) > div:nth-child(2) {
   display: none;
 }
+
+/* ==========================================================================
+   Comprehensive Dark Mode for Group Management Screen
+   ========================================================================== */
+
+/* Main Containers & Sub-cards */
+html.dark .group-page {
+  color: #cbd5e1;
+}
+
+/* Thẻ bên danh sách nhóm bên trái */
+html.dark .group-page .group-nav-item:not(.is-selected) {
+  background-color: #0b1a26 !important;
+  border-color: #16364a !important;
+}
+
+html.dark .group-page .group-nav-item:not(.is-selected):hover {
+  background-color: #0e2436 !important;
+  border-color: #1e4a66 !important;
+}
+
+html.dark .group-page .group-nav-item.is-selected {
+  background: linear-gradient(135deg, rgba(7, 84, 63, 0.4) 0%, #0c202f 100%) !important;
+  border-color: #059669 !important;
+}
+
+/* Khung nội dung chính bên phải */
+html.dark .group-page .lg\:col-span-9 > div {
+  background-color: #081622 !important;
+  border-color: #132a3a !important;
+}
+
+/* 4 Summary Cards (Quỹ chung, Tổng chi tiêu, Thành viên, Ví trẻ em) */
+html.dark .group-page .grid.grid-cols-2.sm\:grid-cols-4 > div {
+  background: #0e2333 !important;
+  border-color: #173852 !important;
+  box-shadow: 0 4px 14px -3px rgba(0, 0, 0, 0.45) !important;
+}
+
+html.dark .group-page .grid.grid-cols-2.sm\:grid-cols-4 > div:first-child {
+  background: radial-gradient(circle at top left, rgba(16, 185, 129, 0.18) 0%, transparent 70%), #0e2333 !important;
+  border-color: #1b4d45 !important;
+}
+
+/* 2 Hộp tổng quan bên dưới: Thành viên & Khoản thu chi gần đây */
+html.dark .group-page .grid.grid-cols-1.md\:grid-cols-2 > div {
+  background-color: #0b1c2a !important;
+  border-color: #16364a !important;
+}
+
+html.dark .group-page .grid.grid-cols-1.md\:grid-cols-2 > div .bg-\[\#f7faf8\] {
+  background-color: #0e2436 !important;
+  border-color: #183c54 !important;
+}
+
+/* Thẻ thành viên & Thẻ ví trẻ em ở Tab Thành viên & Tab Ví trẻ em */
+html.dark .group-page .grid.grid-cols-1.sm\:grid-cols-2 > div {
+  background-color: #0e2333 !important;
+  border-color: #173852 !important;
+  box-shadow: 0 4px 14px -3px rgba(0, 0, 0, 0.4) !important;
+}
+
+html.dark .group-page .grid.grid-cols-1.sm\:grid-cols-2 > div:hover {
+  border-color: #205072 !important;
+}
+
+/* Action Dropdown Menu (3-dots) */
+html.dark .group-page .absolute.right-0.top-11 {
+  background-color: #0f172a !important;
+  border-color: #1e293b !important;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5), 0 8px 10px -6px rgba(0, 0, 0, 0.5) !important;
+}
+
+html.dark .group-page .absolute.right-0.top-11 button {
+  color: #cbd5e1 !important;
+}
+
+html.dark .group-page .absolute.right-0.top-11 button:hover {
+  background-color: #1e293b !important;
+  color: #f1f5f9 !important;
+}
+
+/* Ledger Items (Khoản thu / chi / nộp quỹ) */
+html.dark .group-ledger-item {
+  background-color: #0b1322 !important;
+  border-color: #1e293b !important;
+  color: #cbd5e1 !important;
+}
+
+html.dark .group-ledger-item:hover {
+  background-color: #0f1a2e !important;
+}
+
+html.dark .group-ledger-item.bg-emerald-50\/40 {
+  background-color: rgba(6, 78, 59, 0.15) !important;
+  border-color: rgba(5, 150, 105, 0.25) !important;
+}
+
+html.dark .group-ledger-item .border-emerald-100,
+html.dark .group-ledger-item .border-\[\#edf3ee\] {
+  border-color: #1e293b !important;
+}
+
+html.dark .group-ledger-item > div:first-child::after {
+  color: #64748b !important;
+}
+
+/* Comment Box inside Ledger */
+html.dark .group-ledger-item .rounded-xl.bg-white,
+html.dark .group-ledger-item .rounded-xl.bg-\[\#f7faf8\] {
+  background-color: #111e33 !important;
+  border: 1px solid #1e293b !important;
+  color: #e2e8f0 !important;
+}
+
+html.dark .group-ledger-item .rounded-xl p {
+  color: #94a3b8 !important;
+}
+
+html.dark .group-ledger-item input[placeholder*="bình luận"] {
+  background-color: #09101d !important;
+  border-color: #1e293b !important;
+  color: #f1f5f9 !important;
+}
+
+/* Sub-tab balances (Cân bằng công nợ chéo) */
+html.dark .group-page .rounded-xl.border-\[\#edf3ee\] {
+  background-color: #0b1322 !important;
+  border-color: #1e293b !important;
+  color: #cbd5e1 !important;
+}
+
+html.dark .group-page .rounded-xl.bg-\[\#fafcfa\] {
+  background-color: #0b1322 !important;
+  border-color: #1e293b !important;
+  color: #cbd5e1 !important;
+}
+
+/* Modal form inputs & dropdowns */
+html.dark .group-page input:not([type="checkbox"]):not([type="radio"]):not([type="submit"]):not([type="button"]),
+html.dark .group-page select,
+html.dark .group-page textarea,
+html.dark .fixed input:not([type="checkbox"]):not([type="radio"]):not([type="submit"]):not([type="button"]),
+html.dark .fixed select,
+html.dark .fixed textarea {
+  background-color: #0f172a !important;
+  border-color: #334155 !important;
+  color: #f1f5f9 !important;
+}
+
+html.dark .group-page input::placeholder,
+html.dark .fixed input::placeholder,
+html.dark .fixed textarea::placeholder {
+  color: #64748b !important;
+}
+
+/* Chat container & Message bubbles */
+html.dark .group-chat-container {
+  background-color: #071622 !important;
+  border-color: #16364a !important;
+}
+
+html.dark .group-chat-bubble-other {
+  background-color: #112534 !important;
+  color: #f8fafc !important;
+  border-color: #1e4560 !important;
+}
+
+html.dark .group-chat-bubble-other p {
+  color: #f8fafc !important;
+}
+
+html.dark .group-chat-bubble-me {
+  background-color: #065f46 !important;
+  color: #ffffff !important;
+}
+
+html.dark .group-chat-bubble-me p {
+  color: #ffffff !important;
+}
+
+html.dark .group-page .group-chat-bubble-other button {
+  border-color: #10b981 !important;
+  color: #34d399 !important;
+  background-color: rgba(16, 185, 129, 0.12) !important;
+}
+
+html.dark .group-page .group-chat-bubble-other button:hover {
+  background-color: rgba(16, 185, 129, 0.22) !important;
+}
+
+
+
+/* Action button outlines in dark */
+html.dark .group-page .border-emerald-300 {
+  border-color: #059669 !important;
+  color: #34d399 !important;
+}
+
+html.dark .group-page .border-emerald-300:hover {
+  background-color: rgba(5, 150, 105, 0.15) !important;
+}
+
+/* Modal and dialogs */
+html.dark .fixed.inset-0 .bg-white {
+  background-color: #0b1a26 !important;
+  border-color: #173852 !important;
+  color: #e2eaf0 !important;
+}
+
+/* Group type badge in dark mode */
+html.dark .group-type-badge {
+  background-color: var(--dark-bg) !important;
+  color: var(--dark-color) !important;
+  border-color: var(--dark-border) !important;
+}
+
+/* Fallback for empty states & dashed boxes in dark mode */
+html.dark .group-page .bg-\[\#fafcfa\],
+html.dark .group-page .border-dashed {
+  background-color: #0b1c2a !important;
+  border-color: #1b3a50 !important;
+  color: #94a3b8 !important;
+}
+
+html.dark .group-page .rounded-xl.border-\[\#edf3ee\] {
+  background-color: #0e2436 !important;
+  border-color: #1b3a50 !important;
+}
+
+
+

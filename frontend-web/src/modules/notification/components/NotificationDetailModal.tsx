@@ -9,30 +9,60 @@ interface NotificationDetailModalProps {
   onNavigateAction?: (url: string) => void;
 }
 
-function getNotificationVisual(type: NotificationType): { icon: IconName; bg: string; color: string; label: string } {
+function getNotificationVisual(type: NotificationType): { icon: IconName; bgClass: string; colorClass: string; label: string } {
   switch (type) {
     case 'BUDGET_ALERT':
     case 'BUDGET_EXCEEDED':
-      return { icon: 'bolt', bg: 'bg-rose-50 text-rose-600 border-rose-100', color: '#dc2626', label: 'Cảnh báo ngân sách' };
+      return {
+        icon: 'bolt',
+        bgClass: 'bg-rose-50 dark:bg-rose-950/50 border border-rose-200 dark:border-rose-900/60',
+        colorClass: 'text-rose-600 dark:text-rose-400',
+        label: 'Cảnh báo ngân sách',
+      };
     case 'GOAL_MILESTONE':
     case 'GOAL_ACHIEVED':
     case 'GOAL_REMINDER':
-      return { icon: 'spark', bg: 'bg-emerald-50 text-emerald-600 border-emerald-100', color: '#059669', label: 'Mục tiêu tài chính' };
+      return {
+        icon: 'spark',
+        bgClass: 'bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-200 dark:border-emerald-900/60',
+        colorClass: 'text-emerald-600 dark:text-emerald-400',
+        label: 'Mục tiêu tài chính',
+      };
     case 'DEBT_REMINDER':
     case 'DEBT_OVERDUE':
-      return { icon: 'credit-card', bg: 'bg-pink-50 text-pink-600 border-pink-100', color: '#e11d48', label: 'Quản lý công nợ' };
+      return {
+        icon: 'credit-card',
+        bgClass: 'bg-pink-50 dark:bg-pink-950/50 border border-pink-200 dark:border-pink-900/60',
+        colorClass: 'text-pink-600 dark:text-pink-400',
+        label: 'Quản lý công nợ',
+      };
     case 'TRANSACTION':
     case 'RECURRING_DUE':
     case 'RECURRING_FAILED':
-      return { icon: 'wallet', bg: 'bg-sky-50 text-sky-600 border-sky-100', color: '#2563eb', label: 'Giao dịch thu & chi' };
+      return {
+        icon: 'wallet',
+        bgClass: 'bg-sky-50 dark:bg-sky-950/50 border border-sky-200 dark:border-sky-900/60',
+        colorClass: 'text-sky-600 dark:text-sky-400',
+        label: 'Giao dịch thu & chi',
+      };
     case 'ANOMALY_DETECTED':
     case 'INSIGHT_GENERATED':
     case 'WEEKLY_SUMMARY':
     case 'MONTHLY_REPORT':
-      return { icon: 'trend', bg: 'bg-emerald-50 text-emerald-700 border-emerald-100', color: '#16a34a', label: 'Báo cáo & Phân tích' };
+      return {
+        icon: 'trend',
+        bgClass: 'bg-teal-50 dark:bg-teal-950/50 border border-teal-200 dark:border-teal-900/60',
+        colorClass: 'text-teal-600 dark:text-teal-400',
+        label: 'Báo cáo & Phân tích',
+      };
     case 'SYSTEM':
     default:
-      return { icon: 'bell', bg: 'bg-emerald-50 text-[#07543f] border-emerald-100', color: '#07543f', label: 'Hệ thống FinAI' };
+      return {
+        icon: 'bell',
+        bgClass: 'bg-gray-100 dark:bg-slate-800 border border-gray-200 dark:border-slate-700',
+        colorClass: 'text-gray-700 dark:text-slate-300',
+        label: 'Hệ thống FinAI',
+      };
   }
 }
 
@@ -75,8 +105,7 @@ export function NotificationDetailModal({
         <div className="notif-modal-header">
           <div className="notif-modal-header-left">
             <div
-              className="notif-modal-icon-badge"
-              style={{ backgroundColor: visual.bg, color: visual.color }}
+              className={`notif-modal-icon-badge ${visual.bgClass} ${visual.colorClass}`}
             >
               <FinanceIcon name={visual.icon} size={22} />
             </div>

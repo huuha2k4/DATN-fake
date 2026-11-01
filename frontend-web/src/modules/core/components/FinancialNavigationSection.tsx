@@ -23,9 +23,10 @@ type Props = {
   isOpen?: boolean;
   onClose?: () => void;
   isCollapsed?: boolean;
+  isChildAccount?: boolean;
 }
 
-export function FinancialNavigationSection({ active, onNavigate, isOpen, onClose, isCollapsed }: Props) {
+export function FinancialNavigationSection({ active, onNavigate, isOpen, onClose, isCollapsed, isChildAccount = false }: Props) {
   const navigate = (item: (typeof navigation)[number]) => {
     onNavigate(item.label)
     if (onClose) onClose()
@@ -64,7 +65,7 @@ export function FinancialNavigationSection({ active, onNavigate, isOpen, onClose
       </div>
       <p className="nav-caption">KHÔNG GIAN TÀI CHÍNH</p>
       <nav className="nav-list" aria-label="Điều hướng tài chính">
-        {navigation.map((item) => (
+        {navigation.filter((item) => !isChildAccount || ['Tổng quan', 'Thêm giao dịch', 'Quản lý Thu & Chi', 'Chi tiêu Nhóm'].includes(item.label)).map((item) => (
           <button 
             key={item.label} 
             type="button" 

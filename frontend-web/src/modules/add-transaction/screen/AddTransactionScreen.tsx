@@ -8,7 +8,7 @@ import {
 } from '../../cash-flow-management/api/transactionApi'
 import { accountApi, type AccountItem } from '../../account-management/api/accountApi'
 import { formatDate } from '../../core/utils/dateUtils'
-import { groupApi, type GroupFundResponse, type GroupMemberResponse, type GroupResponse } from '../../group/api/groupApi'
+import { groupApi, type GroupFundResponse, type GroupMemberResponse, type GroupResponse, type ChildWalletResponse } from '../../group/api/groupApi'
 import { getStoredUser } from '../../auth/api/authApi'
 
 type Props = {
@@ -28,6 +28,8 @@ const presets = [
 ]
 
 export function AddTransactionScreen({ onCancel, onNotify, onOpenInvoiceScanner }: Props) {
+  const currentUser = getStoredUser()
+  const isChildAccount = Boolean(currentUser?.childAccount && currentUser.childWalletId && currentUser.childWalletGroupId)
   // Types
   const [type, setType] = useState<TransactionType>('EXPENSE')
 
@@ -36,6 +38,7 @@ export function AddTransactionScreen({ onCancel, onNotify, onOpenInvoiceScanner 
   const [accounts, setAccounts] = useState<AccountItem[]>([])
   const [groups, setGroups] = useState<GroupResponse[]>([])
   const [groupFunds, setGroupFunds] = useState<Record<string, GroupFundResponse>>({})
+  const [childWallet, setChildWallet] = useState<ChildWalletResponse | null>(null)
   const [selectedGroupFundId, setSelectedGroupFundId] = useState<string>('')
   const [selectedGroupMembers, setSelectedGroupMembers] = useState<GroupMemberResponse[]>([])
   const [recentTransactions, setRecentTransactions] = useState<TransactionItem[]>([])
@@ -60,6 +63,7 @@ export function AddTransactionScreen({ onCancel, onNotify, onOpenInvoiceScanner 
     const now = new Date()
     return `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`
   })
+  const [isCustomDateTime, setIsCustomDateTime] = useState<boolean>(false)
   const [description, setDescription] = useState<string>('')
   const [recurring, setRecurring] = useState<boolean>(false)
   const [fileName, setFileName] = useState<string>('')
@@ -89,27 +93,76 @@ export function AddTransactionScreen({ onCancel, onNotify, onOpenInvoiceScanner 
   const loadData = async () => {
     try {
       setLoadingMetadata(true)
-      const [catsRes, accsRes, txsRes, groupsRes] = await Promise.all([
+      const [catsRes, accsRes, txsRes, groupsRes, childWalletRes] = await Promise.all([
         transactionApi.getCategories().catch(() => []),
         accountApi.getAccounts().catch(() => []),
         transactionApi.getTransactions({ pageSize: 5 }).catch(() => ({ transactions: [] })),
         groupApi.getGroups().catch(() => []),
+        isChildAccount
+          ? groupApi.getChildWallet(currentUser!.childWalletGroupId!, currentUser!.childWalletId!).catch(() => null)
+          : Promise.resolve(null),
       ])
 
       setCategories(catsRes)
-      setAccounts(accsRes)
+      setChildWallet(childWalletRes)
+      const usableAccounts = childWalletRes ? [{
+        id: childWalletRes.id,
+        name: `Ví của ${childWalletRes.childName}`,
+        balance: childWalletRes.balance,
+        currencyCode: childWalletRes.currency || 'VND',
+        accountType: 'CASH',
+        isActive: true,
+        description: 'Ví do bố mẹ tạo và quản lý',
+      } as AccountItem] : accsRes
+      setAccounts(usableAccounts)
       setGroups(groupsRes)
       const funds = await Promise.all(groupsRes.map(async (group) => [group.id, await groupApi.getFund(group.id).catch(() => null)] as const))
       setGroupFunds(Object.fromEntries(funds.filter((entry): entry is readonly [string, GroupFundResponse] => entry[1] !== null)))
-      if (txsRes?.transactions) {
+      if (isChildAccount && childWalletRes) {
+        const ledger = await groupApi.getSpendRequests(currentUser!.childWalletGroupId!, childWalletRes.id)
+        setRecentTransactions(ledger.filter((item) => item.status === 'APPROVED').map((item) => {
+          const isDeposit = item.description?.startsWith('[INCOME_DEPOSIT] ');
+          const isChoreReward = item.description?.startsWith('[INCOME_CHORE] ');
+          const isMoneyReq = item.description?.startsWith('[MONEY_REQUEST] ');
+          const income = isDeposit || isChoreReward || isMoneyReq;
+
+          let displayDesc = item.description || 'Giao dịch';
+          if (isDeposit) {
+            displayDesc = `Bố/mẹ nạp ví: ${item.description.replace('[INCOME_DEPOSIT] ', '')}`;
+          } else if (isChoreReward) {
+            displayDesc = `Thưởng nhiệm vụ: ${item.description.replace('[INCOME_CHORE] ', '')}`;
+          } else if (isMoneyReq) {
+            displayDesc = `Bố/mẹ cấp tiền: ${item.description.replace('[MONEY_REQUEST] ', '')}`;
+          }
+
+          const categoryItem = income
+            ? (item.category && item.category.name !== 'Lương'
+                ? item.category
+                : { id: 'family_sys', name: 'Gia đình & Con cái', icon: 'users', color: '#10b981' })
+            : item.category;
+
+          return {
+            id: item.id,
+            transactionType: income ? 'INCOME' : 'EXPENSE',
+            accountId: childWalletRes.id,
+            accountName: `Ví của ${childWalletRes.childName}`,
+            amount: item.amount,
+            currencyCode: childWalletRes.currency,
+            description: displayDesc,
+            transactionDate: item.createdAt?.slice(0, 10) || new Date().toISOString().slice(0, 10),
+            createdAt: item.createdAt,
+            category: categoryItem,
+          } as TransactionItem;
+        }))
+      } else if (txsRes?.transactions) {
         setRecentTransactions(txsRes.transactions)
       }
 
       // Default selections
-      if (accsRes.length > 0) {
-        setSelectedAccountId(accsRes[0].id)
-        if (accsRes.length > 1) {
-          setToAccountId(accsRes[1].id)
+      if (usableAccounts.length > 0) {
+        setSelectedAccountId(usableAccounts[0].id)
+        if (usableAccounts.length > 1) {
+          setToAccountId(usableAccounts[1].id)
         }
       }
     } catch {
@@ -122,6 +175,10 @@ export function AddTransactionScreen({ onCancel, onNotify, onOpenInvoiceScanner 
   useEffect(() => {
     loadData()
   }, [])
+
+  useEffect(() => {
+    if (isChildAccount) setType('EXPENSE')
+  }, [isChildAccount])
 
   useEffect(() => {
     if (!selectedGroupFundId) {
@@ -190,11 +247,15 @@ export function AddTransactionScreen({ onCancel, onNotify, onOpenInvoiceScanner 
       setError('Vui lòng chọn tài khoản thanh toán.')
       return
     }
+    if (isChildAccount && type !== 'EXPENSE') {
+      setError('Ví trẻ em chỉ có thể gửi yêu cầu chi tiêu.')
+      return
+    }
     if (selectedGroupFundId && type !== 'EXPENSE') {
       setError('Quỹ nhóm chỉ dùng để ghi khoản chi chung.')
       return
     }
-    if ((type === 'EXPENSE' || type === 'TRANSFER') && numericAmount > selectedSourceBalance) {
+    if (!isChildAccount && (type === 'EXPENSE' || type === 'TRANSFER') && numericAmount > selectedSourceBalance) {
       const sourceLabel = selectedGroupFund ? `quỹ chung “${selectedGroupFund.name}”` : `ví “${selectedAccountObj?.name || 'đã chọn'}”`
       setError(`Số tiền trong ${sourceLabel} không đủ để thực hiện giao dịch.`)
       return
@@ -212,7 +273,13 @@ export function AddTransactionScreen({ onCancel, onNotify, onOpenInvoiceScanner 
       setSubmitting(true)
       setError('')
 
-      if (selectedGroupFundId && selectedGroupFund) {
+      if (isChildAccount && childWallet && currentUser?.childWalletGroupId) {
+        await groupApi.createChildTransaction(currentUser.childWalletGroupId, childWallet.id, {
+          amount: numericAmount,
+          categoryId: selectedCategoryId,
+          description: description.trim() || selectedCategoryObj?.name || 'Yêu cầu chi tiêu',
+        })
+      } else if (selectedGroupFundId && selectedGroupFund) {
         // API members only returns current group members; it does not expose an ACTIVE status field.
         const members = selectedGroupMembers
         if (!members.length) throw new Error('Không tìm thấy thành viên đang hoạt động trong nhóm')
@@ -225,26 +292,73 @@ export function AddTransactionScreen({ onCancel, onNotify, onOpenInvoiceScanner 
           splits: members.map((member, index) => ({ userId: member.userId, amount: baseShare + (index === 0 ? remainder : 0) })),
         })
       } else {
+        // Nếu không bật tùy chỉnh ngày giờ trong quá khứ (isCustomDateTime === false), tự động lấy chính xác ngày và giờ hiện tại
+        let finalDate = date;
+        let finalTime = time ? `${time}:00` : undefined;
+        if (!isCustomDateTime) {
+          const now = new Date();
+          finalDate = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+          finalTime = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')}`;
+        }
+
         await transactionApi.createTransaction({
           transactionType: type, accountId: selectedAccountId,
           toAccountId: type === 'TRANSFER' ? toAccountId : undefined, amount: numericAmount,
           currencyCode: selectedAccountObj?.currencyCode || 'VND',
           description: description.trim() || (type === 'INCOME' ? 'Khoản thu' : type === 'TRANSFER' ? 'Chuyển tiền nội bộ' : 'Khoản chi'),
-          transactionDate: date, transactionTime: time ? `${time}:00` : undefined,
+          transactionDate: finalDate, transactionTime: finalTime,
           categoryId: type !== 'TRANSFER' ? selectedCategoryId : undefined,
         })
       }
 
-      const typeLabel = selectedGroupFund ? `Khoản chi từ quỹ ${selectedGroupFund.name}` : type === 'EXPENSE' ? 'Khoản chi' : type === 'INCOME' ? 'Khoản thu' : 'Chuyển khoản'
-      onNotify(`Thành công! Đã ghi nhận ${typeLabel} ${formatAmount(numericAmount)} ₫`)
+      const typeLabel = isChildAccount
+        ? 'Đã ghi khoản chi từ ví của em'
+        : selectedGroupFund ? `Khoản chi từ quỹ ${selectedGroupFund.name}` : type === 'EXPENSE' ? 'Khoản chi' : type === 'INCOME' ? 'Khoản thu' : 'Chuyển khoản'
+      onNotify(`Thành công! ${typeLabel} ${formatAmount(numericAmount)} ₫`)
 
       // Refresh recent transactions & accounts balance
       const [accsRes, txsRes] = await Promise.all([
         accountApi.getAccounts().catch(() => accounts),
         transactionApi.getTransactions({ pageSize: 5 }).catch(() => ({ transactions: [] })),
       ])
-      setAccounts(accsRes)
-      if (txsRes?.transactions) {
+      if (!isChildAccount) setAccounts(accsRes)
+      if (isChildAccount && childWallet && currentUser?.childWalletGroupId) {
+        const ledger = await groupApi.getSpendRequests(currentUser.childWalletGroupId, childWallet.id)
+        setRecentTransactions(ledger.filter((item) => item.status === 'APPROVED').map((item) => {
+          const isDeposit = item.description?.startsWith('[INCOME_DEPOSIT] ');
+          const isChoreReward = item.description?.startsWith('[INCOME_CHORE] ');
+          const isMoneyReq = item.description?.startsWith('[MONEY_REQUEST] ');
+          const income = isDeposit || isChoreReward || isMoneyReq;
+
+          let displayDesc = item.description || 'Giao dịch';
+          if (isDeposit) {
+            displayDesc = `Bố/mẹ nạp ví: ${item.description.replace('[INCOME_DEPOSIT] ', '')}`;
+          } else if (isChoreReward) {
+            displayDesc = `Thưởng nhiệm vụ: ${item.description.replace('[INCOME_CHORE] ', '')}`;
+          } else if (isMoneyReq) {
+            displayDesc = `Bố/mẹ cấp tiền: ${item.description.replace('[MONEY_REQUEST] ', '')}`;
+          }
+
+          const categoryItem = income
+            ? (item.category && item.category.name !== 'Lương'
+                ? item.category
+                : { id: 'family_sys', name: 'Gia đình & Con cái', icon: 'users', color: '#10b981' })
+            : item.category;
+
+          return {
+            id: item.id,
+            transactionType: income ? 'INCOME' : 'EXPENSE',
+            accountId: childWallet.id,
+            accountName: `Ví của ${childWallet.childName}`,
+            amount: item.amount,
+            currencyCode: childWallet.currency,
+            description: displayDesc,
+            transactionDate: item.createdAt?.slice(0, 10) || date,
+            createdAt: item.createdAt,
+            category: categoryItem,
+          } as TransactionItem;
+        }))
+      } else if (txsRes?.transactions) {
         setRecentTransactions(txsRes.transactions)
       }
 
@@ -312,7 +426,7 @@ export function AddTransactionScreen({ onCancel, onNotify, onOpenInvoiceScanner 
                   <span>Tiền chi</span>
                 </button>
 
-                <button
+                {!isChildAccount && <button
                   type="button"
                   onClick={() => setType('INCOME')}
                   className={`h-full flex-1 rounded-lg px-3 text-xs font-bold transition flex items-center justify-center gap-1.5 whitespace-nowrap ${type === 'INCOME'
@@ -322,9 +436,9 @@ export function AddTransactionScreen({ onCancel, onNotify, onOpenInvoiceScanner 
                 >
                   <FinanceIcon name="income" size={13} />
                   <span>Tiền thu</span>
-                </button>
+                </button>}
 
-                <button
+                {!isChildAccount && <button
                   type="button"
                   onClick={() => setType('TRANSFER')}
                   className={`h-full flex-1 rounded-lg px-3.5 text-xs font-bold transition flex items-center justify-center gap-1.5 whitespace-nowrap ${type === 'TRANSFER'
@@ -334,11 +448,11 @@ export function AddTransactionScreen({ onCancel, onNotify, onOpenInvoiceScanner 
                 >
                   <FinanceIcon name="arrows" size={13} />
                   <span>Chuyển ví</span>
-                </button>
+                </button>}
               </div>
 
               {/* OCR Scanner Button on Right */}
-              <button
+              {!isChildAccount && <button
                 type="button"
                 onClick={onOpenInvoiceScanner}
                 className="inline-flex h-9 items-center gap-2 rounded-xl bg-white/15 px-3.5 text-xs font-semibold text-white backdrop-blur-md border border-white/20 hover:bg-white/25 active:scale-95 transition shadow-sm"
@@ -346,7 +460,7 @@ export function AddTransactionScreen({ onCancel, onNotify, onOpenInvoiceScanner 
               >
                 <FinanceIcon name="receipt" size={14} />
                 <span>Quét hóa đơn OCR</span>
-              </button>
+              </button>}
             </div>
 
             {/* Large Hero Amount Input */}
@@ -662,33 +776,82 @@ export function AddTransactionScreen({ onCancel, onNotify, onOpenInvoiceScanner 
                 )}
               </div>
 
-              {/* Row 2: Date & Time Picker */}
-              <div className="grid gap-4 sm:grid-cols-2">
-                <div>
-                  <label className="mb-1.5 block text-xs font-bold text-[#14261e]">
-                    Ngày giao dịch
-                  </label>
-                  <div className="relative">
-                    <input
-                      type="date"
-                      value={date}
-                      onChange={(e) => setDate(e.target.value)}
-                      className="h-10 w-full rounded-xl border border-[#d5ded8] bg-[#f9fbf9] px-3.5 text-xs font-medium text-[#14261e] outline-none focus:border-[#07543f] focus:bg-white focus:ring-1 focus:ring-[#07543f] transition"
-                    />
+              {/* Row 2: Date & Time Section with Modern Toggle Switch */}
+              <div className="rounded-2xl border border-[#e2ece5] dark:border-white/10 bg-[#f8faf8] dark:bg-white/5 p-3.5 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <FinanceIcon name="calendar" size={15} className="text-[#07543f] dark:text-emerald-400" />
+                    <div>
+                      <span className="text-xs font-bold text-[#14261e] dark:text-slate-100 block">
+                        Tự động ghi nhận theo thời gian hiện tại
+                      </span>
+                      <span className="text-[11px] text-[#718579] dark:text-slate-400 block">
+                        {isCustomDateTime
+                          ? 'Đang bật tùy chỉnh ngày & giờ cho giao dịch trong quá khứ'
+                          : `Tự động lấy chính xác lúc bấm "Lưu" (hôm nay ~${time})`}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <span className="text-[11px] font-semibold text-[#718579] dark:text-slate-400 hidden sm:inline">
+                      {isCustomDateTime ? 'Chỉnh thủ công' : 'Tự động'}
+                    </span>
+                    <button
+                      type="button"
+                      role="switch"
+                      aria-checked={isCustomDateTime}
+                      onClick={() => {
+                        const nextVal = !isCustomDateTime
+                        setIsCustomDateTime(nextVal)
+                        if (!nextVal) {
+                          const now = new Date()
+                          setDate(now.toISOString().split('T')[0])
+                          setTime(`${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`)
+                        }
+                      }}
+                      className={`relative inline-flex h-5 w-10 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                        isCustomDateTime ? 'bg-[#07543f] dark:bg-emerald-600' : 'bg-[#cbd7cf] dark:bg-slate-700'
+                      }`}
+                      title={isCustomDateTime ? 'Tắt tùy chỉnh để tự động lấy giờ hiện tại' : 'Gạt để chỉnh ngày và giờ cho giao dịch quá khứ'}
+                    >
+                      <span
+                        aria-hidden="true"
+                        className={`pointer-events-none inline-block size-4 transform rounded-full bg-white shadow-sm ring-0 transition duration-200 ease-in-out ${
+                          isCustomDateTime ? 'translate-x-5' : 'translate-x-0'
+                        }`}
+                      />
+                    </button>
                   </div>
                 </div>
 
-                <div>
-                  <label className="mb-1.5 block text-xs font-bold text-[#14261e]">
-                    Thời gian thực hiện
-                  </label>
-                  <input
-                    type="time"
-                    value={time}
-                    onChange={(e) => setTime(e.target.value)}
-                    className="h-10 w-full rounded-xl border border-[#d5ded8] bg-[#f9fbf9] px-3.5 text-xs font-medium text-[#14261e] outline-none focus:border-[#07543f] focus:bg-white focus:ring-1 focus:ring-[#07543f] transition"
-                  />
-                </div>
+                {isCustomDateTime && (
+                  <div className="grid gap-3 pt-2.5 border-t border-[#e2ece5] dark:border-white/10 sm:grid-cols-2 animate-fadeIn">
+                    <div>
+                      <label className="mb-1 block text-xs font-bold text-[#14261e] dark:text-slate-200">
+                        Ngày giao dịch
+                      </label>
+                      <input
+                        type="date"
+                        value={date}
+                        onChange={(e) => setDate(e.target.value)}
+                        className="h-10 w-full rounded-xl border border-[#d5ded8] dark:border-slate-700 bg-white dark:bg-slate-800 px-3.5 text-xs font-medium text-[#14261e] dark:text-slate-100 outline-none focus:border-[#07543f] focus:ring-1 focus:ring-[#07543f] transition"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="mb-1 block text-xs font-bold text-[#14261e] dark:text-slate-200">
+                        Thời gian thực hiện
+                      </label>
+                      <input
+                        type="time"
+                        value={time}
+                        onChange={(e) => setTime(e.target.value)}
+                        className="h-10 w-full rounded-xl border border-[#d5ded8] dark:border-slate-700 bg-white dark:bg-slate-800 px-3.5 text-xs font-medium text-[#14261e] dark:text-slate-100 outline-none focus:border-[#07543f] focus:ring-1 focus:ring-[#07543f] transition"
+                      />
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Row 3: Description Note */}
@@ -851,24 +1014,24 @@ export function AddTransactionScreen({ onCancel, onNotify, onOpenInvoiceScanner 
           </div>
 
           {/* Card 2: Bảng giao dịch gần đây fills the rest */}
-          <div className="flex flex-col rounded-2xl border border-[#e2ece5] bg-white p-5 shadow-sm">
-            <div className="flex items-center justify-between pb-3 border-b border-[#edf2ee] shrink-0">
+          <div className="flex flex-col rounded-2xl border border-[#e2ece5] bg-white p-5 shadow-sm dark:border-white/5 dark:bg-[#0c1a24]">
+            <div className="flex items-center justify-between pb-3 border-b border-[#edf2ee] dark:border-white/5 shrink-0">
               <div>
-                <h3 className="text-sm font-bold text-[#14261e]">Giao dịch gần đây</h3>
-                <p className="text-[11px] text-[#718579]">Lịch sử ghi chép thu chi mới nhất</p>
+                <h3 className="text-sm font-bold text-[#14261e] dark:text-slate-100">Giao dịch gần đây</h3>
+                <p className="text-[11px] text-[#718579] dark:text-slate-400">Lịch sử ghi chép thu chi mới nhất</p>
               </div>
               <button
                 type="button"
                 onClick={onCancel}
-                className="text-xs font-bold text-[#07543f] hover:underline"
+                className="text-xs font-bold text-[#07543f] hover:underline dark:text-emerald-400"
               >
                 Xem tất cả →
               </button>
             </div>
 
-            <div className="mt-2 flex flex-1 flex-col divide-y divide-[#edf2ee] overflow-y-auto pr-1">
+            <div className="mt-2 flex flex-1 flex-col divide-y divide-[#edf2ee] dark:divide-white/5 overflow-y-auto pr-1">
               {recentTransactions.length === 0 ? (
-                <div className="grid h-full place-items-center text-center text-xs text-[#718579]">
+                <div className="grid h-full place-items-center text-center text-xs text-[#718579] dark:text-slate-400">
                   Chưa có giao dịch nào được ghi nhận gần đây.
                 </div>
               ) : (
@@ -881,28 +1044,40 @@ export function AddTransactionScreen({ onCancel, onNotify, onOpenInvoiceScanner 
                         <span
                           className="grid size-8 shrink-0 place-items-center rounded-xl border text-xs"
                           style={{
-                            backgroundColor: isInc ? (tx.category?.color ? `${tx.category.color}15` : '#ecfdf5') : isTrf ? '#eff6ff' : '#fef2f2',
-                            borderColor: isInc ? (tx.category?.color ? `${tx.category.color}30` : '#a7f3d0') : isTrf ? '#bfdbfe' : '#fecaca',
-                            color: isInc ? (tx.category?.color || '#15803d') : isTrf ? '#2563eb' : '#dc2626'
+                            backgroundColor: isInc
+                              ? (tx.category?.color ? `${tx.category.color}15` : '#ecfdf5')
+                              : isTrf
+                              ? '#eff6ff'
+                              : (tx.category?.color ? `${tx.category.color}15` : '#f0f4f1'),
+                            borderColor: isInc
+                              ? (tx.category?.color ? `${tx.category.color}30` : '#a7f3d0')
+                              : isTrf
+                              ? '#bfdbfe'
+                              : (tx.category?.color ? `${tx.category.color}30` : 'transparent'),
+                            color: isInc
+                              ? (tx.category?.color || '#15803d')
+                              : isTrf
+                              ? '#2563eb'
+                              : (tx.category?.color || '#f43f5e')
                           }}
                         >
                           {renderCategoryIcon(tx.category?.icon, tx.transactionType, 15, tx.category?.name)}
                         </span>
                         <div className="min-w-0">
-                          <p className="truncate text-xs font-bold text-[#14261e]">
+                          <p className="truncate text-xs font-bold text-[#14261e] dark:text-slate-200">
                             {tx.description || tx.category?.name || 'Giao dịch'}
                           </p>
-                          <p className="text-[11px] text-[#718579] truncate">
+                          <p className="text-[11px] text-[#718579] dark:text-slate-400 truncate">
                             {tx.accountName || 'Ví chính'} {tx.category?.name ? `· ${tx.category.name}` : ''}
                           </p>
                         </div>
                       </div>
                       <div className="text-right shrink-0">
-                        <span className={`text-xs font-bold ${isInc ? 'text-emerald-600' : isTrf ? 'text-blue-600' : 'text-rose-600'
+                        <span className={`text-xs font-bold ${isInc ? 'text-emerald-600 dark:text-emerald-400' : isTrf ? 'text-blue-600 dark:text-blue-400' : 'text-rose-600 dark:text-rose-400'
                           }`}>
                           {isInc ? '+' : isTrf ? '' : '-'}{formatAmount(tx.amount)} ₫
                         </span>
-                        <p className="text-[10px] text-gray-400">
+                        <p className="text-[10px] text-gray-400 dark:text-slate-500">
                           {formatDate(tx.transactionDate)}
                         </p>
                       </div>

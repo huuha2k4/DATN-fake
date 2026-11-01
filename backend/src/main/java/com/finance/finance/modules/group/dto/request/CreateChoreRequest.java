@@ -36,4 +36,7 @@ public class CreateChoreRequest {
 
     @Size(max = 10, message = "Icon không được quá 10 ký tự")
     private String icon;
+
+    private String source; // PERSONAL_ACCOUNT hoặc GROUP_FUND
+    private java.util.UUID sourceAccountId;
 }

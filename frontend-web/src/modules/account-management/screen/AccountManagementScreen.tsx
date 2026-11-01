@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { FinanceIcon, type IconName } from '../../core/components/FinanceIcon';
+import { FinanceIcon, resolveCategoryIconName, type IconName } from '../../core/components/FinanceIcon';
 import { 
   accountApi, 
   type AccountItem, 
@@ -1578,28 +1578,28 @@ export function AccountManagementScreen({ onNotify, onAccountsChange }: Props) {
         const brandPreset = findBankOrWalletPreset(selectedAccountDetail.bank?.id || selectedAccountDetail.name);
         return (
           <div 
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 p-4 backdrop-blur-sm animate-fadeIn"
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm animate-fadeIn"
             onClick={() => setSelectedAccountDetail(null)}
           >
             <div 
-              className="w-full max-w-md rounded-2xl bg-white p-5 sm:p-6 shadow-2xl border border-gray-100 max-h-[90vh] overflow-y-auto"
+              className="w-full max-w-md rounded-2xl bg-white dark:bg-[#0b1c2a] p-5 sm:p-6 shadow-2xl border border-gray-100 dark:border-[#1b3a50] max-h-[90vh] overflow-y-auto"
               onClick={(e) => e.stopPropagation()}
             >
               {/* Header Modal */}
-              <div className="flex items-center justify-between pb-3 border-b border-gray-100">
+              <div className="flex items-center justify-between pb-3 border-b border-gray-100 dark:border-white/5">
                 <div className="flex items-center gap-3">
                   {brandPreset?.logoUrl ? (
-                    <span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-white p-1 border border-gray-100 shadow-sm">
+                    <span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-white dark:bg-slate-800 p-1 border border-gray-100 dark:border-slate-700 shadow-sm">
                       <img src={brandPreset.logoUrl} alt={brandPreset.shortName} className="size-full object-contain" />
                     </span>
                   ) : (
-                    <span className="grid size-11 shrink-0 place-items-center rounded-xl bg-[#e3f4e9] text-[#07543f]">
+                    <span className="grid size-11 shrink-0 place-items-center rounded-xl bg-[#e3f4e9] dark:bg-emerald-950/60 text-[#07543f] dark:text-emerald-400 border border-transparent dark:border-emerald-800/40">
                       <FinanceIcon name="wallet" size={20} />
                     </span>
                   )}
                   <div>
-                    <h3 className="text-base font-bold text-[#14261e]">{selectedAccountDetail.name}</h3>
-                    <p className="text-xs text-[#718579]">
+                    <h3 className="text-base font-bold text-[#14261e] dark:text-slate-100">{selectedAccountDetail.name}</h3>
+                    <p className="text-xs text-[#718579] dark:text-slate-400">
                       {selectedAccountDetail.accountNumberMasked ? `STK: ${selectedAccountDetail.accountNumberMasked}` : (selectedAccountDetail.phoneNumber || 'Chi tiết nguồn tiền')}
                     </p>
                   </div>
@@ -1607,17 +1607,17 @@ export function AccountManagementScreen({ onNotify, onAccountsChange }: Props) {
                 <button
                   type="button"
                   onClick={() => setSelectedAccountDetail(null)}
-                  className="grid size-8 place-items-center rounded-lg text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+                  className="grid size-8 place-items-center rounded-lg text-gray-400 hover:bg-gray-100 dark:hover:bg-slate-800 hover:text-gray-600 dark:hover:text-slate-200 transition"
                 >
                   ✕
                 </button>
               </div>
 
               {/* Thông tin số dư & Hạn mức */}
-              <div className="mt-4 rounded-xl bg-[#f8faf8] p-4 border border-[#e5ebe7] space-y-2.5 text-xs">
+              <div className="mt-4 rounded-xl bg-[#f8faf8] dark:bg-[#0e2436] p-4 border border-[#e5ebe7] dark:border-[#1b3a50] space-y-2.5 text-xs">
                 <div className="flex items-center justify-between">
-                  <span className="text-[#718579] font-medium">{isCredit ? 'Dư nợ hiện tại:' : 'Số dư khả dụng:'}</span>
-                  <span className={`text-base font-black ${isCredit ? 'text-[#e11d48]' : 'text-[#07543f]'}`}>
+                  <span className="text-[#718579] dark:text-slate-400 font-medium">{isCredit ? 'Dư nợ hiện tại:' : 'Số dư khả dụng:'}</span>
+                  <span className={`text-base font-black ${isCredit ? 'text-[#e11d48] dark:text-rose-400' : 'text-[#07543f] dark:text-emerald-400'}`}>
                     {formatVND(selectedAccountDetail.balance)}
                   </span>
                 </div>
@@ -1625,62 +1625,112 @@ export function AccountManagementScreen({ onNotify, onAccountsChange }: Props) {
                 {isCredit && selectedAccountDetail.creditLimit && selectedAccountDetail.creditLimit > 0 && (
                   <>
                     <div className="flex items-center justify-between">
-                      <span className="text-[#718579]">Hạn mức thẻ:</span>
-                      <strong className="text-[#14261e]">{formatVND(selectedAccountDetail.creditLimit)}</strong>
+                      <span className="text-[#718579] dark:text-slate-400">Hạn mức thẻ:</span>
+                      <strong className="text-[#14261e] dark:text-slate-200">{formatVND(selectedAccountDetail.creditLimit)}</strong>
                     </div>
                     <div className="flex items-center justify-between">
-                      <span className="text-[#718579]">Hạn mức còn lại:</span>
-                      <strong className="text-emerald-600">
+                      <span className="text-[#718579] dark:text-slate-400">Hạn mức còn lại:</span>
+                      <strong className="text-emerald-600 dark:text-emerald-400">
                         {formatVND(Math.max(0, selectedAccountDetail.creditLimit - selectedAccountDetail.balance))}
                       </strong>
                     </div>
                     {(selectedAccountDetail.billingCycleDay || selectedAccountDetail.paymentDueDay) && (
-                      <div className="flex items-center justify-between pt-1 border-t border-gray-200/60 text-[11px] text-[#718579]">
+                      <div className="flex items-center justify-between pt-1 border-t border-gray-200/60 dark:border-white/5 text-[11px] text-[#718579] dark:text-slate-400">
                         <span>Chốt sao kê: Ngày {selectedAccountDetail.billingCycleDay || 20}</span>
-                        <span className="font-semibold text-rose-600">Hạn thanh toán: Ngày {selectedAccountDetail.paymentDueDay || 15}</span>
+                        <span className="font-semibold text-rose-600 dark:text-rose-400">Hạn thanh toán: Ngày {selectedAccountDetail.paymentDueDay || 15}</span>
                       </div>
                     )}
                   </>
                 )}
 
-                <div className="flex items-center justify-between pt-1 border-t border-gray-200/60 text-[11px]">
-                  <span className="text-[#718579]">Trạng thái:</span>
-                  <span className={`font-bold ${selectedAccountDetail.isActive !== false ? 'text-emerald-700' : 'text-rose-600'}`}>
+                <div className="flex items-center justify-between pt-1 border-t border-gray-200/60 dark:border-white/5 text-[11px]">
+                  <span className="text-[#718579] dark:text-slate-400">Trạng thái:</span>
+                  <span className={`font-bold ${selectedAccountDetail.isActive !== false ? 'text-emerald-700 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>
                     {selectedAccountDetail.isActive !== false ? 'Đang hoạt động ✓' : 'Đang tạm dừng'}
                   </span>
                 </div>
               </div>
 
               {/* Lịch sử thanh toán và nạp tiền của ví này */}
-              <div className="mt-4 pt-3 border-t border-gray-100">
+              <div className="mt-4 pt-3 border-t border-gray-100 dark:border-white/5">
                 <div className="flex items-center justify-between mb-2">
-                  <h4 className="text-xs font-bold text-[#14261e]">
+                  <h4 className="text-xs font-bold text-[#14261e] dark:text-slate-200">
                     Lịch sử thanh toán và nạp tiền
                   </h4>
-                  <span className="text-[10px] text-[#718579]">Giao dịch gần đây</span>
+                  <span className="text-[10px] text-[#718579] dark:text-slate-400">Giao dịch gần đây</span>
                 </div>
 
                 {isLoadingAccountTx ? (
-                  <div className="py-4 text-center text-xs text-gray-400">Đang tải lịch sử thanh toán...</div>
+                  <div className="py-4 text-center text-xs text-gray-400 dark:text-slate-500">Đang tải lịch sử thanh toán...</div>
                 ) : accountTransactions.length === 0 ? (
-                  <p className="text-xs text-gray-400 italic py-3 text-center">Chưa có giao dịch thu/chi nào trên ví này</p>
+                  <p className="text-xs text-gray-400 dark:text-slate-500 italic py-3 text-center">Chưa có giao dịch thu/chi nào trên ví này</p>
                 ) : (
-                  <div className="max-h-48 overflow-y-auto divide-y divide-gray-100 pr-1">
+                  <div className="max-h-48 overflow-y-auto divide-y divide-gray-100 dark:divide-white/5 pr-1">
                     {accountTransactions.map((tx) => {
                       const isIncome = tx.transactionType === 'INCOME';
+                      const isTransfer = tx.transactionType === 'TRANSFER';
+                      
+                      // Format ngày giờ: HH:mm dd/MM/yyyy
+                      let dateTimeFormatted = tx.transactionDate || '';
+                      if (tx.transactionDate) {
+                        const parts = tx.transactionDate.split('-');
+                        if (parts.length === 3) {
+                          dateTimeFormatted = `${parts[2]}/${parts[1]}/${parts[0]}`;
+                        }
+                      }
+                      if (tx.transactionTime) {
+                        const timeParts = tx.transactionTime.slice(0, 5);
+                        dateTimeFormatted = `${timeParts} ${dateTimeFormatted}`;
+                      } else if ((tx as any).createdAt) {
+                        try {
+                          const d = new Date((tx as any).createdAt);
+                          const hh = String(d.getHours()).padStart(2, '0');
+                          const mm = String(d.getMinutes()).padStart(2, '0');
+                          dateTimeFormatted = `${hh}:${mm} ${dateTimeFormatted}`;
+                        } catch {
+                          // bỏ qua
+                        }
+                      }
+
+                      // Resolve icon cho danh mục
+                      const iconName = resolveCategoryIconName(tx.category?.icon, tx.transactionType, tx.category?.name);
+
                       return (
-                        <div key={tx.id} className="py-2.5 flex items-center justify-between text-xs">
-                          <div className="min-w-0 pr-2">
-                            <p className="font-bold text-[#14261e] truncate">{tx.description || tx.category?.name || 'Giao dịch'}</p>
-                            <span className="text-[10.5px] text-gray-500">
-                              {tx.transactionDate} {tx.category?.name ? `· ${tx.category.name}` : ''}
+                        <div key={tx.id} className="py-2.5 flex items-center justify-between gap-3 text-xs">
+                          <div className="flex items-center gap-2.5 min-w-0 pr-1">
+                            <span className={`grid size-8 shrink-0 place-items-center rounded-xl border text-xs ${
+                              isIncome
+                                ? 'bg-emerald-50 dark:bg-emerald-950/50 border-emerald-200 dark:border-emerald-900/60 text-emerald-600 dark:text-emerald-400'
+                                : isTransfer
+                                ? 'bg-sky-50 dark:bg-sky-950/50 border-sky-200 dark:border-sky-900/60 text-sky-600 dark:text-sky-400'
+                                : 'bg-rose-50 dark:bg-rose-950/50 border-rose-200 dark:border-rose-900/60 text-rose-600 dark:text-rose-400'
+                            }`}>
+                              <FinanceIcon name={iconName} size={15} />
                             </span>
+
+                            <div className="min-w-0">
+                              <p className="font-bold text-[#14261e] dark:text-slate-200 truncate m-0">
+                                {tx.description || tx.category?.name || 'Giao dịch'}
+                              </p>
+                              <span className="text-[10.5px] text-gray-500 dark:text-slate-400 block mt-0.5">
+                                {dateTimeFormatted} {tx.category?.name ? `· ${tx.category.name}` : ''}
+                              </span>
+                            </div>
                           </div>
+
                           <div className="text-right shrink-0">
-                            <span className={`font-bold ${isIncome ? 'text-[#10b981]' : 'text-[#dc2626]'}`}>
-                              {isIncome ? '+' : '-'}{Number(tx.amount || 0).toLocaleString('vi-VN')} đ
+                            <span className={`font-bold block ${
+                              isIncome 
+                                ? 'text-[#10b981] dark:text-emerald-400' 
+                                : isTransfer
+                                ? 'text-blue-600 dark:text-sky-400'
+                                : 'text-[#dc2626] dark:text-rose-400'
+                            }`}>
+                              {isIncome ? '+' : isTransfer ? '' : '-'}{Number(tx.amount || 0).toLocaleString('vi-VN')} đ
                             </span>
-                            <span className="block text-[10px] text-emerald-600 font-semibold">Đã ghi nhận ✓</span>
+                            <span className="block text-[10px] text-emerald-600 dark:text-emerald-400 font-semibold mt-0.5">
+                              Đã ghi nhận ✓
+                            </span>
                           </div>
                         </div>
                       );
@@ -1690,7 +1740,7 @@ export function AccountManagementScreen({ onNotify, onAccountsChange }: Props) {
               </div>
 
               {/* Nút hành động */}
-              <div className="mt-5 flex gap-2 border-t border-gray-100 pt-3">
+              <div className="mt-5 flex gap-2 border-t border-gray-100 dark:border-white/5 pt-3">
                 <button
                   type="button"
                   onClick={() => {
@@ -1698,7 +1748,7 @@ export function AccountManagementScreen({ onNotify, onAccountsChange }: Props) {
                     setSelectedAccountDetail(null);
                     handleOpenEdit(acc);
                   }}
-                  className="flex-1 rounded-xl border border-[#07543f] bg-[#07543f]/5 py-2.5 text-xs font-semibold text-[#07543f] hover:bg-[#07543f]/10 transition flex items-center justify-center gap-1.5"
+                  className="flex-1 rounded-xl border border-[#07543f] dark:border-emerald-600/50 bg-[#07543f]/5 dark:bg-emerald-950/40 py-2.5 text-xs font-semibold text-[#07543f] dark:text-emerald-300 hover:bg-[#07543f]/10 dark:hover:bg-emerald-900/40 transition flex items-center justify-center gap-1.5"
                 >
                   <FinanceIcon name="edit" size={14} />
                   Sửa ví

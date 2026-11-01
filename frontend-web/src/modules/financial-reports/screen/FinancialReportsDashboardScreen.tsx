@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { jsPDF } from 'jspdf';
 import html2canvas from 'html2canvas';
+import ExcelJS from 'exceljs';
 import { FinanceIcon, type IconName } from '../../core/components/FinanceIcon';
 import { reportApi, type TransactionSummaryResponse, type PeriodFlowItem } from '../api/reportApi';
 import { transactionApi, type TransactionItem } from '../../cash-flow-management/api/transactionApi';
@@ -336,7 +337,13 @@ export function FinancialReportsDashboardScreen({ onNotify }: Props) {
   // Xuất file Excel (XLS) & PDF chụp nguyên bản màn hình chuẩn 100%
   const handleExport = async (format: 'Excel' | 'PDF') => {
     if (format === 'PDF') {
-      const container = reportContainerRef.current;
+      // Native print keeps responsive grids, CSS gradients and chart bars intact.
+      // The user can choose "Save as PDF" in the system print dialog.
+      onNotify('Chọn “Save as PDF” trong hộp thoại in để tải báo cáo.');
+      window.setTimeout(() => window.print(), 0);
+      return;
+
+      const container = reportContainerRef.current!;
       if (!container) {
         onNotify('Không tìm thấy nội dung để xuất PDF.');
         return;
@@ -355,11 +362,15 @@ export function FinancialReportsDashboardScreen({ onNotify }: Props) {
 
         // Chụp màn hình vùng báo cáo bằng html2canvas với scale cao (sắc nét)
         const canvas = await html2canvas(container, {
-          scale: 2, // 2x resolution cho file PDF cực kỳ sắc nét
+          scale: 1.25, // Giữ đủ rõ nhưng tránh treo trình duyệt với báo cáo dài
           useCORS: true,
+          foreignObjectRendering: true, // Giữ CSS conic-gradient/SVG của các biểu đồ
           logging: false,
           backgroundColor: '#ffffff', // Luôn xuất nền trắng trang nhã
-          windowWidth: 1400, // Đảm bảo độ rộng tiêu chuẩn của desktop
+          width: container.scrollWidth,
+          height: container.scrollHeight,
+          windowWidth: container.scrollWidth,
+          windowHeight: container.scrollHeight,
         });
 
         // Tạo tài liệu PDF theo tỉ lệ ảnh chụp
@@ -393,10 +404,78 @@ export function FinancialReportsDashboardScreen({ onNotify }: Props) {
         }
       } catch (err) {
         console.error('Lỗi khi chụp màn hình xuất PDF:', err);
-        onNotify('Không thể tạo file PDF. Vui lòng thử lại.');
+        onNotify('Không thể tạo file tự động. Đang mở hộp thoại để lưu PDF.');
+        window.setTimeout(() => window.print(), 0);
       } finally {
         setIsExportingPdf(false);
       }
+      return;
+    }
+
+    if (format === 'Excel') {
+      try {
+        const workbook = new ExcelJS.Workbook();
+        workbook.creator = 'Finora';
+        const sheet = workbook.addWorksheet('Báo cáo tài chính');
+        sheet.views = [{ showGridLines: false, zoomScale: 90 }];
+        sheet.pageSetup = { orientation: 'portrait', fitToPage: true, fitToWidth: 1, fitToHeight: 0, margins: { left: 0.3, right: 0.3, top: 0.4, bottom: 0.4, header: 0.1, footer: 0.1 } };
+        sheet.columns = [{ width: 24 }, { width: 28 }, { width: 20 }, { width: 20 }, { width: 18 }];
+        sheet.mergeCells('A1:E1');
+        const title = sheet.getCell('A1');
+        title.value = `BÁO CÁO TÀI CHÍNH (${dateRange.fromDate} đến ${dateRange.toDate})`;
+        title.font = { bold: true, size: 16, color: { argb: 'FF07543F' } };
+        title.alignment = { horizontal: 'center', vertical: 'middle' };
+        title.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFEAF7F0' } };
+        sheet.getRow(1).height = 32;
+        sheet.addRow([]);
+        sheet.addRow(['Chỉ số', 'Giá trị']);
+        sheet.addRow(['Tổng thu nhập', summary.totalIncome]);
+        sheet.addRow(['Tổng chi tiêu', summary.totalExpense]);
+        sheet.addRow(['Dòng tiền ròng', summary.netCashFlow]);
+        sheet.addRow(['Tỷ lệ tiết kiệm', savingsRate / 100]);
+        sheet.getRow(3).font = { bold: true, color: { argb: 'FFFFFFFF' } };
+        sheet.getRow(3).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF07543F' } };
+        sheet.getRow(3).alignment = { horizontal: 'center' };
+        for (let row = 4; row <= 6; row += 1) sheet.getCell(`B${row}`).numFmt = '#,##0 "đ"';
+        sheet.getCell('B7').numFmt = '0.0%';
+        for (let row = 4; row <= 7; row += 1) { sheet.getCell(`A${row}`).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF4FAF6' } }; sheet.getCell(`B${row}`).font = { bold: true, color: { argb: row === 6 ? 'FFE11D48' : 'FF07543F' } }; }
+
+        const canvas = document.createElement('canvas');
+        canvas.width = 900; canvas.height = 320;
+        const context = canvas.getContext('2d');
+        if (context) {
+          context.fillStyle = '#ffffff'; context.fillRect(0, 0, 900, 320);
+          context.fillStyle = '#14261e'; context.font = 'bold 20px Arial'; context.fillText('Biến động thu - chi', 32, 34);
+          const chartItems = trendData.filter((item) => item.income > 0 || item.expense > 0);
+          const displayItems = chartItems.length ? chartItems : trendData;
+          const max = Math.max(1, ...displayItems.flatMap((item) => [item.income, item.expense]));
+          const baseY = 250; const chartH = 170; const slot = Math.max(36, 800 / Math.max(1, displayItems.length));
+          context.strokeStyle = '#dce8e0'; context.beginPath(); context.moveTo(45, baseY); context.lineTo(865, baseY); context.stroke();
+          displayItems.forEach((item, index) => { const x = 52 + index * slot; const incomeH = (item.income / max) * chartH; const expenseH = (item.expense / max) * chartH; context.fillStyle = '#047857'; context.fillRect(x, baseY - incomeH, Math.max(7, slot * .3), incomeH); context.fillStyle = '#e11d48'; context.fillRect(x + Math.max(8, slot * .34), baseY - expenseH, Math.max(7, slot * .3), expenseH); context.fillStyle = '#64748b'; context.font = '11px Arial'; context.fillText(item.date.slice(5), x, 287); });
+          context.fillStyle = '#047857'; context.fillRect(650, 18, 12, 12); context.fillStyle = '#334155'; context.font = '14px Arial'; context.fillText('Thu', 668, 29); context.fillStyle = '#e11d48'; context.fillRect(735, 18, 12, 12); context.fillStyle = '#334155'; context.fillText('Chi', 753, 29);
+          const imageId = workbook.addImage({ base64: canvas.toDataURL('image/png'), extension: 'png' });
+          sheet.addImage(imageId, 'A10:E25');
+        }
+
+        sheet.mergeCells('A29:D29'); sheet.getCell('A29').value = 'THU CHI THEO NGÀY';
+        sheet.getCell('A29').font = { bold: true, color: { argb: 'FF07543F' } };
+        sheet.getCell('A30').value = 'Ngày'; sheet.getCell('B30').value = 'Thu nhập'; sheet.getCell('C30').value = 'Chi tiêu'; sheet.getCell('D30').value = 'Dòng tiền ròng';
+        trendData.forEach((item, index) => { const row = 31 + index; sheet.getCell(`A${row}`).value = item.date; sheet.getCell(`B${row}`).value = item.income; sheet.getCell(`C${row}`).value = item.expense; sheet.getCell(`D${row}`).value = item.income - item.expense; ['B', 'C', 'D'].forEach((column) => sheet.getCell(`${column}${row}`).numFmt = '#,##0 "đ"'); });
+        const categoryStart = 33 + trendData.length;
+        sheet.mergeCells(`A${categoryStart}:D${categoryStart}`); sheet.getCell(`A${categoryStart}`).value = 'CƠ CẤU THEO DANH MỤC'; sheet.getCell(`A${categoryStart}`).font = { bold: true, color: { argb: 'FF07543F' } };
+        ['Danh mục', 'Số tiền', 'Tỷ trọng', 'Số giao dịch'].forEach((value, index) => { sheet.getCell(categoryStart + 1, index + 1).value = value; });
+        categories.forEach((item, index) => { const row = categoryStart + 2 + index; [item.categoryName, item.totalAmount, item.percentage / 100, item.transactionCount].forEach((value, col) => { sheet.getCell(row, col + 1).value = value; }); sheet.getCell(`B${row}`).numFmt = '#,##0 "đ"'; sheet.getCell(`C${row}`).numFmt = '0.0%'; });
+        const transactionStart = categoryStart + 4 + categories.length;
+        sheet.mergeCells(`A${transactionStart}:E${transactionStart}`); sheet.getCell(`A${transactionStart}`).value = 'GIAO DỊCH ĐÁNG CHÚ Ý'; sheet.getCell(`A${transactionStart}`).font = { bold: true, color: { argb: 'FF07543F' } };
+        ['Ngày', 'Diễn giải', 'Danh mục', 'Tài khoản', 'Số tiền'].forEach((value, index) => { sheet.getCell(transactionStart + 1, index + 1).value = value; });
+        topTransactions.forEach((item, index) => { const row = transactionStart + 2 + index; [item.transactionDate, item.description || 'Chi tiêu', item.category?.name || 'Chưa phân loại', item.accountName || 'Ví', -Math.abs(item.amount)].forEach((value, col) => { sheet.getCell(row, col + 1).value = value; }); sheet.getCell(`E${row}`).numFmt = '#,##0 "đ"'; });
+        [30, categoryStart + 1, transactionStart + 1].forEach((row) => { sheet.getRow(row).font = { bold: true, color: { argb: 'FFFFFFFF' } }; sheet.getRow(row).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF07543F' } }; });
+
+        const buffer = await workbook.xlsx.writeBuffer();
+        const url = URL.createObjectURL(new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }));
+        const link = document.createElement('a'); link.href = url; link.download = `Bao_cao_tai_chinh_${dateRange.fromDate}_${dateRange.toDate}.xlsx`; link.click(); URL.revokeObjectURL(url);
+        onNotify('Đã xuất Excel kèm biểu đồ thu - chi.');
+      } catch { onNotify('Không thể tạo file Excel kèm biểu đồ.'); }
       return;
     }
 

@@ -19,12 +19,12 @@ type Props = { onNotify: (message: string) => void };
 
 // Gợi ý cài đặt 1 chạm thiết kế tinh gọn
 const PRESETS = [
-  { label: 'Tiền lương', icon: 'briefcase', bg: 'bg-[#ecfdf5] text-[#059669]', type: 'TRANSACTION', txType: 'INCOME', desc: 'Nhận lương định kỳ', defaultDay: 5, catKeyword: 'lương' },
-  { label: 'Tiền nhà/Trọ', icon: 'home', bg: 'bg-[#fef2f2] text-[#dc2626]', type: 'TRANSACTION', txType: 'EXPENSE', desc: 'Tiền phòng trọ / nhà', defaultDay: 1, catKeyword: 'nhà' },
-  { label: 'Điện & Nước', icon: 'bolt', bg: 'bg-[#fffbeb] text-[#d97706]', type: 'TRANSACTION', txType: 'EXPENSE', desc: 'Hóa đơn tiền điện & nước', defaultDay: 15, catKeyword: 'hóa đơn' },
-  { label: 'Thẻ tín dụng', icon: 'credit-card', bg: 'bg-[#f5f3ff] text-[#7c3aed]', type: 'TRANSACTION', txType: 'EXPENSE', desc: 'Thanh toán sao kê thẻ tín dụng', defaultDay: 20, catKeyword: 'chi phí khác' },
-  { label: 'Netflix / Cloud', icon: 'film', bg: 'bg-[#fff1f2] text-[#e11d48]', type: 'TRANSACTION', txType: 'EXPENSE', desc: 'Gói dịch vụ số định kỳ (Netflix, Spotify, iCloud...)', defaultDay: 10, catKeyword: 'giải trí' },
-  { label: 'Nhắc hẹn nợ', icon: 'bell', bg: 'bg-[#fff8e6] text-[#b45309]', type: 'REMINDER', txType: 'EXPENSE', desc: 'Nhắc hẹn trả nợ / thu nợ đến hạn', defaultDay: 25, catKeyword: '' },
+  { label: 'Tiền lương', icon: 'briefcase', bg: 'bg-[#ecfdf5] dark:bg-emerald-950/60 text-[#059669] dark:text-emerald-400 border border-emerald-100 dark:border-emerald-900/60', type: 'TRANSACTION', txType: 'INCOME', desc: 'Nhận lương định kỳ', defaultDay: 5, catKeyword: 'lương' },
+  { label: 'Tiền nhà/Trọ', icon: 'home', bg: 'bg-[#fef2f2] dark:bg-rose-950/60 text-[#dc2626] dark:text-rose-400 border border-rose-100 dark:border-rose-900/60', type: 'TRANSACTION', txType: 'EXPENSE', desc: 'Tiền phòng trọ / nhà', defaultDay: 1, catKeyword: 'nhà' },
+  { label: 'Điện & Nước', icon: 'bolt', bg: 'bg-[#fffbeb] dark:bg-amber-950/60 text-[#d97706] dark:text-amber-400 border border-amber-100 dark:border-amber-900/60', type: 'TRANSACTION', txType: 'EXPENSE', desc: 'Hóa đơn tiền điện & nước', defaultDay: 15, catKeyword: 'hóa đơn' },
+  { label: 'Thẻ tín dụng', icon: 'credit-card', bg: 'bg-[#f5f3ff] dark:bg-purple-950/60 text-[#7c3aed] dark:text-purple-400 border border-purple-100 dark:border-purple-900/60', type: 'TRANSACTION', txType: 'EXPENSE', desc: 'Thanh toán sao kê thẻ tín dụng', defaultDay: 20, catKeyword: 'chi phí khác' },
+  { label: 'Netflix / Cloud', icon: 'film', bg: 'bg-[#fff1f2] dark:bg-pink-950/60 text-[#e11d48] dark:text-pink-400 border border-pink-100 dark:border-pink-900/60', type: 'TRANSACTION', txType: 'EXPENSE', desc: 'Gói dịch vụ số định kỳ (Netflix, Spotify, iCloud...)', defaultDay: 10, catKeyword: 'giải trí' },
+  { label: 'Nhắc hẹn nợ', icon: 'bell', bg: 'bg-[#fff8e6] dark:bg-amber-950/60 text-[#b45309] dark:text-amber-400 border border-amber-100 dark:border-amber-900/60', type: 'REMINDER', txType: 'EXPENSE', desc: 'Nhắc hẹn trả nợ / thu nợ đến hạn', defaultDay: 25, catKeyword: '' },
 ];
 
 // Hàm nhận diện icon trực quan phù hợp theo nội dung lịch hoặc danh mục
@@ -876,10 +876,10 @@ export function FinancialRemindersScreen({ onNotify }: Props) {
                             <span
                               className={`grid size-8 shrink-0 place-items-center rounded-lg text-xs ${
                                 isReminder
-                                  ? 'bg-[#fff8e6] text-[#b45309]'
+                                  ? 'bg-[#fff8e6] dark:bg-amber-950/60 text-[#b45309] dark:text-amber-400 border border-amber-200 dark:border-amber-900/60'
                                   : isIncome
-                                  ? 'bg-[#ecfdf5] text-[#059669]'
-                                  : 'bg-[#fef2f2] text-[#dc2626]'
+                                  ? 'bg-[#ecfdf5] dark:bg-emerald-950/60 text-[#059669] dark:text-emerald-400 border border-emerald-200 dark:border-emerald-900/60'
+                                  : 'bg-[#fef2f2] dark:bg-rose-950/60 text-[#dc2626] dark:text-rose-400 border border-rose-200 dark:border-rose-900/60'
                               }`}
                             >
                               <FinanceIcon name={getScheduleIconName(item)} size={15} />
@@ -959,10 +959,10 @@ export function FinancialRemindersScreen({ onNotify }: Props) {
                         <span
                           className={`grid size-11 shrink-0 place-items-center rounded-xl text-base ${
                             isReminder
-                              ? 'bg-[#fff8e6] text-[#b45309]'
+                              ? 'bg-[#fff8e6] dark:bg-amber-950/60 text-[#b45309] dark:text-amber-400 border border-amber-200 dark:border-amber-900/60'
                               : isIncome
-                              ? 'bg-[#ecfdf5] text-[#059669]'
-                              : 'bg-[#fef2f2] text-[#dc2626]'
+                              ? 'bg-[#ecfdf5] dark:bg-emerald-950/60 text-[#059669] dark:text-emerald-400 border border-emerald-200 dark:border-emerald-900/60'
+                              : 'bg-[#fef2f2] dark:bg-rose-950/60 text-[#dc2626] dark:text-rose-400 border border-rose-200 dark:border-rose-900/60'
                           }`}
                         >
                           <FinanceIcon name={getScheduleIconName(item)} size={20} />
@@ -970,28 +970,49 @@ export function FinancialRemindersScreen({ onNotify }: Props) {
 
                         <div className="min-w-0">
                           <div className="flex flex-wrap items-center gap-2">
-                            <span className="truncate text-sm font-semibold text-[#14251f] group-hover:text-[#07543f]">
+                            <span className="truncate text-sm font-semibold text-[#14251f] dark:text-slate-100 group-hover:text-[#07543f] dark:group-hover:text-emerald-400">
                               {item.name}
                             </span>
-                            <span
-                              className={`rounded-full px-2 py-0.5 text-[9px] font-bold ${
-                                isPaused
-                                  ? 'bg-[#fee2e2] text-[#991b1b]'
-                                  : 'bg-[#e3f4e9] text-[#006c49]'
-                              }`}
-                            >
-                              {isPaused ? 'Tạm dừng' : 'Đang hoạt động'}
-                            </span>
+                            {/* Chỉ hiển thị tag nếu chưa qua ngày hoặc khi đang tạm dừng */}
+                            {(() => {
+                              const todayStr = new Date().toISOString().split('T')[0];
+                              const isExpired = Boolean(
+                                (item.end_date && item.end_date < todayStr) ||
+                                (item.next_occurrence && item.next_occurrence < todayStr)
+                              );
+
+                              if (isExpired) {
+                                return (
+                                  <span className="rounded-full px-2 py-0.5 text-[9px] font-bold bg-gray-100 dark:bg-slate-800 text-gray-500 dark:text-slate-400 border border-gray-200 dark:border-slate-700">
+                                    Đã kết thúc
+                                  </span>
+                                );
+                              }
+
+                              if (isPaused) {
+                                return (
+                                  <span className="rounded-full px-2 py-0.5 text-[9px] font-bold bg-rose-100 dark:bg-rose-950/60 text-rose-800 dark:text-rose-300 border border-rose-200 dark:border-rose-900/60">
+                                    Tạm dừng
+                                  </span>
+                                );
+                              }
+
+                              return (
+                                <span className="rounded-full px-2 py-0.5 text-[9px] font-bold bg-[#e3f4e9] dark:bg-emerald-950/60 text-[#006c49] dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800/50">
+                                  Đang hoạt động
+                                </span>
+                              );
+                            })()}
                           </div>
 
-                          <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-[#718078]">
-                            <span className="font-medium text-[#14251f]">{item.recurrence_text || 'Định kỳ'}</span>
+                          <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-[#718078] dark:text-slate-400">
+                            <span className="font-medium text-[#14251f] dark:text-slate-200">{item.recurrence_text || 'Định kỳ'}</span>
                             {item.next_occurrence && (
                               <>
                                 <span>·</span>
                                 <span>
                                   Kế tiếp:{' '}
-                                  <strong className="text-[#07543f]">
+                                  <strong className="text-[#07543f] dark:text-emerald-400">
                                     {formatDate(item.next_occurrence)}
                                   </strong>
                                 </span>
