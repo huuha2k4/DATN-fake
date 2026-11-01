@@ -548,6 +548,15 @@ export function FinancialReportsDashboardScreen({ onNotify }: Props) {
                 clonedContainer.style.maxWidth = '1120px';
                 clonedContainer.style.margin = '0 auto';
 
+                // Thêm CSS khử triệt để toàn bộ hệ màu oklab, oklch trong bản clone trước khi chụp
+                const styleOverride = clonedDoc.createElement('style');
+                styleOverride.innerHTML = `
+                  * {
+                    color-scheme: light !important;
+                  }
+                `;
+                clonedDoc.head.appendChild(styleOverride);
+
                 // Header HTML
                 const headerDiv = clonedDoc.createElement('div');
                 headerDiv.style.display = 'flex';
@@ -637,14 +646,28 @@ export function FinancialReportsDashboardScreen({ onNotify }: Props) {
                 }
 
                 const style = window.getComputedStyle(el);
-                if (style.color && style.color.includes('oklch')) {
+                const isUnsupportedColor = (str: string | null) => {
+                  if (!str) return false;
+                  return str.includes('oklch') || str.includes('oklab') || str.includes('color(') || str.includes('lab(') || str.includes('lch(');
+                };
+
+                if (isUnsupportedColor(style.color)) {
                   htmlEl.style.color = '#0f172a';
                 }
-                if (style.backgroundColor && style.backgroundColor.includes('oklch')) {
+                if (isUnsupportedColor(style.backgroundColor)) {
                   htmlEl.style.backgroundColor = 'transparent';
                 }
-                if (style.borderColor && style.borderColor.includes('oklch')) {
+                if (isUnsupportedColor(style.borderColor)) {
                   htmlEl.style.borderColor = '#e2e8f0';
+                }
+                if (isUnsupportedColor(style.outlineColor)) {
+                  htmlEl.style.outlineColor = 'transparent';
+                }
+                if (isUnsupportedColor((style as any).fill)) {
+                  (htmlEl.style as any).fill = '#047857';
+                }
+                if (isUnsupportedColor((style as any).stroke)) {
+                  (htmlEl.style as any).stroke = 'transparent';
                 }
               });
             },
@@ -749,18 +772,25 @@ export function FinancialReportsDashboardScreen({ onNotify }: Props) {
           { key: 'G', width: 22 },
         ];
 
-        // 1. Tiêu đề lớn
+        // 1. Tiêu đề thương hiệu và Báo cáo
         sheet.mergeCells('B2:G2');
-        const titleCell = sheet.getCell('B2');
-        titleCell.value = 'BÁO CÁO TÀI CHÍNH VÀ THỐNG KÊ CHI TIÊU';
-        titleCell.font = { name: 'Arial', size: 16, bold: true, color: { argb: 'FFFFFFFF' } };
+        const brandCell = sheet.getCell('B2');
+        brandCell.value = 'FINORA · HỆ THỐNG QUẢN LÝ TÀI CHÍNH CÁ NHÂN & GIA ĐÌNH';
+        brandCell.font = { name: 'Arial', size: 10, bold: true, color: { argb: 'FF07543F' } };
+        brandCell.alignment = { horizontal: 'center', vertical: 'middle' };
+        sheet.getRow(2).height = 20;
+
+        sheet.mergeCells('B3:G3');
+        const titleCell = sheet.getCell('B3');
+        titleCell.value = 'BÁO CÁO TÀI CHÍNH VÀ THỐNG KÊ CHI TIÊU TOÀN DIỆN';
+        titleCell.font = { name: 'Arial', size: 15, bold: true, color: { argb: 'FFFFFFFF' } };
         titleCell.alignment = { horizontal: 'center', vertical: 'middle' };
         titleCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF07543F' } };
-        sheet.getRow(2).height = 38;
+        sheet.getRow(3).height = 36;
 
         // Phụ đề ngày tháng chuẩn dd/mm/yyyy
-        sheet.mergeCells('B3:G3');
-        const subCell = sheet.getCell('B3');
+        sheet.mergeCells('B4:G4');
+        const subCell = sheet.getCell('B4');
         const fromDateFormatted = formatDateVN(dateRange.fromDate);
         const toDateFormatted = formatDateVN(dateRange.toDate);
         const selectedWalletName = selectedAccountId
@@ -768,26 +798,26 @@ export function FinancialReportsDashboardScreen({ onNotify }: Props) {
           : 'Tất cả tài khoản / ví';
 
         subCell.value = `Khoảng thời gian: ${fromDateFormatted}  đến  ${toDateFormatted}  |  Ví: ${selectedWalletName}  |  Năm: ${currentReportYear}`;
-        subCell.font = { name: 'Arial', size: 10.5, italic: true, color: { argb: 'FF334155' } };
+        subCell.font = { name: 'Arial', size: 10, italic: true, color: { argb: 'FF334155' } };
         subCell.alignment = { horizontal: 'center', vertical: 'middle' };
         subCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE6F4EA' } };
-        sheet.getRow(3).height = 24;
+        sheet.getRow(4).height = 24;
 
         // 2. KHỐI CHỈ SỐ KPI CHÍNH
-        sheet.mergeCells('B5:G5');
-        const kpiTitle = sheet.getCell('B5');
+        sheet.mergeCells('B6:G6');
+        const kpiTitle = sheet.getCell('B6');
         kpiTitle.value = 'I. TỔNG QUAN VÀ CHỈ SỐ TÀI CHÍNH';
         kpiTitle.font = { name: 'Arial', size: 11.5, bold: true, color: { argb: 'FF07543F' } };
-        sheet.getRow(5).height = 24;
+        sheet.getRow(6).height = 24;
 
-        sheet.getRow(6).values = ['', 'CHỈ SỐ', 'GIÁ TRỊ (VNĐ)', 'TỶ LỆ / TẦN SUẤT', 'GHI CHÚ / ĐÁNH GIÁ', 'TRẠNG THÁI', ''];
-        sheet.getRow(6).font = { name: 'Arial', size: 10, bold: true, color: { argb: 'FFFFFFFF' } };
+        sheet.getRow(7).values = ['', 'CHỈ SỐ', 'GIÁ TRỊ (VNĐ)', 'TỶ LỆ / TẦN SUẤT', 'GHI CHÚ / ĐÁNH GIÁ', 'TRẠNG THÁI', ''];
+        sheet.getRow(7).font = { name: 'Arial', size: 10, bold: true, color: { argb: 'FFFFFFFF' } };
         ['B', 'C', 'D', 'E', 'F', 'G'].forEach(col => {
-          const cell = sheet.getCell(`${col}6`);
+          const cell = sheet.getCell(`${col}7`);
           cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF0F766E' } };
           cell.alignment = { horizontal: 'center', vertical: 'middle' };
         });
-        sheet.getRow(6).height = 26;
+        sheet.getRow(7).height = 26;
 
         const kpis = [
           ['Tổng thu nhập', summary.totalIncome, '100.0%', 'Nguồn thu nhận được trong kỳ', 'Tích cực', 'FF10B981'],
@@ -798,7 +828,7 @@ export function FinancialReportsDashboardScreen({ onNotify }: Props) {
         ];
 
         kpis.forEach((kpi, idx) => {
-          const rowNum = 7 + idx;
+          const rowNum = 8 + idx;
           const row = sheet.getRow(rowNum);
           row.height = 22;
           row.values = ['', kpi[0], kpi[1], kpi[2], kpi[3], kpi[4]];
@@ -828,7 +858,7 @@ export function FinancialReportsDashboardScreen({ onNotify }: Props) {
         });
 
         // 3. BẢNG CƠ CẤU CHI TIÊU THEO DANH MỤC
-        const catStart = 14;
+        const catStart = 15;
         sheet.mergeCells(`B${catStart}:G${catStart}`);
         const catTitle = sheet.getCell(`B${catStart}`);
         catTitle.value = 'II. CƠ CẤU CHI TIÊU THEO TỪNG DANH MỤC (BẢNG THỐNG KÊ CHI TIẾT)';
