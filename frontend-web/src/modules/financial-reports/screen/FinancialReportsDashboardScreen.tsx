@@ -540,6 +540,12 @@ export function FinancialReportsDashboardScreen({ onNotify }: Props) {
             scrollY: 0,
             windowWidth: Math.max(container.offsetWidth || 0, 1140),
             onclone: (clonedDoc) => {
+              // Ép toàn bộ bản clone sang chế độ sáng (bỏ class 'dark' trên <html> và <body>)
+              clonedDoc.documentElement.classList.remove('dark');
+              clonedDoc.body.classList.remove('dark');
+              clonedDoc.documentElement.style.colorScheme = 'light';
+              clonedDoc.body.style.backgroundColor = '#ffffff';
+
               // Thêm banner Header và Footer bằng HTML trực tiếp để dùng đúng font Plus Jakarta Sans chuẩn của web
               const clonedContainer = clonedDoc.getElementById('financial-report-content');
               if (clonedContainer) {
@@ -547,11 +553,15 @@ export function FinancialReportsDashboardScreen({ onNotify }: Props) {
                 clonedContainer.style.width = '1120px';
                 clonedContainer.style.maxWidth = '1120px';
                 clonedContainer.style.margin = '0 auto';
+                clonedContainer.style.backgroundColor = '#ffffff';
 
                 // Thêm CSS khử triệt để toàn bộ hệ màu oklab, oklch trong bản clone trước khi chụp
                 const styleOverride = clonedDoc.createElement('style');
                 styleOverride.innerHTML = `
                   * {
+                    color-scheme: light !important;
+                  }
+                  .dark {
                     color-scheme: light !important;
                   }
                 `;
