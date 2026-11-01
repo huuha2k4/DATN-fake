@@ -402,7 +402,7 @@ export function AddTransactionScreen({ onCancel, onNotify, onOpenInvoiceScanner 
       {/* Two-Column Responsive Workspace: Stacks on mobile, 2-col full height on desktop */}
       <div className="grid w-full gap-4 lg:grid-cols-[minmax(0,1.55fr)_minmax(320px,1fr)] items-start">
         {/* LEFT COLUMN: Main Form Container */}
-        <div className="flex flex-col justify-between rounded-2xl border border-[#e2ece5] bg-white shadow-md">
+        <div className="flex flex-col justify-between rounded-2xl border border-[#e2ece5] bg-white shadow-md overflow-hidden">
           {/* HERO BANNER: Type Toggle & Big Amount Display */}
           <div className={`relative px-6 py-4 text-white transition-colors duration-300 shrink-0 ${type === 'EXPENSE'
               ? 'bg-gradient-to-br from-[#1c2c24] via-[#163a2b] to-[#124230]'

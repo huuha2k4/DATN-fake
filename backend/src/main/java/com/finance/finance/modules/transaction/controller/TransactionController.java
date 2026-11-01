@@ -200,10 +200,10 @@ public class TransactionController {
             @RequestParam(required = false) String currencyCode) {
         
         UUID userId = user.getId();
-        log.debug("GET /transactions/summary - user: {}, from: {}, to: {}", userId, fromDate, toDate);
+        log.debug("GET /transactions/summary - user: {}, from: {}, to: {}, account: {}", userId, fromDate, toDate, accountId);
         
         TransactionSummaryResponse response = transactionService.getTransactionSummary(
-                userId, fromDate, toDate, groupBy);
+                userId, fromDate, toDate, groupBy, accountId);
         
         return ResponseEntity.ok(response);
     }

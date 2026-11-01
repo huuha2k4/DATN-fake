@@ -99,6 +99,7 @@ public interface TransactionRepository extends JpaRepository<Transaction, UUID> 
            "COUNT(t) as transactionCount " +
            "FROM Transaction t " +
            "WHERE t.userId = :userId " +
+           "AND (CAST(:accountId AS java.util.UUID) IS NULL OR t.accountId = :accountId OR t.toAccountId = :accountId) " +
            "AND t.occurredDate BETWEEN :fromDate AND :toDate " +
            "AND (CAST(:isExcluded AS boolean) IS NULL OR t.isExcludedFromReport = :isExcluded) " +
            "AND t.deletedAt IS NULL")
@@ -106,6 +107,7 @@ public interface TransactionRepository extends JpaRepository<Transaction, UUID> 
             @Param("userId") UUID userId,
             @Param("fromDate") LocalDate fromDate,
             @Param("toDate") LocalDate toDate,
+            @Param("accountId") UUID accountId,
             @Param("isExcluded") Boolean isExcluded);
     
     /**
@@ -117,8 +119,10 @@ public interface TransactionRepository extends JpaRepository<Transaction, UUID> 
            "AVG(t.baseAmount) as averageAmount " +
            "FROM Transaction t " +
            "WHERE t.userId = :userId " +
+           "AND (CAST(:accountId AS java.util.UUID) IS NULL OR t.accountId = :accountId OR t.toAccountId = :accountId) " +
            "AND t.type = :type " +
            "AND t.occurredDate BETWEEN :fromDate AND :toDate " +
+           "AND (CAST(:isExcluded AS boolean) IS NULL OR t.isExcludedFromReport = :isExcluded) " +
            "AND t.categoryId IS NOT NULL " +
            "AND t.deletedAt IS NULL " +
            "GROUP BY t.categoryId " +
@@ -127,13 +131,16 @@ public interface TransactionRepository extends JpaRepository<Transaction, UUID> 
             @Param("userId") UUID userId,
             @Param("type") TransactionType type,
             @Param("fromDate") LocalDate fromDate,
-            @Param("toDate") LocalDate toDate);
+            @Param("toDate") LocalDate toDate,
+            @Param("accountId") UUID accountId,
+            @Param("isExcluded") Boolean isExcluded);
     
     /**
      * Find largest expense in date range
      */
     @Query("SELECT t FROM Transaction t " +
            "WHERE t.userId = :userId " +
+           "AND (CAST(:accountId AS java.util.UUID) IS NULL OR t.accountId = :accountId OR t.toAccountId = :accountId) " +
            "AND t.type = 'EXPENSE' " +
            "AND t.occurredDate BETWEEN :fromDate AND :toDate " +
            "AND t.deletedAt IS NULL " +
@@ -142,6 +149,7 @@ public interface TransactionRepository extends JpaRepository<Transaction, UUID> 
             @Param("userId") UUID userId,
             @Param("fromDate") LocalDate fromDate,
             @Param("toDate") LocalDate toDate,
+            @Param("accountId") UUID accountId,
             Pageable pageable);
     
     /**
@@ -195,6 +203,7 @@ public interface TransactionRepository extends JpaRepository<Transaction, UUID> 
            "COUNT(t) as transactionCount " +
            "FROM Transaction t " +
            "WHERE t.userId = :userId " +
+           "AND (CAST(:accountId AS java.util.UUID) IS NULL OR t.accountId = :accountId OR t.toAccountId = :accountId) " +
            "AND t.occurredDate BETWEEN :fromDate AND :toDate " +
            "AND (CAST(:isExcluded AS boolean) IS NULL OR t.isExcludedFromReport = :isExcluded) " +
            "AND t.deletedAt IS NULL " +
@@ -204,6 +213,7 @@ public interface TransactionRepository extends JpaRepository<Transaction, UUID> 
             @Param("userId") UUID userId,
             @Param("fromDate") LocalDate fromDate,
             @Param("toDate") LocalDate toDate,
+            @Param("accountId") UUID accountId,
             @Param("isExcluded") Boolean isExcluded);
 
     /**
@@ -216,6 +226,7 @@ public interface TransactionRepository extends JpaRepository<Transaction, UUID> 
            "COUNT(t) as transactionCount " +
            "FROM Transaction t " +
            "WHERE t.userId = :userId " +
+           "AND (CAST(:accountId AS java.util.UUID) IS NULL OR t.accountId = :accountId OR t.toAccountId = :accountId) " +
            "AND t.occurredDate BETWEEN :fromDate AND :toDate " +
            "AND (CAST(:isExcluded AS boolean) IS NULL OR t.isExcludedFromReport = :isExcluded) " +
            "AND t.deletedAt IS NULL " +
@@ -225,6 +236,7 @@ public interface TransactionRepository extends JpaRepository<Transaction, UUID> 
             @Param("userId") UUID userId,
             @Param("fromDate") LocalDate fromDate,
             @Param("toDate") LocalDate toDate,
+            @Param("accountId") UUID accountId,
             @Param("isExcluded") Boolean isExcluded);
     
     /**

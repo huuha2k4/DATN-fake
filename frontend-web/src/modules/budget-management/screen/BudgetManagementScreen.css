@@ -73,14 +73,14 @@
 /* --- DARK MODE STYLES --- */
 /* 1. Nền màn hình chính & Khung card */
 html.dark .budget-management-page {
-  background-color: #060e15 !important;
+  background-color: #081622 !important;
   color: #cbd5e1 !important;
 }
 
 html.dark .budget-stat-card,
 html.dark .budget-item-card {
-  background-color: #0a1722 !important;
-  border-color: #122432 !important;
+  background-color: #0e2333 !important;
+  border-color: #173852 !important;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4) !important;
 }
 

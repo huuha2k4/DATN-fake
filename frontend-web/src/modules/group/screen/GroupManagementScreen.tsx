@@ -744,7 +744,7 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
       setIsSubmittingFund(true);
       const fund = await groupApi.contributeToFund(selectedGroup.id, {
         sourceAccountId: fundAccountId,
-        amount: Number(fundAmount),
+        amount: Number(fundAmount.replace(/\D/g, '')),
         contributedAt: new Date().toISOString().slice(0, 10),
         note: fundNote || undefined,
       });
@@ -3068,17 +3068,36 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
                               className="h-9 px-2 rounded-xl border border-emerald-300 dark:border-emerald-800/80 bg-white dark:bg-[#071622] text-xs font-bold text-[#07543f] dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-[#0c2436] transition flex items-center justify-center gap-1.5 shadow-2xs whitespace-nowrap cursor-pointer"
                             >
                               <FinanceIcon name="receipt" size={13} />
-                              <span>{isChildAccount ? 'Khoản tiền' : 'Chi tiêu'}</span>
+                              <span>{isChildAccount ? 'Khoản tiền' : 'Lịch sử'}</span>
                             </button>
 
-                            <button
-                              type="button"
-                              onClick={() => handleOpenChores(cw)}
-                              className="h-9 px-2 rounded-xl border border-amber-300 dark:border-amber-700/60 bg-amber-50 dark:bg-amber-950/30 text-xs font-bold text-amber-700 dark:text-amber-300 hover:bg-amber-100 dark:hover:bg-amber-900/40 transition flex items-center justify-center gap-1.5 shadow-2xs whitespace-nowrap cursor-pointer"
-                            >
-                              <span>⭐</span>
-                              <span>Nhiệm vụ</span>
-                            </button>
+                            {/* Nếu ví do bố mẹ tự theo dõi (không có tài khoản đăng nhập riêng của bé) -> Hiển thị "Thêm chi tiêu" để bố mẹ ghi khoản chi trực tiếp.
+                                Nếu ví có tài khoản riêng của bé (bé tự đăng nhập làm nhiệm vụ) -> Hiển thị "Nhiệm vụ" */}
+                            {!cw.userId && !cw.childUsername ? (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setSelectedWalletForRequests(cw);
+                                  setRequestAmount('');
+                                  setRequestDescription('');
+                                  setSelectedSpendCategory('');
+                                  setIsSpendRequestModalOpen(true);
+                                }}
+                                className="h-9 px-2 rounded-xl border border-rose-300 dark:border-rose-800/80 bg-rose-50 dark:bg-rose-950/30 text-xs font-bold text-rose-700 dark:text-rose-300 hover:bg-rose-100 dark:hover:bg-rose-900/40 transition flex items-center justify-center gap-1.5 shadow-2xs whitespace-nowrap cursor-pointer"
+                              >
+                                <FinanceIcon name="expense" size={13} />
+                                <span>Thêm chi tiêu</span>
+                              </button>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={() => handleOpenChores(cw)}
+                                className="h-9 px-2 rounded-xl border border-amber-300 dark:border-amber-700/60 bg-amber-50 dark:bg-amber-950/30 text-xs font-bold text-amber-700 dark:text-amber-300 hover:bg-amber-100 dark:hover:bg-amber-900/40 transition flex items-center justify-center gap-1.5 shadow-2xs whitespace-nowrap cursor-pointer"
+                              >
+                                <span>⭐</span>
+                                <span>{isChildAccount ? 'Nhiệm vụ' : 'Nhiệm vụ'}</span>
+                              </button>
+                            )}
                           </div>
                         </div>
                       ))
@@ -3104,7 +3123,18 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
             <p className="text-xs text-[#718579] mt-1 mb-4">Tiền sẽ được trừ từ ví của bạn và cộng vào quỹ của nhóm.</p>
             <form onSubmit={handleContributeToFund} className="flex flex-col gap-3">
               <select value={fundAccountId} onChange={(e) => setFundAccountId(e.target.value)} required className="w-full h-10 px-3 rounded-xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs"><option value="">Chọn ví nguồn</option>{personalAccounts.filter((a) => a.currencyCode === selectedGroup.baseCurrency).map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}</select>
-              <input type="number" min="1" value={fundAmount} onChange={(e) => setFundAmount(e.target.value)} placeholder="Số tiền nộp" required className="w-full h-10 px-3 rounded-xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs" />
+              <input
+                type="text"
+                inputMode="numeric"
+                value={fundAmount ? Number(fundAmount).toLocaleString('vi-VN') : ''}
+                onChange={(e) => {
+                  const raw = e.target.value.replace(/\D/g, '');
+                  setFundAmount(raw);
+                }}
+                placeholder="Số tiền nộp (VNĐ) *"
+                required
+                className="w-full h-10 px-3 rounded-xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-medium"
+              />
               <input value={fundNote} onChange={(e) => setFundNote(e.target.value)} placeholder="Ghi chú (tuỳ chọn)" className="w-full h-10 px-3 rounded-xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs" />
               <div className="flex justify-end gap-2 mt-2"><button type="button" onClick={() => setIsFundModalOpen(false)} className="h-9 px-4 rounded-xl border text-xs">Hủy</button><button type="submit" disabled={isSubmittingFund} className="h-9 px-5 rounded-xl bg-[#07543f] text-white text-xs font-bold">{isSubmittingFund ? 'Đang nộp...' : 'Nộp quỹ'}</button></div>
             </form>
@@ -3243,10 +3273,14 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
                   Số tiền (VNĐ) *
                 </label>
                 <input
-                  type="number"
-                  value={expenseAmount}
-                  onChange={(e) => setExpenseAmount(e.target.value)}
-                  placeholder="VD: 500000"
+                  type="text"
+                  inputMode="numeric"
+                  value={expenseAmount ? Number(expenseAmount).toLocaleString('vi-VN') : ''}
+                  onChange={(e) => {
+                    const raw = e.target.value.replace(/\D/g, '');
+                    setExpenseAmount(raw);
+                  }}
+                  placeholder="VD: 500.000"
                   className="w-full h-10 px-3 rounded-xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-medium"
                   required
                 />
@@ -3491,10 +3525,14 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
                 </label>
                 <select value={settleSourceAccountId} onChange={(e) => setSettleSourceAccountId(e.target.value)} required className="w-full h-10 px-3 rounded-xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-medium mb-2"><option value="">-- Chọn ví trả tiền --</option>{personalAccounts.filter((a) => a.currencyCode === selectedGroup?.baseCurrency).map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}</select>
                 <input
-                  type="number"
-                  value={settleAmount}
-                  onChange={(e) => setSettleAmount(e.target.value)}
-                  placeholder="VD: 250000"
+                  type="text"
+                  inputMode="numeric"
+                  value={settleAmount ? Number(settleAmount).toLocaleString('vi-VN') : ''}
+                  onChange={(e) => {
+                    const raw = e.target.value.replace(/\D/g, '');
+                    setSettleAmount(raw);
+                  }}
+                  placeholder="VD: 250.000"
                   className="w-full h-10 px-3 rounded-xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-medium"
                   required
                 />
@@ -3688,10 +3726,14 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
                     Tiền ban đầu (VNĐ)
                   </label>
                   <input
-                    type="number"
-                    value={childWalletInitialBalance}
-                    onChange={(e) => setChildWalletInitialBalance(e.target.value)}
-                    placeholder="VD: 50000"
+                    type="text"
+                    inputMode="numeric"
+                    value={childWalletInitialBalance ? Number(childWalletInitialBalance).toLocaleString('vi-VN') : ''}
+                    onChange={(e) => {
+                      const raw = e.target.value.replace(/\D/g, '');
+                      setChildWalletInitialBalance(raw);
+                    }}
+                    placeholder="VD: 50.000"
                     className="w-full h-10 px-3 rounded-xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-medium"
                   />
                 </div>
@@ -4135,8 +4177,8 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
         </div>
       )}
 
-      {/* Modal 9: Spend Requests & Lịch sử chi tiêu */}
-      {selectedWalletForRequests && (
+      {/* Modal 9: Spend Requests & Lịch sử chi tiêu (chỉ mở khi không mở modal Thêm chi tiêu) */}
+      {selectedWalletForRequests && !isSpendRequestModalOpen && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-xs"
           onClick={() => setSelectedWalletForRequests(null)}
@@ -4342,7 +4384,10 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
       {isSpendRequestModalOpen && selectedWalletForRequests && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-xs"
-          onClick={() => setIsSpendRequestModalOpen(false)}
+          onClick={() => {
+            setIsSpendRequestModalOpen(false);
+            setSelectedWalletForRequests(null);
+          }}
         >
           <div
             className="w-full max-w-md rounded-3xl bg-white dark:bg-slate-900 p-6 shadow-2xl border border-[#e2ece5] dark:border-slate-800"
@@ -4363,10 +4408,14 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
                   Số tiền {isChildAccount ? 'cần xin' : 'chi tiêu'} (VNĐ) *
                 </label>
                 <input
-                  type="number"
-                  value={requestAmount}
-                  onChange={(e) => setRequestAmount(e.target.value)}
-                  placeholder="VD: 20000, 50000"
+                  type="text"
+                  inputMode="numeric"
+                  value={requestAmount ? Number(requestAmount).toLocaleString('vi-VN') : ''}
+                  onChange={(e) => {
+                    const raw = e.target.value.replace(/\D/g, '');
+                    setRequestAmount(raw);
+                  }}
+                  placeholder="VD: 20.000, 50.000"
                   className="w-full h-10 px-3 rounded-xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-medium"
                   required
                   autoFocus
@@ -4410,7 +4459,10 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
               <div className="flex items-center justify-end gap-2.5 mt-2">
                 <button
                   type="button"
-                  onClick={() => setIsSpendRequestModalOpen(false)}
+                  onClick={() => {
+                    setIsSpendRequestModalOpen(false);
+                    setSelectedWalletForRequests(null);
+                  }}
                   className="h-9 px-4 rounded-xl border border-gray-200 dark:border-slate-700 text-xs font-semibold text-gray-700 dark:text-slate-300 cursor-pointer"
                 >
                   Hủy

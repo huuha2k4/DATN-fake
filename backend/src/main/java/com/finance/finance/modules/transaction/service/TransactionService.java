@@ -472,14 +472,19 @@ public class TransactionService {
      */
     @Transactional(readOnly = true)
     public TransactionSummaryResponse getTransactionSummary(UUID userId, LocalDate fromDate, LocalDate toDate, String groupBy) {
-        log.debug("Getting transaction summary for user: {}, from: {}, to: {}", userId, fromDate, toDate);
+        return getTransactionSummary(userId, fromDate, toDate, groupBy, null);
+    }
+
+    @Transactional(readOnly = true)
+    public TransactionSummaryResponse getTransactionSummary(UUID userId, LocalDate fromDate, LocalDate toDate, String groupBy, UUID accountId) {
+        log.debug("Getting transaction summary for user: {}, from: {}, to: {}, account: {}", userId, fromDate, toDate, accountId);
         
         // Get summary data
         BigDecimal totalIncome = BigDecimal.ZERO;
         BigDecimal totalExpense = BigDecimal.ZERO;
         Long transactionCount = 0L;
         try {
-            Object raw = transactionRepository.getSummary(userId, fromDate, toDate, false);
+            Object raw = transactionRepository.getSummary(userId, fromDate, toDate, accountId, false);
             Object[] summaryData = null;
             if (raw instanceof Object[] arr) {
                 if (arr.length > 0 && arr[0] instanceof Object[] nested) {
@@ -506,7 +511,7 @@ public class TransactionService {
         
         // Get largest expense
         List<Transaction> largestExpenses = transactionRepository.findLargestExpenses(
-                userId, fromDate, toDate, PageRequest.of(0, 1));
+                userId, fromDate, toDate, accountId, PageRequest.of(0, 1));
         TransactionSummaryResponse.LargestExpenseDto largestExpense = null;
         if (!largestExpenses.isEmpty()) {
             Transaction largest = largestExpenses.get(0);
@@ -546,16 +551,23 @@ public class TransactionService {
         
         // Get by category
         List<Object[]> categoryData = transactionRepository.groupByCategory(
-                userId, TransactionType.EXPENSE, fromDate, toDate);
+                userId, TransactionType.EXPENSE, fromDate, toDate, accountId, false);
         
-        final BigDecimal finalTotalExpense = totalExpense != null ? totalExpense : BigDecimal.ZERO;
+        // Tính tổng thực tế của các danh mục để tỷ lệ phần trăm cộng lại luôn chuẩn 100%
+        BigDecimal sumCategoryAmount = categoryData.stream()
+                .map(data -> toBigDecimal(data[1]))
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        final BigDecimal effectiveTotalExpense = sumCategoryAmount.compareTo(BigDecimal.ZERO) > 0
+                ? sumCategoryAmount
+                : (totalExpense != null ? totalExpense : BigDecimal.ZERO);
+        
         List<TransactionSummaryResponse.CategoryItemDto> byCategory = categoryData.stream()
                 .map(data -> {
                     UUID catId = (UUID) data[0];
                     String catName = catId != null ? categoryRepository.findById(catId).map(Category::getName).orElse("") : "";
                     BigDecimal amount = toBigDecimal(data[1]);
-                    BigDecimal percentage = (finalTotalExpense.compareTo(BigDecimal.ZERO) > 0)
-                            ? amount.divide(finalTotalExpense, 4, RoundingMode.HALF_UP).multiply(BigDecimal.valueOf(100))
+                    BigDecimal percentage = (effectiveTotalExpense.compareTo(BigDecimal.ZERO) > 0)
+                            ? amount.divide(effectiveTotalExpense, 4, RoundingMode.HALF_UP).multiply(BigDecimal.valueOf(100))
                             : BigDecimal.ZERO;
                     Number count = data[2] instanceof Number num ? num : 0;
                     BigDecimal avgAmount = toBigDecimal(data[3]);
@@ -575,8 +587,8 @@ public class TransactionService {
         try {
             boolean isDaily = "day".equalsIgnoreCase(groupBy);
             List<Object[]> flowData = isDaily 
-                    ? transactionRepository.getDailyFlow(userId, fromDate, toDate, false)
-                    : transactionRepository.getMonthlyFlow(userId, fromDate, toDate, false);
+                    ? transactionRepository.getDailyFlow(userId, fromDate, toDate, accountId, false)
+                    : transactionRepository.getMonthlyFlow(userId, fromDate, toDate, accountId, false);
             for (Object[] item : flowData) {
                 String dateStr = (String) item[0];
                 BigDecimal inc = toBigDecimal(item[1]);
@@ -769,7 +781,7 @@ public class TransactionService {
         int transactionCount = 0;
 
         try {
-            Object raw = transactionRepository.getSummary(userId, fromDate, toDate, filter.getIsExcludedFromReport());
+            Object raw = transactionRepository.getSummary(userId, fromDate, toDate, filter.getAccountId(), filter.getIsExcludedFromReport());
             Object[] summaryData = null;
             if (raw instanceof Object[] arr) {
                 if (arr.length > 0 && arr[0] instanceof Object[] nested) {
