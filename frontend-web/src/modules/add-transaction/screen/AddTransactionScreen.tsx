@@ -398,11 +398,11 @@ export function AddTransactionScreen({ onCancel, onNotify, onOpenInvoiceScanner 
   }
 
   return (
-    <main className="mx-auto flex min-h-[calc(100vh-68px)] w-full max-w-[1600px] flex-col bg-[#f6f8f6] p-3 text-[#14251f] sm:p-4">
-      {/* Two-Column Responsive Workspace: Stacks on mobile, 2-col full height on desktop */}
-      <div className="grid w-full gap-4 lg:grid-cols-[minmax(0,1.55fr)_minmax(320px,1fr)] items-start">
-        {/* LEFT COLUMN: Main Form Container */}
-        <div className="flex flex-col justify-between rounded-2xl border border-[#e2ece5] bg-white shadow-md overflow-hidden">
+    <main className="mx-auto flex h-[calc(100vh-68px)] max-h-[calc(100vh-68px)] w-full flex-1 flex-col bg-[#f6f8f6] dark:bg-[#07131e] p-3 text-[#14251f] dark:text-slate-100 sm:p-4 lg:p-5 overflow-hidden">
+      {/* Two-Column Responsive Workspace: fills 100% height without trailing empty space */}
+      <div className="grid w-full h-full flex-1 gap-4 lg:grid-cols-12 items-stretch min-h-0">
+        {/* LEFT COLUMN: Main Form Container (chiếm tỷ lệ rộng 58% - 66%) */}
+        <div className="lg:col-span-7 xl:col-span-7 2xl:col-span-8 flex flex-col h-full justify-between rounded-2xl border border-[#e2ece5] dark:border-white/10 bg-white dark:bg-[#0c1a24] shadow-md overflow-hidden min-h-0">
           {/* HERO BANNER: Type Toggle & Big Amount Display */}
           <div className={`relative px-6 py-4 text-white transition-colors duration-300 shrink-0 ${type === 'EXPENSE'
               ? 'bg-gradient-to-br from-[#1c2c24] via-[#163a2b] to-[#124230]'
@@ -526,8 +526,8 @@ export function AddTransactionScreen({ onCancel, onNotify, onOpenInvoiceScanner 
           </div>
 
           {/* FORM BODY: Scrollable body so footer buttons & inputs are accessible on all screens */}
-          <form onSubmit={handleSubmit} className="flex flex-1 flex-col justify-between">
-            <div className="flex-1 p-4 sm:p-6 flex flex-col gap-3.5">
+          <form onSubmit={handleSubmit} className="flex flex-1 flex-col justify-between overflow-hidden min-h-0">
+            <div className="flex-1 p-4 sm:p-5 flex flex-col gap-3.5 overflow-y-auto">
               {/* Row 1: Source Account & Category Selection */}
               <div className="grid gap-4 sm:grid-cols-2">
                 {/* Account / Wallet Dropdown Picker */}
@@ -963,10 +963,10 @@ export function AddTransactionScreen({ onCancel, onNotify, onOpenInvoiceScanner 
           </form>
         </div>
 
-        {/* RIGHT COLUMN: 2 Cards fill full height proportionally on desktop, stacks gracefully on mobile */}
-        <div className="flex flex-col gap-4">
+        {/* RIGHT COLUMN: 2 Cards (chiếm tỷ lệ cân đối 33% - 42%) */}
+        <div className="lg:col-span-5 xl:col-span-5 2xl:col-span-4 flex flex-col h-full gap-4 min-h-0">
           {/* Card 1: Số tiền còn lại / Dự tính số dư */}
-          <div className="flex flex-col justify-between rounded-2xl border border-[#e2ece5] bg-white p-5 shadow-sm">
+          <div className="flex flex-col justify-between rounded-2xl border border-[#e2ece5] bg-white p-5 shadow-sm shrink-0">
             <div className="flex items-center justify-between pb-3 border-b border-[#edf2ee]">
               <div className="flex items-center gap-2.5">
                 <span className="grid size-8 place-items-center rounded-xl bg-[#e3f4e9] text-[#07543f] font-bold">
@@ -1014,7 +1014,7 @@ export function AddTransactionScreen({ onCancel, onNotify, onOpenInvoiceScanner 
           </div>
 
           {/* Card 2: Bảng giao dịch gần đây fills the rest */}
-          <div className="flex flex-col rounded-2xl border border-[#e2ece5] bg-white p-5 shadow-sm dark:border-white/5 dark:bg-[#0c1a24]">
+          <div className="flex flex-1 flex-col rounded-2xl border border-[#e2ece5] bg-white p-5 shadow-sm dark:border-white/5 dark:bg-[#0c1a24] overflow-hidden min-h-0">
             <div className="flex items-center justify-between pb-3 border-b border-[#edf2ee] dark:border-white/5 shrink-0">
               <div>
                 <h3 className="text-sm font-bold text-[#14261e] dark:text-slate-100">Giao dịch gần đây</h3>

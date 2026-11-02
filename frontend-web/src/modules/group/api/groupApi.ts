@@ -346,7 +346,9 @@ export interface ChildChoreItem {
   frequency?: 'ONCE' | 'DAILY' | 'WEEKLY' | 'MONTHLY';
   difficulty?: 'EASY' | 'MEDIUM' | 'HARD';
   dueDate?: string;
-  status: 'ASSIGNED' | 'IN_PROGRESS' | 'SUBMITTED' | 'APPROVED' | 'REJECTED';
+  status: 'ASSIGNED' | 'IN_PROGRESS' | 'SUBMITTED' | 'APPROVED' | 'REJECTED' | 'FAILED';
+  rejectionReason?: string;
+  rejectedAt?: string;
   completionNotes?: string;
   createdAt?: string;
 }
@@ -779,8 +781,8 @@ export const groupApi = {
     return res.data?.data || res.data;
   },
 
-  async rejectChore(groupId: string, walletId: string, choreId: string, reason: string): Promise<ChildChoreItem> {
-    const res = await api.post(`/groups/${groupId}/child-wallets/${walletId}/chores/${choreId}/reject`, { reason });
+  async rejectChore(groupId: string, walletId: string, choreId: string, reason: string, canRetry: boolean = true): Promise<ChildChoreItem> {
+    const res = await api.post(`/groups/${groupId}/child-wallets/${walletId}/chores/${choreId}/reject`, { reason, canRetry });
     return res.data?.data || res.data;
   },
 

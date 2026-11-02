@@ -9,6 +9,7 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 public class RejectChoreRequest {
-    @NotBlank(message = "Lý do từ chối không được để trống")
+    @NotBlank(message = "Lý do không được để trống")
     private String reason;
+    private Boolean canRetry;
 }

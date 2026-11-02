@@ -476,7 +476,9 @@ public class ChildManagementService {
             throw new ResourceNotFoundException("Chore does not belong to this wallet");
         }
 
-        if (chore.getStatus() != ChoreStatus.ASSIGNED && chore.getStatus() != ChoreStatus.IN_PROGRESS) {
+        if (chore.getStatus() != ChoreStatus.ASSIGNED 
+                && chore.getStatus() != ChoreStatus.IN_PROGRESS 
+                && chore.getStatus() != ChoreStatus.REJECTED) {
             throw new IllegalStateException("Chore cannot be completed in current status");
         }
 
@@ -657,11 +659,15 @@ public class ChildManagementService {
             throw new ResourceNotFoundException("Chore does not belong to this wallet");
         }
 
-        if (chore.getStatus() != ChoreStatus.SUBMITTED) {
-            throw new IllegalStateException("Chore must be submitted before rejection");
+        if (chore.getStatus() != ChoreStatus.SUBMITTED && chore.getStatus() != ChoreStatus.ASSIGNED && chore.getStatus() != ChoreStatus.IN_PROGRESS) {
+            throw new IllegalStateException("Chore cannot be rejected/failed in current status");
         }
 
-        chore.setStatus(ChoreStatus.REJECTED);
+        // Nếu canRetry = false thì đánh dấu nhiệm vụ là FAILED (Không hoàn thành), ngược lại REJECTED (Cần làm lại)
+        boolean isFailed = Boolean.FALSE.equals(request.getCanRetry());
+        chore.setStatus(isFailed ? ChoreStatus.FAILED : ChoreStatus.REJECTED);
+        chore.setRejectionReason(request.getReason());
+        chore.setRejectedAt(LocalDateTime.now());
         chore.setApprovedByUserId(currentUserId);
         chore.setApprovedAt(LocalDateTime.now());
         chore.setUpdatedAt(LocalDateTime.now());
@@ -672,12 +678,16 @@ public class ChildManagementService {
         if (wallet != null && wallet.getUserId() != null) {
             try {
                 String reason = request.getReason() != null && !request.getReason().isBlank() ? " Lý do: " + request.getReason() : "";
+                String title = isFailed ? "Nhiệm vụ không thành công" : "Nhiệm vụ cần làm lại";
+                String message = isFailed 
+                        ? "Nhiệm vụ " + chore.getTitle() + " của bạn được đánh dấu không hoàn thành." + reason
+                        : "Nhiệm vụ " + chore.getTitle() + " của bạn cần làm lại." + reason;
                 notificationService.createNotification(
                         wallet.getUserId(),
                         NotificationType.CHILD_REQUEST_RESPONDED,
                         NotificationPriority.NORMAL,
-                        "Nhiệm vụ chưa được duyệt",
-                        "Nhiệm vụ " + chore.getTitle() + " của bạn chưa được duyệt." + reason,
+                        title,
+                        message,
                         "/child-wallet",
                         "Xem nhiệm vụ"
                 );
@@ -774,6 +784,8 @@ public class ChildManagementService {
                 .proofImageKey(chore.getProofImageKey())
                 .approvedByUserId(chore.getApprovedByUserId())
                 .approvedAt(chore.getApprovedAt())
+                .rejectionReason(chore.getRejectionReason())
+                .rejectedAt(chore.getRejectedAt())
                 .createdAt(chore.getCreatedAt())
                 .updatedAt(chore.getUpdatedAt())
                 .build();

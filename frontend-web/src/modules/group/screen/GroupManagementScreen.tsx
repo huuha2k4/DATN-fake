@@ -282,6 +282,7 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
   const [choreDueDate, setChoreDueDate] = useState('');
   const [isSubmittingChore, setIsSubmittingChore] = useState(false);
   const [rejectingChoreId, setRejectingChoreId] = useState<string | null>(null);
+  const [rejectActionType, setRejectActionType] = useState<'RETRY' | 'FAILED'>('RETRY');
   const [choreRejectReason, setChoreRejectReason] = useState('');
   const [approvingChoreItem, setApprovingChoreItem] = useState<ChildChoreItem | null>(null);
   const [choreSource, setChoreSource] = useState<'PERSONAL_ACCOUNT' | 'GROUP_FUND'>('PERSONAL_ACCOUNT');
@@ -1290,19 +1291,21 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
   const handleRejectChore = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedGroup || !selectedWalletForChores || !rejectingChoreId) return;
+    const isFailed = rejectActionType === 'FAILED';
     try {
       await groupApi.rejectChore(
         selectedGroup.id,
         selectedWalletForChores.id,
         rejectingChoreId,
-        choreRejectReason.trim() || 'Cần làm lại cho cẩn thận hơn con nhé'
+        choreRejectReason.trim() || (isFailed ? 'Nhiệm vụ không hoàn thành' : 'Cần làm lại cho cẩn thận hơn con nhé'),
+        !isFailed
       );
-      onNotify('Đã gửi phản hồi yêu cầu bé hoàn thành lại nhiệm vụ');
+      onNotify(isFailed ? 'Đã đánh dấu nhiệm vụ không thành công' : 'Đã gửi phản hồi yêu cầu bé làm lại');
       setRejectingChoreId(null);
       setChoreRejectReason('');
       handleOpenChores(selectedWalletForChores);
     } catch {
-      onNotify('Gửi phản hồi thất bại');
+      onNotify('Thao tác thất bại');
     }
   };
 
@@ -1448,107 +1451,109 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
       )}
 
       {/* Main Grid: Left Groups Sidebar / Right Group Content */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
-        {/* Left Column: Groups List */}
-        <div className={`lg:col-span-3 flex flex-col gap-3 min-w-[260px] ${selectedGroup ? 'hidden lg:flex' : 'flex'}`}>
-          <div className="flex items-center justify-between px-1 gap-2">
-            <div className="flex items-center gap-1.5 shrink-0">
-              <h3 className="text-xs font-bold text-gray-600 dark:text-slate-300 uppercase tracking-wider m-0 whitespace-nowrap">
-                Nhóm
-              </h3>
-              <span className="rounded-full bg-emerald-100 dark:bg-emerald-950 px-1.5 py-0.5 text-[10px] font-bold text-[#07543f] dark:text-emerald-400">
-                {groups.length}
-              </span>
-            </div>
-            <button
-              type="button"
-              onClick={() => setIsCreateModalOpen(true)}
-              className="h-7 px-2.5 rounded-lg bg-[#07543f] hover:bg-[#064232] text-[11px] font-bold text-white shadow-2xs transition flex items-center gap-1 shrink-0 whitespace-nowrap"
-            >
-              <FinanceIcon name="plus" size={13} />
-              <span>Tạo nhóm</span>
-            </button>
-          </div>
-
-          {loading ? (
-            <div className="rounded-2xl bg-white dark:bg-slate-900 border border-[#e2ece5] dark:border-slate-800 p-8 text-center text-xs text-[#718579]">
-              Đang tải danh sách nhóm...
-            </div>
-          ) : groups.length === 0 ? (
-            <div className="rounded-2xl bg-white dark:bg-slate-900 border border-[#e2ece5] dark:border-slate-800 p-8 text-center flex flex-col items-center gap-3">
-              <div className="size-12 rounded-full bg-emerald-50 text-[#07543f] grid place-items-center">
-                <FinanceIcon name="users" size={24} />
+      <div className={`grid grid-cols-1 ${isChildAccount ? 'lg:grid-cols-12' : 'lg:grid-cols-12'} gap-5 items-start`}>
+        {/* Left Column: Groups List - Hidden for child account if they belong to their family group */}
+        {!isChildAccount && (
+          <div className={`lg:col-span-3 flex flex-col gap-3 min-w-[260px] ${selectedGroup ? 'hidden lg:flex' : 'flex'}`}>
+            <div className="flex items-center justify-between px-1 gap-2">
+              <div className="flex items-center gap-1.5 shrink-0">
+                <h3 className="text-xs font-bold text-gray-600 dark:text-slate-300 uppercase tracking-wider m-0 whitespace-nowrap">
+                  Nhóm
+                </h3>
+                <span className="rounded-full bg-emerald-100 dark:bg-emerald-950 px-1.5 py-0.5 text-[10px] font-bold text-[#07543f] dark:text-emerald-400">
+                  {groups.length}
+                </span>
               </div>
-              <p className="text-sm font-bold text-[#14261e] dark:text-slate-100 m-0">
-                Bạn chưa tham gia nhóm nào
-              </p>
-              <p className="text-xs text-[#718579] dark:text-slate-400 m-0">
-                Hãy tạo nhóm gia đình hoặc bạn bè để cùng chia tiền sinh hoạt
-              </p>
               <button
                 type="button"
                 onClick={() => setIsCreateModalOpen(true)}
-                className="mt-2 h-9 px-4 rounded-xl bg-[#07543f] text-xs font-bold text-white hover:bg-[#064232] transition"
+                className="h-7 px-2.5 rounded-lg bg-[#07543f] hover:bg-[#064232] text-[11px] font-bold text-white shadow-2xs transition flex items-center gap-1 shrink-0 whitespace-nowrap"
               >
-                + Tạo nhóm đầu tiên
+                <FinanceIcon name="plus" size={13} />
+                <span>Tạo nhóm</span>
               </button>
             </div>
-          ) : (
-            <div className="flex flex-col gap-2">
-              {groups.map((group) => {
-                const meta = getGroupTypeLabel(group.groupType);
-                const isSelected = selectedGroup?.id === group.id;
-                return (
-                  <div
-                    key={group.id}
-                    onClick={() => setSelectedGroup(group)}
-                    className={`group-nav-item flex items-center justify-between p-3.5 rounded-2xl border transition cursor-pointer ${
-                      isSelected
-                        ? 'is-selected bg-emerald-50/70 dark:bg-emerald-950/40 border-emerald-300 dark:border-emerald-700 shadow-2xs'
-                        : 'bg-white dark:bg-slate-900 border-[#e5ede7] dark:border-slate-800 hover:border-emerald-200'
-                    }`}
-                  >
-                    <div className="flex items-center gap-3 min-w-0">
-                      <div
-                        className="grid size-10 place-items-center rounded-xl shrink-0 group-type-badge border"
-                        style={{
-                          backgroundColor: meta.bg,
-                          color: meta.color,
-                          borderColor: 'transparent',
-                          ['--dark-bg' as any]: meta.darkBg,
-                          ['--dark-color' as any]: meta.darkColor,
-                          ['--dark-border' as any]: meta.darkBorder,
-                        }}
-                      >
-                        <FinanceIcon name={meta.icon} size={18} />
-                      </div>
-                      <div className="min-w-0">
-                        <h4 className="text-sm font-bold text-[#14261e] dark:text-slate-100 truncate m-0">
-                          {group.name}
-                        </h4>
-                        <div className="flex items-center gap-2 mt-0.5 text-[11px] text-[#718579] dark:text-slate-400">
-                          <span>{meta.label}</span>
-                          <span>·</span>
-                          <span>{group.memberCount || 1} thành viên</span>
+
+            {loading ? (
+              <div className="rounded-2xl bg-white dark:bg-slate-900 border border-[#e2ece5] dark:border-slate-800 p-8 text-center text-xs text-[#718579]">
+                Đang tải danh sách nhóm...
+              </div>
+            ) : groups.length === 0 ? (
+              <div className="rounded-2xl bg-white dark:bg-slate-900 border border-[#e2ece5] dark:border-slate-800 p-8 text-center flex flex-col items-center gap-3">
+                <div className="size-12 rounded-full bg-emerald-50 text-[#07543f] grid place-items-center">
+                  <FinanceIcon name="users" size={24} />
+                </div>
+                <p className="text-sm font-bold text-[#14261e] dark:text-slate-100 m-0">
+                  Bạn chưa tham gia nhóm nào
+                </p>
+                <p className="text-xs text-[#718579] dark:text-slate-400 m-0">
+                  Hãy tạo nhóm gia đình hoặc bạn bè để cùng chia tiền sinh hoạt
+                </p>
+                <button
+                  type="button"
+                  onClick={() => setIsCreateModalOpen(true)}
+                  className="mt-2 h-9 px-4 rounded-xl bg-[#07543f] text-xs font-bold text-white hover:bg-[#064232] transition"
+                >
+                  + Tạo nhóm đầu tiên
+                </button>
+              </div>
+            ) : (
+              <div className="flex flex-col gap-2">
+                {groups.map((group) => {
+                  const meta = getGroupTypeLabel(group.groupType);
+                  const isSelected = selectedGroup?.id === group.id;
+                  return (
+                    <div
+                      key={group.id}
+                      onClick={() => setSelectedGroup(group)}
+                      className={`group-nav-item flex items-center justify-between p-3.5 rounded-2xl border transition cursor-pointer ${
+                        isSelected
+                          ? 'is-selected bg-emerald-50/70 dark:bg-emerald-950/40 border-emerald-300 dark:border-emerald-700 shadow-2xs'
+                          : 'bg-white dark:bg-slate-900 border-[#e5ede7] dark:border-slate-800 hover:border-emerald-200'
+                      }`}
+                    >
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div
+                          className="grid size-10 place-items-center rounded-xl shrink-0 group-type-badge border"
+                          style={{
+                            backgroundColor: meta.bg,
+                            color: meta.color,
+                            borderColor: 'transparent',
+                            ['--dark-bg' as any]: meta.darkBg,
+                            ['--dark-color' as any]: meta.darkColor,
+                            ['--dark-border' as any]: meta.darkBorder,
+                          }}
+                        >
+                          <FinanceIcon name={meta.icon} size={18} />
+                        </div>
+                        <div className="min-w-0">
+                          <h4 className="text-sm font-bold text-[#14261e] dark:text-slate-100 truncate m-0">
+                            {group.name}
+                          </h4>
+                          <div className="flex items-center gap-2 mt-0.5 text-[11px] text-[#718579] dark:text-slate-400">
+                            <span>{meta.label}</span>
+                            <span>·</span>
+                            <span>{group.memberCount || 1} thành viên</span>
+                          </div>
                         </div>
                       </div>
-                    </div>
 
-                    <div className="text-right shrink-0">
-                      <span className="text-[12px] font-bold text-[#07543f] dark:text-emerald-400 block">
-                        {(group.totalExpenses || 0).toLocaleString('vi-VN')} đ
-                      </span>
-                      <span className="text-[10px] text-[#84968c]">tổng chi</span>
+                      <div className="text-right shrink-0">
+                        <span className="text-[12px] font-bold text-[#07543f] dark:text-emerald-400 block">
+                          {(group.totalExpenses || 0).toLocaleString('vi-VN')} đ
+                        </span>
+                        <span className="text-[10px] text-[#84968c]">tổng chi</span>
+                      </div>
                     </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
 
-        {/* Right Column: Active Group Detail Panel (Spans 9 cols) */}
-        <div className={`lg:col-span-9 flex flex-col gap-5 ${!selectedGroup ? 'hidden lg:flex' : 'flex'}`}>
+        {/* Right Column: Active Group Detail Panel (Spans full 12 cols if child account, otherwise 9 cols) */}
+        <div className={`${isChildAccount ? 'lg:col-span-12' : 'lg:col-span-9'} flex flex-col gap-5 ${!selectedGroup ? 'hidden lg:flex' : 'flex'}`}>
           {selectedGroup ? (
             <div className="rounded-3xl bg-white dark:bg-slate-900 border border-[#e2ece5] dark:border-slate-800 p-5 sm:p-6 flex flex-col gap-5 shadow-xs">
               {/* Group Banner Info */}
@@ -1556,14 +1561,16 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
                 <div>
                   <div className="flex items-center gap-2.5 flex-wrap">
                     {/* Mobile Back Button to Groups List */}
-                    <button
-                      type="button"
-                      onClick={() => setSelectedGroup(null)}
-                      className="lg:hidden h-7 px-2 rounded-lg bg-gray-100 dark:bg-slate-800 text-[#07543f] dark:text-emerald-300 text-xs font-bold flex items-center gap-1 hover:bg-gray-200"
-                      title="Quay lại danh sách nhóm"
-                    >
-                      <span>← Danh sách</span>
-                    </button>
+                    {!isChildAccount && (
+                      <button
+                        type="button"
+                        onClick={() => setSelectedGroup(null)}
+                        className="lg:hidden h-7 px-2 rounded-lg bg-gray-100 dark:bg-slate-800 text-[#07543f] dark:text-emerald-300 text-xs font-bold flex items-center gap-1 hover:bg-gray-200"
+                        title="Quay lại danh sách nhóm"
+                      >
+                        <span>← Danh sách</span>
+                      </button>
+                    )}
                     <span className="rounded-md bg-emerald-100 dark:bg-emerald-950 px-2 py-0.5 text-[10px] font-bold text-[#07543f] dark:text-emerald-400">
                       {getGroupTypeLabel(selectedGroup.groupType).label}
                     </span>
@@ -4612,8 +4619,10 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
                               : chore.status === 'SUBMITTED'
                               ? 'bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300'
                               : chore.status === 'REJECTED'
+                              ? 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300'
+                              : chore.status === 'FAILED'
                               ? 'bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300'
-                              : 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300'
+                              : 'bg-slate-100 text-slate-800 dark:bg-slate-800 dark:text-slate-300'
                           }`}
                         >
                           {chore.status === 'APPROVED'
@@ -4622,6 +4631,8 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
                             ? 'Bé đã làm xong'
                             : chore.status === 'REJECTED'
                             ? 'Cần làm lại'
+                            : chore.status === 'FAILED'
+                            ? 'Không thành công'
                             : 'Đang thực hiện'}
                         </span>
                       </div>
@@ -4658,11 +4669,23 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
                               type="button"
                               onClick={() => {
                                 setRejectingChoreId(chore.id);
+                                setRejectActionType('RETRY');
                                 setChoreRejectReason('');
                               }}
-                              className="h-7 px-2.5 rounded-lg border border-rose-300 hover:bg-rose-50 text-rose-600 text-[11px] font-bold transition"
+                              className="h-7 px-2 rounded-lg border border-amber-300 hover:bg-amber-50 text-amber-700 text-[11px] font-bold transition"
                             >
-                              Yêu cầu làm lại
+                              Làm lại
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setRejectingChoreId(chore.id);
+                                setRejectActionType('FAILED');
+                                setChoreRejectReason('');
+                              }}
+                              className="h-7 px-2 rounded-lg border border-rose-300 hover:bg-rose-50 text-rose-600 text-[11px] font-bold transition"
+                            >
+                              Không đạt
                             </button>
                           </>
                         )}
@@ -4841,19 +4864,25 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
           onClick={() => setRejectingChoreId(null)}
         >
           <div
-            className="w-full max-w-sm rounded-3xl bg-white dark:bg-slate-900 p-5 shadow-2xl border border-rose-200 dark:border-slate-800"
+            className={`w-full max-w-sm rounded-3xl bg-white dark:bg-slate-900 p-5 shadow-2xl border ${
+              rejectActionType === 'FAILED' ? 'border-rose-200 dark:border-rose-900/40' : 'border-amber-200 dark:border-amber-900/40'
+            }`}
             onClick={(e) => e.stopPropagation()}
           >
-            <h4 className="text-sm font-bold text-rose-600 m-0 mb-1">Yêu cầu bé làm lại</h4>
+            <h4 className={`text-sm font-bold m-0 mb-1 ${rejectActionType === 'FAILED' ? 'text-rose-600' : 'text-amber-600'}`}>
+              {rejectActionType === 'FAILED' ? 'Đánh dấu không thành công' : 'Yêu cầu bé làm lại'}
+            </h4>
             <p className="text-xs text-gray-600 dark:text-slate-400 mb-3">
-              Nhập lời nhắn nhắc nhở để bé sửa lại:
+              {rejectActionType === 'FAILED'
+                ? 'Nhập lý do nhiệm vụ không đạt để bé rút kinh nghiệm:'
+                : 'Nhập lời nhắn nhắc nhở để bé sửa lại:'}
             </p>
             <form onSubmit={handleRejectChore} className="flex flex-col gap-3">
               <input
                 type="text"
                 value={choreRejectReason}
                 onChange={(e) => setChoreRejectReason(e.target.value)}
-                placeholder="VD: Con nhớ lau thêm mặt bàn nữa nhé..."
+                placeholder={rejectActionType === 'FAILED' ? 'VD: Quá hạn hoặc chưa đạt yêu cầu...' : 'VD: Con nhớ lau thêm mặt bàn nữa nhé...'}
                 className="w-full h-10 px-3 rounded-xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-medium"
                 required
                 autoFocus
@@ -4868,9 +4897,11 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
                 </button>
                 <button
                   type="submit"
-                  className="h-8 px-4 rounded-lg bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs"
+                  className={`h-8 px-4 rounded-lg text-white font-bold text-xs ${
+                    rejectActionType === 'FAILED' ? 'bg-rose-600 hover:bg-rose-700' : 'bg-amber-600 hover:bg-amber-700'
+                  }`}
                 >
-                  Gửi nhắc nhở
+                  {rejectActionType === 'FAILED' ? 'Xác nhận không đạt' : 'Gửi yêu cầu'}
                 </button>
               </div>
             </form>

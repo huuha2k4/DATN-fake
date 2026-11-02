@@ -5,5 +5,6 @@ public enum ChoreStatus {
     IN_PROGRESS,
     SUBMITTED,
     APPROVED,
-    REJECTED
+    REJECTED,
+    FAILED
 }
