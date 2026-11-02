@@ -32,6 +32,17 @@ export function FinancialNavigationSection({ active, onNavigate, isOpen, onClose
     if (onClose) onClose()
   }
 
+  // Danh sách các mục menu hiển thị: nếu là tài khoản trẻ em thì xếp "Ví của em" ngay dưới "Thêm giao dịch" và trên "Quản lý Thu & Chi"
+  const menuItems: { label: string; icon: IconName }[] = isChildAccount
+    ? [
+        { label: 'Tổng quan', icon: 'grid' },
+        { label: 'Thêm giao dịch', icon: 'plus' },
+        { label: 'Ví của em', icon: 'wallet' },
+        { label: 'Quản lý Thu & Chi', icon: 'arrows' },
+        { label: 'Chi tiêu Nhóm', icon: 'users' },
+      ]
+    : navigation
+
   return <>
     {/* Mobile backdrop */}
     {isOpen && (
@@ -65,7 +76,7 @@ export function FinancialNavigationSection({ active, onNavigate, isOpen, onClose
       </div>
       <p className="nav-caption">KHÔNG GIAN TÀI CHÍNH</p>
       <nav className="nav-list" aria-label="Điều hướng tài chính">
-        {navigation.filter((item) => !isChildAccount || ['Tổng quan', 'Thêm giao dịch', 'Quản lý Thu & Chi', 'Chi tiêu Nhóm'].includes(item.label)).map((item) => (
+        {menuItems.map((item) => (
           <button 
             key={item.label} 
             type="button" 
@@ -82,4 +93,3 @@ export function FinancialNavigationSection({ active, onNavigate, isOpen, onClose
     </aside>
   </>
 }
-

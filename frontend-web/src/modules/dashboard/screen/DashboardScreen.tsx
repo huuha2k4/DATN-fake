@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+﻿import { useState, useEffect, useMemo } from 'react';
 import { FinanceIcon, resolveCategoryIconName, type IconName } from '../../core/components/FinanceIcon';
 import { accountApi, type AccountItem, type AccountSummary } from '../../account-management/api/accountApi';
 import { transactionApi, type TransactionItem } from '../../cash-flow-management/api/transactionApi';
@@ -148,7 +148,7 @@ export function DashboardScreen({ onNotify, onAddTransaction }: Props) {
         const prevIncome = prevMonthTxs.filter((item) => item.transactionType === 'INCOME').reduce((sum, item) => sum + item.amount, 0);
         const prevExpense = prevMonthTxs.filter((item) => item.transactionType === 'EXPENSE').reduce((sum, item) => sum + item.amount, 0);
 
-        setTransactions(childTransactions);
+        setTransactions(currentMonthTxs);
         setMonthSummary({ totalIncome, totalExpense, netCashFlow: totalIncome - totalExpense, transactionCount: currentMonthTxs.length });
         setPrevMonthBalance(prevIncome - prevExpense);
         setCurrentBudget(null);
@@ -272,7 +272,7 @@ export function DashboardScreen({ onNotify, onAddTransaction }: Props) {
     weeks[3].isCurrent = currentDay > 21;
 
     // Phân bổ giao dịch thực tế vào từng tuần
-    transactions.forEach((tx) => {
+    transactions.filter((tx) => !tx.transactionDate || tx.transactionDate.startsWith(currentMonthKey)).forEach((tx) => {
       const day = parseInt(tx.transactionDate?.split('-')[2] || '1', 10);
       let weekIdx = 0;
       if (day <= 7) weekIdx = 0;
@@ -303,7 +303,7 @@ export function DashboardScreen({ onNotify, onAddTransaction }: Props) {
         expensePercent,
       };
     });
-  }, [transactions, currentMonthNum]);
+  }, [transactions, currentMonthNum, currentMonthKey]);
 
   // Tổng tài sản khả dụng thực tế
   const totalAssets = accountSummary?.summary?.totalAssets ?? 

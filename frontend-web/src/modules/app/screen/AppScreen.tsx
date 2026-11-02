@@ -58,14 +58,12 @@ export default function AppScreen() {
 
   // Auto-dismiss notice after 5 seconds
   useEffect(() => {
-    if (!notice) return;
-    const timer = setTimeout(() => {
-      setNotice('');
-    }, 5000);
-    return () => clearTimeout(timer);
+    if (!notice) return
+    const timer = setTimeout(() => setNotice(''), 5000)
+    return () => clearTimeout(timer)
   }, [notice])
 
-  // Tự động đóng menu trên mobile khi đổi route
+  // Close mobile sidebar on route change
   useEffect(() => {
     setIsMobileNavOpen(false);
   }, [location.pathname])
@@ -119,6 +117,7 @@ export default function AppScreen() {
         onNavigate={(section) => {
           // Map sections to routes
           const routes: Record<string, string> = {
+            'Ví của em': '/child-wallet',
             '__CHILD_WALLET__': '/child-wallet',
             'Tổng quan': '/dashboard',
             'Thêm giao dịch': '/add-transaction',
