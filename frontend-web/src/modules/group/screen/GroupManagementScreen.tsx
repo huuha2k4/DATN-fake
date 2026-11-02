@@ -1363,6 +1363,13 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
   const myMemberInfo = members.find((m) => m.userId === currentUser?.id);
   const myRole = myMemberInfo?.role || (selectedGroup?.ownerId === currentUser?.id ? 'OWNER' : selectedGroup?.myRole);
   const isLeader = !isChildAccount && (myRole === 'OWNER' || myRole === 'ADMIN' || selectedGroup?.ownerId === currentUser?.id);
+
+  // Đối với tài khoản trẻ em: mặc định vào tab Trò chuyện, không truy cập các tab thu chi
+  useEffect(() => {
+    if (isChildAccount && (activeTab === 'OVERVIEW' || activeTab === 'EXPENSES' || activeTab === 'BALANCES' || activeTab === 'CHILD_WALLETS')) {
+      setActiveTab('CHAT');
+    }
+  }, [isChildAccount, activeTab]);
   const memberName = (userId?: string, suppliedName?: string) => {
     const isPlaceholder = !suppliedName || /^user\s+[0-9a-f-]{16,}$/i.test(suppliedName.trim());
     return (!isPlaceholder ? suppliedName : undefined)
@@ -1573,20 +1580,23 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
 
                 {/* Quick Action Buttons */}
                 <div className="flex items-center gap-2 flex-wrap">
-                  <button
-                    type="button"
-                    onClick={() => setIsExpenseModalOpen(true)}
-                    className="h-9 px-3.5 rounded-xl bg-[#07543f] text-xs font-bold text-white hover:bg-[#064232] transition flex items-center gap-1.5 shadow-2xs"
-                  >
-                    <FinanceIcon name="plus" size={14} />
-                    <span>Thêm khoản chi</span>
-                  </button>
+                  {!isChildAccount && (
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => setIsExpenseModalOpen(true)}
+                        className="h-9 px-3.5 rounded-xl bg-[#07543f] text-xs font-bold text-white hover:bg-[#064232] transition flex items-center gap-1.5 shadow-2xs"
+                      >
+                        <FinanceIcon name="plus" size={14} />
+                        <span>Thêm khoản chi</span>
+                      </button>
 
-                  {/* Chỉ Trưởng nhóm hoặc Quản trị viên mới thấy nút Mời thành viên */}
-                  <button type="button" onClick={() => setIsFundModalOpen(true)} className="h-9 px-3.5 rounded-xl border border-emerald-300 text-xs font-bold text-[#07543f] hover:bg-emerald-50 transition flex items-center gap-1.5">
-                    <FinanceIcon name="wallet" size={14} />
-                    <span>Nộp quỹ</span>
-                  </button>
+                      <button type="button" onClick={() => setIsFundModalOpen(true)} className="h-9 px-3.5 rounded-xl border border-emerald-300 text-xs font-bold text-[#07543f] hover:bg-emerald-50 transition flex items-center gap-1.5">
+                        <FinanceIcon name="wallet" size={14} />
+                        <span>Nộp quỹ</span>
+                      </button>
+                    </>
+                  )}
 
                   {(isLeader || myMemberInfo?.role === 'OWNER') && (
                     <div className="relative">
@@ -1603,30 +1613,34 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
 
               {/* Sub-tabs Navigation */}
               <div className="flex border-b border-[#edf3ef] dark:border-slate-800 gap-2 sm:gap-4 overflow-x-auto no-scrollbar">
-                <button
-                  type="button"
-                  onClick={() => setActiveTab('OVERVIEW')}
-                  className={`pb-3 text-xs font-bold transition border-b-2 flex items-center gap-1.5 whitespace-nowrap ${
-                    activeTab === 'OVERVIEW'
-                      ? 'border-[#07543f] text-[#07543f] dark:text-emerald-400'
-                      : 'border-transparent text-gray-500 hover:text-gray-900 dark:text-slate-400 dark:hover:text-slate-200'
-                  }`}
-                >
-                  <FinanceIcon name="chart" size={15} />
-                  <span>Tổng quan</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setActiveTab('EXPENSES')}
-                  className={`pb-3 text-xs font-bold transition border-b-2 flex items-center gap-1.5 whitespace-nowrap ${
-                    activeTab === 'EXPENSES'
-                      ? 'border-[#07543f] text-[#07543f] dark:text-emerald-400'
-                      : 'border-transparent text-gray-500 hover:text-gray-900 dark:text-slate-400 dark:hover:text-slate-200'
-                  }`}
-                >
-                  <FinanceIcon name="receipt" size={15} />
-                  <span>Thu & chi ({expenses.length + fundContributions.length})</span>
-                </button>
+                {!isChildAccount && (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => setActiveTab('OVERVIEW')}
+                      className={`pb-3 text-xs font-bold transition border-b-2 flex items-center gap-1.5 whitespace-nowrap ${
+                        activeTab === 'OVERVIEW'
+                          ? 'border-[#07543f] text-[#07543f] dark:text-emerald-400'
+                          : 'border-transparent text-gray-500 hover:text-gray-900 dark:text-slate-400 dark:hover:text-slate-200'
+                      }`}
+                    >
+                      <FinanceIcon name="chart" size={15} />
+                      <span>Tổng quan</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setActiveTab('EXPENSES')}
+                      className={`pb-3 text-xs font-bold transition border-b-2 flex items-center gap-1.5 whitespace-nowrap ${
+                        activeTab === 'EXPENSES'
+                          ? 'border-[#07543f] text-[#07543f] dark:text-emerald-400'
+                          : 'border-transparent text-gray-500 hover:text-gray-900 dark:text-slate-400 dark:hover:text-slate-200'
+                      }`}
+                    >
+                      <FinanceIcon name="receipt" size={15} />
+                      <span>Thu & chi ({expenses.length + fundContributions.length})</span>
+                    </button>
+                  </>
+                )}
                 <button
                   type="button"
                   onClick={() => setActiveTab('CHAT')}
@@ -1656,7 +1670,7 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
                   <FinanceIcon name="users" size={15} />
                   <span>Thành viên ({members.length})</span>
                 </button>
-                {selectedGroup.groupType === 'FAMILY' && (
+                {!isChildAccount && selectedGroup.groupType === 'FAMILY' && (
                   <button
                     type="button"
                     onClick={() => setActiveTab('CHILD_WALLETS')}
@@ -1670,7 +1684,7 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
                     <span>Ví trẻ em ({childWallets.length})</span>
                   </button>
                 )}
-                {selectedGroup.groupType !== 'FAMILY' && selectedGroup.groupType !== 'COUPLE' && (
+                {!isChildAccount && selectedGroup.groupType !== 'FAMILY' && selectedGroup.groupType !== 'COUPLE' && (
                   <>
                     <button
                       type="button"

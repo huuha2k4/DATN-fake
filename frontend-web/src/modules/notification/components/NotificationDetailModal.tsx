@@ -55,6 +55,56 @@ function getNotificationVisual(type: NotificationType): { icon: IconName; bgClas
         colorClass: 'text-teal-600 dark:text-teal-400',
         label: 'Báo cáo & Phân tích',
       };
+    case 'GROUP_INVITATION':
+    case 'GROUP_EXPENSE':
+      return {
+        icon: 'group',
+        bgClass: 'bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-200 dark:border-emerald-900/60',
+        colorClass: 'text-emerald-600 dark:text-emerald-400',
+        label: 'Chi tiêu nhóm',
+      };
+    case 'GROUP_COMMENT':
+      return {
+        icon: 'bell',
+        bgClass: 'bg-indigo-50 dark:bg-indigo-950/50 border border-indigo-200 dark:border-indigo-900/60',
+        colorClass: 'text-indigo-600 dark:text-indigo-400',
+        label: 'Bình luận nhóm',
+      };
+    case 'CHILD_MONEY_REQUEST':
+      return {
+        icon: 'wallet',
+        bgClass: 'bg-amber-50 dark:bg-amber-950/50 border border-amber-200 dark:border-amber-900/60',
+        colorClass: 'text-amber-600 dark:text-amber-400',
+        label: 'Yêu cầu của con',
+      };
+    case 'CHILD_CHORE_COMPLETED':
+      return {
+        icon: 'spark',
+        bgClass: 'bg-amber-50 dark:bg-amber-950/50 border border-amber-200 dark:border-amber-900/60',
+        colorClass: 'text-amber-600 dark:text-amber-400',
+        label: 'Nhiệm vụ của con',
+      };
+    case 'CHILD_MONEY_RECEIVED':
+      return {
+        icon: 'wallet',
+        bgClass: 'bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-200 dark:border-emerald-900/60',
+        colorClass: 'text-emerald-600 dark:text-emerald-400',
+        label: 'Cộng tiền vào ví',
+      };
+    case 'CHILD_REQUEST_RESPONDED':
+      return {
+        icon: 'spark',
+        bgClass: 'bg-amber-50 dark:bg-amber-950/50 border border-amber-200 dark:border-amber-900/60',
+        colorClass: 'text-amber-600 dark:text-amber-400',
+        label: 'Phản hồi yêu cầu',
+      };
+    case 'CHILD_CHORE_ASSIGNED':
+      return {
+        icon: 'spark',
+        bgClass: 'bg-indigo-50 dark:bg-indigo-950/50 border border-indigo-200 dark:border-indigo-900/60',
+        colorClass: 'text-indigo-600 dark:text-indigo-400',
+        label: 'Nhiệm vụ mới',
+      };
     case 'SYSTEM':
     default:
       return {

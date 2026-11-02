@@ -46,6 +46,7 @@ public class GroupExpenseService {
     private final GroupFundContributionRepository groupFundContributionRepository;
     private final com.finance.finance.modules.category.repository.CategoryRepository categoryRepository;
     private final com.finance.finance.modules.user.repository.UserRepository userRepository;
+    private final com.finance.finance.modules.notification.service.NotificationService notificationService;
 
     @Transactional
     public ExpenseResponse createExpense(UUID groupId, CreateExpenseRequest request, UUID currentUserId) {
@@ -126,6 +127,30 @@ public class GroupExpenseService {
         logActivity(groupId, currentUserId, ActivityType.EXPENSE_ADDED,
                 "Added expense: " + expense.getDescription(),
                 Map.of("expenseId", expense.getId().toString(), "amount", expense.getAmount().toString()));
+
+        // Notify other group members
+        try {
+            String groupName = groupRepository.findById(groupId).map(com.finance.finance.modules.group.entity.Group::getName).orElse("nhóm");
+            String creatorName = userRepository.findById(currentUserId)
+                    .map(u -> u.getFullName() != null && !u.getFullName().isBlank() ? u.getFullName() : u.getUsername())
+                    .orElse("Một thành viên");
+            List<GroupMember> members = groupMemberRepository.findByGroupId(groupId);
+            for (GroupMember member : members) {
+                if (!member.getUserId().equals(currentUserId)) {
+                    notificationService.createNotification(
+                            member.getUserId(),
+                            com.finance.finance.common.enums.NotificationType.GROUP_EXPENSE,
+                            com.finance.finance.common.enums.NotificationPriority.NORMAL,
+                            "Giao dịch mới trong nhóm " + groupName,
+                            creatorName + " vừa thêm khoản chi \"" + expense.getDescription() + "\" với số tiền " + String.format("%,d", expense.getAmount().longValue()) + "đ trong nhóm " + groupName + ".",
+                            "/groups",
+                            "Xem nhóm"
+                    );
+                }
+            }
+        } catch (Exception e) {
+            log.warn("Failed to send group expense notification: {}", e.getMessage());
+        }
 
         return buildExpenseResponse(expense, splits);
     }

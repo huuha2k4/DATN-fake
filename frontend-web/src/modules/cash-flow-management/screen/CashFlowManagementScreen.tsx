@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+﻿import { useEffect, useMemo, useRef, useState } from 'react';
 import { FinanceIcon, resolveCategoryIconName, getCategoryCanonicalKey } from '../../core/components/FinanceIcon';
 import { 
   transactionApi, 
@@ -812,6 +812,7 @@ export function CashFlowManagementScreen({ onNotify, onAddTransaction }: Props) 
                 <span>Khoản chi</span>
               </button>
 
+              {!isChildAccount && (
               <button
                 type="button"
                 onClick={() => { setActiveTab('TRANSFER'); setSelectedCategory('ALL'); setCurrentPage(1); }}
@@ -823,6 +824,7 @@ export function CashFlowManagementScreen({ onNotify, onAddTransaction }: Props) 
               >
                 <span>Chuyển ví</span>
               </button>
+              )}
             </div>
 
             {/* Ô tìm kiếm kéo dài ngay sát sau tab Chuyển ví tới hết hàng */}

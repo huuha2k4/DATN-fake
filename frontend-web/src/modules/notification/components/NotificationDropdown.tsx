@@ -63,6 +63,29 @@ function getNotificationVisual(type: NotificationType): VisualConfig {
         bgClass: 'bg-teal-50 dark:bg-teal-950/50 border border-teal-200 dark:border-teal-900/60',
         colorClass: 'text-teal-600 dark:text-teal-400',
       };
+    case 'GROUP_INVITATION':
+    case 'GROUP_EXPENSE':
+      return {
+        icon: 'group',
+        bgClass: 'bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-200 dark:border-emerald-900/60',
+        colorClass: 'text-emerald-600 dark:text-emerald-400',
+      };
+    case 'GROUP_COMMENT':
+      return {
+        icon: 'bell',
+        bgClass: 'bg-indigo-50 dark:bg-indigo-950/50 border border-indigo-200 dark:border-indigo-900/60',
+        colorClass: 'text-indigo-600 dark:text-indigo-400',
+      };
+    case 'CHILD_MONEY_REQUEST':
+    case 'CHILD_CHORE_COMPLETED':
+    case 'CHILD_MONEY_RECEIVED':
+    case 'CHILD_REQUEST_RESPONDED':
+    case 'CHILD_CHORE_ASSIGNED':
+      return {
+        icon: 'spark',
+        bgClass: 'bg-amber-50 dark:bg-amber-950/50 border border-amber-200 dark:border-amber-900/60',
+        colorClass: 'text-amber-600 dark:text-amber-400',
+      };
     case 'SYSTEM':
     default:
       return {

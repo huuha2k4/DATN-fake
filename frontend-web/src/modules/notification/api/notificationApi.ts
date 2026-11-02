@@ -15,6 +15,14 @@ export type NotificationType =
   | 'INSIGHT_GENERATED'
   | 'WEEKLY_SUMMARY'
   | 'MONTHLY_REPORT'
+  | 'GROUP_INVITATION'
+  | 'GROUP_EXPENSE'
+  | 'GROUP_COMMENT'
+  | 'CHILD_MONEY_REQUEST'
+  | 'CHILD_CHORE_COMPLETED'
+  | 'CHILD_MONEY_RECEIVED'
+  | 'CHILD_REQUEST_RESPONDED'
+  | 'CHILD_CHORE_ASSIGNED'
   | 'SYSTEM';
 
 export type NotificationPriority = 'HIGH' | 'NORMAL' | 'LOW';

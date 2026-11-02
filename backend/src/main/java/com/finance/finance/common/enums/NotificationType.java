@@ -80,6 +80,41 @@ public enum NotificationType {
     GROUP_INVITATION,
 
     /**
+     * Giao dịch mới trong nhóm
+     */
+    GROUP_EXPENSE,
+
+    /**
+     * Bình luận mới trong nhóm
+     */
+    GROUP_COMMENT,
+
+    /**
+     * Con xin cấp tiền
+     */
+    CHILD_MONEY_REQUEST,
+
+    /**
+     * Con hoàn thành nhiệm vụ
+     */
+    CHILD_CHORE_COMPLETED,
+
+    /**
+     * Bé được nạp / cho tiền
+     */
+    CHILD_MONEY_RECEIVED,
+
+    /**
+     * Yêu cầu xin tiền của bé được duyệt hoặc từ chối
+     */
+    CHILD_REQUEST_RESPONDED,
+
+    /**
+     * Bé được giao nhiệm vụ mới
+     */
+    CHILD_CHORE_ASSIGNED,
+
+    /**
      * Thông báo hệ thống
      */
     SYSTEM

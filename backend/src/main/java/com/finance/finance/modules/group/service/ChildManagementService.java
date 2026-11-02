@@ -23,10 +23,16 @@ import com.finance.finance.common.enums.TransactionSource;
 import com.finance.finance.modules.group.dto.request.CreateMoneyRequest;
 import com.finance.finance.modules.group.repository.GroupFundRepository;
 import com.finance.finance.modules.group.repository.GroupExpenseRepository;
+import com.finance.finance.modules.group.repository.GroupRepository;
 import com.finance.finance.modules.group.entity.GroupFund;
 import com.finance.finance.modules.group.entity.GroupExpense;
+import com.finance.finance.modules.group.entity.GroupMember;
+import com.finance.finance.modules.notification.service.NotificationService;
+import com.finance.finance.common.enums.NotificationType;
+import com.finance.finance.common.enums.NotificationPriority;
 import com.finance.finance.common.enums.SplitMethod;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -34,21 +40,25 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class ChildManagementService {
 
     private final ChildSpendRequestRepository spendRequestRepository;
     private final ChildChoreRepository choreRepository;
     private final ChildWalletRepository walletRepository;
     private final GroupMemberRepository groupMemberRepository;
+    private final GroupRepository groupRepository;
     private final CategoryRepository categoryRepository;
     private final AccountRepository accountRepository;
     private final TransactionRepository transactionRepository;
     private final GroupFundRepository groupFundRepository;
     private final GroupExpenseRepository groupExpenseRepository;
+    private final NotificationService notificationService;
 
     // ============ Spend Requests ============
 
@@ -75,7 +85,30 @@ public class ChildManagementService {
                 .walletId(walletId).amount(request.getAmount()).categoryId(categoryId)
                 .description(MONEY_REQUEST_PREFIX + request.getDescription().trim())
                 .status(SpendRequestStatus.PENDING).createdAt(LocalDateTime.now()).updatedAt(LocalDateTime.now()).build();
-        return buildSpendRequestResponse(spendRequestRepository.save(moneyRequest));
+        moneyRequest = spendRequestRepository.save(moneyRequest);
+
+        try {
+            String groupName = groupRepository.findById(groupId).map(com.finance.finance.modules.group.entity.Group::getName).orElse("nhóm");
+            String childName = wallet.getChildName() != null ? wallet.getChildName() : "Bé";
+            List<GroupMember> members = groupMemberRepository.findByGroupId(groupId);
+            for (GroupMember member : members) {
+                if (wallet.getUserId() == null || !member.getUserId().equals(wallet.getUserId())) {
+                    notificationService.createNotification(
+                            member.getUserId(),
+                            NotificationType.CHILD_MONEY_REQUEST,
+                            NotificationPriority.HIGH,
+                            childName + " đã gửi yêu cầu xin tiền",
+                            childName + " đang xin " + String.format("%,d", request.getAmount().longValue()) + "đ trong nhóm " + groupName + ". Lý do: " + request.getDescription().trim(),
+                            "/groups",
+                            "Xem yêu cầu"
+                    );
+                }
+            }
+        } catch (Exception e) {
+            log.warn("Failed to send child money request notification: {}", e.getMessage());
+        }
+
+        return buildSpendRequestResponse(moneyRequest);
     }
 
     @Transactional
@@ -268,6 +301,23 @@ public class ChildManagementService {
         // TODO: Create actual transaction with transactionId from request
 
         spendRequest = spendRequestRepository.save(spendRequest);
+
+        if (wallet.getUserId() != null) {
+            try {
+                notificationService.createNotification(
+                        wallet.getUserId(),
+                        NotificationType.CHILD_REQUEST_RESPONDED,
+                        NotificationPriority.HIGH,
+                        "Yêu cầu xin tiền đã được duyệt! 🎉",
+                        "Yêu cầu xin " + String.format("%,d", spendRequest.getAmount().longValue()) + "đ của bạn đã được duyệt và cộng vào ví.",
+                        "/child-wallet",
+                        "Xem ví của em"
+                );
+            } catch (Exception e) {
+                log.warn("Failed to notify child on approved request: {}", e.getMessage());
+            }
+        }
+
         return buildSpendRequestResponse(spendRequest);
     }
 
@@ -295,6 +345,25 @@ public class ChildManagementService {
         spendRequest.setUpdatedAt(LocalDateTime.now());
 
         spendRequest = spendRequestRepository.save(spendRequest);
+
+        ChildWallet wallet = walletRepository.findById(walletId).orElse(null);
+        if (wallet != null && wallet.getUserId() != null) {
+            try {
+                String reason = request.getReason() != null && !request.getReason().isBlank() ? " Lý do: " + request.getReason() : "";
+                notificationService.createNotification(
+                        wallet.getUserId(),
+                        NotificationType.CHILD_REQUEST_RESPONDED,
+                        NotificationPriority.NORMAL,
+                        "Yêu cầu xin tiền chưa được duyệt",
+                        "Yêu cầu xin " + String.format("%,d", spendRequest.getAmount().longValue()) + "đ của bạn chưa được chấp thuận." + reason,
+                        "/child-wallet",
+                        "Xem ví của em"
+                );
+            } catch (Exception e) {
+                log.warn("Failed to notify child on rejected request: {}", e.getMessage());
+            }
+        }
+
         return buildSpendRequestResponse(spendRequest);
     }
 
@@ -351,6 +420,26 @@ public class ChildManagementService {
                 .build();
 
         chore = choreRepository.save(chore);
+
+        if (wallet.getUserId() != null) {
+            try {
+                String rewardStr = chore.getRewardAmount() != null && chore.getRewardAmount().compareTo(BigDecimal.ZERO) > 0
+                        ? " Phần thưởng: " + String.format("%,d", chore.getRewardAmount().longValue()) + "đ."
+                        : "";
+                notificationService.createNotification(
+                        wallet.getUserId(),
+                        NotificationType.CHILD_CHORE_ASSIGNED,
+                        NotificationPriority.NORMAL,
+                        "Bạn có nhiệm vụ mới! 🎯",
+                        "Bạn vừa được giao nhiệm vụ: " + chore.getTitle() + "." + rewardStr,
+                        "/child-wallet",
+                        "Xem nhiệm vụ"
+                );
+            } catch (Exception e) {
+                log.warn("Failed to notify child on new chore: {}", e.getMessage());
+            }
+        }
+
         return buildChoreResponse(chore);
     }
 
@@ -397,6 +486,29 @@ public class ChildManagementService {
         chore.setUpdatedAt(LocalDateTime.now());
 
         chore = choreRepository.save(chore);
+
+        try {
+            ChildWallet wallet = walletRepository.findById(walletId).orElse(null);
+            String groupName = groupRepository.findById(groupId).map(com.finance.finance.modules.group.entity.Group::getName).orElse("nhóm");
+            String childName = (wallet != null && wallet.getChildName() != null) ? wallet.getChildName() : "Bé";
+            List<GroupMember> members = groupMemberRepository.findByGroupId(groupId);
+            for (GroupMember member : members) {
+                if (wallet == null || wallet.getUserId() == null || !member.getUserId().equals(wallet.getUserId())) {
+                    notificationService.createNotification(
+                            member.getUserId(),
+                            NotificationType.CHILD_CHORE_COMPLETED,
+                            NotificationPriority.HIGH,
+                            childName + " đã hoàn thành nhiệm vụ!",
+                            childName + " vừa gửi xác nhận hoàn thành nhiệm vụ: " + chore.getTitle() + " trong nhóm " + groupName + ". Hãy kiểm tra và duyệt thưởng nhé!",
+                            "/groups",
+                            "Duyệt nhiệm vụ"
+                    );
+                }
+            }
+        } catch (Exception e) {
+            log.warn("Failed to send chore completed notification: {}", e.getMessage());
+        }
+
         return buildChoreResponse(chore);
     }
 
@@ -514,6 +626,22 @@ public class ChildManagementService {
                 .build();
         spendRequestRepository.save(choreRewardRecord);
 
+        if (wallet.getUserId() != null) {
+            try {
+                notificationService.createNotification(
+                        wallet.getUserId(),
+                        NotificationType.CHILD_MONEY_RECEIVED,
+                        NotificationPriority.HIGH,
+                        "Nhiệm vụ đã được duyệt! 🎉",
+                        "Nhiệm vụ " + chore.getTitle() + " đã được duyệt! Bạn được thưởng " + String.format("%,d", reward.longValue()) + "đ vào ví.",
+                        "/child-wallet",
+                        "Xem ví của em"
+                );
+            } catch (Exception e) {
+                log.warn("Failed to notify child on approved chore: {}", e.getMessage());
+            }
+        }
+
         return buildChoreResponse(chore);
     }
 
@@ -539,6 +667,25 @@ public class ChildManagementService {
         chore.setUpdatedAt(LocalDateTime.now());
 
         chore = choreRepository.save(chore);
+
+        ChildWallet wallet = walletRepository.findById(walletId).orElse(null);
+        if (wallet != null && wallet.getUserId() != null) {
+            try {
+                String reason = request.getReason() != null && !request.getReason().isBlank() ? " Lý do: " + request.getReason() : "";
+                notificationService.createNotification(
+                        wallet.getUserId(),
+                        NotificationType.CHILD_REQUEST_RESPONDED,
+                        NotificationPriority.NORMAL,
+                        "Nhiệm vụ chưa được duyệt",
+                        "Nhiệm vụ " + chore.getTitle() + " của bạn chưa được duyệt." + reason,
+                        "/child-wallet",
+                        "Xem nhiệm vụ"
+                );
+            } catch (Exception e) {
+                log.warn("Failed to notify child on rejected chore: {}", e.getMessage());
+            }
+        }
+
         return buildChoreResponse(chore);
     }
 

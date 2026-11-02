@@ -59,6 +59,56 @@ function getNotificationVisual(type: NotificationType): { icon: IconName; bg: st
         color: '#16a34a',
         label: 'Báo cáo & Phân tích',
       };
+    case 'GROUP_INVITATION':
+    case 'GROUP_EXPENSE':
+      return {
+        icon: 'group',
+        bg: 'bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400 border-emerald-100 dark:border-emerald-900/60',
+        color: '#059669',
+        label: 'Chi tiêu nhóm',
+      };
+    case 'GROUP_COMMENT':
+      return {
+        icon: 'bell',
+        bg: 'bg-indigo-50 dark:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400 border-indigo-100 dark:border-indigo-900/60',
+        color: '#6366f1',
+        label: 'Bình luận nhóm',
+      };
+    case 'CHILD_MONEY_REQUEST':
+      return {
+        icon: 'wallet',
+        bg: 'bg-amber-50 dark:bg-amber-950/50 text-amber-600 dark:text-amber-400 border-amber-100 dark:border-amber-900/60',
+        color: '#d97706',
+        label: 'Yêu cầu của con',
+      };
+    case 'CHILD_CHORE_COMPLETED':
+      return {
+        icon: 'spark',
+        bg: 'bg-amber-50 dark:bg-amber-950/50 text-amber-600 dark:text-amber-400 border-amber-100 dark:border-amber-900/60',
+        color: '#d97706',
+        label: 'Nhiệm vụ của con',
+      };
+    case 'CHILD_MONEY_RECEIVED':
+      return {
+        icon: 'wallet',
+        bg: 'bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400 border-emerald-100 dark:border-emerald-900/60',
+        color: '#059669',
+        label: 'Cộng tiền vào ví',
+      };
+    case 'CHILD_REQUEST_RESPONDED':
+      return {
+        icon: 'spark',
+        bg: 'bg-amber-50 dark:bg-amber-950/50 text-amber-600 dark:text-amber-400 border-amber-100 dark:border-amber-900/60',
+        color: '#d97706',
+        label: 'Phản hồi yêu cầu',
+      };
+    case 'CHILD_CHORE_ASSIGNED':
+      return {
+        icon: 'spark',
+        bg: 'bg-indigo-50 dark:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400 border-indigo-100 dark:border-indigo-900/60',
+        color: '#6366f1',
+        label: 'Nhiệm vụ mới',
+      };
     case 'SYSTEM':
     default:
       return {

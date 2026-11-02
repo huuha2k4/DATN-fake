@@ -33,6 +33,9 @@ import com.finance.finance.modules.transaction.entity.Transaction;
 import com.finance.finance.modules.transaction.repository.TransactionRepository;
 import com.finance.finance.modules.user.entity.User;
 import com.finance.finance.modules.user.repository.UserRepository;
+import com.finance.finance.modules.notification.service.NotificationService;
+import com.finance.finance.common.enums.NotificationType;
+import com.finance.finance.common.enums.NotificationPriority;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -55,6 +58,7 @@ public class ChildWalletService {
     private final ChildSpendRequestRepository spendRequestRepository;
     private final GroupMemberRepository groupMemberRepository;
     private final UserRepository userRepository;
+    private final NotificationService notificationService;
     private final PasswordEncoder passwordEncoder;
     private final AccountRepository accountRepository;
     private final TransactionRepository transactionRepository;
@@ -356,6 +360,26 @@ public class ChildWalletService {
                 .updatedAt(LocalDateTime.now())
                 .build();
         spendRequestRepository.save(depositRecord);
+
+        // Notify child if child has an account
+        if (wallet.getUserId() != null) {
+            try {
+                String senderName = userRepository.findById(currentUserId)
+                        .map(u -> u.getFullName() != null && !u.getFullName().isBlank() ? u.getFullName() : u.getUsername())
+                        .orElse("Phụ huynh");
+                notificationService.createNotification(
+                        wallet.getUserId(),
+                        NotificationType.CHILD_MONEY_RECEIVED,
+                        NotificationPriority.HIGH,
+                        "Bạn vừa được cộng tiền vào ví! 🎉",
+                        senderName + " đã nạp cho bạn " + String.format("%,d", request.getAmount().longValue()) + "đ (" + note + ").",
+                        "/child-wallet",
+                        "Xem ví của em"
+                );
+            } catch (Exception e) {
+                log.warn("Failed to send child deposit notification: {}", e.getMessage());
+            }
+        }
 
         return buildWalletResponse(wallet);
     }

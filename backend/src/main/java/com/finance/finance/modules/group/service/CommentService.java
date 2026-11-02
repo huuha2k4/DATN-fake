@@ -8,7 +8,14 @@ import com.finance.finance.modules.group.dto.response.CommentResponse;
 import com.finance.finance.modules.group.entity.TransactionComment;
 import com.finance.finance.modules.group.repository.GroupMemberRepository;
 import com.finance.finance.modules.group.repository.TransactionCommentRepository;
+import com.finance.finance.modules.group.repository.GroupRepository;
+import com.finance.finance.modules.group.entity.GroupMember;
+import com.finance.finance.modules.user.repository.UserRepository;
+import com.finance.finance.modules.notification.service.NotificationService;
+import com.finance.finance.common.enums.NotificationType;
+import com.finance.finance.common.enums.NotificationPriority;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -21,10 +28,14 @@ import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class CommentService {
 
     private final TransactionCommentRepository commentRepository;
     private final GroupMemberRepository groupMemberRepository;
+    private final GroupRepository groupRepository;
+    private final UserRepository userRepository;
+    private final NotificationService notificationService;
 
     @Transactional
     public CommentResponse createComment(UUID groupId, CreateCommentRequest request, UUID currentUserId) {
@@ -45,6 +56,31 @@ public class CommentService {
                 .build();
 
         comment = commentRepository.save(comment);
+
+        // Notify other group members
+        try {
+            String groupName = groupRepository.findById(groupId).map(com.finance.finance.modules.group.entity.Group::getName).orElse("nhóm");
+            String commenterName = userRepository.findById(currentUserId)
+                    .map(u -> u.getFullName() != null && !u.getFullName().isBlank() ? u.getFullName() : u.getUsername())
+                    .orElse("Một thành viên");
+            List<GroupMember> members = groupMemberRepository.findByGroupId(groupId);
+            for (GroupMember member : members) {
+                if (!member.getUserId().equals(currentUserId)) {
+                    notificationService.createNotification(
+                            member.getUserId(),
+                            NotificationType.GROUP_COMMENT,
+                            NotificationPriority.NORMAL,
+                            "Bình luận mới trong nhóm " + groupName,
+                            commenterName + " đã bình luận: \"" + (comment.getContent().length() > 60 ? comment.getContent().substring(0, 57) + "..." : comment.getContent()) + "\"",
+                            "/groups",
+                            "Xem bình luận"
+                    );
+                }
+            }
+        } catch (Exception e) {
+            log.warn("Failed to send comment notification: {}", e.getMessage());
+        }
+
         return buildCommentResponse(comment);
     }
 
