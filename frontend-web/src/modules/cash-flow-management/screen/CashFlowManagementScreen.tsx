@@ -175,8 +175,8 @@ export function CashFlowManagementScreen({ onNotify, onAddTransaction }: Props) 
         const income = filtered.filter((entry) => entry.transactionType === 'INCOME').reduce((sum, entry) => sum + entry.amount, 0);
         const expense = filtered.filter((entry) => entry.transactionType === 'EXPENSE').reduce((sum, entry) => sum + entry.amount, 0);
 
-        // Phân trang trên client cho ví của bé (15 giao dịch mỗi trang)
-        const pageSize = 15;
+        // Phân trang trên client cho ví của bé (10 giao dịch mỗi trang)
+        const pageSize = 10;
         const totalItemsCount = filtered.length;
         const totalPagesCount = Math.max(1, Math.ceil(totalItemsCount / pageSize));
         const startIndex = (currentPage - 1) * pageSize;
@@ -202,7 +202,7 @@ export function CashFlowManagementScreen({ onNotify, onAddTransaction }: Props) 
 
       const res = await transactionApi.getTransactions({
         page: currentPage,
-        pageSize: 15,
+        pageSize: 10,
         search: debouncedSearch || undefined,
         transactionType: activeTab === 'ALL' ? undefined : activeTab,
         categoryId: selectedCategory === 'ALL' ? undefined : selectedCategory,
