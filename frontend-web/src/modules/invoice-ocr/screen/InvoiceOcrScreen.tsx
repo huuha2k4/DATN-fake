@@ -3,6 +3,30 @@ import { FinanceIcon } from '../../core/components/FinanceIcon';
 import { ocrApi, type OcrReceiptResult } from '../api/ocrApi';
 import { accountApi, type AccountItem } from '../../account-management/api/accountApi';
 import { transactionApi, type CategoryItem } from '../../cash-flow-management/api/transactionApi';
+import './InvoiceOcrScreen.css';
+
+function formatIsoToDdMmYyyy(iso?: string): string {
+  if (!iso) return '';
+  const clean = iso.slice(0, 10);
+  const parts = clean.split('-');
+  if (parts.length === 3) {
+    return `${parts[2]}/${parts[1]}/${parts[0]}`;
+  }
+  return iso;
+}
+
+function parseDdMmYyyyToIso(val: string): string {
+  if (!val) return '';
+  if (/^\d{4}-\d{2}-\d{2}$/.test(val)) return val;
+  const parts = val.trim().replace(/-/g, '/').split('/');
+  if (parts.length === 3) {
+    const [d, m, y] = parts;
+    if (y && y.length === 4 && d && m) {
+      return `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`;
+    }
+  }
+  return val;
+}
 
 type Props = {
   onCancel: () => void;
@@ -11,6 +35,7 @@ type Props = {
 
 export function InvoiceOcrScreen({ onCancel, onNotify }: Props) {
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const datePickerInputRef = useRef<HTMLInputElement>(null);
 
   // Loading & scan states
   const [scanning, setScanning] = useState(false);
@@ -294,7 +319,7 @@ export function InvoiceOcrScreen({ onCancel, onNotify }: Props) {
   }, [recentReceipts, historySearch, historyTab]);
 
   return (
-    <main className="mx-auto flex h-[calc(100vh-68px)] max-h-[calc(100vh-68px)] w-full flex-1 flex-col bg-[#f6f8f6] dark:bg-[#07131e] p-2 sm:p-3 lg:p-4 text-[#14251f] dark:text-slate-100 overflow-hidden">
+    <main className="ocr-workspace-page mx-auto flex h-[calc(100vh-68px)] max-h-[calc(100vh-68px)] w-full flex-1 flex-col bg-[#f6f8f6] dark:bg-[#07131e] p-2 sm:p-3 lg:p-4 pb-6 sm:pb-6 text-[#14251f] dark:text-slate-100 overflow-hidden">
       {/* Hidden File Input */}
       <input
         ref={fileInputRef}
@@ -308,15 +333,15 @@ export function InvoiceOcrScreen({ onCancel, onNotify }: Props) {
       <div className="grid w-full h-full flex-1 gap-3 sm:gap-4 lg:grid-cols-12 items-stretch min-h-0 overflow-hidden">
         
         {/* LEFT COLUMN (6 COLS): Large Receipt Image Viewer / Upload Dropzone */}
-        <div className="lg:col-span-6 xl:col-span-6 2xl:col-span-6 flex flex-col h-full rounded-2xl border border-[#e2ece5] dark:border-white/10 bg-white dark:bg-[#0c1a24] shadow-sm overflow-hidden min-h-0">
+        <div className="lg:col-span-6 xl:col-span-6 2xl:col-span-6 ocr-panel-card">
           
           {/* Card Top Toolbar (Clean, harmonious light theme) */}
-          <div className="px-4 py-3 bg-white dark:bg-slate-900 border-b border-[#edf3ef] dark:border-slate-800 flex items-center justify-between shrink-0">
+          <div className="ocr-card-header">
             <div className="flex items-center gap-2.5">
               <button
                 type="button"
                 onClick={onCancel}
-                className="size-8 rounded-xl border border-[#e2ece5] dark:border-slate-700 bg-[#f8faf9] dark:bg-slate-800 hover:bg-emerald-50 dark:hover:bg-slate-700 text-[#07543f] dark:text-emerald-400 grid place-items-center transition shadow-2xs"
+                className="ocr-tool-btn ocr-tool-btn-ghost !size-8 !p-0"
                 title="Quay lại danh sách"
               >
                 <FinanceIcon name="arrow" size={13} className="rotate-180" />
@@ -337,7 +362,7 @@ export function InvoiceOcrScreen({ onCancel, onNotify }: Props) {
                 <button
                   type="button"
                   onClick={() => setLightboxOpen(true)}
-                  className="h-8 px-2.5 rounded-xl border border-[#e2ece5] dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-gray-50 dark:hover:bg-slate-700 text-xs font-semibold text-gray-700 dark:text-slate-200 transition flex items-center gap-1 shadow-2xs"
+                  className="ocr-tool-btn ocr-tool-btn-ghost !h-8"
                   title="Phóng to toàn màn hình"
                 >
                   <FinanceIcon name="eye" size={13} />
@@ -347,7 +372,13 @@ export function InvoiceOcrScreen({ onCancel, onNotify }: Props) {
               <button
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
-                className="h-8 px-3 rounded-xl bg-[#07543f] hover:bg-[#064232] text-white text-xs font-bold transition flex items-center gap-1.5 shadow-sm active:scale-95"
+                className="ocr-tool-btn ocr-tool-btn-primary !h-8"
+              >
+                <FinanceIcon name="plus" size={13} />
+                <span>{previewUrl ? 'Đổi ảnh' : 'Chọn ảnh'}</span>
+              </button>
+            </div>
+          </div>
               >
                 <FinanceIcon name="plus" size={13} />
                 <span>{previewUrl ? 'Đổi ảnh' : 'Chọn ảnh'}</span>
@@ -453,19 +484,15 @@ export function InvoiceOcrScreen({ onCancel, onNotify }: Props) {
         </div>
 
         {/* RIGHT COLUMN (6 COLS): Extracted Form & Recent Receipts Tabs */}
-        <div className="lg:col-span-6 xl:col-span-6 2xl:col-span-6 flex flex-col h-full rounded-2xl border border-[#e2ece5] dark:border-white/10 bg-white dark:bg-[#0c1a24] shadow-sm overflow-hidden min-h-0">
+        <div className="lg:col-span-6 xl:col-span-6 2xl:col-span-6 ocr-panel-card">
           
           {/* Top Segmented Tabs Bar */}
-          <div className="px-4 py-2 border-b border-[#edf3ef] dark:border-slate-800 flex items-center justify-between shrink-0 bg-[#f9fbf9] dark:bg-slate-900/80">
-            <div className="flex h-8 items-center rounded-xl bg-[#e9f0eb] dark:bg-slate-800 p-0.5 border border-[#dce7df] dark:border-slate-700">
+          <div className="ocr-tabs-bar">
+            <div className="ocr-tabs-pill-track">
               <button
                 type="button"
                 onClick={() => setActiveRightTab('FORM')}
-                className={`h-full px-3.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 whitespace-nowrap ${
-                  activeRightTab === 'FORM'
-                    ? 'bg-white dark:bg-[#07543f] text-[#07543f] dark:text-white shadow-xs'
-                    : 'text-gray-600 dark:text-slate-300 hover:text-gray-900'
-                }`}
+                className={`ocr-tab-btn ${activeRightTab === 'FORM' ? 'is-active' : ''}`}
               >
                 <FinanceIcon name="receipt" size={13} />
                 <span>Thông tin hóa đơn</span>
@@ -480,11 +507,7 @@ export function InvoiceOcrScreen({ onCancel, onNotify }: Props) {
                     handleSelectRecentReceipt(firstWithImage);
                   }
                 }}
-                className={`h-full px-3.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 whitespace-nowrap ${
-                  activeRightTab === 'HISTORY'
-                    ? 'bg-white dark:bg-[#07543f] text-[#07543f] dark:text-white shadow-xs'
-                    : 'text-gray-600 dark:text-slate-300 hover:text-gray-900'
-                }`}
+                className={`ocr-tab-btn ${activeRightTab === 'HISTORY' ? 'is-active' : ''}`}
               >
                 <FinanceIcon name="clock" size={13} />
                 <span>Lịch sử ({recentReceipts.length})</span>
@@ -506,14 +529,14 @@ export function InvoiceOcrScreen({ onCancel, onNotify }: Props) {
           {/* TAB 1: FORM CONTENT */}
           {activeRightTab === 'FORM' && (
             <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
-              <div className="flex-1 overflow-y-auto p-4 sm:p-5 flex flex-col gap-3.5">
+              <div className="ocr-form-scroll">
                 
-                {/* Clean, Harmonious Amount Card */}
-                <div className="rounded-2xl border border-emerald-200/70 dark:border-emerald-800/60 bg-gradient-to-br from-emerald-50/70 via-[#f4f9f6] to-white dark:from-slate-900 dark:via-slate-900 dark:to-slate-850 p-4 text-center shadow-2xs relative overflow-hidden shrink-0">
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-[#07543f] dark:text-emerald-400 block mb-1">
+                {/* Clean Luxury FinTech Amount Card */}
+                <div className="ocr-amount-card">
+                  <span className="ocr-amount-title">
                     Tổng tiền thanh toán (VNĐ)
                   </span>
-                  <div className="flex items-center justify-center gap-1.5">
+                  <div className="ocr-amount-input-row">
                     <input
                       type="text"
                       inputMode="numeric"
@@ -523,15 +546,15 @@ export function InvoiceOcrScreen({ onCancel, onNotify }: Props) {
                         const raw = e.target.value.replace(/\D/g, '');
                         setAmount(raw);
                       }}
-                      className="bg-transparent text-center font-black text-3xl sm:text-4xl text-[#07543f] dark:text-white outline-none border-none ring-0 tracking-tight max-w-[280px]"
+                      className="ocr-amount-input"
                     />
-                    <span className="text-2xl sm:text-3xl font-black text-emerald-600 dark:text-emerald-400 select-none">
+                    <span className="ocr-amount-currency">
                       ₫
                     </span>
                   </div>
 
                   {scanResult?.aiCategoryName && (
-                    <div className="mt-2 inline-flex items-center gap-1 rounded-full bg-emerald-100/80 dark:bg-emerald-950/80 px-2.5 py-0.5 text-[10px] font-bold text-[#07543f] dark:text-emerald-300 border border-emerald-200/80 dark:border-emerald-800/60">
+                    <div className="ocr-ai-chip">
                       <FinanceIcon name="spark" size={11} />
                       <span>Danh mục AI: {scanResult.aiCategoryName}</span>
                     </div>
@@ -539,34 +562,39 @@ export function InvoiceOcrScreen({ onCancel, onNotify }: Props) {
                 </div>
 
                 {/* Form Inputs Grid */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
                   {/* Tên quán / Đơn vị */}
-                  <label className="sm:col-span-2 flex flex-col gap-1 text-[11px] font-bold text-gray-700 dark:text-slate-300">
+                  <label className="ocr-field-label sm:col-span-2">
                     <span>Đơn vị / Cửa hàng</span>
-                    <input
-                      type="text"
-                      value={merchant}
-                      onChange={(e) => setMerchant(e.target.value)}
-                      placeholder="VD: Highlands Coffee, WinMart..."
-                      className="h-10 w-full rounded-xl border border-[#e2ece5] dark:border-slate-700 bg-[#f9fbf9] dark:bg-slate-900 px-3 text-xs font-semibold text-gray-800 dark:text-white outline-none focus:border-[#07543f] focus:ring-2 focus:ring-[#07543f]/20 transition"
-                    />
+                    <div className="ocr-input-icon-group">
+                      <input
+                        type="text"
+                        value={merchant}
+                        onChange={(e) => setMerchant(e.target.value)}
+                        placeholder="VD: Highlands Coffee, WinMart, Siêu thị..."
+                        className="ocr-field-control"
+                      />
+                      <span className="ocr-input-icon-btn pointer-events-none">
+                        <FinanceIcon name="store" size={14} />
+                      </span>
+                    </div>
                   </label>
 
                   {/* Danh mục */}
-                  <label className="flex flex-col gap-1 text-[11px] font-bold text-gray-700 dark:text-slate-300">
-                    <span className="flex items-center justify-between">
-                      <span>Danh mục</span>
+                  <label className="ocr-field-label">
+                    <div className="ocr-label-header">
+                      <span>Danh mục chi tiêu</span>
                       {scanResult?.aiCategoryName && (
-                        <span className="text-[10px] font-semibold text-[#07543f] dark:text-emerald-400 flex items-center gap-0.5">
+                        <span className="text-[10px] font-bold text-[#07543f] dark:text-emerald-400 flex items-center gap-0.5">
                           <FinanceIcon name="spark" size={10} />
                           AI gợi ý
                         </span>
                       )}
-                    </span>
+                    </div>
                     <select
                       value={selectedCategoryId}
                       onChange={(e) => setSelectedCategoryId(e.target.value)}
-                      className="h-10 w-full rounded-xl border border-[#e2ece5] dark:border-slate-700 bg-[#f9fbf9] dark:bg-slate-900 px-3 text-xs font-semibold text-gray-800 dark:text-white outline-none focus:border-[#07543f] focus:ring-2 focus:ring-[#07543f]/20 transition"
+                      className="ocr-field-control"
                     >
                       {categories.map((c) => (
                         <option key={c.id} value={c.id}>
@@ -577,12 +605,14 @@ export function InvoiceOcrScreen({ onCancel, onNotify }: Props) {
                   </label>
 
                   {/* Tài khoản thanh toán */}
-                  <label className="flex flex-col gap-1 text-[11px] font-bold text-gray-700 dark:text-slate-300">
-                    <span>Tài khoản thanh toán</span>
+                  <label className="ocr-field-label">
+                    <div className="ocr-label-header">
+                      <span>Tài khoản thanh toán</span>
+                    </div>
                     <select
                       value={selectedAccountId}
                       onChange={(e) => setSelectedAccountId(e.target.value)}
-                      className="h-10 w-full rounded-xl border border-[#e2ece5] dark:border-slate-700 bg-[#f9fbf9] dark:bg-slate-900 px-3 text-xs font-semibold text-gray-800 dark:text-white outline-none focus:border-[#07543f] focus:ring-2 focus:ring-[#07543f]/20 transition"
+                      className="ocr-field-control"
                     >
                       {accounts.map((a) => (
                         <option key={a.id} value={a.id}>
@@ -592,50 +622,94 @@ export function InvoiceOcrScreen({ onCancel, onNotify }: Props) {
                     </select>
                   </label>
 
-                  {/* Ngày giao dịch */}
-                  <label className="flex flex-col gap-1 text-[11px] font-bold text-gray-700 dark:text-slate-300">
-                    <span>Ngày hóa đơn</span>
-                    <input
-                      type="date"
-                      value={date}
-                      onChange={(e) => setDate(e.target.value)}
-                      className="h-10 w-full rounded-xl border border-[#e2ece5] dark:border-slate-700 bg-[#f9fbf9] dark:bg-slate-900 px-3 text-xs font-semibold text-gray-800 dark:text-white outline-none focus:border-[#07543f] focus:ring-2 focus:ring-[#07543f]/20 transition"
-                    />
+                  {/* Ngày hóa đơn (dd/mm/yyyy) */}
+                  <label className="ocr-field-label">
+                    <div className="ocr-label-header">
+                      <span>Ngày hóa đơn</span>
+                      <span className="text-[10px] text-gray-400 dark:text-slate-400 font-semibold">
+                        dd/mm/yyyy
+                      </span>
+                    </div>
+                    <div className="ocr-input-icon-group">
+                      <input
+                        type="text"
+                        value={formatIsoToDdMmYyyy(date)}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          const iso = parseDdMmYyyyToIso(val);
+                          setDate(iso);
+                        }}
+                        placeholder="dd/mm/yyyy"
+                        className="ocr-field-control font-mono"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (datePickerInputRef.current) {
+                            try {
+                              datePickerInputRef.current.showPicker();
+                            } catch {
+                              datePickerInputRef.current.focus();
+                            }
+                          }
+                        }}
+                        className="ocr-input-icon-btn"
+                        title="Chọn ngày từ lịch"
+                      >
+                        <FinanceIcon name="calendar" size={15} />
+                      </button>
+                      <input
+                        ref={datePickerInputRef}
+                        type="date"
+                        value={date.length === 10 ? date : ''}
+                        onChange={(e) => {
+                          if (e.target.value) setDate(e.target.value);
+                        }}
+                        className="sr-only"
+                        tabIndex={-1}
+                        aria-hidden="true"
+                      />
+                    </div>
                   </label>
 
                   {/* Giờ giao dịch */}
-                  <label className="flex flex-col gap-1 text-[11px] font-bold text-gray-700 dark:text-slate-300">
+                  <label className="ocr-field-label">
                     <span>Giờ giao dịch</span>
-                    <input
-                      type="time"
-                      value={time}
-                      onChange={(e) => setTime(e.target.value)}
-                      className="h-10 w-full rounded-xl border border-[#e2ece5] dark:border-slate-700 bg-[#f9fbf9] dark:bg-slate-900 px-3 text-xs font-semibold text-gray-800 dark:text-white outline-none focus:border-[#07543f] focus:ring-2 focus:ring-[#07543f]/20 transition"
-                    />
+                    <div className="ocr-input-icon-group">
+                      <input
+                        type="time"
+                        value={time}
+                        onChange={(e) => setTime(e.target.value)}
+                        className="ocr-field-control font-mono"
+                      />
+                      <span className="ocr-input-icon-btn pointer-events-none">
+                        <FinanceIcon name="clock" size={15} />
+                      </span>
+                    </div>
                   </label>
 
                   {/* Ghi chú */}
-                  <label className="sm:col-span-2 flex flex-col gap-1 text-[11px] font-bold text-gray-700 dark:text-slate-300">
+                  <label className="ocr-field-label sm:col-span-2">
                     <span>Ghi chú thêm</span>
                     <textarea
                       rows={2}
                       value={note}
                       onChange={(e) => setNote(e.target.value)}
-                      placeholder="Ghi chú chi tiết hóa đơn..."
-                      className="w-full rounded-xl border border-[#e2ece5] dark:border-slate-700 bg-[#f9fbf9] dark:bg-slate-900 p-2.5 text-xs font-medium text-gray-800 dark:text-white outline-none focus:border-[#07543f] focus:ring-2 focus:ring-[#07543f]/20 transition resize-none"
+                      placeholder="Nhập ghi chú chi tiết hóa đơn..."
+                      className="ocr-field-control"
                     />
                   </label>
                 </div>
               </div>
 
               {/* Form Action Footer */}
-              <div className="p-3.5 bg-[#f8faf9] dark:bg-slate-900 border-t border-[#e2ece5] dark:border-slate-800 shrink-0 flex items-center justify-end gap-2.5">
+              <div className="ocr-form-footer">
                 {scanResult && (
                   <button
                     type="button"
                     onClick={resetCurrentScan}
                     disabled={submitting}
-                    className="h-10 px-4 rounded-xl border border-[#d8e3dc] dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-gray-50 text-xs font-bold text-gray-700 dark:text-slate-200 transition"
+                    className="ocr-btn-reset"
                   >
                     Xóa form
                   </button>
@@ -645,7 +719,7 @@ export function InvoiceOcrScreen({ onCancel, onNotify }: Props) {
                   type="button"
                   onClick={handleConfirmTransaction}
                   disabled={submitting || !scanResult}
-                  className="h-10 px-6 rounded-xl bg-[#07543f] hover:bg-[#064232] text-xs font-bold text-white shadow-md hover:shadow-lg transition flex items-center gap-2 active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed"
+                  className="ocr-btn-submit"
                 >
                   {submitting ? (
                     <>
@@ -667,7 +741,7 @@ export function InvoiceOcrScreen({ onCancel, onNotify }: Props) {
           {activeRightTab === 'HISTORY' && (
             <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
               {/* Search & Filter Bar */}
-              <div className="p-3 border-b border-[#edf3ef] dark:border-slate-800 flex flex-col gap-2 shrink-0 bg-[#f9fbf9] dark:bg-slate-900/60">
+              <div className="ocr-history-filter-bar">
                 <div className="relative">
                   <FinanceIcon
                     name="search"
@@ -679,41 +753,29 @@ export function InvoiceOcrScreen({ onCancel, onNotify }: Props) {
                     value={historySearch}
                     onChange={(e) => setHistorySearch(e.target.value)}
                     placeholder="Tìm theo tên quán, danh mục..."
-                    className="h-8 w-full rounded-xl border border-[#e2ece5] dark:border-slate-700 bg-white dark:bg-slate-900 pl-8 pr-3 text-xs font-medium text-gray-800 dark:text-white outline-none focus:border-[#07543f] transition"
+                    className="ocr-field-control !h-8 !pl-8 !text-xs"
                   />
                 </div>
 
-                <div className="flex gap-1">
+                <div className="ocr-filter-track">
                   <button
                     type="button"
                     onClick={() => setHistoryTab('ALL')}
-                    className={`flex-1 h-6 rounded-lg text-[10px] font-bold transition ${
-                      historyTab === 'ALL'
-                        ? 'bg-[#07543f] text-white shadow-2xs'
-                        : 'text-gray-600 dark:text-slate-400 hover:bg-gray-100 dark:hover:bg-slate-800'
-                    }`}
+                    className={`ocr-filter-pill ${historyTab === 'ALL' ? 'is-active' : ''}`}
                   >
                     Tất cả
                   </button>
                   <button
                     type="button"
                     onClick={() => setHistoryTab('PAID')}
-                    className={`flex-1 h-6 rounded-lg text-[10px] font-bold transition ${
-                      historyTab === 'PAID'
-                        ? 'bg-[#07543f] text-white shadow-2xs'
-                        : 'text-gray-600 dark:text-slate-400 hover:bg-gray-100 dark:hover:bg-slate-800'
-                    }`}
+                    className={`ocr-filter-pill ${historyTab === 'PAID' ? 'is-active' : ''}`}
                   >
                     Đã lưu
                   </button>
                   <button
                     type="button"
                     onClick={() => setHistoryTab('DRAFT')}
-                    className={`flex-1 h-6 rounded-lg text-[10px] font-bold transition ${
-                      historyTab === 'DRAFT'
-                        ? 'bg-[#07543f] text-white shadow-2xs'
-                        : 'text-gray-600 dark:text-slate-400 hover:bg-gray-100 dark:hover:bg-slate-800'
-                    }`}
+                    className={`ocr-filter-pill ${historyTab === 'DRAFT' ? 'is-active' : ''}`}
                   >
                     Chưa lưu
                   </button>
@@ -745,11 +807,7 @@ export function InvoiceOcrScreen({ onCancel, onNotify }: Props) {
                       <div
                         key={r.id}
                         onClick={() => handleSelectRecentReceipt(r)}
-                        className={`group relative p-2.5 rounded-xl border transition cursor-pointer flex flex-col gap-1.5 ${
-                          isSelected
-                            ? 'border-[#07543f] bg-emerald-50/50 dark:bg-emerald-950/30 shadow-2xs'
-                            : 'border-[#edf3ef] dark:border-slate-800/80 bg-[#fbfdfb] dark:bg-slate-900/40 hover:bg-white dark:hover:bg-slate-900 hover:border-emerald-200'
-                        }`}
+                        className={`ocr-history-item ${isSelected ? 'is-selected' : ''}`}
                       >
                         <div className="flex items-center justify-between gap-2">
                           <div className="flex items-center gap-2.5 min-w-0">
@@ -758,10 +816,10 @@ export function InvoiceOcrScreen({ onCancel, onNotify }: Props) {
                               <img
                                 src={r.imageUrl}
                                 alt={r.merchantName || 'Hóa đơn'}
-                                className="size-11 rounded-lg object-cover border border-[#d8e3dc] dark:border-slate-700 shrink-0 shadow-2xs"
+                                className="ocr-history-thumb"
                               />
                             ) : (
-                              <div className="size-11 rounded-lg bg-emerald-100/70 dark:bg-emerald-950 text-[#07543f] dark:text-emerald-300 grid place-items-center shrink-0">
+                              <div className="ocr-thumb-placeholder">
                                 <FinanceIcon name="receipt" size={16} />
                               </div>
                             )}
@@ -770,8 +828,8 @@ export function InvoiceOcrScreen({ onCancel, onNotify }: Props) {
                               <h4 className="text-xs font-bold text-gray-900 dark:text-white truncate">
                                 {r.merchantName || 'Hóa đơn chưa đặt tên'}
                               </h4>
-                              <span className="text-[10px] text-gray-400 block">
-                                {[r.transactionDate, r.transactionTime?.slice(0, 5)].filter(Boolean).join(' · ') || 'Không rõ thời gian'}
+                              <span className="text-[10px] text-gray-400 dark:text-slate-400 block font-mono">
+                                {[formatIsoToDdMmYyyy(r.transactionDate), r.transactionTime?.slice(0, 5)].filter(Boolean).join(' · ') || 'Không rõ thời gian'}
                               </span>
                             </div>
                           </div>
