@@ -6,7 +6,7 @@ export type IconName =
   | 'trend' | 'income' | 'expense' | 'coffee' | 'bolt' | 'more' | 'arrow' | 'shield' | 'clock' | 'user' | 'logout' | 'key' | 'lock'
   | 'edit' | 'delete' | 'shopping-bag' | 'car' | 'home' | 'heart' | 'zap' | 'book' | 'film' | 'map' | 'piggy-bank' | 'credit-card' | 'help-circle' | 'briefcase' | 'gift' | 'trending-up' | 'store' | 'plus-circle' | 'eye'
   | 'sun' | 'moon' | 'borrowing' | 'lending' | 'hand-coins' | 'menu' | 'close'
-| 'burger' | 'pill' | 'users' | 'file-text' | 'utensils' | 'banknote' | 'paperclip' | 'image' | 'message-square' | 'alert-circle'
+  | 'burger' | 'pill' | 'users' | 'file-text' | 'utensils' | 'banknote' | 'paperclip' | 'image' | 'message-square' | 'alert-circle'
 
 export function FinanceIcon({ name, size = 18, className }: { name: IconName; size?: number; className?: string }) {
   const drawings: Record<IconName, ReactNode> = {
