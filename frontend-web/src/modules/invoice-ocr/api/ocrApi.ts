@@ -2,6 +2,7 @@ import { api } from '../../core/api/api';
 
 export interface OcrReceiptResult {
   id: string;
+  imageUrl?: string;
   kind: 'paid' | 'draft' | 'unknown';
   merchantName?: string;
   transactionDate?: string;

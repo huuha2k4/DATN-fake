@@ -29,6 +29,10 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
 import java.math.BigDecimal;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.nio.file.StandardCopyOption;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
@@ -49,8 +53,9 @@ public class OcrService {
     @Value("${app.ai.ocr-service-url}")
     private String aiServiceUrl;
 
-    private static final List<String> ALLOWED_CONTENT_TYPES = List.of("image/jpeg", "image/png");
-    private static final long MAX_FILE_SIZE = 10L * 1024 * 1024; // 10 MB
+    private static final List<String> ALLOWED_CONTENT_TYPES = List.of("image/jpeg", "image/png", "image/webp");
+    private static final long MAX_FILE_SIZE = 15L * 1024 * 1024; // 15 MB
+    private static final String RECEIPT_UPLOAD_DIR = "uploads/receipts";
 
     /**
      * Scan a receipt image via the AI OCR service and persist the result.
@@ -60,10 +65,31 @@ public class OcrService {
         // --- Validate ---
         String contentType = file.getContentType();
         if (contentType == null || !ALLOWED_CONTENT_TYPES.contains(contentType)) {
-            throw new IllegalArgumentException("Chỉ chấp nhận file JPEG hoặc PNG");
+            throw new IllegalArgumentException("Chỉ chấp nhận file JPEG, PNG hoặc WEBP");
         }
         if (file.getSize() > MAX_FILE_SIZE) {
-            throw new IllegalArgumentException("Kích thước file vượt quá 10MB");
+            throw new IllegalArgumentException("Kích thước file vượt quá 15MB");
+        }
+
+        // --- Save receipt image to uploads/receipts ---
+        String imageUrl = null;
+        try {
+            Path uploadDir = Paths.get(RECEIPT_UPLOAD_DIR);
+            if (!Files.exists(uploadDir)) {
+                Files.createDirectories(uploadDir);
+            }
+            String originalFilename = file.getOriginalFilename();
+            String extension = ".jpg";
+            if (originalFilename != null && originalFilename.lastIndexOf('.') > 0) {
+                extension = originalFilename.substring(originalFilename.lastIndexOf('.')).toLowerCase();
+            }
+            String filename = UUID.randomUUID() + extension;
+            Path targetPath = uploadDir.resolve(filename);
+            Files.copy(file.getInputStream(), targetPath, StandardCopyOption.REPLACE_EXISTING);
+            imageUrl = "/" + RECEIPT_UPLOAD_DIR + "/" + filename;
+            log.info("Saved receipt image to {}", imageUrl);
+        } catch (Exception e) {
+            log.warn("Could not save receipt image to disk: {}", e.getMessage());
         }
 
         // --- Build multipart request to AI service ---
@@ -126,6 +152,7 @@ public class OcrService {
         AiReceiptResult.AiCategory cat = result.getCategory();
         Receipt receipt = Receipt.builder()
                 .userId(userId)
+                .imageUrl(imageUrl)
                 .kind(result.getKind() != null ? result.getKind() : "unknown")
                 .merchantName(result.getMerchantName())
                 .transactionDate(txDate)
@@ -144,7 +171,7 @@ public class OcrService {
                 .build();
 
         receipt = receiptRepository.save(receipt);
-        log.info("Saved receipt id={} for user={}", receipt.getId(), userId);
+        log.info("Saved receipt id={} with image={} for user={}", receipt.getId(), imageUrl, userId);
 
         return toResponse(receipt);
     }
@@ -230,6 +257,14 @@ public class OcrService {
         Receipt receipt = receiptRepository.findByIdAndUserId(receiptId, userId)
                 .orElseThrow(() -> new EntityNotFoundException(
                         "Không tìm thấy receipt: " + receiptId));
+        if (receipt.getImageUrl() != null) {
+            try {
+                Path filePath = Paths.get(receipt.getImageUrl().replaceFirst("^/", ""));
+                Files.deleteIfExists(filePath);
+            } catch (Exception e) {
+                log.warn("Could not delete receipt file: {}", receipt.getImageUrl());
+            }
+        }
         receiptRepository.delete(receipt);
     }
 
@@ -240,6 +275,7 @@ public class OcrService {
     private OcrReceiptResponse toResponse(Receipt r) {
         return OcrReceiptResponse.builder()
                 .id(r.getId())
+                .imageUrl(r.getImageUrl())
                 .kind(r.getKind())
                 .merchantName(r.getMerchantName())
                 .transactionDate(r.getTransactionDate())

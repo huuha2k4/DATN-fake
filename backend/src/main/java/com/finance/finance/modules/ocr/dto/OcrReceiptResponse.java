@@ -16,6 +16,7 @@ import java.util.UUID;
 public class OcrReceiptResponse {
 
     private UUID id;
+    private String imageUrl;
     private String kind;
     private String merchantName;
     private LocalDate transactionDate;

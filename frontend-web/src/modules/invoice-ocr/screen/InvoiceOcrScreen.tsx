@@ -234,6 +234,12 @@ export function InvoiceOcrScreen({ onCancel, onNotify }: Props) {
   // Populate form from a historical receipt
   const handleSelectRecentReceipt = (r: OcrReceiptResult) => {
     setScanResult(r);
+    if (r.imageUrl) {
+      if (previewUrl && previewUrl.startsWith('blob:')) {
+        URL.revokeObjectURL(previewUrl);
+      }
+      setPreviewUrl(r.imageUrl);
+    }
     setMerchant(r.merchantName || 'Hóa đơn');
     if (r.transactionDate) setDate(r.transactionDate);
     if (r.transactionTime) setTime(r.transactionTime.slice(0, 5));
