@@ -1,0 +1,108 @@
+text,category,group,source
+tien dien thang 8,bills,tien dien,real
+dong tien dien,bills,tien dien,real
+dien luc ha noi,bills,dien luc,real
+EVN tien dien,bills,evn,real
+thanh toan hoa don dien,bills,tien dien,real
+tien nuoc thang 8,bills,tien nuoc,real
+cap nuoc ha noi SAWACO,bills,cap nuoc,real
+cuoc internet FPT,bills,fpt telecom,real
+tien wifi thang nay,bills,tien wifi,real
+nap the Viettel 100k,bills,viettel,real
+cuoc dien thoai Mobifone,bills,mobifone,real
+phi truyen hinh K+,bills,phi truyen hinh,real
+tien nuoc sinh hoat,bills,tien nuoc,real
+dong hoc phi ky 1,education,hoc phi,real
+tien hoc them tieng Anh,education,hoc them,real
+phi thi IELTS,education,ielts,real
+mua sach giao khoa lop 10,education,mua sach,real
+hoc phi khoa Python online,education,hoc phi,real
+tien hoc lai xe,education,hoc lai xe,real
+tien truong mau giao,education,truong mau giao,real
+khoa hoc Udemy,education,udemy,real
+phi thi chung chi tin hoc,education,phi thi,real
+dong hoc phi hoc ky 2,education,hoc phi,real
+tien nha thang 9,housing,tien nha,real
+tien thue phong tro,housing,tien phong,real
+dat coc thue nha,housing,dat coc,real
+phi quan ly chung cu,housing,phi quan ly,real
+tien phong thang 10,housing,tien phong,real
+tien sua chua nha,housing,sua nha,real
+tien nha tro,housing,tien nha,real
+dat coc phong tro,housing,dat coc,real
+tien thue nha thang 8,housing,tien nha,real
+mua thuoc cam sot,health,mua thuoc,real
+kham benh da khoa,health,kham benh,real
+tien vien phi benh vien,health,benh vien,real
+xet nghiem mau,health,xet nghiem,real
+kham rang tay,health,kham rang,real
+mua vitamin C,health,mua thuoc,real
+phi kham dinh ky,health,kham benh,real
+thuoc ha sot cho be,health,mua thuoc,real
+kham mat Mekong Eye,health,kham mat,real
+tien kham benh vien Thu Duc,health,benh vien,real
+Vinmec kham suc khoe,health,benh vien,real
+Long Chau mua thuoc,health,long chau,real
+Pharmacity mua thuoc,health,pharmacity,real
+ve may bay Vietnam Airlines,travel,vietnam airlines,real
+dat phong khach san,travel,khach san,real
+tour du lich Ha Long,travel,tour,real
+ve may bay VietJet Hanoi HCM,travel,vietjet,real
+tien khach san Nha Trang,travel,khach san,real
+dat ve tau Bac Nam,travel,ve tau,real
+tour Phu Quoc 3 ngay,travel,tour,real
+Agoda dat phong,travel,agoda,real
+Traveloka mua ve,travel,traveloka,real
+chuyen khoan tra no ban,transfer,chuyen khoan,real
+gui tien cho me,transfer,gui tien,real
+chuyen tien cho anh,transfer,gui tien,real
+hoan tien cho khach,transfer,hoan tien,real
+nap tien MoMo,transfer,momo,real
+nap vi ZaloPay,transfer,zalopay,real
+tra tien ban muon,transfer,tra tien,real
+chuyen khoan thanh toan,transfer,chuyen khoan,real
+gui tien ba o que,transfer,gui tien,real
+tra no the tin dung,transfer,tra no,real
+luong thang 8 cong ty,salary,luong,real
+nhan luong thang 9,salary,luong,real
+tien luong co ban,salary,luong,real
+luong cung ung lao dong,salary,luong,real
+thu nhap thang 10,salary,luong,real
+thuong tet Nguyen Dan,bonus,thuong,real
+thuong KPI quy 3,bonus,thuong,real
+thuong hoan thanh du an,bonus,thuong,real
+thuong cuoi nam 2024,bonus,thuong,real
+ba gui tien cho con,family,gia dinh,real
+me chuyen tien hoc phi,family,gia dinh,real
+anh cho muon tien,family,gia dinh,real
+gia dinh ho tro tien nha,family,gia dinh,real
+thu nhap them tu freelance,other_income,thu nhap,real
+ban hang online,other_income,ban hang,real
+hoa hong moi gioi,other_income,hoa hong,real
+lam them cuoi tuan,other_income,lam them,real
+xem phim CGV,entertainment,cgv,real
+Netflix thang 9,entertainment,netflix,real
+karaoke cuoi tuan,entertainment,karaoke,real
+mua ve concert Blackpink,entertainment,concert,real
+choi game nap xu,entertainment,game,real
+Lotte Cinema ve phim,entertainment,lotte cinema,real
+Spotify Premium,entertainment,spotify,real
+Galaxy Cinema ve 2 nguoi,entertainment,galaxy cinema,real
+do xang xe may Petrolimex,transport,petrolimex,real
+taxi Mai Linh di san bay,transport,taxi,real
+Grab xe om di lam,transport,grab,real
+gui xe may sieu thi,transport,gui xe,real
+rua xe o to,transport,rua xe,real
+ve xe buyt thang,transport,xe buyt,real
+phi cao toc Hanoi HCM,transport,phi cao toc,real
+thuoc la dan ong,health,mua thuoc,real
+nha sach,education,nha sach,real
+hieu sach van phong pham,education,hieu sach,real
+mua van phong pham,education,van phong pham,real
+mua but viet,education,van phong pham,real
+mua tap vo,education,van phong pham,real
+Nha sach Phuong Nam,education,nha sach phuong nam,real
+Nha sach Fahasa,education,nha sach fahasa,real
+Big C Thang Long,shopping,big c,real
+Tops Market,shopping,tops market,real
+Central Food,shopping,central food,real

@@ -1,0 +1,4 @@
+﻿config,n_images,total_acc_%,date_acc_%,merchant_sim_avg,merchant_acc_80%,total_null_%,avg_time_s
+P0_baseline,693,71.0,76.6,81.4,74.2,3.5,0.0
+P1_resize,693,71.0,76.6,81.4,74.2,3.5,0.0
+P2_contrast,693,71.0,76.6,81.4,74.2,3.5,0.0

@@ -22,6 +22,7 @@ import {
 import { getStoredUser } from '../../auth/api/authApi';
 import { userApi } from '../../user/api/userApi';
 import { accountApi, type AccountItem } from '../../account-management/api/accountApi';
+import { transactionApi } from '../../cash-flow-management/api/transactionApi';
 import './GroupManagementScreen.css';
 
 interface GroupManagementScreenProps {
@@ -557,7 +558,7 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
           .filter((id) => id !== currentUser?.id)
           .map((id) => {
             const mem = members.find((m) => m.userId === id);
-            return mem?.user?.fullName || mem?.user?.displayName || 'Ai đó';
+            return mem?.user?.fullName || 'Ai đó';
           });
         setTypingMemberNames(names);
       } catch {
@@ -1039,7 +1040,7 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
       setIsLoadingSpendRequests(true);
       const [reqs, cats] = await Promise.all([
         groupApi.getSpendRequests(selectedGroup.id, wallet.id),
-        groupApi.getCategories().catch(() => []),
+        transactionApi.getCategories('EXPENSE').catch(() => []),
       ]);
       setSpendRequests(reqs);
       setCategoriesList(cats || []);

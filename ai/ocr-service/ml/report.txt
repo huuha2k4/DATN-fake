@@ -1,0 +1,41 @@
+Best model: GradientBoosting
+CV (GroupKFold 5-fold): 0.9758 ± 0.0128
+
+=== CV Results ===
+  LogisticRegression: 0.9688 ± 0.0099
+  GradientBoosting: 0.9758 ± 0.0128
+
+=== Classification Report (dev set) ===
+              precision    recall  f1-score   support
+
+     ADDRESS       1.00      1.00      1.00       589
+      SELLER       1.00      1.00      1.00       356
+   TIMESTAMP       1.00      1.00      1.00       404
+  TOTAL_COST       1.00      1.00      1.00       636
+
+    accuracy                           1.00      1985
+   macro avg       1.00      1.00      1.00      1985
+weighted avg       1.00      1.00      1.00      1985
+
+
+=== Feature Importance ===
+  position               0.4159  ████████████████████
+  has_date               0.1864  █████████
+  n_letters              0.1381  ██████
+  all_upper              0.0499  ██
+  len_text               0.0470  ██
+  n_digits               0.0373  █
+  has_seller             0.0218  █
+  has_addr               0.0168  
+  total_kw_count         0.0159  
+  log_max_amount         0.0142  
+  has_total              0.0104  
+  x_right_ratio          0.0100  
+  digit_ratio            0.0099  
+  rel_height             0.0091  
+  has_colon              0.0068  
+  next_has_amount        0.0063  
+  prev_has_total         0.0033  
+  prev_has_amount        0.0007  
+  has_exclude            0.0002  
+  has_amount             0.0001  

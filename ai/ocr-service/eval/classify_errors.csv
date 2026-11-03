@@ -1,0 +1,86 @@
+﻿text,category,group,source,text_norm,pred,conf
+UNIQLO,shopping,uniqlo,real,uniqlo,food,0.22845073756826823
+SCTC cổ THổ 104 TRẦN PHÚ - CẨM,shopping,sctc co tho 104 tran phu cam,real,sctc co tho 104 tran phu cam,other,0.48120989461393543
+Công ty Cổ Phần Thế Giới Di Động,shopping,the gioi di dong,real,cong ty co phan the gioi di dong,other,0.21619420493590147
+VELUTINO,food,velutino,real,velutino,other,0.18919940319440903
+THỨC COFEE,food,thuc cofee,real,thuc cofee,other,0.43066455480993876
+sai gon co.op Co.op Food HN THE K - PARK,shopping,co op food,real,sai gon co op co op food hn the k park,other,0.3478562437691361
+VM Thàng Long,shopping,vm thang long,real,vm thang long,health,0.25090690852519215
+Legend,other,legend,real,legend,food,0.5965114254292636
+Gaigon Co.op,other,gaigon co op,real,gaigon co op,shopping,0.6124867862097422
+TRUNG TÂM THƯƠNG MAI AEON - HÀ ĐÔNG,shopping,aeon,real,trung tam thuong mai aeon ha dong,bonus,0.3590293488381374
+LOTTERIA,food,lotteria,real,lotteria,shopping,0.23581589353994986
+Melcome to Trung Nguyen Legend,food,trung nguyen,real,melcome to trung nguyen legend,other,0.5702334719604372
+UNIQLO ĐỒNG KHỞI,shopping,uniqlo,real,uniqlo dong khoi,education,0.15509198015196887
+BÁCH HOÀ XANH,shopping,bach hoa xanh,real,bach hoa xanh,transport,0.25142303110560665
+satrafoods Nguyễn Văn Quá 2,food,satrafoods nguyen van qua 2,real,satrafoods nguyen van qua 2,shopping,0.4027720370729194
+Xuân,other,xuan,real,xuan,food,0.2586801874359991
+Vincommerce,shopping,vincommerce,real,vincommerce,food,0.7492251767398371
+Pharmacity,health,pharmacity,real,pharmacity,other,0.4281585065108048
+Hẹl cong to Trung Nguyen Legend,food,trung nguyen,real,hel cong to trung nguyen legend,other,0.6297168841797686
+THÀNH PHỐ VINH,food,thanh pho vinh,real,thanh pho vinh,other,0.2939470983017672
+Vcommerce,food,vcommerce,real,vcommerce,shopping,0.36544523441324467
+Runa Corner,other,runa corner,real,runa corner,food,0.6710091241598155
+PHUC LONG,food,phuc long,real,phuc long,other,0.2582118743379279
+TIỀN ĐẠI LÝ:,other,tien dai ly,real,tien dai ly,housing,0.5409205792115686
+NHÀ SÁCH CẨM PHẢ,other,nha sach cam pha,real,nha sach cam pha,education,0.5744935832205411
+Co.opMart HAU GIANG,shopping,co opmart,real,co opmart hau giang,other,0.3119410011371427
+VinCommngerce,food,vincommngerce,real,vincommngerce,shopping,0.37976251943486383
+SIÊU THỊ BÁCH HOÁ TỔNG HỢP,shopping,sieu thi bach hoa tong hop,real,sieu thi bach hoa tong hop,education,0.34442343645526896
+BIEU THI BACH HOA TONG HOP,shopping,sieu thi bach hoa tong hop,real,bieu thi bach hoa tong hop,education,0.42800421224082646
+co.opmart,shopping,co opmart,real,co opmart,other,0.42751190257880356
+Welcome to Trung Nguyen Legend,food,trung nguyen,real,welcome to trung nguyen legend,other,0.5905192762282154
+HCM 793 Nguyễn Kiệm,other,hcm 793 nguyen kiem,real,hcm 793 nguyen kiem,food,0.303644381140785
+Saigon Co.op,shopping,saigon co op,real,saigon co op,other,0.6665166186231298
+Vitimex Quảng Ninh VinCom Cẩm Phả,food,vitimex quang ninh vincom cam,real,vitimex quang ninh vincom cam pha,shopping,0.22504992931557088
+co.op smile,other,co op smile,real,co op smile,shopping,0.5393135664385094
+Thanh,other,thanh,real,thanh,shopping,0.2482076074063239
+Nhà Hàng Út Giang Nguyễn Chánh,food,nha hang ut giang nguyen chanh,real,nha hang ut giang nguyen chanh,shopping,0.18229947779067857
+Giảm,other,giam,real,giam,education,0.25967434662300465
+co.opmark,other,co opmark,real,co opmark,shopping,0.8400241254053317
+saigon co.op co.op Food HN THE K-PARK,shopping,saigon co op,real,saigon co op co op food hn the k park,other,0.44339332044766466
+VinCommertce,food,vincommertce,real,vincommertce,shopping,0.40932802687844
+KAI TEA,food,kai tea,real,kai tea,entertainment,0.3473620428550188
+Phúc Anh Minimimart,shopping,phuc anh minimimart,real,phuc anh minimimart,food,0.9091315579220993
+CÔNG TY CP ĐẦU TƯ VELUTNO VIỆT NAM,other,cong ty cp dau tu velutno viet,real,cong ty cp dau tu velutno viet nam,food,0.18285218020233632
+V09 - 336 Võ Văn Ngân Q TD,other,v09 336 vo van ngan q td,real,v09 336 vo van ngan q td,education,0.18202916709840314
+CHAMPI,other,champi,real,champi,health,0.25811363819391564
+VM + HNI 32 Láng Trung,shopping,vm hni 32 lang trung,real,vm hni 32 lang trung,health,0.2200530438537237
+Helcome to Trung Nguyen Legend,food,trung nguyen,real,helcome to trung nguyen legend,other,0.5852102387770817
+THỨC COFFE,other,thuc coffe,real,thuc coffe,food,0.9175852263100455
+CH THỜI TRANG ADIDAS,other,ch thoi trang adidas,real,ch thoi trang adidas,shopping,0.19513140078172908
+Ga Dong Quan,other,ga dong quan,real,ga dong quan,housing,0.2244704340000271
+Co.op Food HN VAN KHE,shopping,co op food,real,co op food hn van khe,other,0.2832242624132428
+CHẾ,other,che,real,che,food,0.23667944019956416
+VM Commerce,food,vm commerce,real,vm commerce,shopping,0.49185731467722127
+Bún Bò Huế O Xuân,food,bun bo hue o xuan,real,bun bo hue o xuan,other,0.3685803633047749
+VinCommercce,food,vincommercce,real,vincommercce,shopping,0.46135931828156646
+"TỔ 7 KHU MINH TIẾN A, P.CA",other,to 7 khu minh tien a p ca,real,to 7 khu minh tien a p ca,food,0.3569100453401193
+Co.opXtra LINH TRUNG,other,co opxtra linh trung,real,co opxtra linh trung,shopping,0.32645717174383254
+tien wifi thang nay,bills,tien wifi,real,tien wifi thang nay,salary,0.3392098548565462
+phi truyen hinh K+,bills,phi truyen hinh,real,phi truyen hinh k,education,0.23292602051987873
+tien vien phi benh vien,health,benh vien,real,tien vien phi benh vien,bills,0.138988710678873
+xet nghiem mau,health,xet nghiem,real,xet nghiem mau,transport,0.3563579181977309
+mua vitamin C,health,mua thuoc,real,mua vitamin c,shopping,0.622354962816058
+Agoda dat phong,travel,agoda,real,agoda dat phong,housing,0.46377143191490744
+Traveloka mua ve,travel,traveloka,real,traveloka mua ve,shopping,0.3660459959868516
+chuyen khoan tra no ban,transfer,chuyen khoan,real,chuyen khoan tra no ban,other_income,0.22609574294426177
+gui tien cho me,transfer,gui tien,real,gui tien cho me,family,0.9801091139029173
+chuyen tien cho anh,transfer,gui tien,real,chuyen tien cho anh,family,0.8478565424997337
+hoan tien cho khach,transfer,hoan tien,real,hoan tien cho khach,travel,0.4260363263949214
+nap tien MoMo,transfer,momo,real,nap tien momo,bills,0.3117203350045439
+nap vi ZaloPay,transfer,zalopay,real,nap vi zalopay,shopping,0.18985422560620568
+chuyen khoan thanh toan,transfer,chuyen khoan,real,chuyen khoan thanh toan,transport,0.12511846345400182
+gui tien ba o que,transfer,gui tien,real,gui tien ba o que,family,0.6454787275354728
+tra no the tin dung,transfer,tra no,real,tra no the tin dung,shopping,0.3146519876463852
+thu nhap thang 10,salary,luong,real,thu nhap thang 10,other_income,0.7400352751508334
+ban hang online,other_income,ban hang,real,ban hang online,food,0.2064617575984986
+hoa hong moi gioi,other_income,hoa hong,real,hoa hong moi gioi,shopping,0.5848551231698552
+lam them cuoi tuan,other_income,lam them,real,lam them cuoi tuan,food,0.20680014266279872
+karaoke cuoi tuan,entertainment,karaoke,real,karaoke cuoi tuan,food,0.30922372307744
+Spotify Premium,entertainment,spotify,real,spotify premium,food,0.2919245531577647
+phi cao toc Hanoi HCM,transport,phi cao toc,real,phi cao toc hanoi hcm,education,0.2547002736197192
+mua van phong pham,education,van phong pham,real,mua van phong pham,health,0.37326505840903
+mua but viet,education,van phong pham,real,mua but viet,shopping,0.600105157491147
+mua tap vo,education,van phong pham,real,mua tap vo,shopping,0.6634983448222364
+Big C Thang Long,shopping,big c,real,big c thang long,other,0.4786730151568031

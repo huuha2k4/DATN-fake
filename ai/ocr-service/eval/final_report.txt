@@ -1,0 +1,72 @@
+================================================================================
+BÁO CÁO ĐÁNH GIÁ CUỐI CÙNG — OCR PIPELINE (Sau quy trình A/B/C đầy đủ)
+================================================================================
+Ngày chạy  : 2026-10-14
+Pipeline   : Đóng băng (xem PIPELINE_FREEZE.md)
+Dataset    : MC-OCR 2021 — 1155 ảnh hóa đơn tiếng Việt
+Split      : train=693 (60%) / val=173 (15%) / test=289 (25%), seed=42
+
+── Bảng so sánh val qua từng phiên bản ────────────────────────────────────────
+
+  Phiên bản             │ Val total │ Val date │ Val merchant │ Ghi chú
+  ──────────────────────┼───────────┼──────────┼──────────────┼──────────────────
+  Baseline (rule)       │   63.7%   │  76.4%   │    72.1%     │ Rule cũ 30/70
+  Sau ML extractor      │   79.7%   │  76.3%   │    75.6%     │ Data leakage
+  Sau chia lại 60/15/25 │   68.8%   │  79.8%   │    75.7%     │ Số sạch
+  Sau sửa B1 (tralai..) │   71.7%   │  79.8%   │    75.7%     │ +2.9% total
+  Sau thử repeat_bonus  │   68.2%   │    —     │      —       │ Regression → revert
+  Phiên bản cuối        │   71.7%   │  79.8%   │    75.7%     │ ĐÓNG BĂNG
+
+── Phân tích lỗi tổng tiền (val, 173 ảnh, phiên bản cuối) ─────────────────────
+
+  21 ca sai (12.1% tổng):
+  Nhóm  │ Nguyên nhân           │ Số ca │ % sai │ Hành động
+  ──────┼───────────────────────┼───────┼───────┼────────────────────────────
+  A     │ ocr_missing           │   9   │  42.9%│ ❌ OCR đọc sai ký tự, trần
+  B     │ wrong_line_kw_mixed   │   5   │  23.8%│ 🔧 3 ca đã sửa, 2 layout đặc biệt
+  B     │ wrong_line_nokw       │   5   │  23.8%│ 🔧 Nhà sách/layout phức tạp
+  B     │ wrong_line_kw         │   2   │   9.5%│ 🔧 Ghép keyword OCR
+
+  Đã sửa được (Bước B): 3 ca → val +2.9%
+  Thử repeat_bonus: fix thêm 3 nhưng break 7 ca khác → revert
+  Còn lại không sửa: 9 ca OCR missing + layout đặc biệt (nhà sách, thẻ)
+
+── Kết quả test cuối (289 ảnh, chạy 1 lần --final) ────────────────────────────
+
+  Split  │ n ảnh │ Total acc │ Date acc │ Merchant acc ≥80 │
+  ───────┼───────┼───────────┼──────────┼──────────────────┤
+  train  │  693  │   71.0%   │  76.6%   │      74.2%       │
+  val    │  173  │   71.7%   │  79.8%   │      75.7%       │
+  test   │  289  │   70.2%   │  72.3%   │      74.7%       │
+
+  Chênh lệch val→test: total -1.5%, date -7.5%, merchant -1.0%
+  → Total và merchant ổn định. Date thấp hơn do OCR digit error.
+
+  Trần OCR lý thuyết : ~92%
+  Dư địa còn lại     : ~22 điểm (cần cải thiện OCR engine)
+
+── Kết luận về fine-tune PaddleOCR ────────────────────────────────────────────
+
+  42.9% lỗi tổng tiền (9/21 ca) là Nhóm A — OCR đọc sai ký tự số.
+  Đây là căn cứ để cân nhắc fine-tune PaddleOCR:
+
+  CÓ THỂ fine-tune nếu:
+    - Có đủ dữ liệu hóa đơn tiếng Việt gán nhãn bounding box + text
+    - Lỗi tập trung vào loại font/chất lượng ảnh cụ thể
+    - Thời gian cho phép (fine-tune mất 1-3 ngày GPU)
+
+  KHÔNG CẦN fine-tune nếu:
+    - Mục tiêu là demo/đồ án, 70% total acc đủ chấp nhận
+    - Người dùng được xem và sửa kết quả trước khi lưu (UX safety net)
+    - Nên ưu tiên cải thiện UX và phân loại danh mục trước
+
+── Hạn chế ────────────────────────────────────────────────────────────────────
+  1. Leakage mềm: rule được điều chỉnh dựa trên quan sát ảnh test cũ
+  2. Dataset chủ yếu hóa đơn bán lẻ, chưa đo ảnh chuyển khoản
+  3. Metric merchant dùng fuzzy sim ≥80, ngưỡng ảnh hưởng số báo cáo
+
+── Số báo cáo chính thức (test, pipeline đóng băng) ────────────────────────────
+  Tổng tiền    : 70.2%  | Trần OCR: ~92% | Dư địa: ~22 điểm
+  Ngày giao dịch: 72.3%
+  Tên cửa hàng : 74.7%  | fuzzy sim ≥80%
+================================================================================

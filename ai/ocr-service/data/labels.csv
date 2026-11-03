@@ -1,0 +1,1156 @@
+﻿filename,img_path,merchant,date,total,split,split_old
+mcocr_public_145013ddcph.jpg,data\images\train_images\train_images\mcocr_public_145013ddcph.jpg,MINIMART ANAN,2020-08-11,74000.0,train,test
+mcocr_public_145013fxcgs.jpg,data\images\train_images\train_images\mcocr_public_145013fxcgs.jpg,VinCommerce,2020-08-15,30900.0,test,test
+mcocr_public_145013clltn.jpg,data\images\train_images\train_images\mcocr_public_145013clltn.jpg,SIEU THI BACH HOA TONG HOP,,72000.0,test,test
+mcocr_public_145013tmibr.jpg,data\images\train_images\train_images\mcocr_public_145013tmibr.jpg,co.op mart,2020-05-21,16200.0,val,test
+mcocr_public_145013kgypr.jpg,data\images\train_images\train_images\mcocr_public_145013kgypr.jpg,VinCommerce,2020-08-14,20900.0,train,dev
+mcocr_public_145013cixex.jpg,data\images\train_images\train_images\mcocr_public_145013cixex.jpg,MINIMART ANAN,2020-08-17,475000.0,train,test
+mcocr_public_145013qxxxo.jpg,data\images\train_images\train_images\mcocr_public_145013qxxxo.jpg,MINIMART ANAN,2020-08-11,23000.0,test,test
+mcocr_public_145013eknsk.jpg,data\images\train_images\train_images\mcocr_public_145013eknsk.jpg,Saigon Co.op,2019-09-19,36490.0,test,test
+mcocr_public_145013kzjew.jpg,data\images\train_images\train_images\mcocr_public_145013kzjew.jpg,VinCommerce,2020-08-14,,val,test
+mcocr_public_145013jechb.jpg,data\images\train_images\train_images\mcocr_public_145013jechb.jpg,VinCommerce,2020-08-14,322800.0,val,test
+mcocr_public_145013dhzmu.jpg,data\images\train_images\train_images\mcocr_public_145013dhzmu.jpg,,,,train,test
+mcocr_public_145013tumhj.jpg,data\images\train_images\train_images\mcocr_public_145013tumhj.jpg,Phúc Anh Minimart,2020-08-16,585500.0,train,dev
+mcocr_public_145013xbegl.jpg,data\images\train_images\train_images\mcocr_public_145013xbegl.jpg,TÊN ĐẠI LÝ:,2020-08-13,100000.0,train,dev
+mcocr_public_145013vxrqg.jpg,data\images\train_images\train_images\mcocr_public_145013vxrqg.jpg,VinCommerce,2020-08-14,21000.0,test,test
+mcocr_public_145013zftfo.jpg,data\images\train_images\train_images\mcocr_public_145013zftfo.jpg,MINIMART ANAN,2020-08-14,321016.0,train,test
+mcocr_public_145013vullg.jpg,data\images\train_images\train_images\mcocr_public_145013vullg.jpg,TÊn ĐẠI LÝ:,2020-08-14,5834728.0,test,test
+mcocr_public_145013nvoah.jpg,data\images\train_images\train_images\mcocr_public_145013nvoah.jpg,MINIMART ANAN,2020-08-16,335500.0,train,dev
+mcocr_public_145013pbggg.jpg,data\images\train_images\train_images\mcocr_public_145013pbggg.jpg,VinCommerce,2020-08-13,253800.0,train,dev
+mcocr_public_145013eygxv.jpg,data\images\train_images\train_images\mcocr_public_145013eygxv.jpg,CỬA HÀNG NĂM OÁNH,2020-08-12,46000.0,train,dev
+mcocr_public_145013qwmeo.jpg,data\images\train_images\train_images\mcocr_public_145013qwmeo.jpg,VinCommerce,2020-08-11,108000.0,train,dev
+mcocr_public_145013pedoz.jpg,data\images\train_images\train_images\mcocr_public_145013pedoz.jpg,TIỀN ĐẠI LÝ:,2020-08-13,,train,test
+mcocr_public_145013rtwyd.jpg,data\images\train_images\train_images\mcocr_public_145013rtwyd.jpg,VinCommerce,2020-08-14,45500.0,test,test
+mcocr_public_145013jzyzz.jpg,data\images\train_images\train_images\mcocr_public_145013jzyzz.jpg,Saigon Co.op,2019-09-20,27291.0,train,dev
+mcocr_public_145013sbulh.jpg,data\images\train_images\train_images\mcocr_public_145013sbulh.jpg,MINIMART ANAN,2020-08-13,30500.0,test,test
+mcocr_public_145013pvwgq.jpg,data\images\train_images\train_images\mcocr_public_145013pvwgq.jpg,VinCommerce,2020-08-12,9744.0,train,test
+mcocr_public_145013imsqw.jpg,data\images\train_images\train_images\mcocr_public_145013imsqw.jpg,MINIMART ANAN,2020-08-13,243000.0,val,test
+mcocr_public_145013apigo.jpg,data\images\train_images\train_images\mcocr_public_145013apigo.jpg,VinCommerce,2020-08-12,309000.0,train,test
+mcocr_public_145013vmzzn.jpg,data\images\train_images\train_images\mcocr_public_145013vmzzn.jpg,NHÀ SÁCH GD-TC CẨM PHẢ,,246000.0,train,dev
+mcocr_public_145013rrmow.jpg,data\images\train_images\train_images\mcocr_public_145013rrmow.jpg,CỬA HÀNG NĂM OÁNH,2020-04-10,77000.0,train,test
+mcocr_public_145013dwbmu.jpg,data\images\train_images\train_images\mcocr_public_145013dwbmu.jpg,VinCommerce,2020-08-15,200000.0,train,dev
+mcocr_public_145013eyjmn.jpg,data\images\train_images\train_images\mcocr_public_145013eyjmn.jpg,,2020-10-04,,train,dev
+mcocr_public_145013mbytl.jpg,data\images\train_images\train_images\mcocr_public_145013mbytl.jpg,MINIMART ANAN,2020-08-12,47000.0,train,dev
+mcocr_public_145013fcovi.jpg,data\images\train_images\train_images\mcocr_public_145013fcovi.jpg,MINIMART ANAN,2020-08-15,236000.0,test,test
+mcocr_public_145013lmjqa.jpg,data\images\train_images\train_images\mcocr_public_145013lmjqa.jpg,VinCommerce,2020-08-14,8435.0,train,dev
+mcocr_public_145013arxqp.jpg,data\images\train_images\train_images\mcocr_public_145013arxqp.jpg,VinCommerce,2020-08-15,122400.0,train,dev
+mcocr_public_145013crqqo.jpg,data\images\train_images\train_images\mcocr_public_145013crqqo.jpg,MILANO COFFEE,2020-10-02,,train,test
+mcocr_public_145013lbslf.jpg,data\images\train_images\train_images\mcocr_public_145013lbslf.jpg,MINIMART ANAN,2020-08-16,103000.0,val,test
+mcocr_public_145013sbvwi.jpg,data\images\train_images\train_images\mcocr_public_145013sbvwi.jpg,PHÓ MỎ,2020-08-13,15000.0,train,dev
+mcocr_public_145013hopjk.jpg,data\images\train_images\train_images\mcocr_public_145013hopjk.jpg,VinCommerce,2020-08-14,51500.0,train,test
+mcocr_public_145013euvfm.jpg,data\images\train_images\train_images\mcocr_public_145013euvfm.jpg,MINIMART ANAN,2020-08-11,102000.0,test,test
+mcocr_public_145013jjaqc.jpg,data\images\train_images\train_images\mcocr_public_145013jjaqc.jpg,SIEU THI BACH HOA TONG HOP,2020-08-10,85700.0,val,test
+mcocr_public_145013zpvng.jpg,data\images\train_images\train_images\mcocr_public_145013zpvng.jpg,MINIMART ANAN,2020-08-09,140000.0,train,test
+mcocr_public_145013hfchp.jpg,data\images\train_images\train_images\mcocr_public_145013hfchp.jpg,VinCommerce,2020-08-09,32500.0,val,test
+mcocr_public_145013auohz.jpg,data\images\train_images\train_images\mcocr_public_145013auohz.jpg,NHÀ SÁCH GD-TC CẨM PHẢ,,408000.0,train,dev
+mcocr_public_145013aisfu.jpg,data\images\train_images\train_images\mcocr_public_145013aisfu.jpg,SCTC CÔ THỎ 104 TRẦN PHÚ - CẨM,,135000.0,train,test
+mcocr_public_145013tlipr.jpg,data\images\train_images\train_images\mcocr_public_145013tlipr.jpg,MINIMART ANAN,2020-08-10,42000.0,val,test
+mcocr_public_145013atnil.jpg,data\images\train_images\train_images\mcocr_public_145013atnil.jpg,CỬA HÀNG NĂM OÁNH,2020-08-12,178000.0,train,dev
+mcocr_public_145013jyghf.jpg,data\images\train_images\train_images\mcocr_public_145013jyghf.jpg,MINIMART ANANAN,2020-08-09,53000.0,train,test
+mcocr_public_145013ypdox.jpg,data\images\train_images\train_images\mcocr_public_145013ypdox.jpg,MINIMART ANAN,2020-08-16,111990.0,train,dev
+mcocr_public_145013aukcu.jpg,data\images\train_images\train_images\mcocr_public_145013aukcu.jpg,CỬA HÀNG NĂM OÁNH,2020-08-12,63000.0,train,dev
+mcocr_public_145013qbpjw.jpg,data\images\train_images\train_images\mcocr_public_145013qbpjw.jpg,VinCommerce,2019-03-24,28200.0,train,dev
+mcocr_public_145013ebiff.jpg,data\images\train_images\train_images\mcocr_public_145013ebiff.jpg,VinCommerce,,,test,test
+mcocr_public_145013hewxu.jpg,data\images\train_images\train_images\mcocr_public_145013hewxu.jpg,VinCommerce,2020-08-15,74100.0,val,test
+mcocr_public_145013cxgot.jpg,data\images\train_images\train_images\mcocr_public_145013cxgot.jpg,NHÀ SÁCH GD-TC CẨM PHẢ,,95000.0,train,dev
+mcocr_public_145013aqosh.jpg,data\images\train_images\train_images\mcocr_public_145013aqosh.jpg,VinCommerce,2020-08-10,7800.0,test,test
+mcocr_public_145013aaprl.jpg,data\images\train_images\train_images\mcocr_public_145013aaprl.jpg,VinCommerce,2020-08-14,81302.0,test,test
+mcocr_public_145013aeriv.jpg,data\images\train_images\train_images\mcocr_public_145013aeriv.jpg,MINIMART ANAN,,99000.0,train,dev
+mcocr_public_145013qikxs.jpg,data\images\train_images\train_images\mcocr_public_145013qikxs.jpg,Cafe CJ Building,2020-12-08,420000.0,train,dev
+mcocr_public_145013jyzhp.jpg,data\images\train_images\train_images\mcocr_public_145013jyzhp.jpg,CỬA HÀNG NĂM OÁNH,2020-08-11,840000.0,val,test
+mcocr_public_145013dfzcb.jpg,data\images\train_images\train_images\mcocr_public_145013dfzcb.jpg,CỬA HÀNG NĂM OÁNH,2020-08-11,45000.0,test,test
+mcocr_public_145013vnlnm.jpg,data\images\train_images\train_images\mcocr_public_145013vnlnm.jpg,Phúc Anh Minimimart,2020-06-26,44000.0,test,test
+mcocr_public_145013dxysa.jpg,data\images\train_images\train_images\mcocr_public_145013dxysa.jpg,,2020-08-11,160000.0,test,test
+mcocr_public_145013bybgv.jpg,data\images\train_images\train_images\mcocr_public_145013bybgv.jpg,VinCommerce,2020-08-13,,test,test
+mcocr_public_145013qrpce.jpg,data\images\train_images\train_images\mcocr_public_145013qrpce.jpg,TÊN ĐẠI LÝ,2020-08-13,549885.0,train,test
+mcocr_public_145013zcscc.jpg,data\images\train_images\train_images\mcocr_public_145013zcscc.jpg,SCTC cổ THỎ 104 TRẦN PHÚ - CẨM,2020-08-09,60000.0,train,test
+mcocr_public_145013vviou.jpg,data\images\train_images\train_images\mcocr_public_145013vviou.jpg,VinCommerce,2020-08-09,170400.0,test,test
+mcocr_public_145013nwksx.jpg,data\images\train_images\train_images\mcocr_public_145013nwksx.jpg,,2020-08-09,93500.0,train,dev
+mcocr_public_145013yhzdy.jpg,data\images\train_images\train_images\mcocr_public_145013yhzdy.jpg,MINIMART ANAN,2020-08-12,95000.0,train,dev
+mcocr_public_145013hzddg.jpg,data\images\train_images\train_images\mcocr_public_145013hzddg.jpg,NHÀ SÁCH GD-TC CẨM PHẢ,,45000.0,train,dev
+mcocr_public_145013fibim.jpg,data\images\train_images\train_images\mcocr_public_145013fibim.jpg,MINIMART ANAN,2020-08-15,238008.0,test,test
+mcocr_public_145013fonbk.jpg,data\images\train_images\train_images\mcocr_public_145013fonbk.jpg,Guitar Cafe,2020-10-05,25000.0,test,test
+mcocr_public_145013udktj.jpg,data\images\train_images\train_images\mcocr_public_145013udktj.jpg,MINIMART ANAN,,410000.0,train,test
+mcocr_public_145013iblsz.jpg,data\images\train_images\train_images\mcocr_public_145013iblsz.jpg,MINIMART ANAN,2020-08-17,101000.0,test,test
+mcocr_public_145013sqona.jpg,data\images\train_images\train_images\mcocr_public_145013sqona.jpg,Phúc Anh Minimart,2020-08-13,,train,dev
+mcocr_public_145013ahfqj.jpg,data\images\train_images\train_images\mcocr_public_145013ahfqj.jpg,THỨC COFFEE,2019-03-17,,val,test
+mcocr_public_145013uixud.jpg,data\images\train_images\train_images\mcocr_public_145013uixud.jpg,VinCommerce,2020-08-08,61800.0,val,test
+mcocr_public_145013utfgs.jpg,data\images\train_images\train_images\mcocr_public_145013utfgs.jpg,PHỐ MỎ,2020-08-13,70000.0,train,dev
+mcocr_public_145013cnknh.jpg,data\images\train_images\train_images\mcocr_public_145013cnknh.jpg,SIEU THI BACH HOA TONG HOP,,,test,test
+mcocr_public_145013chgcz.jpg,data\images\train_images\train_images\mcocr_public_145013chgcz.jpg,VinCommerce,2020-08-10,164435.0,train,test
+mcocr_public_145013ogxhv.jpg,data\images\train_images\train_images\mcocr_public_145013ogxhv.jpg,HỆ THỐNG SIÊU THỊ MỸ PHẨM SAMMI SHOP,2020-08-08,,train,test
+mcocr_public_145013bomoz.jpg,data\images\train_images\train_images\mcocr_public_145013bomoz.jpg,,,149585.0,test,test
+mcocr_public_145013bkcgv.jpg,data\images\train_images\train_images\mcocr_public_145013bkcgv.jpg,VinCommerce,2020-08-13,10500.0,train,dev
+mcocr_public_145013wkuuf.jpg,data\images\train_images\train_images\mcocr_public_145013wkuuf.jpg,CỬA HÀNG NĂM OÁNH,2020-08-10,198000.0,val,test
+mcocr_public_145013wjnhn.jpg,data\images\train_images\train_images\mcocr_public_145013wjnhn.jpg,SIEU THI BACH HOA TONG HOP,2020-08-10,38000.0,val,test
+mcocr_public_145013oxnpr.jpg,data\images\train_images\train_images\mcocr_public_145013oxnpr.jpg,MINIMART ANAN,2020-08-15,116000.0,train,test
+mcocr_public_145013bykuv.jpg,data\images\train_images\train_images\mcocr_public_145013bykuv.jpg,THỨC COFFEE,2019-03-31,,train,test
+mcocr_public_145013itpoe.jpg,data\images\train_images\train_images\mcocr_public_145013itpoe.jpg,VinCommerce,2020-08-14,42900.0,train,test
+mcocr_public_145013kfxqd.jpg,data\images\train_images\train_images\mcocr_public_145013kfxqd.jpg,MINIMART ANAN,2020-08-11,,test,test
+mcocr_public_145013alybg.jpg,data\images\train_images\train_images\mcocr_public_145013alybg.jpg,MINIMART ANAN,2020-08-16,211500.0,test,test
+mcocr_public_145013idjei.jpg,data\images\train_images\train_images\mcocr_public_145013idjei.jpg,NHÀ SÁCH GD-TC CẨM PHẢ,,97000.0,train,dev
+mcocr_public_145013satyz.jpg,data\images\train_images\train_images\mcocr_public_145013satyz.jpg,VinCommerce,2020-08-14,,train,test
+mcocr_public_145013pzwfd.jpg,data\images\train_images\train_images\mcocr_public_145013pzwfd.jpg,CỬA HÀNG NĂM OÁNH,2020-08-12,133000.0,train,dev
+mcocr_public_145013jtjmc.jpg,data\images\train_images\train_images\mcocr_public_145013jtjmc.jpg,PHỐ MỎ,2020-08-13,50000.0,train,dev
+mcocr_public_145013tgayt.jpg,data\images\train_images\train_images\mcocr_public_145013tgayt.jpg,,,80000.0,test,test
+mcocr_public_145013tifph.jpg,data\images\train_images\train_images\mcocr_public_145013tifph.jpg,saigon co.op co.op Food HN THE K-PARK,2019-09-20,,val,test
+mcocr_public_145013bfddt.jpg,data\images\train_images\train_images\mcocr_public_145013bfddt.jpg,VinCommerce,2020-08-14,10000.0,test,test
+mcocr_public_145013rmrji.jpg,data\images\train_images\train_images\mcocr_public_145013rmrji.jpg,MINIMART ANAN,2020-08-12,108000.0,test,test
+mcocr_public_145013kokcl.jpg,data\images\train_images\train_images\mcocr_public_145013kokcl.jpg,MINIMART ANAN,2020-08-08,132000.0,train,dev
+mcocr_public_145013fkkfr.jpg,data\images\train_images\train_images\mcocr_public_145013fkkfr.jpg,HCM 793 Nguyễn Kiệm,2019-03-30,,train,dev
+mcocr_public_145013zpqsi.jpg,data\images\train_images\train_images\mcocr_public_145013zpqsi.jpg,VinCommerce,2020-08-09,39500.0,test,test
+mcocr_public_145013yavpz.jpg,data\images\train_images\train_images\mcocr_public_145013yavpz.jpg,VinCommerce,2020-08-15,51200.0,test,test
+mcocr_public_145013rttzk.jpg,data\images\train_images\train_images\mcocr_public_145013rttzk.jpg,THE COFFEE HQUSE,2020-10-01,52000.0,train,test
+mcocr_public_145013pkqci.jpg,data\images\train_images\train_images\mcocr_public_145013pkqci.jpg,MINIMART ANAN,2020-08-16,136000.0,val,test
+mcocr_public_145013iesjs.jpg,data\images\train_images\train_images\mcocr_public_145013iesjs.jpg,VinCommerce,2020-08-09,13000.0,train,dev
+mcocr_public_145013crsoa.jpg,data\images\train_images\train_images\mcocr_public_145013crsoa.jpg,MINIMART ANAN,2020-08-17,43000.0,train,dev
+mcocr_public_145013cuztb.jpg,data\images\train_images\train_images\mcocr_public_145013cuztb.jpg,MINIMART ANAN,2020-08-13,27000.0,val,test
+mcocr_public_145013qmuqc.jpg,data\images\train_images\train_images\mcocr_public_145013qmuqc.jpg,VinCommerce,2020-08-12,39000.0,val,test
+mcocr_public_145013zlljn.jpg,data\images\train_images\train_images\mcocr_public_145013zlljn.jpg,THE COFFEE HQUSE,2020-10-01,59000.0,train,dev
+mcocr_public_145013vcpta.jpg,data\images\train_images\train_images\mcocr_public_145013vcpta.jpg,,2018-07-17,22000.0,train,test
+mcocr_public_145013nwbcg.jpg,data\images\train_images\train_images\mcocr_public_145013nwbcg.jpg,NHÀ SÁCH GD-TC CẨM PHẢ,,716000.0,val,test
+mcocr_public_145013sommy.jpg,data\images\train_images\train_images\mcocr_public_145013sommy.jpg,MINIMART ANAN,2020-08-16,300000.0,train,test
+mcocr_public_145013wraxn.jpg,data\images\train_images\train_images\mcocr_public_145013wraxn.jpg,MINIMART ANAN,2020-08-11,160000.0,test,test
+mcocr_public_145013eicdg.jpg,data\images\train_images\train_images\mcocr_public_145013eicdg.jpg,MINIMART ANAN,,799008.0,train,dev
+mcocr_public_145013nbiie.jpg,data\images\train_images\train_images\mcocr_public_145013nbiie.jpg,VinCommerce,2020-08-11,119700.0,train,dev
+mcocr_public_145013dylla.jpg,data\images\train_images\train_images\mcocr_public_145013dylla.jpg,VinCommerce,,42904.0,test,test
+mcocr_public_145013hvjbj.jpg,data\images\train_images\train_images\mcocr_public_145013hvjbj.jpg,Tên DAI LY:,2020-05-20,171500.0,train,dev
+mcocr_public_145013ycbtn.jpg,data\images\train_images\train_images\mcocr_public_145013ycbtn.jpg,VinCommerce,2020-08-09,209300.0,train,dev
+mcocr_public_145013jcwbe.jpg,data\images\train_images\train_images\mcocr_public_145013jcwbe.jpg,MINIMART ANAN,2020-08-16,222000.0,train,dev
+mcocr_public_145013pqnzb.jpg,data\images\train_images\train_images\mcocr_public_145013pqnzb.jpg,MINIMART ANAN,2020-08-12,105000.0,val,test
+mcocr_public_145013vpqnu.jpg,data\images\train_images\train_images\mcocr_public_145013vpqnu.jpg,NHÀ SÁCH GD-TC CẨM PHẢ,,12000.0,train,dev
+mcocr_public_145013dxngu.jpg,data\images\train_images\train_images\mcocr_public_145013dxngu.jpg,VinCommerce,2020-08-13,23600.0,train,dev
+mcocr_public_145013inxnt.jpg,data\images\train_images\train_images\mcocr_public_145013inxnt.jpg,MINIMART ANAN,2020-08-13,229000.0,train,dev
+mcocr_public_145013tcvim.jpg,data\images\train_images\train_images\mcocr_public_145013tcvim.jpg,MINIMART ANAN,2020-08-12,562000.0,val,test
+mcocr_public_145013ifdaj.jpg,data\images\train_images\train_images\mcocr_public_145013ifdaj.jpg,MINIMART ANAN,2020-09-12,110000.0,test,test
+mcocr_public_145013cuilp.jpg,data\images\train_images\train_images\mcocr_public_145013cuilp.jpg,,,81715.0,train,test
+mcocr_public_145013wokiq.jpg,data\images\train_images\train_images\mcocr_public_145013wokiq.jpg,Saigon Co.op,2019-09-17,6800.0,train,test
+mcocr_public_145013esetg.jpg,data\images\train_images\train_images\mcocr_public_145013esetg.jpg,,2020-08-14,98085.0,train,test
+mcocr_public_145013fiibr.jpg,data\images\train_images\train_images\mcocr_public_145013fiibr.jpg,Nhà Hàng Aozora Sushi,2020-08-15,421000.0,train,test
+mcocr_public_145013snoxg.jpg,data\images\train_images\train_images\mcocr_public_145013snoxg.jpg,THE COFFEE HOUSE,,38000.0,test,test
+mcocr_public_145013mmpgk.jpg,data\images\train_images\train_images\mcocr_public_145013mmpgk.jpg,PHỐ MỎ,2020-08-13,82000.0,train,test
+mcocr_public_145013iurdz.jpg,data\images\train_images\train_images\mcocr_public_145013iurdz.jpg,MINIMART ANAN,2020-08-16,65000.0,test,test
+mcocr_public_145013dtobm.jpg,data\images\train_images\train_images\mcocr_public_145013dtobm.jpg,VinCommerce,2020-08-14,230567.0,test,test
+mcocr_public_145013ckcsv.jpg,data\images\train_images\train_images\mcocr_public_145013ckcsv.jpg,MINIMART ANAN,2020-08-11,168000.0,train,test
+mcocr_public_145013unjxn.jpg,data\images\train_images\train_images\mcocr_public_145013unjxn.jpg,PHẢ,2020-05-10,65000.0,val,test
+mcocr_public_145013kqcxc.jpg,data\images\train_images\train_images\mcocr_public_145013kqcxc.jpg,VinCommerce,2020-08-14,108100.0,val,test
+mcocr_public_145013ibbrd.jpg,data\images\train_images\train_images\mcocr_public_145013ibbrd.jpg,MINIMART ANAN,2020-08-10,77000.0,test,test
+mcocr_public_145013adyee.jpg,data\images\train_images\train_images\mcocr_public_145013adyee.jpg,MINIMART ANANAN,2020-08-09,107000.0,train,test
+mcocr_public_145013borvc.jpg,data\images\train_images\train_images\mcocr_public_145013borvc.jpg,THE COFFEE HQUSE,2020-10-01,10101000.0,val,test
+mcocr_public_145013qlpau.jpg,data\images\train_images\train_images\mcocr_public_145013qlpau.jpg,VinCommerce,2020-08-11,20000.0,train,test
+mcocr_public_145013zridb.jpg,data\images\train_images\train_images\mcocr_public_145013zridb.jpg,SCTC cổ THỎ 104 TRẦN PHÚ - CẨM,2020-08-10,25000.0,train,dev
+mcocr_public_145013xtskr.jpg,data\images\train_images\train_images\mcocr_public_145013xtskr.jpg,VinCommerce,2020-08-15,15111.0,train,dev
+mcocr_public_145013sagoy.jpg,data\images\train_images\train_images\mcocr_public_145013sagoy.jpg,MINIMART ANAN,2020-08-16,88000.0,train,test
+mcocr_public_145013dhnii.jpg,data\images\train_images\train_images\mcocr_public_145013dhnii.jpg,MINIMART ANAN,2020-08-12,81000.0,test,test
+mcocr_public_145013kwwha.jpg,data\images\train_images\train_images\mcocr_public_145013kwwha.jpg,Giảm giá,2020-09-30,,test,test
+mcocr_public_145013plnfr.jpg,data\images\train_images\train_images\mcocr_public_145013plnfr.jpg,THỨC COFFEE,2020-04-21,,train,dev
+mcocr_public_145013hrtto.jpg,data\images\train_images\train_images\mcocr_public_145013hrtto.jpg,VinCommerce,2020-08-14,11900.0,train,dev
+mcocr_public_145013zykbw.jpg,data\images\train_images\train_images\mcocr_public_145013zykbw.jpg,Phúc Anh Minimart,2020-08-16,153000.0,test,test
+mcocr_public_145013bajyy.jpg,data\images\train_images\train_images\mcocr_public_145013bajyy.jpg,VinCommerce,2020-08-14,160000.0,train,dev
+mcocr_public_145013goyhg.jpg,data\images\train_images\train_images\mcocr_public_145013goyhg.jpg,PHÓ MỎ,2020-08-13,35000.0,train,dev
+mcocr_public_145013ozjnr.jpg,data\images\train_images\train_images\mcocr_public_145013ozjnr.jpg,MINIMART ANAN,2020-08-12,103500.0,train,dev
+mcocr_public_145013uexmk.jpg,data\images\train_images\train_images\mcocr_public_145013uexmk.jpg,TÊN ĐẠI LÝ:,2020-08-14,502960.0,train,test
+mcocr_public_145013tljfn.jpg,data\images\train_images\train_images\mcocr_public_145013tljfn.jpg,VinCommerce,,,val,test
+mcocr_public_145013giwqv.jpg,data\images\train_images\train_images\mcocr_public_145013giwqv.jpg,Công ty Cổ Phần Thế Giới Di Động,,400000.0,val,test
+mcocr_public_145013anmiz.jpg,data\images\train_images\train_images\mcocr_public_145013anmiz.jpg,VinCommerce,2020-08-12,14544.0,train,dev
+mcocr_public_145013cawuf.jpg,data\images\train_images\train_images\mcocr_public_145013cawuf.jpg,THỨC COFFEE,,,train,test
+mcocr_public_145013idboz.jpg,data\images\train_images\train_images\mcocr_public_145013idboz.jpg,VinCommerce,2020-08-09,41500.0,train,dev
+mcocr_public_145013sxjox.jpg,data\images\train_images\train_images\mcocr_public_145013sxjox.jpg,VinCommerce,2020-08-15,131800.0,train,test
+mcocr_public_145013wgrej.jpg,data\images\train_images\train_images\mcocr_public_145013wgrej.jpg,Saigon Co.op,2019-09-19,29300.0,train,dev
+mcocr_public_145013hgrpn.jpg,data\images\train_images\train_images\mcocr_public_145013hgrpn.jpg,SCTC cổ THỎ 104 TRẦN PHÚ - CẨM,2020-08-10,10000.0,val,test
+mcocr_public_145013wuprd.jpg,data\images\train_images\train_images\mcocr_public_145013wuprd.jpg,Nhà Hàng Út Giang Nguyễn Chánh,2020-07-28,640000.0,val,test
+mcocr_public_145013xyaln.jpg,data\images\train_images\train_images\mcocr_public_145013xyaln.jpg,VinCommerce,2020-08-14,13392.0,train,dev
+mcocr_public_145013wrunk.jpg,data\images\train_images\train_images\mcocr_public_145013wrunk.jpg,VinCommerce,2020-08-10,103205.0,test,test
+mcocr_public_145013dsaix.jpg,data\images\train_images\train_images\mcocr_public_145013dsaix.jpg,V09 - 336 Võ Văn Ngân Q TD,2018-05-19,510000.0,train,test
+mcocr_public_145013iadlw.jpg,data\images\train_images\train_images\mcocr_public_145013iadlw.jpg,Saigon Co.op,2019-09-19,32200.0,test,test
+mcocr_public_145013wwkrv.jpg,data\images\train_images\train_images\mcocr_public_145013wwkrv.jpg,VinCommerce,2020-08-14,,train,dev
+mcocr_public_145013qvyzw.jpg,data\images\train_images\train_images\mcocr_public_145013qvyzw.jpg,,,,val,test
+mcocr_public_145013fskld.jpg,data\images\train_images\train_images\mcocr_public_145013fskld.jpg,Pharmacity,2020-06-01,45280.0,val,test
+mcocr_public_145013vbjnr.jpg,data\images\train_images\train_images\mcocr_public_145013vbjnr.jpg,Tax invoice will be issued within same day,,,train,test
+mcocr_public_145013rywqy.jpg,data\images\train_images\train_images\mcocr_public_145013rywqy.jpg,,2020-08-13,10000.0,test,test
+mcocr_public_145013ywvkx.jpg,data\images\train_images\train_images\mcocr_public_145013ywvkx.jpg,CỬA HÀNG NĂM OÁNH,2020-08-12,65500.0,test,test
+mcocr_public_145013eituj.jpg,data\images\train_images\train_images\mcocr_public_145013eituj.jpg,CỬA HÀNG NĂM OÁNH,2020-08-10,92000.0,test,test
+mcocr_public_145013tffpu.jpg,data\images\train_images\train_images\mcocr_public_145013tffpu.jpg,MINIMART ANAN,2020-08-16,157000.0,train,dev
+mcocr_public_145013cleap.jpg,data\images\train_images\train_images\mcocr_public_145013cleap.jpg,VinCommerce,2020-08-11,222000.0,train,test
+mcocr_public_145013azaup.jpg,data\images\train_images\train_images\mcocr_public_145013azaup.jpg,MINIMART ANAN,2020-08-12,85000.0,train,test
+mcocr_public_145013alpyf.jpg,data\images\train_images\train_images\mcocr_public_145013alpyf.jpg,MINIMART ANAN,2020-08-09,345000.0,train,test
+mcocr_public_145013isfbd.jpg,data\images\train_images\train_images\mcocr_public_145013isfbd.jpg,Thanh,2020-10-05,,train,dev
+mcocr_public_145013bldqx.jpg,data\images\train_images\train_images\mcocr_public_145013bldqx.jpg,,,,train,dev
+mcocr_public_145013amzul.jpg,data\images\train_images\train_images\mcocr_public_145013amzul.jpg,MINIMART ANAN,2020-08-09,112000.0,train,test
+mcocr_public_145013ywtjf.jpg,data\images\train_images\train_images\mcocr_public_145013ywtjf.jpg,MINIMART ANAN,2020-08-16,,test,test
+mcocr_public_145013kaedt.jpg,data\images\train_images\train_images\mcocr_public_145013kaedt.jpg,NHÀ SÁCH GD-TC CẨM PHẢ,2008-11-30,53000.0,train,test
+mcocr_public_145013uqtmx.jpg,data\images\train_images\train_images\mcocr_public_145013uqtmx.jpg,NHÀ SÁCH GD-TC CẨM PHẢ,,7000.0,train,test
+mcocr_public_145013gklzz.jpg,data\images\train_images\train_images\mcocr_public_145013gklzz.jpg,NHÀ SÁCH GD-TC CẨM PHẢ,,20000.0,val,test
+mcocr_public_145013kbhkb.jpg,data\images\train_images\train_images\mcocr_public_145013kbhkb.jpg,KAI TEA,2019-09-20,,train,test
+mcocr_public_145013dxavh.jpg,data\images\train_images\train_images\mcocr_public_145013dxavh.jpg,VinCommerce,2020-08-11,,val,test
+mcocr_public_145013blbqm.jpg,data\images\train_images\train_images\mcocr_public_145013blbqm.jpg,MINIMART ANAN,2020-08-09,63000.0,train,dev
+mcocr_public_145013mwqpu.jpg,data\images\train_images\train_images\mcocr_public_145013mwqpu.jpg,VinCommerce,2020-08-14,52700.0,train,test
+mcocr_public_145013lukaj.jpg,data\images\train_images\train_images\mcocr_public_145013lukaj.jpg,VinCommerce,2020-08-13,10000.0,test,test
+mcocr_public_145013guoun.jpg,data\images\train_images\train_images\mcocr_public_145013guoun.jpg,MINIMART ANAN,2020-08-17,94000.0,test,test
+mcocr_public_145013puwmb.jpg,data\images\train_images\train_images\mcocr_public_145013puwmb.jpg,TÊN ĐẠI LÝ,2020-08-14,419339.0,train,test
+mcocr_public_145013qqkij.jpg,data\images\train_images\train_images\mcocr_public_145013qqkij.jpg,MINIMART ANAN,2020-08-12,84000.0,test,test
+mcocr_public_145013tnlbk.jpg,data\images\train_images\train_images\mcocr_public_145013tnlbk.jpg,VinCommerce,2020-08-09,24700.0,val,test
+mcocr_public_145013imbop.jpg,data\images\train_images\train_images\mcocr_public_145013imbop.jpg,,2020-08-14,9220282.0,test,test
+mcocr_public_145013iijxa.jpg,data\images\train_images\train_images\mcocr_public_145013iijxa.jpg,VinCommerce,2020-08-14,191084.0,train,test
+mcocr_public_145013sscqf.jpg,data\images\train_images\train_images\mcocr_public_145013sscqf.jpg,MINIMART ANAN,2020-08-16,231996.0,train,dev
+mcocr_public_145013byufi.jpg,data\images\train_images\train_images\mcocr_public_145013byufi.jpg,CH THỜI TRANG ADIDAS,2020-01-22,,test,test
+mcocr_public_145013wacye.jpg,data\images\train_images\train_images\mcocr_public_145013wacye.jpg,Laha Cafe,,,train,dev
+mcocr_public_145013lkqkg.jpg,data\images\train_images\train_images\mcocr_public_145013lkqkg.jpg,VinCommerce,2020-08-12,88700.0,test,test
+mcocr_public_145013skwtp.jpg,data\images\train_images\train_images\mcocr_public_145013skwtp.jpg,MINIMART ANAN,2020-08-09,139200.0,train,test
+mcocr_public_145013cdjax.jpg,data\images\train_images\train_images\mcocr_public_145013cdjax.jpg,,2020-05-21,6500.0,test,test
+mcocr_public_145013mwcaz.jpg,data\images\train_images\train_images\mcocr_public_145013mwcaz.jpg,,2020-08-09,8994348.0,train,test
+mcocr_public_145013mylmw.jpg,data\images\train_images\train_images\mcocr_public_145013mylmw.jpg,MINIMART ANAN,2020-08-16,34000.0,train,dev
+mcocr_public_145013rhwvu.jpg,data\images\train_images\train_images\mcocr_public_145013rhwvu.jpg,MINIMART ANAN,2020-08-10,47000.0,train,test
+mcocr_public_145013xzsri.jpg,data\images\train_images\train_images\mcocr_public_145013xzsri.jpg,VinCommerce,2020-07-12,401830.0,train,dev
+mcocr_public_145013cuwqi.jpg,data\images\train_images\train_images\mcocr_public_145013cuwqi.jpg,SIỀU THỊ MINH LOAN,2020-08-14,68000.0,train,test
+mcocr_public_145013ckwpd.jpg,data\images\train_images\train_images\mcocr_public_145013ckwpd.jpg,VinCommerce,2020-08-13,20800.0,train,test
+mcocr_public_145013ufbki.jpg,data\images\train_images\train_images\mcocr_public_145013ufbki.jpg,SIỀU THỊ MINH LOAN,2020-07-18,168000.0,test,test
+mcocr_public_145013gguch.jpg,data\images\train_images\train_images\mcocr_public_145013gguch.jpg,VinCommerce,2020-08-14,600900.0,test,test
+mcocr_public_145013uwdpy.jpg,data\images\train_images\train_images\mcocr_public_145013uwdpy.jpg,VinCommerce,2020-08-11,48900.0,train,test
+mcocr_public_145013coalz.jpg,data\images\train_images\train_images\mcocr_public_145013coalz.jpg,NHÀ SÁCH GD-TC CẨM PHẢ,,18000.0,val,test
+mcocr_public_145013zufms.jpg,data\images\train_images\train_images\mcocr_public_145013zufms.jpg,VinCommerce,2020-08-15,97400.0,test,test
+mcocr_public_145013nsnnh.jpg,data\images\train_images\train_images\mcocr_public_145013nsnnh.jpg,TÊN ĐẠI LÝ:,,110898.0,train,dev
+mcocr_public_145013wdcqs.jpg,data\images\train_images\train_images\mcocr_public_145013wdcqs.jpg,mart,2020-08-15,268000.0,train,test
+mcocr_public_145013vtqrc.jpg,data\images\train_images\train_images\mcocr_public_145013vtqrc.jpg,,2020-08-15,40900.0,train,dev
+mcocr_public_145013bxoir.jpg,data\images\train_images\train_images\mcocr_public_145013bxoir.jpg,CỬA HÀNG NĂM OÁNH,2020-08-12,10000.0,train,dev
+mcocr_public_145013ramij.jpg,data\images\train_images\train_images\mcocr_public_145013ramij.jpg,MINIMART ANAN,2020-08-10,96000.0,train,dev
+mcocr_public_145013vmxho.jpg,data\images\train_images\train_images\mcocr_public_145013vmxho.jpg,VinCommerce,2020-08-12,44000.0,val,test
+mcocr_public_145013xafsi.jpg,data\images\train_images\train_images\mcocr_public_145013xafsi.jpg,VinCommerce,2020-08-14,,test,test
+mcocr_public_145013ndqdl.jpg,data\images\train_images\train_images\mcocr_public_145013ndqdl.jpg,,2020-08-12,15796516.0,test,test
+mcocr_public_145013zguhy.jpg,data\images\train_images\train_images\mcocr_public_145013zguhy.jpg,,2020-05-05,,test,test
+mcocr_public_145013ecfzg.jpg,data\images\train_images\train_images\mcocr_public_145013ecfzg.jpg,VinCommerce,2020-08-15,62500.0,test,test
+mcocr_public_145013cxtop.jpg,data\images\train_images\train_images\mcocr_public_145013cxtop.jpg,LOTTERIA,2020-08-09,27000.0,train,dev
+mcocr_public_145013fctzg.jpg,data\images\train_images\train_images\mcocr_public_145013fctzg.jpg,VinCommerce,2020-08-10,21300.0,train,test
+mcocr_public_145013gxbkt.jpg,data\images\train_images\train_images\mcocr_public_145013gxbkt.jpg,SCTC CÔ THỎ 104 TRẦN PHÚ - CẨM,2020-08-08,70000.0,val,test
+mcocr_public_145013acjke.jpg,data\images\train_images\train_images\mcocr_public_145013acjke.jpg,VinCommerce,2020-08-14,52700.0,train,test
+mcocr_public_145013kacze.jpg,data\images\train_images\train_images\mcocr_public_145013kacze.jpg,Nhà hàng Aozora Sushi,2020-08-14,2020.0,test,test
+mcocr_public_145013kwckq.jpg,data\images\train_images\train_images\mcocr_public_145013kwckq.jpg,PHÓ MỎ,2020-08-13,20000.0,test,test
+mcocr_public_145013yinzr.jpg,data\images\train_images\train_images\mcocr_public_145013yinzr.jpg,PHỐ MO,2020-08-13,30000.0,train,dev
+mcocr_public_145013xczvp.jpg,data\images\train_images\train_images\mcocr_public_145013xczvp.jpg,MINIMART ANAN,2020-08-15,124000.0,train,test
+mcocr_public_145013cxcei.jpg,data\images\train_images\train_images\mcocr_public_145013cxcei.jpg,NHÀ SÁCH GD-TC CẨM PHẢ,,37000.0,test,test
+mcocr_public_145013niqeq.jpg,data\images\train_images\train_images\mcocr_public_145013niqeq.jpg,Vincommerce,2020-08-14,60500.0,test,test
+mcocr_public_145013ilier.jpg,data\images\train_images\train_images\mcocr_public_145013ilier.jpg,CỬA HÀNG NĂM OÁNH,2020-08-11,131000.0,test,test
+mcocr_public_145013zhiwi.jpg,data\images\train_images\train_images\mcocr_public_145013zhiwi.jpg,PHÚC TONG,2020-08-15,,train,dev
+mcocr_public_145013xzfut.jpg,data\images\train_images\train_images\mcocr_public_145013xzfut.jpg,VinCommerce,2020-08-14,63400.0,train,test
+mcocr_public_145013djwis.jpg,data\images\train_images\train_images\mcocr_public_145013djwis.jpg,MINIMART ANAN,2020-08-10,73500.0,train,test
+mcocr_public_145013pnbza.jpg,data\images\train_images\train_images\mcocr_public_145013pnbza.jpg,TEN DAI LY,2020-05-20,75500.0,test,test
+mcocr_public_145013fybvq.jpg,data\images\train_images\train_images\mcocr_public_145013fybvq.jpg,VinCommerce,2020-08-14,12000.0,test,test
+mcocr_public_145013crgek.jpg,data\images\train_images\train_images\mcocr_public_145013crgek.jpg,THỨC COFEE,2019-04-06,35000.0,train,test
+mcocr_public_145013rcioe.jpg,data\images\train_images\train_images\mcocr_public_145013rcioe.jpg,CỬA HÀNG NĂM OÁNH,2020-08-12,51500.0,train,test
+mcocr_public_145013bcovr.jpg,data\images\train_images\train_images\mcocr_public_145013bcovr.jpg,,2020-08-15,75900.0,train,test
+mcocr_public_145013bdnvs.jpg,data\images\train_images\train_images\mcocr_public_145013bdnvs.jpg,MINIMART ANAN,2020-08-13,226000.0,train,test
+mcocr_public_145013zrrly.jpg,data\images\train_images\train_images\mcocr_public_145013zrrly.jpg,VinCommerce,2020-08-15,8800.0,val,test
+mcocr_public_145013yjpdv.jpg,data\images\train_images\train_images\mcocr_public_145013yjpdv.jpg,NHÀ SÁCH GD-TC CẨM PHẢ,,111000.0,train,dev
+mcocr_public_145013seqfm.jpg,data\images\train_images\train_images\mcocr_public_145013seqfm.jpg,THE COFFEE H9USE,,49000.0,test,test
+mcocr_public_145013vfius.jpg,data\images\train_images\train_images\mcocr_public_145013vfius.jpg,PHỐ MỎ,2020-08-13,60000.0,test,test
+mcocr_public_145013waefm.jpg,data\images\train_images\train_images\mcocr_public_145013waefm.jpg,NHÀ SÁCH GD-TC CẨM PHẢ,,38000.0,val,test
+mcocr_public_145013awcbh.jpg,data\images\train_images\train_images\mcocr_public_145013awcbh.jpg,NHÀ SÁCH GD-TC CẨM PHẢ,,42000.0,test,test
+mcocr_public_145013nnlba.jpg,data\images\train_images\train_images\mcocr_public_145013nnlba.jpg,VinCommerce,2020-08-14,34800.0,test,test
+mcocr_public_145013jgdys.jpg,data\images\train_images\train_images\mcocr_public_145013jgdys.jpg,VinCommerce,2020-08-14,119000.0,train,test
+mcocr_public_145013sihqk.jpg,data\images\train_images\train_images\mcocr_public_145013sihqk.jpg,TÊN ĐẠI LÝ:,2020-08-11,50000.0,test,test
+mcocr_public_145013dcdmv.jpg,data\images\train_images\train_images\mcocr_public_145013dcdmv.jpg,PHO MO,2020-08-09,45000.0,train,test
+mcocr_public_145013joykg.jpg,data\images\train_images\train_images\mcocr_public_145013joykg.jpg,MINIMART ANAN,2020-08-12,72000.0,val,test
+mcocr_public_145013rqfec.jpg,data\images\train_images\train_images\mcocr_public_145013rqfec.jpg,VinCommerce,2020-08-09,,train,dev
+mcocr_public_145013nfkiq.jpg,data\images\train_images\train_images\mcocr_public_145013nfkiq.jpg,SCTC cổ THỎ 104 TRẦN PHÚ - CẨM,2020-08-08,,val,test
+mcocr_public_145013kyyit.jpg,data\images\train_images\train_images\mcocr_public_145013kyyit.jpg,MINIMART ANAN,2020-08-11,,test,test
+mcocr_public_145013avtwc.jpg,data\images\train_images\train_images\mcocr_public_145013avtwc.jpg,,2020-08-13,26032250.0,test,test
+mcocr_public_145013wdwok.jpg,data\images\train_images\train_images\mcocr_public_145013wdwok.jpg,MINIMART ANAN,2020-08-11,53000.0,test,test
+mcocr_public_145013njyzj.jpg,data\images\train_images\train_images\mcocr_public_145013njyzj.jpg,VinCommerce,2020-08-10,32272.0,train,dev
+mcocr_public_145013iulwh.jpg,data\images\train_images\train_images\mcocr_public_145013iulwh.jpg,SIỀU THỊ MINH LOAN,2020-06-28,188350.0,val,test
+mcocr_public_145013ihpxr.jpg,data\images\train_images\train_images\mcocr_public_145013ihpxr.jpg,Phúc Anh Minimart,2020-08-14,,train,dev
+mcocr_public_145013atlmq.jpg,data\images\train_images\train_images\mcocr_public_145013atlmq.jpg,MINIMART ANAN,2020-08-16,127000.0,train,test
+mcocr_public_145013tupze.jpg,data\images\train_images\train_images\mcocr_public_145013tupze.jpg,MINIMART ANAN,2020-08-13,200000.0,train,test
+mcocr_public_145013qujjw.jpg,data\images\train_images\train_images\mcocr_public_145013qujjw.jpg,MINIMART ANAN,2020-08-12,44000.0,train,dev
+mcocr_public_145013vilkn.jpg,data\images\train_images\train_images\mcocr_public_145013vilkn.jpg,,2020-08-09,5799546.0,train,dev
+mcocr_public_145013bpcpt.jpg,data\images\train_images\train_images\mcocr_public_145013bpcpt.jpg,VinCommerce,2020-08-15,48000.0,train,dev
+mcocr_public_145013cgpoh.jpg,data\images\train_images\train_images\mcocr_public_145013cgpoh.jpg,TÊN ĐẠI LÝ:,2020-03-12,200000.0,train,dev
+mcocr_public_145013dkgbh.jpg,data\images\train_images\train_images\mcocr_public_145013dkgbh.jpg,VinCommerce,2020-08-15,25600.0,train,test
+mcocr_public_145013bgfxq.jpg,data\images\train_images\train_images\mcocr_public_145013bgfxq.jpg,NHÀ SÁCH GD-TC CẨM PHẢ,,12000.0,train,dev
+mcocr_public_145013lkpwc.jpg,data\images\train_images\train_images\mcocr_public_145013lkpwc.jpg,Xuân,2020-10-04,,val,test
+mcocr_public_145013aqeha.jpg,data\images\train_images\train_images\mcocr_public_145013aqeha.jpg,,2020-08-17,,val,test
+mcocr_public_145013aedmq.jpg,data\images\train_images\train_images\mcocr_public_145013aedmq.jpg,VinCommerce,2020-08-15,,train,dev
+mcocr_public_145013emvhs.jpg,data\images\train_images\train_images\mcocr_public_145013emvhs.jpg,CỬA HÀNG NĂM OÁNH,2020-08-11,116000.0,val,test
+mcocr_public_145013haeps.jpg,data\images\train_images\train_images\mcocr_public_145013haeps.jpg,Cửa hang: INDOCHINA PLAZA,2020-08-13,299000.0,test,test
+mcocr_public_145013rfcrv.jpg,data\images\train_images\train_images\mcocr_public_145013rfcrv.jpg,MINIMART ANAN,2020-08-16,87500.0,train,test
+mcocr_public_145013fwuow.jpg,data\images\train_images\train_images\mcocr_public_145013fwuow.jpg,NHÀ SÁCH GD-TC CẨM PHẢ,,58000.0,train,test
+mcocr_public_145013ohrly.jpg,data\images\train_images\train_images\mcocr_public_145013ohrly.jpg,THE COFFEE HQUSE,2020-08-16,,train,dev
+mcocr_public_145013kgaqa.jpg,data\images\train_images\train_images\mcocr_public_145013kgaqa.jpg,VinCommerce,2020-08-12,36000.0,train,test
+mcocr_public_145013eekwk.jpg,data\images\train_images\train_images\mcocr_public_145013eekwk.jpg,VinCommerce,2020-08-12,71000.0,train,test
+mcocr_public_145013nnxlz.jpg,data\images\train_images\train_images\mcocr_public_145013nnxlz.jpg,MINIMART ANAN,2020-08-15,50000.0,train,dev
+mcocr_public_145013egffi.jpg,data\images\train_images\train_images\mcocr_public_145013egffi.jpg,CỬA HÀNG NĂM OÁNH,2020-08-11,240000.0,val,test
+mcocr_public_145013tmshn.jpg,data\images\train_images\train_images\mcocr_public_145013tmshn.jpg,SCTC CÔ THỎ 104 TRẦN PHÚ - CẨM,2020-08-10,25000.0,train,test
+mcocr_public_145013itqit.jpg,data\images\train_images\train_images\mcocr_public_145013itqit.jpg,VinCommerce,2020-08-15,,train,dev
+mcocr_public_145013blmgu.jpg,data\images\train_images\train_images\mcocr_public_145013blmgu.jpg,MINIMART ANAN,2020-08-13,145000.0,train,test
+mcocr_public_145013shecj.jpg,data\images\train_images\train_images\mcocr_public_145013shecj.jpg,VinCommerce,2020-08-15,24450.0,train,dev
+mcocr_public_145013vgvpe.jpg,data\images\train_images\train_images\mcocr_public_145013vgvpe.jpg,NHÀ SÁCH GD-TC CẨM PHẢ,,20000.0,test,test
+mcocr_public_145013famty.jpg,data\images\train_images\train_images\mcocr_public_145013famty.jpg,MINIMART ANAN,2020-08-15,64000.0,train,dev
+mcocr_public_145013tafca.jpg,data\images\train_images\train_images\mcocr_public_145013tafca.jpg,SCTC cổ THỎ 104 TRẦN PHÚ - CẨM,2020-08-08,75000.0,test,test
+mcocr_public_145013ipoka.jpg,data\images\train_images\train_images\mcocr_public_145013ipoka.jpg,THE COFFEE HOUSE,2020-10-01,50000.0,train,dev
+mcocr_public_145013cqpwh.jpg,data\images\train_images\train_images\mcocr_public_145013cqpwh.jpg,MINIMART ANAN,2020-08-11,,train,dev
+mcocr_public_145013msokr.jpg,data\images\train_images\train_images\mcocr_public_145013msokr.jpg,,2020-08-11,345000.0,val,test
+mcocr_public_145013clfsp.jpg,data\images\train_images\train_images\mcocr_public_145013clfsp.jpg,THE COFFEE HQUSE,2020-10-01,,train,test
+mcocr_public_145013cllbf.jpg,data\images\train_images\train_images\mcocr_public_145013cllbf.jpg,,2020-07-13,253000.0,train,test
+mcocr_public_145013lkorp.jpg,data\images\train_images\train_images\mcocr_public_145013lkorp.jpg,,,,val,test
+mcocr_public_145013otqcx.jpg,data\images\train_images\train_images\mcocr_public_145013otqcx.jpg,MINIMART ANAN,2020-08-13,100010.0,test,test
+mcocr_public_145013pytgf.jpg,data\images\train_images\train_images\mcocr_public_145013pytgf.jpg,saigon co.op co.op Food HN THE K-PARK,2019-09-20,,train,test
+mcocr_public_145013scuxn.jpg,data\images\train_images\train_images\mcocr_public_145013scuxn.jpg,VinCommerce,2020-08-03,117000.0,train,test
+mcocr_public_145013mqmzy.jpg,data\images\train_images\train_images\mcocr_public_145013mqmzy.jpg,VinCommerce,2020-08-14,10000.0,train,dev
+mcocr_public_145013laizk.jpg,data\images\train_images\train_images\mcocr_public_145013laizk.jpg,VinCommerce,2020-08-15,118000.0,train,test
+mcocr_public_145013mfogg.jpg,data\images\train_images\train_images\mcocr_public_145013mfogg.jpg,SIÊU THỊ MINH LOAN,2020-08-01,168500.0,train,dev
+mcocr_public_145013qiyft.jpg,data\images\train_images\train_images\mcocr_public_145013qiyft.jpg,VinCommerce,2020-08-14,,train,dev
+mcocr_public_145013lxunp.jpg,data\images\train_images\train_images\mcocr_public_145013lxunp.jpg,VinCommerce,2020-08-12,81500.0,train,dev
+mcocr_public_145013lmhud.jpg,data\images\train_images\train_images\mcocr_public_145013lmhud.jpg,CỮA HÀNG NĂM OÁNH,2020-08-11,145000.0,train,dev
+mcocr_public_145013fomil.jpg,data\images\train_images\train_images\mcocr_public_145013fomil.jpg,,,105806.0,train,dev
+mcocr_public_145013yewns.jpg,data\images\train_images\train_images\mcocr_public_145013yewns.jpg,VinCommerce,2020-08-15,24000.0,train,test
+mcocr_public_145013yqmqe.jpg,data\images\train_images\train_images\mcocr_public_145013yqmqe.jpg,CỬA HÀNG NĂM OÁNH,2020-08-11,16500.0,val,test
+mcocr_public_145013qigez.jpg,data\images\train_images\train_images\mcocr_public_145013qigez.jpg,MINIMART ANAN,2020-08-15,442000.0,train,dev
+mcocr_public_145013nwgha.jpg,data\images\train_images\train_images\mcocr_public_145013nwgha.jpg,MINIMART ANAN,2020-08-12,57000.0,train,test
+mcocr_public_145013doybn.jpg,data\images\train_images\train_images\mcocr_public_145013doybn.jpg,NHÀ SÁCH GD-TC CẨM PHẢ,,22000.0,val,test
+mcocr_public_145013ngzwi.jpg,data\images\train_images\train_images\mcocr_public_145013ngzwi.jpg,VinCommerce,2020-08-15,74100.0,val,test
+mcocr_public_145013rnpjm.jpg,data\images\train_images\train_images\mcocr_public_145013rnpjm.jpg,VinCommerce,2020-08-15,,train,test
+mcocr_public_145013qeejy.jpg,data\images\train_images\train_images\mcocr_public_145013qeejy.jpg,VinCommerce,2020-08-14,12500.0,val,test
+mcocr_public_145013mctzs.jpg,data\images\train_images\train_images\mcocr_public_145013mctzs.jpg,VinCommerce,2020-08-13,9500.0,train,test
+mcocr_public_145013dnwxv.jpg,data\images\train_images\train_images\mcocr_public_145013dnwxv.jpg,MINIMART ANAN,2020-08-16,118000.0,train,test
+mcocr_public_145013wjlkq.jpg,data\images\train_images\train_images\mcocr_public_145013wjlkq.jpg,MINIMART ANAN,2020-08-15,100000.0,train,test
+mcocr_public_145013sqwxo.jpg,data\images\train_images\train_images\mcocr_public_145013sqwxo.jpg,VinCommerce,2020-08-12,,test,test
+mcocr_public_145013geohx.jpg,data\images\train_images\train_images\mcocr_public_145013geohx.jpg,VinCommerce,2020-08-14,543704.0,test,test
+mcocr_public_145013luuro.jpg,data\images\train_images\train_images\mcocr_public_145013luuro.jpg,VinCommerce,2020-08-09,60550.0,val,test
+mcocr_public_145013tvyce.jpg,data\images\train_images\train_images\mcocr_public_145013tvyce.jpg,THE COFFEE HQUSE,,32000.0,train,test
+mcocr_public_145013uomce.jpg,data\images\train_images\train_images\mcocr_public_145013uomce.jpg,NHÀ SÁCH GD-TC CẨM PHẢ,,15000.0,train,test
+mcocr_public_145013xaojq.jpg,data\images\train_images\train_images\mcocr_public_145013xaojq.jpg,NHÀ SÁCH GD-TC CẨM PHẢ,,30000.0,test,test
+mcocr_public_145013lxdbt.jpg,data\images\train_images\train_images\mcocr_public_145013lxdbt.jpg,NHÀ SÁCH GD-TC CẨM PHẢ,,104000.0,test,test
+mcocr_public_145013cezfv.jpg,data\images\train_images\train_images\mcocr_public_145013cezfv.jpg,CHẾ,2020-08-08,,train,dev
+mcocr_public_145013dcqda.jpg,data\images\train_images\train_images\mcocr_public_145013dcqda.jpg,VinCommerce,2020-08-12,18000.0,val,test
+mcocr_public_145013nsktd.jpg,data\images\train_images\train_images\mcocr_public_145013nsktd.jpg,VinCommerce,2020-08-15,131800.0,train,dev
+mcocr_public_145013lrksq.jpg,data\images\train_images\train_images\mcocr_public_145013lrksq.jpg,,2020-01-31,,test,test
+mcocr_public_145013njeuf.jpg,data\images\train_images\train_images\mcocr_public_145013njeuf.jpg,NHÀ SÁCH GD-TC CẨM PHẢ,2008-11-29,,train,test
+mcocr_public_145013ptdjx.jpg,data\images\train_images\train_images\mcocr_public_145013ptdjx.jpg,THE COFFEE H9USE,,,train,test
+mcocr_public_145013ogvmp.jpg,data\images\train_images\train_images\mcocr_public_145013ogvmp.jpg,NHÀ SÁCH GD-TC CẨM PHẢ,2008-09-02,291000.0,test,test
+mcocr_public_145013yzczt.jpg,data\images\train_images\train_images\mcocr_public_145013yzczt.jpg,NGÀY KINH DOANH 07/08/2020,,21004448.0,test,test
+mcocr_public_145013drlui.jpg,data\images\train_images\train_images\mcocr_public_145013drlui.jpg,CỬA HÀNG NĂM OÁNH,2020-08-12,82000.0,train,dev
+mcocr_public_145013bvmvl.jpg,data\images\train_images\train_images\mcocr_public_145013bvmvl.jpg,MINIMART ANAN,2020-08-16,227040.0,train,test
+mcocr_public_145013iyqnr.jpg,data\images\train_images\train_images\mcocr_public_145013iyqnr.jpg,TÊN ĐẠI LÝ:,2020-08-12,620000.0,test,test
+mcocr_public_145013bchvc.jpg,data\images\train_images\train_images\mcocr_public_145013bchvc.jpg,NHÀ SÁCH GD-TC CẨM PHẢ,,84000.0,train,test
+mcocr_public_145013ckejs.jpg,data\images\train_images\train_images\mcocr_public_145013ckejs.jpg,co.op mart,,,train,test
+mcocr_public_145013syjan.jpg,data\images\train_images\train_images\mcocr_public_145013syjan.jpg,NHÀ SÁCH GD-TC CẨM PHẢ,,28000.0,test,test
+mcocr_public_145013jhxzq.jpg,data\images\train_images\train_images\mcocr_public_145013jhxzq.jpg,MINIMART ANAN,2020-08-09,212016.0,test,test
+mcocr_public_145013jwjnj.jpg,data\images\train_images\train_images\mcocr_public_145013jwjnj.jpg,VinCommerce,2020-08-15,46007.0,train,dev
+mcocr_public_145013lisnd.jpg,data\images\train_images\train_images\mcocr_public_145013lisnd.jpg,,2020-08-11,74000.0,train,test
+mcocr_public_145013bjvsn.jpg,data\images\train_images\train_images\mcocr_public_145013bjvsn.jpg,PHẢ,,,train,dev
+mcocr_public_145013egelf.jpg,data\images\train_images\train_images\mcocr_public_145013egelf.jpg,Vincommerce,2020-08-10,54287.0,test,test
+mcocr_public_145013zcfau.jpg,data\images\train_images\train_images\mcocr_public_145013zcfau.jpg,VinCommerce,2020-08-12,,train,test
+mcocr_public_145013shcxo.jpg,data\images\train_images\train_images\mcocr_public_145013shcxo.jpg,TÊN ĐẠI LÝ,2020-04-30,341100.0,val,test
+mcocr_public_145013lplfx.jpg,data\images\train_images\train_images\mcocr_public_145013lplfx.jpg,MINIMART ANAN,2020-08-16,112000.0,val,test
+mcocr_public_145013mzyyu.jpg,data\images\train_images\train_images\mcocr_public_145013mzyyu.jpg,Saiigono Co.op,2019-09-19,25200.0,train,test
+mcocr_public_145013wrrom.jpg,data\images\train_images\train_images\mcocr_public_145013wrrom.jpg,MINIMART ANAN,2020-08-14,66000.0,train,test
+mcocr_public_145013otehh.jpg,data\images\train_images\train_images\mcocr_public_145013otehh.jpg,VinCommerce,2020-08-13,49500.0,train,dev
+mcocr_public_145013shpih.jpg,data\images\train_images\train_images\mcocr_public_145013shpih.jpg,Co.opXtra LINH TRUNG,2020-01-11,51640.0,train,dev
+mcocr_public_145013fpcxy.jpg,data\images\train_images\train_images\mcocr_public_145013fpcxy.jpg,VinCommerce,2020-08-13,33600.0,test,test
+mcocr_public_145013ezyfw.jpg,data\images\train_images\train_images\mcocr_public_145013ezyfw.jpg,,2020-01-09,145880.0,test,test
+mcocr_public_145013geoih.jpg,data\images\train_images\train_images\mcocr_public_145013geoih.jpg,MINIMART ANAN,2020-08-17,55000.0,train,dev
+mcocr_public_145013aagqw.jpg,data\images\train_images\train_images\mcocr_public_145013aagqw.jpg,WWW.UNIQLO.COM,2020-08-01,2442000.0,train,dev
+mcocr_public_145013qvqeu.jpg,data\images\train_images\train_images\mcocr_public_145013qvqeu.jpg,VinCommerce,2020-08-13,10702.0,test,test
+mcocr_public_145013laiap.jpg,data\images\train_images\train_images\mcocr_public_145013laiap.jpg,VinCommerce,2020-08-15,238240.0,val,test
+mcocr_public_145013bynnh.jpg,data\images\train_images\train_images\mcocr_public_145013bynnh.jpg,CỬA HÀNG NĂM OÁNH,2020-08-12,210000.0,train,dev
+mcocr_public_145013rtjsr.jpg,data\images\train_images\train_images\mcocr_public_145013rtjsr.jpg,,2020-07-03,,train,test
+mcocr_public_145013moepq.jpg,data\images\train_images\train_images\mcocr_public_145013moepq.jpg,CỬA HÀNG NĂM OÁNH,2020-08-11,54000.0,train,dev
+mcocr_public_145013lozjt.jpg,data\images\train_images\train_images\mcocr_public_145013lozjt.jpg,CỮA HÀNG NĂM OÁNH,2020-08-11,227000.0,train,dev
+mcocr_public_145013dkfnl.jpg,data\images\train_images\train_images\mcocr_public_145013dkfnl.jpg,SCTC cổ THỎ 104 TRẦN PHÚ - CẨM,2020-08-10,80000.0,train,test
+mcocr_public_145013srvjw.jpg,data\images\train_images\train_images\mcocr_public_145013srvjw.jpg,VinCommerce,2020-08-15,72172.0,val,test
+mcocr_public_145013onyrj.jpg,data\images\train_images\train_images\mcocr_public_145013onyrj.jpg,NHÀ SÁCH GD-TC CẨM PHẢ,,241000.0,train,test
+mcocr_public_145013nkpao.jpg,data\images\train_images\train_images\mcocr_public_145013nkpao.jpg,VinCommerce,2020-08-15,25500.0,train,test
+mcocr_public_145013jiksh.jpg,data\images\train_images\train_images\mcocr_public_145013jiksh.jpg,VinCommerce,2020-08-12,,train,test
+mcocr_public_145013ykdsv.jpg,data\images\train_images\train_images\mcocr_public_145013ykdsv.jpg,SCTC CÔ THỒ 104 TRẦN PHÚ - CẨM,2020-08-08,45000.0,train,dev
+mcocr_public_145013cmeru.jpg,data\images\train_images\train_images\mcocr_public_145013cmeru.jpg,VHA,,,test,test
+mcocr_public_145013hfxkr.jpg,data\images\train_images\train_images\mcocr_public_145013hfxkr.jpg,MINIMART ANANAN,2020-08-16,311016.0,train,dev
+mcocr_public_145013bsywa.jpg,data\images\train_images\train_images\mcocr_public_145013bsywa.jpg,MINIMART ANAN,2020-08-12,62996.0,train,dev
+mcocr_public_145013cgpey.jpg,data\images\train_images\train_images\mcocr_public_145013cgpey.jpg,MINIMART ANAN,2020-08-16,62000.0,test,test
+mcocr_public_145013kcxya.jpg,data\images\train_images\train_images\mcocr_public_145013kcxya.jpg,,,,val,test
+mcocr_public_145013itmvi.jpg,data\images\train_images\train_images\mcocr_public_145013itmvi.jpg,PHỐ MỎ,2020-08-13,30000.0,train,test
+mcocr_public_145013rpxpi.jpg,data\images\train_images\train_images\mcocr_public_145013rpxpi.jpg,PHỐ MỎ,2020-08-11,60000.0,train,dev
+mcocr_public_145014rdhuo.jpg,data\images\train_images\train_images\mcocr_public_145014rdhuo.jpg,VinCommerce,2020-08-15,17664.0,train,dev
+mcocr_public_145014luapg.jpg,data\images\train_images\train_images\mcocr_public_145014luapg.jpg,PHÓ MỎ,2020-08-11,50000.0,train,test
+mcocr_public_145014cmdbw.jpg,data\images\train_images\train_images\mcocr_public_145014cmdbw.jpg,,,,test,test
+mcocr_public_145014nymps.jpg,data\images\train_images\train_images\mcocr_public_145014nymps.jpg,MINIMART ANAN,2020-08-13,97000.0,train,test
+mcocr_public_145014enjwd.jpg,data\images\train_images\train_images\mcocr_public_145014enjwd.jpg,THE COFFEE HQUSE,2020-10-03,124000.0,val,test
+mcocr_public_145014maadf.jpg,data\images\train_images\train_images\mcocr_public_145014maadf.jpg,Rên Đại lý,,99716.0,train,dev
+mcocr_public_145014hexbx.jpg,data\images\train_images\train_images\mcocr_public_145014hexbx.jpg,NHÀ SÁCH GD-TC CẨM PHẢ,,48000.0,train,test
+mcocr_public_145014mgasx.jpg,data\images\train_images\train_images\mcocr_public_145014mgasx.jpg,Co.op mart,2020-05-21,880400.0,train,dev
+mcocr_public_145014kncdk.jpg,data\images\train_images\train_images\mcocr_public_145014kncdk.jpg,MINIMART ANAN,2020-08-16,85000.0,train,dev
+mcocr_public_145014shmit.jpg,data\images\train_images\train_images\mcocr_public_145014shmit.jpg,MINIMART ANAN,2020-08-11,149996.0,val,test
+mcocr_public_145014knafb.jpg,data\images\train_images\train_images\mcocr_public_145014knafb.jpg,NHÀ SÁCH GD-TC CẨM PHẢ,,85000.0,train,dev
+mcocr_public_145014qodwj.jpg,data\images\train_images\train_images\mcocr_public_145014qodwj.jpg,VinCommerce,2020-08-15,9000.0,train,dev
+mcocr_public_145014ynigt.jpg,data\images\train_images\train_images\mcocr_public_145014ynigt.jpg,MINIMART ANAN,2020-08-09,296016.0,train,dev
+mcocr_public_145014wpplc.jpg,data\images\train_images\train_images\mcocr_public_145014wpplc.jpg,VinCommerce,2020-08-13,,test,test
+mcocr_public_145014ansoe.jpg,data\images\train_images\train_images\mcocr_public_145014ansoe.jpg,MINIMART ANAN,2020-08-17,98000.0,train,test
+mcocr_public_145014iwlls.jpg,data\images\train_images\train_images\mcocr_public_145014iwlls.jpg,VinCommerce,2020-08-14,19000.0,train,dev
+mcocr_public_145014paioy.jpg,data\images\train_images\train_images\mcocr_public_145014paioy.jpg,saigon co.op,2019-09-23,,train,test
+mcocr_public_145014ltwth.jpg,data\images\train_images\train_images\mcocr_public_145014ltwth.jpg,MINIMART ANAN,2020-08-16,155000.0,train,test
+mcocr_public_145014iwkki.jpg,data\images\train_images\train_images\mcocr_public_145014iwkki.jpg,,,164000.0,train,dev
+mcocr_public_145014cfwkp.jpg,data\images\train_images\train_images\mcocr_public_145014cfwkp.jpg,CỬA HÀNG NĂM OÁNH,2020-08-12,67600.0,test,test
+mcocr_public_145014caxiq.jpg,data\images\train_images\train_images\mcocr_public_145014caxiq.jpg,VinCommerce,2020-08-12,5000.0,train,test
+mcocr_public_145014mxcxa.jpg,data\images\train_images\train_images\mcocr_public_145014mxcxa.jpg,PHỐ MỎ,2020-08-13,15000.0,train,dev
+mcocr_public_145014zkxjr.jpg,data\images\train_images\train_images\mcocr_public_145014zkxjr.jpg,,2020-05-21,,train,test
+mcocr_public_145014fzozs.jpg,data\images\train_images\train_images\mcocr_public_145014fzozs.jpg,NHÀ SÁCH GD-TC CẨM PHẢ,,190000.0,train,test
+mcocr_public_145014udqjt.jpg,data\images\train_images\train_images\mcocr_public_145014udqjt.jpg,TÊN ĐẠI LÝ,2020-06-15,97200.0,test,test
+mcocr_public_145014nxeuq.jpg,data\images\train_images\train_images\mcocr_public_145014nxeuq.jpg,,2020-08-13,9091163.0,train,test
+mcocr_public_145014mvpzk.jpg,data\images\train_images\train_images\mcocr_public_145014mvpzk.jpg,TEN DAI LY,2020-08-09,4233105.0,train,test
+mcocr_public_145014ekpfi.jpg,data\images\train_images\train_images\mcocr_public_145014ekpfi.jpg,MINIMART ANAN,2020-08-13,430000.0,train,dev
+mcocr_public_145014mdljs.jpg,data\images\train_images\train_images\mcocr_public_145014mdljs.jpg,MINIMART ANAN,2020-08-12,75000.0,train,dev
+mcocr_public_145014xbjfb.jpg,data\images\train_images\train_images\mcocr_public_145014xbjfb.jpg,,2020-08-08,,train,test
+mcocr_public_145014oqflg.jpg,data\images\train_images\train_images\mcocr_public_145014oqflg.jpg,MINIMART ANAN,2020-08-09,123100.0,test,test
+mcocr_public_145014wkmws.jpg,data\images\train_images\train_images\mcocr_public_145014wkmws.jpg,PHÓ MỎ,2020-08-11,77000.0,train,dev
+mcocr_public_145014lesir.jpg,data\images\train_images\train_images\mcocr_public_145014lesir.jpg,MINIMART ANAN,2020-08-13,130000.0,train,dev
+mcocr_public_145014tkdal.jpg,data\images\train_images\train_images\mcocr_public_145014tkdal.jpg,MINIMART ANAN,2020-08-11,232008.0,train,dev
+mcocr_public_145014evnmr.jpg,data\images\train_images\train_images\mcocr_public_145014evnmr.jpg,BIG C LONG BIEN,2020-08-13,,train,dev
+mcocr_public_145014hngsl.jpg,data\images\train_images\train_images\mcocr_public_145014hngsl.jpg,NHÀ SÁCH GD-TC CẨM PHẢ,,405000.0,train,dev
+mcocr_public_145014pbtzz.jpg,data\images\train_images\train_images\mcocr_public_145014pbtzz.jpg,NHÀ SÁCH GD-TC CẨM PHẢ,,92000.0,val,test
+mcocr_public_145014wpnpe.jpg,data\images\train_images\train_images\mcocr_public_145014wpnpe.jpg,MINIMART ANAN,2020-08-17,69000.0,train,dev
+mcocr_public_145014wcjoc.jpg,data\images\train_images\train_images\mcocr_public_145014wcjoc.jpg,UNIQLO,2020-08-15,1095000.0,test,test
+mcocr_public_145014qjkba.jpg,data\images\train_images\train_images\mcocr_public_145014qjkba.jpg,VinCommerce,2020-08-15,25600.0,test,test
+mcocr_public_145014obtof.jpg,data\images\train_images\train_images\mcocr_public_145014obtof.jpg,VinCommerce,2020-08-13,139000.0,train,test
+mcocr_public_145014fbixi.jpg,data\images\train_images\train_images\mcocr_public_145014fbixi.jpg,VinCommerce,2020-08-15,,test,test
+mcocr_public_145014kyxew.jpg,data\images\train_images\train_images\mcocr_public_145014kyxew.jpg,MINIMART ANAN,2020-08-16,171000.0,train,dev
+mcocr_public_145014zibrj.jpg,data\images\train_images\train_images\mcocr_public_145014zibrj.jpg,Phúc Anh Minimart,,53000.0,test,test
+mcocr_public_145014orfyr.jpg,data\images\train_images\train_images\mcocr_public_145014orfyr.jpg,VinCommerce,2020-08-14,11616.0,val,test
+mcocr_public_145014apodg.jpg,data\images\train_images\train_images\mcocr_public_145014apodg.jpg,VinCommerce,2020-08-14,160000.0,train,dev
+mcocr_public_145014wplip.jpg,data\images\train_images\train_images\mcocr_public_145014wplip.jpg,VinCommercce,2020-08-12,23400.0,train,test
+mcocr_public_145014yjivr.jpg,data\images\train_images\train_images\mcocr_public_145014yjivr.jpg,BIEU THI BACH HOA TONG HOP,2020-08-10,125220.0,test,test
+mcocr_public_145014pnuud.jpg,data\images\train_images\train_images\mcocr_public_145014pnuud.jpg,MINIMART ANAN,2020-08-12,116000.0,train,test
+mcocr_public_145014dnwoz.jpg,data\images\train_images\train_images\mcocr_public_145014dnwoz.jpg,THE COFFEE H905E,,380000.0,train,test
+mcocr_public_145014kupdx.jpg,data\images\train_images\train_images\mcocr_public_145014kupdx.jpg,MINIMART ANAN,2020-08-12,77000.0,train,test
+mcocr_public_145014upely.jpg,data\images\train_images\train_images\mcocr_public_145014upely.jpg,MINIMART ANAN,2020-08-10,131500.0,test,test
+mcocr_public_145014lopme.jpg,data\images\train_images\train_images\mcocr_public_145014lopme.jpg,VinCommerce,2020-08-14,81302.0,val,test
+mcocr_public_145014evpom.jpg,data\images\train_images\train_images\mcocr_public_145014evpom.jpg,MINIMART ANANAN,2020-08-10,31000.0,val,test
+mcocr_public_145014ofrbt.jpg,data\images\train_images\train_images\mcocr_public_145014ofrbt.jpg,Vincommerce,2020-08-11,450100.0,train,dev
+mcocr_public_145014cbkkn.jpg,data\images\train_images\train_images\mcocr_public_145014cbkkn.jpg,MINIMART ANAN,2020-08-12,142500.0,train,test
+mcocr_public_145014ppfqq.jpg,data\images\train_images\train_images\mcocr_public_145014ppfqq.jpg,VinCommerce,2020-08-10,24660.0,train,test
+mcocr_public_145014woqkn.jpg,data\images\train_images\train_images\mcocr_public_145014woqkn.jpg,VinCommerce,2020-08-13,,train,dev
+mcocr_public_145014gjtjf.jpg,data\images\train_images\train_images\mcocr_public_145014gjtjf.jpg,MINIMART ANAN,2020-08-09,297000.0,train,test
+mcocr_public_145014ecchz.jpg,data\images\train_images\train_images\mcocr_public_145014ecchz.jpg,VinCommerce,2020-08-15,156000.0,train,dev
+mcocr_public_145014giqwv.jpg,data\images\train_images\train_images\mcocr_public_145014giqwv.jpg,VHai,,,test,test
+mcocr_public_145014zdfgy.jpg,data\images\train_images\train_images\mcocr_public_145014zdfgy.jpg,VinCommerce,2020-08-15,,train,test
+mcocr_public_145014zzzej.jpg,data\images\train_images\train_images\mcocr_public_145014zzzej.jpg,MINIMART ANAN,2020-08-17,32000.0,train,dev
+mcocr_public_145014nsrnp.jpg,data\images\train_images\train_images\mcocr_public_145014nsrnp.jpg,,,20000.0,test,test
+mcocr_public_145014miikd.jpg,data\images\train_images\train_images\mcocr_public_145014miikd.jpg,MINIMART ANAN,2020-08-13,61000.0,test,test
+mcocr_public_145014lshmg.jpg,data\images\train_images\train_images\mcocr_public_145014lshmg.jpg,VinCommerce,2020-08-14,,train,dev
+mcocr_public_145014wcltx.jpg,data\images\train_images\train_images\mcocr_public_145014wcltx.jpg,MINIMART ANAN,,110000.0,test,test
+mcocr_public_145014umhqi.jpg,data\images\train_images\train_images\mcocr_public_145014umhqi.jpg,,2019-09-23,57000.0,train,test
+mcocr_public_145014phmqt.jpg,data\images\train_images\train_images\mcocr_public_145014phmqt.jpg,MINIMART ANAN,2020-08-12,116010.0,val,test
+mcocr_public_145014fvnus.jpg,data\images\train_images\train_images\mcocr_public_145014fvnus.jpg,MINIMART ANAN,,2020.0,train,dev
+mcocr_public_145014ztmap.jpg,data\images\train_images\train_images\mcocr_public_145014ztmap.jpg,VinCommerce,2020-08-14,51900.0,train,test
+mcocr_public_145014wyctr.jpg,data\images\train_images\train_images\mcocr_public_145014wyctr.jpg,Saigon Co.op,,6800.0,test,test
+mcocr_public_145014jvifr.jpg,data\images\train_images\train_images\mcocr_public_145014jvifr.jpg,NHÀ SÁCH GD-TC CẨM PHẢ,,15500.0,test,test
+mcocr_public_145014wbfza.jpg,data\images\train_images\train_images\mcocr_public_145014wbfza.jpg,CỬA HÀNG NĂM OÁNH,2020-08-10,51500.0,train,dev
+mcocr_public_145014ugcvq.jpg,data\images\train_images\train_images\mcocr_public_145014ugcvq.jpg,MINIMART ANAN,,237000.0,train,test
+mcocr_public_145014uqhki.jpg,data\images\train_images\train_images\mcocr_public_145014uqhki.jpg,Linh kiện Điện Tử 3M cho.com.vn,2020-07-22,,train,test
+mcocr_public_145014evbnu.jpg,data\images\train_images\train_images\mcocr_public_145014evbnu.jpg,CỬA HÀNG NĂM OÁNH,2020-08-11,22000.0,train,dev
+mcocr_public_145014lfctk.jpg,data\images\train_images\train_images\mcocr_public_145014lfctk.jpg,VinCommerce,2020-08-14,,train,test
+mcocr_public_145014yrxvd.jpg,data\images\train_images\train_images\mcocr_public_145014yrxvd.jpg,SIEU THI BACH HOA TONG HOP,,84000.0,test,test
+mcocr_public_145014jcwux.jpg,data\images\train_images\train_images\mcocr_public_145014jcwux.jpg,VHA,,,test,test
+mcocr_public_145014rzbtj.jpg,data\images\train_images\train_images\mcocr_public_145014rzbtj.jpg,Nhà Hàng Aozora Sushi,2020-08-15,505000.0,test,test
+mcocr_public_145014itwqb.jpg,data\images\train_images\train_images\mcocr_public_145014itwqb.jpg,,2020-08-14,11616.0,train,test
+mcocr_public_145014emqom.jpg,data\images\train_images\train_images\mcocr_public_145014emqom.jpg,MINIMART ANAN,2020-08-16,281000.0,test,test
+mcocr_public_145014wcrlk.jpg,data\images\train_images\train_images\mcocr_public_145014wcrlk.jpg,VinCommerce,2020-08-15,95800.0,val,test
+mcocr_public_145014uagtj.jpg,data\images\train_images\train_images\mcocr_public_145014uagtj.jpg,,2020-08-14,50000.0,test,test
+mcocr_public_145014gkura.jpg,data\images\train_images\train_images\mcocr_public_145014gkura.jpg,VinCommerce,2020-08-14,10000.0,train,dev
+mcocr_public_145014pvsrm.jpg,data\images\train_images\train_images\mcocr_public_145014pvsrm.jpg,FamilyMart,2020-08-13,8000.0,train,test
+mcocr_public_145014tobyw.jpg,data\images\train_images\train_images\mcocr_public_145014tobyw.jpg,FamilyMart,2020-08-14,28000.0,train,test
+mcocr_public_145014lrken.jpg,data\images\train_images\train_images\mcocr_public_145014lrken.jpg,SIEU THI BACH HOA TONG HOP,2020-08-10,125220.0,test,test
+mcocr_public_145014yiufn.jpg,data\images\train_images\train_images\mcocr_public_145014yiufn.jpg,NHÀ SÁCH GD-TC CẨM PHẢ,,41000.0,train,dev
+mcocr_public_145014uzdqt.jpg,data\images\train_images\train_images\mcocr_public_145014uzdqt.jpg,TÊN ĐẠI LÝ,,229869.0,test,test
+mcocr_public_145014awwfw.jpg,data\images\train_images\train_images\mcocr_public_145014awwfw.jpg,MINIMART ANAN,2020-08-11,124000.0,train,test
+mcocr_public_145014nwfmm.jpg,data\images\train_images\train_images\mcocr_public_145014nwfmm.jpg,MINIMART ANAN,2020-08-16,264500.0,train,dev
+mcocr_public_145014wdzrp.jpg,data\images\train_images\train_images\mcocr_public_145014wdzrp.jpg,MINIMART ANAN,2020-08-12,87500.0,test,test
+mcocr_public_145014xdtdp.jpg,data\images\train_images\train_images\mcocr_public_145014xdtdp.jpg,NHÀ SÁCH GD-TC CẨM PHẢ,,49000.0,train,dev
+mcocr_public_145014jgtbj.jpg,data\images\train_images\train_images\mcocr_public_145014jgtbj.jpg,VinCommerce,2020-08-15,,train,test
+mcocr_public_145014pevvt.jpg,data\images\train_images\train_images\mcocr_public_145014pevvt.jpg,MINIMART ANAN,2020-08-10,75500.0,val,test
+mcocr_public_145014mudmu.jpg,data\images\train_images\train_images\mcocr_public_145014mudmu.jpg,Vcommerce,2020-08-14,19900.0,test,test
+mcocr_public_145014nerzt.jpg,data\images\train_images\train_images\mcocr_public_145014nerzt.jpg,PHỐ MỎ,2020-08-13,50000.0,train,test
+mcocr_public_145014hdevu.jpg,data\images\train_images\train_images\mcocr_public_145014hdevu.jpg,SCTC cô THỎ 104 TRẦN PHÚ - CẨM,2020-08-10,105000.0,val,test
+mcocr_public_145014armln.jpg,data\images\train_images\train_images\mcocr_public_145014armln.jpg,Laha Cafe,,15000.0,test,test
+mcocr_public_145014enllh.jpg,data\images\train_images\train_images\mcocr_public_145014enllh.jpg,VGR_VINMART 4987 VMQNH,2020-05-15,70700.0,train,test
+mcocr_public_145014ohtbh.jpg,data\images\train_images\train_images\mcocr_public_145014ohtbh.jpg,VinCommerce,2020-08-09,,train,test
+mcocr_public_145014xzfyh.jpg,data\images\train_images\train_images\mcocr_public_145014xzfyh.jpg,VinCommerce,2020-08-09,240700.0,train,dev
+mcocr_public_145014fiydd.jpg,data\images\train_images\train_images\mcocr_public_145014fiydd.jpg,PHỐ MỎ,2020-08-13,20000.0,test,test
+mcocr_public_145014hpdwx.jpg,data\images\train_images\train_images\mcocr_public_145014hpdwx.jpg,MINIMART ANAN,2020-08-16,237008.0,train,test
+mcocr_public_145014cfgjy.jpg,data\images\train_images\train_images\mcocr_public_145014cfgjy.jpg,VinCommerce,2020-07-23,13500.0,train,test
+mcocr_public_145014uilmf.jpg,data\images\train_images\train_images\mcocr_public_145014uilmf.jpg,MINIMART ANAN,2020-08-09,38000.0,test,test
+mcocr_public_145014xubtk.jpg,data\images\train_images\train_images\mcocr_public_145014xubtk.jpg,VinCommerce,2020-08-13,66500.0,train,test
+mcocr_public_145014orisb.jpg,data\images\train_images\train_images\mcocr_public_145014orisb.jpg,MINIMART ANAN,2020-08-16,161500.0,test,test
+mcocr_public_145014vtqgy.jpg,data\images\train_images\train_images\mcocr_public_145014vtqgy.jpg,Guitar Cafe,2020-10-03,100000.0,train,test
+mcocr_public_145014kplqb.jpg,data\images\train_images\train_images\mcocr_public_145014kplqb.jpg,NHÀ SÁCH GD-TC CẨM PHẢ,,126000.0,train,dev
+mcocr_public_145014ytzcj.jpg,data\images\train_images\train_images\mcocr_public_145014ytzcj.jpg,VinCommerce,2020-08-15,48000.0,train,test
+mcocr_public_145014fhbos.jpg,data\images\train_images\train_images\mcocr_public_145014fhbos.jpg,VinCommerce,2020-08-10,47900.0,train,test
+mcocr_public_145014sprsy.jpg,data\images\train_images\train_images\mcocr_public_145014sprsy.jpg,VinCommerce,2020-08-15,108256.0,train,dev
+mcocr_public_145014dhiru.jpg,data\images\train_images\train_images\mcocr_public_145014dhiru.jpg,MINIMART ANAN,2020-08-12,47000.0,test,test
+mcocr_public_145014ofcbe.jpg,data\images\train_images\train_images\mcocr_public_145014ofcbe.jpg,,,7196723.0,train,dev
+mcocr_public_145014tetea.jpg,data\images\train_images\train_images\mcocr_public_145014tetea.jpg,CỬA HÀNG NĂM OÁNH,2020-08-11,35500.0,test,test
+mcocr_public_145014cqsoz.jpg,data\images\train_images\train_images\mcocr_public_145014cqsoz.jpg,Vit Commerce,2020-08-13,99400.0,train,dev
+mcocr_public_145014xsppi.jpg,data\images\train_images\train_images\mcocr_public_145014xsppi.jpg,VinCommerce,2020-08-14,26900.0,val,test
+mcocr_public_145014lmarv.jpg,data\images\train_images\train_images\mcocr_public_145014lmarv.jpg,MINIMART ANAN,2020-08-16,137000.0,train,test
+mcocr_public_145014zorzw.jpg,data\images\train_images\train_images\mcocr_public_145014zorzw.jpg,MINIMART ANAN,2020-08-12,143000.0,train,dev
+mcocr_public_145014mtbhi.jpg,data\images\train_images\train_images\mcocr_public_145014mtbhi.jpg,MINIMART ANAN,2020-08-16,127000.0,train,test
+mcocr_public_145014nsqiz.jpg,data\images\train_images\train_images\mcocr_public_145014nsqiz.jpg,VinCommerce,2020-08-15,,test,test
+mcocr_public_145014ayyud.jpg,data\images\train_images\train_images\mcocr_public_145014ayyud.jpg,Legend,,64000.0,train,dev
+mcocr_public_145014khrvg.jpg,data\images\train_images\train_images\mcocr_public_145014khrvg.jpg,MINIMART ANAN,2020-08-13,116000.0,train,dev
+mcocr_public_145014hngaw.jpg,data\images\train_images\train_images\mcocr_public_145014hngaw.jpg,MINIMART ANAN,2020-08-10,155000.0,train,test
+mcocr_public_145014dztik.jpg,data\images\train_images\train_images\mcocr_public_145014dztik.jpg,MINIMART ANAN,2020-08-13,147000.0,train,test
+mcocr_public_145014ccyis.jpg,data\images\train_images\train_images\mcocr_public_145014ccyis.jpg,MINIMART ANAN,2020-08-17,40000.0,test,test
+mcocr_public_145014zuarq.jpg,data\images\train_images\train_images\mcocr_public_145014zuarq.jpg,VinCommerce,2019-03-24,28200.0,val,test
+mcocr_public_145014esieu.jpg,data\images\train_images\train_images\mcocr_public_145014esieu.jpg,VinCommerce,2020-08-12,235932.0,train,test
+mcocr_public_145014mjfti.jpg,data\images\train_images\train_images\mcocr_public_145014mjfti.jpg,MINIMART ANAN,2020-08-09,63000.0,val,test
+mcocr_public_145014irkqn.jpg,data\images\train_images\train_images\mcocr_public_145014irkqn.jpg,MINIMART ANAN,2020-08-16,198000.0,test,test
+mcocr_public_145014vyosv.jpg,data\images\train_images\train_images\mcocr_public_145014vyosv.jpg,,2020-08-08,122545.0,train,dev
+mcocr_public_145014aixgf.jpg,data\images\train_images\train_images\mcocr_public_145014aixgf.jpg,NHÀ SÁCH GD-TC CẨM PHẢ,,50000.0,train,dev
+mcocr_public_145014rmhwd.jpg,data\images\train_images\train_images\mcocr_public_145014rmhwd.jpg,Ga Dong Quan,2019-03-24,168000.0,train,dev
+mcocr_public_145014jpzwu.jpg,data\images\train_images\train_images\mcocr_public_145014jpzwu.jpg,,,650000.0,test,test
+mcocr_public_145014xaqvy.jpg,data\images\train_images\train_images\mcocr_public_145014xaqvy.jpg,VinCommerce,2020-08-09,48200.0,train,test
+mcocr_public_145014qcxwq.jpg,data\images\train_images\train_images\mcocr_public_145014qcxwq.jpg,VinCommerce,2020-08-14,,train,test
+mcocr_public_145014iqlqw.jpg,data\images\train_images\train_images\mcocr_public_145014iqlqw.jpg,NHÀ SÁCH GD-TC CẨM PHẢ,,71000.0,train,test
+mcocr_public_145014fgfzb.jpg,data\images\train_images\train_images\mcocr_public_145014fgfzb.jpg,MINIMART ANAN,2020-08-11,60000.0,train,dev
+mcocr_public_145014sqltv.jpg,data\images\train_images\train_images\mcocr_public_145014sqltv.jpg,CỬA HÀNG NĂM OÁNH,2020-08-11,89000.0,train,test
+mcocr_public_145014xkuxu.jpg,data\images\train_images\train_images\mcocr_public_145014xkuxu.jpg,VinCommerce,2020-08-14,208100.0,train,test
+mcocr_public_145014zxdlo.jpg,data\images\train_images\train_images\mcocr_public_145014zxdlo.jpg,TÊN ĐẠI LÝ,2020-04-10,510510.0,train,dev
+mcocr_public_145014fbeqa.jpg,data\images\train_images\train_images\mcocr_public_145014fbeqa.jpg,VinCommerce,2020-08-12,22000.0,train,dev
+mcocr_public_145014noddg.jpg,data\images\train_images\train_images\mcocr_public_145014noddg.jpg,MINIMART ANANAN,2020-08-13,165000.0,test,test
+mcocr_public_145014wvxfq.jpg,data\images\train_images\train_images\mcocr_public_145014wvxfq.jpg,,2020-07-06,234000.0,train,test
+mcocr_public_145014jcmch.jpg,data\images\train_images\train_images\mcocr_public_145014jcmch.jpg,TÊN ĐẠI LÝ,2020-08-14,284500.0,train,test
+mcocr_public_145014xgpwb.jpg,data\images\train_images\train_images\mcocr_public_145014xgpwb.jpg,VinCommerce,2020-08-15,,val,test
+mcocr_public_145014iueod.jpg,data\images\train_images\train_images\mcocr_public_145014iueod.jpg,,2020-08-15,211820.0,val,test
+mcocr_public_145014eilwc.jpg,data\images\train_images\train_images\mcocr_public_145014eilwc.jpg,Saigon Co.op,2019-09-23,27200.0,train,test
+mcocr_public_145014xxdza.jpg,data\images\train_images\train_images\mcocr_public_145014xxdza.jpg,VinCommerce,2020-08-13,70800.0,val,test
+mcocr_public_145014nmqkb.jpg,data\images\train_images\train_images\mcocr_public_145014nmqkb.jpg,VinCommerce,2020-08-15,95800.0,train,test
+mcocr_public_145014wgimk.jpg,data\images\train_images\train_images\mcocr_public_145014wgimk.jpg,VCB 134 Lê Lợi,2020-07-11,,train,dev
+mcocr_public_145014bzkaq.jpg,data\images\train_images\train_images\mcocr_public_145014bzkaq.jpg,VinCommerce,,,train,test
+mcocr_public_145014mnwrz.jpg,data\images\train_images\train_images\mcocr_public_145014mnwrz.jpg,VinCommerce,2020-08-15,210294.0,train,test
+mcocr_public_145014ywtoy.jpg,data\images\train_images\train_images\mcocr_public_145014ywtoy.jpg,"DIM SUM CORNER TRUNG, HÒA",2020-08-13,292000.0,train,test
+mcocr_public_145014odboi.jpg,data\images\train_images\train_images\mcocr_public_145014odboi.jpg,MINIMAIRT ANAN,2020-08-16,127000.0,test,test
+mcocr_public_145014aecqi.jpg,data\images\train_images\train_images\mcocr_public_145014aecqi.jpg,MINIMART ANAN,2020-08-10,167000.0,train,test
+mcocr_public_145014pmcli.jpg,data\images\train_images\train_images\mcocr_public_145014pmcli.jpg,MINIMART ANAN,2020-08-16,92250.0,train,dev
+mcocr_public_145014wrzex.jpg,data\images\train_images\train_images\mcocr_public_145014wrzex.jpg,MINIMART ANAN,2020-08-15,33000.0,test,test
+mcocr_public_145014jfyvi.jpg,data\images\train_images\train_images\mcocr_public_145014jfyvi.jpg,NHÀ SÁCH GD-TC CẨM PHẢ,,13000.0,train,test
+mcocr_public_145014izcur.jpg,data\images\train_images\train_images\mcocr_public_145014izcur.jpg,BIG C AN PHÚ,,86100.0,train,test
+mcocr_public_145014cnkgs.jpg,data\images\train_images\train_images\mcocr_public_145014cnkgs.jpg,,2020-06-12,357075.0,train,test
+mcocr_public_145014ebrwa.jpg,data\images\train_images\train_images\mcocr_public_145014ebrwa.jpg,MINIMART ANAN,,78500.0,train,test
+mcocr_public_145014zvjqh.jpg,data\images\train_images\train_images\mcocr_public_145014zvjqh.jpg,CỬA HÀNG TỰ CHỌN ANH GIANG,2020-08-13,278000.0,train,test
+mcocr_public_145014elcju.jpg,data\images\train_images\train_images\mcocr_public_145014elcju.jpg,Vincommerce,2020-08-14,,val,test
+mcocr_public_145014ljxit.jpg,data\images\train_images\train_images\mcocr_public_145014ljxit.jpg,NHÀ SÁCH GD-TC CẨM PHẢ,,322000.0,train,dev
+mcocr_public_145014bpeci.jpg,data\images\train_images\train_images\mcocr_public_145014bpeci.jpg,VGH Vinmart 1982 QNH,2020-05-12,402766.0,train,test
+mcocr_public_145014lukeo.jpg,data\images\train_images\train_images\mcocr_public_145014lukeo.jpg,MINIMART ANAN,2020-08-12,25000.0,test,test
+mcocr_public_145014ncpxq.jpg,data\images\train_images\train_images\mcocr_public_145014ncpxq.jpg,THE COFFEE HQUSE,,900000.0,test,test
+mcocr_public_145014glqgm.jpg,data\images\train_images\train_images\mcocr_public_145014glqgm.jpg,VinMart,,49062.0,test,test
+mcocr_public_145014jfoxg.jpg,data\images\train_images\train_images\mcocr_public_145014jfoxg.jpg,Thanh,2020-10-05,,test,test
+mcocr_public_145014lcffb.jpg,data\images\train_images\train_images\mcocr_public_145014lcffb.jpg,MINIMART ANAN,2020-08-12,177004.0,test,test
+mcocr_public_145014hwaqw.jpg,data\images\train_images\train_images\mcocr_public_145014hwaqw.jpg,PHÓ MỎ,2020-08-03,50000.0,val,test
+mcocr_public_145014xpucl.jpg,data\images\train_images\train_images\mcocr_public_145014xpucl.jpg,VinCommerce,2020-08-15,59660.0,train,dev
+mcocr_public_145014wmrqi.jpg,data\images\train_images\train_images\mcocr_public_145014wmrqi.jpg,co.op mart,2028-05-21,748600.0,test,test
+mcocr_public_145014ewdtv.jpg,data\images\train_images\train_images\mcocr_public_145014ewdtv.jpg,,2020-08-13,45400.0,test,test
+mcocr_public_145014yphuv.jpg,data\images\train_images\train_images\mcocr_public_145014yphuv.jpg,NHÀ SÁCH GD-TC CẨM PHẢ,,973000.0,train,dev
+mcocr_public_145014ldvxl.jpg,data\images\train_images\train_images\mcocr_public_145014ldvxl.jpg,NHÀ SÁCH GD-TC CẨM PHẢ,,7000.0,test,test
+mcocr_public_145014wbhzq.jpg,data\images\train_images\train_images\mcocr_public_145014wbhzq.jpg,MINIMART ANAN,2020-08-10,,test,test
+mcocr_public_145014etlhn.jpg,data\images\train_images\train_images\mcocr_public_145014etlhn.jpg,MINIMART ANAN,2020-08-15,118000.0,val,test
+mcocr_public_145014bxkli.jpg,data\images\train_images\train_images\mcocr_public_145014bxkli.jpg,PHÚC LONG,,,train,test
+mcocr_public_145014kxqtn.jpg,data\images\train_images\train_images\mcocr_public_145014kxqtn.jpg,Vincommerce,2020-08-12,23243.0,test,test
+mcocr_public_145014xtcll.jpg,data\images\train_images\train_images\mcocr_public_145014xtcll.jpg,NHÀ SÁCH GD-TC CẨM PHẢ,2020-08-15,28000.0,test,test
+mcocr_public_145014zxrle.jpg,data\images\train_images\train_images\mcocr_public_145014zxrle.jpg,MINIMART ANAN,2020-08-09,180000.0,train,test
+mcocr_public_145014qrfai.jpg,data\images\train_images\train_images\mcocr_public_145014qrfai.jpg,NHÀ SÁCH GD-TC CẨM PHẢ,,342500.0,val,test
+mcocr_public_145014vizbq.jpg,data\images\train_images\train_images\mcocr_public_145014vizbq.jpg,SIEU THI BACH HOA TONG HOP,,39000.0,val,test
+mcocr_public_145014hrvjc.jpg,data\images\train_images\train_images\mcocr_public_145014hrvjc.jpg,VinCommerce,2020-08-15,105378.0,train,test
+mcocr_public_145014ndurw.jpg,data\images\train_images\train_images\mcocr_public_145014ndurw.jpg,NHÀ SÁCH GD-TC CẨM PHẢ,2008-11-20,,val,test
+mcocr_public_145014wkdkh.jpg,data\images\train_images\train_images\mcocr_public_145014wkdkh.jpg,PHỐ MỎ,2020-08-13,32000.0,train,dev
+mcocr_public_145014nkquo.jpg,data\images\train_images\train_images\mcocr_public_145014nkquo.jpg,MINIMART ANAN,2020-08-13,67500.0,train,test
+mcocr_public_145014gflyd.jpg,data\images\train_images\train_images\mcocr_public_145014gflyd.jpg,MINIMART ANAN,2020-08-15,421016.0,train,test
+mcocr_public_145014hbjul.jpg,data\images\train_images\train_images\mcocr_public_145014hbjul.jpg,NHÀ SÁCH GD-TC CẨM PHẢ,,134000.0,test,test
+mcocr_public_145014muzpf.jpg,data\images\train_images\train_images\mcocr_public_145014muzpf.jpg,VinCommerce,2020-08-13,199000.0,test,test
+mcocr_public_145014ikibc.jpg,data\images\train_images\train_images\mcocr_public_145014ikibc.jpg,CỬA HÀNG NĂM OÁNH,2020-08-11,19900.0,val,test
+mcocr_public_145014uqaoc.jpg,data\images\train_images\train_images\mcocr_public_145014uqaoc.jpg,CỬA HÀNG NĂM OÁNH,2020-08-10,52000.0,val,test
+mcocr_public_145014mfmvh.jpg,data\images\train_images\train_images\mcocr_public_145014mfmvh.jpg,MINIMART ANAN,2020-08-15,991000.0,val,test
+mcocr_public_145014gvogn.jpg,data\images\train_images\train_images\mcocr_public_145014gvogn.jpg,Siêu thị thú cưng PET YÊU,,63000.0,test,test
+mcocr_public_145014rrbnn.jpg,data\images\train_images\train_images\mcocr_public_145014rrbnn.jpg,VinCommerce,2020-08-22,243214.0,train,test
+mcocr_public_145014ftydn.jpg,data\images\train_images\train_images\mcocr_public_145014ftydn.jpg,MINIMART ANAN,2020-08-15,222000.0,test,test
+mcocr_public_145014ywmiq.jpg,data\images\train_images\train_images\mcocr_public_145014ywmiq.jpg,VinCommerce,2020-08-13,40000.0,train,test
+mcocr_public_145014awmql.jpg,data\images\train_images\train_images\mcocr_public_145014awmql.jpg,NHÀ SÁCH GD-TC CẨM PHẢ,,98000.0,train,dev
+mcocr_public_145014wscvw.jpg,data\images\train_images\train_images\mcocr_public_145014wscvw.jpg,MINIMART ANAN,,,train,test
+mcocr_public_145014kcbzk.jpg,data\images\train_images\train_images\mcocr_public_145014kcbzk.jpg,VinCommerce,2020-08-09,,val,test
+mcocr_public_145014xvwfa.jpg,data\images\train_images\train_images\mcocr_public_145014xvwfa.jpg,MINIMART ANAN,2020-08-09,22000.0,val,test
+mcocr_public_145014epcqx.jpg,data\images\train_images\train_images\mcocr_public_145014epcqx.jpg,MINIMART ANAN,2020-08-16,143000.0,train,test
+mcocr_public_145014gniax.jpg,data\images\train_images\train_images\mcocr_public_145014gniax.jpg,VinCommerce,2020-08-13,151825.0,val,test
+mcocr_public_145014quwvb.jpg,data\images\train_images\train_images\mcocr_public_145014quwvb.jpg,Saigon Co.op,2019-09-23,18200.0,train,dev
+mcocr_public_145014ziulw.jpg,data\images\train_images\train_images\mcocr_public_145014ziulw.jpg,Saigon Co.op,2019-09-17,81140.0,val,test
+mcocr_public_145014zsypc.jpg,data\images\train_images\train_images\mcocr_public_145014zsypc.jpg,MINIMART ANAN,2020-08-11,176000.0,train,dev
+mcocr_public_145014oorxd.jpg,data\images\train_images\train_images\mcocr_public_145014oorxd.jpg,co.op smile,2020-09-13,26500.0,test,test
+mcocr_public_145014pgkzd.jpg,data\images\train_images\train_images\mcocr_public_145014pgkzd.jpg,VinCommerce,2020-08-14,33800.0,train,dev
+mcocr_public_145014zhaaz.jpg,data\images\train_images\train_images\mcocr_public_145014zhaaz.jpg,PHÓ MỎ,2020-08-11,20000.0,train,test
+mcocr_public_145014urapv.jpg,data\images\train_images\train_images\mcocr_public_145014urapv.jpg,Guitar Cafe,,125000.0,val,test
+mcocr_public_145014dwyzl.jpg,data\images\train_images\train_images\mcocr_public_145014dwyzl.jpg,MINIMART ANAN,2020-08-11,,test,test
+mcocr_public_145014ibokx.jpg,data\images\train_images\train_images\mcocr_public_145014ibokx.jpg,MINIMART ANAN,2020-08-09,345000.0,train,test
+mcocr_public_145014mnwlg.jpg,data\images\train_images\train_images\mcocr_public_145014mnwlg.jpg,PHÓ MỎ,2020-08-13,135000.0,train,dev
+mcocr_public_145014xajzl.jpg,data\images\train_images\train_images\mcocr_public_145014xajzl.jpg,CỬA HÀNG NĂM OÁNH,2020-08-10,,train,dev
+mcocr_public_145014epafb.jpg,data\images\train_images\train_images\mcocr_public_145014epafb.jpg,NHÀ SÁCH GD-TC CẨM PHẢ,,528900.0,train,test
+mcocr_public_145014awxdd.jpg,data\images\train_images\train_images\mcocr_public_145014awxdd.jpg,Saigon Co.op,2019-09-19,41520.0,train,test
+mcocr_public_145014xkqax.jpg,data\images\train_images\train_images\mcocr_public_145014xkqax.jpg,VinCommerce,2020-08-14,49500.0,test,test
+mcocr_public_145014lkccn.jpg,data\images\train_images\train_images\mcocr_public_145014lkccn.jpg,TEN DAI LY:,2020-08-12,8671929.0,train,test
+mcocr_public_145014anjdg.jpg,data\images\train_images\train_images\mcocr_public_145014anjdg.jpg,MINIMART ANAN,2020-08-16,87500.0,test,test
+mcocr_public_145014tfbnr.jpg,data\images\train_images\train_images\mcocr_public_145014tfbnr.jpg,VinCommerce,2020-08-15,148000.0,val,test
+mcocr_public_145014hcbdo.jpg,data\images\train_images\train_images\mcocr_public_145014hcbdo.jpg,,2020-08-12,5000.0,train,test
+mcocr_public_145014bxyhq.jpg,data\images\train_images\train_images\mcocr_public_145014bxyhq.jpg,MINIMART ANAN,2020-08-17,83000.0,train,dev
+mcocr_public_145014yhorz.jpg,data\images\train_images\train_images\mcocr_public_145014yhorz.jpg,TÊN ĐẠI LÝ:,,,val,test
+mcocr_public_145014eamas.jpg,data\images\train_images\train_images\mcocr_public_145014eamas.jpg,SIÊU THỊ BÁCH HOÁ TỔNG HỢP,,518900.0,val,test
+mcocr_public_145014zcoyr.jpg,data\images\train_images\train_images\mcocr_public_145014zcoyr.jpg,MINIMART ANAN,2020-08-16,150000.0,val,test
+mcocr_public_145014gmvig.jpg,data\images\train_images\train_images\mcocr_public_145014gmvig.jpg,VinCommerce,2020-08-12,7200.0,train,dev
+mcocr_public_145014gfgse.jpg,data\images\train_images\train_images\mcocr_public_145014gfgse.jpg,Cuitar Cafe,2020-10-03,25000.0,test,test
+mcocr_public_145014yjrsk.jpg,data\images\train_images\train_images\mcocr_public_145014yjrsk.jpg,SCTC cô THỎ 104 TRẦN PHÚ - CẨM,2020-08-10,40000.0,test,test
+mcocr_public_145014nazga.jpg,data\images\train_images\train_images\mcocr_public_145014nazga.jpg,VinCommerce,2020-08-15,313313.0,test,test
+mcocr_public_145014crsgq.jpg,data\images\train_images\train_images\mcocr_public_145014crsgq.jpg,,2020-08-15,79800.0,train,dev
+mcocr_public_145014ugdwd.jpg,data\images\train_images\train_images\mcocr_public_145014ugdwd.jpg,CỬA HÀNG NĂM OÁNH,2020-08-11,98340.0,train,test
+mcocr_public_145014zbpki.jpg,data\images\train_images\train_images\mcocr_public_145014zbpki.jpg,PHỐ MỎ,2020-08-13,60000.0,train,dev
+mcocr_public_145014bqwna.jpg,data\images\train_images\train_images\mcocr_public_145014bqwna.jpg,NHÀ SÁCH GD-TC CẨM PHẢ,,84500.0,train,dev
+mcocr_public_145014blxif.jpg,data\images\train_images\train_images\mcocr_public_145014blxif.jpg,VinCommerce,2020-08-13,16000.0,train,test
+mcocr_public_145014njsyx.jpg,data\images\train_images\train_images\mcocr_public_145014njsyx.jpg,VinCommerce,2020-08-12,57955.0,val,test
+mcocr_public_145014chqzo.jpg,data\images\train_images\train_images\mcocr_public_145014chqzo.jpg,TỔNG CÔNG TY ĐẦU TƯ PHÁT TRIỂN ĐƯỜNG CAO TỐC VIỆT NAM - Cty TNHH MTV,2020-08-14,,val,test
+mcocr_public_145014rqund.jpg,data\images\train_images\train_images\mcocr_public_145014rqund.jpg,MINIMART ANAM,,,train,test
+mcocr_public_145014sfktp.jpg,data\images\train_images\train_images\mcocr_public_145014sfktp.jpg,Co.op mart,2020-07-15,429776.0,test,test
+mcocr_public_145014zkhdi.jpg,data\images\train_images\train_images\mcocr_public_145014zkhdi.jpg,MINIMART ANAN,2020-08-11,243000.0,train,test
+mcocr_public_145014gxgwj.jpg,data\images\train_images\train_images\mcocr_public_145014gxgwj.jpg,MINIMART ANAN,2020-08-16,295008.0,train,dev
+mcocr_public_145014dkivp.jpg,data\images\train_images\train_images\mcocr_public_145014dkivp.jpg,NHÀ SÁCH GD-TC CẨM PHẢ,,76000.0,train,dev
+mcocr_public_145014pudoo.jpg,data\images\train_images\train_images\mcocr_public_145014pudoo.jpg,SIEU THI BACH HOA TONG HOP,2020-08-09,70000.0,train,dev
+mcocr_public_145014xpidv.jpg,data\images\train_images\train_images\mcocr_public_145014xpidv.jpg,,2019-09-23,,train,dev
+mcocr_public_145014kbzqa.jpg,data\images\train_images\train_images\mcocr_public_145014kbzqa.jpg,VinCommerce,2020-08-08,10600.0,train,dev
+mcocr_public_145014nhvqt.jpg,data\images\train_images\train_images\mcocr_public_145014nhvqt.jpg,Nhà Hàng Aozorora Sushi,2020-08-14,1430000.0,train,dev
+mcocr_public_145014bwuiw.jpg,data\images\train_images\train_images\mcocr_public_145014bwuiw.jpg,Saigon Co.op,2019-09-20,36600.0,val,test
+mcocr_public_145014cryzd.jpg,data\images\train_images\train_images\mcocr_public_145014cryzd.jpg,,2018-08-20,,train,test
+mcocr_public_145014ychqi.jpg,data\images\train_images\train_images\mcocr_public_145014ychqi.jpg,NHÀ SÁCH GD-TC CẨM PHẢ,,136000.0,test,test
+mcocr_public_145014zgsjb.jpg,data\images\train_images\train_images\mcocr_public_145014zgsjb.jpg,MINIMART ANAN,2020-08-12,100000.0,train,test
+mcocr_public_145014yhgfq.jpg,data\images\train_images\train_images\mcocr_public_145014yhgfq.jpg,NHÀ SÁCH GD-TC CẨM PHẢ,2008-11-29,79000.0,train,dev
+mcocr_public_145014tshzk.jpg,data\images\train_images\train_images\mcocr_public_145014tshzk.jpg,NHÀ SÁCH GD-TC CẨM PHẢ,,136000.0,train,dev
+mcocr_public_145014bdeah.jpg,data\images\train_images\train_images\mcocr_public_145014bdeah.jpg,CHAMPI,,,train,test
+mcocr_public_145014iznli.jpg,data\images\train_images\train_images\mcocr_public_145014iznli.jpg,CỬA HÀNG NĂM OÁNH,2020-08-11,200000.0,val,test
+mcocr_public_145014vwnco.jpg,data\images\train_images\train_images\mcocr_public_145014vwnco.jpg,VinCommerce,2020-08-13,64800.0,train,dev
+mcocr_public_145014tzbvy.jpg,data\images\train_images\train_images\mcocr_public_145014tzbvy.jpg,Bún Bò Huế O Xuân,2020-07-14,,train,dev
+mcocr_public_145014nykks.jpg,data\images\train_images\train_images\mcocr_public_145014nykks.jpg,MINIMART ANAN,2020-08-16,111990.0,train,dev
+mcocr_public_145014dplaq.jpg,data\images\train_images\train_images\mcocr_public_145014dplaq.jpg,,2019-04-21,,train,dev
+mcocr_public_145014pyikk.jpg,data\images\train_images\train_images\mcocr_public_145014pyikk.jpg,,2020-08-10,6146619.0,train,dev
+mcocr_public_145014ngihg.jpg,data\images\train_images\train_images\mcocr_public_145014ngihg.jpg,VinCommerce,2020-08-13,154100.0,train,test
+mcocr_public_145014udhjy.jpg,data\images\train_images\train_images\mcocr_public_145014udhjy.jpg,,2020-08-14,5360869.0,train,dev
+mcocr_public_145014xlpvu.jpg,data\images\train_images\train_images\mcocr_public_145014xlpvu.jpg,CỬA HÀNG NĂM OÁNH,2020-08-10,236000.0,val,test
+mcocr_public_145014xdscr.jpg,data\images\train_images\train_images\mcocr_public_145014xdscr.jpg,VinCommerce,2020-08-14,16000.0,val,test
+mcocr_public_145014mtdoy.jpg,data\images\train_images\train_images\mcocr_public_145014mtdoy.jpg,,,9238110.0,val,test
+mcocr_public_145014yqlhe.jpg,data\images\train_images\train_images\mcocr_public_145014yqlhe.jpg,VinCommerce,2020-08-14,129100.0,train,dev
+mcocr_public_145014jqlcm.jpg,data\images\train_images\train_images\mcocr_public_145014jqlcm.jpg,SCTC CÔ THỎ 104 TRẦN PHÚ- CẤM,,,train,dev
+mcocr_public_145014fdjhi.jpg,data\images\train_images\train_images\mcocr_public_145014fdjhi.jpg,VinCommerce,2020-08-08,112534.0,train,test
+mcocr_public_145014dllhs.jpg,data\images\train_images\train_images\mcocr_public_145014dllhs.jpg,VinCommerce,2020-08-14,,train,dev
+mcocr_public_145014ftvdj.jpg,data\images\train_images\train_images\mcocr_public_145014ftvdj.jpg,NHÀ SÁCH GD-TC CẨM PHẢ,,150000.0,train,dev
+mcocr_public_145014xinpg.jpg,data\images\train_images\train_images\mcocr_public_145014xinpg.jpg,SIEU THI BACH HOA TONG HOP,2020-08-09,27700.0,train,dev
+mcocr_public_145014vaxiy.jpg,data\images\train_images\train_images\mcocr_public_145014vaxiy.jpg,VinCommerce,2020-08-13,,train,test
+mcocr_public_145014vymtd.jpg,data\images\train_images\train_images\mcocr_public_145014vymtd.jpg,MINIMART ANAN,2020-08-12,47500.0,test,test
+mcocr_public_145014auskb.jpg,data\images\train_images\train_images\mcocr_public_145014auskb.jpg,TÊN ĐẠI LÝ:,2020-06-01,61400.0,train,dev
+mcocr_public_145014omzxy.jpg,data\images\train_images\train_images\mcocr_public_145014omzxy.jpg,MINIMART ANAN,2020-08-15,195000.0,test,test
+mcocr_public_145014beisj.jpg,data\images\train_images\train_images\mcocr_public_145014beisj.jpg,Satra Group,2019-04-01,33813.0,train,dev
+mcocr_public_145014wbnwu.jpg,data\images\train_images\train_images\mcocr_public_145014wbnwu.jpg,CỬA HÀNG NĂM OÁNH,2020-08-11,30000.0,train,dev
+mcocr_public_145014uimoq.jpg,data\images\train_images\train_images\mcocr_public_145014uimoq.jpg,VinCommerce,2020-08-13,,val,test
+mcocr_public_145014dypib.jpg,data\images\train_images\train_images\mcocr_public_145014dypib.jpg,NHÀ SÁCH GD-TC CẨM PHẢ,,43000.0,train,test
+mcocr_public_145014gqaum.jpg,data\images\train_images\train_images\mcocr_public_145014gqaum.jpg,VinCommerce,2020-08-10,39000.0,train,dev
+mcocr_public_145014yiovk.jpg,data\images\train_images\train_images\mcocr_public_145014yiovk.jpg,,2019-09-17,81140.0,val,test
+mcocr_public_145014acbrl.jpg,data\images\train_images\train_images\mcocr_public_145014acbrl.jpg,MINIMART ANAN,2020-08-13,593000.0,train,test
+mcocr_public_145014sftbp.jpg,data\images\train_images\train_images\mcocr_public_145014sftbp.jpg,NHÀ SÁCH GD-TC CẨM PHẢ,2008-11-15,10000.0,train,test
+mcocr_public_145014rppvz.jpg,data\images\train_images\train_images\mcocr_public_145014rppvz.jpg,VinCommerce,2020-08-15,14900.0,train,test
+mcocr_public_145014muozt.jpg,data\images\train_images\train_images\mcocr_public_145014muozt.jpg,,2020-06-11,,train,test
+mcocr_public_145014bphyw.jpg,data\images\train_images\train_images\mcocr_public_145014bphyw.jpg,TÊN ĐẠI LÝ:,2020-06-13,498467.0,train,test
+mcocr_public_145014vpysr.jpg,data\images\train_images\train_images\mcocr_public_145014vpysr.jpg,MINIMART ANAN,2020-08-10,39000.0,train,dev
+mcocr_public_145014qxkke.jpg,data\images\train_images\train_images\mcocr_public_145014qxkke.jpg,MINIMART ANAN,2020-08-13,118500.0,train,dev
+mcocr_public_145014phbcu.jpg,data\images\train_images\train_images\mcocr_public_145014phbcu.jpg,Saigon Co.op,2019-09-17,23000.0,val,test
+mcocr_public_145014tecsd.jpg,data\images\train_images\train_images\mcocr_public_145014tecsd.jpg,MINIMART ANAN,2020-08-11,111000.0,test,test
+mcocr_public_145014nssmi.jpg,data\images\train_images\train_images\mcocr_public_145014nssmi.jpg,VinCommerce,2020-08-12,,train,test
+mcocr_public_145014kpsgk.jpg,data\images\train_images\train_images\mcocr_public_145014kpsgk.jpg,,2020-08-13,111945.0,test,test
+mcocr_public_145014xooen.jpg,data\images\train_images\train_images\mcocr_public_145014xooen.jpg,PHẢ,2020-08-10,70000.0,test,test
+mcocr_public_145014slmit.jpg,data\images\train_images\train_images\mcocr_public_145014slmit.jpg,VinCommerce,2020-08-12,4424.0,test,test
+mcocr_public_145014ebdtm.jpg,data\images\train_images\train_images\mcocr_public_145014ebdtm.jpg,MINIMART ANAN,2020-08-11,249000.0,train,dev
+mcocr_public_145014drgcr.jpg,data\images\train_images\train_images\mcocr_public_145014drgcr.jpg,MINIMART ANAN,2020-08-09,20000.0,test,test
+mcocr_public_145014imqdy.jpg,data\images\train_images\train_images\mcocr_public_145014imqdy.jpg,MINIMART ANAN,2020-08-09,90996.0,train,test
+mcocr_public_145014qlemc.jpg,data\images\train_images\train_images\mcocr_public_145014qlemc.jpg,,2019-09-23,201840.0,test,test
+mcocr_public_145014vhiaa.jpg,data\images\train_images\train_images\mcocr_public_145014vhiaa.jpg,PHO MO,2020-08-13,20000.0,train,dev
+mcocr_public_145014qojtz.jpg,data\images\train_images\train_images\mcocr_public_145014qojtz.jpg,VinCommerce,2020-08-10,129000.0,train,dev
+mcocr_public_145014pomqp.jpg,data\images\train_images\train_images\mcocr_public_145014pomqp.jpg,NHÀ SÁCH GD-TC CẨM PHẢ,,165000.0,train,test
+mcocr_public_145014whgiz.jpg,data\images\train_images\train_images\mcocr_public_145014whgiz.jpg,VinCommerce,2020-08-11,200381.0,val,test
+mcocr_public_145014bnscr.jpg,data\images\train_images\train_images\mcocr_public_145014bnscr.jpg,VinCommerce,2020-08-14,,test,test
+mcocr_public_145014tvfga.jpg,data\images\train_images\train_images\mcocr_public_145014tvfga.jpg,VinCommerce,2020-08-13,,test,test
+mcocr_public_145014onrob.jpg,data\images\train_images\train_images\mcocr_public_145014onrob.jpg,,2020-08-12,119014.0,train,dev
+mcocr_public_145014eyfwj.jpg,data\images\train_images\train_images\mcocr_public_145014eyfwj.jpg,BOOKS n COFFEE,2020-08-14,89000.0,val,test
+mcocr_public_145014csmbn.jpg,data\images\train_images\train_images\mcocr_public_145014csmbn.jpg,MINIMART ANAN,2020-08-12,75000.0,train,dev
+mcocr_public_145014lkoul.jpg,data\images\train_images\train_images\mcocr_public_145014lkoul.jpg,SCTC CÔ THỎ 104 TRẦN PHÚ - CẨM,2020-08-08,10000.0,val,test
+mcocr_public_145014euhfv.jpg,data\images\train_images\train_images\mcocr_public_145014euhfv.jpg,VM + 1S5 Tô Hiệu,2020-08-03,39000.0,train,dev
+mcocr_public_145014bqpcb.jpg,data\images\train_images\train_images\mcocr_public_145014bqpcb.jpg,TÊN ĐẠI LÝ :,2020-08-16,359732.0,train,test
+mcocr_public_145014howdt.jpg,data\images\train_images\train_images\mcocr_public_145014howdt.jpg,MINIMART ANAN,2020-08-12,210000.0,val,test
+mcocr_public_145014ttaic.jpg,data\images\train_images\train_images\mcocr_public_145014ttaic.jpg,MINIMART ANAN,2020-08-12,234000.0,val,test
+mcocr_public_145014nccit.jpg,data\images\train_images\train_images\mcocr_public_145014nccit.jpg,VinCommerce,2020-08-13,60000.0,train,dev
+mcocr_public_145014edoty.jpg,data\images\train_images\train_images\mcocr_public_145014edoty.jpg,MINIMART ANAN,2020-08-16,68750.0,test,test
+mcocr_public_145014fdlxd.jpg,data\images\train_images\train_images\mcocr_public_145014fdlxd.jpg,CỬA HÀNG NĂM OÁNH,2020-08-10,40000.0,train,dev
+mcocr_public_145014abbay.jpg,data\images\train_images\train_images\mcocr_public_145014abbay.jpg,VinCommerce,2020-08-15,30900.0,test,test
+mcocr_public_145014niegm.jpg,data\images\train_images\train_images\mcocr_public_145014niegm.jpg,Vincommerce,2020-08-15,40000.0,train,dev
+mcocr_public_145014gmjkd.jpg,data\images\train_images\train_images\mcocr_public_145014gmjkd.jpg,Guitar Cafe,2020-10-02,85000.0,test,test
+mcocr_public_145014yngbg.jpg,data\images\train_images\train_images\mcocr_public_145014yngbg.jpg,VinCommerce,2020-08-13,26500.0,train,dev
+mcocr_public_145014uxlol.jpg,data\images\train_images\train_images\mcocr_public_145014uxlol.jpg,,2020-07-02,382000.0,val,test
+mcocr_public_145014ogron.jpg,data\images\train_images\train_images\mcocr_public_145014ogron.jpg,MINIMART ANAN,2020-08-13,170000.0,train,dev
+mcocr_public_145014uabqc.jpg,data\images\train_images\train_images\mcocr_public_145014uabqc.jpg,SCTC CỔ THỎ 104 TRẦN PHÚ - CẨM,2020-08-09,70000.0,train,dev
+mcocr_public_145014lwhgn.jpg,data\images\train_images\train_images\mcocr_public_145014lwhgn.jpg,MINIMART ANAN,2020-08-15,169000.0,train,dev
+mcocr_public_145014avuac.jpg,data\images\train_images\train_images\mcocr_public_145014avuac.jpg,VinCommerce,2020-08-15,22000.0,train,dev
+mcocr_public_145014wejxq.jpg,data\images\train_images\train_images\mcocr_public_145014wejxq.jpg,MINIMART ANAN,2020-08-11,74000.0,test,test
+mcocr_public_145014emepc.jpg,data\images\train_images\train_images\mcocr_public_145014emepc.jpg,NHÀ SÁCH GD-TC CẨM PHẢ,,280000.0,train,test
+mcocr_public_145014gcszj.jpg,data\images\train_images\train_images\mcocr_public_145014gcszj.jpg,NHÀ SÁCH GD-TC CẨM PHẢ,,,val,test
+mcocr_public_145014znijb.jpg,data\images\train_images\train_images\mcocr_public_145014znijb.jpg,PHỐ MỎ,2020-08-13,57000.0,train,test
+mcocr_public_145014dspwj.jpg,data\images\train_images\train_images\mcocr_public_145014dspwj.jpg,MINIMART ANAN,2020-08-13,130000.0,train,test
+mcocr_public_145014clbzb.jpg,data\images\train_images\train_images\mcocr_public_145014clbzb.jpg,VGH_VINMART,2020-08-13,249600.0,train,test
+mcocr_public_145014kuxpu.jpg,data\images\train_images\train_images\mcocr_public_145014kuxpu.jpg,PHÓ MỎ,2020-08-11,80000.0,train,dev
+mcocr_public_145014uilrh.jpg,data\images\train_images\train_images\mcocr_public_145014uilrh.jpg,NHÀ SÁCH GD-TC CẨM PHẢ,2008-11-09,50000.0,val,test
+mcocr_public_145014tkpbp.jpg,data\images\train_images\train_images\mcocr_public_145014tkpbp.jpg,MINIMART ANAN,2020-08-10,235008.0,test,test
+mcocr_public_145014rpcdh.jpg,data\images\train_images\train_images\mcocr_public_145014rpcdh.jpg,Gaigon Co.op,2019-09-20,48139.0,train,test
+mcocr_public_145014xhzbt.jpg,data\images\train_images\train_images\mcocr_public_145014xhzbt.jpg,VinCommerce,2020-08-11,35000.0,test,test
+mcocr_public_145014mpsud.jpg,data\images\train_images\train_images\mcocr_public_145014mpsud.jpg,VinCommerce,2020-08-09,,val,test
+mcocr_public_145014wwevk.jpg,data\images\train_images\train_images\mcocr_public_145014wwevk.jpg,MINIMART ANAN,2020-08-09,295000.0,train,test
+mcocr_public_145014nasdz.jpg,data\images\train_images\train_images\mcocr_public_145014nasdz.jpg,MINIMART ANAN,2020-08-16,110000.0,train,test
+mcocr_public_145014smasw.jpg,data\images\train_images\train_images\mcocr_public_145014smasw.jpg,SIEU THI BACH HOA TONG HOP,2020-08-10,,train,test
+mcocr_public_145014qaueg.jpg,data\images\train_images\train_images\mcocr_public_145014qaueg.jpg,BÁCH HOÀ XANH,2020-08-01,88500.0,train,test
+mcocr_public_145014ukewl.jpg,data\images\train_images\train_images\mcocr_public_145014ukewl.jpg,CỬA HÀNG NĂM OÁNH,2020-08-11,215000.0,train,test
+mcocr_public_145014zncnq.jpg,data\images\train_images\train_images\mcocr_public_145014zncnq.jpg,CỬA HÀNG NĂM OÁNH,2020-08-11,126000.0,val,test
+mcocr_public_145014hyfyd.jpg,data\images\train_images\train_images\mcocr_public_145014hyfyd.jpg,TÊN ĐẠI LÝ :,,600000.0,train,dev
+mcocr_public_145014dxqop.jpg,data\images\train_images\train_images\mcocr_public_145014dxqop.jpg,VinCommerce,2020-08-11,,train,test
+mcocr_public_145014seogk.jpg,data\images\train_images\train_images\mcocr_public_145014seogk.jpg,VinCommerce,2020-08-14,23500.0,train,test
+mcocr_public_145014tfdcx.jpg,data\images\train_images\train_images\mcocr_public_145014tfdcx.jpg,VinCommerce,2020-08-09,22500.0,train,test
+mcocr_public_145014mprun.jpg,data\images\train_images\train_images\mcocr_public_145014mprun.jpg,Phúc Anh Minimart,2020-08-14,18000.0,train,test
+mcocr_public_145014xyqra.jpg,data\images\train_images\train_images\mcocr_public_145014xyqra.jpg,BÁCH HOÁ XANH,2020-08-11,218770.0,train,test
+mcocr_public_145014rfvhh.jpg,data\images\train_images\train_images\mcocr_public_145014rfvhh.jpg,VinCommerce,2020-08-10,,val,test
+mcocr_public_145014ahsfe.jpg,data\images\train_images\train_images\mcocr_public_145014ahsfe.jpg,VinCommerce,2020-08-09,,train,test
+mcocr_public_145014rtorl.jpg,data\images\train_images\train_images\mcocr_public_145014rtorl.jpg,SIEU THI BACH HOA TONG HOP,,73500.0,val,test
+mcocr_public_145014ompih.jpg,data\images\train_images\train_images\mcocr_public_145014ompih.jpg,VinCommerce,2020-08-12,61400.0,train,dev
+mcocr_public_145014jxwwm.jpg,data\images\train_images\train_images\mcocr_public_145014jxwwm.jpg,NHÀ SÁCH GD-TC CẨM PHẢ,,124000.0,test,test
+mcocr_public_145014wvmqh.jpg,data\images\train_images\train_images\mcocr_public_145014wvmqh.jpg,CỬA HÀNG NĂM OÁNH,2020-08-11,30250.0,train,dev
+mcocr_public_145014kzoxh.jpg,data\images\train_images\train_images\mcocr_public_145014kzoxh.jpg,VinCommerce,2020-08-12,23500.0,train,dev
+mcocr_public_145014ywhyw.jpg,data\images\train_images\train_images\mcocr_public_145014ywhyw.jpg,MINIMART ANAN,2020-08-11,62500.0,test,test
+mcocr_public_145014nuiop.jpg,data\images\train_images\train_images\mcocr_public_145014nuiop.jpg,TÊN ĐẠI LÝ:,2020-08-13,461288.0,train,test
+mcocr_public_145014gcmnd.jpg,data\images\train_images\train_images\mcocr_public_145014gcmnd.jpg,MINIMART ANAN,2020-08-11,219500.0,train,test
+mcocr_public_145014irdem.jpg,data\images\train_images\train_images\mcocr_public_145014irdem.jpg,TÊN ĐẠI LÝ:,2020-05-20,252200.0,test,test
+mcocr_public_145014bznim.jpg,data\images\train_images\train_images\mcocr_public_145014bznim.jpg,VinCommerce,,209996.0,train,dev
+mcocr_public_145014wymgj.jpg,data\images\train_images\train_images\mcocr_public_145014wymgj.jpg,CỬA HÀNG NĂM OÁNH,2020-08-11,391300.0,train,dev
+mcocr_public_145014cmghn.jpg,data\images\train_images\train_images\mcocr_public_145014cmghn.jpg,NHÀ SÁCH GD-TC CẨM PHẢ,,,val,test
+mcocr_public_145014btewf.jpg,data\images\train_images\train_images\mcocr_public_145014btewf.jpg,Giảm,2020-09-30,,val,test
+mcocr_public_145014edrhv.jpg,data\images\train_images\train_images\mcocr_public_145014edrhv.jpg,,2020-08-15,886000.0,test,test
+mcocr_public_145014fghbc.jpg,data\images\train_images\train_images\mcocr_public_145014fghbc.jpg,VinCommerce,2020-08-12,7400.0,train,dev
+mcocr_public_145014klkcx.jpg,data\images\train_images\train_images\mcocr_public_145014klkcx.jpg,PHÓ MỞ,2020-08-13,70000.0,train,test
+mcocr_public_145014kfgle.jpg,data\images\train_images\train_images\mcocr_public_145014kfgle.jpg,MINIMART ANAN,2020-08-12,294000.0,train,test
+mcocr_public_145014wzcxq.jpg,data\images\train_images\train_images\mcocr_public_145014wzcxq.jpg,VinCommerce,2020-08-15,9000.0,train,dev
+mcocr_public_145014ojudj.jpg,data\images\train_images\train_images\mcocr_public_145014ojudj.jpg,MINIMART ANAN,2020-08-13,58000.0,test,test
+mcocr_public_145014gylsk.jpg,data\images\train_images\train_images\mcocr_public_145014gylsk.jpg,VinCommerce,2020-08-09,5000.0,test,test
+mcocr_public_145014mspcw.jpg,data\images\train_images\train_images\mcocr_public_145014mspcw.jpg,VinCommerce,2020-08-15,6000.0,train,test
+mcocr_public_145014bcbgu.jpg,data\images\train_images\train_images\mcocr_public_145014bcbgu.jpg,co.opmart,2020-08-21,,train,dev
+mcocr_public_145014jizcq.jpg,data\images\train_images\train_images\mcocr_public_145014jizcq.jpg,SIEU THI BACH HOA TONG HOP,2020-08-09,2344375.0,train,dev
+mcocr_public_145014dqjen.jpg,data\images\train_images\train_images\mcocr_public_145014dqjen.jpg,VinCommerce,2020-08-14,184500.0,test,test
+mcocr_public_145014ypjsx.jpg,data\images\train_images\train_images\mcocr_public_145014ypjsx.jpg,MINIMART ANAN,2020-08-12,63750.0,test,test
+mcocr_public_145014fvjus.jpg,data\images\train_images\train_images\mcocr_public_145014fvjus.jpg,VinCommerce,2020-08-08,76000.0,test,test
+mcocr_public_145014mwhyh.jpg,data\images\train_images\train_images\mcocr_public_145014mwhyh.jpg,PHỐ MỎ,2020-08-13,931931.0,val,test
+mcocr_public_145014wnpbo.jpg,data\images\train_images\train_images\mcocr_public_145014wnpbo.jpg,,,28014643.0,test,test
+mcocr_public_145014aclha.jpg,data\images\train_images\train_images\mcocr_public_145014aclha.jpg,MINIMART ANAN,2020-08-11,66000.0,train,dev
+mcocr_public_145014pfcua.jpg,data\images\train_images\train_images\mcocr_public_145014pfcua.jpg,THE COFFEE HQUSE,,35000.0,val,test
+mcocr_public_145014mjzwg.jpg,data\images\train_images\train_images\mcocr_public_145014mjzwg.jpg,VinCommerce,2020-08-13,62600.0,train,test
+mcocr_public_145014lbzhz.jpg,data\images\train_images\train_images\mcocr_public_145014lbzhz.jpg,CỬA HÀNG NĂM OÁNH,2020-08-12,53000.0,val,test
+mcocr_public_145014jkegi.jpg,data\images\train_images\train_images\mcocr_public_145014jkegi.jpg,VinCommerce,2020-08-13,,train,dev
+mcocr_public_145014bymkd.jpg,data\images\train_images\train_images\mcocr_public_145014bymkd.jpg,MINIMART ANAN,2020-08-09,49002.0,train,test
+mcocr_public_145014nrlra.jpg,data\images\train_images\train_images\mcocr_public_145014nrlra.jpg,VinCommerce,2020-08-14,184363.0,val,test
+mcocr_public_145014gvuhh.jpg,data\images\train_images\train_images\mcocr_public_145014gvuhh.jpg,SCTC CÔ THỎ 104 TRẦN PHÚ - CẨM,,50000.0,train,dev
+mcocr_public_145014jhuyg.jpg,data\images\train_images\train_images\mcocr_public_145014jhuyg.jpg,MINIMART ANAN,2020-08-11,86000.0,test,test
+mcocr_public_145014nwpjb.jpg,data\images\train_images\train_images\mcocr_public_145014nwpjb.jpg,MINHMART ANÁN,,602000.0,train,test
+mcocr_public_145014qifdw.jpg,data\images\train_images\train_images\mcocr_public_145014qifdw.jpg,MINIMART ANAN,2020-08-15,553750.0,val,test
+mcocr_public_145014sabav.jpg,data\images\train_images\train_images\mcocr_public_145014sabav.jpg,Xuân,2020-10-05,,train,dev
+mcocr_public_145014vfape.jpg,data\images\train_images\train_images\mcocr_public_145014vfape.jpg,VinCommerce,2020-08-13,61800.0,train,test
+mcocr_public_145014qgcwi.jpg,data\images\train_images\train_images\mcocr_public_145014qgcwi.jpg,NHÀ SÁCH GD-TC CẨM PHẢ,,7000.0,train,test
+mcocr_public_145014khqqq.jpg,data\images\train_images\train_images\mcocr_public_145014khqqq.jpg,SCTC cổ THổ 104 TRẦN PHÚ - CẨM,2020-08-08,50000.0,train,test
+mcocr_public_145014etdhs.jpg,data\images\train_images\train_images\mcocr_public_145014etdhs.jpg,VinCommerce,2020-08-14,186033.0,test,test
+mcocr_public_145014tsvjp.jpg,data\images\train_images\train_images\mcocr_public_145014tsvjp.jpg,VinCommerce,2020-08-14,,train,test
+mcocr_public_145014zfite.jpg,data\images\train_images\train_images\mcocr_public_145014zfite.jpg,VinCommerce,2020-08-13,35000.0,train,dev
+mcocr_public_145014ekshr.jpg,data\images\train_images\train_images\mcocr_public_145014ekshr.jpg,VinCommerce,2020-08-14,20000.0,train,dev
+mcocr_public_145014zqryn.jpg,data\images\train_images\train_images\mcocr_public_145014zqryn.jpg,VinCommerce,2020-08-12,209000.0,val,test
+mcocr_public_145014qozsl.jpg,data\images\train_images\train_images\mcocr_public_145014qozsl.jpg,NHÀ SÁCH GD-TC CẨM PHẢ,2008-11-28,100000.0,train,test
+mcocr_public_145014xpuhm.jpg,data\images\train_images\train_images\mcocr_public_145014xpuhm.jpg,VinCommerce,2020-08-12,22000.0,test,test
+mcocr_public_145014mmnhi.jpg,data\images\train_images\train_images\mcocr_public_145014mmnhi.jpg,MINIMART ANAN,2020-08-11,130000.0,train,dev
+mcocr_public_145014wywkr.jpg,data\images\train_images\train_images\mcocr_public_145014wywkr.jpg,VinCommerce,2020-08-15,42000.0,test,test
+mcocr_public_145014euevz.jpg,data\images\train_images\train_images\mcocr_public_145014euevz.jpg,VinCommerce,2020-08-13,22000.0,train,test
+mcocr_public_145014mdhan.jpg,data\images\train_images\train_images\mcocr_public_145014mdhan.jpg,MINIMART ANAN,,79000.0,test,test
+mcocr_public_145014ivlka.jpg,data\images\train_images\train_images\mcocr_public_145014ivlka.jpg,CỬA HÀNG NĂM OÁNH,2020-08-12,52000.0,train,dev
+mcocr_public_145014yworm.jpg,data\images\train_images\train_images\mcocr_public_145014yworm.jpg,CTY CP SÁCH & TBTH QUẢNG NINH,2020-08-10,33212050.0,test,test
+mcocr_public_145014ocyhh.jpg,data\images\train_images\train_images\mcocr_public_145014ocyhh.jpg,VinCommerce,2020-08-15,52192.0,test,test
+mcocr_public_145014lqzdv.jpg,data\images\train_images\train_images\mcocr_public_145014lqzdv.jpg,MINIMART ANAN,2020-08-15,126000.0,train,dev
+mcocr_public_145014cgzmv.jpg,data\images\train_images\train_images\mcocr_public_145014cgzmv.jpg,MINIMART ANAN,2020-08-10,169000.0,train,dev
+mcocr_public_145014ghnst.jpg,data\images\train_images\train_images\mcocr_public_145014ghnst.jpg,MINIMART ANAN,2020-08-13,,test,test
+mcocr_public_145014plbzo.jpg,data\images\train_images\train_images\mcocr_public_145014plbzo.jpg,VinCommerce,2020-08-15,3997.0,val,test
+mcocr_public_145014tpwuk.jpg,data\images\train_images\train_images\mcocr_public_145014tpwuk.jpg,VHai,,,train,test
+mcocr_public_145014owowx.jpg,data\images\train_images\train_images\mcocr_public_145014owowx.jpg,MINIMART ANAN,2020-08-11,81000.0,test,test
+mcocr_public_145014slzwi.jpg,data\images\train_images\train_images\mcocr_public_145014slzwi.jpg,TÊN ĐẠI LÝ:,2020-08-13,40000.0,train,dev
+mcocr_public_145014ancat.jpg,data\images\train_images\train_images\mcocr_public_145014ancat.jpg,SCTC CỔ THỎ 104 TRẦN PHÚ - CẨM,2020-08-10,155000.0,train,dev
+mcocr_public_145014kbcho.jpg,data\images\train_images\train_images\mcocr_public_145014kbcho.jpg,VinCommerce,2020-08-12,,train,test
+mcocr_public_145014zoebw.jpg,data\images\train_images\train_images\mcocr_public_145014zoebw.jpg,SCTC CÔ THỎ 104 TRẦN PHÚ - CẨM,2020-08-10,190000.0,test,test
+mcocr_public_145014jgrti.jpg,data\images\train_images\train_images\mcocr_public_145014jgrti.jpg,CỬA HÀNG NĂM OÁNH,2020-08-11,685000.0,train,test
+mcocr_public_145014yibwb.jpg,data\images\train_images\train_images\mcocr_public_145014yibwb.jpg,PHẢ,,180000.0,train,dev
+mcocr_public_145014evdcm.jpg,data\images\train_images\train_images\mcocr_public_145014evdcm.jpg,MINIMART ANAN,2020-08-17,1003000.0,train,dev
+mcocr_public_145014wgbsx.jpg,data\images\train_images\train_images\mcocr_public_145014wgbsx.jpg,MINIMART ANAN,2020-08-12,378000.0,train,test
+mcocr_public_145014rvbhf.jpg,data\images\train_images\train_images\mcocr_public_145014rvbhf.jpg,Saigon Co.op,2019-09-23,24500.0,train,dev
+mcocr_public_145014pstow.jpg,data\images\train_images\train_images\mcocr_public_145014pstow.jpg,THỨC COFFEE,2019-04-21,,train,dev
+mcocr_public_145014skpym.jpg,data\images\train_images\train_images\mcocr_public_145014skpym.jpg,TIEN DAI LY,2020-05-20,155382.0,train,dev
+mcocr_public_145014etnjz.jpg,data\images\train_images\train_images\mcocr_public_145014etnjz.jpg,VinCommerce,2020-08-13,10800.0,val,test
+mcocr_public_145014ivclx.jpg,data\images\train_images\train_images\mcocr_public_145014ivclx.jpg,THE COFFEE HQUSE,2020-10-02,,train,test
+mcocr_public_145014xxdnm.jpg,data\images\train_images\train_images\mcocr_public_145014xxdnm.jpg,MILANO COFFEE,2020-10-02,,train,dev
+mcocr_public_145014gqqnf.jpg,data\images\train_images\train_images\mcocr_public_145014gqqnf.jpg,VinCommerce,2020-08-10,120800.0,train,dev
+mcocr_public_145014wjhib.jpg,data\images\train_images\train_images\mcocr_public_145014wjhib.jpg,VinCommerce,2020-08-14,10000.0,train,dev
+mcocr_public_145014qyfft.jpg,data\images\train_images\train_images\mcocr_public_145014qyfft.jpg,VinCommerce,2020-08-14,19600.0,train,test
+mcocr_public_145014hpikq.jpg,data\images\train_images\train_images\mcocr_public_145014hpikq.jpg,FamilyMart,,,test,test
+mcocr_public_145014voijl.jpg,data\images\train_images\train_images\mcocr_public_145014voijl.jpg,VinCommerce,2020-08-12,24500.0,test,test
+mcocr_public_145014ksyep.jpg,data\images\train_images\train_images\mcocr_public_145014ksyep.jpg,Saigon Co.op,2019-09-20,14000.0,train,dev
+mcocr_public_145014iwujb.jpg,data\images\train_images\train_images\mcocr_public_145014iwujb.jpg,,2020-08-14,,train,dev
+mcocr_public_145014xfcbh.jpg,data\images\train_images\train_images\mcocr_public_145014xfcbh.jpg,MINIMART ANAN,2020-08-16,440000.0,val,test
+mcocr_public_145014tbhtz.jpg,data\images\train_images\train_images\mcocr_public_145014tbhtz.jpg,PHÓ MỎ,2020-08-11,32000.0,train,test
+mcocr_public_145014btqny.jpg,data\images\train_images\train_images\mcocr_public_145014btqny.jpg,VinCommerce,2020-08-27,13000.0,train,test
+mcocr_public_145014eercq.jpg,data\images\train_images\train_images\mcocr_public_145014eercq.jpg,VinCommerce,2020-08-08,10500.0,train,dev
+mcocr_public_145014mjhvf.jpg,data\images\train_images\train_images\mcocr_public_145014mjhvf.jpg,SIÊU THỊ BÁCH HOÁ TỔNG HỢP,2020-08-09,96000.0,test,test
+mcocr_public_145014yxiox.jpg,data\images\train_images\train_images\mcocr_public_145014yxiox.jpg,NHÀ SÁCH GD-TC CẨM PHẢ,2008-11-19,20000.0,train,dev
+mcocr_public_145014evoja.jpg,data\images\train_images\train_images\mcocr_public_145014evoja.jpg,CỬA HÀNG NĂM OÁNH,2020-08-12,210000.0,train,test
+mcocr_public_145014ysbpa.jpg,data\images\train_images\train_images\mcocr_public_145014ysbpa.jpg,NHÀ SÁCH GD-TC CẨM PHẢ,2020-08-09,,val,test
+mcocr_public_145014jggjq.jpg,data\images\train_images\train_images\mcocr_public_145014jggjq.jpg,MINIMART ANAN,2020-08-15,38004.0,train,test
+mcocr_public_145014qofcz.jpg,data\images\train_images\train_images\mcocr_public_145014qofcz.jpg,VinCommerce,2020-08-14,,train,dev
+mcocr_public_145014jqtcw.jpg,data\images\train_images\train_images\mcocr_public_145014jqtcw.jpg,Tiền trả,2020-10-04,,train,dev
+mcocr_public_145014cwifi.jpg,data\images\train_images\train_images\mcocr_public_145014cwifi.jpg,NHÀ SÁCH GD-TC CẨM PHẢ,,12000.0,test,test
+mcocr_public_145014xbkfz.jpg,data\images\train_images\train_images\mcocr_public_145014xbkfz.jpg,VinCommerce,2020-08-23,464549.0,train,test
+mcocr_public_145014jxscx.jpg,data\images\train_images\train_images\mcocr_public_145014jxscx.jpg,Legend,,,test,test
+mcocr_public_145014czicu.jpg,data\images\train_images\train_images\mcocr_public_145014czicu.jpg,MINIMART ANANAN,2020-08-15,59500.0,train,test
+mcocr_public_145014buspt.jpg,data\images\train_images\train_images\mcocr_public_145014buspt.jpg,SCTC CÔ THỎ 104 TRẦN PHÚ - CẨM,2020-08-08,90000.0,test,test
+mcocr_public_145014zsgzm.jpg,data\images\train_images\train_images\mcocr_public_145014zsgzm.jpg,MINIMART ANAN,2020-08-16,534012.0,train,dev
+mcocr_public_145014uqaia.jpg,data\images\train_images\train_images\mcocr_public_145014uqaia.jpg,MINIMART ANAN,2020-08-13,170990.0,train,dev
+mcocr_public_145014xozig.jpg,data\images\train_images\train_images\mcocr_public_145014xozig.jpg,VinCommerce,2020-08-15,44662.0,train,dev
+mcocr_public_145014motth.jpg,data\images\train_images\train_images\mcocr_public_145014motth.jpg,VHai,,,train,dev
+mcocr_public_145014vnfrc.jpg,data\images\train_images\train_images\mcocr_public_145014vnfrc.jpg,MINIMART ANAN,2020-08-10,47000.0,test,test
+mcocr_public_145014enxgn.jpg,data\images\train_images\train_images\mcocr_public_145014enxgn.jpg,VinCommerce,2020-08-13,7400.0,test,test
+mcocr_public_145014depsq.jpg,data\images\train_images\train_images\mcocr_public_145014depsq.jpg,CỬA HÀNG NĂM OÁNH,2020-08-11,22300.0,train,test
+mcocr_public_145014xsefn.jpg,data\images\train_images\train_images\mcocr_public_145014xsefn.jpg,VinCommerce,2020-08-14,103235.0,train,test
+mcocr_public_145014jbchc.jpg,data\images\train_images\train_images\mcocr_public_145014jbchc.jpg,MINIMART ANAN,2020-08-13,393000.0,train,test
+mcocr_public_145014umwey.jpg,data\images\train_images\train_images\mcocr_public_145014umwey.jpg,NHÀ THUỐC BỆNH VIỆN ĐA KHOA,2020-08-14,46000.0,train,test
+mcocr_public_145014bfwhz.jpg,data\images\train_images\train_images\mcocr_public_145014bfwhz.jpg,VinCommerce,2020-08-14,8400.0,val,test
+mcocr_public_145014ufyxi.jpg,data\images\train_images\train_images\mcocr_public_145014ufyxi.jpg,SIÊU THỊ BÁCH HOÁ TỔNG HỢP,,483200.0,train,dev
+mcocr_public_145014xzqlh.jpg,data\images\train_images\train_images\mcocr_public_145014xzqlh.jpg,VinCommerce,2020-08-15,,train,test
+mcocr_public_145014zckhw.jpg,data\images\train_images\train_images\mcocr_public_145014zckhw.jpg,MINIMART ANAN,2020-08-13,147000.0,test,test
+mcocr_public_145014erruh.jpg,data\images\train_images\train_images\mcocr_public_145014erruh.jpg,CỬA HÀNG NĂM OÁNH,2020-08-12,,train,test
+mcocr_public_145014vvmgm.jpg,data\images\train_images\train_images\mcocr_public_145014vvmgm.jpg,VinCommerce,2020-08-08,57600.0,val,test
+mcocr_public_145014bfesf.jpg,data\images\train_images\train_images\mcocr_public_145014bfesf.jpg,CỬA HÀNG NĂM OÁNH,2020-08-11,16600.0,train,test
+mcocr_public_145014onmxs.jpg,data\images\train_images\train_images\mcocr_public_145014onmxs.jpg,Phúc Anh Minimart,2020-08-15,94000.0,train,dev
+mcocr_public_145014hjsxj.jpg,data\images\train_images\train_images\mcocr_public_145014hjsxj.jpg,Sì gon Co.op Co.op Food HN THE K-PARK,2019-09-19,,train,test
+mcocr_public_145014ltjcp.jpg,data\images\train_images\train_images\mcocr_public_145014ltjcp.jpg,MINIMART ANAN,2020-08-11,115000.0,train,test
+mcocr_public_145014igwbv.jpg,data\images\train_images\train_images\mcocr_public_145014igwbv.jpg,UNIQLO ĐỒNG KHỞI,2020-07-21,3342000.0,train,test
+mcocr_public_145014idfgg.jpg,data\images\train_images\train_images\mcocr_public_145014idfgg.jpg,PHỐ MỎ,2020-08-13,30000.0,val,test
+mcocr_public_145014bbnco.jpg,data\images\train_images\train_images\mcocr_public_145014bbnco.jpg,,2020-06-07,42412.0,val,test
+mcocr_public_145014wgexm.jpg,data\images\train_images\train_images\mcocr_public_145014wgexm.jpg,MINIMART ANAN,2020-08-12,172000.0,val,test
+mcocr_public_145014mghmv.jpg,data\images\train_images\train_images\mcocr_public_145014mghmv.jpg,VinCommerce,2020-08-13,,train,dev
+mcocr_public_145014qoaez.jpg,data\images\train_images\train_images\mcocr_public_145014qoaez.jpg,MINIMART ANAN,2020-08-17,392000.0,train,dev
+mcocr_public_145014ocmco.jpg,data\images\train_images\train_images\mcocr_public_145014ocmco.jpg,VinCommerce,2020-08-13,255000.0,train,dev
+mcocr_public_145014qmicf.jpg,data\images\train_images\train_images\mcocr_public_145014qmicf.jpg,VinCommerce,2020-08-15,425336.0,train,test
+mcocr_public_145014sfcjb.jpg,data\images\train_images\train_images\mcocr_public_145014sfcjb.jpg,MINIMART ANANAI,,109500.0,train,dev
+mcocr_public_145014ofdxo.jpg,data\images\train_images\train_images\mcocr_public_145014ofdxo.jpg,TÊN ĐẠI LÝ:,2020-08-14,50000.0,test,test
+mcocr_public_145014toiko.jpg,data\images\train_images\train_images\mcocr_public_145014toiko.jpg,VinCommerce,2020-08-14,51900.0,train,test
+mcocr_public_145014otrlb.jpg,data\images\train_images\train_images\mcocr_public_145014otrlb.jpg,MINIMART ANAN,2020-08-13,651000.0,train,test
+mcocr_public_145014cmcvj.jpg,data\images\train_images\train_images\mcocr_public_145014cmcvj.jpg,Vincommerce,2020-08-09,64300.0,val,test
+mcocr_public_145014epvwk.jpg,data\images\train_images\train_images\mcocr_public_145014epvwk.jpg,VinCommerce,2020-08-07,,train,dev
+mcocr_public_145014iksot.jpg,data\images\train_images\train_images\mcocr_public_145014iksot.jpg,VinCommerce,2020-08-13,398125.0,test,test
+mcocr_public_145014oxghl.jpg,data\images\train_images\train_images\mcocr_public_145014oxghl.jpg,VinCommerce,2020-08-13,58500.0,train,test
+mcocr_public_145014pkgap.jpg,data\images\train_images\train_images\mcocr_public_145014pkgap.jpg,MINIMART ANAN,2020-08-09,216016.0,train,dev
+mcocr_public_145014keyfh.jpg,data\images\train_images\train_images\mcocr_public_145014keyfh.jpg,MINIMART ANAN,2020-08-16,226000.0,test,test
+mcocr_public_145014pjtlz.jpg,data\images\train_images\train_images\mcocr_public_145014pjtlz.jpg,Saigon Co.op,2020-08-14,163024.0,train,dev
+mcocr_public_145014nuhli.jpg,data\images\train_images\train_images\mcocr_public_145014nuhli.jpg,MINIMART ANAN,,47200.0,train,dev
+mcocr_public_145014huitj.jpg,data\images\train_images\train_images\mcocr_public_145014huitj.jpg,CỬA HÀNG NĂM OÁNH,2020-08-11,243000.0,val,test
+mcocr_public_145014dkmtx.jpg,data\images\train_images\train_images\mcocr_public_145014dkmtx.jpg,VinCommerce,2020-08-15,113406.0,train,test
+mcocr_public_145014hpkhf.jpg,data\images\train_images\train_images\mcocr_public_145014hpkhf.jpg,,,36100.0,test,test
+mcocr_public_145014rwzyq.jpg,data\images\train_images\train_images\mcocr_public_145014rwzyq.jpg,CTC CÔ THỎ 104 TRẦN PHÚ - CẨM,2020-08-08,190000.0,test,test
+mcocr_public_145014xcxaw.jpg,data\images\train_images\train_images\mcocr_public_145014xcxaw.jpg,Hẹl cong to Trung Nguyen Legend,,,val,test
+mcocr_public_145014ubcjg.jpg,data\images\train_images\train_images\mcocr_public_145014ubcjg.jpg,Saigon Co.op,2019-09-20,55300.0,val,test
+mcocr_public_145014zstox.jpg,data\images\train_images\train_images\mcocr_public_145014zstox.jpg,MINIMART ANAN,2020-08-11,66000.0,train,test
+mcocr_public_145014pzlbd.jpg,data\images\train_images\train_images\mcocr_public_145014pzlbd.jpg,MILANO COFFEE,2020-10-02,,test,test
+mcocr_public_145014ssrmo.jpg,data\images\train_images\train_images\mcocr_public_145014ssrmo.jpg,MINIMART ANAN,2020-08-16,106000.0,train,test
+mcocr_public_145014diuoj.jpg,data\images\train_images\train_images\mcocr_public_145014diuoj.jpg,NHÀ SÁCH GD-TC CẨM PHẢ,2009-04-08,117000.0,train,dev
+mcocr_public_145014vdyar.jpg,data\images\train_images\train_images\mcocr_public_145014vdyar.jpg,,2020-05-06,,train,dev
+mcocr_public_145014lijow.jpg,data\images\train_images\train_images\mcocr_public_145014lijow.jpg,TÊN ĐẠI LÝ:,,560215.0,train,test
+mcocr_public_145014ajgaf.jpg,data\images\train_images\train_images\mcocr_public_145014ajgaf.jpg,MINIMART ANAN,2020-08-11,160000.0,val,test
+mcocr_public_145014ubwmd.jpg,data\images\train_images\train_images\mcocr_public_145014ubwmd.jpg,THE COFFEE HQUSE,,,train,test
+mcocr_public_145014qcume.jpg,data\images\train_images\train_images\mcocr_public_145014qcume.jpg,NHÀ SÁCH GD-TC CẨM PHẢ,,,test,test
+mcocr_public_145014jlxnp.jpg,data\images\train_images\train_images\mcocr_public_145014jlxnp.jpg,NHÀ SÁCH GD-TC CẨM PHẢ,,10000.0,test,test
+mcocr_public_145014ubmpt.jpg,data\images\train_images\train_images\mcocr_public_145014ubmpt.jpg,NHÀ SÁCH GD-TC CẨM PHẢ,,390000.0,train,dev
+mcocr_public_145014epano.jpg,data\images\train_images\train_images\mcocr_public_145014epano.jpg,VinCommerce,2020-08-12,122000.0,val,test
+mcocr_public_145014jqbse.jpg,data\images\train_images\train_images\mcocr_public_145014jqbse.jpg,VinCommerce,2020-08-13,3900.0,test,test
+mcocr_public_145014vjvjt.jpg,data\images\train_images\train_images\mcocr_public_145014vjvjt.jpg,NHÀ SÁCH GD-TC CẨM PHẢ,,5000.0,train,test
+mcocr_public_145014kvtrh.jpg,data\images\train_images\train_images\mcocr_public_145014kvtrh.jpg,MINIMART ANAN,2020-08-15,209000.0,test,test
+mcocr_public_145014npyol.jpg,data\images\train_images\train_images\mcocr_public_145014npyol.jpg,SIEU THI BACH HOA TONG HOP,2020-08-10,11936.0,train,test
+mcocr_public_145014fxqlw.jpg,data\images\train_images\train_images\mcocr_public_145014fxqlw.jpg,VinCommerce,2020-08-09,174000.0,test,test
+mcocr_public_145014jpdxp.jpg,data\images\train_images\train_images\mcocr_public_145014jpdxp.jpg,SCTC cổ THỎ 104 TRẦN PHÚ - CẨM,,115000.0,train,dev
+mcocr_public_145014cmafd.jpg,data\images\train_images\train_images\mcocr_public_145014cmafd.jpg,Vincommerce,2020-08-15,56384.0,train,test
+mcocr_public_145014futkh.jpg,data\images\train_images\train_images\mcocr_public_145014futkh.jpg,MINIMART ANAN,2020-08-10,62500.0,val,test
+mcocr_public_145014xdscy.jpg,data\images\train_images\train_images\mcocr_public_145014xdscy.jpg,,,,train,dev
+mcocr_public_145014emexr.jpg,data\images\train_images\train_images\mcocr_public_145014emexr.jpg,Nhà Hàng Aozora Sushi,2020-08-14,328000.0,train,dev
+mcocr_public_145014yjdpq.jpg,data\images\train_images\train_images\mcocr_public_145014yjdpq.jpg,THỨC COFFEE,,,test,test
+mcocr_public_145014jvwce.jpg,data\images\train_images\train_images\mcocr_public_145014jvwce.jpg,,2020-05-21,306060.0,train,test
+mcocr_public_145014xglvf.jpg,data\images\train_images\train_images\mcocr_public_145014xglvf.jpg,VinCommerce,2020-08-09,28528.0,train,dev
+mcocr_public_145014gqlrt.jpg,data\images\train_images\train_images\mcocr_public_145014gqlrt.jpg,NHÀ SÁCH GD-TC CẨM PHẢ,,14000.0,test,test
+mcocr_public_145014xnezl.jpg,data\images\train_images\train_images\mcocr_public_145014xnezl.jpg,MINIMART ANAN,2020-08-09,57000.0,val,test
+mcocr_public_145014lqokm.jpg,data\images\train_images\train_images\mcocr_public_145014lqokm.jpg,VinCommerce,2020-08-13,,val,test
+mcocr_public_145014jiwoe.jpg,data\images\train_images\train_images\mcocr_public_145014jiwoe.jpg,VinCommerce,2020-08-15,22409.0,train,dev
+mcocr_public_145014vitnu.jpg,data\images\train_images\train_images\mcocr_public_145014vitnu.jpg,VinCommerce,2020-08-10,,train,test
+mcocr_public_145014dxvde.jpg,data\images\train_images\train_images\mcocr_public_145014dxvde.jpg,VinCommerce,2020-08-15,26000.0,train,dev
+mcocr_public_145014hxpcf.jpg,data\images\train_images\train_images\mcocr_public_145014hxpcf.jpg,MINIMART ANAN,2020-08-10,120000.0,test,test
+mcocr_public_145014xwajt.jpg,data\images\train_images\train_images\mcocr_public_145014xwajt.jpg,MINIMART ANAN,,,train,dev
+mcocr_public_145014fhimy.jpg,data\images\train_images\train_images\mcocr_public_145014fhimy.jpg,MINIMART ANAN,2020-08-13,128000.0,train,dev
+mcocr_public_145014ewmyb.jpg,data\images\train_images\train_images\mcocr_public_145014ewmyb.jpg,VinCommerce,2020-08-08,208728.0,train,test
+mcocr_public_145014qwikh.jpg,data\images\train_images\train_images\mcocr_public_145014qwikh.jpg,VinCommerce,2020-08-12,21277.0,test,test
+mcocr_public_145014kscfa.jpg,data\images\train_images\train_images\mcocr_public_145014kscfa.jpg,VinCommerce,2020-08-13,39000.0,train,test
+mcocr_public_145014zjcdx.jpg,data\images\train_images\train_images\mcocr_public_145014zjcdx.jpg,CỬA HÀNG NĂM OÁNH,2020-08-11,215000.0,train,test
+mcocr_public_145014rijtj.jpg,data\images\train_images\train_images\mcocr_public_145014rijtj.jpg,Satra Group,2020-08-13,43500.0,train,test
+mcocr_public_145014rdcoj.jpg,data\images\train_images\train_images\mcocr_public_145014rdcoj.jpg,VinCommerce,2020-08-10,,test,test
+mcocr_public_145014bpohg.jpg,data\images\train_images\train_images\mcocr_public_145014bpohg.jpg,PHỐ MỎ,2020-08-13,40000.0,train,test
+mcocr_public_145014ptuuq.jpg,data\images\train_images\train_images\mcocr_public_145014ptuuq.jpg,VinCommerce,2020-08-13,24000.0,train,test
+mcocr_public_145014sncle.jpg,data\images\train_images\train_images\mcocr_public_145014sncle.jpg,Cty LD TNHH KFC Viet Nam,,,train,dev
+mcocr_public_145014ybclw.jpg,data\images\train_images\train_images\mcocr_public_145014ybclw.jpg,VinCommerce,2020-08-12,42543.0,train,test
+mcocr_public_145014phuqi.jpg,data\images\train_images\train_images\mcocr_public_145014phuqi.jpg,VinCommerce,2020-08-13,,val,test
+mcocr_public_145014rczsi.jpg,data\images\train_images\train_images\mcocr_public_145014rczsi.jpg,VinCommerce,2020-08-13,179000.0,test,test
+mcocr_public_145014wxpyg.jpg,data\images\train_images\train_images\mcocr_public_145014wxpyg.jpg,VinCommerce,,15000.0,train,dev
+mcocr_public_145014ezyfv.jpg,data\images\train_images\train_images\mcocr_public_145014ezyfv.jpg,VinCommerce,2020-08-15,79800.0,val,test
+mcocr_public_145014vrbsr.jpg,data\images\train_images\train_images\mcocr_public_145014vrbsr.jpg,VinCommerce,2020-08-11,,train,dev
+mcocr_public_145014tnnoi.jpg,data\images\train_images\train_images\mcocr_public_145014tnnoi.jpg,MINIMART ANAN,,,train,test
+mcocr_public_145014zqocc.jpg,data\images\train_images\train_images\mcocr_public_145014zqocc.jpg,sai gon co.op Co.op Food HN THE K - PARK,2019-09-20,,train,test
+mcocr_public_145014ejeba.jpg,data\images\train_images\train_images\mcocr_public_145014ejeba.jpg,MINIMART ANAN,2020-08-13,75000.0,test,test
+mcocr_public_145014snrrj.jpg,data\images\train_images\train_images\mcocr_public_145014snrrj.jpg,NHÀ SÁCH GD-TC CẨM PHẢ,,75000.0,train,test
+mcocr_public_145014bqglf.jpg,data\images\train_images\train_images\mcocr_public_145014bqglf.jpg,VinCommerce,2020-08-09,166404.0,test,test
+mcocr_public_145014oiwct.jpg,data\images\train_images\train_images\mcocr_public_145014oiwct.jpg,NHÀ SÁCH GD-TC CẨM PHẢ,,20000.0,val,test
+mcocr_public_145014uwjom.jpg,data\images\train_images\train_images\mcocr_public_145014uwjom.jpg,MINIMART ANAN,2020-08-15,232008.0,val,test
+mcocr_public_145014fhfxn.jpg,data\images\train_images\train_images\mcocr_public_145014fhfxn.jpg,NHÀ SÁCH GD-TC CẨM PHẢ,,20000.0,train,test
+mcocr_public_145014dhkqp.jpg,data\images\train_images\train_images\mcocr_public_145014dhkqp.jpg,PHO MO,,10000.0,train,dev
+mcocr_public_145014idsgm.jpg,data\images\train_images\train_images\mcocr_public_145014idsgm.jpg,SIỀU THỊ MINH LOAN,,,train,dev
+mcocr_public_145014pyhgf.jpg,data\images\train_images\train_images\mcocr_public_145014pyhgf.jpg,Saigon Co.op,2019-09-23,24500.0,test,test
+mcocr_public_145014ayhsu.jpg,data\images\train_images\train_images\mcocr_public_145014ayhsu.jpg,VinCommerce,2020-08-13,10000.0,test,test
+mcocr_public_145014htnck.jpg,data\images\train_images\train_images\mcocr_public_145014htnck.jpg,,2020-08-09,,test,test
+mcocr_public_145014mxrld.jpg,data\images\train_images\train_images\mcocr_public_145014mxrld.jpg,VinCommerce,2020-07-27,,train,test
+mcocr_public_145014ckynq.jpg,data\images\train_images\train_images\mcocr_public_145014ckynq.jpg,SIEU THI BACH HOA TONG HOP,,80000.0,train,test
+mcocr_public_145014ajgqu.jpg,data\images\train_images\train_images\mcocr_public_145014ajgqu.jpg,PHÓ MỎ,2020-08-01,84000.0,val,test
+mcocr_public_145014fcvez.jpg,data\images\train_images\train_images\mcocr_public_145014fcvez.jpg,VinCommerce,2020-08-14,55400.0,train,dev
+mcocr_public_145014ktane.jpg,data\images\train_images\train_images\mcocr_public_145014ktane.jpg,MINIMART ANAN,2020-08-15,114000.0,test,test
+mcocr_public_145014pcsfj.jpg,data\images\train_images\train_images\mcocr_public_145014pcsfj.jpg,VinCommerce,2020-08-13,43200.0,train,test
+mcocr_public_145014xxiyx.jpg,data\images\train_images\train_images\mcocr_public_145014xxiyx.jpg,CỬA HÀNG NĂM OÁNH,2020-08-12,91000.0,train,test
+mcocr_public_145014shwyh.jpg,data\images\train_images\train_images\mcocr_public_145014shwyh.jpg,VinCommerce,2020-08-13,70000.0,val,test
+mcocr_public_145014yivlq.jpg,data\images\train_images\train_images\mcocr_public_145014yivlq.jpg,MINIMART ANAN,2020-08-10,33000.0,train,dev
+mcocr_public_145014khxoz.jpg,data\images\train_images\train_images\mcocr_public_145014khxoz.jpg,Legend,,64000.0,test,test
+mcocr_public_145014huwgv.jpg,data\images\train_images\train_images\mcocr_public_145014huwgv.jpg,MINIMART ANAN,2020-08-13,103000.0,test,test
+mcocr_public_145014zsdex.jpg,data\images\train_images\train_images\mcocr_public_145014zsdex.jpg,THỨC COFFE,2019-03-24,,train,test
+mcocr_public_145014bjahl.jpg,data\images\train_images\train_images\mcocr_public_145014bjahl.jpg,VinCommerce,2020-08-10,60000.0,test,test
+mcocr_public_145014plodi.jpg,data\images\train_images\train_images\mcocr_public_145014plodi.jpg,VM Commerce,2020-08-12,141200.0,val,test
+mcocr_public_145014kolbk.jpg,data\images\train_images\train_images\mcocr_public_145014kolbk.jpg,CỬA HÀNG NĂM OÁNH,2020-08-12,79295.0,test,test
+mcocr_public_145014foulc.jpg,data\images\train_images\train_images\mcocr_public_145014foulc.jpg,NHÀ SÁCH GD-TC CẨM PHẢ,2008-11-13,45000.0,train,dev
+mcocr_public_145014emeev.jpg,data\images\train_images\train_images\mcocr_public_145014emeev.jpg,MINIMART ANAN,2020-08-09,195000.0,test,test
+mcocr_public_145014evqra.jpg,data\images\train_images\train_images\mcocr_public_145014evqra.jpg,VinCommerce,2020-08-14,10000.0,train,dev
+mcocr_public_145014fegvz.jpg,data\images\train_images\train_images\mcocr_public_145014fegvz.jpg,PHỐ MỎ,2020-08-13,5000.0,train,test
+mcocr_public_145014rxymg.jpg,data\images\train_images\train_images\mcocr_public_145014rxymg.jpg,MINIMART ANAN,2020-08-11,47000.0,train,dev
+mcocr_public_145014okszg.jpg,data\images\train_images\train_images\mcocr_public_145014okszg.jpg,MINIMART ANAN,2020-08-13,116000.0,train,dev
+mcocr_public_145014eeksl.jpg,data\images\train_images\train_images\mcocr_public_145014eeksl.jpg,,,,test,test
+mcocr_public_145014owkmp.jpg,data\images\train_images\train_images\mcocr_public_145014owkmp.jpg,VinCommerce,2020-08-12,126300.0,val,test
+mcocr_public_145014gkduf.jpg,data\images\train_images\train_images\mcocr_public_145014gkduf.jpg,VinCommerce,2020-08-15,48000.0,train,dev
+mcocr_public_145014mcvls.jpg,data\images\train_images\train_images\mcocr_public_145014mcvls.jpg,Saigon Co.op,2020-08-12,114150.0,test,test
+mcocr_public_145014jixhn.jpg,data\images\train_images\train_images\mcocr_public_145014jixhn.jpg,MINIMART ANAN,2020-08-15,76000.0,train,test
+mcocr_public_145014klyxi.jpg,data\images\train_images\train_images\mcocr_public_145014klyxi.jpg,MINIMART ANAN,2020-08-13,50000.0,train,dev
+mcocr_public_145014ejgcd.jpg,data\images\train_images\train_images\mcocr_public_145014ejgcd.jpg,CỬA HÀNG NĂM OÁNH,2020-08-12,8300.0,test,test
+mcocr_public_145014edwpt.jpg,data\images\train_images\train_images\mcocr_public_145014edwpt.jpg,MINIMART ANAN,2020-08-13,252000.0,test,test
+mcocr_public_145014oogiy.jpg,data\images\train_images\train_images\mcocr_public_145014oogiy.jpg,MILANO COFFEE,2020-10-02,,train,test
+mcocr_public_145014pxnrk.jpg,data\images\train_images\train_images\mcocr_public_145014pxnrk.jpg,Phúc Anh Minimart,2020-08-13,29000.0,train,dev
+mcocr_public_145014sgzjh.jpg,data\images\train_images\train_images\mcocr_public_145014sgzjh.jpg,MINIMART ANAN,2020-08-16,82000.0,train,test
+mcocr_public_145014mzrbm.jpg,data\images\train_images\train_images\mcocr_public_145014mzrbm.jpg,VinCommerce,2020-08-08,61800.0,val,test
+mcocr_public_145014pwhor.jpg,data\images\train_images\train_images\mcocr_public_145014pwhor.jpg,PHÀ,2020-08-08,90000.0,test,test
+mcocr_public_145014vjcbu.jpg,data\images\train_images\train_images\mcocr_public_145014vjcbu.jpg,MINIMART ANAN,2020-08-13,24000.0,train,test
+mcocr_public_145014vauus.jpg,data\images\train_images\train_images\mcocr_public_145014vauus.jpg,VinCommerce,2020-08-11,19000.0,train,test
+mcocr_public_145014tckwp.jpg,data\images\train_images\train_images\mcocr_public_145014tckwp.jpg,VinCommerce,2020-08-10,40000.0,train,test
+mcocr_public_145014kdvhb.jpg,data\images\train_images\train_images\mcocr_public_145014kdvhb.jpg,,2020-08-09,,train,test
+mcocr_public_145014jakjq.jpg,data\images\train_images\train_images\mcocr_public_145014jakjq.jpg,VINMART,2012-08-12,540000.0,train,test
+mcocr_public_145014exzpp.jpg,data\images\train_images\train_images\mcocr_public_145014exzpp.jpg,MINIMART ANAN,2020-08-10,157000.0,test,test
+mcocr_public_145014zvrla.jpg,data\images\train_images\train_images\mcocr_public_145014zvrla.jpg,PHỐ MỎ,2020-08-13,25000.0,train,dev
+mcocr_public_145014qmagv.jpg,data\images\train_images\train_images\mcocr_public_145014qmagv.jpg,MINIMART ANAN,2020-08-17,149000.0,train,test
+mcocr_public_145014lpghh.jpg,data\images\train_images\train_images\mcocr_public_145014lpghh.jpg,MINIMART ANAN,2020-08-15,238008.0,train,dev
+mcocr_public_145014iriei.jpg,data\images\train_images\train_images\mcocr_public_145014iriei.jpg,MINIMART ANAN,2020-08-17,392000.0,val,test
+mcocr_public_145014uvxyx.jpg,data\images\train_images\train_images\mcocr_public_145014uvxyx.jpg,MINIMART ANAN,2020-08-16,69000.0,train,test
+mcocr_public_145014jkafe.jpg,data\images\train_images\train_images\mcocr_public_145014jkafe.jpg,VinCommerce,2020-08-15,25600.0,train,test
+mcocr_public_145014sydpm.jpg,data\images\train_images\train_images\mcocr_public_145014sydpm.jpg,Phúc Anh Minimart,2020-08-14,224000.0,val,test
+mcocr_public_145014mmuxs.jpg,data\images\train_images\train_images\mcocr_public_145014mmuxs.jpg,NHÀ SÁCH GD-TC CẨM PHẢ,,26000.0,train,test
+mcocr_public_145014gobol.jpg,data\images\train_images\train_images\mcocr_public_145014gobol.jpg,VinCommerce,2020-08-15,108256.0,train,dev
+mcocr_public_145014lwxal.jpg,data\images\train_images\train_images\mcocr_public_145014lwxal.jpg,VinCommerce,2020-08-13,24500.0,train,dev
+mcocr_public_145014yltna.jpg,data\images\train_images\train_images\mcocr_public_145014yltna.jpg,MINIMART ANAN,2020-08-10,5000.0,train,dev
+mcocr_public_145014mbvkd.jpg,data\images\train_images\train_images\mcocr_public_145014mbvkd.jpg,NHÀ SÁCH GD-TC CẨM PHẢ,,76000.0,train,test
+mcocr_public_145014hmdtg.jpg,data\images\train_images\train_images\mcocr_public_145014hmdtg.jpg,SCTC CÔ THỎ 104 TRẦN PHÚ - CẨM,2020-08-09,85000.0,train,dev
+mcocr_public_145014foimu.jpg,data\images\train_images\train_images\mcocr_public_145014foimu.jpg,VinCommerce,2020-08-13,24500.0,train,dev
+mcocr_public_145014vfxry.jpg,data\images\train_images\train_images\mcocr_public_145014vfxry.jpg,Xuân,2020-10-05,,test,test
+mcocr_public_145014fltno.jpg,data\images\train_images\train_images\mcocr_public_145014fltno.jpg,VinCommerce,2020-08-15,25600.0,train,dev
+mcocr_public_145014lwrxk.jpg,data\images\train_images\train_images\mcocr_public_145014lwrxk.jpg,NHÀ SÁCH GD-TC CẨM PHẢ,,68000.0,train,dev
+mcocr_public_145014ajita.jpg,data\images\train_images\train_images\mcocr_public_145014ajita.jpg,VinCommerce,2020-08-14,10000.0,test,test
+mcocr_public_145014irdab.jpg,data\images\train_images\train_images\mcocr_public_145014irdab.jpg,MINIMART ANAN,2020-08-16,127000.0,test,test
+mcocr_public_145014urzox.jpg,data\images\train_images\train_images\mcocr_public_145014urzox.jpg,MINIMART ANAN,2020-08-11,529000.0,train,dev
+mcocr_public_145014ojewe.jpg,data\images\train_images\train_images\mcocr_public_145014ojewe.jpg,VinCommerce,2020-08-13,35000.0,train,test
+mcocr_public_145014aqymg.jpg,data\images\train_images\train_images\mcocr_public_145014aqymg.jpg,MINIMART ANAN,,184000.0,train,dev
+mcocr_public_145014yfnqu.jpg,data\images\train_images\train_images\mcocr_public_145014yfnqu.jpg,FamilyMart,2020-08-17,28000.0,test,test
+mcocr_public_145014gkruw.jpg,data\images\train_images\train_images\mcocr_public_145014gkruw.jpg,VinCommerce,2020-08-15,39050.0,train,dev
+mcocr_public_145014kvcfd.jpg,data\images\train_images\train_images\mcocr_public_145014kvcfd.jpg,VinCommerce,2020-08-13,13000.0,train,test
+mcocr_public_145014tugre.jpg,data\images\train_images\train_images\mcocr_public_145014tugre.jpg,VinCommerce,2020-08-14,12800.0,train,dev
+mcocr_public_145014hxoeu.jpg,data\images\train_images\train_images\mcocr_public_145014hxoeu.jpg,THE COFFEE HOUSE,2020-10-02,72000.0,train,test
+mcocr_public_145014dkbzw.jpg,data\images\train_images\train_images\mcocr_public_145014dkbzw.jpg,VinCommerce,2020-08-11,,train,test
+mcocr_public_145014rsbuj.jpg,data\images\train_images\train_images\mcocr_public_145014rsbuj.jpg,VinCommngerce,2020-08-13,168900.0,train,test
+mcocr_public_145014ofqlt.jpg,data\images\train_images\train_images\mcocr_public_145014ofqlt.jpg,TÊN ĐẠI LÝ,2020-08-12,506195.0,train,dev
+mcocr_public_145014yccar.jpg,data\images\train_images\train_images\mcocr_public_145014yccar.jpg,MINIMART ANAN,2020-08-10,200000.0,test,test
+mcocr_public_145014eabnk.jpg,data\images\train_images\train_images\mcocr_public_145014eabnk.jpg,PHÓ MỎ,2020-08-11,54000.0,test,test
+mcocr_public_145014rshbs.jpg,data\images\train_images\train_images\mcocr_public_145014rshbs.jpg,VinCommerce,2020-08-14,338000.0,train,dev
+mcocr_public_145014twoee.jpg,data\images\train_images\train_images\mcocr_public_145014twoee.jpg,,2020-08-08,,train,test
+mcocr_public_145014nircs.jpg,data\images\train_images\train_images\mcocr_public_145014nircs.jpg,CỬA HÀNG NĂM OÁNH,2020-08-12,133000.0,val,test
+mcocr_public_145014mikss.jpg,data\images\train_images\train_images\mcocr_public_145014mikss.jpg,MINIMART ANAN,2020-08-16,78000.0,train,dev
+mcocr_public_145014fhmjg.jpg,data\images\train_images\train_images\mcocr_public_145014fhmjg.jpg,Saigon Co.op,2019-09-19,36490.0,test,test
+mcocr_public_145014qbucx.jpg,data\images\train_images\train_images\mcocr_public_145014qbucx.jpg,MINIMART ANAN,2020-08-12,80000.0,train,test
+mcocr_public_145014gobum.jpg,data\images\train_images\train_images\mcocr_public_145014gobum.jpg,THỨC COFFEE,2019-03-31,,test,test
+mcocr_public_145014hxlhz.jpg,data\images\train_images\train_images\mcocr_public_145014hxlhz.jpg,CỬA HÀNG NĂM OÁNH,2020-08-11,116000.0,train,dev
+mcocr_public_145014upass.jpg,data\images\train_images\train_images\mcocr_public_145014upass.jpg,Phúc Anh Minimart,2020-08-14,160000.0,test,test
+mcocr_public_145014iwhec.jpg,data\images\train_images\train_images\mcocr_public_145014iwhec.jpg,,,,train,test
+mcocr_public_145014nrger.jpg,data\images\train_images\train_images\mcocr_public_145014nrger.jpg,MINIMART ANAN,2020-08-13,208000.0,train,dev
+mcocr_public_145014rkuyh.jpg,data\images\train_images\train_images\mcocr_public_145014rkuyh.jpg,VinCommerce,2020-08-10,87643.0,train,dev
+mcocr_public_145014gwllr.jpg,data\images\train_images\train_images\mcocr_public_145014gwllr.jpg,VinCommerce,2020-08-12,53400.0,val,test
+mcocr_public_145014uavtd.jpg,data\images\train_images\train_images\mcocr_public_145014uavtd.jpg,VinCommerce,2020-08-14,,train,dev
+mcocr_public_145014hcsva.jpg,data\images\train_images\train_images\mcocr_public_145014hcsva.jpg,MINIMART ANAN,2020-08-16,479000.0,train,dev
+mcocr_public_145014ghudu.jpg,data\images\train_images\train_images\mcocr_public_145014ghudu.jpg,VinCommerce,2020-08-14,80589.0,test,test
+mcocr_public_145014mgcfg.jpg,data\images\train_images\train_images\mcocr_public_145014mgcfg.jpg,MINIMART ANAN,2020-08-15,,train,test
+mcocr_public_145014ycgki.jpg,data\images\train_images\train_images\mcocr_public_145014ycgki.jpg,VinCommerce,2020-08-14,12900.0,train,dev
+mcocr_public_145014wgjvg.jpg,data\images\train_images\train_images\mcocr_public_145014wgjvg.jpg,Co.op Food HN THE K-PARK,2019-09-23,7500.0,test,test
+mcocr_public_145014rpmsm.jpg,data\images\train_images\train_images\mcocr_public_145014rpmsm.jpg,VinCommerce,2020-08-15,7000.0,train,dev
+mcocr_public_145014ihyqu.jpg,data\images\train_images\train_images\mcocr_public_145014ihyqu.jpg,NHÀ SÁCH GD-TC CẨM PHẢ,,373000.0,test,test
+mcocr_public_145014miwkj.jpg,data\images\train_images\train_images\mcocr_public_145014miwkj.jpg,THE COFFEE HQUSE,,,train,dev
+mcocr_public_145014qajwu.jpg,data\images\train_images\train_images\mcocr_public_145014qajwu.jpg,Co.opMart HAU GIANG,2020-05-21,3564200.0,train,test
+mcocr_public_145014rotwn.jpg,data\images\train_images\train_images\mcocr_public_145014rotwn.jpg,VinCommerce,2019-03-30,43300.0,test,test
+mcocr_public_145014zmplv.jpg,data\images\train_images\train_images\mcocr_public_145014zmplv.jpg,VinCommerce,2020-08-14,57900.0,train,test
+mcocr_public_145014vxrob.jpg,data\images\train_images\train_images\mcocr_public_145014vxrob.jpg,MINIMART ANAN,2020-08-10,162000.0,train,test
+mcocr_public_145014mntfs.jpg,data\images\train_images\train_images\mcocr_public_145014mntfs.jpg,NHÀ SÁCH GD-TC CẨM PHẢ,,15000.0,train,dev
+mcocr_public_145014neytd.jpg,data\images\train_images\train_images\mcocr_public_145014neytd.jpg,NHÀ SÁCH GD-TC CẨM PHẢ,,31000.0,val,test
+mcocr_public_145014ozfbe.jpg,data\images\train_images\train_images\mcocr_public_145014ozfbe.jpg,MINIMART ANAN,2020-08-11,65000.0,train,dev
+mcocr_public_145014vkdhy.jpg,data\images\train_images\train_images\mcocr_public_145014vkdhy.jpg,MINIMART ANAN,2020-08-12,283000.0,train,test
+mcocr_public_145014fvrpp.jpg,data\images\train_images\train_images\mcocr_public_145014fvrpp.jpg,Vitimex Quảng Ninh VinCom Cẩm Phả,2020-08-09,490000.0,train,test
+mcocr_public_145014zqkgu.jpg,data\images\train_images\train_images\mcocr_public_145014zqkgu.jpg,MINIMART ANAN,2020-08-16,47000.0,train,dev
+mcocr_public_145014jfncf.jpg,data\images\train_images\train_images\mcocr_public_145014jfncf.jpg,NHÀ SÁCH GD-TC CẨM PHẢ,,60000.0,test,test
+mcocr_public_145014cgbau.jpg,data\images\train_images\train_images\mcocr_public_145014cgbau.jpg,SCTC CÔ THỎ 104 TRẦN PHÚ - CẨM,2020-08-08,85000.0,train,dev
+mcocr_public_145014yfexx.jpg,data\images\train_images\train_images\mcocr_public_145014yfexx.jpg,TÊN ĐẠI LÝ,,,train,test
+mcocr_public_145014mpahy.jpg,data\images\train_images\train_images\mcocr_public_145014mpahy.jpg,co.opmark,2020-05-21,1044800.0,train,test
+mcocr_public_145014sxfmn.jpg,data\images\train_images\train_images\mcocr_public_145014sxfmn.jpg,NHÀ SÁCH GD-TC CẨM PHẢ,,202000.0,test,test
+mcocr_public_145014ooznt.jpg,data\images\train_images\train_images\mcocr_public_145014ooznt.jpg,co.opmart XA LO HA NOI,,141088.0,val,test
+mcocr_public_145014zwyas.jpg,data\images\train_images\train_images\mcocr_public_145014zwyas.jpg,NHÀ SÁCH GD-TC CẨM PHẢ,,5000.0,train,test
+mcocr_public_145014wmjil.jpg,data\images\train_images\train_images\mcocr_public_145014wmjil.jpg,SIEU THI BACH HOA TONG HOP,2020-08-09,30000.0,train,dev
+mcocr_public_145014heqey.jpg,data\images\train_images\train_images\mcocr_public_145014heqey.jpg,Sai gon co.op co.op Food HN THE K - PARK,2019-09-20,,train,test
+mcocr_public_145014oaduc.jpg,data\images\train_images\train_images\mcocr_public_145014oaduc.jpg,MINIMART ANAN,2020-08-12,147510.0,test,test
+mcocr_public_145014ykqth.jpg,data\images\train_images\train_images\mcocr_public_145014ykqth.jpg,MINIMART ANAN,2020-08-15,124000.0,train,dev
+mcocr_public_145014cwfup.jpg,data\images\train_images\train_images\mcocr_public_145014cwfup.jpg,,2020-08-14,48600.0,test,test
+mcocr_public_145014ihdjg.jpg,data\images\train_images\train_images\mcocr_public_145014ihdjg.jpg,VinCommerce,2020-08-15,50250.0,train,dev
+mcocr_public_145014elolx.jpg,data\images\train_images\train_images\mcocr_public_145014elolx.jpg,MINIMART ANAN,2020-08-11,18000.0,val,test
+mcocr_public_145014ehtue.jpg,data\images\train_images\train_images\mcocr_public_145014ehtue.jpg,,,42600.0,train,dev
+mcocr_public_145014ftgca.jpg,data\images\train_images\train_images\mcocr_public_145014ftgca.jpg,NHÀ SÁCH GD-TC CẨM PHẢ,,46000.0,train,test
+mcocr_public_145014wdhcw.jpg,data\images\train_images\train_images\mcocr_public_145014wdhcw.jpg,,,84000.0,train,test
+mcocr_public_145014qmchf.jpg,data\images\train_images\train_images\mcocr_public_145014qmchf.jpg,VinCommerce,2020-08-15,78166.0,val,test
+mcocr_public_145014kvqte.jpg,data\images\train_images\train_images\mcocr_public_145014kvqte.jpg,VinCommerce,2020-08-09,39000.0,train,dev
+mcocr_public_145014imncc.jpg,data\images\train_images\train_images\mcocr_public_145014imncc.jpg,THE COFFEE HQUSE,2020-10-01,49000.0,train,test
+mcocr_public_145014idiie.jpg,data\images\train_images\train_images\mcocr_public_145014idiie.jpg,MINIMART ANAN,2020-08-12,63500.0,test,test
+mcocr_public_145014ymhqd.jpg,data\images\train_images\train_images\mcocr_public_145014ymhqd.jpg,VinCommerce,2020-08-14,26500.0,train,test
+mcocr_public_145014hdquz.jpg,data\images\train_images\train_images\mcocr_public_145014hdquz.jpg,SCTC CÔ THỎ 104 TRẦN PHÚ - CẨM,2020-08-09,140000.0,test,test
+mcocr_public_145014mppzy.jpg,data\images\train_images\train_images\mcocr_public_145014mppzy.jpg,,,584000.0,train,dev
+mcocr_public_145014fkqug.jpg,data\images\train_images\train_images\mcocr_public_145014fkqug.jpg,Co.opMart HAU GIANG,2020-05-21,945300.0,test,test
+mcocr_public_145014cfgdh.jpg,data\images\train_images\train_images\mcocr_public_145014cfgdh.jpg,NHÀ SÁCH GD-TC CẨM PHẢ,,94000.0,train,dev
+mcocr_public_145014zrswr.jpg,data\images\train_images\train_images\mcocr_public_145014zrswr.jpg,VinCommerce,2020-08-13,47500.0,val,test
+mcocr_public_145014dqrls.jpg,data\images\train_images\train_images\mcocr_public_145014dqrls.jpg,MINIMART ANAN,2020-08-10,,train,dev
+mcocr_public_145014rsxlc.jpg,data\images\train_images\train_images\mcocr_public_145014rsxlc.jpg,Runa Corner,2020-06-02,1300000.0,train,test
+mcocr_public_145014atzjl.jpg,data\images\train_images\train_images\mcocr_public_145014atzjl.jpg,NHÀ SÁCH GD-TC CẨM PHẢ,,27000.0,train,test
+mcocr_public_145014tkueb.jpg,data\images\train_images\train_images\mcocr_public_145014tkueb.jpg,CÔNG TY CP ĐẦU TƯ VELUTNO VIỆT NAM,2020-08-12,685000.0,val,test
+mcocr_public_145014okiuq.jpg,data\images\train_images\train_images\mcocr_public_145014okiuq.jpg,VinCommerce,2020-08-12,82000.0,train,test
+mcocr_public_145014tiglg.jpg,data\images\train_images\train_images\mcocr_public_145014tiglg.jpg,PHỐ MỎ,2020-08-13,15000.0,train,dev
+mcocr_public_145014cuqln.jpg,data\images\train_images\train_images\mcocr_public_145014cuqln.jpg,VinCommerce,2020-08-09,,test,test
+mcocr_public_145014lohnm.jpg,data\images\train_images\train_images\mcocr_public_145014lohnm.jpg,NHÀ SÁCH GD-TC CẨM PHẢ,,8000.0,train,dev
+mcocr_public_145014zstut.jpg,data\images\train_images\train_images\mcocr_public_145014zstut.jpg,VinCommerce,2020-08-14,12500.0,val,test
+mcocr_public_145014lxhnj.jpg,data\images\train_images\train_images\mcocr_public_145014lxhnj.jpg,NHÀ SÁCH CẨM PHẢ,,14000.0,val,test
+mcocr_public_145014lfihs.jpg,data\images\train_images\train_images\mcocr_public_145014lfihs.jpg,,2020-08-14,20300.0,val,test
+mcocr_public_145014nukhy.jpg,data\images\train_images\train_images\mcocr_public_145014nukhy.jpg,CỬA HÀNG NĂM OÁNH,2020-08-10,70000.0,test,test
+mcocr_public_145014iidaa.jpg,data\images\train_images\train_images\mcocr_public_145014iidaa.jpg,VinCommerce,2020-08-09,51500.0,train,test
+mcocr_public_145014kgyki.jpg,data\images\train_images\train_images\mcocr_public_145014kgyki.jpg,MINIMART ANAN,2020-08-12,73900.0,train,dev
+mcocr_public_145014bwelu.jpg,data\images\train_images\train_images\mcocr_public_145014bwelu.jpg,VinCommerce,2020-08-14,33800.0,test,test
+mcocr_public_145014ikozz.jpg,data\images\train_images\train_images\mcocr_public_145014ikozz.jpg,NHÀ SÁCH GD-TC CẨM PHẢ,,93000.0,test,test
+mcocr_public_145014pdqkk.jpg,data\images\train_images\train_images\mcocr_public_145014pdqkk.jpg,VM Commerce,2020-08-12,10500.0,train,test
+mcocr_public_145014etxsp.jpg,data\images\train_images\train_images\mcocr_public_145014etxsp.jpg,VinCommerce,2020-08-14,,val,test
+mcocr_public_145014scxqk.jpg,data\images\train_images\train_images\mcocr_public_145014scxqk.jpg,VinCommerce,2020-08-12,,test,test
+mcocr_public_145014xjfxx.jpg,data\images\train_images\train_images\mcocr_public_145014xjfxx.jpg,VinCommerce,2020-08-14,,test,test
+mcocr_public_145014bvfay.jpg,data\images\train_images\train_images\mcocr_public_145014bvfay.jpg,CỬA HÀNG NĂM OÁNH,2020-08-12,99000.0,val,test
+mcocr_public_145014nbtki.jpg,data\images\train_images\train_images\mcocr_public_145014nbtki.jpg,VinCommerce,2020-08-02,101100.0,val,test
+mcocr_public_145014nxuwg.jpg,data\images\train_images\train_images\mcocr_public_145014nxuwg.jpg,VinCommerce,2020-08-14,17000.0,train,dev
+mcocr_public_145014xxqwv.jpg,data\images\train_images\train_images\mcocr_public_145014xxqwv.jpg,NHÀ SÁCH GD-TC CẨM PHẢ,,23000.0,test,test
+mcocr_public_145014rvwat.jpg,data\images\train_images\train_images\mcocr_public_145014rvwat.jpg,MINIMART ANAN,2020-08-11,92000.0,test,test
+mcocr_public_145014dcpkd.jpg,data\images\train_images\train_images\mcocr_public_145014dcpkd.jpg,CỬA HÀNG NĂM OÁNH,2020-08-12,135000.0,train,dev
+mcocr_public_145014gndox.jpg,data\images\train_images\train_images\mcocr_public_145014gndox.jpg,VitCommerce,2020-08-14,49500.0,train,test
+mcocr_public_145014nqpwx.jpg,data\images\train_images\train_images\mcocr_public_145014nqpwx.jpg,VinCommerce,2020-08-10,64000.0,train,test
+mcocr_public_145014qcesc.jpg,data\images\train_images\train_images\mcocr_public_145014qcesc.jpg,MINIMART ANAN,2020-08-15,548000.0,train,test
+mcocr_public_145014xqbce.jpg,data\images\train_images\train_images\mcocr_public_145014xqbce.jpg,MINIMART ANAN,2020-08-10,76000.0,train,test
+mcocr_public_145014jndnz.jpg,data\images\train_images\train_images\mcocr_public_145014jndnz.jpg,,,,train,dev
+mcocr_public_145014gcycl.jpg,data\images\train_images\train_images\mcocr_public_145014gcycl.jpg,MINIMART ANAN,2020-08-17,107000.0,test,test
+mcocr_public_145014qawzo.jpg,data\images\train_images\train_images\mcocr_public_145014qawzo.jpg,,2020-08-16,70000.0,val,test
+mcocr_public_145014owdgs.jpg,data\images\train_images\train_images\mcocr_public_145014owdgs.jpg,VinCommerce,2020-08-15,,train,dev
+mcocr_public_145014zppme.jpg,data\images\train_images\train_images\mcocr_public_145014zppme.jpg,,2019-09-20,55300.0,train,test
+mcocr_public_145014okzcs.jpg,data\images\train_images\train_images\mcocr_public_145014okzcs.jpg,CỬA HÀNG NĂM OÁNH,2020-08-11,150000.0,train,test
+mcocr_public_145014divcp.jpg,data\images\train_images\train_images\mcocr_public_145014divcp.jpg,Vit Commerce,2020-08-15,319500.0,test,test
+mcocr_public_145014pmuou.jpg,data\images\train_images\train_images\mcocr_public_145014pmuou.jpg,TÊN ĐẠI LÝ :,2020-08-07,214690.0,test,test
+mcocr_public_145014tmkco.jpg,data\images\train_images\train_images\mcocr_public_145014tmkco.jpg,VinCommerce,2020-08-14,262588.0,val,test
+mcocr_public_145014fvwak.jpg,data\images\train_images\train_images\mcocr_public_145014fvwak.jpg,Co.op mart,2020-05-21,,test,test
+mcocr_public_145014vnsjq.jpg,data\images\train_images\train_images\mcocr_public_145014vnsjq.jpg,CỬA HÀNG NĂM OÁNH,2020-08-10,98000.0,train,dev
+mcocr_public_145014fsrkz.jpg,data\images\train_images\train_images\mcocr_public_145014fsrkz.jpg,co.op smile,2020-09-11,15400.0,train,test
+mcocr_public_145014aqeur.jpg,data\images\train_images\train_images\mcocr_public_145014aqeur.jpg,Tiệm đa,2020-10-04,,train,test
+mcocr_public_145014gsbke.jpg,data\images\train_images\train_images\mcocr_public_145014gsbke.jpg,VinCommerce,2020-08-14,41600.0,val,test
+mcocr_public_145014llqzl.jpg,data\images\train_images\train_images\mcocr_public_145014llqzl.jpg,MINIMART ANAN,2020-08-12,66000.0,train,test
+mcocr_public_145014zoocd.jpg,data\images\train_images\train_images\mcocr_public_145014zoocd.jpg,VinCommerce,2020-08-13,,train,test
+mcocr_public_145014ryyyw.jpg,data\images\train_images\train_images\mcocr_public_145014ryyyw.jpg,TÊN ĐẠI LÝ:,2020-06-01,61400.0,train,test
+mcocr_public_145014ftlgi.jpg,data\images\train_images\train_images\mcocr_public_145014ftlgi.jpg,THỨC COFFEE,2019-03-31,,train,test
+mcocr_public_145014btidj.jpg,data\images\train_images\train_images\mcocr_public_145014btidj.jpg,TRUNG TÂM THƯƠNG MAI AEON - HÀ ĐÔNG,2020-08-12,85000.0,test,test
+mcocr_public_145014yxijr.jpg,data\images\train_images\train_images\mcocr_public_145014yxijr.jpg,VinCommerce,2020-08-14,,train,dev
+mcocr_public_145014unbru.jpg,data\images\train_images\train_images\mcocr_public_145014unbru.jpg,MINIMART ANAN,2020-08-13,89000.0,val,test
+mcocr_public_145014nzgjm.jpg,data\images\train_images\train_images\mcocr_public_145014nzgjm.jpg,MILANO COFFEE,2020-10-02,,train,dev
+mcocr_public_145014ttrrd.jpg,data\images\train_images\train_images\mcocr_public_145014ttrrd.jpg,THE COFFEE HQUSE,2020-10-01,35000.0,test,test
+mcocr_public_145014swnex.jpg,data\images\train_images\train_images\mcocr_public_145014swnex.jpg,MINIMART ANAN,2020-08-13,88000.0,test,test
+mcocr_public_145014avkgm.jpg,data\images\train_images\train_images\mcocr_public_145014avkgm.jpg,MINIMART ANAN,,209000.0,train,dev
+mcocr_public_145014cbbmj.jpg,data\images\train_images\train_images\mcocr_public_145014cbbmj.jpg,MINIMART ANAN,2020-08-12,77000.0,test,test
+mcocr_public_145014rnzgt.jpg,data\images\train_images\train_images\mcocr_public_145014rnzgt.jpg,CỬA HÀNG NĂM OÁNH,2020-08-11,82000.0,val,test
+mcocr_public_145014skzzh.jpg,data\images\train_images\train_images\mcocr_public_145014skzzh.jpg,MINIMART ANAN,2020-08-12,135000.0,train,dev
+mcocr_public_145014wxzpz.jpg,data\images\train_images\train_images\mcocr_public_145014wxzpz.jpg,MINIMART ANAN,2020-08-13,376000.0,val,test
+mcocr_public_145014pfjsu.jpg,data\images\train_images\train_images\mcocr_public_145014pfjsu.jpg,CỬA HÀNG NĂM OÁNH,2020-08-10,63000.0,train,dev
+mcocr_public_145014yaivb.jpg,data\images\train_images\train_images\mcocr_public_145014yaivb.jpg,Guitar Cafe,2010-03-18,35000.0,test,test
+mcocr_public_145014ruiqd.jpg,data\images\train_images\train_images\mcocr_public_145014ruiqd.jpg,VinCommerce,2020-08-09,52830.0,train,test
+mcocr_public_145014tihfn.jpg,data\images\train_images\train_images\mcocr_public_145014tihfn.jpg,CỬA HÀNG NĂM OÁNH,2020-08-10,186000.0,val,test
+mcocr_public_145014lbrqe.jpg,data\images\train_images\train_images\mcocr_public_145014lbrqe.jpg,MINIMART ANAN,2020-08-12,113000.0,test,test
+mcocr_public_145014lqgzd.jpg,data\images\train_images\train_images\mcocr_public_145014lqgzd.jpg,VinCommerce,2020-08-07,128900.0,val,test
+mcocr_public_145014yryue.jpg,data\images\train_images\train_images\mcocr_public_145014yryue.jpg,TÊN ĐẠI LÝ:,2020-08-11,20000.0,train,test
+mcocr_public_145014qbdep.jpg,data\images\train_images\train_images\mcocr_public_145014qbdep.jpg,Saigon Co.op,2019-09-19,3700.0,test,test
+mcocr_public_145014kogop.jpg,data\images\train_images\train_images\mcocr_public_145014kogop.jpg,VinCommerce,2020-08-14,41000.0,test,test
+mcocr_public_145014mthgu.jpg,data\images\train_images\train_images\mcocr_public_145014mthgu.jpg,VinCommertce,2020-08-12,3000.0,train,test
+mcocr_public_145014uevcn.jpg,data\images\train_images\train_images\mcocr_public_145014uevcn.jpg,PHỐ MỎ,2020-08-13,10000.0,train,dev
+mcocr_public_145014mzlbz.jpg,data\images\train_images\train_images\mcocr_public_145014mzlbz.jpg,MINIMART ANAN,2020-08-13,45000.0,train,test
+mcocr_public_145014egqdh.jpg,data\images\train_images\train_images\mcocr_public_145014egqdh.jpg,VinCommerce,2020-08-11,,test,test
+mcocr_public_145014haprd.jpg,data\images\train_images\train_images\mcocr_public_145014haprd.jpg,Phúc Anh Minimart,2020-08-14,224000.0,train,test
+mcocr_public_145014lisam.jpg,data\images\train_images\train_images\mcocr_public_145014lisam.jpg,VinCommerce,2020-08-14,63400.0,train,dev
+mcocr_public_145014ybodg.jpg,data\images\train_images\train_images\mcocr_public_145014ybodg.jpg,MINIMART ANAN,2020-08-10,25000.0,train,test
+mcocr_public_145014awmyq.jpg,data\images\train_images\train_images\mcocr_public_145014awmyq.jpg,,2020-08-14,284500.0,train,dev
+mcocr_public_145014wbtei.jpg,data\images\train_images\train_images\mcocr_public_145014wbtei.jpg,NHÀ SÁCH GD-TC CẨM PHẢ,,,test,test
+mcocr_public_145014rrfit.jpg,data\images\train_images\train_images\mcocr_public_145014rrfit.jpg,MINIMART ANAN,2020-08-16,67000.0,train,test
+mcocr_public_145014cftxo.jpg,data\images\train_images\train_images\mcocr_public_145014cftxo.jpg,VinCommerce,2020-08-09,114700.0,train,dev
+mcocr_public_145014cnphh.jpg,data\images\train_images\train_images\mcocr_public_145014cnphh.jpg,MINIMART ANAN,2020-08-10,,test,test
+mcocr_public_145014vtyrp.jpg,data\images\train_images\train_images\mcocr_public_145014vtyrp.jpg,PHÓ MỎ,,10000.0,train,dev
+mcocr_public_145014kljgu.jpg,data\images\train_images\train_images\mcocr_public_145014kljgu.jpg,NHÀ SÁCH GD-TC CẨM PHẢ,,5000.0,train,dev
+mcocr_public_145014aglyp.jpg,data\images\train_images\train_images\mcocr_public_145014aglyp.jpg,MINIMART ANAN,2020-08-17,73000.0,train,test
+mcocr_public_145014vpjby.jpg,data\images\train_images\train_images\mcocr_public_145014vpjby.jpg,MINIMART ANAN,2020-08-10,57000.0,test,test
+mcocr_public_145014wowmj.jpg,data\images\train_images\train_images\mcocr_public_145014wowmj.jpg,VinCommerce,2020-08-12,64200.0,test,test
+mcocr_public_145014aprcw.jpg,data\images\train_images\train_images\mcocr_public_145014aprcw.jpg,,2020-08-13,5360399.0,train,test
+mcocr_public_145014msalk.jpg,data\images\train_images\train_images\mcocr_public_145014msalk.jpg,CƠM GÀ BẢO NGỌC,2020-08-11,1475000.0,test,test
+mcocr_public_145014cpzwm.jpg,data\images\train_images\train_images\mcocr_public_145014cpzwm.jpg,VHa,,,test,test
+mcocr_public_145014qikqz.jpg,data\images\train_images\train_images\mcocr_public_145014qikqz.jpg,VinCommerce,2020-08-10,49500.0,test,test
+mcocr_public_145014dhito.jpg,data\images\train_images\train_images\mcocr_public_145014dhito.jpg,MINIMART ANAN,2020-08-11,387000.0,train,dev
+mcocr_public_145014bokrq.jpg,data\images\train_images\train_images\mcocr_public_145014bokrq.jpg,VinCommerce,2020-08-13,50100.0,test,test
+mcocr_public_145014ectxq.jpg,data\images\train_images\train_images\mcocr_public_145014ectxq.jpg,VinCommerce,2020-08-11,33700.0,test,test
+mcocr_public_145014xyzwl.jpg,data\images\train_images\train_images\mcocr_public_145014xyzwl.jpg,VinCommerce,2020-08-14,19500.0,test,test
+mcocr_public_145014xmngo.jpg,data\images\train_images\train_images\mcocr_public_145014xmngo.jpg,BIG C DI AN,2020-09-07,620100.0,test,test
