@@ -31,6 +31,31 @@ public class AuthController {
     private final AuthService authService;
 
     /**
+     * Send OTP for email verification before registration
+     * POST /api/v1/auth/send-register-otp
+     */
+    @PostMapping("/send-register-otp")
+    public ResponseEntity<Map<String, Object>> sendRegisterOtp(@RequestBody Map<String, String> body) {
+        String email = body.get("email");
+        log.info("Send register OTP request received for email: {}", email);
+
+        if (email == null || email.isBlank()) {
+            Map<String, Object> errResponse = new HashMap<>();
+            errResponse.put("success", false);
+            errResponse.put("message", "Vui lòng nhập email hợp lệ");
+            return ResponseEntity.badRequest().body(errResponse);
+        }
+
+        MessageResponse messageResponse = authService.sendRegistrationOtp(email);
+
+        Map<String, Object> response = new HashMap<>();
+        response.put("success", true);
+        response.put("message", messageResponse.getMessage());
+
+        return ResponseEntity.ok(response);
+    }
+
+    /**
      * Register a new user
      * POST /api/v1/auth/register
      */

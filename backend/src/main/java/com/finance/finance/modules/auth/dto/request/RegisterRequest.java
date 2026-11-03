@@ -43,4 +43,6 @@ public class RegisterRequest {
     
     @Size(max = 10, message = "Language không được vượt quá 10 ký tự")
     private String language;
+
+    private String otp; // Mã OTP xác thực email trước khi đăng ký
 }

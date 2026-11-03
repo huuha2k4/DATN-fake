@@ -8,9 +8,10 @@ interface LoginModalProps {
   onClose: () => void;
   onSuccess: () => void;
   onSwitchToRegister: () => void;
+  onForgotPassword?: () => void;
 }
 
-export function LoginModal({ onClose, onSuccess, onSwitchToRegister }: LoginModalProps) {
+export function LoginModal({ onClose, onSuccess, onSwitchToRegister, onForgotPassword }: LoginModalProps) {
   const [formData, setFormData] = useState<LoginRequest>({
     login: '',
     password: '',
@@ -75,8 +76,18 @@ export function LoginModal({ onClose, onSuccess, onSwitchToRegister }: LoginModa
           </div>
 
           <div className="form-field">
-            <div className="form-label">
+            <div className="form-label flex justify-between items-center">
               <label htmlFor="login-pass">Mật khẩu</label>
+              {onForgotPassword && (
+                <button
+                  type="button"
+                  onClick={onForgotPassword}
+                  className="btn-text-emerald"
+                  style={{ fontSize: '12px', fontWeight: 'normal', cursor: 'pointer' }}
+                >
+                  Quên mật khẩu?
+                </button>
+              )}
             </div>
             <div className="form-input-wrapper">
               <span className="input-icon">

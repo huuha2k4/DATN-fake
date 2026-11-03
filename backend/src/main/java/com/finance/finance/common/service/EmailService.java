@@ -32,6 +32,36 @@ public class EmailService {
     private String appName;
 
     /**
+     * Send email verification with OTP
+     */
+    public void sendVerificationOtpEmail(String toEmail, String fullName, String otp) {
+        String subject = "Mã xác thực tài khoản Finora: " + otp;
+        String content = buildVerificationOtpEmailContent(fullName, otp);
+        try {
+            sendHtmlEmail(toEmail, subject, content);
+            log.info("Verification OTP email sent to: {}", toEmail);
+        } catch (Exception e) {
+            log.error("Failed to send verification OTP email to {}: {}", toEmail, e.getMessage(), e);
+            throw new RuntimeException("Lỗi gửi mail: " + e.getMessage(), e);
+        }
+    }
+
+    /**
+     * Send password reset with OTP
+     */
+    @Async
+    public void sendPasswordResetOtpEmail(String toEmail, String fullName, String otp) {
+        try {
+            String subject = "Mã xác thực đặt lại mật khẩu Finora: " + otp;
+            String content = buildPasswordResetOtpEmailContent(fullName, otp);
+            sendHtmlEmail(toEmail, subject, content);
+            log.info("Password reset OTP email sent to: {}", toEmail);
+        } catch (Exception e) {
+            log.error("Failed to send password reset OTP email to: {}", toEmail, e);
+        }
+    }
+
+    /**
      * Send email verification email
      */
     @Async
@@ -122,7 +152,11 @@ public class EmailService {
         MimeMessage message = mailSender.createMimeMessage();
         MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
         
-        helper.setFrom(fromEmail);
+        try {
+            helper.setFrom(new jakarta.mail.internet.InternetAddress(fromEmail, "Finora - Nền tảng quản lý tài chính cá nhân thông minh", "UTF-8"));
+        } catch (Exception e) {
+            helper.setFrom(fromEmail);
+        }
         helper.setTo(to);
         helper.setSubject(subject);
         helper.setText(htmlContent, true);
@@ -315,5 +349,163 @@ public class EmailService {
             </body>
             </html>
             """, fullName, codesHtml.toString());
+    }
+
+    private String buildVerificationOtpEmailContent(String fullName, String otp) {
+        StringBuilder otpBoxes = new StringBuilder();
+        for (char c : otp.toCharArray()) {
+            otpBoxes.append(String.format(
+                "<span style=\"display: inline-block; width: 34px; height: 42px; line-height: 42px; margin: 0 2px; font-size: 21px; font-weight: 700; color: #07543f; background: #ffffff; border: 1px solid #a7f3d0; border-radius: 8px; box-shadow: 0 1px 3px rgba(7, 84, 63, 0.08); text-align: center; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, monospace;\">%c</span>",
+                c
+            ));
+        }
+
+        return String.format("""
+            <!DOCTYPE html>
+            <html lang="vi">
+            <head>
+                <meta charset="UTF-8">
+                <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            </head>
+            <body style="margin: 0; padding: 20px 10px; background-color: #f1f5f9; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; -webkit-font-smoothing: antialiased;">
+                <table width="100%%" border="0" cellspacing="0" cellpadding="0">
+                    <tr>
+                        <td align="center">
+                            <table width="100%%" border="0" cellspacing="0" cellpadding="0" style="max-width: 480px; background: #ffffff; border-radius: 16px; overflow: hidden; box-shadow: 0 8px 24px rgba(0, 0, 0, 0.06); border: 1px solid #e2e8f0;">
+                                <!-- Header gradient banner -->
+                                <tr>
+                                    <td style="background: linear-gradient(135deg, #07543f 0%%, #04382a 100%%); padding: 28px 20px 24px 20px; text-align: center;">
+                                        <div style="display: inline-block; width: 44px; height: 44px; background: rgba(255, 255, 255, 0.15); border-radius: 12px; margin-bottom: 10px; line-height: 44px; font-size: 20px;">
+                                            🛡️
+                                        </div>
+                                        <h1 style="color: #ffffff; margin: 0; font-size: 21px; font-weight: 800; letter-spacing: -0.5px;">Finora Intelligence</h1>
+                                        <p style="color: #a7f3d0; font-size: 11px; margin: 4px 0 0 0; text-transform: uppercase; letter-spacing: 1.5px; font-weight: 700;">Xác thực tài khoản</p>
+                                    </td>
+                                </tr>
+
+                                <!-- Body content -->
+                                <tr>
+                                    <td style="padding: 26px 20px 20px 20px;">
+                                        <p style="font-size: 15px; color: #1e293b; margin: 0 0 12px 0; font-weight: 600;">
+                                            Xin chào %s,
+                                        </p>
+                                        <p style="font-size: 14px; color: #475569; line-height: 1.5; margin: 0 0 22px 0;">
+                                            Cảm ơn bạn đã lựa chọn Finora để quản lý tài chính thông minh. Vui lòng sử dụng mã xác thực OTP dưới đây để hoàn tất đăng ký tài khoản của bạn:
+                                        </p>
+
+                                        <!-- OTP Display Box (nowrap chống rớt dòng trên điện thoại) -->
+                                        <div style="background: #f0fdf4; border: 1.5px solid #bbf7d0; border-radius: 12px; padding: 18px 10px; text-align: center; margin: 0 0 20px 0;">
+                                            <p style="margin: 0 0 10px 0; font-size: 11.5px; font-weight: 700; color: #047857; text-transform: uppercase; letter-spacing: 1px;">Mã OTP xác thực của bạn</p>
+                                            <div style="display: inline-block; white-space: nowrap;">
+                                                %s
+                                            </div>
+                                            <p style="margin: 12px 0 0 0; font-size: 12px; color: #059669; font-weight: 500;">
+                                                ⏱️ Mã có hiệu lực trong vòng <strong>10 phút</strong>
+                                            </p>
+                                        </div>
+
+                                        <p style="font-size: 12.5px; color: #64748b; line-height: 1.5; margin: 0;">
+                                            🔒 <em>Lưu ý bảo mật: Tuyệt đối không chia sẻ mã này với bất kỳ ai, kể cả nhân viên hỗ trợ Finora.</em>
+                                        </p>
+                                    </td>
+                                </tr>
+
+                                <!-- Footer -->
+                                <tr>
+                                    <td style="background: #f8fafc; padding: 16px 20px; border-top: 1px solid #f1f5f9; text-align: center;">
+                                        <p style="font-size: 11.5px; color: #94a3b8; margin: 0 0 4px 0;">
+                                            Nếu bạn không thực hiện yêu cầu này, vui lòng an tâm bỏ qua email này.
+                                        </p>
+                                        <p style="font-size: 10.5px; color: #cbd5e1; margin: 0;">
+                                            © 2026 Finora Intelligence. All rights reserved.
+                                        </p>
+                                    </td>
+                                </tr>
+                            </table>
+                        </td>
+                    </tr>
+                </table>
+            </body>
+            </html>
+            """, fullName != null && !fullName.isBlank() ? fullName : "bạn", otpBoxes.toString());
+    }
+
+    private String buildPasswordResetOtpEmailContent(String fullName, String otp) {
+        StringBuilder otpBoxes = new StringBuilder();
+        for (char c : otp.toCharArray()) {
+            otpBoxes.append(String.format(
+                "<span style=\"display: inline-block; width: 34px; height: 42px; line-height: 42px; margin: 0 2px; font-size: 21px; font-weight: 700; color: #dc2626; background: #ffffff; border: 1px solid #fecaca; border-radius: 8px; box-shadow: 0 1px 3px rgba(220, 38, 38, 0.08); text-align: center; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, monospace;\">%c</span>",
+                c
+            ));
+        }
+
+        return String.format("""
+            <!DOCTYPE html>
+            <html lang="vi">
+            <head>
+                <meta charset="UTF-8">
+                <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            </head>
+            <body style="margin: 0; padding: 20px 10px; background-color: #f1f5f9; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; -webkit-font-smoothing: antialiased;">
+                <table width="100%%" border="0" cellspacing="0" cellpadding="0">
+                    <tr>
+                        <td align="center">
+                            <table width="100%%" border="0" cellspacing="0" cellpadding="0" style="max-width: 480px; background: #ffffff; border-radius: 16px; overflow: hidden; box-shadow: 0 8px 24px rgba(0, 0, 0, 0.06); border: 1px solid #e2e8f0;">
+                                <!-- Header gradient banner -->
+                                <tr>
+                                    <td style="background: linear-gradient(135deg, #1e293b 0%%, #0f172a 100%%); padding: 28px 20px 24px 20px; text-align: center;">
+                                        <div style="display: inline-block; width: 44px; height: 44px; background: rgba(255, 255, 255, 0.1); border-radius: 12px; margin-bottom: 10px; line-height: 44px; font-size: 20px;">
+                                            🔑
+                                        </div>
+                                        <h1 style="color: #ffffff; margin: 0; font-size: 21px; font-weight: 800; letter-spacing: -0.5px;">Finora Intelligence</h1>
+                                        <p style="color: #94a3b8; font-size: 11px; margin: 4px 0 0 0; text-transform: uppercase; letter-spacing: 1.5px; font-weight: 700;">Khôi phục mật khẩu</p>
+                                    </td>
+                                </tr>
+
+                                <!-- Body content -->
+                                <tr>
+                                    <td style="padding: 26px 20px 20px 20px;">
+                                        <p style="font-size: 15px; color: #1e293b; margin: 0 0 12px 0; font-weight: 600;">
+                                            Xin chào %s,
+                                        </p>
+                                        <p style="font-size: 14px; color: #475569; line-height: 1.5; margin: 0 0 22px 0;">
+                                            Chúng tôi nhận được yêu cầu đặt lại mật khẩu cho tài khoản Finora của bạn. Vui lòng nhập mã OTP 6 số bên dưới để tạo mật khẩu mới:
+                                        </p>
+
+                                        <!-- OTP Display Box (nowrap chống rớt dòng trên điện thoại) -->
+                                        <div style="background: #fef2f2; border: 1.5px solid #fee2e2; border-radius: 12px; padding: 18px 10px; text-align: center; margin: 0 0 20px 0;">
+                                            <p style="margin: 0 0 10px 0; font-size: 11.5px; font-weight: 700; color: #b91c1c; text-transform: uppercase; letter-spacing: 1px;">Mã OTP đặt lại mật khẩu</p>
+                                            <div style="display: inline-block; white-space: nowrap;">
+                                                %s
+                                            </div>
+                                            <p style="margin: 12px 0 0 0; font-size: 12px; color: #dc2626; font-weight: 500;">
+                                                ⏱️ Mã có hiệu lực trong vòng <strong>10 phút</strong>
+                                            </p>
+                                        </div>
+
+                                        <p style="font-size: 12.5px; color: #64748b; line-height: 1.5; margin: 0;">
+                                            🔒 <em>Nếu bạn không yêu cầu đặt lại mật khẩu, vui lòng bỏ qua thư này. Tài khoản của bạn vẫn được an toàn.</em>
+                                        </p>
+                                    </td>
+                                </tr>
+
+                                <!-- Footer -->
+                                <tr>
+                                    <td style="background: #f8fafc; padding: 16px 20px; border-top: 1px solid #f1f5f9; text-align: center;">
+                                        <p style="font-size: 11.5px; color: #94a3b8; margin: 0 0 4px 0;">
+                                            Hỗ trợ bảo mật tài khoản người dùng Finora
+                                        </p>
+                                        <p style="font-size: 10.5px; color: #cbd5e1; margin: 0;">
+                                            © 2026 Finora Intelligence. All rights reserved.
+                                        </p>
+                                    </td>
+                                </tr>
+                            </table>
+                        </td>
+                    </tr>
+                </table>
+            </body>
+            </html>
+            """, fullName != null && !fullName.isBlank() ? fullName : "bạn", otpBoxes.toString());
     }
 }

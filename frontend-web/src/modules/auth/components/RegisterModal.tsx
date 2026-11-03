@@ -16,11 +16,52 @@ export function RegisterModal({ onClose, onSuccess, onSwitchToLogin }: RegisterM
     password: '',
     fullName: '',
     username: '',
+    otp: '',
   });
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [sendingOtp, setSendingOtp] = useState(false);
+  const [otpSent, setOtpSent] = useState(false);
+  const [countdown, setCountdown] = useState(0);
   const [error, setError] = useState('');
+  const [successMsg, setSuccessMsg] = useState('');
+
+  // Đếm ngược gửi lại mã OTP (60s)
+  const startCountdown = () => {
+    setCountdown(60);
+    const interval = setInterval(() => {
+      setCountdown((prev) => {
+        if (prev <= 1) {
+          clearInterval(interval);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+  };
+
+  const handleSendOtp = async () => {
+    const cleanEmail = formData.email.trim();
+    if (!cleanEmail || !cleanEmail.includes('@')) {
+      setError('Vui lòng nhập địa chỉ email hợp lệ trước khi gửi mã');
+      return;
+    }
+
+    setError('');
+    setSendingOtp(true);
+
+    try {
+      const res = await authApi.sendRegisterOtp(cleanEmail);
+      setSuccessMsg(res.message || 'Mã OTP 6 số đã được gửi tới email của bạn!');
+      setOtpSent(true);
+      startCountdown();
+    } catch (err: any) {
+      setError(err?.message || 'Không thể gửi mã xác thực. Vui lòng kiểm tra lại');
+    } finally {
+      setSendingOtp(false);
+    }
+  };
 
   const validateForm = () => {
     if (!formData.fullName.trim()) {
@@ -30,6 +71,11 @@ export function RegisterModal({ onClose, onSuccess, onSwitchToLogin }: RegisterM
 
     if (!formData.email.trim() || !formData.email.includes('@')) {
       setError('Email không hợp lệ');
+      return false;
+    }
+
+    if (!formData.otp || formData.otp.trim().length < 6) {
+      setError('Vui lòng nhập mã OTP 6 số đã gửi về email của bạn');
       return false;
     }
 
@@ -67,11 +113,12 @@ export function RegisterModal({ onClose, onSuccess, onSwitchToLogin }: RegisterM
         password: formData.password,
         fullName: formData.fullName.trim(),
         username: formData.username?.trim() || undefined,
+        otp: formData.otp?.trim(),
       });
       saveAuthData(response.data.user, response.data.tokens);
       onSuccess();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Đăng ký thất bại, vui lòng thử lại');
+    } catch (err: any) {
+      setError(err?.message || 'Đăng ký thất bại, vui lòng thử lại');
     } finally {
       setLoading(false);
     }
@@ -96,8 +143,15 @@ export function RegisterModal({ onClose, onSuccess, onSwitchToLogin }: RegisterM
           </div>
         )}
 
+        {successMsg && (
+          <div className="form-alert success" role="alert" style={{ background: '#f0fdf4', borderColor: '#bbf7d0', color: '#166534', padding: '10px 14px', borderRadius: '10px', fontSize: '12.5px', marginBottom: '8px' }}>
+            <span>✅ </span>
+            <span>{successMsg}</span>
+          </div>
+        )}
+
         <form onSubmit={handleSubmit} className="auth-form compact-form">
-          {/* Row 1: Full name and Email in 2 columns */}
+          {/* Row 1: Họ và tên & Tên tài khoản chung hàng gọn đẹp */}
           <div className="form-row-2col">
             <div className="form-field">
               <label className="form-label" htmlFor="reg-fullname">Họ và tên *</label>
@@ -119,6 +173,27 @@ export function RegisterModal({ onClose, onSuccess, onSwitchToLogin }: RegisterM
             </div>
 
             <div className="form-field">
+              <label className="form-label" htmlFor="reg-username">
+                <span>Username</span>
+                <span className="form-optional-tag">(tùy chọn)</span>
+              </label>
+              <div className="form-input-wrapper">
+                <span className="input-icon">@</span>
+                <input
+                  id="reg-username"
+                  type="text"
+                  value={formData.username}
+                  onChange={(e) => setFormData({ ...formData, username: e.target.value })}
+                  placeholder="VD: nguyen_vana"
+                  autoComplete="username"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Row 2: Email & Mã OTP chung một hàng (Email chiếm 60%, OTP 40% có nút Gửi mã) */}
+          <div className="form-row-2col">
+            <div className="form-field" style={{ flex: '1.4' }}>
               <label className="form-label" htmlFor="reg-email">Email *</label>
               <div className="form-input-wrapper">
                 <span className="input-icon">✉️</span>
@@ -133,28 +208,44 @@ export function RegisterModal({ onClose, onSuccess, onSwitchToLogin }: RegisterM
                 />
               </div>
             </div>
-          </div>
 
-          {/* Row 2: Username */}
-          <div className="form-field">
-            <label className="form-label" htmlFor="reg-username">
-              <span>Tên tài khoản / Username</span>
-              <span className="form-optional-tag">(không bắt buộc)</span>
-            </label>
-            <div className="form-input-wrapper">
-              <span className="input-icon">@</span>
-              <input
-                id="reg-username"
-                type="text"
-                value={formData.username}
-                onChange={(e) => setFormData({ ...formData, username: e.target.value })}
-                placeholder="VD: nguyen_vana"
-                autoComplete="username"
-              />
+            <div className="form-field" style={{ flex: '1.2' }}>
+              <label className="form-label" htmlFor="reg-otp">Mã OTP *</label>
+              <div className="flex gap-2 items-center">
+                <div className="form-input-wrapper flex-1">
+                  <span className="input-icon">🔑</span>
+                  <input
+                    id="reg-otp"
+                    type="text"
+                    maxLength={6}
+                    value={formData.otp}
+                    onChange={(e) => setFormData({ ...formData, otp: e.target.value.replace(/\D/g, '') })}
+                    placeholder="6 số OTP"
+                    required
+                  />
+                </div>
+                <button
+                  type="button"
+                  onClick={handleSendOtp}
+                  disabled={sendingOtp || countdown > 0}
+                  className="btn-submit-emerald whitespace-nowrap"
+                  style={{
+                    width: 'auto',
+                    marginTop: 0,
+                    padding: '10px 12px',
+                    fontSize: '12.5px',
+                    fontWeight: 600,
+                    borderRadius: '11px',
+                    minWidth: '82px',
+                  }}
+                >
+                  {sendingOtp ? 'Đang gửi...' : countdown > 0 ? `${countdown}s` : otpSent ? 'Gửi lại' : 'Lấy mã'}
+                </button>
+              </div>
             </div>
           </div>
 
-          {/* Row 3: Password and Confirm password in 2 columns */}
+          {/* Row 4: Password and Confirm password in 2 columns */}
           <div className="form-row-2col">
             <div className="form-field">
               <label className="form-label" htmlFor="reg-pass">Mật khẩu *</label>
@@ -216,7 +307,7 @@ export function RegisterModal({ onClose, onSuccess, onSwitchToLogin }: RegisterM
             {loading ? (
               <>
                 <span className="spinner" />
-                <span>Đang tạo tài khoản...</span>
+                <span>Đang xử lý tạo tài khoản...</span>
               </>
             ) : (
               <>
