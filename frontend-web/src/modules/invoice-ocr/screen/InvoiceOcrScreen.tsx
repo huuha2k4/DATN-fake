@@ -1,635 +1,836 @@
-import { useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react'
-import { FinanceIcon } from '../../core/components/FinanceIcon'
-import { ocrApi, type OcrReceiptResult } from '../api/ocrApi'
-import { accountApi, type AccountItem } from '../../account-management/api/accountApi'
-import { transactionApi, type CategoryItem } from '../../cash-flow-management/api/transactionApi'
+import { useEffect, useMemo, useRef, useState, type ChangeEvent, type DragEvent } from 'react';
+import { FinanceIcon, resolveCategoryIconName, getCategoryCanonicalKey } from '../../core/components/FinanceIcon';
+import { ocrApi, type OcrReceiptResult } from '../api/ocrApi';
+import { accountApi, type AccountItem } from '../../account-management/api/accountApi';
+import { transactionApi, type CategoryItem } from '../../cash-flow-management/api/transactionApi';
 
-type Props = { onCancel: () => void; onNotify: (message: string) => void }
+type Props = {
+  onCancel: () => void;
+  onNotify: (message: string) => void;
+};
 
 export function InvoiceOcrScreen({ onCancel, onNotify }: Props) {
-  const inputRef = useRef<HTMLInputElement>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Loading / scan states
-  const [scanning, setScanning] = useState(false)
-  const [scanResult, setScanResult] = useState<OcrReceiptResult | null>(null)
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null)
-  const [recentReceipts, setRecentReceipts] = useState<OcrReceiptResult[]>([])
-  const [loadingReceipts, setLoadingReceipts] = useState(false)
+  // Loading & scan states
+  const [scanning, setScanning] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [scanResult, setScanResult] = useState<OcrReceiptResult | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [isDragOver, setIsDragOver] = useState(false);
+  const [lightboxOpen, setLightboxOpen] = useState(false);
 
-  // Reference data
-  const [accounts, setAccounts] = useState<AccountItem[]>([])
-  const [categories, setCategories] = useState<CategoryItem[]>([])
-  const [selectedAccountId, setSelectedAccountId] = useState('')
+  // History & reference data
+  const [recentReceipts, setRecentReceipts] = useState<OcrReceiptResult[]>([]);
+  const [loadingReceipts, setLoadingReceipts] = useState(false);
+  const [accounts, setAccounts] = useState<AccountItem[]>([]);
+  const [categories, setCategories] = useState<CategoryItem[]>([]);
 
-  // Form fields (pre-filled from OCR)
-  const [merchant, setMerchant] = useState('')
-  const [date, setDate] = useState('')
-  const [time, setTime] = useState('')
-  const [amount, setAmount] = useState('')
-  const [selectedCategoryId, setSelectedCategoryId] = useState('')
-  const [note, setNote] = useState('')
+  // Form fields
+  const [selectedAccountId, setSelectedAccountId] = useState('');
+  const [selectedCategoryId, setSelectedCategoryId] = useState('');
+  const [merchant, setMerchant] = useState('');
+  const [date, setDate] = useState(() => new Date().toISOString().split('T')[0]);
+  const [time, setTime] = useState(() => {
+    const now = new Date();
+    return `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+  });
+  const [amount, setAmount] = useState('');
+  const [note, setNote] = useState('');
 
-  // Filter for recent receipts table
-  const [filter, setFilter] = useState('')
+  // History filter
+  const [historySearch, setHistorySearch] = useState('');
+  const [historyTab, setHistoryTab] = useState<'ALL' | 'PAID' | 'DRAFT'>('ALL');
 
-  // Revoke object URL khi component unmount để tránh memory leak
+  // Revoke object URL on unmount
   useEffect(() => {
     return () => {
-      if (previewUrl) URL.revokeObjectURL(previewUrl)
-    }
-  }, [previewUrl])
+      if (previewUrl) URL.revokeObjectURL(previewUrl);
+    };
+  }, [previewUrl]);
 
-  // Load reference data on mount
-  useEffect(() => {
-    const loadInitialData = async () => {
-      setLoadingReceipts(true)
-      try {
-        const [accs, cats, receiptsResp] = await Promise.all([
-          accountApi.getAccounts(),
-          transactionApi.getCategories('EXPENSE'),
-          ocrApi.getReceipts(),
-        ])
-        setAccounts(accs)
-        if (accs.length > 0) setSelectedAccountId(accs[0].id)
-        setCategories(cats)
-        setRecentReceipts(receiptsResp.receipts)
-      } catch {
-        // silently ignore initial load errors
-      } finally {
-        setLoadingReceipts(false)
+  // Load accounts, categories & receipts history
+  const loadInitialData = async () => {
+    setLoadingReceipts(true);
+    try {
+      const [accs, cats, receiptsResp] = await Promise.all([
+        accountApi.getAccounts().catch(() => []),
+        transactionApi.getCategories('EXPENSE').catch(() => []),
+        ocrApi.getReceipts().catch(() => ({ receipts: [] })),
+      ]);
+      setAccounts(accs);
+      if (accs.length > 0 && !selectedAccountId) {
+        setSelectedAccountId(accs[0].id);
       }
+      setCategories(cats);
+      setRecentReceipts(receiptsResp.receipts || []);
+    } catch {
+      onNotify('Không thể nạp dữ liệu tài khoản và danh mục');
+    } finally {
+      setLoadingReceipts(false);
     }
-    loadInitialData()
-  }, [])
+  };
+
+  useEffect(() => {
+    loadInitialData();
+  }, []);
 
   const reloadReceipts = async () => {
     try {
-      const resp = await ocrApi.getReceipts()
-      setRecentReceipts(resp.receipts)
+      const resp = await ocrApi.getReceipts();
+      setRecentReceipts(resp.receipts || []);
     } catch {
-      // ignore
+      // Ignore background reload errors
     }
-  }
+  };
 
-  const chooseDocument = async (event: ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0]
-    if (!file) return
+  // Process chosen or dropped file
+  const processFile = async (file: File) => {
+    if (!file.type.startsWith('image/') && !file.name.toLowerCase().endsWith('.pdf')) {
+      onNotify('Vui lòng chọn tệp hình ảnh (JPG, PNG, WEBP) hoặc PDF');
+      return;
+    }
     if (file.size > 15 * 1024 * 1024) {
-      onNotify('Hóa đơn cần nhỏ hơn 15 MB')
-      event.target.value = ''
-      return
+      onNotify('Dung lượng tệp tối đa là 15 MB');
+      return;
     }
 
-    // Tạo preview URL ngay lập tức, trước khi gọi API
-    if (previewUrl) URL.revokeObjectURL(previewUrl)
-    const newPreviewUrl = URL.createObjectURL(file)
-    setPreviewUrl(newPreviewUrl)
+    if (previewUrl) URL.revokeObjectURL(previewUrl);
+    const newPreviewUrl = URL.createObjectURL(file);
+    setPreviewUrl(newPreviewUrl);
 
-    setScanning(true)
+    setScanning(true);
     try {
-      const result = await ocrApi.scanReceipt(file)
-      setScanResult(result)
-      setMerchant(result.merchantName ?? '')
-      setDate(result.transactionDate ?? '')
-      setTime(result.transactionTime ?? '')
-      setAmount(result.totalAmount?.toString() ?? '')
+      const result = await ocrApi.scanReceipt(file);
+      setScanResult(result);
+      setMerchant(result.merchantName || 'Hóa đơn mua sắm');
+      if (result.transactionDate) setDate(result.transactionDate);
+      if (result.transactionTime) setTime(result.transactionTime.slice(0, 5));
+      setAmount(result.totalAmount != null ? String(result.totalAmount) : '');
 
-      // aiCategoryId từ AI là string key (vd: "food"), cần map sang UUID của hệ thống
-      // Thử tìm category có name khớp với aiCategoryName trước, sau đó mới thử id
-      if (result.aiCategoryId) {
+      // Match category
+      if (result.aiCategoryId || result.aiCategoryName) {
         const matched = categories.find(
           (c) =>
             c.id === result.aiCategoryId ||
-            c.name?.toLowerCase() === result.aiCategoryName?.toLowerCase()
-        )
-        setSelectedCategoryId(matched?.id ?? '')
-      } else {
-        setSelectedCategoryId('')
+            c.name.toLowerCase() === result.aiCategoryName?.toLowerCase()
+        );
+        if (matched) {
+          setSelectedCategoryId(matched.id);
+        } else if (categories.length > 0) {
+          setSelectedCategoryId(categories[0].id);
+        }
+      } else if (categories.length > 0 && !selectedCategoryId) {
+        setSelectedCategoryId(categories[0].id);
       }
 
-      onNotify(`Quét thành công: ${result.merchantName ?? file.name}`)
+      onNotify(`Quét thành công: ${result.merchantName || file.name}`);
+      reloadReceipts();
     } catch (err: any) {
-      onNotify(err?.response?.data?.message ?? err?.message ?? 'Không thể quét hóa đơn. Vui lòng thử lại.')
+      const msg = err?.response?.data?.message || err?.message || 'Không thể quét hóa đơn. Vui lòng thử lại.';
+      onNotify(msg);
     } finally {
-      setScanning(false)
-      event.target.value = ''
+      setScanning(false);
     }
-  }
+  };
 
-  const resetScan = () => {
-    setScanResult(null)
-    if (previewUrl) URL.revokeObjectURL(previewUrl)
-    setPreviewUrl(null)
-    setMerchant('')
-    setDate('')
-    setTime('')
-    setAmount('')
-    setSelectedCategoryId('')
-    setNote('')
-    if (inputRef.current) inputRef.current.value = ''
-  }
+  const handleFileInputChange = (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      processFile(file);
+      e.target.value = '';
+    }
+  };
 
-  const handleConfirm = async () => {
+  // Drag & drop handlers
+  const handleDragOver = (e: DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    setIsDragOver(true);
+  };
+
+  const handleDragLeave = (e: DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    setIsDragOver(false);
+  };
+
+  const handleDrop = (e: DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    setIsDragOver(false);
+    const file = e.dataTransfer.files?.[0];
+    if (file) {
+      processFile(file);
+    }
+  };
+
+  const resetCurrentScan = () => {
+    setScanResult(null);
+    if (previewUrl) URL.revokeObjectURL(previewUrl);
+    setPreviewUrl(null);
+    setMerchant('');
+    setAmount('');
+    setNote('');
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  };
+
+  // Confirm and create real transaction
+  const handleConfirmTransaction = async () => {
     if (!scanResult) {
-      onNotify('Chưa có kết quả OCR. Vui lòng quét hóa đơn trước.')
-      return
+      onNotify('Vui lòng quét hóa đơn trước khi lưu giao dịch.');
+      return;
     }
     if (!selectedAccountId) {
-      onNotify('Vui lòng chọn tài khoản.')
-      return
+      onNotify('Vui lòng chọn tài khoản thanh toán.');
+      return;
     }
+    const numericAmount = parseFloat(amount);
+    if (isNaN(numericAmount) || numericAmount <= 0) {
+      onNotify('Vui lòng nhập số tiền hợp lệ lớn hơn 0.');
+      return;
+    }
+
+    setSubmitting(true);
     try {
-      const parsedAmount = parseFloat(amount)
       await ocrApi.createTransaction({
         receiptId: scanResult.id,
         accountId: selectedAccountId,
         categoryId: selectedCategoryId || undefined,
-        description: merchant,
-        note: note || undefined,
-        overrideAmount: !isNaN(parsedAmount) && parsedAmount > 0 ? parsedAmount : undefined,
-      })
-      onNotify(`Đã xác nhận hóa đơn ${merchant}`)
-      resetScan()
-      await reloadReceipts()
+        description: merchant.trim() || 'Hóa đơn OCR',
+        note: note.trim() || undefined,
+        overrideAmount: numericAmount,
+      });
+
+      onNotify(`Đã lưu giao dịch thành công: ${Number(numericAmount).toLocaleString('vi-VN')} ₫`);
+      resetCurrentScan();
+      await reloadReceipts();
     } catch (err: any) {
-      onNotify(err?.response?.data?.message ?? err?.message ?? 'Không thể lưu giao dịch. Vui lòng thử lại.')
+      const msg = err?.response?.data?.message || err?.message || 'Có lỗi xảy ra khi tạo giao dịch.';
+      onNotify(msg);
+    } finally {
+      setSubmitting(false);
     }
-  }
+  };
 
-  const filteredReceipts = useMemo(
-    () =>
-      recentReceipts.filter((r) =>
-        `${r.merchantName ?? ''} ${r.aiCategoryName ?? ''} ${r.currency}`
+  // Delete a receipt from history
+  const handleDeleteReceipt = async (e: React.MouseEvent, id: string) => {
+    e.stopPropagation();
+    if (!confirm('Bạn có chắc chắn muốn xóa bản ghi hóa đơn này khỏi lịch sử?')) return;
+    try {
+      await ocrApi.deleteReceipt(id);
+      onNotify('Đã xóa hóa đơn khỏi lịch sử');
+      if (scanResult?.id === id) {
+        resetCurrentScan();
+      }
+      reloadReceipts();
+    } catch {
+      onNotify('Không thể xóa hóa đơn');
+    }
+  };
+
+  // Populate form from a historical receipt
+  const handleSelectRecentReceipt = (r: OcrReceiptResult) => {
+    setScanResult(r);
+    setMerchant(r.merchantName || 'Hóa đơn');
+    if (r.transactionDate) setDate(r.transactionDate);
+    if (r.transactionTime) setTime(r.transactionTime.slice(0, 5));
+    if (r.totalAmount != null) setAmount(String(r.totalAmount));
+    if (r.aiCategoryId) {
+      const matched = categories.find((c) => c.id === r.aiCategoryId || c.name === r.aiCategoryName);
+      if (matched) setSelectedCategoryId(matched.id);
+    }
+    onNotify(`Đã tải thông tin hóa đơn: ${r.merchantName || 'Hóa đơn'}`);
+  };
+
+  // Filter receipts list
+  const filteredReceipts = useMemo(() => {
+    return recentReceipts.filter((r) => {
+      const matchesSearch =
+        !historySearch.trim() ||
+        `${r.merchantName || ''} ${r.aiCategoryName || ''} ${r.totalAmount || ''}`
           .toLowerCase()
-          .includes(filter.toLowerCase()),
-      ),
-    [recentReceipts, filter],
-  )
+          .includes(historySearch.toLowerCase());
 
-  // Confidence display helper
-  const confidenceLabel = (c: number) => `${Math.round(c * 100)}%`
+      const isPaid = Boolean(r.transactionId || r.kind === 'paid');
+      const matchesTab =
+        historyTab === 'ALL' ||
+        (historyTab === 'PAID' && isPaid) ||
+        (historyTab === 'DRAFT' && !isPaid);
 
-  // Date+time display helper
-  const dateTimeLabel = (r: OcrReceiptResult) => {
-    const parts = [r.transactionDate, r.transactionTime].filter(Boolean)
-    return parts.join(' · ') || '—'
-  }
+      return matchesSearch && matchesTab;
+    });
+  }, [recentReceipts, historySearch, historyTab]);
 
-  const documentName = scanResult?.merchantName
-    ? `${scanResult.merchantName}`
-    : scanning
-    ? 'Đang xử lý…'
-    : 'Chưa chọn hóa đơn'
+  const selectedCategoryObj = categories.find((c) => c.id === selectedCategoryId);
+  const selectedAccountObj = accounts.find((a) => a.id === selectedAccountId);
 
   return (
-    <main
-      className="mx-auto flex min-h-[calc(100vh-64px)] w-full max-w-[1560px] flex-col gap-5 bg-[#f6f8f6] px-3 pb-24 pt-6 text-[#14251f] sm:px-[22px] lg:px-[34px] lg:pb-10 lg:pt-8"
-      aria-label="Quét hóa đơn OCR"
-    >
-      <header className="flex flex-col justify-between gap-4 xl:flex-row xl:items-end">
-        <div>
-          <nav aria-label="Đường dẫn" className="mb-2 flex items-center gap-2 text-[10px] text-[#718078]">
-            <button type="button" onClick={onCancel} className="hover:text-[#087557]">
-              Giao dịch &amp; Dòng tiền
-            </button>
-            <FinanceIcon name="arrow" size={12} />
-            <strong className="text-[#07543f]">Quét hóa đơn OCR</strong>
-          </nav>
-          <div className="flex flex-wrap items-center gap-2">
-            <h1 className="text-2xl font-semibold leading-tight text-[#17261f] sm:text-[28px]">
-              Quét hóa đơn &amp; Nhận diện tự động
-            </h1>
-            <span className="rounded-full bg-[#e3f4e9] px-2.5 py-1 text-[9px] font-semibold text-[#17794f]">
-              FinAI Vision · 3.2
-            </span>
-          </div>
-          <p className="mt-1 max-w-3xl text-xs leading-5 text-[#718078]">
-            Nhận diện hóa đơn để điền sẵn cửa hàng, số tiền và danh mục. Kiểm tra thông tin trước khi xác nhận.
-          </p>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <button
-            type="button"
-            onClick={onCancel}
-            className="inline-flex h-9 items-center gap-2 rounded-lg bg-[#eaf0fb] px-3 text-[10px] font-medium text-[#344b62]"
-          >
-            <FinanceIcon name="clock" size={14} />
-            Lịch sử quét
-          </button>
-          <button
-            type="button"
-            onClick={() => inputRef.current?.click()}
-            className="inline-flex h-9 items-center gap-2 rounded-lg bg-[#07543f] px-3 text-[10px] font-semibold text-white"
-          >
-            <FinanceIcon name="download" size={14} />
-            Tải ảnh / PDF
-          </button>
-        </div>
-        <input ref={inputRef} type="file" accept="image/*,.pdf" onChange={chooseDocument} className="hidden" />
-      </header>
+    <main className="mx-auto flex min-h-[calc(100vh-68px)] max-h-[calc(100vh-68px)] w-full flex-1 flex-col bg-[#f6f8f6] dark:bg-[#07131e] p-3 text-[#14251f] dark:text-slate-100 sm:p-4 lg:p-5 overflow-hidden">
+      {/* Hidden File Input */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/jpeg,image/png,image/webp,.pdf"
+        onChange={handleFileInputChange}
+        className="hidden"
+      />
 
-      <div className="grid items-start gap-4 xl:grid-cols-2">
-        {/* Left: preview / scanning */}
-        <section className="grid gap-3">
-          <div className="relative flex min-h-[430px] items-center justify-center overflow-hidden rounded-xl bg-[#213145] p-5 shadow-sm sm:min-h-[530px]">
-            <div className="absolute left-3 right-3 top-3 flex flex-wrap items-center justify-between gap-2 rounded-lg bg-white/10 px-3 py-2 backdrop-blur">
-              <span className="flex items-center gap-2 text-[9px] font-semibold tracking-[.6px] text-[#a8ebca]">
-                <i className="size-2 rounded-full bg-[#6ffbbe]" />
-                FINAI OCR · {scanning ? 'ĐANG XỬ LÝ' : previewUrl ? 'ẢNH HÓA ĐƠN' : 'BẢN XEM TRƯỚC'}
-              </span>
-              <span className="flex items-center gap-1.5 text-[9px] text-[#eaf1ff]">
-                <FinanceIcon name="spark" size={12} />
-                {scanResult ? `Độ tin cậy · ${confidenceLabel(scanResult.confidence)}` : 'Nhận diện mẫu · 99%'}
-              </span>
-            </div>
-
-            {scanning ? (
-              <div className="flex flex-col items-center gap-4 text-white">
-                {/* Hiển thị ảnh mờ trong khi đang scan */}
-                {previewUrl && (
-                  <img
-                    src={previewUrl}
-                    alt="Ảnh hóa đơn đang xử lý"
-                    className="absolute inset-0 h-full w-full object-contain opacity-30"
-                  />
-                )}
-                <svg
-                  className="relative size-12 animate-spin text-[#6ffbbe]"
-                  xmlns="http://www.w3.org/2000/svg"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  aria-label="Đang xử lý"
-                >
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                  <path
-                    className="opacity-75"
-                    fill="currentColor"
-                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
-                  />
-                </svg>
-                <p className="relative text-sm font-medium text-[#a8ebca]">Đang nhận diện hóa đơn…</p>
-              </div>
-            ) : previewUrl ? (
-              /* Hiển thị ảnh thật sau khi upload */
-              <div className="relative flex h-full w-full items-center justify-center">
-                <img
-                  src={previewUrl}
-                  alt={`Hóa đơn ${scanResult?.merchantName ?? ''}`}
-                  className="max-h-[400px] w-full rounded-lg object-contain sm:max-h-[480px]"
-                />
-                {/* Overlay badge kết quả OCR góc dưới phải */}
-                {scanResult && (
-                  <div className="absolute bottom-2 right-2 rounded-lg bg-[#07543f]/90 px-3 py-2 text-[10px] text-white shadow-lg backdrop-blur-sm">
-                    <p className="font-bold">{scanResult.merchantName ?? 'Hóa đơn'}</p>
-                    {scanResult.aiCategoryName && (
-                      <p className="text-[#a8ebca]">{scanResult.aiCategoryName}</p>
-                    )}
-                    <p className="mt-0.5 font-semibold text-[#6ffbbe]">
-                      {scanResult.totalAmount?.toLocaleString('vi-VN') ?? '—'} {scanResult.currency}
-                    </p>
-                  </div>
-                )}
-              </div>
-            ) : (
-              <article className="relative w-full max-w-[340px] rounded-lg bg-white p-4 shadow-2xl">
-                <div className="border-b border-dashed border-[#bfc9c4] pb-3 text-center">
-                  <span className="mx-auto grid size-9 place-items-center rounded-full bg-[#eaf0fb] text-[#47677f]">
-                    <FinanceIcon name="coffee" size={17} />
-                  </span>
-                  <h2 className="mt-1 text-lg font-bold tracking-[1px] text-[#07543f]">COFFEE HOUSE</h2>
-                  <p className="text-[10px] text-[#59675f]">Cà phê · Bánh ngọt</p>
-                  <p className="mt-1 text-[9px] font-medium text-[#829087]">123 Nguyễn Văn Cừ, Quận 5, TP.HCM</p>
-                  <div className="mt-2 flex justify-between border-t border-[#edf0ed] pt-2 text-[8px] text-[#829087]">
-                    <span>HĐ: #CH-88219</span>
-                    <span>11/09/2025 · 14:32</span>
-                  </div>
-                </div>
-                <div className="space-y-2 py-3 text-[10px]">
-                  {[
-                    ['Cà phê đen', '1 × 45.000 đ', '45.000 đ'],
-                    ['Bánh muffin', '1 × 35.000 đ', '35.000 đ'],
-                  ].map(([name, quantity, price]) => (
-                    <div key={name} className="flex justify-between">
-                      <span>
-                        <strong className="block text-[#34463b]">{name}</strong>
-                        <small className="text-[#829087]">{quantity}</small>
-                      </span>
-                      <strong className="text-[#34463b]">{price}</strong>
-                    </div>
-                  ))}
-                </div>
-                <div className="space-y-1 border-t border-dashed border-[#bfc9c4] pt-3 text-[9px] text-[#718078]">
-                  <div className="flex justify-between">
-                    <span>Tạm tính</span>
-                    <span>80.000 đ</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>VAT</span>
-                    <span>0 đ</span>
-                  </div>
-                  <div className="flex justify-between pt-1 text-sm font-bold text-[#26372e]">
-                    <span>Tổng cộng</span>
-                    <span className="text-[#087557]">80.000 đ</span>
-                  </div>
-                </div>
-                <div className="mt-3 border-t border-[#edf0ed] pt-2 text-center text-[9px] italic text-[#829087]">
-                  Cảm ơn quý khách và hẹn gặp lại
-                </div>
-                <p className="mt-2 flex items-center justify-center gap-1 text-[8px] font-semibold text-[#087557]">
-                  <FinanceIcon name="shield" size={10} />
-                  Hóa đơn được xử lý riêng tư
-                </p>
-              </article>
-            )}
-
-            <div className="absolute bottom-3 left-3 right-3 flex flex-col justify-between gap-2 rounded-lg bg-white/10 px-3 py-2 text-[9px] text-[#eaf1ff] backdrop-blur sm:flex-row sm:items-center">
-              <span className="flex items-center gap-2">
-                <FinanceIcon name="search" size={13} />
-                <strong className="text-[#a8ebca]">{documentName}</strong>
-                <span>· {scanResult ? 'Kết quả AI' : 'Bản xem thử'}</span>
-              </span>
-              <div className="flex gap-1.5">
-                <button type="button" onClick={resetScan} className="rounded-md bg-white/15 px-2 py-1.5">
-                  Chọn lại
-                </button>
-                <button
-                  type="button"
-                  onClick={() => inputRef.current?.click()}
-                  className="rounded-md bg-[#b5efd3] px-2 py-1.5 font-semibold text-[#07543f]"
-                >
-                  Đổi ảnh
-                </button>
-              </div>
-            </div>
-          </div>
-
-          <div className="grid gap-2 sm:grid-cols-3">
-            {[
-              { label: 'Thời gian xử lý', value: '0,42s', icon: 'clock' as const },
-              { label: 'Độ phân giải', value: '1920 × 1080', icon: 'chart' as const },
-              { label: 'Tính hợp lệ', value: 'Biên lai gốc', icon: 'shield' as const },
-            ].map((item) => (
-              <article
-                key={item.label}
-                className="flex items-center gap-2 rounded-lg border border-[#e7ece8] bg-white p-3"
-              >
-                <span className="grid size-8 place-items-center rounded-lg bg-[#f1f5f2] text-[#087557]">
-                  <FinanceIcon name={item.icon} size={15} />
-                </span>
-                <span>
-                  <small className="block text-[8px] text-[#829087]">{item.label}</small>
-                  <strong className="text-[9px] text-[#34463b]">{item.value}</strong>
-                </span>
-              </article>
-            ))}
-          </div>
-        </section>
-
-        {/* Right: extracted info form */}
-        <section className="flex flex-col justify-between gap-4 rounded-xl border border-[#e7ece8] bg-white p-4 shadow-sm sm:p-5">
-          <div className="grid gap-4">
-            <header className="flex flex-wrap items-start justify-between gap-3 border-b border-[#edf0ed] pb-3">
-              <div className="flex items-center gap-2.5">
-                <span className="grid size-9 place-items-center rounded-lg bg-[#07543f] text-[#b5efd3]">
-                  <FinanceIcon name="receipt" size={17} />
-                </span>
-                <div>
-                  <h2 className="text-base font-semibold text-[#26372e]">Thông tin trích xuất</h2>
-                  <p className="mt-0.5 text-[9px] text-[#829087]">
-                    {scanResult ? 'Dữ liệu AI có thể chỉnh sửa trước khi lưu' : 'Dữ liệu mẫu có thể chỉnh sửa trước khi lưu'}
-                  </p>
-                </div>
-              </div>
-              <span className="flex items-center gap-1.5 rounded-full bg-[#e3f4e9] px-2.5 py-1 text-[9px] font-semibold text-[#17794f]">
-                <FinanceIcon name="shield" size={12} />
-                {scanResult ? `Độ tin cậy ${confidenceLabel(scanResult.confidence)}` : 'Độ tin cậy 99%'}
-              </span>
-            </header>
-
-            <label className="grid gap-1.5 rounded-lg bg-[#f3f7f4] p-3 text-[9px] font-semibold text-[#718078]">
-              TÊN CỬA HÀNG
-              <input
-                value={merchant}
-                onChange={(e) => setMerchant(e.target.value)}
-                className="h-9 rounded-md border border-[#e3e9e5] bg-white px-2.5 text-xs font-medium text-[#34463b] outline-none focus:ring-1 focus:ring-[#a9cfb5]"
-              />
-            </label>
-
-            <div className="grid gap-3 sm:grid-cols-2">
-              <label className="grid gap-1.5 rounded-lg bg-[#f3f7f4] p-3 text-[9px] font-semibold text-[#718078]">
-                NGÀY
-                <input
-                  type="date"
-                  value={date}
-                  onChange={(e) => setDate(e.target.value)}
-                  className="h-9 min-w-0 rounded-md border border-[#e3e9e5] bg-white px-2 text-[10px] font-medium text-[#34463b]"
-                />
-              </label>
-              <label className="grid gap-1.5 rounded-lg bg-[#f3f7f4] p-3 text-[9px] font-semibold text-[#718078]">
-                GIỜ
-                <input
-                  type="time"
-                  value={time}
-                  onChange={(e) => setTime(e.target.value)}
-                  className="h-9 min-w-0 rounded-md border border-[#e3e9e5] bg-white px-2 text-[10px] font-medium text-[#34463b]"
-                />
-              </label>
-            </div>
-            <label className="grid gap-1.5 rounded-lg bg-[#f3f7f4] p-3 text-[9px] font-semibold text-[#718078]">
-              TỔNG THANH TOÁN
-              <div className="flex h-9 items-center rounded-md border border-[#d5e7db] bg-white px-2">
-                <input
-                  type="number"
-                  min="0"
-                  value={amount}
-                  onChange={(e) => setAmount(e.target.value)}
-                  aria-label="Tổng thanh toán"
-                  className="w-full bg-transparent text-sm font-semibold text-[#087557] outline-none"
-                />
-                <span className="text-[10px] font-semibold text-[#087557]">đ</span>
-              </div>
-            </label>
-
-            <div className="grid gap-3 sm:grid-cols-2">
-              <label className="grid gap-1.5 rounded-lg bg-[#f3f7f4] p-3 text-[9px] font-semibold text-[#718078]">
-                DANH MỤC
-                <select
-                  value={selectedCategoryId}
-                  onChange={(e) => setSelectedCategoryId(e.target.value)}
-                  className="h-9 rounded-md border border-[#e3e9e5] bg-white px-2 text-[10px] font-medium text-[#34463b]"
-                >
-                  <option value="">-- Chọn danh mục --</option>
-                  {categories.map((cat) => (
-                    <option key={cat.id} value={cat.id}>
-                      {cat.name}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label className="grid gap-1.5 rounded-lg bg-[#f3f7f4] p-3 text-[9px] font-semibold text-[#718078]">
-                NGUỒN TIỀN
-                <select
-                  value={selectedAccountId}
-                  onChange={(e) => setSelectedAccountId(e.target.value)}
-                  className="h-9 rounded-md border border-[#e3e9e5] bg-white px-2 text-[10px] font-medium text-[#34463b]"
-                >
-                  <option value="">-- Chọn tài khoản --</option>
-                  {accounts.map((acc) => (
-                    <option key={acc.id} value={acc.id}>
-                      {acc.name}
-                      {acc.accountNumberMasked ? ` (${acc.accountNumberMasked})` : ''}
-                    </option>
-                  ))}
-                </select>
-              </label>
-            </div>
-
-            <label className="grid gap-1.5 rounded-lg bg-[#f3f7f4] p-3 text-[9px] font-semibold text-[#718078]">
-              GHI CHÚ
-              <textarea
-                value={note}
-                onChange={(e) => setNote(e.target.value)}
-                rows={2}
-                className="resize-y rounded-md border border-[#e3e9e5] bg-white p-2 text-[10px] font-medium leading-4 text-[#34463b]"
-              />
-            </label>
-
-            <div className="rounded-lg bg-[#edf4f8] p-3">
-              <p className="flex items-center gap-1.5 text-[10px] font-semibold text-[#344f60]">
-                <FinanceIcon name="spark" size={13} />
-                Gợi ý từ FinAI Copilot · Ngân sách an toàn
-              </p>
-              <p className="mt-1 text-[9px] leading-4 text-[#617381]">
-                {scanResult
-                  ? `Khoản chi ${scanResult.totalAmount?.toLocaleString('vi-VN') ?? '—'} ${scanResult.currency} đã được nhận diện. Kiểm tra danh mục và tài khoản trước khi xác nhận.`
-                  : 'Tải ảnh hóa đơn lên để FinAI tự động trích xuất thông tin và phân loại giao dịch.'}
-              </p>
-            </div>
-          </div>
-
-          <footer className="flex flex-col-reverse justify-end gap-2 border-t border-[#edf0ed] pt-4 sm:flex-row">
-            <button
-              type="button"
-              onClick={resetScan}
-              className="h-9 rounded-lg bg-[#eaf0fb] px-3 text-[9px] font-semibold text-[#344b62]"
-            >
-              Hủy &amp; quét lại
-            </button>
-            <button
-              type="button"
-              onClick={() => onNotify('Đã lưu hóa đơn nháp')}
-              className="h-9 rounded-lg bg-[#f1f5f2] px-3 text-[9px] font-semibold text-[#34463b]"
-            >
-              Lưu nháp
-            </button>
-            <button
-              type="button"
-              onClick={handleConfirm}
-              disabled={!scanResult}
-              className="h-9 rounded-lg bg-[#07543f] px-3.5 text-[9px] font-semibold text-white disabled:opacity-50"
-            >
-              Xác nhận &amp; lưu giao dịch
-            </button>
-          </footer>
-        </section>
-      </div>
-
-      {/* Recent receipts table */}
-      <section className="rounded-xl border border-[#e7ece8] bg-white p-4 shadow-sm sm:p-5">
-        <header className="mb-3 flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
-          <div>
-            <h2 className="text-sm font-semibold text-[#26372e]">Hóa đơn đã quét gần đây</h2>
-            <p className="mt-1 text-[9px] text-[#829087]">Các hóa đơn OCR đã ghi nhận</p>
-          </div>
-          <div className="flex gap-2">
-            <label className="flex h-9 items-center gap-2 rounded-lg bg-[#f1f5f2] px-2.5 text-[#718078]">
-              <FinanceIcon name="search" size={13} />
-              <input
-                value={filter}
-                onChange={(e) => setFilter(e.target.value)}
-                aria-label="Lọc hóa đơn"
-                placeholder="Lọc cửa hàng, danh mục..."
-                className="w-full bg-transparent text-[9px] outline-none placeholder:text-[#89958d] sm:w-48"
-              />
-            </label>
+      {/* HEADER SECTION: Synchronized Breadcrumb + Actions */}
+      <div className="flex flex-wrap items-center justify-between gap-3 pb-3 shrink-0">
+        <div className="flex flex-col gap-1">
+          <nav aria-label="Đường dẫn" className="flex items-center gap-1.5 text-xs text-[#718078] dark:text-slate-400">
             <button
               type="button"
               onClick={onCancel}
-              className="whitespace-nowrap rounded-lg bg-[#eaf0fb] px-3 text-[9px] font-medium text-[#344b62]"
+              className="hover:text-[#07543f] dark:hover:text-emerald-400 transition font-medium"
             >
-              Xem tất cả ({recentReceipts.length})
+              Giao dịch &amp; Dòng tiền
             </button>
+            <FinanceIcon name="arrow" size={11} />
+            <span className="font-bold text-[#07543f] dark:text-emerald-400">Quét hóa đơn OCR</span>
+          </nav>
+          <div className="flex items-center gap-2.5">
+            <h1 className="text-xl sm:text-2xl font-black text-[#17261f] dark:text-white tracking-tight">
+              Quét hóa đơn &amp; Nhận diện AI
+            </h1>
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-100 dark:bg-emerald-950/80 px-2.5 py-0.5 text-[10px] font-bold text-[#07543f] dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800/60 shadow-2xs">
+              <span className="size-1.5 rounded-full bg-emerald-500 animate-pulse" />
+              FinAI Vision · 3.2
+            </span>
           </div>
-        </header>
+        </div>
 
-        <div className="overflow-x-auto">
-          {loadingReceipts ? (
-            <p className="py-8 text-center text-[10px] text-[#829087]">Đang tải hóa đơn…</p>
-          ) : (
-            <table className="w-full min-w-[760px] text-left text-[9px]">
-              <thead className="bg-[#f1f5f2] font-bold tracking-[.45px] text-[#68766e]">
-                <tr>
-                  <th className="p-3">HÓA ĐƠN / ĐƠN VỊ</th>
-                  <th className="p-3">THỜI GIAN</th>
-                  <th className="p-3">DANH MỤC</th>
-                  <th className="p-3">LOẠI</th>
-                  <th className="p-3">ĐỘ TIN CẬY OCR</th>
-                  <th className="p-3 text-right">SỐ TIỀN</th>
-                  <th className="p-3">TRẠNG THÁI</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredReceipts.map((receipt) => (
-                  <tr key={receipt.id} className="border-b border-[#edf0ed] last:border-0">
-                    <td className="p-3">
-                      <span className="flex items-center gap-2">
-                        <span className="grid size-8 place-items-center rounded-lg bg-[#eaf0fb] text-[#47677f]">
-                          <FinanceIcon name="receipt" size={14} />
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={onCancel}
+            className="h-9 px-3.5 rounded-xl border border-[#e2ece5] dark:border-slate-800 bg-white dark:bg-slate-900 hover:bg-[#f1f5f2] dark:hover:bg-slate-800 text-xs font-bold text-gray-700 dark:text-slate-200 transition flex items-center gap-1.5 shadow-2xs"
+          >
+            <FinanceIcon name="arrow" size={13} className="rotate-180" />
+            <span>Quay lại</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => fileInputRef.current?.click()}
+            className="h-9 px-4 rounded-xl bg-[#07543f] hover:bg-[#064232] text-xs font-bold text-white shadow-md hover:shadow-lg transition flex items-center gap-2 active:scale-95"
+          >
+            <FinanceIcon name="plus" size={14} />
+            <span>Tải hóa đơn mới</span>
+          </button>
+        </div>
+      </div>
+
+      {/* MAIN TWO-COLUMN WORKSPACE: Exactly matches AddTransaction / FinancialReports layout */}
+      <div className="grid w-full flex-1 gap-4 lg:grid-cols-12 items-stretch min-h-0 overflow-hidden">
+        {/* LEFT COLUMN (7 COLS): OCR Scanner & Extracted Data Form */}
+        <div className="lg:col-span-7 xl:col-span-7 flex flex-col h-full rounded-2xl border border-[#e2ece5] dark:border-white/10 bg-white dark:bg-[#0c1a24] shadow-sm overflow-hidden min-h-0">
+          {/* Top Panel Hero Bar */}
+          <div className="relative px-5 py-3.5 bg-gradient-to-r from-[#0c382b] via-[#094d3a] to-[#07543f] text-white shrink-0 flex items-center justify-between border-b border-emerald-900/40">
+            <div className="flex items-center gap-2.5">
+              <div className="size-8 rounded-xl bg-white/15 backdrop-blur-md grid place-items-center text-emerald-200 border border-white/20">
+                <FinanceIcon name="receipt" size={16} />
+              </div>
+              <div>
+                <h2 className="text-xs font-bold uppercase tracking-wider text-emerald-100">
+                  {scanResult ? 'Kết quả trích xuất tự động' : 'Tải lên hóa đơn'}
+                </h2>
+                <p className="text-[11px] text-emerald-200/80 line-clamp-1">
+                  {scanResult
+                    ? `${scanResult.merchantName || 'Hóa đơn'} · Độ tin cậy ${Math.round((scanResult.confidence || 0.95) * 100)}%`
+                    : 'Kéo thả ảnh hoặc bấm để AI quét thông tin'}
+                </p>
+              </div>
+            </div>
+
+            {scanResult && (
+              <button
+                type="button"
+                onClick={resetCurrentScan}
+                className="h-7 px-2.5 rounded-lg bg-white/15 hover:bg-white/25 text-[11px] font-semibold text-white backdrop-blur-sm transition flex items-center gap-1 border border-white/20"
+              >
+                <FinanceIcon name="refresh" size={12} />
+                <span>Quét ảnh khác</span>
+              </button>
+            )}
+          </div>
+
+          {/* Form / Scanner Content (Scrollable) */}
+          <div className="flex-1 overflow-y-auto p-4 sm:p-5 flex flex-col gap-4">
+            {/* STATE 1: NO IMAGE YET -> Interactive Upload Dropzone */}
+            {!previewUrl && !scanning && (
+              <div
+                onDragOver={handleDragOver}
+                onDragLeave={handleDragLeave}
+                onDrop={handleDrop}
+                onClick={() => fileInputRef.current?.click()}
+                className={`relative flex flex-col items-center justify-center p-8 rounded-2xl border-2 border-dashed transition-all cursor-pointer min-h-[300px] text-center ${
+                  isDragOver
+                    ? 'border-[#07543f] bg-emerald-50/80 dark:bg-emerald-950/30 scale-[0.99]'
+                    : 'border-[#cfded4] dark:border-slate-800 bg-[#f9fbf9] dark:bg-slate-900/50 hover:bg-emerald-50/40 dark:hover:bg-slate-900 hover:border-[#07543f]/60'
+                }`}
+              >
+                <div className="size-16 rounded-2xl bg-emerald-100/80 dark:bg-emerald-950 text-[#07543f] dark:text-emerald-300 grid place-items-center mb-3 shadow-inner">
+                  <FinanceIcon name="download" size={28} />
+                </div>
+                <h3 className="text-sm font-bold text-[#17261f] dark:text-white">
+                  Kéo và thả ảnh hóa đơn vào đây
+                </h3>
+                <p className="mt-1 text-xs text-[#718078] dark:text-slate-400 max-w-sm">
+                  hoặc <span className="font-bold text-[#07543f] dark:text-emerald-400 underline underline-offset-2">bấm để chọn tệp</span> từ máy tính của bạn
+                </p>
+
+                <div className="mt-4 flex flex-wrap items-center justify-center gap-1.5 text-[10px] text-[#718078] dark:text-slate-500 font-medium">
+                  <span className="px-2 py-0.5 rounded-md bg-white dark:bg-slate-800 border border-[#e2ece5] dark:border-slate-700">JPG</span>
+                  <span className="px-2 py-0.5 rounded-md bg-white dark:bg-slate-800 border border-[#e2ece5] dark:border-slate-700">PNG</span>
+                  <span className="px-2 py-0.5 rounded-md bg-white dark:bg-slate-800 border border-[#e2ece5] dark:border-slate-700">WEBP</span>
+                  <span className="px-2 py-0.5 rounded-md bg-white dark:bg-slate-800 border border-[#e2ece5] dark:border-slate-700">Tối đa 15MB</span>
+                </div>
+
+                {/* Helpful Guidelines Card */}
+                <div className="mt-6 w-full max-w-md rounded-xl bg-white dark:bg-slate-900 border border-[#e2ece5] dark:border-slate-800 p-3 text-left">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-[#07543f] dark:text-emerald-400 block mb-1.5">
+                    Mẹo chụp hóa đơn chuẩn xác:
+                  </span>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-[10px] text-[#59675f] dark:text-slate-400">
+                    <div className="flex items-center gap-1.5">
+                      <FinanceIcon name="sun" size={12} className="text-amber-500 shrink-0" />
+                      <span>Đủ ánh sáng</span>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <FinanceIcon name="eye" size={12} className="text-sky-500 shrink-0" />
+                      <span>Chụp thẳng góc</span>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <FinanceIcon name="receipt" size={12} className="text-emerald-500 shrink-0" />
+                      <span>Rõ tổng tiền</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* STATE 2: SCANNING IN PROGRESS */}
+            {scanning && (
+              <div className="flex flex-col items-center justify-center p-12 min-h-[300px] text-center rounded-2xl bg-gradient-to-b from-emerald-50/50 to-white dark:from-slate-900 dark:to-slate-950 border border-emerald-100 dark:border-slate-800">
+                <div className="relative size-16 mb-4">
+                  <div className="absolute inset-0 rounded-full border-4 border-emerald-200 dark:border-emerald-900 animate-ping opacity-30" />
+                  <div className="size-16 rounded-full border-4 border-[#07543f] border-t-transparent animate-spin" />
+                  <div className="absolute inset-0 grid place-items-center text-[#07543f] dark:text-emerald-400">
+                    <FinanceIcon name="spark" size={20} />
+                  </div>
+                </div>
+                <h3 className="text-sm font-bold text-[#17261f] dark:text-white">
+                  FinAI đang nhận diện hóa đơn...
+                </h3>
+                <p className="mt-1 text-xs text-[#718078] dark:text-slate-400 max-w-sm">
+                  Trích xuất tên cửa hàng, thời gian, tổng tiền và tự động phân loại danh mục chi tiêu.
+                </p>
+              </div>
+            )}
+
+            {/* STATE 3: SCANNED RESULT -> Split Preview + Editable Form */}
+            {(scanResult || previewUrl) && !scanning && (
+              <div className="flex flex-col gap-4">
+                {/* Image Snapshot Bar with Zoom Option */}
+                {previewUrl && (
+                  <div className="flex items-center justify-between gap-3 p-2.5 rounded-xl bg-[#f4f7f5] dark:bg-slate-900 border border-[#e2ece5] dark:border-slate-800">
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <img
+                        src={previewUrl}
+                        alt="Hóa đơn"
+                        className="size-12 rounded-lg object-cover border border-[#d8e3dc] dark:border-slate-700 shrink-0 cursor-pointer hover:opacity-90 transition shadow-2xs"
+                        onClick={() => setLightboxOpen(true)}
+                        title="Bấm để xem ảnh lớn"
+                      />
+                      <div className="min-w-0">
+                        <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block">
+                          Ảnh hóa đơn gốc
                         </span>
-                        <span>
-                          <strong className="block text-[10px] text-[#34463b]">
-                            {receipt.merchantName ?? '—'}
-                          </strong>
-                          <small className="text-[8px] text-[#829087]">{receipt.aiCategoryName ?? ''}</small>
-                        </span>
-                      </span>
-                    </td>
-                    <td className="p-3 whitespace-nowrap text-[#68766e]">{dateTimeLabel(receipt)}</td>
-                    <td className="p-3 text-[#34463b]">{receipt.aiCategoryName ?? '—'}</td>
-                    <td className="p-3 text-[#68766e]">{receipt.currency}</td>
-                    <td className="p-3 font-semibold text-[#087557]">{confidenceLabel(receipt.confidence)}</td>
-                    <td className="p-3 text-right font-semibold text-[#34463b]">
-                      {receipt.totalAmount != null
-                        ? `-${receipt.totalAmount.toLocaleString('vi-VN')} ${receipt.currency}`
-                        : '—'}
-                    </td>
-                    <td className="p-3">
-                      <span
-                        className={`rounded-full px-2 py-1 text-[8px] font-semibold ${
-                          receipt.kind === 'paid'
-                            ? 'bg-[#e3f4e9] text-[#17794f]'
-                            : receipt.kind === 'draft'
-                            ? 'bg-[#fff0e9] text-[#a3483e]'
-                            : 'bg-[#f1f5f2] text-[#68766e]'
-                        }`}
+                        <p className="text-xs font-bold text-[#17261f] dark:text-white truncate">
+                          {scanResult?.merchantName || 'Hóa đơn đã tải lên'}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => setLightboxOpen(true)}
+                        className="h-8 px-2.5 rounded-lg border border-[#d8e3dc] dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-gray-50 text-xs font-semibold text-gray-700 dark:text-slate-200 transition flex items-center gap-1"
+                        title="Xem ảnh phóng to"
                       >
-                        {receipt.kind === 'paid' ? 'Đã lưu' : receipt.kind === 'draft' ? 'Nháp' : 'Chưa rõ'}
-                      </span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
-          {!loadingReceipts && filteredReceipts.length === 0 && (
-            <p className="py-8 text-center text-[10px] text-[#829087]">
-              {recentReceipts.length === 0
-                ? 'Chưa có hóa đơn nào được quét.'
-                : 'Không tìm thấy hóa đơn phù hợp.'}
-            </p>
+                        <FinanceIcon name="eye" size={13} />
+                        <span>Xem ảnh</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => fileInputRef.current?.click()}
+                        className="h-8 px-2.5 rounded-lg border border-[#d8e3dc] dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-gray-50 text-xs font-semibold text-gray-700 dark:text-slate-200 transition flex items-center gap-1"
+                        title="Đổi ảnh khác"
+                      >
+                        <FinanceIcon name="refresh" size={13} />
+                        <span>Đổi ảnh</span>
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Big Hero Amount Input (synchronized with AddTransaction style) */}
+                <div className="rounded-xl bg-gradient-to-br from-[#0c382b] via-[#094d3a] to-[#07543f] p-4 text-white text-center shadow-inner relative overflow-hidden">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-200 block">
+                    Số tiền thanh toán
+                  </span>
+                  <div className="mt-1 flex items-center justify-center gap-1.5">
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      placeholder="0"
+                      value={amount ? Number(amount.replace(/\D/g, '')).toLocaleString('vi-VN') : ''}
+                      onChange={(e) => {
+                        const raw = e.target.value.replace(/\D/g, '');
+                        setAmount(raw);
+                      }}
+                      className="bg-transparent text-center font-black text-2xl sm:text-3xl text-white outline-none border-none ring-0 tracking-tight max-w-[260px]"
+                    />
+                    <span className="text-xl sm:text-2xl font-black text-emerald-300 select-none">
+                      ₫
+                    </span>
+                  </div>
+
+                  {scanResult?.confidence != null && (
+                    <div className="mt-1.5 inline-flex items-center gap-1 rounded-full bg-white/15 px-2 py-0.5 text-[10px] font-semibold text-emerald-100 backdrop-blur-sm border border-white/20">
+                      <FinanceIcon name="spark" size={11} />
+                      <span>Độ tin cậy AI: {Math.round(scanResult.confidence * 100)}%</span>
+                    </div>
+                  )}
+                </div>
+
+                {/* Form Fields Grid */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {/* Cửa hàng / Đơn vị */}
+                  <label className="flex flex-col gap-1 text-[11px] font-bold text-gray-700 dark:text-slate-300">
+                    <span>Đơn vị / Cửa hàng</span>
+                    <div className="relative">
+                      <input
+                        type="text"
+                        value={merchant}
+                        onChange={(e) => setMerchant(e.target.value)}
+                        placeholder="VD: Siêu thị WinMart, Highlands..."
+                        className="h-10 w-full rounded-xl border border-[#e2ece5] dark:border-slate-700 bg-[#f9fbf9] dark:bg-slate-900 px-3 text-xs font-semibold text-gray-800 dark:text-white outline-none focus:border-[#07543f] focus:ring-2 focus:ring-[#07543f]/20 transition"
+                      />
+                    </div>
+                  </label>
+
+                  {/* Danh mục chi tiêu */}
+                  <label className="flex flex-col gap-1 text-[11px] font-bold text-gray-700 dark:text-slate-300">
+                    <span className="flex items-center justify-between">
+                      <span>Danh mục</span>
+                      {scanResult?.aiCategoryName && (
+                        <span className="text-[10px] font-semibold text-[#07543f] dark:text-emerald-400 flex items-center gap-0.5">
+                          <FinanceIcon name="spark" size={10} />
+                          AI gợi ý
+                        </span>
+                      )}
+                    </span>
+                    <select
+                      value={selectedCategoryId}
+                      onChange={(e) => setSelectedCategoryId(e.target.value)}
+                      className="h-10 w-full rounded-xl border border-[#e2ece5] dark:border-slate-700 bg-[#f9fbf9] dark:bg-slate-900 px-3 text-xs font-semibold text-gray-800 dark:text-white outline-none focus:border-[#07543f] focus:ring-2 focus:ring-[#07543f]/20 transition"
+                    >
+                      {categories.map((c) => (
+                        <option key={c.id} value={c.id}>
+                          {c.name}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+
+                  {/* Ngày giao dịch */}
+                  <label className="flex flex-col gap-1 text-[11px] font-bold text-gray-700 dark:text-slate-300">
+                    <span>Ngày hóa đơn</span>
+                    <input
+                      type="date"
+                      value={date}
+                      onChange={(e) => setDate(e.target.value)}
+                      className="h-10 w-full rounded-xl border border-[#e2ece5] dark:border-slate-700 bg-[#f9fbf9] dark:bg-slate-900 px-3 text-xs font-semibold text-gray-800 dark:text-white outline-none focus:border-[#07543f] focus:ring-2 focus:ring-[#07543f]/20 transition"
+                    />
+                  </label>
+
+                  {/* Giờ giao dịch */}
+                  <label className="flex flex-col gap-1 text-[11px] font-bold text-gray-700 dark:text-slate-300">
+                    <span>Giờ giao dịch</span>
+                    <input
+                      type="time"
+                      value={time}
+                      onChange={(e) => setTime(e.target.value)}
+                      className="h-10 w-full rounded-xl border border-[#e2ece5] dark:border-slate-700 bg-[#f9fbf9] dark:bg-slate-900 px-3 text-xs font-semibold text-gray-800 dark:text-white outline-none focus:border-[#07543f] focus:ring-2 focus:ring-[#07543f]/20 transition"
+                    />
+                  </label>
+
+                  {/* Tài khoản nguồn */}
+                  <label className="sm:col-span-2 flex flex-col gap-1 text-[11px] font-bold text-gray-700 dark:text-slate-300">
+                    <span>Tài khoản thanh toán</span>
+                    <select
+                      value={selectedAccountId}
+                      onChange={(e) => setSelectedAccountId(e.target.value)}
+                      className="h-10 w-full rounded-xl border border-[#e2ece5] dark:border-slate-700 bg-[#f9fbf9] dark:bg-slate-900 px-3 text-xs font-semibold text-gray-800 dark:text-white outline-none focus:border-[#07543f] focus:ring-2 focus:ring-[#07543f]/20 transition"
+                    >
+                      {accounts.map((a) => (
+                        <option key={a.id} value={a.id}>
+                          {a.name} ({Number(a.balance || 0).toLocaleString('vi-VN')} {a.currencyCode || 'VND'})
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+
+                  {/* Ghi chú */}
+                  <label className="sm:col-span-2 flex flex-col gap-1 text-[11px] font-bold text-gray-700 dark:text-slate-300">
+                    <span>Ghi chú thêm (tùy chọn)</span>
+                    <textarea
+                      rows={2}
+                      value={note}
+                      onChange={(e) => setNote(e.target.value)}
+                      placeholder="Ghi chú chi tiết về hóa đơn..."
+                      className="w-full rounded-xl border border-[#e2ece5] dark:border-slate-700 bg-[#f9fbf9] dark:bg-slate-900 p-3 text-xs font-medium text-gray-800 dark:text-white outline-none focus:border-[#07543f] focus:ring-2 focus:ring-[#07543f]/20 transition resize-none"
+                    />
+                  </label>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Form Actions Footer */}
+          {(scanResult || previewUrl) && (
+            <div className="p-4 bg-[#f8faf9] dark:bg-slate-900 border-t border-[#e2ece5] dark:border-slate-800 shrink-0 flex items-center justify-end gap-2.5">
+              <button
+                type="button"
+                onClick={resetCurrentScan}
+                disabled={submitting}
+                className="h-10 px-4 rounded-xl border border-[#d8e3dc] dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-gray-50 text-xs font-bold text-gray-700 dark:text-slate-200 transition"
+              >
+                Hủy &amp; quét lại
+              </button>
+
+              <button
+                type="button"
+                onClick={handleConfirmTransaction}
+                disabled={submitting}
+                className="h-10 px-6 rounded-xl bg-[#07543f] hover:bg-[#064232] text-xs font-bold text-white shadow-md hover:shadow-lg transition flex items-center gap-2 active:scale-95 disabled:opacity-50"
+              >
+                {submitting ? (
+                  <>
+                    <span className="size-3.5 rounded-full border-2 border-white border-t-transparent animate-spin" />
+                    <span>Đang lưu giao dịch...</span>
+                  </>
+                ) : (
+                  <>
+                    <FinanceIcon name="plus" size={14} />
+                    <span>Xác nhận &amp; Lưu giao dịch</span>
+                  </>
+                )}
+              </button>
+            </div>
           )}
         </div>
-      </section>
+
+        {/* RIGHT COLUMN (5 COLS): Recent Receipts List */}
+        <div className="lg:col-span-5 xl:col-span-5 flex flex-col h-full rounded-2xl border border-[#e2ece5] dark:border-white/10 bg-white dark:bg-[#0c1a24] shadow-sm overflow-hidden min-h-0">
+          {/* Header Bar */}
+          <div className="p-3.5 border-b border-[#edf3ef] dark:border-slate-800 flex items-center justify-between shrink-0">
+            <div className="flex items-center gap-2">
+              <FinanceIcon name="clock" size={15} className="text-[#07543f] dark:text-emerald-400" />
+              <h3 className="text-xs font-bold text-gray-800 dark:text-slate-200 uppercase tracking-wider">
+                Lịch sử hóa đơn
+              </h3>
+              <span className="rounded-full bg-emerald-100 dark:bg-emerald-950 px-2 py-0.5 text-[10px] font-bold text-[#07543f] dark:text-emerald-400">
+                {recentReceipts.length}
+              </span>
+            </div>
+
+            <button
+              type="button"
+              onClick={reloadReceipts}
+              className="size-7 rounded-lg text-gray-400 hover:text-gray-700 dark:hover:text-slate-200 hover:bg-gray-100 dark:hover:bg-slate-800 grid place-items-center transition"
+              title="Tải lại danh sách"
+            >
+              <FinanceIcon name="refresh" size={13} />
+            </button>
+          </div>
+
+          {/* Filter & Search Bar */}
+          <div className="p-3 border-b border-[#edf3ef] dark:border-slate-800 flex flex-col gap-2 shrink-0 bg-[#f9fbf9] dark:bg-slate-900/60">
+            {/* Search input */}
+            <div className="relative">
+              <FinanceIcon
+                name="search"
+                size={13}
+                className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
+              />
+              <input
+                type="text"
+                value={historySearch}
+                onChange={(e) => setHistorySearch(e.target.value)}
+                placeholder="Tìm theo quán, danh mục..."
+                className="h-8 w-full rounded-xl border border-[#e2ece5] dark:border-slate-700 bg-white dark:bg-slate-900 pl-8 pr-3 text-xs font-medium text-gray-800 dark:text-white outline-none focus:border-[#07543f] transition"
+              />
+            </div>
+
+            {/* Filter Tabs */}
+            <div className="flex gap-1">
+              <button
+                type="button"
+                onClick={() => setHistoryTab('ALL')}
+                className={`flex-1 h-6 rounded-lg text-[10px] font-bold transition ${
+                  historyTab === 'ALL'
+                    ? 'bg-[#07543f] text-white shadow-2xs'
+                    : 'text-gray-600 dark:text-slate-400 hover:bg-gray-100 dark:hover:bg-slate-800'
+                }`}
+              >
+                Tất cả
+              </button>
+              <button
+                type="button"
+                onClick={() => setHistoryTab('PAID')}
+                className={`flex-1 h-6 rounded-lg text-[10px] font-bold transition ${
+                  historyTab === 'PAID'
+                    ? 'bg-[#07543f] text-white shadow-2xs'
+                    : 'text-gray-600 dark:text-slate-400 hover:bg-gray-100 dark:hover:bg-slate-800'
+                }`}
+              >
+                Đã lưu
+              </button>
+              <button
+                type="button"
+                onClick={() => setHistoryTab('DRAFT')}
+                className={`flex-1 h-6 rounded-lg text-[10px] font-bold transition ${
+                  historyTab === 'DRAFT'
+                    ? 'bg-[#07543f] text-white shadow-2xs'
+                    : 'text-gray-600 dark:text-slate-400 hover:bg-gray-100 dark:hover:bg-slate-800'
+                }`}
+              >
+                Chưa lưu
+              </button>
+            </div>
+          </div>
+
+          {/* Receipts Scrollable List */}
+          <div className="flex-1 overflow-y-auto p-3 flex flex-col gap-2">
+            {loadingReceipts ? (
+              <div className="py-12 text-center text-xs text-[#718579] flex flex-col items-center gap-2">
+                <span className="size-5 rounded-full border-2 border-[#07543f] border-t-transparent animate-spin" />
+                <span>Đang tải danh sách hóa đơn...</span>
+              </div>
+            ) : filteredReceipts.length === 0 ? (
+              <div className="py-12 text-center flex flex-col items-center justify-center gap-2 text-gray-400">
+                <div className="size-10 rounded-full bg-gray-100 dark:bg-slate-800 grid place-items-center text-gray-400">
+                  <FinanceIcon name="receipt" size={18} />
+                </div>
+                <p className="text-xs font-semibold text-gray-600 dark:text-slate-400">
+                  {recentReceipts.length === 0 ? 'Chưa có hóa đơn nào' : 'Không có hóa đơn khớp'}
+                </p>
+                <p className="text-[10px] text-gray-400 max-w-[200px]">
+                  Tải lên ảnh hóa đơn ở cột bên trái để bắt đầu trích xuất
+                </p>
+              </div>
+            ) : (
+              filteredReceipts.map((r) => {
+                const isPaid = Boolean(r.transactionId || r.kind === 'paid');
+                const isSelected = scanResult?.id === r.id;
+
+                return (
+                  <div
+                    key={r.id}
+                    onClick={() => handleSelectRecentReceipt(r)}
+                    className={`group relative p-3 rounded-xl border transition cursor-pointer flex flex-col gap-1.5 ${
+                      isSelected
+                        ? 'border-[#07543f] bg-emerald-50/50 dark:bg-emerald-950/30 shadow-2xs'
+                        : 'border-[#edf3ef] dark:border-slate-800/80 bg-[#fbfdfb] dark:bg-slate-900/40 hover:bg-white dark:hover:bg-slate-900 hover:border-emerald-200'
+                    }`}
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <div className="size-8 rounded-lg bg-emerald-100/70 dark:bg-emerald-950 text-[#07543f] dark:text-emerald-300 grid place-items-center shrink-0">
+                          <FinanceIcon name="receipt" size={14} />
+                        </div>
+                        <div className="min-w-0">
+                          <h4 className="text-xs font-bold text-gray-900 dark:text-white truncate">
+                            {r.merchantName || 'Hóa đơn chưa đặt tên'}
+                          </h4>
+                          <span className="text-[10px] text-gray-400 block">
+                            {[r.transactionDate, r.transactionTime?.slice(0, 5)].filter(Boolean).join(' · ') || 'Không rõ thời gian'}
+                          </span>
+                        </div>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={(e) => handleDeleteReceipt(e, r.id)}
+                        className="size-6 rounded-md opacity-0 group-hover:opacity-100 text-gray-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 grid place-items-center transition shrink-0"
+                        title="Xóa hóa đơn"
+                      >
+                        <FinanceIcon name="delete" size={12} />
+                      </button>
+                    </div>
+
+                    <div className="flex items-center justify-between border-t border-[#edf3ef] dark:border-slate-800/80 pt-2 text-[11px]">
+                      <div className="flex items-center gap-1.5">
+                        {r.aiCategoryName && (
+                          <span className="rounded-md bg-gray-100 dark:bg-slate-800 px-1.5 py-0.5 text-[9px] font-semibold text-gray-600 dark:text-slate-300">
+                            {r.aiCategoryName}
+                          </span>
+                        )}
+                        <span
+                          className={`rounded-md px-1.5 py-0.5 text-[9px] font-bold ${
+                            isPaid
+                              ? 'bg-emerald-100 dark:bg-emerald-950/80 text-[#07543f] dark:text-emerald-300'
+                              : 'bg-amber-100 dark:bg-amber-950/80 text-amber-800 dark:text-amber-300'
+                          }`}
+                        >
+                          {isPaid ? 'Đã lưu GD' : 'Chưa lưu'}
+                        </span>
+                      </div>
+
+                      <span className="font-black text-xs text-[#07543f] dark:text-emerald-400">
+                        {r.totalAmount != null ? `-${Number(r.totalAmount).toLocaleString('vi-VN')} ₫` : '—'}
+                      </span>
+                    </div>
+                  </div>
+                );
+              })
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* LIGHTBOX MODAL: Full Screen Image Preview */}
+      {lightboxOpen && previewUrl && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 p-4 backdrop-blur-md cursor-zoom-out"
+          onClick={() => setLightboxOpen(false)}
+        >
+          <div
+            className="fixed top-4 right-4 z-50 flex items-center gap-2"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              type="button"
+              onClick={() => setLightboxOpen(false)}
+              className="size-9 rounded-full bg-white/20 hover:bg-white/35 text-white grid place-items-center transition backdrop-blur-sm cursor-pointer shadow-lg"
+              title="Đóng"
+            >
+              <FinanceIcon name="close" size={16} />
+            </button>
+          </div>
+
+          <div className="relative max-w-4xl max-h-[90vh] flex flex-col items-center">
+            <img
+              src={previewUrl}
+              alt="Hóa đơn phóng to"
+              onClick={(e) => e.stopPropagation()}
+              className="max-w-full max-h-[85vh] rounded-2xl object-contain shadow-2xl border border-white/10 select-none"
+            />
+          </div>
+        </div>
+      )}
     </main>
-  )
+  );
 }
