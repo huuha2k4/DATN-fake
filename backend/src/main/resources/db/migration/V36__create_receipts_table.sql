@@ -1,5 +1,5 @@
 -- =====================================================
--- V30: Create core.receipts table for OCR scan results
+-- V36: Create core.receipts table for OCR scan results
 -- =====================================================
 
 CREATE TABLE IF NOT EXISTS core.receipts (
