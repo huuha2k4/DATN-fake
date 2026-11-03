@@ -67,6 +67,7 @@ export function AddTransactionScreen({ onCancel, onNotify, onOpenInvoiceScanner 
   const [description, setDescription] = useState<string>('')
   const [recurring, setRecurring] = useState<boolean>(false)
   const [fileName, setFileName] = useState<string>('')
+  const [selectedFile, setSelectedFile] = useState<File | null>(null)
   const [error, setError] = useState<string>('')
 
   const fileRef = useRef<HTMLInputElement>(null)
@@ -228,12 +229,15 @@ export function AddTransactionScreen({ onCancel, onNotify, onOpenInvoiceScanner 
   const handleFileChange = (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
     if (!file) return
-    if (file.size > 5 * 1024 * 1024) {
-      setError('Tệp đính kèm cần nhỏ hơn 5 MB.')
+    if (file.size > 15 * 1024 * 1024) {
+      setError('Tệp đính kèm cần nhỏ hơn 15 MB.')
       event.target.value = ''
+      setSelectedFile(null)
+      setFileName('')
       return
     }
     setError('')
+    setSelectedFile(file)
     setFileName(file.name)
     onNotify(`Đã chọn hóa đơn: ${file.name}`)
   }
@@ -310,10 +314,10 @@ export function AddTransactionScreen({ onCancel, onNotify, onOpenInvoiceScanner 
           categoryId: type !== 'TRANSFER' ? selectedCategoryId : undefined,
         });
 
-        const attachedFile = fileRef.current?.files?.[0];
-        if (attachedFile && createdTx?.id) {
+        const fileToUpload = selectedFile || fileRef.current?.files?.[0];
+        if (fileToUpload && createdTx?.id) {
           try {
-            await transactionApi.uploadAttachment(createdTx.id, attachedFile);
+            await transactionApi.uploadAttachment(createdTx.id, fileToUpload);
           } catch (uploadErr) {
             console.error('Failed to upload attachment:', uploadErr);
           }
@@ -375,6 +379,8 @@ export function AddTransactionScreen({ onCancel, onNotify, onOpenInvoiceScanner 
         setAmount('')
         setDescription('')
         setFileName('')
+        setSelectedFile(null)
+        if (fileRef.current) fileRef.current.value = ''
       } else {
         onCancel()
       }
@@ -912,6 +918,7 @@ export function AddTransactionScreen({ onCancel, onNotify, onOpenInvoiceScanner 
                       <button
                         type="button"
                         onClick={() => {
+                          setSelectedFile(null);
                           setFileName('');
                           if (fileRef.current) fileRef.current.value = '';
                         }}

@@ -908,7 +908,7 @@ public class TransactionService {
 
         String savedFilename = UUID.randomUUID() + "." + ext;
         java.nio.file.Path destPath = uploadDir.resolve(savedFilename);
-        file.transferTo(destPath.toFile());
+        java.nio.file.Files.copy(file.getInputStream(), destPath, java.nio.file.StandardCopyOption.REPLACE_EXISTING);
 
         String receiptUrl = "/uploads/receipts/" + savedFilename;
         transaction.setReceiptUrl(receiptUrl);

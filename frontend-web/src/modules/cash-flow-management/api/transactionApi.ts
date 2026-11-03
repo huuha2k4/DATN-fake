@@ -139,5 +139,17 @@ export const transactionApi = {
   // Xóa danh mục
   deleteCategory: async (id: string): Promise<void> => {
     await api.delete(`/categories/${id}`);
+  },
+
+  // Tải lên tệp/ảnh hóa đơn đính kèm cho giao dịch
+  uploadAttachment: async (id: string, file: File): Promise<TransactionItem> => {
+    const formData = new FormData();
+    formData.append('file', file);
+    const res = await api.post<TransactionItem>(`/transactions/${id}/attachments`, formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+    return res.data;
   }
 };
