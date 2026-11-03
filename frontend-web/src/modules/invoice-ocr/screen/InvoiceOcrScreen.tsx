@@ -48,7 +48,9 @@ export function InvoiceOcrScreen({ onCancel, onNotify }: Props) {
   // Revoke object URL on unmount
   useEffect(() => {
     return () => {
-      if (previewUrl) URL.revokeObjectURL(previewUrl);
+      if (previewUrl && previewUrl.startsWith('blob:')) {
+        URL.revokeObjectURL(previewUrl);
+      }
     };
   }, [previewUrl]);
 
@@ -66,7 +68,23 @@ export function InvoiceOcrScreen({ onCancel, onNotify }: Props) {
         setSelectedAccountId(accs[0].id);
       }
       setCategories(cats);
-      setRecentReceipts(receiptsResp.receipts || []);
+      const list = receiptsResp.receipts || [];
+      setRecentReceipts(list);
+
+      // Auto-preview latest receipt with image if available
+      const latestWithImage = list.find((item) => item.imageUrl);
+      if (latestWithImage && !previewUrl && !scanResult) {
+        setScanResult(latestWithImage);
+        setPreviewUrl(latestWithImage.imageUrl || null);
+        setMerchant(latestWithImage.merchantName || '');
+        if (latestWithImage.transactionDate) setDate(latestWithImage.transactionDate);
+        if (latestWithImage.transactionTime) setTime(latestWithImage.transactionTime.slice(0, 5));
+        if (latestWithImage.totalAmount != null) setAmount(String(latestWithImage.totalAmount));
+        if (latestWithImage.aiCategoryId) {
+          const matched = cats.find((c) => c.id === latestWithImage.aiCategoryId || c.name === latestWithImage.aiCategoryName);
+          if (matched) setSelectedCategoryId(matched.id);
+        }
+      }
     } catch {
       onNotify('Không thể nạp dữ liệu tài khoản và danh mục');
     } finally {
@@ -98,7 +116,9 @@ export function InvoiceOcrScreen({ onCancel, onNotify }: Props) {
       return;
     }
 
-    if (previewUrl) URL.revokeObjectURL(previewUrl);
+    if (previewUrl && previewUrl.startsWith('blob:')) {
+      URL.revokeObjectURL(previewUrl);
+    }
     const newPreviewUrl = URL.createObjectURL(file);
     setPreviewUrl(newPreviewUrl);
     setActiveRightTab('FORM');
@@ -107,6 +127,10 @@ export function InvoiceOcrScreen({ onCancel, onNotify }: Props) {
     try {
       const result = await ocrApi.scanReceipt(file);
       setScanResult(result);
+      // If server returned imageUrl, use it; otherwise fallback to local blob
+      if (result.imageUrl) {
+        setPreviewUrl(result.imageUrl);
+      }
       setMerchant(result.merchantName || 'Hóa đơn mua sắm');
       if (result.transactionDate) setDate(result.transactionDate);
       if (result.transactionTime) setTime(result.transactionTime.slice(0, 5));
@@ -168,7 +192,9 @@ export function InvoiceOcrScreen({ onCancel, onNotify }: Props) {
 
   const resetCurrentScan = () => {
     setScanResult(null);
-    if (previewUrl) URL.revokeObjectURL(previewUrl);
+    if (previewUrl && previewUrl.startsWith('blob:')) {
+      URL.revokeObjectURL(previewUrl);
+    }
     setPreviewUrl(null);
     setMerchant('');
     setAmount('');
@@ -204,7 +230,6 @@ export function InvoiceOcrScreen({ onCancel, onNotify }: Props) {
       });
 
       onNotify(`Đã lưu giao dịch thành công: ${Number(numericAmount).toLocaleString('vi-VN')} ₫`);
-      resetCurrentScan();
       await reloadReceipts();
       setActiveRightTab('HISTORY');
     } catch (err: any) {
@@ -231,15 +256,13 @@ export function InvoiceOcrScreen({ onCancel, onNotify }: Props) {
     }
   };
 
-  // Populate form from a historical receipt
+  // Populate form & preview from a historical receipt
   const handleSelectRecentReceipt = (r: OcrReceiptResult) => {
     setScanResult(r);
-    if (r.imageUrl) {
-      if (previewUrl && previewUrl.startsWith('blob:')) {
-        URL.revokeObjectURL(previewUrl);
-      }
-      setPreviewUrl(r.imageUrl);
+    if (previewUrl && previewUrl.startsWith('blob:')) {
+      URL.revokeObjectURL(previewUrl);
     }
+    setPreviewUrl(r.imageUrl || null);
     setMerchant(r.merchantName || 'Hóa đơn');
     if (r.transactionDate) setDate(r.transactionDate);
     if (r.transactionTime) setTime(r.transactionTime.slice(0, 5));
@@ -248,8 +271,7 @@ export function InvoiceOcrScreen({ onCancel, onNotify }: Props) {
       const matched = categories.find((c) => c.id === r.aiCategoryId || c.name === r.aiCategoryName);
       if (matched) setSelectedCategoryId(matched.id);
     }
-    setActiveRightTab('FORM');
-    onNotify(`Đã nạp thông tin: ${r.merchantName || 'Hóa đơn'}`);
+    onNotify(`Đã nạp hóa đơn: ${r.merchantName || 'Hóa đơn'}`);
   };
 
   // Filter receipts list
@@ -288,46 +310,46 @@ export function InvoiceOcrScreen({ onCancel, onNotify }: Props) {
         {/* LEFT COLUMN (6 COLS): Large Receipt Image Viewer / Upload Dropzone */}
         <div className="lg:col-span-6 xl:col-span-6 2xl:col-span-6 flex flex-col h-full rounded-2xl border border-[#e2ece5] dark:border-white/10 bg-white dark:bg-[#0c1a24] shadow-sm overflow-hidden min-h-0">
           
-          {/* Card Top Toolbar (Compact, replaces redundant top header) */}
-          <div className="px-4 py-2.5 bg-gradient-to-r from-[#0c382b] via-[#094d3a] to-[#07543f] text-white shrink-0 flex items-center justify-between border-b border-emerald-950/30">
-            <div className="flex items-center gap-2">
+          {/* Card Top Toolbar (Clean, harmonious light theme) */}
+          <div className="px-4 py-3 bg-white dark:bg-slate-900 border-b border-[#edf3ef] dark:border-slate-800 flex items-center justify-between shrink-0">
+            <div className="flex items-center gap-2.5">
               <button
                 type="button"
                 onClick={onCancel}
-                className="size-7 rounded-lg bg-white/15 hover:bg-white/25 grid place-items-center text-white transition border border-white/15 shadow-2xs"
+                className="size-8 rounded-xl border border-[#e2ece5] dark:border-slate-700 bg-[#f8faf9] dark:bg-slate-800 hover:bg-emerald-50 dark:hover:bg-slate-700 text-[#07543f] dark:text-emerald-400 grid place-items-center transition shadow-2xs"
                 title="Quay lại danh sách"
               >
                 <FinanceIcon name="arrow" size={13} className="rotate-180" />
               </button>
               <div className="flex items-center gap-2">
-                <span className="text-xs font-bold uppercase tracking-wider text-emerald-100">
+                <span className="text-xs font-bold text-gray-800 dark:text-white uppercase tracking-wider">
                   {previewUrl ? 'Hóa đơn gốc' : 'Ảnh hóa đơn'}
                 </span>
-                <span className="inline-flex items-center gap-1 rounded-full bg-white/15 px-2 py-0.5 text-[9px] font-bold text-emerald-200 backdrop-blur-sm border border-white/20">
-                  <span className="size-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 dark:bg-emerald-950/80 px-2 py-0.5 text-[10px] font-bold text-[#07543f] dark:text-emerald-400 border border-emerald-200/80 dark:border-emerald-800/60">
+                  <span className="size-1.5 rounded-full bg-emerald-500 animate-pulse" />
                   FinAI Vision
                 </span>
               </div>
             </div>
 
-            <div className="flex items-center gap-1.5">
+            <div className="flex items-center gap-2">
               {previewUrl && (
                 <button
                   type="button"
                   onClick={() => setLightboxOpen(true)}
-                  className="h-7 px-2.5 rounded-lg bg-white/15 hover:bg-white/25 text-[11px] font-semibold text-white backdrop-blur-sm transition flex items-center gap-1 border border-white/20"
+                  className="h-8 px-2.5 rounded-xl border border-[#e2ece5] dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-gray-50 dark:hover:bg-slate-700 text-xs font-semibold text-gray-700 dark:text-slate-200 transition flex items-center gap-1 shadow-2xs"
                   title="Phóng to toàn màn hình"
                 >
-                  <FinanceIcon name="eye" size={12} />
+                  <FinanceIcon name="eye" size={13} />
                   <span>Xem to</span>
                 </button>
               )}
               <button
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
-                className="h-7 px-3 rounded-lg bg-emerald-400 hover:bg-emerald-300 text-slate-900 text-[11px] font-bold transition flex items-center gap-1 shadow-sm active:scale-95"
+                className="h-8 px-3 rounded-xl bg-[#07543f] hover:bg-[#064232] text-white text-xs font-bold transition flex items-center gap-1.5 shadow-sm active:scale-95"
               >
-                <FinanceIcon name="download" size={12} />
+                <FinanceIcon name="plus" size={13} />
                 <span>{previewUrl ? 'Đổi ảnh' : 'Chọn ảnh'}</span>
               </button>
             </div>
@@ -451,7 +473,13 @@ export function InvoiceOcrScreen({ onCancel, onNotify }: Props) {
 
               <button
                 type="button"
-                onClick={() => setActiveRightTab('HISTORY')}
+                onClick={() => {
+                  setActiveRightTab('HISTORY');
+                  if (!previewUrl && recentReceipts.length > 0) {
+                    const firstWithImage = recentReceipts.find((r) => r.imageUrl) || recentReceipts[0];
+                    handleSelectRecentReceipt(firstWithImage);
+                  }
+                }}
                 className={`h-full px-3.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 whitespace-nowrap ${
                   activeRightTab === 'HISTORY'
                     ? 'bg-white dark:bg-[#07543f] text-[#07543f] dark:text-white shadow-xs'
@@ -480,12 +508,12 @@ export function InvoiceOcrScreen({ onCancel, onNotify }: Props) {
             <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
               <div className="flex-1 overflow-y-auto p-4 sm:p-5 flex flex-col gap-3.5">
                 
-                {/* Big Hero Amount Box */}
-                <div className="rounded-xl bg-gradient-to-br from-[#0c382b] via-[#094d3a] to-[#07543f] p-3.5 text-white text-center shadow-inner relative overflow-hidden shrink-0">
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-200 block">
+                {/* Clean, Harmonious Amount Card */}
+                <div className="rounded-2xl border border-emerald-200/70 dark:border-emerald-800/60 bg-gradient-to-br from-emerald-50/70 via-[#f4f9f6] to-white dark:from-slate-900 dark:via-slate-900 dark:to-slate-850 p-4 text-center shadow-2xs relative overflow-hidden shrink-0">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-[#07543f] dark:text-emerald-400 block mb-1">
                     Tổng tiền thanh toán (VNĐ)
                   </span>
-                  <div className="mt-1 flex items-center justify-center gap-1.5">
+                  <div className="flex items-center justify-center gap-1.5">
                     <input
                       type="text"
                       inputMode="numeric"
@@ -495,15 +523,15 @@ export function InvoiceOcrScreen({ onCancel, onNotify }: Props) {
                         const raw = e.target.value.replace(/\D/g, '');
                         setAmount(raw);
                       }}
-                      className="bg-transparent text-center font-black text-2xl sm:text-3xl text-white outline-none border-none ring-0 tracking-tight max-w-[240px]"
+                      className="bg-transparent text-center font-black text-3xl sm:text-4xl text-[#07543f] dark:text-white outline-none border-none ring-0 tracking-tight max-w-[280px]"
                     />
-                    <span className="text-xl sm:text-2xl font-black text-emerald-300 select-none">
+                    <span className="text-2xl sm:text-3xl font-black text-emerald-600 dark:text-emerald-400 select-none">
                       ₫
                     </span>
                   </div>
 
                   {scanResult?.aiCategoryName && (
-                    <div className="mt-1 inline-flex items-center gap-1 rounded-full bg-white/15 px-2.5 py-0.5 text-[10px] font-semibold text-emerald-100 backdrop-blur-sm border border-white/20">
+                    <div className="mt-2 inline-flex items-center gap-1 rounded-full bg-emerald-100/80 dark:bg-emerald-950/80 px-2.5 py-0.5 text-[10px] font-bold text-[#07543f] dark:text-emerald-300 border border-emerald-200/80 dark:border-emerald-800/60">
                       <FinanceIcon name="spark" size={11} />
                       <span>Danh mục AI: {scanResult.aiCategoryName}</span>
                     </div>
@@ -601,13 +629,13 @@ export function InvoiceOcrScreen({ onCancel, onNotify }: Props) {
               </div>
 
               {/* Form Action Footer */}
-              <div className="p-3 bg-[#f8faf9] dark:bg-slate-900 border-t border-[#e2ece5] dark:border-slate-800 shrink-0 flex items-center justify-end gap-2">
+              <div className="p-3.5 bg-[#f8faf9] dark:bg-slate-900 border-t border-[#e2ece5] dark:border-slate-800 shrink-0 flex items-center justify-end gap-2.5">
                 {scanResult && (
                   <button
                     type="button"
                     onClick={resetCurrentScan}
                     disabled={submitting}
-                    className="h-9 px-3.5 rounded-xl border border-[#d8e3dc] dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-gray-50 text-xs font-bold text-gray-700 dark:text-slate-200 transition"
+                    className="h-10 px-4 rounded-xl border border-[#d8e3dc] dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-gray-50 text-xs font-bold text-gray-700 dark:text-slate-200 transition"
                   >
                     Xóa form
                   </button>
@@ -617,16 +645,16 @@ export function InvoiceOcrScreen({ onCancel, onNotify }: Props) {
                   type="button"
                   onClick={handleConfirmTransaction}
                   disabled={submitting || !scanResult}
-                  className="h-9 px-5 rounded-xl bg-[#07543f] hover:bg-[#064232] text-xs font-bold text-white shadow-md hover:shadow-lg transition flex items-center gap-2 active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed"
+                  className="h-10 px-6 rounded-xl bg-[#07543f] hover:bg-[#064232] text-xs font-bold text-white shadow-md hover:shadow-lg transition flex items-center gap-2 active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed"
                 >
                   {submitting ? (
                     <>
-                      <span className="size-3 rounded-full border-2 border-white border-t-transparent animate-spin" />
+                      <span className="size-3.5 rounded-full border-2 border-white border-t-transparent animate-spin" />
                       <span>Đang lưu...</span>
                     </>
                   ) : (
                     <>
-                      <FinanceIcon name="plus" size={13} />
+                      <FinanceIcon name="plus" size={14} />
                       <span>Xác nhận &amp; Lưu giao dịch</span>
                     </>
                   )}
@@ -717,17 +745,27 @@ export function InvoiceOcrScreen({ onCancel, onNotify }: Props) {
                       <div
                         key={r.id}
                         onClick={() => handleSelectRecentReceipt(r)}
-                        className={`group relative p-3 rounded-xl border transition cursor-pointer flex flex-col gap-1.5 ${
+                        className={`group relative p-2.5 rounded-xl border transition cursor-pointer flex flex-col gap-1.5 ${
                           isSelected
                             ? 'border-[#07543f] bg-emerald-50/50 dark:bg-emerald-950/30 shadow-2xs'
                             : 'border-[#edf3ef] dark:border-slate-800/80 bg-[#fbfdfb] dark:bg-slate-900/40 hover:bg-white dark:hover:bg-slate-900 hover:border-emerald-200'
                         }`}
                       >
-                        <div className="flex items-start justify-between gap-2">
-                          <div className="flex items-center gap-2 min-w-0">
-                            <div className="size-8 rounded-lg bg-emerald-100/70 dark:bg-emerald-950 text-[#07543f] dark:text-emerald-300 grid place-items-center shrink-0">
-                              <FinanceIcon name="receipt" size={14} />
-                            </div>
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="flex items-center gap-2.5 min-w-0">
+                            {/* Receipt Image Thumbnail */}
+                            {r.imageUrl ? (
+                              <img
+                                src={r.imageUrl}
+                                alt={r.merchantName || 'Hóa đơn'}
+                                className="size-11 rounded-lg object-cover border border-[#d8e3dc] dark:border-slate-700 shrink-0 shadow-2xs"
+                              />
+                            ) : (
+                              <div className="size-11 rounded-lg bg-emerald-100/70 dark:bg-emerald-950 text-[#07543f] dark:text-emerald-300 grid place-items-center shrink-0">
+                                <FinanceIcon name="receipt" size={16} />
+                              </div>
+                            )}
+
                             <div className="min-w-0">
                               <h4 className="text-xs font-bold text-gray-900 dark:text-white truncate">
                                 {r.merchantName || 'Hóa đơn chưa đặt tên'}
@@ -738,17 +776,34 @@ export function InvoiceOcrScreen({ onCancel, onNotify }: Props) {
                             </div>
                           </div>
 
-                          <button
-                            type="button"
-                            onClick={(e) => handleDeleteReceipt(e, r.id)}
-                            className="size-6 rounded-md opacity-0 group-hover:opacity-100 text-gray-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 grid place-items-center transition shrink-0"
-                            title="Xóa hóa đơn"
-                          >
-                            <FinanceIcon name="delete" size={12} />
-                          </button>
+                          <div className="flex items-center gap-1 shrink-0">
+                            {r.imageUrl && (
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setPreviewUrl(r.imageUrl || null);
+                                  setLightboxOpen(true);
+                                }}
+                                className="size-7 rounded-lg text-gray-400 hover:text-emerald-700 hover:bg-emerald-50 dark:hover:bg-slate-800 grid place-items-center transition"
+                                title="Xem ảnh to"
+                              >
+                                <FinanceIcon name="eye" size={13} />
+                              </button>
+                            )}
+
+                            <button
+                              type="button"
+                              onClick={(e) => handleDeleteReceipt(e, r.id)}
+                              className="size-7 rounded-lg text-gray-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 grid place-items-center transition"
+                              title="Xóa hóa đơn"
+                            >
+                              <FinanceIcon name="delete" size={13} />
+                            </button>
+                          </div>
                         </div>
 
-                        <div className="flex items-center justify-between border-t border-[#edf3ef] dark:border-slate-800/80 pt-2 text-[11px]">
+                        <div className="flex items-center justify-between border-t border-[#edf3ef] dark:border-slate-800/80 pt-1.5 text-[11px]">
                           <div className="flex items-center gap-1.5">
                             {r.aiCategoryName && (
                               <span className="rounded-md bg-gray-100 dark:bg-slate-800 px-1.5 py-0.5 text-[9px] font-semibold text-gray-600 dark:text-slate-300">
@@ -766,9 +821,27 @@ export function InvoiceOcrScreen({ onCancel, onNotify }: Props) {
                             </span>
                           </div>
 
-                          <span className="font-black text-xs text-[#07543f] dark:text-emerald-400">
-                            {r.totalAmount != null ? `-${Number(r.totalAmount).toLocaleString('vi-VN')} ₫` : '—'}
-                          </span>
+                          <div className="flex items-center gap-2">
+                            <span className="font-black text-xs text-[#07543f] dark:text-emerald-400">
+                              {r.totalAmount != null ? `-${Number(r.totalAmount).toLocaleString('vi-VN')} ₫` : '—'}
+                            </span>
+
+                            {isSelected && (
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleSelectRecentReceipt(r);
+                                  setActiveRightTab('FORM');
+                                }}
+                                className="px-2 py-0.5 rounded-md bg-[#07543f] text-white text-[10px] font-bold hover:bg-[#064232] transition flex items-center gap-1 shadow-2xs"
+                                title="Mở biểu mẫu để chỉnh sửa hoặc lưu giao dịch"
+                              >
+                                <span>Vào form</span>
+                                <FinanceIcon name="arrow" size={10} />
+                              </button>
+                            )}
+                          </div>
                         </div>
                       </div>
                     );
