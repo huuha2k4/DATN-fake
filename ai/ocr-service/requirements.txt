@@ -1,0 +1,23 @@
+# Core OCR
+paddlepaddle==2.6.2
+paddleocr==2.9.1
+
+# Image processing
+opencv-python==4.10.0.84
+numpy==1.26.4
+
+# API
+fastapi==0.115.0
+uvicorn[standard]==0.30.6
+python-multipart==0.0.12
+pydantic==2.9.2
+
+# Extraction helpers
+rapidfuzz==3.10.0
+
+# Evaluation
+pandas==2.2.3
+
+# Demo
+streamlit==1.39.0
+requests==2.32.3

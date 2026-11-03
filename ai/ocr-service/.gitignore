@@ -1,0 +1,36 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.Python
+venv/
+.venv/
+env/
+*.egg-info/
+dist/
+build/
+
+# PaddleOCR model cache
+.paddleocr/
+.paddlex/
+inference/
+
+# Dữ liệu và kết quả đánh giá (không commit ảnh thật)
+data/images/
+eval/detail_*.csv
+eval/summary.csv
+
+# IDE
+.vscode/
+.idea/
+*.swp
+
+# Môi trường
+.env
+*.env
+
+# Streamlit
+.streamlit/
+
+# macOS
+.DS_Store

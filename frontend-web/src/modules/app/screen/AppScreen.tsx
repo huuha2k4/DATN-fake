@@ -89,6 +89,9 @@ export default function AppScreen() {
     '/dashboard': 'Tổng quan',
     '/child-wallet': 'Ví của em',
     '/add-transaction': 'Thêm giao dịch',
+    '/scan-invoice': 'Thêm giao dịch',
+    '/scan-receipt': 'Thêm giao dịch',
+    '/ocr': 'Thêm giao dịch',
     '/wallets': 'Quản lý Ví',
     '/accounts': 'Quản lý Ví',
     '/transactions': 'Quản lý Thu & Chi',
@@ -175,13 +178,15 @@ export default function AppScreen() {
         </Routes>
       </div>
 
-      {/* Floating Action Buttons dock at bottom right */}
-      <FloatingActions 
-        onAddTransaction={() => navigate('/add-transaction')}
-        onOpenInvoiceScanner={() => navigate('/scan-invoice')}
-        onOpenAIAssistant={() => navigate('/ai-assistant')}
-        isChildAccount={isChildAccount}
-      />
+      {/* Floating Action Buttons dock at bottom right (hidden on OCR scanner to avoid overlapping action button) */}
+      {location.pathname !== '/scan-invoice' && (
+        <FloatingActions 
+          onAddTransaction={() => navigate('/add-transaction')}
+          onOpenInvoiceScanner={() => navigate('/scan-invoice')}
+          onOpenAIAssistant={() => navigate('/ai-assistant')}
+          isChildAccount={isChildAccount}
+        />
+      )}
 
       {/* Change Password Modal */}
       <ChangePasswordModal 

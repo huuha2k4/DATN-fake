@@ -44,6 +44,9 @@ public class Transaction {
     @Column(name = "receipt_id")
     private UUID receiptId;
     
+    @Column(name = "receipt_url", columnDefinition = "TEXT")
+    private String receiptUrl;
+    
     @Enumerated(EnumType.STRING)
     @Column(name = "type", nullable = false)
     private TransactionType type;

@@ -262,16 +262,17 @@ public class TransactionController {
      * Upload attachment for transaction
      * TODO: Implement file upload with multipart/form-data
      */
-    @PostMapping("/{id}/attachments")
-    public ResponseEntity<Void> uploadAttachment(
+    @PostMapping(value = "/{id}/attachments", consumes = org.springframework.http.MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<TransactionResponse> uploadAttachment(
             @AuthenticationPrincipal User user,
-            @PathVariable UUID id) {
-        
+            @PathVariable UUID id,
+            @RequestParam("file") org.springframework.web.multipart.MultipartFile file) throws java.io.IOException {
+
         UUID userId = user.getId();
-        log.info("POST /transactions/{}/attachments - user: {}", id, userId);
-        
-        // TODO: Implement attachment upload
-        return ResponseEntity.status(HttpStatus.NOT_IMPLEMENTED).build();
+        log.info("POST /transactions/{}/attachments - user: {}, file: {}", id, userId, file.getOriginalFilename());
+
+        TransactionResponse response = transactionService.uploadAttachment(userId, id, file);
+        return ResponseEntity.ok(response);
     }
     
     /**

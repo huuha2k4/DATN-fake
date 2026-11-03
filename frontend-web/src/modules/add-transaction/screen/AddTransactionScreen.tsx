@@ -54,7 +54,7 @@ export function AddTransactionScreen({ onCancel, onNotify, onOpenInvoiceScanner 
   const toAccountPickerRef = useRef<HTMLDivElement>(null)
 
   // Form Fields
-  const [amount, setAmount] = useState<string>('50000')
+  const [amount, setAmount] = useState<string>('')
   const [selectedCategoryId, setSelectedCategoryId] = useState<string>('')
   const [selectedAccountId, setSelectedAccountId] = useState<string>('')
   const [toAccountId, setToAccountId] = useState<string>('') // for TRANSFER
@@ -67,6 +67,7 @@ export function AddTransactionScreen({ onCancel, onNotify, onOpenInvoiceScanner 
   const [description, setDescription] = useState<string>('')
   const [recurring, setRecurring] = useState<boolean>(false)
   const [fileName, setFileName] = useState<string>('')
+  const [selectedFile, setSelectedFile] = useState<File | null>(null)
   const [error, setError] = useState<string>('')
 
   const fileRef = useRef<HTMLInputElement>(null)
@@ -228,12 +229,15 @@ export function AddTransactionScreen({ onCancel, onNotify, onOpenInvoiceScanner 
   const handleFileChange = (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
     if (!file) return
-    if (file.size > 5 * 1024 * 1024) {
-      setError('Tệp đính kèm cần nhỏ hơn 5 MB.')
+    if (file.size > 15 * 1024 * 1024) {
+      setError('Tệp đính kèm cần nhỏ hơn 15 MB.')
       event.target.value = ''
+      setSelectedFile(null)
+      setFileName('')
       return
     }
     setError('')
+    setSelectedFile(file)
     setFileName(file.name)
     onNotify(`Đã chọn hóa đơn: ${file.name}`)
   }
@@ -301,14 +305,23 @@ export function AddTransactionScreen({ onCancel, onNotify, onOpenInvoiceScanner 
           finalTime = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')}`;
         }
 
-        await transactionApi.createTransaction({
+        const createdTx = await transactionApi.createTransaction({
           transactionType: type, accountId: selectedAccountId,
           toAccountId: type === 'TRANSFER' ? toAccountId : undefined, amount: numericAmount,
           currencyCode: selectedAccountObj?.currencyCode || 'VND',
           description: description.trim() || (type === 'INCOME' ? 'Khoản thu' : type === 'TRANSFER' ? 'Chuyển tiền nội bộ' : 'Khoản chi'),
           transactionDate: finalDate, transactionTime: finalTime,
           categoryId: type !== 'TRANSFER' ? selectedCategoryId : undefined,
-        })
+        });
+
+        const fileToUpload = selectedFile || fileRef.current?.files?.[0];
+        if (fileToUpload && createdTx?.id) {
+          try {
+            await transactionApi.uploadAttachment(createdTx.id, fileToUpload);
+          } catch (uploadErr) {
+            console.error('Failed to upload attachment:', uploadErr);
+          }
+        }
       }
 
       const typeLabel = isChildAccount
@@ -366,6 +379,8 @@ export function AddTransactionScreen({ onCancel, onNotify, onOpenInvoiceScanner 
         setAmount('')
         setDescription('')
         setFileName('')
+        setSelectedFile(null)
+        if (fileRef.current) fileRef.current.value = ''
       } else {
         onCancel()
       }
@@ -903,6 +918,7 @@ export function AddTransactionScreen({ onCancel, onNotify, onOpenInvoiceScanner 
                       <button
                         type="button"
                         onClick={() => {
+                          setSelectedFile(null);
                           setFileName('');
                           if (fileRef.current) fileRef.current.value = '';
                         }}
