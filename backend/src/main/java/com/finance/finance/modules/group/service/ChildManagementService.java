@@ -58,6 +58,7 @@ public class ChildManagementService {
     private final TransactionRepository transactionRepository;
     private final GroupFundRepository groupFundRepository;
     private final GroupExpenseRepository groupExpenseRepository;
+    private final com.finance.finance.modules.user.repository.UserRepository userRepository;
     private final NotificationService notificationService;
 
     // ============ Spend Requests ============
@@ -99,7 +100,7 @@ public class ChildManagementService {
                             NotificationPriority.HIGH,
                             childName + " đã gửi yêu cầu xin tiền",
                             childName + " đang xin " + String.format("%,d", request.getAmount().longValue()) + "đ trong nhóm " + groupName + ". Lý do: " + request.getDescription().trim(),
-                            "/groups",
+                            "/groups?groupId=" + groupId + "&tab=CHILD_WALLETS&walletId=" + walletId + "&modal=SPEND_REQUESTS",
                             "Xem yêu cầu"
                     );
                 }
@@ -502,7 +503,7 @@ public class ChildManagementService {
                             NotificationPriority.HIGH,
                             childName + " đã hoàn thành nhiệm vụ!",
                             childName + " vừa gửi xác nhận hoàn thành nhiệm vụ: " + chore.getTitle() + " trong nhóm " + groupName + ". Hãy kiểm tra và duyệt thưởng nhé!",
-                            "/groups",
+                            "/groups?groupId=" + groupId + "&tab=CHILD_WALLETS&walletId=" + walletId + "&modal=CHORES",
                             "Duyệt nhiệm vụ"
                     );
                 }
@@ -751,6 +752,13 @@ public class ChildManagementService {
                             .id(item.getId()).name(catName).icon(catIcon).color(catColor).build();
                 })
                 .orElse(null);
+        String respondedByUserName = null;
+        if (request.getRespondedByUserId() != null) {
+            respondedByUserName = userRepository.findById(request.getRespondedByUserId())
+                    .map(u -> u.getFullName() != null && !u.getFullName().isBlank() ? u.getFullName() : u.getUsername())
+                    .orElse("Bố/Mẹ");
+        }
+
         return SpendRequestResponse.builder()
                 .id(request.getId())
                 .walletId(request.getWalletId())
@@ -759,6 +767,7 @@ public class ChildManagementService {
                 .description(request.getDescription())
                 .status(request.getStatus().name())
                 .respondedByUserId(request.getRespondedByUserId())
+                .respondedByUserName(respondedByUserName)
                 .respondedAt(request.getRespondedAt())
                 .responseNotes(request.getResponseNotes())
                 .rejectionReason(request.getRejectionReason())
@@ -770,6 +779,13 @@ public class ChildManagementService {
     }
 
     private ChoreResponse buildChoreResponse(ChildChore chore) {
+        String approvedByUserName = null;
+        if (chore.getApprovedByUserId() != null) {
+            approvedByUserName = userRepository.findById(chore.getApprovedByUserId())
+                    .map(u -> u.getFullName() != null && !u.getFullName().isBlank() ? u.getFullName() : u.getUsername())
+                    .orElse("Bố/Mẹ");
+        }
+
         return ChoreResponse.builder()
                 .id(chore.getId())
                 .walletId(chore.getWalletId())
@@ -783,6 +799,7 @@ public class ChildManagementService {
                 .completedAt(chore.getCompletedAt())
                 .proofImageKey(chore.getProofImageKey())
                 .approvedByUserId(chore.getApprovedByUserId())
+                .approvedByUserName(approvedByUserName)
                 .approvedAt(chore.getApprovedAt())
                 .rejectionReason(chore.getRejectionReason())
                 .rejectedAt(chore.getRejectedAt())

@@ -9,7 +9,8 @@ interface ForgotPasswordModalProps {
 }
 
 export function ForgotPasswordModal({ onClose, onSwitchToLogin }: ForgotPasswordModalProps) {
-  const [step, setStep] = useState<'email' | 'otp'>('email');
+  // 3 bước rõ ràng: 1. Nhập email -> 2. Nhập & Xác thực mã OTP -> 3. Đặt mật khẩu mới
+  const [step, setStep] = useState<'email' | 'otp' | 'new_password'>('email');
   const [email, setEmail] = useState('');
   const [otp, setOtp] = useState('');
   const [newPassword, setNewPassword] = useState('');
@@ -19,6 +20,7 @@ export function ForgotPasswordModal({ onClose, onSwitchToLogin }: ForgotPassword
   const [error, setError] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
 
+  // Bước 1: Gửi mã OTP về email
   const handleSendOtp = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email.trim() || !email.includes('@')) {
@@ -40,14 +42,32 @@ export function ForgotPasswordModal({ onClose, onSwitchToLogin }: ForgotPassword
     }
   };
 
-  const handleResetPassword = async (e: React.FormEvent) => {
+  // Bước 2: Xác nhận mã OTP
+  const handleVerifyOtp = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
 
-    if (otp.trim().length < 6) {
-      setError('Mã xác thực OTP gồm 6 chữ số');
+    if (otp.trim().length !== 6) {
+      setError('Vui lòng nhập đủ 6 chữ số mã OTP');
       return;
     }
+
+    setLoading(true);
+    try {
+      await authApi.verifyResetOtp(email.trim(), otp.trim());
+      setSuccessMsg('Mã xác thực chính xác! Vui lòng thiết lập mật khẩu mới.');
+      setStep('new_password');
+    } catch (err: any) {
+      setError(err?.message || 'Mã OTP không chính xác hoặc đã hết hạn');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Bước 3: Đổi mật khẩu mới
+  const handleResetPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
 
     if (newPassword.length < 8) {
       setError('Mật khẩu mới phải có ít nhất 8 ký tự');
@@ -72,12 +92,12 @@ export function ForgotPasswordModal({ onClose, onSwitchToLogin }: ForgotPassword
         token: otp.trim(),
         newPassword,
       });
-      setSuccessMsg('Đặt lại mật khẩu thành công! Vui lòng đăng nhập với mật khẩu mới.');
+      setSuccessMsg('Đặt lại mật khẩu thành công! Đang chuyển về Đăng nhập...');
       setTimeout(() => {
         onSwitchToLogin();
       }, 1500);
     } catch (err: any) {
-      setError(err?.message || 'Mã OTP không chính xác hoặc đã hết hạn');
+      setError(err?.message || 'Không thể đặt lại mật khẩu. Vui lòng thử lại');
     } finally {
       setLoading(false);
     }
@@ -105,9 +125,9 @@ export function ForgotPasswordModal({ onClose, onSwitchToLogin }: ForgotPassword
 
         <h2 className="modal-header-title">Quên mật khẩu</h2>
         <p className="modal-subtitle">
-          {step === 'email'
-            ? 'Nhập email để nhận mã xác thực 6 số khôi phục tài khoản'
-            : `Nhập mã OTP 6 số đã gửi đến ${email}`}
+          {step === 'email' && 'Nhập email để nhận mã xác thực 6 số khôi phục tài khoản'}
+          {step === 'otp' && `Nhập mã OTP 6 số đã gửi đến ${email}`}
+          {step === 'new_password' && 'Tạo mật khẩu mới cho tài khoản Finora của bạn'}
         </p>
 
         {error && (
@@ -124,7 +144,8 @@ export function ForgotPasswordModal({ onClose, onSwitchToLogin }: ForgotPassword
           </div>
         )}
 
-        {step === 'email' ? (
+        {/* BƯỚC 1: NHẬP EMAIL */}
+        {step === 'email' && (
           <form onSubmit={handleSendOtp} className="auth-form">
             <div className="form-field">
               <label className="form-label" htmlFor="forgot-email">
@@ -160,8 +181,11 @@ export function ForgotPasswordModal({ onClose, onSwitchToLogin }: ForgotPassword
               )}
             </button>
           </form>
-        ) : (
-          <form onSubmit={handleResetPassword} className="auth-form">
+        )}
+
+        {/* BƯỚC 2: NHẬP VÀ XÁC THỰC MÃ OTP */}
+        {step === 'otp' && (
+          <form onSubmit={handleVerifyOtp} className="auth-form">
             <div className="form-field">
               <label className="form-label" htmlFor="otp-code">
                 Mã xác thực OTP (6 chữ số)
@@ -173,14 +197,60 @@ export function ForgotPasswordModal({ onClose, onSwitchToLogin }: ForgotPassword
                   maxLength={6}
                   value={otp}
                   onChange={(e) => setOtp(e.target.value.replace(/\D/g, ''))}
-                  placeholder="VD: 123456"
-                  style={{ textAlign: 'center', letterSpacing: '6px', fontSize: '20px', fontWeight: 'bold' }}
+                  placeholder="123456"
+                  style={{
+                    textAlign: 'center',
+                    letterSpacing: '8px',
+                    fontSize: '15px',
+                    fontWeight: 600,
+                  }}
                   required
                   autoFocus
                 />
               </div>
             </div>
 
+            <div className="flex items-center justify-between text-xs my-1">
+              <button
+                type="button"
+                onClick={() => {
+                  setError('');
+                  setSuccessMsg('');
+                  setStep('email');
+                }}
+                className="text-gray-500 hover:underline"
+              >
+                ← Đổi email khác
+              </button>
+              <button
+                type="button"
+                onClick={handleResend}
+                disabled={loading}
+                className="btn-text-emerald font-semibold"
+              >
+                Gửi lại mã OTP
+              </button>
+            </div>
+
+            <button type="submit" className="btn-submit-emerald" disabled={loading}>
+              {loading ? (
+                <>
+                  <span className="spinner" />
+                  <span>Đang xác nhận mã...</span>
+                </>
+              ) : (
+                <>
+                  <span>Xác thực OTP</span>
+                  <FinanceIcon name="arrow" size={17} />
+                </>
+              )}
+            </button>
+          </form>
+        )}
+
+        {/* BƯỚC 3: NHẬP MẬT KHẨU MỚI (CHỈ HIỂN THỊ KHI ĐÃ XÁC THỰC OTP THÀNH CÔNG) */}
+        {step === 'new_password' && (
+          <form onSubmit={handleResetPassword} className="auth-form">
             <div className="form-field">
               <label className="form-label" htmlFor="new-pass">
                 Mật khẩu mới
@@ -197,6 +267,7 @@ export function ForgotPasswordModal({ onClose, onSwitchToLogin }: ForgotPassword
                   onChange={(e) => setNewPassword(e.target.value)}
                   placeholder="Tối thiểu 8 ký tự"
                   required
+                  autoFocus
                 />
                 <button
                   type="button"
@@ -227,33 +298,15 @@ export function ForgotPasswordModal({ onClose, onSwitchToLogin }: ForgotPassword
               </div>
             </div>
 
-            <div className="flex items-center justify-between text-xs my-1">
-              <button
-                type="button"
-                onClick={() => setStep('email')}
-                className="text-gray-500 hover:underline"
-              >
-                ← Đổi email khác
-              </button>
-              <button
-                type="button"
-                onClick={handleResend}
-                disabled={loading}
-                className="btn-text-emerald font-semibold"
-              >
-                Gửi lại mã OTP
-              </button>
-            </div>
-
             <button type="submit" className="btn-submit-emerald" disabled={loading}>
               {loading ? (
                 <>
                   <span className="spinner" />
-                  <span>Đang đặt lại mật khẩu...</span>
+                  <span>Đang lưu mật khẩu...</span>
                 </>
               ) : (
                 <>
-                  <span>Xác nhận mật khẩu mới</span>
+                  <span>Lưu mật khẩu mới</span>
                   <FinanceIcon name="arrow" size={17} />
                 </>
               )}

@@ -180,6 +180,21 @@ export const authApi = {
     return response.json();
   },
 
+  async verifyResetOtp(email: string, otp: string): Promise<{ success: boolean; message: string }> {
+    const response = await fetch(`${API_BASE_URL}/auth/verify-reset-otp`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, otp }),
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.message || 'Mã OTP không hợp lệ');
+    }
+
+    return response.json();
+  },
+
   async resetPassword(data: { email?: string; token: string; newPassword: string }): Promise<{ success: boolean; message: string }> {
     const response = await fetch(`${API_BASE_URL}/auth/reset-password`, {
       method: 'POST',

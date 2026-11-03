@@ -72,7 +72,7 @@ public class CommentService {
                             NotificationPriority.NORMAL,
                             "Bình luận mới trong nhóm " + groupName,
                             commenterName + " đã bình luận: \"" + (comment.getContent().length() > 60 ? comment.getContent().substring(0, 57) + "..." : comment.getContent()) + "\"",
-                            "/groups",
+                            "/groups?groupId=" + groupId + "&tab=CHAT",
                             "Xem bình luận"
                     );
                 }

@@ -24,6 +24,7 @@ public class SpendRequestResponse {
     private String imageKey;
     private String status;
     private UUID respondedByUserId;
+    private String respondedByUserName;
     private LocalDateTime respondedAt;
     private String responseNotes;
     private String rejectionReason;

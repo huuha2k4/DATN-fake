@@ -344,6 +344,41 @@ public class AuthService {
     }
 
     /**
+     * Verify password reset OTP
+     */
+    @Transactional(readOnly = true)
+    public MessageResponse verifyPasswordResetOtp(String email, String token) {
+        log.info("Verifying password reset OTP for email: {}", email);
+        String cleanToken = token.trim();
+        AuthToken authToken = null;
+
+        if (email != null && !email.isBlank()) {
+            User user = userRepository.findByEmail(email.trim().toLowerCase()).orElse(null);
+            if (user != null) {
+                authToken = authTokenRepository.findByUserIdAndTokenAndTokenType(
+                        user.getId(), cleanToken, com.finance.finance.common.enums.TokenType.PASSWORD_RESET
+                ).orElse(null);
+            }
+        }
+
+        if (authToken == null) {
+            authToken = authTokenRepository.findByTokenAndTokenType(
+                    cleanToken, com.finance.finance.common.enums.TokenType.PASSWORD_RESET
+            ).orElseThrow(() -> new InvalidTokenException("Mã OTP không chính xác hoặc không tồn tại"));
+        }
+
+        if (authToken.getExpiresAt().isBefore(Instant.now())) {
+            throw new TokenExpiredException("Mã xác thực OTP đã hết hạn. Vui lòng yêu cầu mã mới.");
+        }
+
+        if (authToken.isUsed()) {
+            throw new InvalidTokenException("Mã xác thực OTP này đã được sử dụng");
+        }
+
+        return new MessageResponse("Mã xác thực OTP hợp lệ");
+    }
+
+    /**
      * Reset password with token/OTP
      */
     @Transactional

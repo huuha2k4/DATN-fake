@@ -175,6 +175,28 @@ public class AuthController {
     }
 
     /**
+     * Verify password reset OTP
+     * POST /api/v1/auth/verify-reset-otp
+     */
+    @PostMapping("/verify-reset-otp")
+    public ResponseEntity<Map<String, Object>> verifyResetOtp(@RequestBody Map<String, String> body) {
+        String email = body.get("email");
+        String otp = body.get("otp");
+        if (otp == null || otp.isBlank()) {
+            Map<String, Object> err = new HashMap<>();
+            err.put("success", false);
+            err.put("message", "Vui lòng nhập mã OTP");
+            return ResponseEntity.badRequest().body(err);
+        }
+
+        MessageResponse res = authService.verifyPasswordResetOtp(email, otp);
+        Map<String, Object> response = new HashMap<>();
+        response.put("success", true);
+        response.put("message", res.getMessage());
+        return ResponseEntity.ok(response);
+    }
+
+    /**
      * Reset password with token
      * POST /api/v1/auth/reset-password
      */
