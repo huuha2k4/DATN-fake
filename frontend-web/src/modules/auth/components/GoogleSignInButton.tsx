@@ -37,14 +37,17 @@ export function GoogleSignInButton({ onSuccess, onError, text = 'continue_with' 
 
         if (btnContainerRef.current) {
           btnContainerRef.current.innerHTML = '';
+          const containerWidth = btnContainerRef.current.offsetWidth || 400;
+          const isDark = document.documentElement.classList.contains('dark') || document.documentElement.getAttribute('data-theme') === 'dark';
+
           window.google.accounts.id.renderButton(btnContainerRef.current, {
-            theme: 'outline',
+            theme: isDark ? 'filled_black' : 'outline',
             size: 'large',
             type: 'standard',
-            shape: 'rectangular',
+            shape: 'pill',
             text: text,
             logo_alignment: 'left',
-            width: btnContainerRef.current.offsetWidth || 340,
+            width: Math.min(Math.max(containerWidth, 280), 460),
             locale: 'vi',
           });
         }
@@ -87,9 +90,9 @@ export function GoogleSignInButton({ onSuccess, onError, text = 'continue_with' 
   };
 
   return (
-    <div className="w-full flex flex-col items-center my-1 relative">
+    <div className="w-full flex flex-col items-center my-1 relative google-signin-wrapper">
       {loading && (
-        <div className="absolute inset-0 bg-white/70 dark:bg-slate-900/70 z-10 flex items-center justify-center rounded-xl">
+        <div className="absolute inset-0 bg-white/70 dark:bg-slate-900/70 z-10 flex items-center justify-center rounded-full">
           <div className="w-5 h-5 border-2 border-emerald-600 border-t-transparent rounded-full animate-spin" />
         </div>
       )}

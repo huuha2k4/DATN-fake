@@ -427,3 +427,27 @@ html.dark .btn-text-emerald:hover {
   color: #7dd3fc !important;
 }
 
+/* Google Sign In Container Helper */
+.google-signin-wrapper {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+}
+
+.google-signin-wrapper > div {
+  width: 100% !important;
+  display: flex;
+  justify-content: center;
+}
+
+.google-signin-wrapper iframe {
+  border-radius: 9999px !important;
+  width: 100% !important;
+  max-width: 440px !important;
+}
+
+/* Dark mode for Google button wrapper */
+html.dark .google-signin-wrapper iframe {
+  color-scheme: dark;
+}
+
