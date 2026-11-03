@@ -123,21 +123,6 @@ export function InvoiceOcrScreen({ onCancel, onNotify }: Props) {
       setCategories(cats);
       const list = receiptsResp.receipts || [];
       setRecentReceipts(list);
-
-      // Auto-preview latest receipt with image if available
-      const latestWithImage = list.find((item) => item.imageUrl);
-      if (latestWithImage && !previewUrl && !scanResult) {
-        setScanResult(latestWithImage);
-        setPreviewUrl(latestWithImage.imageUrl || null);
-        setMerchant(latestWithImage.merchantName || '');
-        if (latestWithImage.transactionDate) setDate(latestWithImage.transactionDate);
-        if (latestWithImage.transactionTime) setTime(latestWithImage.transactionTime.slice(0, 5));
-        if (latestWithImage.totalAmount != null) setAmount(String(latestWithImage.totalAmount));
-        if (latestWithImage.aiCategoryId) {
-          const matched = cats.find((c) => c.id === latestWithImage.aiCategoryId || c.name === latestWithImage.aiCategoryName);
-          if (matched) setSelectedCategoryId(matched.id);
-        }
-      }
     } catch {
       onNotify('Không thể nạp dữ liệu tài khoản và danh mục');
     } finally {
@@ -252,6 +237,9 @@ export function InvoiceOcrScreen({ onCancel, onNotify }: Props) {
     setMerchant('');
     setAmount('');
     setNote('');
+    setDate(new Date().toISOString().split('T')[0]);
+    const now = new Date();
+    setTime(`${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`);
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
@@ -368,7 +356,10 @@ export function InvoiceOcrScreen({ onCancel, onNotify }: Props) {
             <div className="flex items-center gap-2.5">
               <button
                 type="button"
-                onClick={onCancel}
+                onClick={() => {
+                  resetCurrentScan();
+                  onCancel();
+                }}
                 className="ocr-tool-btn ocr-tool-btn-ghost !size-8 !p-0"
                 title="Quay lại danh sách"
               >
@@ -522,13 +513,7 @@ export function InvoiceOcrScreen({ onCancel, onNotify }: Props) {
 
               <button
                 type="button"
-                onClick={() => {
-                  setActiveRightTab('HISTORY');
-                  if (!previewUrl && recentReceipts.length > 0) {
-                    const firstWithImage = recentReceipts.find((r) => r.imageUrl) || recentReceipts[0];
-                    handleSelectRecentReceipt(firstWithImage);
-                  }
-                }}
+                onClick={() => setActiveRightTab('HISTORY')}
                 className={`ocr-tab-btn ${activeRightTab === 'HISTORY' ? 'is-active' : ''}`}
               >
                 <FinanceIcon name="clock" size={13} />
