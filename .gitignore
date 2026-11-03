@@ -28,3 +28,6 @@ Thumbs.db
 
 # Temporary files
 *.tmp
+
+# Kiro agent artifacts
+.agents/
