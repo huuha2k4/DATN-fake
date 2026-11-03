@@ -54,7 +54,7 @@ export function AddTransactionScreen({ onCancel, onNotify, onOpenInvoiceScanner 
   const toAccountPickerRef = useRef<HTMLDivElement>(null)
 
   // Form Fields
-  const [amount, setAmount] = useState<string>('50000')
+  const [amount, setAmount] = useState<string>('')
   const [selectedCategoryId, setSelectedCategoryId] = useState<string>('')
   const [selectedAccountId, setSelectedAccountId] = useState<string>('')
   const [toAccountId, setToAccountId] = useState<string>('') // for TRANSFER
