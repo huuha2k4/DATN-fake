@@ -1,4 +1,4 @@
-﻿import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { FinanceIcon, resolveCategoryIconName, getCategoryCanonicalKey } from '../../core/components/FinanceIcon';
 import { 
   transactionApi, 
@@ -1654,215 +1654,400 @@ export function CashFlowManagementScreen({ onNotify, onAddTransaction }: Props) 
         </div>
       )}
 
-      {/* 7. Custom Transaction Detail Modal (Xem chi tiết giao dịch) */}
+      {/* 7. Custom Transaction Detail Modal (Xem chi tiết giao dịch - Hỗ trợ 2 cột khi có hóa đơn) */}
       {selectedTxDetail && (
         <div 
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm animate-fadeIn"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/65 p-3 sm:p-4 backdrop-blur-md animate-fadeIn"
           onClick={() => setSelectedTxDetail(null)}
         >
           <div 
-            className="w-full max-w-lg rounded-3xl bg-white p-6 shadow-2xl border border-[#e2eae4] max-h-[90vh] flex flex-col overflow-y-auto"
+            className={`w-full ${
+              selectedTxDetail.receiptUrl ? 'max-w-4xl lg:max-w-5xl' : 'max-w-lg'
+            } rounded-3xl bg-white dark:bg-[#0c1a24] p-5 sm:p-6 shadow-2xl border border-[#e2eae4] dark:border-white/10 max-h-[92vh] flex flex-col overflow-hidden transition-all`}
             onClick={(e) => e.stopPropagation()}
           >
-            {/* Header */}
-            <div className="flex items-center justify-between border-b border-[#edf2ee] pb-4">
-              <div className="flex items-center gap-3">
-                <span 
-                  className="grid size-12 shrink-0 place-items-center rounded-2xl shadow-xs"
-                  style={{
-                    backgroundColor: selectedTxDetail.category?.color 
-                      ? `${selectedTxDetail.category.color}20` 
-                      : selectedTxDetail.transactionType === 'INCOME' 
-                      ? '#dcfce7' 
-                      : selectedTxDetail.transactionType === 'TRANSFER' 
-                      ? '#e0f2fe' 
-                      : '#fee2e2',
-                    color: selectedTxDetail.category?.color 
-                      ? selectedTxDetail.category.color 
-                      : selectedTxDetail.transactionType === 'INCOME' 
-                      ? '#15803d' 
-                      : selectedTxDetail.transactionType === 'TRANSFER' 
-                      ? '#0369a1' 
-                      : '#dc2626'
-                  }}
-                >
-                  {selectedTxDetail.category ? (
-                    renderCategoryIcon(selectedTxDetail.category.icon, selectedTxDetail.transactionType, 22, selectedTxDetail.category.name)
-                  ) : (
-                    <FinanceIcon 
-                      name={selectedTxDetail.transactionType === 'INCOME' ? 'income' : selectedTxDetail.transactionType === 'TRANSFER' ? 'arrows' : 'expense'} 
-                      size={22} 
-                    />
-                  )}
-                </span>
-                <div>
-                  <h3 className="text-base font-bold text-[#14261e]">Chi tiết giao dịch</h3>
-                  <p className="text-xs text-[#718579]">
-                    Mã GD: <span className="font-mono text-[#475569]">{selectedTxDetail.id.slice(0, 13)}...</span>
-                  </p>
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={() => setSelectedTxDetail(null)}
-                className="grid size-8 place-items-center rounded-xl text-gray-400 hover:bg-gray-100 hover:text-gray-700 transition"
-              >
-                ✕
-              </button>
-            </div>
-
-            {/* Số tiền nổi bật */}
-            <div className="my-5 rounded-2xl bg-[#fafcfa] border border-[#e5eee8] p-4 text-center">
-              <span className="text-[11px] font-bold uppercase tracking-wider text-[#718579]">Số tiền giao dịch</span>
-              <div 
-                className={`mt-1 text-3xl font-black tracking-tight ${
-                  selectedTxDetail.transactionType === 'INCOME' 
-                    ? 'text-emerald-700' 
-                    : selectedTxDetail.transactionType === 'TRANSFER' 
-                    ? 'text-sky-600' 
-                    : 'text-rose-600'
-                }`}
-              >
-                {selectedTxDetail.transactionType === 'INCOME' ? '+' : selectedTxDetail.transactionType === 'TRANSFER' ? '' : '-'}
-                {formatVND(selectedTxDetail.amount)}
-              </div>
-              <div className="mt-2 flex items-center justify-center gap-2">
-                <span className="inline-flex items-center gap-1 rounded-full px-3 py-0.5 text-xs font-bold bg-white border border-[#dce6e0] text-[#14261e]">
-                  {selectedTxDetail.transactionType === 'INCOME' 
-                    ? 'Thu nhập' 
-                    : selectedTxDetail.transactionType === 'TRANSFER' 
-                    ? 'Chuyển ví' 
-                    : 'Chi tiêu'}
-                </span>
-                <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100/70 px-2.5 py-0.5 text-[11px] font-bold text-emerald-800">
-                  ✓ Đã ghi sổ
-                </span>
-              </div>
-            </div>
-
-            {/* Bảng thông tin chi tiết */}
-            <div className="divide-y divide-[#edf2ee] text-xs">
-              {/* Mô tả / Tiêu đề */}
-              <div className="py-2.5 flex items-center justify-between">
-                <span className="text-[#718579] font-medium">Mô tả / Đối tác:</span>
-                <span className="font-bold text-[#14261e] text-right max-w-[260px] break-words">
-                  {selectedTxDetail.description || 'Giao dịch thông thường'}
-                </span>
-              </div>
-
-              {/* Hạng mục */}
-              <div className="py-2.5 flex items-center justify-between">
-                <span className="text-[#718579] font-medium">Hạng mục:</span>
-                <span className="font-semibold text-[#14261e] flex items-center gap-1.5">
-                  {selectedTxDetail.category ? (
-                    <>
-                      <span className="size-2 rounded-full" style={{ backgroundColor: selectedTxDetail.category.color || '#07543f' }} />
-                      <span>{selectedTxDetail.category.name}</span>
-                    </>
-                  ) : (
-                    <span>Chung / Không phân loại</span>
-                  )}
-                </span>
-              </div>
-
-              {/* Tài khoản nguồn */}
-              <div className="py-2.5 flex items-center justify-between">
-                <span className="text-[#718579] font-medium">Tài khoản / Ví trích tiền:</span>
-                <div className="text-right">
-                  <p className="font-bold text-[#14261e]">{selectedTxDetail.accountName}</p>
-                  <p className="text-[11px] text-[#718579] font-medium">{getAccountTypeLabel(selectedTxDetail.accountId)}</p>
-                </div>
-              </div>
-
-              {/* Tài khoản đích nếu là Chuyển ví */}
-              {selectedTxDetail.transactionType === 'TRANSFER' && selectedTxDetail.toAccountName && (
-                <div className="py-2.5 flex items-center justify-between bg-sky-50/50 px-2 rounded-lg">
-                  <span className="text-sky-800 font-medium">Tài khoản đích nhận:</span>
-                  <div className="text-right">
-                    <p className="font-bold text-sky-900">{selectedTxDetail.toAccountName}</p>
-                    <p className="text-[11px] text-sky-700">{getAccountTypeLabel(selectedTxDetail.toAccountId)}</p>
-                  </div>
-                </div>
-              )}
-
-              {/* Thời gian giao dịch */}
-              <div className="py-2.5 flex items-center justify-between">
-                <span className="text-[#718579] font-medium">Thời gian thực hiện:</span>
-                <span className="font-bold text-[#14261e]">
-                  {formatTxDateTime(selectedTxDetail.transactionDate, selectedTxDetail.transactionTime).date}
-                  {selectedTxDetail.transactionTime ? ` • ${selectedTxDetail.transactionTime}` : ''}
-                </span>
-              </div>
-
-              {/* Ghi chú nếu có */}
-              {selectedTxDetail.note && (
-                <div className="py-2.5 flex flex-col gap-1">
-                  <span className="text-[#718579] font-medium">Ghi chú bổ sung:</span>
-                  <p className="p-2.5 rounded-xl bg-[#fafafa] border border-[#f0f0f0] text-[#334155] whitespace-pre-wrap">
-                    {selectedTxDetail.note}
-                  </p>
-                </div>
-              )}
-
-              {/* Ảnh hóa đơn / Chứng từ đính kèm */}
-              {selectedTxDetail.receiptUrl && (
-                <div className="py-3 flex flex-col gap-2">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[#718579] font-medium flex items-center gap-1.5 text-xs">
-                      <FinanceIcon name="receipt" size={14} className="text-[#07543f]" />
-                      <span className="font-bold text-[#14261e]">Hóa đơn / Chứng từ đính kèm:</span>
-                    </span>
+            {/* Modal Body: 2 Columns if receiptUrl exists, 1 Column if not */}
+            {selectedTxDetail.receiptUrl ? (
+              <div className="grid grid-cols-1 md:grid-cols-12 gap-5 sm:gap-6 min-h-0 flex-1 overflow-hidden">
+                {/* CỘT TRÁI: ẢNH HÓA ĐƠN GỐC TO RÕ (Tương tự OCR Scanner) */}
+                <div className="md:col-span-6 lg:col-span-6 flex flex-col min-h-0 rounded-2xl border border-[#d8e3dc] dark:border-white/10 bg-[#f8faf9] dark:bg-[#07131e] overflow-hidden">
+                  {/* Thanh công cụ xem ảnh */}
+                  <div className="flex items-center justify-between px-3.5 py-2.5 border-b border-[#edf3ef] dark:border-white/10 bg-white dark:bg-[#0f2231] shrink-0">
+                    <div className="flex items-center gap-2">
+                      <span className="grid size-6 place-items-center rounded-lg bg-emerald-100/80 dark:bg-emerald-950 text-[#07543f] dark:text-emerald-300">
+                        <FinanceIcon name="receipt" size={13} />
+                      </span>
+                      <span className="text-xs font-bold text-gray-800 dark:text-white uppercase tracking-wider">
+                        Hóa đơn đính kèm
+                      </span>
+                    </div>
                     <button
                       type="button"
                       onClick={() => setViewingReceiptImage(selectedTxDetail.receiptUrl!)}
-                      className="text-[11px] font-bold text-[#07543f] hover:underline flex items-center gap-1 cursor-pointer"
+                      className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-xs font-bold text-[#07543f] dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/60 hover:bg-emerald-100 dark:hover:bg-emerald-900/60 transition cursor-pointer border border-emerald-200/60 dark:border-emerald-800/60"
+                      title="Xem ảnh phóng to toàn màn hình"
                     >
-                      <FinanceIcon name="eye" size={12} />
+                      <FinanceIcon name="eye" size={13} />
                       <span>Phóng to</span>
                     </button>
                   </div>
+
+                  {/* Vùng hiển thị ảnh lớn */}
                   <div 
-                    className="relative rounded-2xl overflow-hidden border border-[#d8e3dc] bg-slate-950 max-h-52 cursor-pointer group flex items-center justify-center shadow-inner"
+                    className="relative flex-1 p-3 flex items-center justify-center min-h-[320px] md:min-h-[440px] max-h-[68vh] overflow-hidden cursor-pointer group select-none"
                     onClick={() => setViewingReceiptImage(selectedTxDetail.receiptUrl!)}
-                    title="Bấm để xem ảnh phóng to"
+                    title="Bấm để xem ảnh kích thước đầy đủ"
                   >
                     <img 
                       src={selectedTxDetail.receiptUrl} 
                       alt="Hóa đơn giao dịch" 
-                      className="w-full max-h-52 object-contain select-none transition-transform duration-200 group-hover:scale-102"
+                      className="max-h-[64vh] w-full object-contain rounded-xl transition-transform duration-200 group-hover:scale-[1.015]"
                     />
-                    <div className="absolute inset-0 bg-black/35 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white text-xs font-bold gap-1.5 backdrop-blur-xs">
-                      <FinanceIcon name="eye" size={15} />
-                      <span>Xem ảnh kích thước lớn</span>
+                    <div className="absolute inset-0 m-3 rounded-xl bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white text-xs font-bold gap-2 backdrop-blur-xs">
+                      <FinanceIcon name="eye" size={16} />
+                      <span>Bấm để phóng to toàn màn hình</span>
                     </div>
                   </div>
                 </div>
-              )}
-            </div>
 
-            {/* Nút tác vụ dưới cùng */}
-            <div className="mt-6 flex items-center justify-between pt-3 border-t border-[#edf2ee]">
-              <button
-                type="button"
-                onClick={() => {
-                  const tx = selectedTxDetail;
-                  setSelectedTxDetail(null);
-                  setTransactionToDelete(tx);
-                }}
-                className="inline-flex h-9 items-center gap-1.5 rounded-xl px-3.5 text-xs font-semibold text-rose-600 hover:bg-rose-50 transition"
-              >
-                <FinanceIcon name="delete" size={14} />
-                <span>Xóa giao dịch</span>
-              </button>
+                {/* CỘT PHẢI: CHI TIẾT THÔNG TIN GIAO DỊCH */}
+                <div className="md:col-span-6 lg:col-span-6 flex flex-col min-h-0 overflow-y-auto pr-0.5">
+                  {/* Header */}
+                  <div className="flex items-center justify-between border-b border-[#edf2ee] dark:border-white/10 pb-3.5 shrink-0">
+                    <div className="flex items-center gap-3">
+                      <span 
+                        className="grid size-11 shrink-0 place-items-center rounded-2xl shadow-xs"
+                        style={{
+                          backgroundColor: selectedTxDetail.category?.color 
+                            ? `${selectedTxDetail.category.color}20` 
+                            : selectedTxDetail.transactionType === 'INCOME' 
+                            ? '#dcfce7' 
+                            : selectedTxDetail.transactionType === 'TRANSFER' 
+                            ? '#e0f2fe' 
+                            : '#fee2e2',
+                          color: selectedTxDetail.category?.color 
+                            ? selectedTxDetail.category.color 
+                            : selectedTxDetail.transactionType === 'INCOME' 
+                            ? '#15803d' 
+                            : selectedTxDetail.transactionType === 'TRANSFER' 
+                            ? '#0369a1' 
+                            : '#dc2626'
+                        }}
+                      >
+                        {selectedTxDetail.category ? (
+                          renderCategoryIcon(selectedTxDetail.category.icon, selectedTxDetail.transactionType, 20, selectedTxDetail.category.name)
+                        ) : (
+                          <FinanceIcon 
+                            name={selectedTxDetail.transactionType === 'INCOME' ? 'income' : selectedTxDetail.transactionType === 'TRANSFER' ? 'arrows' : 'expense'} 
+                            size={20} 
+                          />
+                        )}
+                      </span>
+                      <div>
+                        <h3 className="text-base font-bold text-[#14261e] dark:text-white leading-tight">Chi tiết giao dịch</h3>
+                        <p className="text-xs text-[#718579] dark:text-slate-400 mt-0.5">
+                          Mã GD: <span className="font-mono text-[#475569] dark:text-slate-300">{selectedTxDetail.id.slice(0, 13)}...</span>
+                        </p>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setSelectedTxDetail(null)}
+                      className="grid size-8 place-items-center rounded-xl text-gray-400 hover:bg-gray-100 hover:text-gray-700 dark:hover:bg-slate-800 dark:hover:text-slate-200 transition cursor-pointer"
+                      title="Đóng"
+                    >
+                      <FinanceIcon name="close" size={15} />
+                    </button>
+                  </div>
 
-              <button
-                type="button"
-                onClick={() => setSelectedTxDetail(null)}
-                className="h-9 rounded-xl bg-[#07543f] px-5 text-xs font-bold text-white hover:bg-[#0b6c52] transition shadow-xs"
-              >
-                Đóng
-              </button>
-            </div>
+                  {/* Số tiền nổi bật */}
+                  <div className="my-4 rounded-2xl bg-[#fafcfa] dark:bg-[#0f2231] border border-[#e5eee8] dark:border-white/10 p-3.5 text-center shrink-0">
+                    <span className="text-[11px] font-bold uppercase tracking-wider text-[#718579] dark:text-slate-400">Số tiền giao dịch</span>
+                    <div 
+                      className={`mt-1 text-2xl sm:text-3xl font-black tracking-tight ${
+                        selectedTxDetail.transactionType === 'INCOME' 
+                          ? 'text-emerald-700 dark:text-emerald-400' 
+                          : selectedTxDetail.transactionType === 'TRANSFER' 
+                          ? 'text-sky-600 dark:text-sky-400' 
+                          : 'text-rose-600 dark:text-rose-400'
+                      }`}
+                    >
+                      {selectedTxDetail.transactionType === 'INCOME' ? '+' : selectedTxDetail.transactionType === 'TRANSFER' ? '' : '-'}
+                      {formatVND(selectedTxDetail.amount)}
+                    </div>
+                    <div className="mt-2 flex items-center justify-center gap-2">
+                      <span className="inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-bold bg-white dark:bg-[#0c1a24] border border-[#dce6e0] dark:border-white/10 text-[#14261e] dark:text-slate-200">
+                        {selectedTxDetail.transactionType === 'INCOME' 
+                          ? 'Thu nhập' 
+                          : selectedTxDetail.transactionType === 'TRANSFER' 
+                          ? 'Chuyển ví' 
+                          : 'Chi tiêu'}
+                      </span>
+                      <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100/70 dark:bg-emerald-950/80 px-2.5 py-0.5 text-[11px] font-bold text-emerald-800 dark:text-emerald-300 border border-emerald-200/60 dark:border-emerald-800/60">
+                        ✓ Đã ghi sổ
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Bảng thông tin chi tiết */}
+                  <div className="divide-y divide-[#edf2ee] dark:divide-white/10 text-xs flex-1">
+                    {/* Mô tả / Tiêu đề */}
+                    <div className="py-2.5 flex items-center justify-between">
+                      <span className="text-[#718579] dark:text-slate-400 font-medium">Mô tả / Đối tác:</span>
+                      <span className="font-bold text-[#14261e] dark:text-white text-right max-w-[240px] break-words">
+                        {selectedTxDetail.description || 'Giao dịch thông thường'}
+                      </span>
+                    </div>
+
+                    {/* Hạng mục */}
+                    <div className="py-2.5 flex items-center justify-between">
+                      <span className="text-[#718579] dark:text-slate-400 font-medium">Hạng mục:</span>
+                      <span className="font-semibold text-[#14261e] dark:text-white flex items-center gap-1.5">
+                        {selectedTxDetail.category ? (
+                          <>
+                            <span className="size-2 rounded-full" style={{ backgroundColor: selectedTxDetail.category.color || '#07543f' }} />
+                            <span>{selectedTxDetail.category.name}</span>
+                          </>
+                        ) : (
+                          <span>Chung / Không phân loại</span>
+                        )}
+                      </span>
+                    </div>
+
+                    {/* Tài khoản nguồn */}
+                    <div className="py-2.5 flex items-center justify-between">
+                      <span className="text-[#718579] dark:text-slate-400 font-medium">Tài khoản / Ví trích tiền:</span>
+                      <div className="text-right">
+                        <p className="font-bold text-[#14261e] dark:text-white">{selectedTxDetail.accountName}</p>
+                        <p className="text-[11px] text-[#718579] dark:text-slate-400 font-medium">{getAccountTypeLabel(selectedTxDetail.accountId)}</p>
+                      </div>
+                    </div>
+
+                    {/* Tài khoản đích nếu là Chuyển ví */}
+                    {selectedTxDetail.transactionType === 'TRANSFER' && selectedTxDetail.toAccountName && (
+                      <div className="py-2.5 flex items-center justify-between bg-sky-50/50 dark:bg-sky-950/40 px-2 rounded-lg">
+                        <span className="text-sky-800 dark:text-sky-300 font-medium">Tài khoản đích nhận:</span>
+                        <div className="text-right">
+                          <p className="font-bold text-sky-900 dark:text-sky-200">{selectedTxDetail.toAccountName}</p>
+                          <p className="text-[11px] text-sky-700 dark:text-sky-400">{getAccountTypeLabel(selectedTxDetail.toAccountId)}</p>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Thời gian giao dịch */}
+                    <div className="py-2.5 flex items-center justify-between">
+                      <span className="text-[#718579] dark:text-slate-400 font-medium">Thời gian thực hiện:</span>
+                      <span className="font-bold text-[#14261e] dark:text-white">
+                        {formatTxDateTime(selectedTxDetail.transactionDate, selectedTxDetail.transactionTime).date}
+                        {selectedTxDetail.transactionTime ? ` • ${selectedTxDetail.transactionTime}` : ''}
+                      </span>
+                    </div>
+
+                    {/* Ghi chú nếu có */}
+                    {selectedTxDetail.note && (
+                      <div className="py-2.5 flex flex-col gap-1">
+                        <span className="text-[#718579] dark:text-slate-400 font-medium">Ghi chú bổ sung:</span>
+                        <p className="p-2.5 rounded-xl bg-[#fafafa] dark:bg-[#142b3d] border border-[#f0f0f0] dark:border-white/10 text-[#334155] dark:text-slate-200 whitespace-pre-wrap">
+                          {selectedTxDetail.note}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Nút tác vụ dưới cùng */}
+                  <div className="mt-4 flex items-center justify-between pt-3 border-t border-[#edf2ee] dark:border-white/10 shrink-0">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const tx = selectedTxDetail;
+                        setSelectedTxDetail(null);
+                        setTransactionToDelete(tx);
+                      }}
+                      className="inline-flex h-9 items-center gap-1.5 rounded-xl px-3 text-xs font-semibold text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition cursor-pointer"
+                    >
+                      <FinanceIcon name="delete" size={14} />
+                      <span>Xóa giao dịch</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setSelectedTxDetail(null)}
+                      className="h-9 rounded-xl bg-[#07543f] hover:bg-[#0b6c52] px-5 text-xs font-bold text-white transition shadow-xs cursor-pointer"
+                    >
+                      Đóng
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              /* DẠNG 1 CỘT GỌN GÀNG KHI KHÔNG CÓ HÓA ĐƠN ĐÍNH KÈM */
+              <div className="flex flex-col overflow-y-auto">
+                {/* Header */}
+                <div className="flex items-center justify-between border-b border-[#edf2ee] dark:border-white/10 pb-4">
+                  <div className="flex items-center gap-3">
+                    <span 
+                      className="grid size-12 shrink-0 place-items-center rounded-2xl shadow-xs"
+                      style={{
+                        backgroundColor: selectedTxDetail.category?.color 
+                          ? `${selectedTxDetail.category.color}20` 
+                          : selectedTxDetail.transactionType === 'INCOME' 
+                          ? '#dcfce7' 
+                          : selectedTxDetail.transactionType === 'TRANSFER' 
+                          ? '#e0f2fe' 
+                          : '#fee2e2',
+                        color: selectedTxDetail.category?.color 
+                          ? selectedTxDetail.category.color 
+                          : selectedTxDetail.transactionType === 'INCOME' 
+                          ? '#15803d' 
+                          : selectedTxDetail.transactionType === 'TRANSFER' 
+                          ? '#0369a1' 
+                          : '#dc2626'
+                      }}
+                    >
+                      {selectedTxDetail.category ? (
+                        renderCategoryIcon(selectedTxDetail.category.icon, selectedTxDetail.transactionType, 22, selectedTxDetail.category.name)
+                      ) : (
+                        <FinanceIcon 
+                          name={selectedTxDetail.transactionType === 'INCOME' ? 'income' : selectedTxDetail.transactionType === 'TRANSFER' ? 'arrows' : 'expense'} 
+                          size={22} 
+                        />
+                      )}
+                    </span>
+                    <div>
+                      <h3 className="text-base font-bold text-[#14261e] dark:text-white">Chi tiết giao dịch</h3>
+                      <p className="text-xs text-[#718579] dark:text-slate-400">
+                        Mã GD: <span className="font-mono text-[#475569] dark:text-slate-300">{selectedTxDetail.id.slice(0, 13)}...</span>
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedTxDetail(null)}
+                    className="grid size-8 place-items-center rounded-xl text-gray-400 hover:bg-gray-100 hover:text-gray-700 dark:hover:bg-slate-800 dark:hover:text-slate-200 transition cursor-pointer"
+                  >
+                    <FinanceIcon name="close" size={15} />
+                  </button>
+                </div>
+
+                {/* Số tiền nổi bật */}
+                <div className="my-5 rounded-2xl bg-[#fafcfa] dark:bg-[#0f2231] border border-[#e5eee8] dark:border-white/10 p-4 text-center">
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-[#718579] dark:text-slate-400">Số tiền giao dịch</span>
+                  <div 
+                    className={`mt-1 text-3xl font-black tracking-tight ${
+                      selectedTxDetail.transactionType === 'INCOME' 
+                        ? 'text-emerald-700 dark:text-emerald-400' 
+                        : selectedTxDetail.transactionType === 'TRANSFER' 
+                        ? 'text-sky-600 dark:text-sky-400' 
+                        : 'text-rose-600 dark:text-rose-400'
+                    }`}
+                  >
+                    {selectedTxDetail.transactionType === 'INCOME' ? '+' : selectedTxDetail.transactionType === 'TRANSFER' ? '' : '-'}
+                    {formatVND(selectedTxDetail.amount)}
+                  </div>
+                  <div className="mt-2 flex items-center justify-center gap-2">
+                    <span className="inline-flex items-center gap-1 rounded-full px-3 py-0.5 text-xs font-bold bg-white dark:bg-[#0c1a24] border border-[#dce6e0] dark:border-white/10 text-[#14261e] dark:text-slate-200">
+                      {selectedTxDetail.transactionType === 'INCOME' 
+                        ? 'Thu nhập' 
+                        : selectedTxDetail.transactionType === 'TRANSFER' 
+                        ? 'Chuyển ví' 
+                        : 'Chi tiêu'}
+                    </span>
+                    <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100/70 dark:bg-emerald-950/80 px-2.5 py-0.5 text-[11px] font-bold text-emerald-800 dark:text-emerald-300 border border-emerald-200/60 dark:border-emerald-800/60">
+                      ✓ Đã ghi sổ
+                    </span>
+                  </div>
+                </div>
+
+                {/* Bảng thông tin chi tiết */}
+                <div className="divide-y divide-[#edf2ee] dark:divide-white/10 text-xs">
+                  {/* Mô tả / Tiêu đề */}
+                  <div className="py-2.5 flex items-center justify-between">
+                    <span className="text-[#718579] dark:text-slate-400 font-medium">Mô tả / Đối tác:</span>
+                    <span className="font-bold text-[#14261e] dark:text-white text-right max-w-[260px] break-words">
+                      {selectedTxDetail.description || 'Giao dịch thông thường'}
+                    </span>
+                  </div>
+
+                  {/* Hạng mục */}
+                  <div className="py-2.5 flex items-center justify-between">
+                    <span className="text-[#718579] dark:text-slate-400 font-medium">Hạng mục:</span>
+                    <span className="font-semibold text-[#14261e] dark:text-white flex items-center gap-1.5">
+                      {selectedTxDetail.category ? (
+                        <>
+                          <span className="size-2 rounded-full" style={{ backgroundColor: selectedTxDetail.category.color || '#07543f' }} />
+                          <span>{selectedTxDetail.category.name}</span>
+                        </>
+                      ) : (
+                        <span>Chung / Không phân loại</span>
+                      )}
+                    </span>
+                  </div>
+
+                  {/* Tài khoản nguồn */}
+                  <div className="py-2.5 flex items-center justify-between">
+                    <span className="text-[#718579] dark:text-slate-400 font-medium">Tài khoản / Ví trích tiền:</span>
+                    <div className="text-right">
+                      <p className="font-bold text-[#14261e] dark:text-white">{selectedTxDetail.accountName}</p>
+                      <p className="text-[11px] text-[#718579] dark:text-slate-400 font-medium">{getAccountTypeLabel(selectedTxDetail.accountId)}</p>
+                    </div>
+                  </div>
+
+                  {/* Tài khoản đích nếu là Chuyển ví */}
+                  {selectedTxDetail.transactionType === 'TRANSFER' && selectedTxDetail.toAccountName && (
+                    <div className="py-2.5 flex items-center justify-between bg-sky-50/50 dark:bg-sky-950/40 px-2 rounded-lg">
+                      <span className="text-sky-800 dark:text-sky-300 font-medium">Tài khoản đích nhận:</span>
+                      <div className="text-right">
+                        <p className="font-bold text-sky-900 dark:text-sky-200">{selectedTxDetail.toAccountName}</p>
+                        <p className="text-[11px] text-sky-700 dark:text-sky-400">{getAccountTypeLabel(selectedTxDetail.toAccountId)}</p>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Thời gian giao dịch */}
+                  <div className="py-2.5 flex items-center justify-between">
+                    <span className="text-[#718579] dark:text-slate-400 font-medium">Thời gian thực hiện:</span>
+                    <span className="font-bold text-[#14261e] dark:text-white">
+                      {formatTxDateTime(selectedTxDetail.transactionDate, selectedTxDetail.transactionTime).date}
+                      {selectedTxDetail.transactionTime ? ` • ${selectedTxDetail.transactionTime}` : ''}
+                    </span>
+                  </div>
+
+                  {/* Ghi chú nếu có */}
+                  {selectedTxDetail.note && (
+                    <div className="py-2.5 flex flex-col gap-1">
+                      <span className="text-[#718579] dark:text-slate-400 font-medium">Ghi chú bổ sung:</span>
+                      <p className="p-2.5 rounded-xl bg-[#fafafa] dark:bg-[#142b3d] border border-[#f0f0f0] dark:border-white/10 text-[#334155] dark:text-slate-200 whitespace-pre-wrap">
+                        {selectedTxDetail.note}
+                      </p>
+                    </div>
+                  )}
+                </div>
+
+                {/* Nút tác vụ dưới cùng */}
+                <div className="mt-6 flex items-center justify-between pt-3 border-t border-[#edf2ee] dark:border-white/10">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const tx = selectedTxDetail;
+                      setSelectedTxDetail(null);
+                      setTransactionToDelete(tx);
+                    }}
+                    className="inline-flex h-9 items-center gap-1.5 rounded-xl px-3.5 text-xs font-semibold text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition cursor-pointer"
+                  >
+                    <FinanceIcon name="delete" size={14} />
+                    <span>Xóa giao dịch</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setSelectedTxDetail(null)}
+                    className="h-9 rounded-xl bg-[#07543f] hover:bg-[#0b6c52] px-5 text-xs font-bold text-white transition shadow-xs cursor-pointer"
+                  >
+                    Đóng
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}
