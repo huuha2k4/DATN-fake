@@ -86,6 +86,23 @@ export const authApi = {
     return response.json();
   },
 
+  async loginWithGoogle(idToken: string): Promise<AuthResponse> {
+    const response = await fetch(`${API_BASE_URL}/auth/google`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ idToken }),
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.message || 'Đăng nhập Google thất bại');
+    }
+
+    return response.json();
+  },
+
   async logout(allDevices = false): Promise<void> {
     const token = localStorage.getItem('access_token');
     const response = await fetch(`${API_BASE_URL}/auth/logout`, {

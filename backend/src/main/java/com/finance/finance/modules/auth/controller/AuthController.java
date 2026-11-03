@@ -68,6 +68,26 @@ public class AuthController {
     }
 
     /**
+     * Login or Register with Google ID Token
+     * POST /api/v1/auth/google
+     */
+    @PostMapping("/google")
+    public ResponseEntity<Map<String, Object>> loginWithGoogle(
+            @Valid @RequestBody com.finance.finance.modules.auth.dto.request.GoogleAuthRequest request,
+            HttpServletRequest httpRequest) {
+        log.info("Google login request received");
+
+        AuthResponse authResponse = authService.authenticateWithGoogle(request, httpRequest);
+
+        Map<String, Object> response = new HashMap<>();
+        response.put("success", true);
+        response.put("data", buildAuthData(authResponse));
+        response.put("message", authResponse.getMessage());
+
+        return ResponseEntity.ok(response);
+    }
+
+    /**
      * Logout current user
      * POST /api/v1/auth/logout
      */

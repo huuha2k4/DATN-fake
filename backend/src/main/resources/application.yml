@@ -138,3 +138,8 @@ app:
 
   ai:
     ocr-service-url: ${OCR_SERVICE_URL:http://ocr-service:8000}
+
+  oauth2:
+    google:
+      client-id: ${GOOGLE_CLIENT_ID:}
+      client-secret: ${GOOGLE_CLIENT_SECRET:}

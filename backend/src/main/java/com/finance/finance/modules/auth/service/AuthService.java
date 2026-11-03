@@ -50,6 +50,10 @@ public class AuthService {
     private final UserMapper userMapper;
     private final ChildWalletRepository childWalletRepository;
     private final com.finance.finance.modules.notification.service.NotificationService notificationService;
+    private final com.finance.finance.modules.auth.repository.OAuthAccountRepository oauthAccountRepository;
+
+    @Value("${app.oauth2.google.client-id:}")
+    private String googleClientId;
 
     @Value("${app.security.max-login-attempts:5}")
     private int maxLoginAttempts;
@@ -489,6 +493,134 @@ public class AuthService {
 
         authTokenRepository.save(authToken);
         return token;
+    }
+
+    /**
+     * Authenticate with Google ID Token
+     */
+    @Transactional
+    public AuthResponse authenticateWithGoogle(com.finance.finance.modules.auth.dto.request.GoogleAuthRequest request, HttpServletRequest httpRequest) {
+        log.info("Processing Google authentication");
+
+        com.google.api.client.googleapis.auth.oauth2.GoogleIdTokenVerifier verifier =
+                new com.google.api.client.googleapis.auth.oauth2.GoogleIdTokenVerifier.Builder(
+                        new com.google.api.client.http.javanet.NetHttpTransport(),
+                        new com.google.api.client.json.gson.GsonFactory()
+                )
+                .setAudience(java.util.Collections.singletonList(googleClientId))
+                .build();
+
+        com.google.api.client.googleapis.auth.oauth2.GoogleIdToken idToken;
+        try {
+            idToken = verifier.verify(request.getIdToken());
+        } catch (Exception e) {
+            log.error("Failed to verify Google ID Token: {}", e.getMessage());
+            throw new com.finance.finance.common.exception.BusinessException("Token Google không hợp lệ hoặc đã hết hạn");
+        }
+
+        if (idToken == null) {
+            throw new com.finance.finance.common.exception.BusinessException("Xác thực Google thất bại");
+        }
+
+        com.google.api.client.googleapis.auth.oauth2.GoogleIdToken.Payload payload = idToken.getPayload();
+        String googleUserId = payload.getSubject();
+        String email = payload.getEmail();
+        boolean emailVerified = Boolean.TRUE.equals(payload.getEmailVerified());
+        String name = (String) payload.get("name");
+        String pictureUrl = (String) payload.get("picture");
+
+        if (email == null || email.isBlank()) {
+            throw new com.finance.finance.common.exception.BusinessException("Không thể lấy email từ tài khoản Google");
+        }
+
+        // Tìm user theo email hoặc theo OAuth account
+        User user = userRepository.findByEmail(email).orElse(null);
+
+        if (user == null) {
+            // Đăng ký mới qua Google
+            String usernameCandidate = email.split("@")[0].replaceAll("[^a-zA-Z0-9_]", "");
+            if (usernameCandidate.length() < 3) usernameCandidate = "user" + System.currentTimeMillis() % 10000;
+            String uniqueUsername = usernameCandidate;
+            int counter = 1;
+            while (userRepository.existsByUsername(uniqueUsername)) {
+                uniqueUsername = usernameCandidate + counter++;
+            }
+
+            user = User.builder()
+                    .email(email)
+                    .username(uniqueUsername)
+                    .fullName(name != null && !name.isBlank() ? name : uniqueUsername)
+                    .avatarUrl(pictureUrl)
+                    .emailVerified(emailVerified)
+                    .emailVerifiedAt(emailVerified ? Instant.now() : null)
+                    .userStatus(com.finance.finance.common.enums.UserStatus.ACTIVE)
+                    .systemRole(com.finance.finance.common.enums.SystemRole.USER)
+                    .subscriptionTier(com.finance.finance.common.enums.SubscriptionTier.FREE)
+                    .preferredCurrency("VND")
+                    .timezone("Asia/Ho_Chi_Minh")
+                    .language("vi-VN")
+                    .failedLoginAttempts(0)
+                    .lastLoginAt(Instant.now())
+                    .build();
+
+            user = userRepository.save(user);
+            log.info("New user created via Google login: {}", user.getId());
+
+            try {
+                notificationService.createNotification(
+                        user.getId(),
+                        com.finance.finance.common.enums.NotificationType.SYSTEM,
+                        com.finance.finance.common.enums.NotificationPriority.NORMAL,
+                        "Chào mừng bạn đến với Finora!",
+                        "Đăng nhập Google thành công. Hãy khám phá và quản lý tài chính thông minh cùng Finora ngay nhé!",
+                        "/dashboard",
+                        "Khám phá ngay"
+                );
+            } catch (Exception ex) {
+                log.warn("Failed to create welcome notification: {}", ex.getMessage());
+            }
+        } else {
+            // Cập nhật thông tin nếu có
+            if (user.getAvatarUrl() == null && pictureUrl != null) {
+                user.setAvatarUrl(pictureUrl);
+            }
+            if (!user.isEmailVerified() && emailVerified) {
+                user.setEmailVerified(true);
+                user.setEmailVerifiedAt(Instant.now());
+            }
+            user.setLastLoginAt(Instant.now());
+            user.setFailedLoginAttempts(0);
+            user = userRepository.save(user);
+        }
+
+        // Lưu / Cập nhật liên kết OAuth Account
+        final UUID currentUserId = user.getId();
+        oauthAccountRepository.findByProviderAndProviderUserId("GOOGLE", googleUserId)
+                .orElseGet(() -> oauthAccountRepository.save(
+                        com.finance.finance.modules.auth.entity.OAuthAccount.builder()
+                                .userId(currentUserId)
+                                .provider("GOOGLE")
+                                .providerUserId(googleUserId)
+                                .emailAtProvider(email)
+                                .build()
+                ));
+
+        String deviceId = httpRequest != null ? httpRequest.getHeader("X-Device-Id") : null;
+        String deviceName = httpRequest != null ? httpRequest.getHeader("X-Device-Name") : null;
+
+        String accessToken = jwtTokenProvider.generateAccessToken(user);
+        RefreshToken refreshToken = tokenService.createRefreshToken(user, deviceId, deviceName);
+
+        UserResponse userResponse = withChildWalletContext(userMapper.toResponse(user), user.getId());
+
+        return AuthResponse.builder()
+                .user(userResponse)
+                .accessToken(accessToken)
+                .refreshToken(refreshToken.getToken())
+                .tokenType("Bearer")
+                .expiresIn(jwtTokenProvider.getAccessTokenExpiration() / 1000)
+                .message("Đăng nhập bằng Google thành công")
+                .build();
     }
 
     /**

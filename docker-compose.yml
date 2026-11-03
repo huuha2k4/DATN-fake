@@ -75,6 +75,8 @@ services:
       SUPER_ADMIN_PASSWORD: ${SUPER_ADMIN_PASSWORD}
       TZ: Asia/Ho_Chi_Minh
       OCR_SERVICE_URL: http://ocr-service:8000
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET}
     # Port chỉ dùng internal, không expose ra ngoài
     expose:
       - "8080"
@@ -102,6 +104,7 @@ services:
     container_name: frontend-web
     environment:
       - VITE_API_URL=${VITE_API_URL}
+      - VITE_GOOGLE_CLIENT_ID=${VITE_GOOGLE_CLIENT_ID}
     # Port chỉ dùng internal, không expose ra ngoài
     expose:
       - "5173"

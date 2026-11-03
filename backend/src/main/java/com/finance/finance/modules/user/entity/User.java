@@ -45,7 +45,7 @@ public class User implements UserDetails {
     @Column(name = "email_verified_at")
     private Instant emailVerifiedAt;
     
-    @Column(name = "password_hash", nullable = false)
+    @Column(name = "password_hash")
     private String passwordHash;
     
     @Column(name = "password_changed_at")

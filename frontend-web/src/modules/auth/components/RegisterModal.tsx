@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { authApi, saveAuthData, type RegisterRequest } from '../api/authApi';
 import { FinanceIcon } from '../../core/components/FinanceIcon';
+import { GoogleSignInButton } from './GoogleSignInButton';
 import './AuthModal.css';
 
 interface RegisterModalProps {
@@ -225,6 +226,20 @@ export function RegisterModal({ onClose, onSuccess, onSwitchToLogin }: RegisterM
             )}
           </button>
         </form>
+
+        {/* Hoặc đăng ký nhanh bằng Google */}
+        <div className="mt-3 mb-1">
+          <div className="relative flex py-1.5 items-center">
+            <div className="flex-grow border-t border-gray-200 dark:border-slate-700"></div>
+            <span className="flex-shrink mx-3 text-gray-400 text-xs font-semibold uppercase">Hoặc</span>
+            <div className="flex-grow border-t border-gray-200 dark:border-slate-700"></div>
+          </div>
+          <GoogleSignInButton
+            onSuccess={onSuccess}
+            onError={(msg) => setError(msg)}
+            text="signup_with"
+          />
+        </div>
 
         <div className="modal-footer-box compact-footer">
           <p className="modal-footer-text">
