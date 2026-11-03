@@ -66,6 +66,34 @@ export function InvoiceOcrScreen({ onCancel, onNotify }: Props) {
   const [amount, setAmount] = useState('');
   const [note, setNote] = useState('');
 
+  // Custom Dropdown Open States
+  const [isCategoryDropdownOpen, setIsCategoryDropdownOpen] = useState(false);
+  const [isAccountDropdownOpen, setIsAccountDropdownOpen] = useState(false);
+  const categoryDropdownRef = useRef<HTMLDivElement>(null);
+  const accountDropdownRef = useRef<HTMLDivElement>(null);
+
+  // Close dropdowns on outside click
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (categoryDropdownRef.current && !categoryDropdownRef.current.contains(e.target as Node)) {
+        setIsCategoryDropdownOpen(false);
+      }
+      if (accountDropdownRef.current && !accountDropdownRef.current.contains(e.target as Node)) {
+        setIsAccountDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const selectedCategoryObj = useMemo(() => {
+    return categories.find((c) => c.id === selectedCategoryId) || categories[0];
+  }, [categories, selectedCategoryId]);
+
+  const selectedAccountObj = useMemo(() => {
+    return accounts.find((a) => a.id === selectedAccountId) || accounts[0];
+  }, [accounts, selectedAccountId]);
+
   // History filter
   const [historySearch, setHistorySearch] = useState('');
   const [historyTab, setHistoryTab] = useState<'ALL' | 'PAID' | 'DRAFT'>('ALL');
@@ -574,56 +602,170 @@ export function InvoiceOcrScreen({ onCancel, onNotify }: Props) {
                     </div>
                   </label>
 
-                  {/* Danh mục */}
-                  <label className="ocr-field-label">
-                    <div className="ocr-label-header">
-                      <span>Danh mục chi tiêu</span>
+                  {/* Custom Danh mục Dropdown */}
+                  <div ref={categoryDropdownRef} className="relative flex flex-col gap-1.5">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[11.5px] font-bold text-gray-700 dark:text-slate-300">
+                        Danh mục chi tiêu
+                      </span>
                       {scanResult?.aiCategoryName && (
-                        <span className="text-[10px] font-bold text-[#07543f] dark:text-emerald-400 flex items-center gap-0.5">
+                        <span className="text-[10px] font-bold text-[#07543f] dark:text-emerald-400 flex items-center gap-1">
                           <FinanceIcon name="spark" size={10} />
                           AI gợi ý
                         </span>
                       )}
                     </div>
-                    <select
-                      value={selectedCategoryId}
-                      onChange={(e) => setSelectedCategoryId(e.target.value)}
-                      className="ocr-field-control"
-                    >
-                      {categories.map((c) => (
-                        <option key={c.id} value={c.id}>
-                          {c.name}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
 
-                  {/* Tài khoản thanh toán */}
-                  <label className="ocr-field-label">
-                    <div className="ocr-label-header">
-                      <span>Tài khoản thanh toán</span>
-                    </div>
-                    <select
-                      value={selectedAccountId}
-                      onChange={(e) => setSelectedAccountId(e.target.value)}
-                      className="ocr-field-control"
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsCategoryDropdownOpen((prev) => !prev);
+                        setIsAccountDropdownOpen(false);
+                      }}
+                      className={`h-[42px] w-full rounded-[13px] border px-3 text-left transition flex items-center justify-between cursor-pointer ${
+                        isCategoryDropdownOpen
+                          ? 'border-[#07543f] dark:border-emerald-500 bg-white dark:bg-[#142b3d] ring-2 ring-[#07543f]/20'
+                          : 'border-[#e1ece4] dark:border-white/10 bg-[#f8faf9] dark:bg-[#0f2231] hover:bg-white dark:hover:bg-[#142b3d] hover:border-[#c4dacf]'
+                      }`}
                     >
-                      {accounts.map((a) => (
-                        <option key={a.id} value={a.id}>
-                          {a.name} ({Number(a.balance || 0).toLocaleString('vi-VN')} {a.currencyCode || 'VND'})
-                        </option>
-                      ))}
-                    </select>
-                  </label>
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <div className="size-6 rounded-lg bg-emerald-100/80 dark:bg-emerald-950 text-[#07543f] dark:text-emerald-300 grid place-items-center shrink-0">
+                          <FinanceIcon name="shopping-bag" size={13} />
+                        </div>
+                        <span className="truncate text-xs font-bold text-gray-800 dark:text-white">
+                          {selectedCategoryObj?.name || 'Chọn danh mục'}
+                        </span>
+                      </div>
+                      <FinanceIcon
+                        name="arrow"
+                        size={12}
+                        className={`rotate-90 text-gray-400 transition-transform duration-200 shrink-0 ${
+                          isCategoryDropdownOpen ? '-rotate-90 text-[#07543f] dark:text-emerald-400' : ''
+                        }`}
+                      />
+                    </button>
 
-                  {/* Ngày hóa đơn (dd/mm/yyyy) */}
-                  <label className="ocr-field-label">
-                    <div className="ocr-label-header">
-                      <span>Ngày hóa đơn</span>
-                      <span className="text-[10px] text-gray-400 dark:text-slate-400 font-semibold">
-                        dd/mm/yyyy
+                    {/* Popup Menu */}
+                    {isCategoryDropdownOpen && (
+                      <div className="absolute top-full left-0 right-0 mt-1 z-50 max-h-56 overflow-y-auto rounded-xl border border-[#d8e3dc] dark:border-slate-700 bg-white dark:bg-[#0e2333] p-1.5 shadow-xl animate-fadeIn">
+                        <div className="flex flex-col gap-1">
+                          {categories.map((c) => {
+                            const isSelected = c.id === selectedCategoryId;
+                            const isAiRecommended = scanResult?.aiCategoryName?.toLowerCase() === c.name.toLowerCase();
+                            return (
+                              <button
+                                key={c.id}
+                                type="button"
+                                onClick={() => {
+                                  setSelectedCategoryId(c.id);
+                                  setIsCategoryDropdownOpen(false);
+                                }}
+                                className={`flex items-center justify-between rounded-lg px-2.5 py-2 text-left transition text-xs font-semibold cursor-pointer ${
+                                  isSelected
+                                    ? 'bg-emerald-50 dark:bg-emerald-950/60 text-[#07543f] dark:text-emerald-300 font-bold border border-emerald-200/80 dark:border-emerald-800/60'
+                                    : 'text-gray-700 dark:text-slate-200 hover:bg-[#f3f7f4] dark:hover:bg-slate-800/80 border border-transparent'
+                                }`}
+                              >
+                                <div className="flex items-center gap-2 min-w-0">
+                                  <span className={`size-2 rounded-full ${isSelected ? 'bg-emerald-500' : 'bg-gray-300 dark:bg-slate-600'}`} />
+                                  <span className="truncate">{c.name}</span>
+                                </div>
+                                {isAiRecommended && (
+                                  <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold flex items-center gap-0.5 shrink-0">
+                                    <FinanceIcon name="spark" size={9} />
+                                    AI
+                                  </span>
+                                )}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Custom Tài khoản thanh toán Dropdown */}
+                  <div ref={accountDropdownRef} className="relative flex flex-col gap-1.5">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[11.5px] font-bold text-gray-700 dark:text-slate-300">
+                        Tài khoản thanh toán
                       </span>
+                      {selectedAccountObj && (
+                        <span className="text-[10px] font-bold text-emerald-700 dark:text-emerald-400">
+                          {Number(selectedAccountObj.balance || 0).toLocaleString('vi-VN')} {selectedAccountObj.currencyCode || 'VND'}
+                        </span>
+                      )}
                     </div>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsAccountDropdownOpen((prev) => !prev);
+                        setIsCategoryDropdownOpen(false);
+                      }}
+                      className={`h-[42px] w-full rounded-[13px] border px-3 text-left transition flex items-center justify-between cursor-pointer ${
+                        isAccountDropdownOpen
+                          ? 'border-[#07543f] dark:border-emerald-500 bg-white dark:bg-[#142b3d] ring-2 ring-[#07543f]/20'
+                          : 'border-[#e1ece4] dark:border-white/10 bg-[#f8faf9] dark:bg-[#0f2231] hover:bg-white dark:hover:bg-[#142b3d] hover:border-[#c4dacf]'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <div className="size-6 rounded-lg bg-emerald-100/80 dark:bg-emerald-950 text-[#07543f] dark:text-emerald-300 grid place-items-center shrink-0">
+                          <FinanceIcon name="wallet" size={13} />
+                        </div>
+                        <div className="min-w-0 truncate">
+                          <span className="text-xs font-bold text-gray-800 dark:text-white">
+                            {selectedAccountObj?.name || 'Chọn tài khoản'}
+                          </span>
+                        </div>
+                      </div>
+                      <FinanceIcon
+                        name="arrow"
+                        size={12}
+                        className={`rotate-90 text-gray-400 transition-transform duration-200 shrink-0 ${
+                          isAccountDropdownOpen ? '-rotate-90 text-[#07543f] dark:text-emerald-400' : ''
+                        }`}
+                      />
+                    </button>
+
+                    {/* Popup Menu */}
+                    {isAccountDropdownOpen && (
+                      <div className="absolute top-full left-0 right-0 mt-1 z-50 max-h-56 overflow-y-auto rounded-xl border border-[#d8e3dc] dark:border-slate-700 bg-white dark:bg-[#0e2333] p-1.5 shadow-xl animate-fadeIn">
+                        <div className="flex flex-col gap-1">
+                          {accounts.map((a) => {
+                            const isSelected = a.id === selectedAccountId;
+                            return (
+                              <button
+                                key={a.id}
+                                type="button"
+                                onClick={() => {
+                                  setSelectedAccountId(a.id);
+                                  setIsAccountDropdownOpen(false);
+                                }}
+                                className={`flex items-center justify-between rounded-lg px-2.5 py-2 text-left transition text-xs cursor-pointer ${
+                                  isSelected
+                                    ? 'bg-emerald-50 dark:bg-emerald-950/60 text-[#07543f] dark:text-emerald-300 font-bold border border-emerald-200/80 dark:border-emerald-800/60'
+                                    : 'text-gray-700 dark:text-slate-200 hover:bg-[#f3f7f4] dark:hover:bg-slate-800/80 border border-transparent'
+                                }`}
+                              >
+                                <div className="flex items-center gap-2 min-w-0">
+                                  <FinanceIcon name="bank" size={13} className="text-gray-400 shrink-0" />
+                                  <span className="truncate font-semibold">{a.name}</span>
+                                </div>
+                                <span className="text-[11px] font-bold text-[#07543f] dark:text-emerald-400 shrink-0">
+                                  {Number(a.balance || 0).toLocaleString('vi-VN')} {a.currencyCode || 'VND'}
+                                </span>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Ngày hóa đơn */}
+                  <label className="ocr-field-label">
+                    <span>Ngày hóa đơn</span>
                     <div className="ocr-input-icon-group">
                       <input
                         type="text"
