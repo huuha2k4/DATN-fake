@@ -38,6 +38,9 @@ export interface TransactionItem {
   createdAt?: string;
   updatedAt?: string;
   version?: number;
+  receiptId?: string;
+  receiptUrl?: string;
+  hasAttachments?: boolean;
 }
 
 export interface TransactionSummaryData {
@@ -84,6 +87,9 @@ export interface CreateTransactionPayload {
   transactionTime?: string;
   categoryId?: string;
   merchantId?: string;
+  note?: string;
+  receiptId?: string;
+  receiptUrl?: string;
 }
 
 export interface CategoryItem {

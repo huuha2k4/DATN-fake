@@ -58,7 +58,9 @@ public class TransactionMapper {
                 .aiSuggestion(null) // TODO: Build AI suggestion
                 .balanceBefore(balanceBefore)
                 .balanceAfter(balanceAfter)
-                .hasAttachments(false) // TODO: Check attachments
+                .receiptId(transaction.getReceiptId())
+                .receiptUrl(transaction.getReceiptUrl())
+                .hasAttachments(transaction.getReceiptUrl() != null || transaction.getReceiptId() != null) // TODO: Check attachments
                 .isRecurring(false) // TODO: Check recurring template
                 .recurringTemplateId(null)
                 .isExcludedFromReport(transaction.isExcludedFromReport())

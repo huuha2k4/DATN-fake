@@ -98,14 +98,21 @@ export function InvoiceOcrScreen({ onCancel, onNotify }: Props) {
   const [historySearch, setHistorySearch] = useState('');
   const [historyTab, setHistoryTab] = useState<'ALL' | 'PAID' | 'DRAFT'>('ALL');
 
-  // Revoke object URL on unmount
+  // Clean state when leaving OCR screen
   useEffect(() => {
     return () => {
-      if (previewUrl && previewUrl.startsWith('blob:')) {
-        URL.revokeObjectURL(previewUrl);
-      }
+      setScanResult(null);
+      setPreviewUrl((prev) => {
+        if (prev && prev.startsWith('blob:')) {
+          URL.revokeObjectURL(prev);
+        }
+        return null;
+      });
+      setMerchant('');
+      setAmount('');
+      setNote('');
     };
-  }, [previewUrl]);
+  }, []);
 
   // Load accounts, categories & receipts history
   const loadInitialData = async () => {
@@ -271,6 +278,7 @@ export function InvoiceOcrScreen({ onCancel, onNotify }: Props) {
       });
 
       onNotify(`Đã lưu giao dịch thành công: ${Number(numericAmount).toLocaleString('vi-VN')} ₫`);
+      resetCurrentScan();
       await reloadReceipts();
       setActiveRightTab('HISTORY');
     } catch (err: any) {
@@ -760,7 +768,7 @@ export function InvoiceOcrScreen({ onCancel, onNotify }: Props) {
                           const iso = parseDdMmYyyyToIso(val);
                           setDate(iso);
                         }}
-                        placeholder="dd/mm/yyyy"
+                        placeholder=""
                         className="ocr-field-control font-mono"
                       />
                       <button

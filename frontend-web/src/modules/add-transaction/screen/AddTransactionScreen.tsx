@@ -301,14 +301,23 @@ export function AddTransactionScreen({ onCancel, onNotify, onOpenInvoiceScanner 
           finalTime = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')}`;
         }
 
-        await transactionApi.createTransaction({
+        const createdTx = await transactionApi.createTransaction({
           transactionType: type, accountId: selectedAccountId,
           toAccountId: type === 'TRANSFER' ? toAccountId : undefined, amount: numericAmount,
           currencyCode: selectedAccountObj?.currencyCode || 'VND',
           description: description.trim() || (type === 'INCOME' ? 'Khoản thu' : type === 'TRANSFER' ? 'Chuyển tiền nội bộ' : 'Khoản chi'),
           transactionDate: finalDate, transactionTime: finalTime,
           categoryId: type !== 'TRANSFER' ? selectedCategoryId : undefined,
-        })
+        });
+
+        const attachedFile = fileRef.current?.files?.[0];
+        if (attachedFile && createdTx?.id) {
+          try {
+            await transactionApi.uploadAttachment(createdTx.id, attachedFile);
+          } catch (uploadErr) {
+            console.error('Failed to upload attachment:', uploadErr);
+          }
+        }
       }
 
       const typeLabel = isChildAccount

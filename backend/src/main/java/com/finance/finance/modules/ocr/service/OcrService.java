@@ -201,6 +201,13 @@ public class OcrService {
             }
         }
 
+        if (categoryId == null) {
+            categoryId = categoryRepository.findByUserIdOrSystemAndKind(userId, com.finance.finance.common.enums.CategoryKind.EXPENSE).stream()
+                    .findFirst()
+                    .map(com.finance.finance.modules.category.entity.Category::getId)
+                    .orElse(null);
+        }
+
         // Use user-supplied override if provided, otherwise fall back to OCR value
         BigDecimal amount;
         if (req.getOverrideAmount() != null && req.getOverrideAmount().compareTo(BigDecimal.ZERO) > 0) {
@@ -229,6 +236,8 @@ public class OcrService {
                 .categoryId(categoryId)
                 .description(req.getDescription())
                 .note(req.getNote())
+                .receiptId(receipt.getId())
+                .receiptUrl(receipt.getImageUrl())
                 .build();
 
         TransactionResponse txResponse = transactionService.createTransaction(userId, txReq);

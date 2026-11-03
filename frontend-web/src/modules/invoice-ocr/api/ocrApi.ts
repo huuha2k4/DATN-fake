@@ -51,6 +51,7 @@ export const ocrApi = {
 
   createTransaction: async (payload: CreateTransactionFromOcrPayload): Promise<any> => {
     const res = await api.post(`/ocr/receipts/${payload.receiptId}/create-transaction`, {
+      receiptId: payload.receiptId,
       accountId: payload.accountId,
       categoryId: payload.categoryId,
       description: payload.description,

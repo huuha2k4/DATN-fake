@@ -83,6 +83,7 @@ export function CashFlowManagementScreen({ onNotify, onAddTransaction }: Props) 
 
   // Detail transaction modal state
   const [selectedTxDetail, setSelectedTxDetail] = useState<TransactionItem | null>(null);
+  const [viewingReceiptImage, setViewingReceiptImage] = useState<string | null>(null);
 
   // Load Categories & Accounts
   const loadMetadata = async () => {
@@ -1268,9 +1269,17 @@ export function CashFlowManagementScreen({ onNotify, onAddTransaction }: Props) 
                             )}
                           </span>
                           <div className="min-w-0 flex-1">
-                            <p className="truncate font-bold text-[#0f172a] dark:text-slate-100 text-[13px] group-hover:text-[#07543f] dark:group-hover:text-emerald-400 transition-colors" title={tx.description || 'Giao dịch'}>
-                              {tx.description || (isIncome ? 'Khoản thu' : isTransfer ? 'Chuyển tiền' : 'Khoản chi')}
-                            </p>
+                            <div className="flex items-center gap-1.5 min-w-0">
+                              <p className="truncate font-bold text-[#0f172a] dark:text-slate-100 text-[13px] group-hover:text-[#07543f] dark:group-hover:text-emerald-400 transition-colors" title={tx.description || 'Giao dịch'}>
+                                {tx.description || (isIncome ? 'Khoản thu' : isTransfer ? 'Chuyển tiền' : 'Khoản chi')}
+                              </p>
+                              {tx.receiptUrl && (
+                                <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md bg-emerald-100/80 dark:bg-emerald-950 text-[10px] font-bold text-[#07543f] dark:text-emerald-400 border border-emerald-200/80 dark:border-emerald-800/60 shrink-0" title="Có hóa đơn đính kèm">
+                                  <FinanceIcon name="receipt" size={10} />
+                                  <span>Hóa đơn</span>
+                                </span>
+                              )}
+                            </div>
                             <p className="text-[11px] text-[#64748b] dark:text-slate-400 truncate mt-0.5">
                               {tx.category?.name 
                                 ? (tx.merchant?.name ? `${tx.category.name} • ${tx.merchant.name}` : tx.category.name)
@@ -1794,6 +1803,41 @@ export function CashFlowManagementScreen({ onNotify, onAddTransaction }: Props) 
                   </p>
                 </div>
               )}
+
+              {/* Ảnh hóa đơn / Chứng từ đính kèm */}
+              {selectedTxDetail.receiptUrl && (
+                <div className="py-3 flex flex-col gap-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[#718579] font-medium flex items-center gap-1.5 text-xs">
+                      <FinanceIcon name="receipt" size={14} className="text-[#07543f]" />
+                      <span className="font-bold text-[#14261e]">Hóa đơn / Chứng từ đính kèm:</span>
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setViewingReceiptImage(selectedTxDetail.receiptUrl!)}
+                      className="text-[11px] font-bold text-[#07543f] hover:underline flex items-center gap-1 cursor-pointer"
+                    >
+                      <FinanceIcon name="eye" size={12} />
+                      <span>Phóng to</span>
+                    </button>
+                  </div>
+                  <div 
+                    className="relative rounded-2xl overflow-hidden border border-[#d8e3dc] bg-slate-950 max-h-52 cursor-pointer group flex items-center justify-center shadow-inner"
+                    onClick={() => setViewingReceiptImage(selectedTxDetail.receiptUrl!)}
+                    title="Bấm để xem ảnh phóng to"
+                  >
+                    <img 
+                      src={selectedTxDetail.receiptUrl} 
+                      alt="Hóa đơn giao dịch" 
+                      className="w-full max-h-52 object-contain select-none transition-transform duration-200 group-hover:scale-102"
+                    />
+                    <div className="absolute inset-0 bg-black/35 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white text-xs font-bold gap-1.5 backdrop-blur-xs">
+                      <FinanceIcon name="eye" size={15} />
+                      <span>Xem ảnh kích thước lớn</span>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Nút tác vụ dưới cùng */}
@@ -1820,6 +1864,33 @@ export function CashFlowManagementScreen({ onNotify, onAddTransaction }: Props) 
               </button>
             </div>
           </div>
+        </div>
+      )}
+      {/* Fullscreen Lightbox Modal for Receipt Image */}
+      {viewingReceiptImage && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 p-4 backdrop-blur-md cursor-zoom-out animate-fadeIn"
+          onClick={() => setViewingReceiptImage(null)}
+        >
+          <div
+            className="fixed top-4 right-4 z-50 flex items-center gap-2"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              type="button"
+              onClick={() => setViewingReceiptImage(null)}
+              className="size-9 rounded-full bg-white/20 hover:bg-white/35 text-white grid place-items-center transition backdrop-blur-sm cursor-pointer shadow-lg"
+              title="Đóng"
+            >
+              <FinanceIcon name="close" size={16} />
+            </button>
+          </div>
+          <img
+            src={viewingReceiptImage}
+            alt="Hóa đơn phóng to"
+            className="max-h-[90vh] max-w-[95vw] rounded-xl object-contain shadow-2xl cursor-default"
+            onClick={(e) => e.stopPropagation()}
+          />
         </div>
       )}
     </main>

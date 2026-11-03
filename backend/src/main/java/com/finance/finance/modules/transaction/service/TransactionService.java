@@ -679,6 +679,8 @@ public class TransactionService {
                 .toAccountId(request.getToAccountId())
                 .categoryId(request.getCategoryId())
                 .merchantId(request.getMerchantId())
+                .receiptId(request.getReceiptId())
+                .receiptUrl(request.getReceiptUrl())
                 .type(request.getTransactionType())
                 .amount(request.getAmount())
                 .currencyCode(request.getCurrencyCode())
@@ -878,5 +880,56 @@ public class TransactionService {
                 }
             }
         }
+    }
+
+    /**
+     * Upload an attachment/receipt image for a transaction.
+     */
+    @Transactional
+    public TransactionResponse uploadAttachment(UUID userId, UUID transactionId, org.springframework.web.multipart.MultipartFile file) throws java.io.IOException {
+        Transaction transaction = transactionRepository.findByIdAndUserId(transactionId, userId)
+                .orElseThrow(() -> new TransactionNotFoundException("Transaction not found: " + transactionId));
+
+        if (file == null || file.isEmpty()) {
+            throw new IllegalArgumentException("Tập tin tải lên không được rỗng");
+        }
+        if (file.getSize() > 15L * 1024 * 1024) {
+            throw new IllegalArgumentException("Dung lượng tập tin không được vượt quá 15MB");
+        }
+
+        String originalFilename = file.getOriginalFilename();
+        String ext = "jpg";
+        if (originalFilename != null && originalFilename.contains(".")) {
+            ext = originalFilename.substring(originalFilename.lastIndexOf('.') + 1).toLowerCase();
+        }
+
+        java.nio.file.Path uploadDir = java.nio.file.Paths.get("uploads", "receipts");
+        java.nio.file.Files.createDirectories(uploadDir);
+
+        String savedFilename = UUID.randomUUID() + "." + ext;
+        java.nio.file.Path destPath = uploadDir.resolve(savedFilename);
+        file.transferTo(destPath.toFile());
+
+        String receiptUrl = "/uploads/receipts/" + savedFilename;
+        transaction.setReceiptUrl(receiptUrl);
+        transactionRepository.save(transaction);
+        log.info("Attached receipt image {} to transaction {}", receiptUrl, transactionId);
+
+        Account account = transaction.getAccountId() != null ?
+                accountRepository.findById(transaction.getAccountId()).orElse(null) : null;
+        Account toAccount = transaction.getToAccountId() != null ?
+                accountRepository.findById(transaction.getToAccountId()).orElse(null) : null;
+        Category category = transaction.getCategoryId() != null ?
+                categoryRepository.findById(transaction.getCategoryId()).orElse(null) : null;
+
+        return transactionMapper.toResponse(
+                transaction,
+                account != null ? account.getName() : null,
+                account != null ? account.getIcon() : null,
+                toAccount != null ? toAccount.getName() : null,
+                mapToCategoryDto(category),
+                null,
+                null
+        );
     }
 }

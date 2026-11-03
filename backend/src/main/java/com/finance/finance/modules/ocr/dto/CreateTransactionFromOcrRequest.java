@@ -15,7 +15,6 @@ import java.util.UUID;
 @AllArgsConstructor
 public class CreateTransactionFromOcrRequest {
 
-    @NotNull(message = "Receipt ID is required")
     private UUID receiptId;
 
     @NotNull(message = "Account ID is required")
