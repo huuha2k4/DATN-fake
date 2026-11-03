@@ -379,12 +379,6 @@ export function InvoiceOcrScreen({ onCancel, onNotify }: Props) {
               </button>
             </div>
           </div>
-              >
-                <FinanceIcon name="plus" size={13} />
-                <span>{previewUrl ? 'Đổi ảnh' : 'Chọn ảnh'}</span>
-              </button>
-            </div>
-          </div>
 
           {/* Main Image Body */}
           <div className="flex-1 p-3 sm:p-4 flex flex-col min-h-0 overflow-hidden bg-[#f8faf9] dark:bg-[#07131e]/60">
