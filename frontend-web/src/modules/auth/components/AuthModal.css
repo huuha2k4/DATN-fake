@@ -427,27 +427,69 @@ html.dark .btn-text-emerald:hover {
   color: #7dd3fc !important;
 }
 
-/* Google Sign In Container Helper */
-.google-signin-wrapper {
-  width: 100%;
-  display: flex;
-  justify-content: center;
-}
-
-.google-signin-wrapper > div {
+/* Google Sign In Custom Button - Đồng bộ 100% kích thước & bo góc với nút hoàn tất */
+.btn-google-custom {
   width: 100% !important;
-  display: flex;
-  justify-content: center;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 10px !important;
+  padding: 10px 16px !important;
+  border-radius: 11px !important;
+  font-size: 14px !important;
+  font-weight: 600 !important;
+  cursor: pointer !important;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
+  background: #ffffff !important;
+  border: 1.5px solid #d8e2dc !important;
+  color: #24352f !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05) !important;
 }
 
-.google-signin-wrapper iframe {
-  border-radius: 9999px !important;
-  width: 100% !important;
-  max-width: 440px !important;
+.btn-google-custom:hover:not(:disabled) {
+  background: #f4f8f5 !important;
+  border-color: #07543f !important;
+  transform: translateY(-1px);
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.08) !important;
 }
 
-/* Dark mode for Google button wrapper */
-html.dark .google-signin-wrapper iframe {
-  color-scheme: dark;
+.btn-google-custom:active:not(:disabled) {
+  transform: translateY(0);
 }
+
+.btn-google-custom:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.btn-google-custom .google-icon {
+  flex-shrink: 0;
+}
+
+.btn-google-custom .google-text {
+  font-family: inherit;
+  letter-spacing: -0.01em;
+}
+
+/* Dark mode tinh tế cho nút Google (xám đậm xanh thanh lịch, không dùng nền đen kịt) */
+html.dark .btn-google-custom {
+  background: #112838 !important;
+  border-color: #1e425b !important;
+  color: #e2eaf0 !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3) !important;
+}
+
+html.dark .btn-google-custom:hover:not(:disabled) {
+  background: #17374d !important;
+  border-color: #38bdf8 !important;
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.4) !important;
+}
+
+/* Đảm bảo khung ghi chú mật khẩu trong Dark mode màu êm dịu, không chói */
+html.dark .password-policy-hint {
+  background: #0d2130 !important;
+  border-color: #1a384f !important;
+  color: #93b2c6 !important;
+}
+
 
