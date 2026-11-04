@@ -48,6 +48,7 @@ public class AuthService {
     private final JwtTokenProvider jwtTokenProvider;
     private final EmailService emailService;
     private final UserMapper userMapper;
+    private final com.finance.finance.modules.admin.service.SystemConfigService systemConfigService;
     private final ChildWalletRepository childWalletRepository;
     private final com.finance.finance.modules.notification.service.NotificationService notificationService;
     private final com.finance.finance.modules.auth.repository.OAuthAccountRepository oauthAccountRepository;
@@ -103,6 +104,12 @@ public class AuthService {
      */
     @Transactional
     public AuthResponse register(RegisterRequest request) {
+        // Kiểm tra cấu hình hệ thống: Cho phép đăng ký mới
+        boolean allowReg = systemConfigService.getBoolean("ALLOW_REGISTRATION", true);
+        if (!allowReg) {
+            throw new BusinessException("Hệ thống hiện đang tạm đóng tính năng đăng ký thành viên mới theo chính sách quản trị.");
+        }
+
         String cleanEmail = request.getEmail().trim().toLowerCase();
         log.info("Registering new user: {}", cleanEmail);
 
@@ -203,9 +210,16 @@ public class AuthService {
     public AuthResponse login(LoginRequest request, HttpServletRequest httpRequest) {
         log.info("User login attempt: {}", request.getLogin());
 
+        // Kiểm tra chế độ bảo trì hệ thống (MAINTENANCE_MODE)
+        boolean maintenanceMode = systemConfigService.getBoolean("MAINTENANCE_MODE", false);
+
         // Find user by email or username
         User user = userRepository.findActiveUserByEmailOrUsername(request.getLogin())
                 .orElseThrow(() -> new InvalidCredentialsException("Email/Username hoặc mật khẩu không đúng"));
+
+        if (maintenanceMode && user.getSystemRole() != com.finance.finance.common.enums.SystemRole.ADMIN) {
+            throw new BusinessException("Hệ thống Finora hiện đang trong thời gian bảo trì nâng cấp. Vui lòng quay lại sau ít phút!");
+        }
 
         // Check if account is locked
         if (user.getLockedUntil() != null && user.getLockedUntil().isAfter(Instant.now())) {

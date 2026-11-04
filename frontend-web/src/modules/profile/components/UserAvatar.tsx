@@ -8,6 +8,8 @@ interface UserAvatarProps {
   onOpenProfile: () => void;
   onOpenChangePassword: () => void;
   onLogout: () => void;
+  isAdmin?: boolean;
+  onNotify?: (msg: string) => void;
 }
 
 // Map subscription tiers to full clean names
@@ -34,11 +36,13 @@ function formatCurrentDate(date: Date): string {
   return `${dayName}, Ngày ${day} Tháng ${month} Năm ${year}`;
 }
 
-export function UserAvatar({ onOpenProfile, onOpenChangePassword, onLogout }: UserAvatarProps) {
+export function UserAvatar({ onOpenProfile, onOpenChangePassword, onLogout, isAdmin = false, onNotify: _onNotify }: UserAvatarProps) {
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [currentTime, setCurrentTime] = useState(new Date());
   const [user, setUser] = useState<any>(() => getStoredUser());
   const containerRef = useRef<HTMLDivElement>(null);
+
+  const isActuallyAdmin = isAdmin || user?.systemRole === 'ADMIN';
 
   // Sync real-time clock and listen to user profile/storage changes
   useEffect(() => {
@@ -105,16 +109,27 @@ export function UserAvatar({ onOpenProfile, onOpenChangePassword, onLogout }: Us
 
   return (
     <div className="topbar-user-area" ref={containerRef}>
-      {/* 1. Real-time dynamic greeting + user tier badge */}
+      {/* 1. Real-time dynamic greeting + user tier badge (Chỉ hiển thị cho User thường, Admin hiển thị gọn gàng tên) */}
       <div className="topbar-greeting-box">
         <div className="topbar-greeting-primary">
-          <strong className="greeting-headline" title={`${greetingText}, ${activeUser.fullName || 'Người dùng'}`}>
-            {greetingText}, {activeUser.fullName || 'Người dùng'}
+          <strong className="greeting-headline" title={isActuallyAdmin ? (activeUser.fullName || 'Quản trị viên') : `${greetingText}, ${activeUser.fullName || 'Người dùng'}`}>
+            {isActuallyAdmin ? (activeUser.fullName || 'Quản trị viên') : `${greetingText}, ${activeUser.fullName || 'Người dùng'}`}
           </strong>
-          <span className="user-tier-badge" title={`Gói dịch vụ: ${tierInfo.label}`}>
-            <span className="user-tier-icon">{tierInfo.icon}</span>
-            <span className="user-tier-text">{tierInfo.label}</span>
-          </span>
+          {!isActuallyAdmin && (
+            <button
+              type="button"
+              className="user-tier-badge user-tier-clickable"
+              onClick={() => {
+                window.location.href = '/pricing';
+              }}
+              title="Xem & Nâng cấp các gói hội viên Finora"
+              aria-label="Xem các gói hội viên Finora"
+            >
+              <span className="user-tier-icon">{tierInfo.icon}</span>
+              <span className="user-tier-text">{tierInfo.label}</span>
+              <span className="user-tier-arrow">↗</span>
+            </button>
+          )}
         </div>
         <p className="greeting-sub-meta">
           <span>{dateFormatted}</span>
@@ -179,6 +194,37 @@ export function UserAvatar({ onOpenProfile, onOpenChangePassword, onLogout }: Us
               <span className="menu-item-icon"><FinanceIcon name="lock" size={17} /></span>
               <span>Đổi mật khẩu</span>
             </button>
+
+            {/* Chức năng 3: Phản hồi & Hỗ trợ (chỉ hiện cho User) */}
+            {!isActuallyAdmin && (
+              <>
+                <button
+                  type="button"
+                  className="menu-item-row"
+                  role="menuitem"
+                  onClick={() => {
+                    setDropdownOpen(false);
+                    window.location.href = '/pricing';
+                  }}
+                >
+                  <span className="menu-item-icon"><FinanceIcon name="spark" size={17} /></span>
+                  <span>Gói cước & Nâng cấp</span>
+                </button>
+
+                <button
+                  type="button"
+                  className="menu-item-row"
+                  role="menuitem"
+                  onClick={() => {
+                    setDropdownOpen(false);
+                    window.location.href = '/feedback';
+                  }}
+                >
+                  <span className="menu-item-icon"><FinanceIcon name="message-square" size={17} /></span>
+                  <span>Phản hồi & Hỗ trợ</span>
+                </button>
+              </>
+            )}
 
             <div className="menu-divider" />
 

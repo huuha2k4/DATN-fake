@@ -22,6 +22,22 @@ import { ProfileScreen } from '../../profile/screen/ProfileScreen'
 import { ChangePasswordModal } from '../../profile/components/ChangePasswordModal'
 import { NotificationScreen } from '../../notification/screen/NotificationScreen'
 import { ChildWalletScreen } from '../../child-wallet/screen/ChildWalletScreen'
+import { UserFeedbackScreen } from '../../feedback/screen/UserFeedbackScreen'
+import { PricingScreen } from '../../pricing/screen/PricingScreen'
+import { AdminGuard } from '../../admin/components/AdminGuard'
+import { AdminLayout } from '../../admin/components/AdminLayout'
+import { AdminDashboardScreen } from '../../admin/screen/AdminDashboardScreen'
+import { AdminUserManagementScreen } from '../../admin/screen/AdminUserManagementScreen'
+import { AdminRolesScreen } from '../../admin/screen/AdminRolesScreen'
+import { AdminCategoriesScreen } from '../../admin/screen/AdminCategoriesScreen'
+import { AdminOcrManagementScreen } from '../../admin/screen/AdminOcrManagementScreen'
+import { AdminAnalyticsScreen } from '../../admin/screen/AdminAnalyticsScreen'
+import { AdminFeedbacksScreen } from '../../admin/screen/AdminFeedbacksScreen'
+import { AdminBroadcastScreen } from '../../admin/screen/AdminBroadcastScreen'
+import { AdminAuditLogsScreen } from '../../admin/screen/AdminAuditLogsScreen'
+import { AdminSystemHealthScreen } from '../../admin/screen/AdminSystemHealthScreen'
+import { AdminSettingsScreen } from '../../admin/screen/AdminSettingsScreen'
+import { AdminPlaceholderScreen } from '../../admin/screen/AdminPlaceholderScreen'
 import { isAuthenticated, clearAuthData, getStoredUser } from '../../auth/api/authApi'
 
 export default function AppScreen() {
@@ -39,11 +55,9 @@ export default function AppScreen() {
   const childAllowedRoutes = new Set(['/dashboard', '/child-wallet', '/add-transaction', '/transactions', '/groups', '/profile', '/notifications'])
 
   const handleToggleSidebar = () => {
-    // If mobile (< 769px), toggle drawer
     if (window.innerWidth <= 768) {
       setIsMobileNavOpen(prev => !prev)
     } else {
-      // Desktop: toggle collapsed state
       setIsSidebarCollapsed(prev => {
         const next = !prev
         localStorage.setItem('sidebar_collapsed', String(next))
@@ -52,16 +66,24 @@ export default function AppScreen() {
     }
   }
 
+  // Check auth state on mount and listen to storage changes
   useEffect(() => {
-    setIsLoggedIn(isAuthenticated())
+    const checkAuth = () => {
+      const authenticated = isAuthenticated()
+      setIsLoggedIn(authenticated)
+    }
+    
+    checkAuth()
+    
+    // Listen to custom auth events and storage events
+    window.addEventListener('storage', checkAuth)
+    window.addEventListener('auth:logout', checkAuth)
+    
+    return () => {
+      window.removeEventListener('storage', checkAuth)
+      window.removeEventListener('auth:logout', checkAuth)
+    }
   }, [])
-
-  // Auto-dismiss notice after 5 seconds
-  useEffect(() => {
-    if (!notice) return
-    const timer = setTimeout(() => setNotice(''), 5000)
-    return () => clearTimeout(timer)
-  }, [notice])
 
   // Close mobile sidebar on route change
   useEffect(() => {
@@ -70,7 +92,12 @@ export default function AppScreen() {
 
   const handleAuthenticated = () => {
     setIsLoggedIn(true)
-    navigate('/dashboard')
+    const currentUser = getStoredUser()
+    if (currentUser?.systemRole === 'ADMIN') {
+      navigate('/admin')
+    } else {
+      navigate('/dashboard')
+    }
   }
 
   const handleLogout = () => {
@@ -83,34 +110,61 @@ export default function AppScreen() {
     return <LandingScreen onAuthenticated={handleAuthenticated} />
   }
 
+  const storedUser = getStoredUser()
+  const isAdminAccount = storedUser?.systemRole === 'ADMIN'
+
+  // Nếu là tài khoản Admin: Cố định toàn quyền tại không gian quản trị /admin, không hiển thị không gian chi tiêu cá nhân
+  if (isAdminAccount) {
+    return (
+      <AdminGuard>
+        <Routes>
+          <Route path="/admin" element={<AdminLayout />}>
+            <Route index element={<AdminDashboardScreen />} />
+            <Route path="users" element={<AdminUserManagementScreen />} />
+            <Route path="roles" element={<AdminRolesScreen />} />
+            <Route path="categories" element={<AdminCategoriesScreen />} />
+            <Route path="ai-management" element={<AdminPlaceholderScreen title="Quản lý AI (FinAI)" description="Giám sát lượng token tiêu thụ, mô hình Gemini và hiệu năng phản hồi." />} />
+            <Route path="ocr-management" element={<AdminOcrManagementScreen />} />
+            <Route path="analytics" element={<AdminAnalyticsScreen />} />
+            <Route path="feedbacks" element={<AdminFeedbacksScreen />} />
+            <Route path="broadcast" element={<AdminBroadcastScreen />} />
+            <Route path="audit-logs" element={<AdminAuditLogsScreen />} />
+            <Route path="system-health" element={<AdminSystemHealthScreen />} />
+            <Route path="settings" element={<AdminSettingsScreen />} />
+            <Route path="profile" element={<ProfileScreen onLogout={handleLogout} />} />
+          </Route>
+          {/* Mọi route khác khi Admin đăng nhập đều tự động chuyển về /admin */}
+          <Route path="*" element={<Navigate to="/admin" replace />} />
+        </Routes>
+      </AdminGuard>
+    )
+  }
+
   // Map route to active sidebar section
   const pathToSection: Record<string, string> = {
     '/': 'Tổng quan',
     '/dashboard': 'Tổng quan',
     '/child-wallet': 'Ví của em',
     '/add-transaction': 'Thêm giao dịch',
-    '/scan-invoice': 'Thêm giao dịch',
-    '/scan-receipt': 'Thêm giao dịch',
-    '/ocr': 'Thêm giao dịch',
-    '/wallets': 'Quản lý Ví',
-    '/accounts': 'Quản lý Ví',
     '/transactions': 'Quản lý Thu & Chi',
     '/budget': 'Quản lý Ngân sách',
     '/goals': 'Mục tiêu Tài chính',
     '/schedules': 'Lịch tài chính',
+    '/reminders': 'Lịch tài chính',
     '/debts': 'Quản lý Nợ',
     '/groups': 'Chi tiêu Nhóm',
     '/reports': 'Báo cáo & Thống kê',
     '/ai-assistant': 'AI Thông minh',
     '/forecast': 'Dự báo tài chính',
     '/analysis': 'Phân tích hành vi chi tiêu',
-    '/profile': 'Quản lý Hồ sơ & Tài khoản',
-    '/notifications': 'Thông báo',
+    '/wallets': 'Quản lý Ví',
+    '/accounts': 'Quản lý Ví',
   }
+
   const activeSection = pathToSection[location.pathname] || 'Tổng quan'
 
   return (
-    <div className="finance-app">
+    <div className="dashboard-layout">
       <FinancialNavigationSection 
         active={activeSection} 
         isOpen={isMobileNavOpen}
@@ -118,7 +172,6 @@ export default function AppScreen() {
         isCollapsed={isSidebarCollapsed}
         isChildAccount={isChildAccount}
         onNavigate={(section) => {
-          // Map sections to routes
           const routes: Record<string, string> = {
             'Ví của em': '/child-wallet',
             '__CHILD_WALLET__': '/child-wallet',
@@ -135,6 +188,7 @@ export default function AppScreen() {
             'AI Thông minh': '/ai-assistant',
             'Dự báo tài chính': '/forecast',
             'Phân tích hành vi chi tiêu': '/analysis',
+            'Phản hồi & Trợ giúp': '/feedback',
           }
           if (routes[section]) {
             navigate(routes[section])
@@ -160,6 +214,8 @@ export default function AppScreen() {
           {isChildAccount && <Route path="/child-wallet" element={<ChildWalletScreen onNotify={setNotice} />} />}
           <Route path="/profile" element={<ProfileScreen onLogout={handleLogout} />} />
           <Route path="/notifications" element={<NotificationScreen onNotify={setNotice} />} />
+          <Route path="/feedback" element={<UserFeedbackScreen onNotify={setNotice} />} />
+          <Route path="/pricing" element={<PricingScreen onNotify={setNotice} />} />
           <Route path="/add-transaction" element={<AddTransactionScreen onCancel={() => navigate(-1)} onNotify={setNotice} onOpenInvoiceScanner={() => navigate('/scan-invoice')} />} />
           {!isChildAccount && <Route path="/scan-invoice" element={<InvoiceOcrScreen onCancel={() => navigate(-1)} onNotify={setNotice} />} />}
           <Route path="/transactions" element={<CashFlowManagementScreen onNotify={setNotice} onAddTransaction={() => navigate('/add-transaction')} />} />
@@ -178,7 +234,7 @@ export default function AppScreen() {
         </Routes>
       </div>
 
-      {/* Floating Action Buttons dock at bottom right (hidden on OCR scanner to avoid overlapping action button) */}
+      {/* Floating Action Buttons */}
       {location.pathname !== '/scan-invoice' && (
         <FloatingActions 
           onAddTransaction={() => navigate('/add-transaction')}

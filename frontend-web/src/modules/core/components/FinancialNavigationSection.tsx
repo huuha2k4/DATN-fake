@@ -15,6 +15,7 @@ const navigation: { label: string; icon: IconName }[] = [
   { label: 'Phân tích hành vi chi tiêu', icon: 'trend' },
   { label: 'AI Thông minh', icon: 'spark' },
   { label: 'Dự báo tài chính', icon: 'trend' },
+  { label: 'Phản hồi & Trợ giúp', icon: 'message-square' },
 ]
 
 type Props = { 

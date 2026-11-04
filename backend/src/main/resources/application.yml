@@ -136,8 +136,9 @@ app:
     lockout-duration-minutes: 15
   
   admin:
+    username: ${SUPER_ADMIN_USER:admin}
     email: ${SUPER_ADMIN_EMAIL:admin@finance.com}
-    password: ${SUPER_ADMIN_PASSWORD:Admin@123456}
+    password: ${SUPER_ADMIN_PASSWORD:admin123}
 
   ai:
     ocr-service-url: ${OCR_SERVICE_URL:http://ocr-service:8000}

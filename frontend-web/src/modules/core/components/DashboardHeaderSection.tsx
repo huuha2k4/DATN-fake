@@ -35,6 +35,8 @@ const routeTitles: Record<string, { title: string; subtitle?: string }> = {
   '/profile': { title: 'Thông tin cá nhân & Cài đặt', subtitle: 'Thiết lập danh tính, ngôn ngữ và bảo mật' },
   '/add-transaction': { title: 'Thêm giao dịch mới', subtitle: 'Ghi nhận khoản thu hoặc chi' },
   '/scan-invoice': { title: 'Quét hóa đơn thông minh (OCR)', subtitle: 'Tải ảnh hóa đơn để tự động trích xuất thông tin' },
+  '/feedback': { title: 'Hỗ trợ & Góp ý ý kiến', subtitle: 'Gửi yêu cầu trợ giúp và theo dõi phản hồi từ Ban Quản trị' },
+  '/pricing': { title: 'Bảng giá & Gói cước Dịch vụ', subtitle: 'Nâng cấp quyền lợi tài chính, FinAI và quét hóa đơn thông minh' },
 }
 
 export function DashboardHeaderSection({ onNotify, onOpenProfile, onOpenChangePassword, onLogout, walletCount, onToggleSidebar, isSidebarCollapsed }: Props) {
@@ -127,7 +129,8 @@ export function DashboardHeaderSection({ onNotify, onOpenProfile, onOpenChangePa
         <UserAvatar 
           onOpenProfile={onOpenProfile} 
           onOpenChangePassword={onOpenChangePassword} 
-          onLogout={onLogout} 
+          onLogout={onLogout}
+          onNotify={onNotify}
         />
       </div>
     </header>
