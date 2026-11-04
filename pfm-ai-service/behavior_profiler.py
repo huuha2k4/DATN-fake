@@ -10,7 +10,7 @@ from typing import Dict, Any, List, Optional
 import numpy as np
 import pandas as pd
 from sqlalchemy import func
-from database import SessionLocal, Transaction, Category, Account
+from database import SessionLocal, Transaction, Category, Account, resolve_user_id
 
 if sys.stdout.encoding != 'utf-8':
     sys.stdout.reconfigure(encoding='utf-8')
@@ -23,7 +23,7 @@ PERSONA_ARCHETYPES = {
         "tagline": "Ưu tiên tích lũy dự phòng, chi tiêu có kế hoạch chặt chẽ.",
         "icon": "🛡️",
         "color": "#10b981", # Emerald Green
-        "centroid": np.array([0.85, 0.20, 0.15, 0.90, 0.02]),
+        "centroid": [0.85, 0.20, 0.15, 0.90, 0.02],
         "description": "Bạn có ý thức quản lý tài chính xuất sắc, duy trì tỷ lệ tích lũy cao và ít khi bị cám dỗ mua sắm ngoài kế hoạch."
     },
     "TIN_DO_AM_THUC": {
@@ -31,7 +31,7 @@ PERSONA_ARCHETYPES = {
         "tagline": "Dành tình yêu và phần lớn ngân sách cho ăn uống, cà phê.",
         "icon": "🍜",
         "color": "#f59e0b", # Amber Orange
-        "centroid": np.array([0.30, 0.45, 0.25, 1.10, 0.05]),
+        "centroid": [0.30, 0.45, 0.25, 1.10, 0.05],
         "description": "Khoản chi lớn nhất của bạn luôn gắn liền với ẩm thực, nhà hàng hoặc hội họp bạn bè."
     },
     "VUNG_TAY_QUA_TRAN": {
@@ -39,7 +39,7 @@ PERSONA_ARCHETYPES = {
         "tagline": "Dễ bị cám dỗ bởi mua sắm ngẫu hứng, tích lũy thấp.",
         "icon": "🛍️",
         "color": "#ef4444", # Crimson Red
-        "centroid": np.array([0.05, 0.30, 0.50, 1.45, 0.12]),
+        "centroid": [0.05, 0.30, 0.50, 1.45, 0.12],
         "description": "Bạn thường xuyên vượt kế hoạch chi tiêu cho các sở thích nhất thời và gặp khó khăn trong việc duy trì quỹ tiết kiệm."
     },
     "CHI_TIEU_CUOI_THANG": {
@@ -47,7 +47,7 @@ PERSONA_ARCHETYPES = {
         "tagline": "Chi tiêu có xu hướng dồn dập vào 7-10 ngày cuối tháng.",
         "icon": "📅",
         "color": "#8b5cf6", # Purple
-        "centroid": np.array([0.25, 0.30, 0.30, 1.60, 0.04]),
+        "centroid": [0.25, 0.30, 0.30, 1.60, 0.04],
         "description": "Bạn có thói quen thong thả đầu tháng nhưng lại phát sinh nhiều khoản chi đột biến vào những ngày cận cuối tháng."
     },
     "NGUOI_CAN_BANG": {
@@ -55,7 +55,7 @@ PERSONA_ARCHETYPES = {
         "tagline": "Biết cân đối hài hòa giữa nhu cầu thiết yếu và hưởng thụ.",
         "icon": "⚖️",
         "color": "#38bdf8", # Sky Blue
-        "centroid": np.array([0.50, 0.28, 0.25, 1.00, 0.03]),
+        "centroid": [0.50, 0.28, 0.25, 1.00, 0.03],
         "description": "Bạn giữ được sự cân đối tương đối tốt giữa nhu cầu sống thiết yếu, một chút giải trí và duy trì mức tiết kiệm an toàn."
     }
 }
@@ -68,6 +68,7 @@ class BehaviorProfiler:
     def analyze_user(self, user_id: str = "test_user_01") -> Dict[str, Any]:
         db = SessionLocal()
         try:
+            user_id = resolve_user_id(user_id, db)
             # 1. Truy vấn toàn bộ giao dịch của người dùng
             txs = (
                 db.query(Transaction)
@@ -77,21 +78,66 @@ class BehaviorProfiler:
             )
 
             if len(txs) < 5:
+                default_p = dict(PERSONA_ARCHETYPES["NGUOI_CAN_BANG"])
                 return {
                     "status": "COLD_START",
+                    "user_id": user_id,
                     "message": "Người dùng chưa có đủ giao dịch (tối thiểu 5) để phân tích hành vi chuẩn xác.",
-                    "persona": PERSONA_ARCHETYPES["NGUOI_CAN_BANG"],
+                    "persona": {
+                        "code": "NGUOI_CAN_BANG",
+                        "title": default_p["title"],
+                        "tagline": default_p["tagline"],
+                        "icon": default_p["icon"],
+                        "color": default_p["color"],
+                        "description": default_p["description"],
+                        "affinity_score": 85.0
+                    },
+                    "summary": {
+                        "total_income": 0.0,
+                        "total_expense": 0.0,
+                        "net_savings": 0.0,
+                        "savings_rate": 0.0,
+                        "savings_label": "Tài khoản mới"
+                    },
+                    "rule_50_30_20": {
+                        "needs_spent": 0.0,
+                        "needs_pct": 50.0,
+                        "wants_spent": 0.0,
+                        "wants_pct": 30.0,
+                        "savings_spent": 0.0,
+                        "savings_pct": 20.0
+                    },
+                    "dining_analysis": {
+                        "dining_amount": 0.0,
+                        "dining_percentage": 0.0,
+                        "is_heavy": False
+                    },
+                    "temporal_patterns": {
+                        "eom_surge_ratio": 1.0,
+                        "has_eom_spike": False,
+                        "weekend_percentage": 0.0,
+                        "night_transactions": 0,
+                        "night_percentage": 0.0
+                    },
+                    "top_categories": [],
+                    "radar_scores": {
+                        "savings_discipline": 60,
+                        "needs_control": 60,
+                        "lifestyle_moderation": 60,
+                        "temporal_stability": 60,
+                        "food_moderation": 60
+                    },
                     "metrics": {},
-                    "findings": ["Tài khoản mới, cần thêm giao dịch để AI nhận diện thói quen."]
+                    "findings": ["Tài khoản mới, hãy thêm thêm giao dịch để AI nhận diện thói quen chi tiêu chi tiết."]
                 }
 
             # Lấy thông tin danh mục
-            categories = {c.id: c for c in db.query(Category).all()}
+            categories = {str(c.id): c for c in db.query(Category).all()}
 
             # Chuyển đổi sang DataFrame để tính toán tốc độ cao
             records = []
             for t in txs:
-                cat = categories.get(t.category_id)
+                cat = categories.get(str(t.category_id))
                 cat_name = cat.name if cat else "Khác"
                 is_essential = cat.is_essential if cat else False
                 records.append({
@@ -204,7 +250,7 @@ class BehaviorProfiler:
             persona_scores = {}
 
             for p_key, p_val in PERSONA_ARCHETYPES.items():
-                centroid = p_val["centroid"]
+                centroid = np.array(p_val["centroid"])
                 dist = np.linalg.norm(user_vector - centroid)
                 similarity = round(float(1.0 / (1.0 + dist) * 100), 1)
                 persona_scores[p_key] = similarity

@@ -3,7 +3,8 @@ from datetime import datetime
 from dotenv import load_dotenv
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langgraph.prebuilt import create_react_agent
-from tools import ALL_TOOLS
+from tools import ALL_TOOLS, resolve_user_id
+from database import SessionLocal
 
 load_dotenv()
 
@@ -16,6 +17,7 @@ Nhiệm vụ của bạn là hỗ trợ người dùng quản lý tài chính, g
 
 NGUYÊN TẮC HOẠT ĐỘNG:
 1. Khi người dùng hỏi về dữ liệu tài chính của họ (số dư, đã tiêu bao nhiêu, ngân sách còn lại, giao dịch gần đây, tìm kiếm giao dịch cụ thể, so sánh các tháng), bạn BẮT BUỘC phải gọi các Tool thích hợp để lấy số liệu thực tế. TUYỆT ĐỐI KHÔNG tự bịa ra số tiền.
+   - Khi gọi các tool có tham số user_id, BẮT BUỘC truyền đúng User ID được cung cấp trong [User ID: <id>].
 2. Mốc thời gian tham chiếu hiện tại: Ngày hôm nay là {now.strftime('%d/%m/%Y')} (Tháng {now.month} năm {now.year}).
    - "Tháng này" = Tháng {now.month}/{now.year} (month={now.month}, year={now.year}).
    - "Tháng trước" = Tháng {prev_month}/{prev_year} (month={prev_month}, year={prev_year}).
@@ -61,6 +63,12 @@ def get_agent():
     return agent_executor
 
 def run_chat(question: str, user_id: str = "test_user_01") -> str:
+    db = SessionLocal()
+    try:
+        user_id = resolve_user_id(user_id, db)
+    finally:
+        db.close()
+
     agent = get_agent()
     if agent is None:
         return (

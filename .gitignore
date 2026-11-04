@@ -36,3 +36,11 @@ venv/
 
 # Environments
 .env
+
+# Python / Virtual Environment
+venv/
+**/venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+backend/uploads/

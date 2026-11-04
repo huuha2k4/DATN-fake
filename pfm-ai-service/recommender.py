@@ -14,7 +14,7 @@ from typing import Dict, Any, List, Optional
 import numpy as np
 from dotenv import load_dotenv
 from sqlalchemy import func
-from database import SessionLocal, Transaction, Account, Category, Budget, BudgetItem, Goal
+from database import SessionLocal, Transaction, Account, Category, Budget, BudgetItem, Goal, resolve_user_id
 from behavior_profiler import profiler
 
 load_dotenv()
@@ -59,6 +59,7 @@ class FinancialRecommender:
     def generate_recommendations(self, user_id: str = "test_user_01") -> Dict[str, Any]:
         db = SessionLocal()
         try:
+            user_id = resolve_user_id(user_id, db)
             # 1. Thu thập dữ liệu từ AI 2 (Hồ sơ hành vi)
             behavior_data = profiler.analyze_user(user_id=user_id)
             if behavior_data.get("status") != "SUCCESS":

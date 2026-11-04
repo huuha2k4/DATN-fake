@@ -1,13 +1,23 @@
 from fastapi import FastAPI
 from fastapi.responses import HTMLResponse
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import Optional
 from agent import run_chat
+from database import resolve_user_id
 
 app = FastAPI(
     title="PFM AI Service",
     description="Dịch vụ AI phân tích tài chính và Trợ lý ảo cho dự án PFM",
     version="1.0.0"
+)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 HTML_CHAT_UI = """<!DOCTYPE html>
@@ -652,12 +662,8 @@ Mình có thể giúp bạn kiểm tra số dư ví, phân tích thói quen chi 
 
 @app.on_event("startup")
 def on_startup():
-    """Tự động kiểm tra seed data và đồng bộ giao dịch tới ngày hôm nay khi khởi động máy chủ"""
-    try:
-        from seed_data import seed
-        seed()
-    except Exception as e:
-        print(f"[Startup Warning] Seed sync failed: {e}")
+    """Khởi động máy chủ PFM AI Service"""
+    print("[PFM AI Service] Khởi động thành công và sẵn sàng phục vụ.")
 
 @app.get("/", response_class=HTMLResponse)
 def read_root():
@@ -685,7 +691,8 @@ async def chat_with_ai(request: ChatRequest):
     Endpoint Chatbot AI: Nhận câu hỏi ngôn ngữ tự nhiên từ người dùng,
     tự động gọi tools truy vấn dữ liệu chi tiêu / ngân sách / số dư và trả lời.
     """
-    answer = run_chat(question=request.question, user_id=request.user_id)
+    user_id = resolve_user_id(request.user_id)
+    answer = run_chat(question=request.question, user_id=user_id)
     return ChatResponse(
         answer=answer,
         status="success"
@@ -705,6 +712,7 @@ def api_forecast_balance(user_id: str = "test_user_01", days: int = 30):
     API Dự báo số dư tài khoản bằng mô hình chuỗi thời gian Facebook Prophet.
     Trả về dữ liệu lịch sử và các điểm dự báo tương lai để Frontend vẽ Line Chart.
     """
+    user_id = resolve_user_id(user_id)
     return forecast_balance(user_id=user_id, horizon_days=days)
 
 @app.get("/api/forecast/spending")
@@ -712,6 +720,7 @@ def api_forecast_spending(user_id: str = "test_user_01", days: int = 30):
     """
     API Dự báo mức chi tiêu trung bình mỗi ngày trong N ngày tới.
     """
+    user_id = resolve_user_id(user_id)
     return forecast_spending(user_id=user_id, horizon_days=days)
 
 @app.get("/api/forecast/category")
@@ -719,6 +728,7 @@ def api_forecast_category(user_id: str = "test_user_01", category: str = "Ăn u�
     """
     API Dự báo tổng chi tiêu cho một danh mục đến cuối tháng và đối chiếu ngân sách.
     """
+    user_id = resolve_user_id(user_id)
     return forecast_category_spending(user_id=user_id, category_name=category)
 
 @app.get("/api/forecast/goals")
@@ -726,6 +736,7 @@ def api_forecast_goals(user_id: str = "test_user_01", goal_name: Optional[str] =
     """
     API Ước lượng thời gian và dự đoán khi nào đạt mục tiêu tài chính.
     """
+    user_id = resolve_user_id(user_id)
     return forecast_goal_completion(user_id=user_id, goal_name=goal_name)
 
 # --- CÁC ENDPOINT AI 4 (PHÁT HIỆN BẤT THƯỜNG - ISOLATION FOREST) ---
@@ -741,6 +752,7 @@ def api_get_anomalies(user_id: str = "test_user_01"):
     """
     API Quét toàn bộ lịch sử giao dịch và trả về các giao dịch bị đánh dấu bất thường.
     """
+    user_id = resolve_user_id(user_id)
     return detector.scan_historical_anomalies(user_id=user_id)
 
 @app.post("/api/anomalies/check")
@@ -767,6 +779,7 @@ def api_get_behavior_profile(user_id: str = "test_user_01"):
     - Phát hiện thói quen: chi tiêu nhiều vào ăn uống, dồn tiền cuối tháng, chi tiêu đêm.
     - Phân cụm hình mẫu tài chính (Persona Archetype) kèm thang điểm Radar Chart (0 - 100).
     """
+    user_id = resolve_user_id(user_id)
     return profiler.analyze_user(user_id=user_id)
 
 # --- CÁC ENDPOINT AI 5 (GỢI Ý VÀ TƯ VẤN TÀI CHÍNH CÁ NHÂN HÓA) ---
@@ -782,6 +795,7 @@ def api_get_recommendations(user_id: str = "test_user_01"):
     - Điều chỉnh ngân sách phù hợp thu nhập.
     - Chấm điểm sức khỏe tài chính tổng hợp.
     """
+    user_id = resolve_user_id(user_id)
     return recommender.generate_recommendations(user_id=user_id)
 
 

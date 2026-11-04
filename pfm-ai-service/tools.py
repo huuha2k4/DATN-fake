@@ -1,8 +1,9 @@
+import uuid
 from datetime import datetime, date
 from typing import Optional
 from sqlalchemy import func, extract
 from langchain_core.tools import tool
-from database import SessionLocal, Account, Transaction, Category, Budget, BudgetItem
+from database import SessionLocal, Account, Transaction, Category, Budget, BudgetItem, User, resolve_user_id
 
 @tool
 def get_account_balances(user_id: str = "test_user_01") -> str:
@@ -12,6 +13,7 @@ def get_account_balances(user_id: str = "test_user_01") -> str:
     """
     db = SessionLocal()
     try:
+        user_id = resolve_user_id(user_id, db)
         accounts = db.query(Account).filter(Account.user_id == user_id).all()
         if not accounts:
             return "Không tìm thấy tài khoản nào của người dùng."
@@ -35,6 +37,7 @@ def get_spending_by_category(month: int, year: int, user_id: str = "test_user_01
     """
     db = SessionLocal()
     try:
+        user_id = resolve_user_id(user_id, db)
         query = (
             db.query(
                 Category.name,
@@ -79,6 +82,7 @@ def get_budget_status(month: Optional[int] = None, year: Optional[int] = None, u
 
     db = SessionLocal()
     try:
+        user_id = resolve_user_id(user_id, db)
         budget = (
             db.query(Budget)
             .filter(
@@ -121,6 +125,7 @@ def get_recent_transactions(limit: int = 5, user_id: str = "test_user_01") -> st
     """
     db = SessionLocal()
     try:
+        user_id = resolve_user_id(user_id, db)
         txs = (
             db.query(Transaction)
             .filter(Transaction.user_id == user_id)
@@ -165,10 +170,12 @@ def search_transactions(
     - end_date: ngày kết thúc định dạng YYYY-MM-DD (ví dụ '2026-09-30').
     - transaction_type: loại giao dịch ('EXPENSE' là chi tiêu, 'INCOME' là thu nhập).
     - limit: số lượng kết quả tối đa (mặc định 10).
+    - user_id: ID người dùng.
     Dùng khi người dùng hỏi các câu hỏi chi tiết như: 'Tìm các khoản chi trên 500k', 'Tôi đã đi Grab bao nhiêu lần?', 'Tháng trước tôi mua sắm những món gì?'.
     """
     db = SessionLocal()
     try:
+        user_id = resolve_user_id(user_id, db)
         q = db.query(Transaction).filter(Transaction.user_id == user_id)
 
         if keyword:
@@ -232,6 +239,7 @@ def compare_monthly_spending(
     """
     db = SessionLocal()
     try:
+        user_id = resolve_user_id(user_id, db)
         def get_month_data(m: int, y: int):
             rows = (
                 db.query(Category.name, func.sum(Transaction.amount).label("total"))
@@ -281,6 +289,11 @@ def get_balance_forecast(horizon_days: int = 30, user_id: str = "test_user_01") 
     Dùng khi người dùng hỏi: 'Nếu giữ mức chi tiêu hiện tại thì cuối tháng còn bao nhiêu tiền?',
     'Dự báo số dư tài khoản của tôi?', 'Tôi có bị thâm hụt tiền vào cuối tháng không?'.
     """
+    db = SessionLocal()
+    try:
+        user_id = resolve_user_id(user_id, db)
+    finally:
+        db.close()
     from forecaster import forecast_balance
     res = forecast_balance(user_id=user_id, horizon_days=horizon_days)
     if res.get("status") == "error":
@@ -303,6 +316,11 @@ def get_category_spending_forecast(category_name: str = "Ăn uống", user_id: s
     Dùng khi người dùng hỏi: 'Dự kiến tháng này tiền ăn uống hết bao nhiêu?',
     'Tôi có bị vượt ngân sách ăn uống tháng này không?'.
     """
+    db = SessionLocal()
+    try:
+        user_id = resolve_user_id(user_id, db)
+    finally:
+        db.close()
     from forecaster import forecast_category_spending
     res = forecast_category_spending(user_id=user_id, category_name=category_name)
     if res.get("status") == "error":
@@ -317,6 +335,11 @@ def get_goal_completion_forecast(goal_name: Optional[str] = None, user_id: str =
     Dùng khi người dùng hỏi: 'Bao lâu nữa tôi mua được laptop?',
     'Dự đoán thời gian hoàn thành mục tiêu tài chính?', 'Khi nào đạt được mục tiêu?'.
     """
+    db = SessionLocal()
+    try:
+        user_id = resolve_user_id(user_id, db)
+    finally:
+        db.close()
     from forecaster import forecast_goal_completion
     res = forecast_goal_completion(user_id=user_id, goal_name=goal_name)
     if res.get("status") == "error":
@@ -331,6 +354,11 @@ def check_unusual_spending(user_id: str = "test_user_01") -> str:
     Dùng khi người dùng hỏi: 'Gần đây tôi có giao dịch nào bất thường không?',
     'Có khoản chi tiêu nào đáng ngờ không?', 'Kiểm tra giao dịch bất thường'.
     """
+    db = SessionLocal()
+    try:
+        user_id = resolve_user_id(user_id, db)
+    finally:
+        db.close()
     from anomaly_detector import detector
     anomalies = detector.scan_historical_anomalies(user_id=user_id)
     if not anomalies:
@@ -351,6 +379,11 @@ def get_spending_behavior_profile(user_id: str = "test_user_01") -> str:
     'Tôi có phải người tiết kiệm không?', 'Hồ sơ tài chính của tôi thế nào?',
     'Thói quen chi tiêu của tôi có gì đặc biệt?'.
     """
+    db = SessionLocal()
+    try:
+        user_id = resolve_user_id(user_id, db)
+    finally:
+        db.close()
     from behavior_profiler import profiler
     res = profiler.analyze_user(user_id=user_id)
     if res.get("status") != "SUCCESS":
@@ -386,6 +419,11 @@ def get_financial_recommendations(user_id: str = "test_user_01") -> str:
     Dùng khi người dùng hỏi: 'Tôi nên cắt giảm khoản chi nào?', 'Cho tôi lời khuyên tài chính',
     'Làm thế nào để tiết kiệm nhiều hơn?', 'Gợi ý tài chính cho tôi', 'Kế hoạch tiết kiệm phù hợp'.
     """
+    db = SessionLocal()
+    try:
+        user_id = resolve_user_id(user_id, db)
+    finally:
+        db.close()
     from recommender import recommender
     res = recommender.generate_recommendations(user_id=user_id)
     if res.get("status") != "SUCCESS":

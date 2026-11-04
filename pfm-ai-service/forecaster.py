@@ -5,7 +5,7 @@ import pandas as pd
 import numpy as np
 from prophet import Prophet
 from sqlalchemy import func
-from database import SessionLocal, Transaction, Account, Category, Budget, BudgetItem, Goal
+from database import SessionLocal, Transaction, Account, Category, Budget, BudgetItem, Goal, resolve_user_id
 from typing import Dict, Any, List, Optional
 
 import sys
@@ -33,6 +33,7 @@ def get_daily_cashflow(user_id: str = "test_user_01") -> pd.DataFrame:
 
     db = SessionLocal()
     try:
+        user_id = resolve_user_id(user_id, db)
         # Lấy tất cả giao dịch được sắp xếp theo thời gian
         txs = (
             db.query(Transaction)
@@ -91,10 +92,65 @@ def forecast_balance(user_id: str = "test_user_01", horizon_days: int = 30) -> D
     Trả về dữ liệu lịch sử + dữ liệu dự báo tương lai và các chỉ số thống kê.
     """
     df = get_daily_cashflow(user_id=user_id)
+    today = date.today()
+    db = SessionLocal()
+    try:
+        user_id = resolve_user_id(user_id, db)
+        accounts = db.query(Account).filter(Account.user_id == user_id).all()
+        current_balance = sum(a.current_balance for a in accounts)
+    finally:
+        db.close()
+
     if df.empty or len(df) < 14:
+        import calendar
+        _, total_days = calendar.monthrange(today.year, today.month)
+        days_remaining = max(1, total_days - today.day)
+
+        hist = []
+        if not df.empty:
+            for _, r in df.iterrows():
+                hist.append({
+                    "date": r["ds"].strftime("%Y-%m-%d"),
+                    "actual_balance": round(float(r["balance"]), 0),
+                    "outflow": round(float(r["outflow"]), 0)
+                })
+        else:
+            hist.append({
+                "date": today.strftime("%Y-%m-%d"),
+                "actual_balance": current_balance,
+                "outflow": 0.0
+            })
+
+        future_forecast = []
+        # Ước lượng mức chi tiêu trung bình mỗi ngày
+        daily_expense = 25000.0 if current_balance > 100000 else 5000.0
+        for i in range(1, horizon_days + 1):
+            future_date = today + timedelta(days=i)
+            proj = max(0.0, current_balance - (i * daily_expense))
+            future_forecast.append({
+                "date": future_date.strftime("%Y-%m-%d"),
+                "predicted_balance": round(proj, 0),
+                "lower_bound": round(max(0.0, proj * 0.85), 0),
+                "upper_bound": round(proj * 1.15, 0)
+            })
+
+        end_month_idx = min(days_remaining - 1, len(future_forecast) - 1)
+        end_of_month_balance = future_forecast[end_month_idx]["predicted_balance"]
+
         return {
-            "status": "error",
-            "message": "Chưa đủ dữ liệu để dự báo (cần tối thiểu 14 ngày giao dịch)."
+            "status": "LIMITED_DATA",
+            "message": "Đang tích lũy dữ liệu lịch sử để kích hoạt mô hình Facebook Prophet. Hiện đang áp dụng ước lượng chuỗi dự phóng cơ bản.",
+            "algorithm": "Heuristic Linear Projection (AI 3 Fallback)",
+            "current_balance": current_balance,
+            "projected_end_of_month_balance": end_of_month_balance,
+            "projected_range": {
+                "lower": round(end_of_month_balance * 0.85, 0),
+                "upper": round(end_of_month_balance * 1.15, 0)
+            },
+            "trend": "Chi tiêu đều đặn",
+            "summary": f"Với số dư hiện có {current_balance:,.0f} VND, dự kiến đến cuối tháng bạn sẽ còn khoảng {end_of_month_balance:,.0f} VND.",
+            "historical_data": hist,
+            "future_forecast": future_forecast
         }
 
     # Chuẩn bị dữ liệu cho Prophet: ds (ngày) và y (số dư)
@@ -223,6 +279,7 @@ def forecast_category_spending(user_id: str = "test_user_01", category_name: str
     """
     db = SessionLocal()
     try:
+        user_id = resolve_user_id(user_id, db)
         # Tìm danh mục
         cat = db.query(Category).filter(Category.name.ilike(f"%{category_name}%")).first()
         if not cat:
@@ -310,6 +367,7 @@ def forecast_goal_completion(user_id: str = "test_user_01", goal_name: Optional[
     """
     db = SessionLocal()
     try:
+        user_id = resolve_user_id(user_id, db)
         # Lấy danh sách mục tiêu
         q = db.query(Goal).filter(Goal.user_id == user_id, Goal.status == "ACTIVE")
         if goal_name:

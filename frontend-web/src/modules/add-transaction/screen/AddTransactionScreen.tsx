@@ -8,6 +8,7 @@ import {
 } from '../../cash-flow-management/api/transactionApi'
 import { accountApi, type AccountItem } from '../../account-management/api/accountApi'
 import { formatDate } from '../../core/utils/dateUtils'
+import { checkTransactionAnomaly } from '../../ai-assistant/api/aiApi'
 
 type Props = {
   onCancel: () => void;
@@ -58,9 +59,31 @@ export function AddTransactionScreen({ onCancel, onNotify, onOpenInvoiceScanner 
   const [recurring, setRecurring] = useState<boolean>(false)
   const [fileName, setFileName] = useState<string>('')
   const [error, setError] = useState<string>('')
+  const [anomalyWarning, setAnomalyWarning] = useState<string | null>(null)
 
   const fileRef = useRef<HTMLInputElement>(null)
   const numericAmount = Number(amount) || 0
+
+  // Real-time AI Anomaly check (Isolation Forest)
+  useEffect(() => {
+    if (type !== 'EXPENSE' || numericAmount < 200000) {
+      setAnomalyWarning(null)
+      return
+    }
+    const timer = setTimeout(async () => {
+      try {
+        const res = await checkTransactionAnomaly(numericAmount, selectedCategoryId)
+        if (res && res.is_anomaly && res.severity !== 'NORMAL') {
+          setAnomalyWarning(res.explanation)
+        } else {
+          setAnomalyWarning(null)
+        }
+      } catch {
+        setAnomalyWarning(null)
+      }
+    }, 600)
+    return () => clearTimeout(timer)
+  }, [numericAmount, selectedCategoryId, type])
 
   // Close dropdowns on outside click
   useEffect(() => {
@@ -367,6 +390,14 @@ export function AddTransactionScreen({ onCancel, onNotify, onOpenInvoiceScanner 
                   </button>
                 )}
               </div>
+
+              {/* FinAI Anomaly Alert Banner */}
+              {anomalyWarning && (
+                <div className="mt-3 flex items-center gap-2 rounded-xl bg-amber-500/20 px-3.5 py-2 text-xs font-medium text-amber-200 border border-amber-400/30 backdrop-blur-md max-w-md text-center">
+                  <FinanceIcon name="spark" size={15} className="text-amber-300 shrink-0" />
+                  <span>{anomalyWarning}</span>
+                </div>
+              )}
             </div>
           </div>
 

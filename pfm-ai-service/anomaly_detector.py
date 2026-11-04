@@ -4,7 +4,7 @@ from typing import Dict, Any, List, Optional
 import numpy as np
 import pandas as pd
 from sklearn.ensemble import IsolationForest
-from database import SessionLocal, Transaction, Category
+from database import SessionLocal, Transaction, Category, resolve_user_id
 
 if sys.stdout.encoding != 'utf-8':
     sys.stdout.reconfigure(encoding='utf-8')
@@ -22,7 +22,7 @@ def extract_features(transactions: List[Transaction], category_means: Dict[str, 
     for t in transactions:
         hour = t.occurred_at.hour
         dow = t.occurred_at.weekday()
-        cat_mean = category_means.get(t.category_id, 100000.0)
+        cat_mean = category_means.get(str(t.category_id), 100000.0)
         ratio = t.amount / max(cat_mean, 1.0)
         is_night = 1.0 if (0 <= hour <= 5) else 0.0
 
@@ -46,20 +46,37 @@ class AnomalyDetector:
         """
         db = SessionLocal()
         try:
+            user_id = resolve_user_id(user_id, db)
             txs = (
                 db.query(Transaction)
                 .filter(Transaction.user_id == user_id, Transaction.type == "EXPENSE")
                 .all()
             )
             if len(txs) < 10:
+                # Nếu chưa đủ 10 giao dịch, huấn luyện trên baseline phân phối chi tiêu chuẩn
+                baseline_X = np.array([
+                    [50000.0, 12.0, 2.0, 1.0, 0.0],
+                    [100000.0, 18.0, 4.0, 1.2, 0.0],
+                    [35000.0, 8.0, 1.0, 0.8, 0.0],
+                    [150000.0, 20.0, 5.0, 1.5, 0.0],
+                    [45000.0, 11.0, 3.0, 0.9, 0.0],
+                    [200000.0, 19.0, 6.0, 2.0, 0.0],
+                    [60000.0, 13.0, 0.0, 1.1, 0.0],
+                    [30000.0, 9.0, 2.0, 0.7, 0.0],
+                    [80000.0, 17.0, 4.0, 1.0, 0.0],
+                    [120000.0, 21.0, 5.0, 1.3, 0.0],
+                ])
+                self.model.fit(baseline_X)
+                self.is_fitted = True
                 return False
 
             # Tính trung bình chi tiêu theo từng danh mục
             cat_totals: Dict[str, List[float]] = {}
             for t in txs:
-                if t.category_id not in cat_totals:
-                    cat_totals[t.category_id] = []
-                cat_totals[t.category_id].append(t.amount)
+                cat_key = str(t.category_id)
+                if cat_key not in cat_totals:
+                    cat_totals[cat_key] = []
+                cat_totals[cat_key].append(t.amount)
             
             self.category_means = {
                 cat_id: float(np.mean(amounts)) for cat_id, amounts in cat_totals.items()
@@ -88,7 +105,7 @@ class AnomalyDetector:
         dt = occurred_at or datetime.now()
         hour = dt.hour
         dow = dt.weekday()
-        cat_mean = self.category_means.get(category_id, 100000.0)
+        cat_mean = self.category_means.get(str(category_id) if category_id else "", 100000.0)
         ratio = amount / max(cat_mean, 1.0)
         is_night = 1.0 if (0 <= hour <= 5) else 0.0
 
@@ -137,6 +154,11 @@ class AnomalyDetector:
         """
         Quét toàn bộ lịch sử chi tiêu của người dùng để tìm các giao dịch bị mô hình đánh dấu bất thường.
         """
+        db = SessionLocal()
+        try:
+            user_id = resolve_user_id(user_id, db)
+        finally:
+            db.close()
         self.fit_user(user_id)
         db = SessionLocal()
         try:
