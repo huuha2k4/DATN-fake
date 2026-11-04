@@ -114,15 +114,21 @@
 }
 
 .switch-tab.active {
-  background: #10b981;
-  color: #ffffff;
+  background: #10b981 !important;
+  color: #ffffff !important;
   font-weight: 700;
   box-shadow: 0 2px 8px rgba(16, 185, 129, 0.25);
 }
 
+:root[data-theme='dark'] .switch-tab.active,
+.dark .switch-tab.active {
+  background: #10b981 !important;
+  color: #ffffff !important;
+}
+
 .save-badge {
   background: #f59e0b;
-  color: #ffffff;
+  color: #ffffff !important;
   padding: 0.15rem 0.5rem;
   border-radius: 999px;
   font-size: 0.7rem;
@@ -313,13 +319,23 @@
 }
 
 .plan-feature-point.disabled {
-  color: var(--text-secondary, #94a3b8);
-  opacity: 0.55;
+  color: #64748b;
+  opacity: 0.85;
 }
 
 :root[data-theme='dark'] .plan-feature-point.disabled,
 .dark .plan-feature-point.disabled {
-  color: #64748b;
+  color: #94a3b8 !important;
+  opacity: 0.9 !important;
+}
+
+.plan-feature-point.disabled .feature-desc {
+  color: inherit;
+}
+
+:root[data-theme='dark'] .plan-feature-point.disabled .feature-desc,
+.dark .plan-feature-point.disabled .feature-desc {
+  color: #94a3b8 !important;
 }
 
 .plan-feature-point.spotlight .feature-desc {
@@ -329,7 +345,7 @@
 
 :root[data-theme='dark'] .plan-feature-point.spotlight .feature-desc,
 .dark .plan-feature-point.spotlight .feature-desc {
-  color: #34d399;
+  color: #34d399 !important;
 }
 
 .check-mark {
@@ -345,7 +361,7 @@
 
 :root[data-theme='dark'] .plan-feature-point.disabled .check-mark,
 .dark .plan-feature-point.disabled .check-mark {
-  color: #475569;
+  color: #64748b !important;
 }
 
 .plan-button {

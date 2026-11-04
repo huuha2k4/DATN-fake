@@ -1,99 +1,336 @@
-import { useState, type FormEvent } from 'react'
+import React, { useState, useEffect, useRef, type FormEvent } from 'react'
 import { FinanceIcon } from '../../core/components/FinanceIcon'
+import {
+  sendChatMessage,
+  getChatSessions,
+  getSessionMessages,
+  deleteChatSession,
+  type ChatSessionItem,
+} from '../api/aiApi'
+import './AIAssistantScreen.css'
 
-type Message = { id: number; author: 'assistant' | 'user'; text: string; kind?: 'analysis' | 'success' }
-
-const starterMessage: Message = {
-  id: 1,
-  author: 'assistant',
-  text: 'Chào Văn A! Tôi là FinAI Copilot. Tôi đã nạp dữ liệu giao dịch tháng 9 và tình hình tài chính của bạn. Hôm nay tôi có thể hỗ trợ gì?',
+interface Message {
+  id: string | number
+  author: 'assistant' | 'user'
+  text: string
 }
 
-const initialMessages: Message[] = [
-  starterMessage,
-  { id: 2, author: 'user', text: 'Tháng này tiền ăn uống tăng khá nhiều. FinAI phân tích giúp tôi các khoản nào đang chi nhiều và cách cân đối lại nhé.' },
-  { id: 3, author: 'assistant', kind: 'analysis', text: 'Dựa trên 48 giao dịch ẩm thực trong tháng 9, tổng chi ăn uống là 2.100.000 đ. Ăn ngoài cuối tuần chiếm phần lớn; dưới đây là phân tích chi tiết.' },
-  { id: 4, author: 'user', text: 'Giúp tôi thiết lập hạn mức ăn ngoài 800.000 đ cho tháng tới nhé.' },
-  { id: 5, author: 'assistant', kind: 'success', text: 'Đã cập nhật hạn mức ăn ngoài tháng 10 là 800.000 đ. Mình cũng đã bật cảnh báo khi chi tiêu chạm 80% hạn mức.' },
+const quickQuestions = [
+  {
+    title: 'Tổng chi tiêu tháng này',
+    subtitle: 'Đã tiêu bao nhiêu tiền và nhóm nào nhiều nhất?',
+    prompt: 'Tháng này tôi đã chi tiêu hết bao nhiêu tiền? Danh mục nào chiếm nhiều nhất?',
+  },
+  {
+    title: 'Dự báo số dư tài khoản',
+    subtitle: 'Dự đoán số dư cuối tháng bằng mô hình AI',
+    prompt: 'Dự báo số dư tài khoản của tôi đến cuối tháng còn lại bao nhiêu?',
+  },
+  {
+    title: 'Kiểm tra chi tiêu bất thường',
+    subtitle: 'Phát hiện khoản chi đột biến gần đây',
+    prompt: 'Kiểm tra xem gần đây tôi có khoản chi tiêu nào bất thường không?',
+  },
+  {
+    title: 'Lời khuyên quy tắc 50/30/20',
+    subtitle: 'Đánh giá thói quen tài chính & tiết kiệm',
+    prompt: 'Đánh giá chi tiêu của tôi theo quy tắc 50/30/20 và cho lời khuyên tiết kiệm.',
+  },
 ]
-
-const history = [
-  { title: 'Tối ưu ngân sách tháng 10 & Mua sắm', date: 'Đang hội thoại' },
-  { title: 'Kế hoạch trả nợ thẻ & Quỹ khẩn cấp', date: '2 ngày trước' },
-  { title: 'Phân tích hóa đơn du lịch Phú Quốc', date: 'Tuần trước' },
-  { title: 'Tư vấn lãi suất gửi tiết kiệm', date: '15 ngày trước' },
-]
-
-const topics = ['Cắt giảm 15% chi phí ăn ngoài', 'So sánh gói gửi tích lũy linh hoạt', 'Kiểm tra mức độ an toàn tài chính']
-const smartQuestions = [
-  'Tháng này tôi còn bao nhiêu tiền có thể chi thoải mái?',
-  'Nếu mua điện thoại trả góp thì có ảnh hưởng quỹ tiết kiệm không?',
-  'So sánh chi phí sinh hoạt tháng này với tháng trước?',
-]
-const expenseItems = [
-  { title: 'Ăn ngoài cuối tuần', detail: '4 lần · trung bình 312.500 đ/lần', amount: '1.250.000 đ', badge: 'Tăng 42%', color: 'bg-[#fff0e9] text-[#ad5947]', icon: 'receipt' as const },
-  { title: 'Cà phê & Đồ uống', detail: '18 lần · khoảng 29.000 đ/ngày', amount: '520.000 đ', badge: '29.000 đ/ngày', color: 'bg-[#fff4e6] text-[#916024]', icon: 'coffee' as const },
-  { title: 'Tự nấu & Thực phẩm', detail: 'Chi tiêu cân đối tốt', amount: '330.000 đ', badge: 'Tối ưu tốt', color: 'bg-[#e3f4e9] text-[#17794f]', icon: 'wallet' as const },
-]
-
-function makeAssistantReply(prompt: string): Message {
-  const lowerPrompt = prompt.toLowerCase()
-  const answer = lowerPrompt.includes('ăn') || lowerPrompt.includes('chi')
-    ? 'Trong tháng 9, nhóm ăn uống đã chi 2.100.000 đ. Ăn ngoài cuối tuần chiếm phần lớn (1.250.000 đ), tiếp theo là cà phê và đồ uống (520.000 đ). Bạn có thể đặt hạn mức ăn ngoài theo tuần để kiểm soát đều hơn.'
-    : lowerPrompt.includes('tiết kiệm') || lowerPrompt.includes('quỹ')
-      ? 'Tỷ lệ tiết kiệm hiện tại là 69,5%, cao hơn mục tiêu 50%. Sau các khoản cố định, hãy giữ quỹ dự phòng trước khi tăng khoản đầu tư định kỳ.'
-      : 'Dựa trên dữ liệu tháng 9, thu nhập là 18.500.000 đ, chi tiêu 5.650.000 đ và dòng tiền ròng +12.850.000 đ. Bạn muốn xem sâu hơn theo danh mục, tài khoản hay kỳ báo cáo?'
-
-  return { id: Date.now() + 1, author: 'assistant', kind: 'analysis', text: answer }
-}
 
 export function AIAssistantScreen({ onNotify }: { onNotify: (message: string) => void }) {
   const [query, setQuery] = useState('')
-  const [messages, setMessages] = useState<Message[]>(initialMessages)
-  const [activeHistory, setActiveHistory] = useState(0)
-  const [personality, setPersonality] = useState<'Cân bằng' | 'Ngắn gọn'>('Cân bằng')
+  const [messages, setMessages] = useState<Message[]>([])
+  const [sessions, setSessions] = useState<ChatSessionItem[]>([])
+  const [currentSessionId, setCurrentSessionId] = useState<string | null>(null)
+  const [isLoading, setIsLoading] = useState(false)
+  const messagesEndRef = useRef<HTMLDivElement>(null)
 
-  const submitMessage = (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault()
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }
+
+  useEffect(() => {
+    scrollToBottom()
+  }, [messages, isLoading])
+
+  // Tải danh sách cuộc trò chuyện từ DB
+  const loadSessions = async () => {
+    try {
+      const data = await getChatSessions()
+      setSessions(data)
+    } catch {
+      // Bỏ qua lỗi kết nối
+    }
+  }
+
+  useEffect(() => {
+    loadSessions()
+  }, [])
+
+  // Bắt đầu cuộc trò chuyện mới
+  const handleNewChat = () => {
+    setCurrentSessionId(null)
+    setMessages([])
+  }
+
+  // Chọn một cuộc trò chuyện cũ từ Sidebar
+  const handleSelectSession = async (session: ChatSessionItem) => {
+    setCurrentSessionId(session.id)
+    try {
+      const msgs = await getSessionMessages(session.id)
+      setMessages(
+        msgs.map((m) => ({
+          id: m.id,
+          author: m.author,
+          text: m.text,
+        }))
+      )
+    } catch {
+      onNotify('Không thể tải lịch sử cuộc trò chuyện này.')
+    }
+  }
+
+  // Xóa cuộc trò chuyện
+  const handleDeleteSession = async (e: React.MouseEvent, sessionId: string) => {
+    e.stopPropagation()
+    const success = await deleteChatSession(sessionId)
+    if (success) {
+      setSessions((prev) => prev.filter((s) => s.id !== sessionId))
+      if (currentSessionId === sessionId) {
+        handleNewChat()
+      }
+      onNotify('Đã xóa cuộc trò chuyện.')
+    }
+  }
+
+  // Gửi tin nhắn
+  const handleSubmit = async (e?: FormEvent) => {
+    if (e) e.preventDefault()
     const prompt = query.trim()
-    if (!prompt) return
-    setMessages((current) => [...current, { id: Date.now(), author: 'user', text: prompt }, makeAssistantReply(prompt)])
+    if (!prompt || isLoading) return
+
+    const userMsg: Message = { id: Date.now(), author: 'user', text: prompt }
+    setMessages((prev) => [...prev, userMsg])
     setQuery('')
+    setIsLoading(true)
+
+    try {
+      const res = await sendChatMessage(prompt, undefined, currentSessionId || undefined)
+      if (res.sessionId && res.sessionId !== currentSessionId) {
+        setCurrentSessionId(res.sessionId)
+        loadSessions()
+      }
+      setMessages((prev) => [...prev, { id: Date.now() + 1, author: 'assistant', text: res.answer }])
+    } catch {
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: Date.now() + 1,
+          author: 'assistant',
+          text: 'Xin lỗi bạn, kết nối đến Trợ lý AI đang gián đoạn. Vui lòng kiểm tra lại AI Service.',
+        },
+      ])
+    } finally {
+      setIsLoading(false)
+    }
   }
 
-  const startConversation = () => {
-    setMessages([{ ...starterMessage, id: Date.now() }])
-    setActiveHistory(0)
+  const handleSelectQuickPrompt = (promptText: string) => {
+    setQuery(promptText)
   }
 
-  const selectTopic = (text: string) => setQuery(text)
+  return (
+    <div className="ai-copilot-container">
+      {/* SIDEBAR BÊN TRÁI: QUẢN LÝ CUỘC TRÒ CHUYỆN */}
+      <aside className="ai-sidebar">
+        <div className="ai-sidebar-header">
+          <button type="button" onClick={handleNewChat} className="btn-new-chat-prominent">
+            <FinanceIcon name="plus" size={17} />
+            <span>Cuộc trò chuyện mới</span>
+          </button>
+        </div>
 
-  return <main className="mx-auto flex min-h-[calc(100vh-64px)] w-full max-w-[1560px] flex-col gap-5 bg-[#f6f8f6] px-3 pb-24 pt-5 text-[#14251f] sm:px-[22px] lg:px-[34px] lg:pb-8 lg:pt-6" aria-label="Trợ lý tài chính FinAI">
-    <header className="flex flex-col justify-between gap-3 xl:flex-row xl:items-end"><div><p className="mb-1 flex items-center gap-2 text-[10px] font-bold tracking-[.8px] text-[#087557]"><span className="size-2 rounded-full bg-[#36a77a]" />FINAI COPILOT · ĐANG TRỰC TUYẾN</p><h1 className="text-2xl font-semibold leading-tight text-[#17261f] sm:text-[28px]">Trợ lý Tài chính FinAI</h1><p className="mt-1 text-xs text-[#718078]">Phân tích chi tiêu, tối ưu ngân sách và lập kế hoạch tài chính cá nhân.</p></div><div className="flex flex-wrap items-center gap-2"><span className="inline-flex h-8 items-center gap-1.5 rounded-full bg-[#e3f4e9] px-3 text-[9px] font-medium text-[#17794f]"><i className="size-1.5 rounded-full bg-[#36a77a]" />Neural Copilot v4.5</span><span className="inline-flex h-8 items-center gap-1.5 rounded-full bg-[#eaf0fb] px-3 text-[9px] text-[#53677d]"><FinanceIcon name="shield" size={13} />Dữ liệu được mã hóa</span><button type="button" onClick={() => setPersonality((value) => value === 'Cân bằng' ? 'Ngắn gọn' : 'Cân bằng')} className="h-8 rounded-lg border border-[#e3e9e5] bg-white px-3 text-[10px] text-[#526159]">Phong cách: {personality}</button><button type="button" onClick={startConversation} className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-[#07543f] px-3 text-[10px] font-semibold text-white"><FinanceIcon name="plus" size={14} />Cuộc trò chuyện mới</button></div></header>
+        <div className="ai-sidebar-body">
+          <span className="ai-section-title">Lịch sử hội thoại</span>
+          {sessions.length > 0 ? (
+            sessions.map((item) => {
+              const isActive = currentSessionId === item.id
+              return (
+                <div
+                  key={item.id}
+                  onClick={() => handleSelectSession(item)}
+                  className={`session-item-row ${isActive ? 'active' : ''}`}
+                >
+                  <div className="session-title-wrap">
+                    <span className="session-icon">💬</span>
+                    <div className="session-info">
+                      <span className="session-title-text">{item.title}</span>
+                      <span className="session-time-text">
+                        {item.updated_at
+                          ? new Date(item.updated_at).toLocaleDateString('vi-VN', {
+                              hour: '2-digit',
+                              minute: '2-digit',
+                              day: '2-digit',
+                              month: '2-digit',
+                            })
+                          : 'Vừa xong'}
+                      </span>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={(e) => handleDeleteSession(e, item.id)}
+                    className="btn-delete-session"
+                    title="Xóa cuộc trò chuyện này"
+                  >
+                    ✕
+                  </button>
+                </div>
+              )
+            })
+          ) : (
+            <div style={{ padding: '20px 14px', textAlign: 'center', color: '#94a3b8', fontSize: '0.8rem' }}>
+              Chưa có lịch sử trò chuyện nào.
+            </div>
+          )}
+        </div>
 
-    <div className="grid min-h-0 flex-1 items-start gap-4 xl:grid-cols-[minmax(210px,.72fr)_minmax(420px,1.65fr)_minmax(230px,.78fr)]">
-      <aside className="grid gap-3 sm:grid-cols-2 xl:grid-cols-1">
-        <button type="button" onClick={startConversation} className="flex min-h-12 items-center justify-center gap-2 rounded-lg bg-[#07543f] px-4 py-3 text-xs font-semibold text-white shadow-sm"><FinanceIcon name="plus" size={16} />Cuộc trò chuyện mới</button>
-        <section className="rounded-xl border border-[#e7ece8] bg-white p-3 shadow-sm"><header className="mb-2 flex items-center justify-between px-1"><h2 className="text-[9px] font-bold tracking-[.8px] text-[#77837b]">LỊCH SỬ TRÒ CHUYỆN</h2><FinanceIcon name="clock" size={14} /></header><nav aria-label="Lịch sử trò chuyện" className="grid gap-1">{history.map((item, index) => <button key={item.title} type="button" onClick={() => { setActiveHistory(index); setMessages([{ ...starterMessage, id: Date.now(), text: index === 0 ? starterMessage.text : `Mình đã mở lại cuộc trò chuyện “${item.title}”. Bạn muốn tiếp tục nội dung nào?` }]) }} className={`rounded-lg p-2.5 text-left transition ${activeHistory === index ? 'bg-[#eaf4ed]' : 'hover:bg-[#f5f8f6]'}`}><span className="flex items-start gap-2"><span className={`mt-0.5 grid size-6 shrink-0 place-items-center rounded-md ${activeHistory === index ? 'bg-[#07543f] text-white' : 'bg-[#f1f5f2] text-[#77837b]'}`}><FinanceIcon name="receipt" size={12} /></span><span className="min-w-0"><span className="block line-clamp-2 text-[10px] font-medium leading-4 text-[#3b4a41]">{item.title}</span><span className={`mt-1 block text-[9px] ${activeHistory === index ? 'text-[#087557]' : 'text-[#929d96]'}`}>{item.date}</span></span></span></button>)}</nav></section>
-        <section className="rounded-xl border border-[#e7ece8] bg-white p-3 shadow-sm"><header className="mb-2 flex items-center justify-between px-1"><h2 className="text-[9px] font-bold tracking-[.8px] text-[#77837b]">CHỦ ĐỀ GỢI Ý</h2><FinanceIcon name="spark" size={14} /></header><div className="grid gap-1">{topics.map((topic) => <button key={topic} type="button" onClick={() => selectTopic(topic)} className="flex items-center gap-2 rounded-lg p-2 text-left text-[10px] leading-4 text-[#3b4a41] hover:bg-[#f5f8f6]"><FinanceIcon name="arrow" size={13} />{topic}</button>)}</div></section>
-        <section className="rounded-xl border border-[#e4ebe6] bg-[#edf5f0] p-3 sm:col-span-2 xl:col-span-1"><div className="flex items-center justify-between"><span className="flex items-center gap-1.5 text-[10px] font-semibold text-[#344c3e]"><FinanceIcon name="spark" size={14} />Trí nhớ ngữ cảnh</span><span className="text-[9px] font-semibold text-[#087557]">Hoạt động</span></div><p className="mt-2 text-[10px] leading-4 text-[#65756a]">8/10 danh mục, 4 tài khoản kết nối đã sẵn sàng phân tích.</p><div className="mt-2 h-1.5 overflow-hidden rounded-full bg-[#d6e5da]"><span className="block h-full w-[80%] rounded-full bg-[#087557]" /></div></section>
+        <div className="ai-sidebar-footer">
+          <FinanceIcon name="shield" size={15} />
+          <span>Lưu trữ an toàn tại PostgreSQL</span>
+        </div>
       </aside>
 
-      <section className="flex min-h-[650px] flex-col overflow-hidden rounded-xl border border-[#e5ebe7] bg-white shadow-sm xl:h-[calc(100vh-190px)] xl:min-h-[700px]" aria-label="Cuộc trò chuyện với FinAI"><header className="flex items-center justify-between border-b border-[#e9eeea] bg-[#f7faf8] px-4 py-3 sm:px-5"><div className="flex items-center gap-2.5"><span className="relative grid size-9 place-items-center rounded-full bg-[#07543f] text-[#c4f0d7]"><FinanceIcon name="spark" size={17} /><i className="absolute bottom-0 right-0 size-2.5 rounded-full border-2 border-white bg-[#45a67b]" /></span><span><strong className="block text-[11px] font-semibold text-[#2f4036]">FinAI Copilot</strong><small className="mt-0.5 block text-[9px] text-[#718078]">Ngữ cảnh tài chính cá nhân · Tháng 09/2025</small></span></div><button type="button" aria-label="Tùy chọn hội thoại" onClick={() => onNotify('Tùy chọn hội thoại FinAI')} className="grid size-8 place-items-center rounded-lg text-[#718078] hover:bg-[#edf3ef]"><FinanceIcon name="more" size={17} /></button></header>
-        <div className="flex-1 space-y-5 overflow-y-auto px-3 py-5 sm:px-5">{messages.map((message) => <article key={message.id} className={`flex items-start gap-2.5 ${message.author === 'user' ? 'justify-end' : ''}`}>
-          {message.author === 'assistant' && <span className="grid size-7 shrink-0 place-items-center rounded-full bg-[#07543f] text-[#b5efd3]"><FinanceIcon name="spark" size={14} /></span>}
-          <div className={`max-w-[92%] rounded-xl p-3 text-[11px] leading-[1.65] shadow-sm sm:max-w-[88%] sm:p-4 ${message.author === 'user' ? 'rounded-tr-sm bg-[#07543f] text-white' : 'rounded-tl-sm bg-[#f1f5f2] text-[#33443a]'}`}><p className="whitespace-pre-line">{message.text}</p>
-            {message.id === 1 && message.author === 'assistant' && <div className="mt-3 flex flex-wrap gap-1.5">{['Đánh giá tổng quan chi tiêu tháng 9', 'Gợi ý tiết kiệm 2.000.000 đ', 'Kế hoạch mua laptop cuối năm', 'Phân tích giao dịch bất thường'].map((suggestion) => <button key={suggestion} type="button" onClick={() => setQuery(suggestion)} className="rounded-full border border-[#dce8df] bg-white px-2.5 py-1.5 text-left text-[9px] text-[#4f6858] hover:border-[#a9cfb5]">{suggestion}</button>)}</div>}
-            {message.kind === 'analysis' && <div className="mt-3 grid gap-2">{expenseItems.map((item) => <div key={item.title} className="flex items-center justify-between gap-3 rounded-lg border border-[#e7ece8] bg-white p-2.5"><div className="flex min-w-0 items-center gap-2"><span className={`grid size-8 shrink-0 place-items-center rounded-lg ${item.color}`}><FinanceIcon name={item.icon} size={15} /></span><span className="min-w-0"><strong className="block text-[10px] font-semibold text-[#34443b]">{item.title}</strong><small className="mt-0.5 block text-[9px] text-[#829087]">{item.detail}</small></span></div><span className="shrink-0 text-right"><strong className="block whitespace-nowrap text-[10px] text-[#34443b]">{item.amount}</strong><small className="mt-1 inline-block rounded bg-[#f1f5f2] px-1.5 py-0.5 text-[8px] text-[#66746b]">{item.badge}</small></span></div>)}<div className="rounded-lg border border-[#dce8df] bg-white p-3"><strong className="text-[10px] text-[#07543f]">Đề xuất tối ưu</strong><p className="mt-1 text-[10px] leading-4">Giới hạn cà phê ngoài 2 lần/tuần có thể tiết kiệm khoảng <b>300.000 đ/tháng</b>.</p><button type="button" onClick={() => onNotify('Đã áp dụng hạn mức ăn uống mới')} className="mt-2 rounded-md bg-[#07543f] px-2.5 py-1.5 text-[9px] font-medium text-white">Áp dụng hạn mức ăn uống</button></div></div>}
+      {/* KHUNG TRÒ CHUYỆN TRUNG TÂM (MAIN CHAT AREA) */}
+      <main className="ai-main-chat-area">
+        {/* Header trên cùng */}
+        <header className="ai-chat-header">
+          <div className="ai-chat-header-left">
+            <div className="ai-avatar-badge">
+              <FinanceIcon name="spark" size={20} />
+            </div>
+            <div>
+              <h2 className="ai-header-title">Trợ lý Tài chính FinAI</h2>
+              <div className="ai-header-status">
+                <span className="status-dot" />
+                <span>Trực tuyến · Dữ liệu thời gian thực</span>
+              </div>
+            </div>
           </div>
-          {message.author === 'user' && <span className="grid size-7 shrink-0 place-items-center rounded-full bg-[#dcece2] text-[9px] font-bold text-[#07543f]">NA</span>}
-        </article>)}</div>
-        <form onSubmit={submitMessage} className="border-t border-[#e9eeea] bg-white p-3 sm:p-4"><div className="rounded-xl border border-[#e3eae5] bg-[#f7faf8] p-2.5 focus-within:border-[#a8cdb6]"><label htmlFor="finai-message" className="sr-only">Nội dung câu hỏi</label><div className="flex items-end gap-2"><textarea id="finai-message" value={query} onChange={(event) => setQuery(event.target.value)} rows={2} placeholder="Hỏi FinAI về chi tiêu, ngân sách hoặc kế hoạch tài chính..." className="min-h-11 flex-1 resize-none bg-transparent px-1.5 py-1 text-[11px] leading-5 text-[#34443b] outline-none placeholder:text-[#89958d]" /><button type="submit" aria-label="Gửi tin nhắn" disabled={!query.trim()} className="grid size-9 shrink-0 place-items-center rounded-lg bg-[#07543f] text-white disabled:cursor-not-allowed disabled:opacity-40"><FinanceIcon name="arrow" size={17} /></button></div><p className="mt-1 flex items-center gap-1 px-1.5 text-[8px] text-[#89958d]"><FinanceIcon name="shield" size={10} />FinAI phân tích dữ liệu tài chính đã kết nối của bạn.</p></div></form>
-      </section>
+          <button
+            type="button"
+            onClick={handleNewChat}
+            style={{
+              background: '#f1f5f9',
+              border: 'none',
+              padding: '8px 14px',
+              borderRadius: '10px',
+              fontSize: '0.82rem',
+              fontWeight: 600,
+              color: '#334155',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+            }}
+          >
+            <span>+ Tạo phiên mới</span>
+          </button>
+        </header>
 
-      <aside className="grid content-start gap-3 sm:grid-cols-2 xl:grid-cols-1"><section className="rounded-xl border border-[#e7ece8] bg-white p-3.5 shadow-sm"><header className="mb-3 flex items-center justify-between"><h2 className="text-[9px] font-bold tracking-[.7px] text-[#77837b]">HỒ SƠ ĐANG PHÂN TÍCH</h2><FinanceIcon name="chart" size={15} /></header><div className="grid gap-2">{[{ label: 'Thu nhập tháng', value: '18.500.000 đ', icon: 'income' as const }, { label: 'Tỷ lệ tiết kiệm', value: '69,5%', icon: 'trend' as const }, { label: 'Dòng tiền', value: 'Tích cực · +12,85M', icon: 'wallet' as const }].map((item) => <div key={item.label} className="flex items-center justify-between gap-2 rounded-lg bg-[#f3f7f4] p-2.5"><span className="flex items-center gap-2 text-[9px] text-[#68766e]"><FinanceIcon name={item.icon} size={13} />{item.label}</span><strong className="text-right text-[10px] font-semibold text-[#345342]">{item.value}</strong></div>)}</div></section>
-        <section className="rounded-xl border border-[#e7ece8] bg-white p-3.5 shadow-sm"><header className="mb-2 flex items-center justify-between"><h2 className="text-[9px] font-bold tracking-[.7px] text-[#77837b]">CÂU HỎI THÔNG MINH</h2><FinanceIcon name="spark" size={14} /></header><div className="grid gap-1.5">{smartQuestions.map((question) => <button key={question} type="button" onClick={() => setQuery(question)} className="flex items-start gap-2 rounded-lg bg-[#f3f7f4] p-2.5 text-left text-[9px] leading-4 text-[#4d5e53] hover:bg-[#eaf3ed]"><FinanceIcon name="arrow" size={12} />{question}</button>)}</div></section>
-        <section className="rounded-xl border border-[#e7ece8] bg-[#f5f8f5] p-3.5 sm:col-span-2 xl:col-span-1"><div className="flex items-center gap-2"><span className="grid size-7 place-items-center rounded-lg bg-white text-[#087557]"><FinanceIcon name="shield" size={14} /></span><strong className="text-[10px] text-[#3b4d40]">Quyền riêng tư</strong></div><p className="mt-2 text-[9px] leading-4 text-[#718078]">Thông tin chỉ dùng để trả lời trong phiên trợ lý này.</p></section></aside>
+        {/* Vùng hiển thị tin nhắn hoặc Màn hình chào mừng */}
+        <div className="ai-messages-scrollview">
+          {messages.length === 0 ? (
+            <div className="welcome-hero-box">
+              <div className="welcome-logo-badge">
+                <FinanceIcon name="spark" size={28} />
+              </div>
+              <h1 className="welcome-title">Xin chào! Tôi có thể giúp gì cho bạn hôm nay?</h1>
+              <p className="welcome-desc">
+                FinAI được kết nối trực tiếp với dòng tiền, ngân sách và các mục tiêu tài chính của bạn để đưa ra phân tích chính xác nhất.
+              </p>
+
+              <div className="quick-prompts-grid">
+                {quickQuestions.map((q, idx) => (
+                  <button
+                    key={idx}
+                    type="button"
+                    onClick={() => handleSelectQuickPrompt(q.prompt)}
+                    className="prompt-card-btn"
+                  >
+                    <span className="prompt-card-title">{q.title}</span>
+                    <span className="prompt-card-sub">{q.subtitle}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          ) : (
+            messages.map((msg) => {
+              const isAssistant = msg.author === 'assistant'
+              return (
+                <div
+                  key={msg.id}
+                  className={`chat-row ${isAssistant ? 'assistant-row' : 'user-row'}`}
+                >
+                  {isAssistant && (
+                    <div className="message-avatar assistant-avatar">
+                      <FinanceIcon name="spark" size={17} />
+                    </div>
+                  )}
+                  <div className="message-bubble">{msg.text}</div>
+                </div>
+              )
+            })
+          )}
+
+          {isLoading && (
+            <div className="chat-row assistant-row">
+              <div className="message-avatar assistant-avatar">
+                <FinanceIcon name="spark" size={17} />
+              </div>
+              <div className="ai-typing-indicator">
+                <div className="typing-dot" />
+                <div className="typing-dot" />
+                <div className="typing-dot" />
+                <span>FinAI đang suy luận dữ liệu...</span>
+              </div>
+            </div>
+          )}
+
+          <div ref={messagesEndRef} />
+        </div>
+
+        {/* Khung nhập liệu phía dưới */}
+        <div className="ai-input-wrapper">
+          <form onSubmit={handleSubmit} className="ai-input-card">
+            <textarea
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                  e.preventDefault()
+                  handleSubmit()
+                }
+              }}
+              rows={1}
+              placeholder="Hỏi FinAI về chi tiêu, ngân sách, số dư, dự báo tương lai hoặc lời khuyên..."
+              className="ai-textarea"
+            />
+            <button
+              type="submit"
+              disabled={!query.trim() || isLoading}
+              className="btn-send-message"
+              title="Gửi tin nhắn (Enter)"
+            >
+              <FinanceIcon name="arrow" size={18} />
+            </button>
+          </form>
+          <p className="ai-input-hint">
+            Nhấn Enter để gửi, Shift + Enter để xuống dòng. Toàn bộ hội thoại được lưu trữ bảo mật.
+          </p>
+        </div>
+      </main>
     </div>
-  </main>
+  )
 }

@@ -72,7 +72,7 @@ export function LandingScreen({ onAuthenticated }: LandingScreenProps) {
             <a href="#features">Tính năng nổi bật</a>
             <a href="#ai-assistant">Trợ lý Finora</a>
             <a href="#preview">Giao diện mẫu</a>
-            <a href="#security">Bảo mật</a>
+            <a href="/pricing">Bảng giá</a>
           </nav>
 
           <div className="nav-auth-actions">
@@ -429,7 +429,7 @@ export function LandingScreen({ onAuthenticated }: LandingScreenProps) {
               <a href="#features">Tính năng</a>
               <a href="#ai-assistant">Trợ lý AI</a>
               <a href="#preview">Giao diện</a>
-              <a href="#security">Bảo mật</a>
+              <a href="/pricing">Bảng giá</a>
             </div>
           </div>
 

@@ -37,6 +37,7 @@ const routeTitles: Record<string, { title: string; subtitle?: string }> = {
   '/scan-invoice': { title: 'Quét hóa đơn thông minh (OCR)', subtitle: 'Tải ảnh hóa đơn để tự động trích xuất thông tin' },
   '/feedback': { title: 'Hỗ trợ & Góp ý ý kiến', subtitle: 'Gửi yêu cầu trợ giúp và theo dõi phản hồi từ Ban Quản trị' },
   '/pricing': { title: 'Bảng giá & Gói cước Dịch vụ', subtitle: 'Nâng cấp quyền lợi tài chính, FinAI và quét hóa đơn thông minh' },
+  '/privacy': { title: 'Chính sách Bảo mật & Quyền riêng tư', subtitle: 'Cam kết an toàn thông tin dữ liệu tài chính theo tiêu chuẩn quốc tế' },
 }
 
 export function DashboardHeaderSection({ onNotify, onOpenProfile, onOpenChangePassword, onLogout, walletCount, onToggleSidebar, isSidebarCollapsed }: Props) {

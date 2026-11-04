@@ -254,6 +254,35 @@
   line-height: 1.4;
 }
 
+.privacy-terms-agreement {
+  font-size: 11.5px;
+  color: #64748b;
+  text-align: center;
+  margin: 2px 0 6px 0;
+  line-height: 1.5;
+}
+
+.privacy-link-text {
+  color: #07543f;
+  font-weight: 600;
+  text-decoration: underline;
+  transition: color 0.15s ease;
+}
+
+.privacy-link-text:hover {
+  color: #10b981;
+}
+
+:root[data-theme='dark'] .privacy-terms-agreement,
+.dark .privacy-terms-agreement {
+  color: #94a3b8;
+}
+
+:root[data-theme='dark'] .privacy-link-text,
+.dark .privacy-link-text {
+  color: #34d399;
+}
+
 /* Alert notifications */
 .form-alert {
   padding: 10px 14px;
@@ -491,5 +520,44 @@ html.dark .password-policy-hint {
   border-color: #1a384f !important;
   color: #93b2c6 !important;
 }
+
+.privacy-terms-agreement {
+  font-size: 0.8rem;
+  color: #64748b;
+  text-align: center;
+  margin: 10px 0 6px 0;
+  line-height: 1.45;
+}
+
+.privacy-link-text-btn {
+  background: none;
+  border: none;
+  padding: 0;
+  color: #10b981;
+  font-weight: 600;
+  font-size: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+  display: inline;
+  font-family: inherit;
+  transition: color 0.15s ease;
+}
+
+.privacy-link-text-btn:hover {
+  color: #059669;
+}
+
+html.dark .privacy-terms-agreement {
+  color: #94a3b8;
+}
+
+html.dark .privacy-link-text-btn {
+  color: #34d399;
+}
+
+html.dark .privacy-link-text-btn:hover {
+  color: #6ee7b7;
+}
+
 
 

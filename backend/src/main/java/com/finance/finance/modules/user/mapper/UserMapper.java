@@ -17,10 +17,18 @@ public class UserMapper {
             return null;
         }
 
+        // Tự động chuẩn hóa username: nếu bị null hoặc bị lưu nhầm email thì lấy phần prefix trước dấu @
+        String resolvedUsername = user.getUsername();
+        if (resolvedUsername == null || resolvedUsername.isBlank() || resolvedUsername.contains("@")) {
+            if (user.getEmail() != null && user.getEmail().contains("@")) {
+                resolvedUsername = user.getEmail().split("@")[0];
+            }
+        }
+
         UserResponse.UserResponseBuilder builder = UserResponse.builder()
                 .id(user.getId())
                 .email(user.getEmail())
-                .username(user.getUsername())
+                .username(resolvedUsername)
                 .fullName(user.getFullName())
                 .emailVerified(user.isEmailVerified())
                 .phone(user.getPhone())

@@ -8,11 +8,22 @@ interface ProfileScreenProps {
   onLogout?: () => void;
 }
 
+// Helper function để lấy username chuẩn xác (tránh fallback nhầm cả chuỗi email có @)
+function formatCleanUsername(username?: string | null, email?: string | null): string {
+  if (username && !username.includes('@')) {
+    return username;
+  }
+  if (email && email.includes('@')) {
+    return email.split('@')[0];
+  }
+  return username || '';
+}
+
 export function ProfileScreen({ onLogout: _onLogout }: ProfileScreenProps) {
   const [user, setUser] = useState<User | null>(getStoredUser());
   const [formData, setFormData] = useState({
     fullName: user?.fullName || '',
-    username: user?.username || '',
+    username: formatCleanUsername(user?.username, user?.email),
     email: user?.email || '',
     phone: user?.phone || '',
     preferredCurrency: user?.preferredCurrency || 'VND',
@@ -36,11 +47,12 @@ export function ProfileScreen({ onLogout: _onLogout }: ProfileScreenProps) {
     // Fetch latest user details from server to ensure fresh state
     userApi.getCurrentUser()
       .then((fresh) => {
+        const cleanUsername = formatCleanUsername(fresh.username, fresh.email);
         setUser(prev => {
           const merged: User = {
             ...prev!,
             ...fresh,
-            username: fresh.username || undefined,
+            username: cleanUsername,
             avatarUrl: fresh.avatarUrl || null,
             lastLoginAt: fresh.lastLoginAt || prev?.lastLoginAt || new Date().toISOString(),
           };
@@ -49,7 +61,7 @@ export function ProfileScreen({ onLogout: _onLogout }: ProfileScreenProps) {
         });
         setFormData({
           fullName: fresh.fullName || '',
-          username: fresh.username || '',
+          username: cleanUsername,
           email: fresh.email || '',
           phone: fresh.phone || '',
           preferredCurrency: fresh.preferredCurrency || 'VND',

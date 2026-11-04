@@ -24,6 +24,8 @@ import { NotificationScreen } from '../../notification/screen/NotificationScreen
 import { ChildWalletScreen } from '../../child-wallet/screen/ChildWalletScreen'
 import { UserFeedbackScreen } from '../../feedback/screen/UserFeedbackScreen'
 import { PricingScreen } from '../../pricing/screen/PricingScreen'
+import { PrivacyPolicyScreen } from '../../legal/screen/PrivacyPolicyScreen'
+import { TermsOfServiceScreen } from '../../legal/screen/TermsOfServiceScreen'
 import { AdminGuard } from '../../admin/components/AdminGuard'
 import { AdminLayout } from '../../admin/components/AdminLayout'
 import { AdminDashboardScreen } from '../../admin/screen/AdminDashboardScreen'
@@ -106,6 +108,18 @@ export default function AppScreen() {
     navigate('/')
   }
 
+  // 1. Cho phép các trang công khai truy cập mà KHÔNG cần đăng nhập
+  if (location.pathname === '/privacy') {
+    return <PrivacyPolicyScreen />
+  }
+  if (location.pathname === '/terms') {
+    return <TermsOfServiceScreen />
+  }
+  if (location.pathname === '/pricing') {
+    return <PricingScreen onNotify={setNotice} />
+  }
+
+  // 2. Nếu chưa đăng nhập thì hiển thị Landing Page
   if (!isLoggedIn) {
     return <LandingScreen onAuthenticated={handleAuthenticated} />
   }
@@ -216,6 +230,8 @@ export default function AppScreen() {
           <Route path="/notifications" element={<NotificationScreen onNotify={setNotice} />} />
           <Route path="/feedback" element={<UserFeedbackScreen onNotify={setNotice} />} />
           <Route path="/pricing" element={<PricingScreen onNotify={setNotice} />} />
+          <Route path="/privacy" element={<PrivacyPolicyScreen />} />
+          <Route path="/terms" element={<TermsOfServiceScreen />} />
           <Route path="/add-transaction" element={<AddTransactionScreen onCancel={() => navigate(-1)} onNotify={setNotice} onOpenInvoiceScanner={() => navigate('/scan-invoice')} />} />
           {!isChildAccount && <Route path="/scan-invoice" element={<InvoiceOcrScreen onCancel={() => navigate(-1)} onNotify={setNotice} />} />}
           <Route path="/transactions" element={<CashFlowManagementScreen onNotify={setNotice} onAddTransaction={() => navigate('/add-transaction')} />} />

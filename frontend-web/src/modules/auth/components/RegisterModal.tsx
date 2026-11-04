@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { authApi, saveAuthData, type RegisterRequest } from '../api/authApi';
 import { FinanceIcon } from '../../core/components/FinanceIcon';
 import { GoogleSignInButton } from './GoogleSignInButton';
+import { LegalTermsModal } from '../../legal/components/LegalTermsModal';
 import './AuthModal.css';
 
 interface RegisterModalProps {
@@ -26,6 +27,7 @@ export function RegisterModal({ onClose, onSuccess, onSwitchToLogin }: RegisterM
   const [countdown, setCountdown] = useState(0);
   const [error, setError] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
+  const [legalModalTab, setLegalModalTab] = useState<'privacy' | 'terms' | null>(null);
 
   // Đếm ngược gửi lại mã OTP (60s)
   const startCountdown = () => {
@@ -299,6 +301,27 @@ export function RegisterModal({ onClose, onSuccess, onSwitchToLogin }: RegisterM
             🔒 Mật khẩu từ 8 ký tự, gồm chữ hoa, chữ thường, số và ký tự đặc biệt (!@#$%^&*)
           </p>
 
+          {/* Điều khoản dịch vụ & Chính sách bảo mật */}
+          <p className="privacy-terms-agreement">
+            Bằng việc nhấn đăng ký, bạn đồng ý với{' '}
+            <button
+              type="button"
+              className="privacy-link-text-btn"
+              onClick={() => setLegalModalTab('terms')}
+            >
+              Điều khoản dịch vụ
+            </button>{' '}
+            &{' '}
+            <button
+              type="button"
+              className="privacy-link-text-btn"
+              onClick={() => setLegalModalTab('privacy')}
+            >
+              Chính sách bảo mật
+            </button>{' '}
+            của Finora Intelligence.
+          </p>
+
           <button
             type="submit"
             className="btn-submit-emerald"
@@ -345,6 +368,13 @@ export function RegisterModal({ onClose, onSuccess, onSwitchToLogin }: RegisterM
           </p>
         </div>
       </div>
+
+      {/* Popup nổi Điều khoản & Chính sách */}
+      <LegalTermsModal
+        isOpen={Boolean(legalModalTab)}
+        initialTab={legalModalTab || 'terms'}
+        onClose={() => setLegalModalTab(null)}
+      />
     </div>
   );
 }
