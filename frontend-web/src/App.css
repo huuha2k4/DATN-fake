@@ -350,7 +350,7 @@ html.dark .desktop-sidebar-toggle:hover {
 
 .topbar {
   position: sticky;
-  z-index: 4;
+  z-index: 100;
   top: 0;
   display: flex;
   min-height: 68px;

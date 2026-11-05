@@ -3,149 +3,48 @@ import { FinanceIcon, type IconName } from '../../core/components/FinanceIcon'
 import {
   getBalanceForecast,
   getCategoryForecast,
+  getGoalsForecast,
   type BalanceForecastResponse,
   type CategoryForecastResponse,
+  type GoalForecastResponse,
 } from '../../ai-assistant/api/aiApi'
 
 type Props = { onNotify: (message: string) => void }
-
-type ForecastCategory = {
-  name: string
-  icon: IconName
-  status: string
-  statusClass: string
-  limit: string
-  spent: string
-  forecast: string
-  spentPercent: number
-  forecastPercent: number
-  color: string
-  messageTitle: string
-  message: string
-}
-
-type Goal = {
-  name: string
-  icon: IconName
-  deadline: string
-  progress: number
-  metric: string
-  note: string
-  noteClass: string
-  action: string
-}
 
 function formatVND(amount: number): string {
   return Math.round(amount).toLocaleString('vi-VN') + ' đ'
 }
 
-function CategoryCard({ item }: { item: ForecastCategory }) {
-  return (
-    <article className="flex min-h-[230px] flex-col justify-between rounded-xl border border-[#e7ece8] bg-white p-4 shadow-sm">
-      <div>
-        <header className="flex items-start justify-between gap-2">
-          <div className="flex min-w-0 items-center gap-2.5">
-            <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-[#f1f5f2] text-[#47677f]">
-              <FinanceIcon name={item.icon} size={16} />
-            </span>
-            <div className="min-w-0">
-              <h3 className="truncate text-xs font-semibold text-[#34463b]">{item.name}</h3>
-              <p className="mt-1 text-[9px] text-[#718078]">Hạn mức: {item.limit}</p>
-            </div>
-          </div>
-          <span className={`shrink-0 rounded-full px-2 py-1 text-[8px] font-semibold ${item.statusClass}`}>{item.status}</span>
-        </header>
-        <dl className="mt-4 grid gap-2 text-[10px]">
-          <div className="flex justify-between gap-2">
-            <dt className="text-[#718078]">Đã chi trong kỳ</dt>
-            <dd className="font-semibold text-[#34463b]">{item.spent}</dd>
-          </div>
-          <div className="flex justify-between gap-2">
-            <dt className="text-[#718078]">Dự báo cuối tháng</dt>
-            <dd className="font-semibold text-[#34463b]">{item.forecast}</dd>
-          </div>
-        </dl>
-        <div className="relative mt-3 h-2.5 overflow-hidden rounded-full bg-[#eaf0ec]">
-          <span className={`absolute inset-y-0 left-0 rounded-full ${item.color}`} style={{ width: `${Math.min(100, item.spentPercent)}%` }} />
-          <span
-            className="absolute inset-y-0 rounded-r-full bg-[#a9ddc0]/80"
-            style={{ left: `${Math.min(100, item.spentPercent)}%`, width: `${Math.min(100 - item.spentPercent, item.forecastPercent)}%` }}
-          />
-        </div>
-      </div>
-      <p className="mt-4 rounded-lg bg-[#f3f7f4] p-2.5 text-[9px] leading-4 text-[#59675f]">
-        <strong className="text-[#34463b]">{item.messageTitle}: </strong>{item.message}
-      </p>
-    </article>
-  )
-}
-
-function GoalCard({ goal, onAction }: { goal: Goal; onAction: (action: string) => void }) {
-  return (
-    <article className="flex min-h-[245px] flex-col justify-between rounded-xl border border-[#e7ece8] bg-white p-4 shadow-sm">
-      <div>
-        <header className="flex items-start justify-between gap-2">
-          <div className="flex min-w-0 items-center gap-2.5">
-            <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-[#eaf4ed] text-[#087557]">
-              <FinanceIcon name={goal.icon} size={16} />
-            </span>
-            <div className="min-w-0">
-              <h3 className="truncate text-xs font-semibold text-[#34463b]">{goal.name}</h3>
-              <p className="mt-1 text-[9px] text-[#718078]">{goal.deadline}</p>
-            </div>
-          </div>
-          <strong className={`text-sm ${goal.noteClass}`}>{goal.progress}%</strong>
-        </header>
-        <div className="mt-5 flex justify-between gap-2 text-[9px] text-[#718078]">
-          <span>Tiến độ tích lũy</span>
-          <strong className="text-right text-[#34463b]">{goal.metric}</strong>
-        </div>
-        <div className="mt-2 h-2.5 overflow-hidden rounded-full bg-[#eaf0ec]">
-          <span
-            className={`block h-full rounded-full ${goal.noteClass.includes('a56d20') ? 'bg-[#d99b35]' : 'bg-[#087557]'}`}
-            style={{ width: `${goal.progress}%` }}
-          />
-        </div>
-        <p className="mt-4 rounded-lg bg-[#f3f7f4] p-3 text-[9px] leading-4 text-[#59675f]">
-          <strong className={goal.noteClass}>Dự báo AI: </strong>{goal.note}
-        </p>
-      </div>
-      <button
-        type="button"
-        onClick={() => onAction(goal.action)}
-        className="mt-4 w-fit rounded-lg bg-[#eaf0fb] px-3 py-2 text-[9px] font-medium text-[#344b62] hover:bg-[#d8e5f8]"
-      >
-        {goal.action}
-      </button>
-    </article>
-  )
-}
-
 export function FinancialForecastScreen({ onNotify }: Props) {
-  const [period, setPeriod] = useState('Tháng 11/2026 (Hiện tại)')
   const [isLoading, setIsLoading] = useState(true)
+  const [hoveredPoint, setHoveredPoint] = useState<{ date: string; val: number; x: number; y: number } | null>(null)
 
-  // AI Real Forecast State
-  const [forecastData, setForecastData] = useState<BalanceForecastResponse | null>(null)
+  // AI Real Forecast State (100% từ mô hình AI thật)
+  const [balanceForecast, setBalanceForecast] = useState<BalanceForecastResponse | null>(null)
   const [foodForecast, setFoodForecast] = useState<CategoryForecastResponse | null>(null)
+  const [goalsForecast, setGoalsForecast] = useState<GoalForecastResponse | null>(null)
 
   const loadForecast = async () => {
     setIsLoading(true)
     try {
-      const [balRes, foodRes] = await Promise.allSettled([
+      const [balRes, foodRes, goalRes] = await Promise.allSettled([
         getBalanceForecast(30),
         getCategoryForecast('Ăn uống'),
+        getGoalsForecast(),
       ])
 
       if (balRes.status === 'fulfilled') {
-        setForecastData(balRes.value)
+        setBalanceForecast(balRes.value)
       }
       if (foodRes.status === 'fulfilled') {
         setFoodForecast(foodRes.value)
       }
+      if (goalRes.status === 'fulfilled') {
+        setGoalsForecast(goalRes.value)
+      }
     } catch (err) {
       console.error('Lỗi khi tải dự báo tài chính:', err)
-      onNotify('Lỗi kết nối đến dịch vụ Dự báo AI.')
+      onNotify('Không thể kết nối đến AI Service.')
     } finally {
       setIsLoading(false)
     }
@@ -155,265 +54,381 @@ export function FinancialForecastScreen({ onNotify }: Props) {
     loadForecast()
   }, [])
 
-  const currentBal = forecastData?.current_balance ?? 450000
-  const projectedBal = forecastData?.projected_end_of_month_balance ?? currentBal
+  const currentBal = balanceForecast?.current_balance ?? 0
+  const projectedBal = balanceForecast?.projected_end_of_month_balance ?? currentBal
   const netDiff = projectedBal - currentBal
-
-  // Danh mục hiển thị kết hợp dữ liệu thật từ API
-  const categoriesList: ForecastCategory[] = [
-    {
-      name: 'Ăn uống',
-      icon: 'coffee',
-      status: foodForecast?.risk_level || 'AN TOÀN',
-      statusClass: foodForecast?.risk_level?.includes('VƯỢT') ? 'bg-[#fff0e9] text-[#a3483e]' : 'bg-[#e3f4e9] text-[#17794f]',
-      limit: foodForecast?.budget_limit ? formatVND(foodForecast.budget_limit) : 'Chưa đặt hạn mức',
-      spent: formatVND(foodForecast?.current_spent || 0),
-      forecast: formatVND(foodForecast?.projected_total_month || 0),
-      spentPercent: foodForecast?.budget_limit ? Math.round(((foodForecast.current_spent || 0) / foodForecast.budget_limit) * 100) : 25,
-      forecastPercent: 30,
-      color: 'bg-[#b45148]',
-      messageTitle: 'Dự báo chi tiêu',
-      message: foodForecast?.summary || 'Tốc độ chi tiêu ăn uống hiện tại đang ở mức an toàn và kiểm soát tốt.',
-    },
-    {
-      name: 'Hóa đơn & Sinh hoạt',
-      icon: 'bolt',
-      status: 'An toàn',
-      statusClass: 'bg-[#e3f4e9] text-[#17794f]',
-      limit: '1.500.000 đ',
-      spent: '0 đ',
-      forecast: '500.000 đ',
-      spentPercent: 0,
-      forecastPercent: 33,
-      color: 'bg-[#087557]',
-      messageTitle: 'Ổn định',
-      message: 'Các hóa đơn định kỳ chưa phát sinh trong chu kỳ tháng mới.',
-    },
-    {
-      name: 'Mua sắm & Giải trí',
-      icon: 'wallet',
-      status: 'Tốt',
-      statusClass: 'bg-[#e3f4e9] text-[#17794f]',
-      limit: '1.000.000 đ',
-      spent: '0 đ',
-      forecast: '350.000 đ',
-      spentPercent: 0,
-      forecastPercent: 35,
-      color: 'bg-[#168361]',
-      messageTitle: 'Tiết kiệm',
-      message: 'Chưa phát sinh khoản chi mua sắm lớn.',
-    },
-  ]
-
-  const goalsList: Goal[] = [
-    {
-      name: 'Quỹ dự phòng khẩn cấp',
-      icon: 'shield',
-      deadline: 'An toàn tài chính cá nhân',
-      progress: Math.min(100, Math.round((currentBal / 10000000) * 100)),
-      metric: `${formatVND(currentBal)} / 10.000.000 đ`,
-      note: 'Dự báo AI: Tốc độ tích lũy đang bắt đầu chu kỳ mới. Tiếp tục duy trì thặng dư tháng.',
-      noteClass: 'text-[#087557]',
-      action: 'Tích lũy thêm vào quỹ',
-    },
-    {
-      name: 'Mua laptop mới',
-      icon: 'chart',
-      deadline: 'Mục tiêu trung hạn',
-      progress: 30,
-      metric: '6.000.000 / 20.000.000 đ',
-      note: 'Dự kiến hoàn thành sau 5 tháng nếu trích lập đều đặn theo tỷ lệ 20% thu nhập.',
-      noteClass: 'text-[#087557]',
-      action: 'Xem lịch trình chi tiết',
-    },
-  ]
-
-  // Chuỗi điểm vẽ biểu đồ (kết hợp dữ liệu lịch sử và tương lai từ Prophet/Fallback)
-  const chartPoints = (forecastData?.future_forecast || []).slice(0, 15)
+  const chartPoints = (balanceForecast?.future_forecast || balanceForecast?.forecast_points || []).slice(0, 15)
 
   return (
-    <main className="mx-auto flex min-h-[calc(100vh-64px)] w-full max-w-[1560px] flex-col gap-5 bg-[#f6f8f6] px-3 pb-24 pt-6 text-[#14251f] sm:px-[22px] lg:px-[34px] lg:pb-10 lg:pt-8" aria-label="Dự báo tài chính">
-      <header className="flex flex-col justify-between gap-4 xl:flex-row xl:items-center">
-        <div>
-          <nav aria-label="Đường dẫn" className="mb-2 flex items-center gap-2 text-[10px] text-[#718078]">
-            <span>AI Thông minh</span>
-            <FinanceIcon name="arrow" size={12} />
-            <strong className="text-[#07543f]">Dự báo tài chính (AI 3 Prophet)</strong>
-          </nav>
-          <h1 className="text-2xl font-semibold leading-tight text-[#17261f] sm:text-[28px]">Dự báo Tài chính &amp; Dòng tiền</h1>
-          <p className="mt-1 max-w-2xl text-xs leading-5 text-[#718078]">
-            Mô hình chuỗi thời gian Facebook Prophet ước lượng số dư, cảnh báo thâm hụt và khả năng hoàn thành mục tiêu.
-          </p>
-          <span className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-[#e3f4e9] px-2.5 py-1 text-[9px] font-medium text-[#17794f]">
-            <FinanceIcon name="spark" size={12} />
-            Thuật toán: {forecastData?.algorithm || 'Facebook Prophet Time-Series'}
-          </span>
-        </div>
-        <div className="flex flex-col gap-2 sm:flex-row">
-          <label className="flex h-9 items-center gap-2 rounded-lg bg-white px-3 text-[10px] shadow-sm">
-            <FinanceIcon name="calendar" size={14} />
-            <select aria-label="Kỳ dự báo" value={period} onChange={(event) => setPeriod(event.target.value)} className="bg-transparent outline-none">
-              <option>Tháng 11/2026 (Hiện tại)</option>
-              <option>Tháng 10/2026</option>
-            </select>
-          </label>
-          <button
-            type="button"
-            onClick={loadForecast}
-            disabled={isLoading}
-            className="inline-flex h-9 items-center gap-2 rounded-lg bg-[#07543f] px-3.5 text-[10px] font-semibold text-white shadow-sm hover:bg-[#064232] disabled:opacity-50"
-          >
-            <FinanceIcon name="refresh" size={13} />
-            {isLoading ? 'Đang tính toán…' : 'Cập nhật dự báo'}
-          </button>
-        </div>
-      </header>
-
-      {/* 3 THẺ TỔNG QUAN DỰ BÁO SỐ DƯ */}
-      <section aria-label="Tổng quan dự báo" className="grid gap-3 md:grid-cols-3">
-        <article className="flex min-h-[135px] flex-col justify-between rounded-xl border border-[#e7ece8] bg-white p-4 shadow-sm">
+    <main className="mx-auto flex min-h-[calc(100vh-64px)] w-full max-w-[1560px] flex-col gap-5 bg-[#f6f8f6] dark:bg-[#07131d] px-3 pb-24 pt-4 text-[#14251f] dark:text-[#e2eaf0] sm:px-[22px] lg:px-[34px] lg:pb-10" aria-label="Dự báo tài chính">
+      {/* 3 THẺ TỔNG QUAN DỰ BÁO SỐ DƯ TỪ AI */}
+      <section aria-label="Tổng quan dự báo" className="grid gap-3.5 md:grid-cols-3">
+        <article className="flex min-h-[140px] flex-col justify-between rounded-2xl border border-[#e2e8f0] dark:border-[#1e3c54] bg-white dark:bg-[#102334] p-5 shadow-sm dark:shadow-[0_8px_20px_rgba(0,0,0,0.35)] transition-all hover:border-[#cbd5e1] dark:hover:border-[#2b5170]">
           <div className="flex items-center justify-between">
-            <span className="text-[9px] font-bold tracking-[.65px] text-[#718078]">SỐ DƯ THỰC TẾ HIỆN TẠI</span>
-            <span className="grid size-8 place-items-center rounded-lg bg-[#eaf4ed] text-[#087557]">
-              <FinanceIcon name="wallet" size={15} />
+            <span className="text-[10px] font-bold tracking-[.7px] text-[#64748b] dark:text-[#94a3b8]">SỐ DƯ THỰC TẾ HIỆN TẠI</span>
+            <span className="grid size-9 place-items-center rounded-xl bg-[#eaf4ed] dark:bg-[#163f39] text-[#087557] dark:text-[#34d399] shadow-inner">
+              <FinanceIcon name="wallet" size={17} />
             </span>
           </div>
-          <strong className="mt-2 text-[26px] font-semibold tracking-tight text-[#26372e]">
+          <strong className="mt-2 text-[28px] font-bold tracking-tight text-[#1e293b] dark:text-white">
             {formatVND(currentBal)}
           </strong>
-          <p className="text-[9px] text-[#718078]">Khớp với tổng số dư các ví &amp; tài khoản ngân hàng</p>
+          <span className="text-[11px] text-[#64748b] dark:text-[#8fa7b7]">Tổng hợp từ tất cả ví cá nhân</span>
         </article>
 
-        <article className="flex min-h-[135px] flex-col justify-between rounded-xl border border-[#e7ece8] bg-white p-4 shadow-sm">
+        <article className="flex min-h-[140px] flex-col justify-between rounded-2xl border border-[#e2e8f0] dark:border-[#1e3c54] bg-white dark:bg-[#102334] p-5 shadow-sm dark:shadow-[0_8px_20px_rgba(0,0,0,0.35)] transition-all hover:border-[#cbd5e1] dark:hover:border-[#2b5170]">
           <div className="flex items-center justify-between">
-            <span className="text-[9px] font-bold tracking-[.65px] text-[#718078]">DỰ BÁO SỐ DƯ CUỐI THÁNG</span>
-            <span className="grid size-8 place-items-center rounded-lg bg-[#eaf4ed] text-[#087557]">
-              <FinanceIcon name="trend" size={15} />
+            <span className="text-[10px] font-bold tracking-[.7px] text-[#64748b] dark:text-[#94a3b8]">DỰ BÁO SỐ DƯ CUỐI THÁNG</span>
+            <span className="grid size-9 place-items-center rounded-xl bg-[#eaf0fb] dark:bg-[#153e5c] text-[#3b82f6] dark:text-[#38bdf8] shadow-inner">
+              <FinanceIcon name="spark" size={17} />
             </span>
           </div>
-          <strong className="mt-2 text-[26px] font-semibold tracking-tight text-[#087557]">
+          <strong className="mt-2 text-[28px] font-bold tracking-tight text-[#07543f] dark:text-[#34d399]">
             {formatVND(projectedBal)}
           </strong>
-          <p className="text-[9px] text-[#718078]">
-            {netDiff >= 0 ? `+${formatVND(netDiff)} thặng dư dự kiến` : `Dự kiến giảm ${formatVND(Math.abs(netDiff))}`}
-          </p>
+          <span className="text-[11px] text-[#64748b] dark:text-[#8fa7b7]">
+            {balanceForecast?.projected_range
+              ? `Khoảng dao động: ${formatVND(balanceForecast.projected_range.lower)} ~ ${formatVND(balanceForecast.projected_range.upper)}`
+              : 'Ước lượng theo xu hướng chi tiêu'}
+          </span>
         </article>
 
-        <article className="flex min-h-[135px] flex-col justify-between rounded-xl border border-[#e7ece8] bg-white p-4 shadow-sm">
+        <article className="flex min-h-[140px] flex-col justify-between rounded-2xl border border-[#e2e8f0] dark:border-[#1e3c54] bg-white dark:bg-[#102334] p-5 shadow-sm dark:shadow-[0_8px_20px_rgba(0,0,0,0.35)] transition-all hover:border-[#cbd5e1] dark:hover:border-[#2b5170]">
           <div className="flex items-center justify-between">
-            <span className="text-[9px] font-bold tracking-[.65px] text-[#718078]">ĐỘ TIN CẬY MÔ HÌNH AI</span>
-            <span className="grid size-8 place-items-center rounded-lg bg-[#eaf4ed] text-[#087557]">
-              <FinanceIcon name="spark" size={15} />
+            <span className="text-[10px] font-bold tracking-[.7px] text-[#64748b] dark:text-[#94a3b8]">BIẾN ĐỘNG DÒNG TIỀN DỰ KIẾN</span>
+            <span className="grid size-9 place-items-center rounded-xl bg-[#f0fdf4] dark:bg-[#174431] text-[#10b981] dark:text-[#34d399] shadow-inner">
+              <FinanceIcon name="trend" size={17} />
             </span>
           </div>
-          <strong className="mt-2 text-[26px] font-semibold tracking-tight text-[#26372e]">
-            85.0%
+          <strong className={`mt-2 text-[28px] font-bold tracking-tight ${netDiff >= 0 ? 'text-[#087557] dark:text-[#34d399]' : 'text-[#e11d48]'}`}>
+            {netDiff >= 0 ? `+${formatVND(netDiff)}` : `-${formatVND(Math.abs(netDiff))}`}
           </strong>
-          <p className="text-[9px] text-[#718078]">Khoảng tin cậy 80% (Prophet Interval Width)</p>
+          <span className="text-[11px] text-[#64748b] dark:text-[#8fa7b7]">
+            {netDiff >= 0 ? 'Dự kiến thặng dư vào cuối chu kỳ' : 'Dự kiến suy giảm số dư do chi tiêu'}
+          </span>
         </article>
       </section>
 
-      {/* BIỂU ĐỒ DỰ BÁO DÒNG TIỀN VÀ SỐ DƯ */}
-      <section className="rounded-xl border border-[#e7ece8] bg-white p-4 shadow-sm sm:p-5">
-        <header className="flex flex-col justify-between gap-3 lg:flex-row lg:items-start">
+      {/* BIỂU ĐỒ CHUỖI THỜI GIAN AI (TIME-SERIES CHART) */}
+      <section className="rounded-2xl border border-[#e2e8f0] dark:border-[#1e3c54] bg-white dark:bg-[#102334] p-4 shadow-sm dark:shadow-[0_12px_28px_rgba(0,0,0,0.38)] sm:p-5">
+        <header className="flex flex-col justify-between gap-3 border-b border-[#edf0ed] dark:border-[#1a3449] pb-3 sm:flex-row sm:items-center">
           <div>
-            <h2 className="text-sm font-semibold text-[#26372e] sm:text-base">Biểu đồ dự phóng số dư theo thời gian</h2>
-            <p className="mt-1 text-[10px] leading-4 text-[#829087]">
-              {forecastData?.summary || 'Dự báo biến động số dư theo xu hướng chi tiêu thực tế hàng ngày.'}
+            <h2 className="text-base font-semibold text-[#1e293b] dark:text-[#f8fafc]">Đồ thị Dự phóng Số dư Ví (15 ngày tới)</h2>
+            <p className="mt-1 text-[11px] text-[#64748b] dark:text-[#94a3b8]">
+              {balanceForecast?.summary || 'Dự báo biến động số dư theo xu hướng chi tiêu thực tế hàng ngày.'}
             </p>
           </div>
-          <div className="flex flex-wrap gap-x-4 gap-y-2 text-[9px] text-[#59675f]">
-            <span className="flex items-center gap-1.5">
-              <i className="h-1.5 w-3 rounded-full bg-[#07543f]" /> Hiện tại
-            </span>
-            <span className="flex items-center gap-1.5">
-              <i className="h-1.5 w-3 rounded-full bg-[#70c8a0]" /> Dự báo AI (yhat)
-            </span>
-          </div>
         </header>
 
-        {/* Cột trực quan dự phóng */}
-        <div className="relative mt-5 h-[240px] sm:h-[280px]">
-          <div className="absolute inset-0 flex flex-col justify-between pb-7 text-[9px] text-[#89958d]">
-            {[formatVND(currentBal * 1.2), formatVND(currentBal * 0.9), formatVND(currentBal * 0.6), '0 đ'].map((label, idx) => (
-              <div key={idx} className="flex items-center gap-2">
-                <span className="w-16 text-right text-[8px] sm:text-[9px]">{label}</span>
-                <span className="h-px flex-1 border-t border-dashed border-[#e6ece8]" />
+        {chartPoints.length > 0 ? (() => {
+          const values = chartPoints.map((pt) => pt.predicted_balance ?? currentBal)
+          const rawMin = Math.min(...values, currentBal)
+          const rawMax = Math.max(...values, currentBal)
+          // Để đồ thị dao động nhịp nhàng, rõ đường lên xuống như bảng chứng khoán
+          const diff = rawMax - rawMin
+          const margin = diff > 0 ? diff * 0.35 : Math.max(rawMax * 0.05, 100000)
+          const yMin = Math.max(0, rawMin - margin)
+          const yMax = rawMax + margin
+          const yRange = yMax - yMin || 1
+
+          const svgWidth = 800
+          const svgHeight = 220
+          const padLeft = 20
+          const padRight = 20
+          const padTop = 30
+          const padBottom = 30
+          const plotW = svgWidth - padLeft - padRight
+          const plotH = svgHeight - padTop - padBottom
+
+          const coords = chartPoints.map((pt, idx) => {
+            const val = pt.predicted_balance ?? currentBal
+            const x = padLeft + (idx / Math.max(chartPoints.length - 1, 1)) * plotW
+            const y = padTop + plotH - ((val - yMin) / yRange) * plotH
+            return { x, y, val, date: pt.date }
+          })
+
+          // Tạo đường cong Bezier mềm mại (Spline) cho giống TradingView / Bảng chứng khoán
+          let linePath = ''
+          if (coords.length > 0) {
+            linePath = `M ${coords[0].x.toFixed(1)},${coords[0].y.toFixed(1)}`
+            for (let i = 0; i < coords.length - 1; i++) {
+              const curr = coords[i]
+              const next = coords[i + 1]
+              const cp1x = curr.x + (next.x - curr.x) / 2
+              const cp1y = curr.y
+              const cp2x = curr.x + (next.x - curr.x) / 2
+              const cp2y = next.y
+              linePath += ` C ${cp1x.toFixed(1)},${cp1y.toFixed(1)} ${cp2x.toFixed(1)},${cp2y.toFixed(1)} ${next.x.toFixed(1)},${next.y.toFixed(1)}`
+            }
+          }
+
+          const areaPath = `${linePath} L ${coords[coords.length - 1].x.toFixed(1)},${(padTop + plotH).toFixed(1)} L ${coords[0].x.toFixed(1)},${(padTop + plotH).toFixed(1)} Z`
+
+          return (
+            <div className="relative mt-5">
+              {/* Thanh Header đồ thị: Chỉ số Đỉnh - Đáy & Biến động */}
+              <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg bg-[#f8faf9] dark:bg-[#071926] px-3.5 py-2.5 border border-[#edf0ed] dark:border-[#132c3f] text-xs">
+                <div className="flex items-center gap-2">
+                  <span className="size-2 rounded-full bg-[#10b981] shadow-[0_0_8px_#10b981]" />
+                  <span className="text-[#64748b] dark:text-[#94a3b8]">Cao nhất:</span>
+                  <strong className="text-[#07543f] dark:text-[#34d399] font-semibold">{formatVND(rawMax)}</strong>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="size-2 rounded-full bg-[#0284c7] shadow-[0_0_8px_#38bdf8]" />
+                  <span className="text-[#64748b] dark:text-[#94a3b8]">Thấp nhất:</span>
+                  <strong className="text-[#0284c7] dark:text-[#38bdf8] font-semibold">{formatVND(rawMin)}</strong>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-[#64748b] dark:text-[#94a3b8]">Biên độ:</span>
+                  <strong className={`font-semibold ${rawMax >= rawMin ? 'text-[#10b981]' : 'text-[#f43f5e]'}`}>
+                    {rawMax - rawMin > 0 ? `+${formatVND(rawMax - rawMin)}` : formatVND(rawMax - rawMin)}
+                  </strong>
+                </div>
               </div>
+
+              {/* Khung đồ thị chứng khoán chuyên nghiệp */}
+              <div className="relative w-full h-[230px] sm:h-[270px] select-none mt-2 rounded-xl bg-gradient-to-b from-[#f8faf9]/50 to-white dark:from-[#081b29] dark:to-[#05121b] border border-[#e2e8f0]/60 dark:border-[#132c3f] p-2">
+                <svg
+                  viewBox={`0 0 ${svgWidth} ${svgHeight}`}
+                  preserveAspectRatio="none"
+                  className="w-full h-full overflow-visible"
+                  onMouseLeave={() => setHoveredPoint(null)}
+                >
+                  <defs>
+                    <linearGradient id="tradingAreaGrad" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="#10b981" stopOpacity="0.45" />
+                      <stop offset="50%" stopColor="#10b981" stopOpacity="0.12" />
+                      <stop offset="100%" stopColor="#10b981" stopOpacity="0.0" />
+                    </linearGradient>
+                    <linearGradient id="tradingLineGrad" x1="0" y1="0" x2="1" y2="0">
+                      <stop offset="0%" stopColor="#059669" />
+                      <stop offset="40%" stopColor="#10b981" />
+                      <stop offset="80%" stopColor="#34d399" />
+                      <stop offset="100%" stopColor="#6ee7b7" />
+                    </linearGradient>
+                    <filter id="neonGlow" x="-30%" y="-30%" width="160%" height="160%">
+                      <feDropShadow dx="0" dy="2" stdDeviation="4" floodColor="#10b981" floodOpacity="0.6" />
+                    </filter>
+                  </defs>
+
+                  {/* Lưới ngang Gridlines mờ sang trọng */}
+                  {[0.2, 0.4, 0.6, 0.8].map((ratio, idx) => {
+                    const y = padTop + plotH * ratio
+                    return (
+                      <line
+                        key={idx}
+                        x1={padLeft}
+                        y1={y}
+                        x2={svgWidth - padRight}
+                        y2={y}
+                        stroke="currentColor"
+                        className="text-[#cbd5e1]/40 dark:text-[#18364d]/60"
+                        strokeDasharray="5 5"
+                        strokeWidth="1"
+                      />
+                    )
+                  })}
+
+                  {/* Vùng bóng mờ gradient chuyển sắc */}
+                  <path d={areaPath} fill="url(#tradingAreaGrad)" />
+
+                  {/* Đường sóng lượn chứng khoán Neon Glow */}
+                  <path
+                    d={linePath}
+                    fill="none"
+                    stroke="url(#tradingLineGrad)"
+                    strokeWidth="3.2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    filter="url(#neonGlow)"
+                  />
+
+                  {/* Cột mốc hover và đường ngắm dọc (crosshair line) */}
+                  {hoveredPoint && (
+                    <line
+                      x1={(hoveredPoint.x / 100) * svgWidth}
+                      y1={padTop}
+                      x2={(hoveredPoint.x / 100) * svgWidth}
+                      y2={padTop + plotH}
+                      stroke="#38bdf8"
+                      strokeDasharray="3 3"
+                      strokeWidth="1.2"
+                      className="opacity-70"
+                    />
+                  )}
+
+                  {/* Các điểm nút (Nodes) phát sáng tinh gọn */}
+                  {coords.map((c, idx) => {
+                    const isHovered = hoveredPoint?.date === c.date
+                    return (
+                      <g key={idx} className="cursor-pointer">
+                        {/* Vùng bắt chuột rộng rãi */}
+                        <circle
+                          cx={c.x}
+                          cy={c.y}
+                          r="16"
+                          fill="transparent"
+                          onMouseEnter={() => setHoveredPoint({ date: c.date, val: c.val, x: (c.x / svgWidth) * 100, y: (c.y / svgHeight) * 100 })}
+                        />
+                        {/* Chấm tròn biểu diễn */}
+                        {isHovered ? (
+                          <>
+                            <circle cx={c.x} cy={c.y} r="8" fill="#10b981" opacity="0.3" className="animate-ping" />
+                            <circle cx={c.x} cy={c.y} r="5" fill="#34d399" stroke="#ffffff" strokeWidth="2" />
+                          </>
+                        ) : (
+                          <circle
+                            cx={c.x}
+                            cy={c.y}
+                            r="3"
+                            className="fill-[#10b981] dark:fill-[#34d399] transition-transform hover:scale-150"
+                          />
+                        )}
+                      </g>
+                    )
+                  })}
+                </svg>
+
+                {/* Tooltip phong cách sàn chứng khoán / Crypto */}
+                {hoveredPoint && (
+                  <div
+                    className="pointer-events-none absolute z-30 -translate-x-1/2 -translate-y-full rounded-xl bg-[#0b1b28]/95 border border-[#1e4460] px-3.5 py-2.5 text-white shadow-2xl backdrop-blur-md transition-all duration-75"
+                    style={{
+                      left: `${Math.min(92, Math.max(8, hoveredPoint.x))}%`,
+                      top: `${Math.max(4, hoveredPoint.y - 6)}%`,
+                    }}
+                  >
+                    <div className="flex items-center gap-1.5 text-[10px] text-[#38bdf8] font-medium">
+                      <span className="size-1.5 rounded-full bg-[#38bdf8] animate-pulse" />
+                      <span>{hoveredPoint.date}</span>
+                    </div>
+                    <div className="mt-1 text-sm font-extrabold tracking-tight text-white flex items-baseline gap-1">
+                      <span>{formatVND(hoveredPoint.val)}</span>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Mốc thời gian trục X */}
+              <div className="mt-2.5 flex justify-between px-2 text-[10px] font-medium text-[#718078] dark:text-[#8fa7b7]">
+                <span className="text-[#07543f] dark:text-[#34d399] font-bold">Hôm nay</span>
+                <span>+5 ngày</span>
+                <span>+10 ngày</span>
+                <span className="text-[#10b981] dark:text-[#38bdf8] font-bold">Dự báo 15 ngày tới</span>
+              </div>
+            </div>
+          )
+        })() : (
+          <div className="py-12 text-center text-xs text-[#718078] dark:text-[#8fa7b7]">
+            Đang tải dữ liệu chuỗi thời gian từ mô hình Prophet...
+          </div>
+        )}
+      </section>
+
+      {/* DỰ BÁO CHI TIÊU DANH MỤC THỰC TẾ (ĂN UỐNG) */}
+      {foodForecast && (
+        <section>
+          <header className="mb-3">
+            <h2 className="text-base font-semibold text-[#26372e] dark:text-[#f8fafc]">Dự báo chi tiêu Danh mục Thực tế</h2>
+            <p className="mt-1 text-[10px] text-[#718078] dark:text-[#8fa7b7]">
+              Phân tích tốc độ chi tiêu theo chu kỳ tháng và đối soát ngân sách.
+            </p>
+          </header>
+          <div className="grid gap-3.5 md:grid-cols-2 xl:grid-cols-3">
+            <article className="flex flex-col justify-between rounded-2xl border border-[#e2e8f0] dark:border-[#1e3c54] bg-white dark:bg-[#102334] p-5 shadow-sm dark:shadow-[0_8px_20px_rgba(0,0,0,0.35)]">
+              <div>
+                <header className="flex items-start justify-between gap-2">
+                  <div className="flex items-center gap-2.5">
+                    <span className="grid size-9 place-items-center rounded-lg bg-[#fff0e9] dark:bg-[#341816] text-[#b45148]">
+                      <FinanceIcon name="coffee" size={16} />
+                    </span>
+                    <div>
+                      <h3 className="text-xs font-semibold text-[#34463b] dark:text-[#e2eaf0]">{foodForecast.category_name}</h3>
+                      <p className="mt-0.5 text-[9px] text-[#718078] dark:text-[#8fa7b7]">
+                        Hạn mức: {foodForecast.budget_limit ? formatVND(foodForecast.budget_limit) : 'Chưa đặt hạn mức'}
+                      </p>
+                    </div>
+                  </div>
+                  <span className={`shrink-0 rounded-full px-2 py-0.5 text-[8px] font-semibold ${foodForecast.risk_level?.includes('VƯỢT') ? 'bg-[#fff0e9] text-[#b45148]' : 'bg-[#e3f4e9] text-[#087557]'}`}>
+                    {foodForecast.risk_level || 'AN TOÀN'}
+                  </span>
+                </header>
+
+                <div className="mt-4 grid gap-2 text-[11px]">
+                  <div className="flex justify-between">
+                    <span className="text-[#718078] dark:text-[#8fa7b7]">Đã chi trong tháng:</span>
+                    <strong className="text-[#26372e] dark:text-[#f8fafc]">{formatVND(foodForecast.current_spent || 0)}</strong>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-[#718078] dark:text-[#8fa7b7]">Dự báo tổng chi cả tháng:</span>
+                    <strong className="text-[#b45148]">{formatVND(foodForecast.projected_total_month || 0)}</strong>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-[#718078] dark:text-[#8fa7b7]">Tốc độ chi trung bình:</span>
+                    <span className="text-[#59675f] dark:text-[#cbd5e1]">{formatVND(foodForecast.daily_rate || 0)}/ngày</span>
+                  </div>
+                </div>
+
+                <p className="mt-3 rounded-lg bg-[#f8faf9] dark:bg-[#122838] p-2.5 text-[10px] leading-4 text-[#59675f] dark:text-[#cbd5e1]">
+                  💡 {foodForecast.summary}
+                </p>
+              </div>
+            </article>
+          </div>
+        </section>
+      )}
+
+      {/* DỰ BÁO TIẾN ĐỘ MỤC TIÊU TÀI CHÍNH THỰC TẾ TỪ AI */}
+      {goalsForecast && goalsForecast.goals && goalsForecast.goals.length > 0 && (
+        <section>
+          <header className="mb-3">
+            <h2 className="text-base font-semibold text-[#26372e] dark:text-[#f8fafc]">Dự báo Khả năng Hoàn thành Mục tiêu</h2>
+            <p className="mt-1 text-[10px] text-[#718078] dark:text-[#8fa7b7]">
+              {goalsForecast.summary || 'Ước tính thời gian đạt mục tiêu dựa trên thặng dư tiết kiệm trung bình hàng tháng.'}
+            </p>
+          </header>
+          <div className="grid gap-3.5 md:grid-cols-2 xl:grid-cols-3">
+            {goalsForecast.goals.map((g) => (
+              <article key={g.goal_id} className="flex min-h-[220px] flex-col justify-between rounded-2xl border border-[#e2e8f0] dark:border-[#1e3c54] bg-white dark:bg-[#102334] p-5 shadow-sm dark:shadow-[0_8px_20px_rgba(0,0,0,0.35)]">
+                <div>
+                  <header className="flex items-start justify-between gap-2">
+                    <div className="flex items-center gap-2.5">
+                      <span className="grid size-9 place-items-center rounded-lg bg-[#eaf4ed] dark:bg-[#15454b] text-[#087557] dark:text-[#5eead4]">
+                        <FinanceIcon name="shield" size={16} />
+                      </span>
+                      <div>
+                        <h3 className="text-xs font-semibold text-[#34463b] dark:text-[#e2eaf0]">{g.name}</h3>
+                        <p className="mt-0.5 text-[9px] text-[#718078] dark:text-[#8fa7b7]">
+                          Dự kiến xong: <strong>{g.estimated_completion_month}</strong>
+                        </p>
+                      </div>
+                    </div>
+                    <strong className="text-sm font-bold text-[#087557] dark:text-[#5eead4]">{g.progress_pct}%</strong>
+                  </header>
+
+                  <div className="mt-4 flex justify-between text-[10px] text-[#718078] dark:text-[#8fa7b7]">
+                    <span>Tiến độ tích lũy:</span>
+                    <strong className="text-[#34463b] dark:text-[#e2eaf0]">
+                      {formatVND(g.current_amount)} / {formatVND(g.target_amount)}
+                    </strong>
+                  </div>
+
+                  <div className="mt-2 h-2 overflow-hidden rounded-full bg-[#edf1ee] dark:bg-[#1e3a4e]">
+                    <span
+                      className="block h-full rounded-full bg-[#10b981]"
+                      style={{ width: `${Math.min(100, g.progress_pct)}%` }}
+                    />
+                  </div>
+
+                  <p className="mt-3 rounded-lg bg-[#f8faf9] dark:bg-[#122838] p-2.5 text-[10px] text-[#59675f] dark:text-[#cbd5e1]">
+                    🎯 Còn thiếu {formatVND(g.remaining_amount)}. Cần khoảng <strong>{g.months_needed} tháng</strong> với tốc độ tiết kiệm hiện tại.
+                  </p>
+                </div>
+              </article>
             ))}
           </div>
-
-          <div className="absolute bottom-7 left-20 right-0 top-0 flex items-end gap-1 overflow-hidden">
-            {chartPoints.map((pt, idx) => {
-              const maxVal = Math.max(currentBal * 1.2, 1)
-              const val = pt.predicted_balance ?? currentBal
-              const pct = Math.max(12, Math.min(100, Math.round((val / maxVal) * 100)))
-              return (
-                <div key={idx} className="flex h-full min-w-0 flex-1 flex-col items-center justify-end group">
-                  <div className="hidden group-hover:block absolute -top-2 rounded bg-gray-900 px-2 py-0.5 text-[9px] text-white z-20 whitespace-nowrap shadow">
-                    {pt.date}: {formatVND(val)}
-                  </div>
-                  <span
-                    className="w-full max-w-[28px] rounded-t-sm bg-[#70c8a0] transition-all duration-300 hover:bg-[#07543f]"
-                    style={{ height: `${pct}%` }}
-                  />
-                </div>
-              )
-            })}
-          </div>
-
-          <div className="absolute bottom-0 left-20 right-0 flex justify-between text-[8px] text-[#77837b] sm:text-[9px]">
-            <span className="font-semibold text-[#07543f]">Hôm nay</span>
-            <span>+7 ngày</span>
-            <span>+15 ngày</span>
-            <span className="font-semibold text-[#168361]">Cuối tháng · Dự báo</span>
-          </div>
-        </div>
-
-        <footer className="mt-4 flex flex-col justify-between gap-2 rounded-lg bg-[#f1f5f2] p-3 text-[10px] text-[#59675f] sm:flex-row sm:items-center">
-          <span className="flex items-center gap-1.5">
-            <FinanceIcon name="spark" size={14} className="text-[#07543f]" />
-            {forecastData?.message || 'FinAI Prophet đang cập nhật dự phóng liên tục theo từng giao dịch mới.'}
-          </span>
-          <button
-            type="button"
-            onClick={() => onNotify('Đã làm mới mô hình Prophet')}
-            className="text-left font-semibold text-[#087557] sm:text-right hover:underline"
-          >
-            Làm mới mô hình →
-          </button>
-        </footer>
-      </section>
-
-      {/* DỰ BÁO CHI TIÊU THEO DANH MỤC */}
-      <section>
-        <header className="mb-3 flex flex-col justify-between gap-3 lg:flex-row lg:items-center">
-          <div>
-            <h2 className="text-base font-semibold text-[#26372e]">Dự báo chi tiêu theo danh mục</h2>
-            <p className="mt-1 text-[10px] text-[#718078]">So sánh thực chi với phần dự phóng đến hết chu kỳ tháng.</p>
-          </div>
-        </header>
-        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-          {categoriesList.map((item) => (
-            <CategoryCard key={item.name} item={item} />
-          ))}
-        </div>
-      </section>
-
-      {/* MỤC TIÊU TÀI CHÍNH */}
-      <section>
-        <header className="mb-3 flex flex-col justify-between gap-2 sm:flex-row sm:items-end">
-          <div>
-            <h2 className="text-base font-semibold text-[#26372e]">Khả năng hoàn thành mục tiêu</h2>
-            <p className="mt-1 text-[10px] text-[#718078]">Xác suất và lộ trình dựa trên vận tốc tích lũy thực tế.</p>
-          </div>
-        </header>
-        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-          {goalsList.map((goal) => (
-            <GoalCard key={goal.name} goal={goal} onAction={(action) => onNotify(action)} />
-          ))}
-        </div>
-      </section>
+        </section>
+      )}
     </main>
   )
 }

@@ -679,7 +679,7 @@ def read_root():
 
 import uuid
 from datetime import datetime
-from database import SessionLocal, AIChatSession, AIChatMessage
+from database import SessionLocal, AIChatSession, AIChatMessage, User
 
 class ChatRequest(BaseModel):
     question: str
@@ -913,3 +913,73 @@ def api_get_recommendations(user_id: str = "test_user_01"):
 
 
 
+
+@app.get("/api/ai/admin/stats")
+def get_ai_admin_stats():
+    """Endpoint quản trị AI: Trả về trạng thái mô hình, số liệu chat sessions, thông số LLM"""
+    import os
+    db = SessionLocal()
+    try:
+        total_sessions = db.query(AIChatSession).count()
+        total_messages = db.query(AIChatMessage).count()
+        recent_sessions = db.query(AIChatSession).order_by(AIChatSession.updated_at.desc()).limit(10).all()
+
+        current_model = os.getenv("LOCAL_MODEL_NAME", "gemini-flash-lite-latest") if os.getenv("USE_LOCAL_LLM", "false").lower() == "true" else "gemini-flash-lite-latest"
+        provider = "Ollama (Local LLM)" if os.getenv("USE_LOCAL_LLM", "false").lower() == "true" else "Google Gemini API"
+
+        sessions_data = []
+        for s in recent_sessions:
+            msg_count = db.query(AIChatMessage).filter(AIChatMessage.session_id == s.id).count()
+            user_obj = db.query(User).filter(User.id == s.user_id).first()
+            sessions_data.append({
+                "id": str(s.id),
+                "title": s.title,
+                "userId": str(s.user_id),
+                "userName": user_obj.full_name if user_obj and user_obj.full_name else (user_obj.email if user_obj else "Người dùng"),
+                "userEmail": user_obj.email if user_obj else "N/A",
+                "messageCount": msg_count,
+                "createdAt": s.created_at.isoformat() if s.created_at else None,
+                "updatedAt": s.updated_at.isoformat() if s.updated_at else None
+            })
+
+        return {
+            "status": "HEALTHY",
+            "provider": provider,
+            "activeModel": current_model,
+            "temperature": 0.2,
+            "totalSessions": total_sessions,
+            "totalMessages": total_messages,
+            "algorithms": [
+                {
+                    "name": "FinAI Chatbot Copilot",
+                    "type": "LLM ReAct Agent + Function Calling",
+                    "engine": "LangChain + Gemini Flash-Lite",
+                    "status": "ONLINE",
+                    "desc": "Tự động gọi công cụ truy vấn Database thời gian thực"
+                },
+                {
+                    "name": "Financial Forecaster",
+                    "type": "Time Series Forecasting",
+                    "engine": "Facebook Prophet",
+                    "status": "ONLINE",
+                    "desc": "Dự phóng dòng tiền & số dư tài khoản đến cuối tháng"
+                },
+                {
+                    "name": "Anomaly Detector",
+                    "type": "Unsupervised Machine Learning",
+                    "engine": "Isolation Forest (Scikit-Learn)",
+                    "status": "ONLINE",
+                    "desc": "Phát hiện giao dịch chi tiêu bất thường theo thời gian thực"
+                },
+                {
+                    "name": "Behavior Profiler & Persona",
+                    "type": "Statistical Rule Engine",
+                    "engine": "50/30/20 Rule + Radar Scoring",
+                    "status": "ONLINE",
+                    "desc": "Phân tích thói quen và chấm điểm phong cách tài chính"
+                }
+            ],
+            "recentSessions": sessions_data
+        }
+    finally:
+        db.close()

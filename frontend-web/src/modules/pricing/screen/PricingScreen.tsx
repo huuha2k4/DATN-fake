@@ -44,12 +44,14 @@ export function PricingScreen({ onNotify }: PricingScreenProps) {
   useEffect(() => {
     api.get('/public/pricing')
       .then((res) => {
-        if (res.data) {
+        // Backend có thể trả về trực tiếp DTO hoặc bọc trong { success: true, data: { ... } }
+        const data = res.data?.data || res.data
+        if (data) {
           setPricingConfig({
-            freeMaxWallets: res.data.freeTierMaxWallets || 3,
-            freeOcrLimit: res.data.freeTierOcrLimit || 10,
-            premiumPriceMonthly: res.data.premiumTierPriceMonthly || 49000,
-            enterprisePriceMonthly: res.data.enterpriseTierPriceMonthly || 199000,
+            freeMaxWallets: Number(data.freeTierMaxWallets) || 3,
+            freeOcrLimit: Number(data.freeTierOcrLimit) || 10,
+            premiumPriceMonthly: Number(data.premiumTierPriceMonthly) || 49000,
+            enterprisePriceMonthly: Number(data.enterpriseTierPriceMonthly) || 199000,
           })
         }
       })
@@ -138,8 +140,29 @@ export function PricingScreen({ onNotify }: PricingScreenProps) {
     }, 800)
   }
 
+  const handleGoBack = () => {
+    if (window.history.length > 1) {
+      navigate(-1)
+    } else {
+      navigate('/dashboard')
+    }
+  }
+
   return (
     <div className="pricing-page-container">
+      {/* Top Bar with Back Button */}
+      <div className="pricing-top-actions">
+        <button
+          type="button"
+          onClick={handleGoBack}
+          className="pricing-btn-back"
+          title="Quay lại trang trước"
+        >
+          <FinanceIcon name="chevron-left" size={18} />
+          <span>Quay lại</span>
+        </button>
+      </div>
+
       {/* Header Banner */}
       <section className="pricing-hero-banner">
         <div className="pricing-hero-badge">

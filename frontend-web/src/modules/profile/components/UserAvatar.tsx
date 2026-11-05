@@ -195,49 +195,6 @@ export function UserAvatar({ onOpenProfile, onOpenChangePassword, onLogout, isAd
               <span>Đổi mật khẩu</span>
             </button>
 
-            {/* Chức năng 3: Phản hồi & Hỗ trợ (chỉ hiện cho User) */}
-            {!isActuallyAdmin && (
-              <>
-                <button
-                  type="button"
-                  className="menu-item-row"
-                  role="menuitem"
-                  onClick={() => {
-                    setDropdownOpen(false);
-                    window.location.href = '/pricing';
-                  }}
-                >
-                  <span className="menu-item-icon"><FinanceIcon name="spark" size={17} /></span>
-                  <span>Gói cước & Nâng cấp</span>
-                </button>
-
-                <button
-                  type="button"
-                  className="menu-item-row"
-                  role="menuitem"
-                  onClick={() => {
-                    setDropdownOpen(false);
-                    window.location.href = '/feedback';
-                  }}
-                >
-                  <span className="menu-item-icon"><FinanceIcon name="message-square" size={17} /></span>
-                  <span>Phản hồi & Hỗ trợ</span>
-                </button>
-                <button
-                  type="button"
-                  className="menu-item-row"
-                  role="menuitem"
-                  onClick={() => {
-                    setDropdownOpen(false);
-                    window.location.href = '/privacy';
-                  }}
-                >
-                  <span className="menu-item-icon"><FinanceIcon name="shield" size={17} /></span>
-                  <span>Chính sách bảo mật</span>
-                </button>
-              </>
-            )}
-
             <div className="menu-divider" />
 
             {/* Chức năng 3: Đăng xuất */}

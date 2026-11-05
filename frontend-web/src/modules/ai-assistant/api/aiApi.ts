@@ -133,8 +133,10 @@ export interface BalanceForecastResponse {
   };
   trend?: string;
   summary: string;
-  historical_data: BalanceForecastPoint[];
-  future_forecast: BalanceForecastPoint[];
+  historical_data?: BalanceForecastPoint[];
+  future_forecast?: BalanceForecastPoint[];
+  historical_points?: BalanceForecastPoint[];
+  forecast_points?: BalanceForecastPoint[];
 }
 
 export interface CategoryForecastResponse {
@@ -260,5 +262,33 @@ export async function getBalanceForecast(days: number = 30, userId?: string): Pr
 export async function getCategoryForecast(category: string = 'Ăn uống', userId?: string): Promise<CategoryForecastResponse> {
   const currentUserId = getCurrentUserId(userId);
   const response = await axios.get<CategoryForecastResponse>(`/api/forecast/category?user_id=${currentUserId}&category=${encodeURIComponent(category)}`);
+  return response.data;
+}
+
+
+export interface GoalForecastItem {
+  goal_id: string;
+  name: string;
+  target_amount: number;
+  current_amount: number;
+  progress_pct: number;
+  remaining_amount: number;
+  months_needed: number;
+  estimated_completion_month: string;
+}
+
+export interface GoalForecastResponse {
+  status: string;
+  estimated_monthly_saving: number;
+  goals: GoalForecastItem[];
+  summary: string;
+}
+
+/**
+ * Lấy dự báo tiến độ hoàn thành các mục tiêu tài chính từ AI
+ */
+export async function getGoalsForecast(userId?: string): Promise<GoalForecastResponse> {
+  const currentUserId = getCurrentUserId(userId);
+  const response = await axios.get<GoalForecastResponse>(`/api/forecast/goals?user_id=${currentUserId}`);
   return response.data;
 }

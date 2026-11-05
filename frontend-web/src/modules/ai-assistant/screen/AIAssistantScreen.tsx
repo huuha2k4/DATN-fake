@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, type FormEvent } from 'react'
 import { FinanceIcon } from '../../core/components/FinanceIcon'
+import { FormattedMarkdown } from '../components/FormattedMarkdown'
 import {
   sendChatMessage,
   getChatSessions,
@@ -66,6 +67,15 @@ export function AIAssistantScreen({ onNotify }: { onNotify: (message: string) =>
 
   useEffect(() => {
     loadSessions()
+
+    // Lắng nghe sự kiện cập nhật session từ MiniAIChatWidget hoặc các tab khác
+    const handleSessionUpdated = () => {
+      loadSessions()
+    }
+    window.addEventListener('ai:session_updated', handleSessionUpdated)
+    return () => {
+      window.removeEventListener('ai:session_updated', handleSessionUpdated)
+    }
   }, [])
 
   // Bắt đầu cuộc trò chuyện mới
@@ -208,7 +218,7 @@ export function AIAssistantScreen({ onNotify }: { onNotify: (message: string) =>
         <header className="ai-chat-header">
           <div className="ai-chat-header-left">
             <div className="ai-avatar-badge">
-              <FinanceIcon name="spark" size={20} />
+              <img src="/finai-avatar.png" alt="FinAI" className="ai-avatar-img" />
             </div>
             <div>
               <h2 className="ai-header-title">Trợ lý Tài chính FinAI</h2>
@@ -221,21 +231,10 @@ export function AIAssistantScreen({ onNotify }: { onNotify: (message: string) =>
           <button
             type="button"
             onClick={handleNewChat}
-            style={{
-              background: '#f1f5f9',
-              border: 'none',
-              padding: '8px 14px',
-              borderRadius: '10px',
-              fontSize: '0.82rem',
-              fontWeight: 600,
-              color: '#334155',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-            }}
+            className="btn-create-session"
           >
-            <span>+ Tạo phiên mới</span>
+            <FinanceIcon name="plus" size={14} />
+            <span>Tạo phiên mới</span>
           </button>
         </header>
 
@@ -244,7 +243,7 @@ export function AIAssistantScreen({ onNotify }: { onNotify: (message: string) =>
           {messages.length === 0 ? (
             <div className="welcome-hero-box">
               <div className="welcome-logo-badge">
-                <FinanceIcon name="spark" size={28} />
+                <img src="/finai-avatar.png" alt="FinAI" className="ai-avatar-img" />
               </div>
               <h1 className="welcome-title">Xin chào! Tôi có thể giúp gì cho bạn hôm nay?</h1>
               <p className="welcome-desc">
@@ -275,19 +274,21 @@ export function AIAssistantScreen({ onNotify }: { onNotify: (message: string) =>
                 >
                   {isAssistant && (
                     <div className="message-avatar assistant-avatar">
-                      <FinanceIcon name="spark" size={17} />
+                      <img src="/finai-avatar.png" alt="FinAI" className="ai-avatar-img" />
                     </div>
                   )}
-                  <div className="message-bubble">{msg.text}</div>
+                  <div className="message-bubble">
+                    {isAssistant ? <FormattedMarkdown content={msg.text} /> : msg.text}
+                  </div>
                 </div>
               )
             })
           )}
 
           {isLoading && (
-            <div className="chat-row assistant-row">
+            <div className="chat-row assistant-row typing-row">
               <div className="message-avatar assistant-avatar">
-                <FinanceIcon name="spark" size={17} />
+                <img src="/finai-avatar.png" alt="FinAI" className="ai-avatar-img" />
               </div>
               <div className="ai-typing-indicator">
                 <div className="typing-dot" />

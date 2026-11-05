@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, type FormEvent } from 'react'
 import { FinanceIcon } from '../../core/components/FinanceIcon'
 import { sendChatMessage } from '../api/aiApi'
+import { FormattedMarkdown } from './FormattedMarkdown'
 import './MiniAIChatWidget.css'
 
 interface Message {
@@ -53,7 +54,11 @@ export function MiniAIChatWidget({ isOpen, onClose, onOpenFullPage }: MiniAIChat
 
     try {
       const res = await sendChatMessage(prompt, undefined, sessionId || undefined)
-      if (res.sessionId) setSessionId(res.sessionId)
+      if (res.sessionId) {
+        setSessionId(res.sessionId)
+        // Phát sự kiện để màn hình AI Thông minh tự động reload danh sách session nếu đang mở
+        window.dispatchEvent(new CustomEvent('ai:session_updated', { detail: { sessionId: res.sessionId } }))
+      }
       setMessages((prev) => [...prev, { id: Date.now() + 1, author: 'assistant', text: res.answer }])
     } catch {
       setMessages((prev) => [
@@ -75,7 +80,7 @@ export function MiniAIChatWidget({ isOpen, onClose, onOpenFullPage }: MiniAIChat
       <div className="mini-ai-header">
         <div className="mini-ai-header-info">
           <span className="mini-ai-avatar">
-            <FinanceIcon name="spark" size={16} />
+            <img src="/finai-avatar.png" alt="FinAI" className="mini-ai-avatar-img" />
           </span>
           <div>
             <h4 className="mini-ai-title">FinAI Copilot</h4>
@@ -110,18 +115,20 @@ export function MiniAIChatWidget({ isOpen, onClose, onOpenFullPage }: MiniAIChat
             <div key={m.id} className={`mini-msg-row ${isAssistant ? 'assistant' : 'user'}`}>
               {isAssistant && (
                 <div className="mini-msg-avatar">
-                  <FinanceIcon name="spark" size={13} />
+                  <img src="/finai-avatar.png" alt="FinAI" className="mini-ai-avatar-img" />
                 </div>
               )}
-              <div className="mini-msg-bubble">{m.text}</div>
+              <div className="mini-msg-bubble">
+                {isAssistant ? <FormattedMarkdown content={m.text} /> : m.text}
+              </div>
             </div>
           )
         })}
 
         {isLoading && (
-          <div className="mini-msg-row assistant">
+          <div className="mini-msg-row assistant typing-row">
             <div className="mini-msg-avatar">
-              <FinanceIcon name="spark" size={13} />
+              <img src="/finai-avatar.png" alt="FinAI" className="mini-ai-avatar-img" />
             </div>
             <div className="mini-typing-bubble">
               <span className="mini-dot" />

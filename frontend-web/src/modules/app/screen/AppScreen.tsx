@@ -32,6 +32,7 @@ import { AdminDashboardScreen } from '../../admin/screen/AdminDashboardScreen'
 import { AdminUserManagementScreen } from '../../admin/screen/AdminUserManagementScreen'
 import { AdminRolesScreen } from '../../admin/screen/AdminRolesScreen'
 import { AdminCategoriesScreen } from '../../admin/screen/AdminCategoriesScreen'
+import { AdminAIManagementScreen } from '../../admin/screen/AdminAIManagementScreen'
 import { AdminOcrManagementScreen } from '../../admin/screen/AdminOcrManagementScreen'
 import { AdminAnalyticsScreen } from '../../admin/screen/AdminAnalyticsScreen'
 import { AdminFeedbacksScreen } from '../../admin/screen/AdminFeedbacksScreen'
@@ -137,7 +138,7 @@ export default function AppScreen() {
             <Route path="users" element={<AdminUserManagementScreen />} />
             <Route path="roles" element={<AdminRolesScreen />} />
             <Route path="categories" element={<AdminCategoriesScreen />} />
-            <Route path="ai-management" element={<AdminPlaceholderScreen title="Quản lý AI (FinAI)" description="Giám sát lượng token tiêu thụ, mô hình Gemini và hiệu năng phản hồi." />} />
+            <Route path="ai-management" element={<AdminAIManagementScreen />} />
             <Route path="ocr-management" element={<AdminOcrManagementScreen />} />
             <Route path="analytics" element={<AdminAnalyticsScreen />} />
             <Route path="feedbacks" element={<AdminFeedbacksScreen />} />
