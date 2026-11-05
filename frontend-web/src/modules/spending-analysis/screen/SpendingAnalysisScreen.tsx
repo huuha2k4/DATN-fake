@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { FinanceIcon } from '../../core/components/FinanceIcon'
+import { useTheme } from '../../core/context/ThemeContext'
 import {
   getBehaviorProfile,
   getSpendingAnomalies,
@@ -27,6 +28,8 @@ function formatVND(amount: number): string {
 export function SpendingAnalysisScreen({ onNotify }: Props) {
   const [activeTab, setActiveTab] = useState<TabId>('overview')
   const [isLoading, setIsLoading] = useState(true)
+  const { theme } = useTheme()
+  const isDark = theme === 'dark'
 
   // Real AI State
   const [profile, setProfile] = useState<BehaviorProfileResponse | null>(null)
@@ -88,9 +91,14 @@ export function SpendingAnalysisScreen({ onNotify }: Props) {
               onClick={() => setActiveTab(tab.id)}
               className={`flex-1 rounded-lg py-2 px-3 text-xs sm:text-[13px] transition-all cursor-pointer text-center font-medium ${
                 activeTab === tab.id
-                  ? 'bg-white dark:bg-[#1c3850] text-[#07543f] dark:text-[#38bdf8] shadow-sm font-bold border border-transparent dark:border-[#2d5272]'
-                  : 'text-[#64748b] dark:text-[#94a3b8] hover:text-[#07543f] dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/5'
+                  ? 'bg-white dark:bg-[#1c3850] shadow-sm font-bold border border-transparent dark:border-[#2d5272]'
+                  : 'hover:bg-black/5 dark:hover:bg-white/10'
               }`}
+              style={{
+                color: activeTab === tab.id
+                  ? (isDark ? '#ffffff' : '#07543f')
+                  : (isDark ? 'rgba(255,255,255,0.55)' : '#64748b'),
+              }}
             >
               {tab.label}
             </button>
@@ -101,7 +109,8 @@ export function SpendingAnalysisScreen({ onNotify }: Props) {
           type="button"
           onClick={refreshAnalysis}
           disabled={isLoading}
-          className="inline-flex h-[38px] shrink-0 items-center justify-center gap-2 rounded-xl bg-[#07543f] dark:bg-[#10b981] px-5 text-xs font-semibold text-white shadow-sm hover:bg-[#064232] dark:hover:bg-[#059669] disabled:opacity-50 transition cursor-pointer"
+          className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl border border-[#c8d9d1] dark:border-[#1e3c54] bg-white dark:bg-[#1c3850] px-4 py-1.5 text-xs font-semibold text-[#07543f] dark:text-white shadow-sm hover:bg-[#f0f7f4] dark:hover:bg-[#1a3c55] disabled:opacity-50 transition cursor-pointer"
+          style={{ color: isDark ? '#ffffff' : '#07543f' }}
         >
           <FinanceIcon name="refresh" size={14} />
           {isLoading ? 'Đang phân tích dữ liệu…' : 'Làm mới phân tích AI'}
@@ -169,8 +178,8 @@ export function SpendingAnalysisScreen({ onNotify }: Props) {
 
             {/* CÁC PHÁT HIỆN HÀNH VI TỪ AI (FINDINGS) */}
             {findings.length > 0 && (
-              <section className="rounded-xl border border-[#e7ece8] dark:border-[#1e3a4e] bg-white dark:bg-[#0b1c28] p-4 shadow-sm">
-                <header className="mb-3 flex items-center gap-2 border-b border-[#edf0ed] dark:border-[#1e3a4e] pb-2.5">
+              <section className="rounded-xl border border-[#e7ece8] dark:border-[#1e3c54] bg-white dark:bg-[#102334] p-4 shadow-sm dark:shadow-[0_8px_20px_rgba(0,0,0,0.35)]">
+                <header className="mb-3 flex items-center gap-2 border-b border-[#edf0ed] dark:border-[#1a3449] pb-2.5">
                   <span className="grid size-7 place-items-center rounded-lg bg-[#e3f4e9] dark:bg-[#0f494c] text-[#087557] dark:text-[#5eead4]">
                     <FinanceIcon name="spark" size={14} />
                   </span>
@@ -180,7 +189,7 @@ export function SpendingAnalysisScreen({ onNotify }: Props) {
                 </header>
                 <div className="grid gap-2 sm:grid-cols-2">
                   {findings.map((f, i) => (
-                    <div key={i} className="flex items-center gap-2 rounded-lg bg-[#f8faf9] dark:bg-[#122838] p-2.5 text-[11px] text-[#34463b] dark:text-[#cbd5e1]">
+                    <div key={i} className="flex items-center gap-2 rounded-lg bg-[#f8faf9] dark:bg-[#0d2235] p-2.5 text-[11px] text-[#34463b] dark:text-[#cbd5e1]">
                       <span className="size-1.5 rounded-full bg-[#10b981] shrink-0" />
                       <span>{f}</span>
                     </div>
@@ -193,7 +202,7 @@ export function SpendingAnalysisScreen({ onNotify }: Props) {
             <section className="grid gap-3 md:grid-cols-3">
               {/* Thẻ 1: Ăn uống */}
               {dining && (
-                <article className="rounded-xl border border-[#e7ece8] dark:border-[#1e3a4e] bg-white dark:bg-[#0b1c28] p-4 shadow-sm">
+                <article className="rounded-xl border border-[#e7ece8] dark:border-[#1e3c54] bg-white dark:bg-[#102334] p-4 shadow-sm dark:shadow-[0_8px_20px_rgba(0,0,0,0.35)]">
                   <div className="flex items-center justify-between">
                     <span className="text-[9px] font-bold tracking-[.6px] text-[#718078] dark:text-[#8fa7b7]">CHI TIÊU ĂN UỐNG</span>
                     <span className="grid size-9 place-items-center rounded-lg bg-[#fff0e9] dark:bg-[#341816] text-[#b45148]">
@@ -217,7 +226,7 @@ export function SpendingAnalysisScreen({ onNotify }: Props) {
 
               {/* Thẻ 2: Tỷ lệ tích lũy & Quy tắc 50/30/20 */}
               {r50 && (
-                <article className="rounded-xl border border-[#e7ece8] dark:border-[#1e3a4e] bg-white dark:bg-[#0b1c28] p-4 shadow-sm">
+                <article className="rounded-xl border border-[#e7ece8] dark:border-[#1e3c54] bg-white dark:bg-[#102334] p-4 shadow-sm dark:shadow-[0_8px_20px_rgba(0,0,0,0.35)]">
                   <div className="flex items-center justify-between">
                     <span className="text-[9px] font-bold tracking-[.6px] text-[#718078] dark:text-[#8fa7b7]">QUY TẮC 50/30/20</span>
                     <span className="grid size-9 place-items-center rounded-lg bg-[#eaf0fb] dark:bg-[#153448] text-[#3b82f6]">
@@ -243,7 +252,7 @@ export function SpendingAnalysisScreen({ onNotify }: Props) {
 
               {/* Thẻ 3: Điểm sức khỏe tài chính */}
               {recommendations && (
-                <article className="rounded-xl border border-[#e7ece8] dark:border-[#1e3a4e] bg-white dark:bg-[#0b1c28] p-4 shadow-sm">
+                <article className="rounded-xl border border-[#e7ece8] dark:border-[#1e3c54] bg-white dark:bg-[#102334] p-4 shadow-sm dark:shadow-[0_8px_20px_rgba(0,0,0,0.35)]">
                   <div className="flex items-center justify-between">
                     <span className="text-[9px] font-bold tracking-[.6px] text-[#718078] dark:text-[#8fa7b7]">SỨC KHỎE TÀI CHÍNH</span>
                     <span className="grid size-9 place-items-center rounded-lg bg-[#e3f4e9] dark:bg-[#0f494c] text-[#087557] dark:text-[#5eead4]">
@@ -267,8 +276,8 @@ export function SpendingAnalysisScreen({ onNotify }: Props) {
 
         {/* TAB 2: CƠ CẤU DANH MỤC THỰC TẾ */}
         {activeTab === 'spending' && (
-          <section className="rounded-xl border border-[#e7ece8] dark:border-[#1e3a4e] bg-white dark:bg-[#0b1c28] p-4 shadow-sm sm:p-5">
-            <header className="mb-4 flex flex-wrap items-center justify-between gap-2 border-b border-[#edf0ed] dark:border-[#1e3a4e] pb-3">
+          <section className="rounded-xl border border-[#e7ece8] dark:border-[#1e3c54] bg-white dark:bg-[#102334] p-4 shadow-sm dark:shadow-[0_8px_20px_rgba(0,0,0,0.35)] sm:p-5">
+            <header className="mb-4 flex flex-wrap items-center justify-between gap-2 border-b border-[#edf0ed] dark:border-[#1a3449] pb-3">
               <h2 className="flex items-center gap-2 text-base font-semibold text-[#26372e] dark:text-[#f8fafc]">
                 <span className="grid size-8 place-items-center rounded-lg bg-[#e3f4e9] dark:bg-[#0f494c] text-[#087557] dark:text-[#5eead4]">
                   <FinanceIcon name="chart" size={15} />
@@ -285,10 +294,10 @@ export function SpendingAnalysisScreen({ onNotify }: Props) {
                   const catAmount = cat.total_amount ?? (cat as any).amount ?? 0
                   const catPercent = cat.percentage ?? 0
                   return (
-                    <article key={cat.category_id || idx} className="rounded-xl border border-[#e7ece8] dark:border-[#1e3a4e] bg-white dark:bg-[#0e2230] p-4 shadow-sm">
+                    <article key={cat.category_id || idx} className="rounded-xl border border-[#e7ece8] dark:border-[#1e3c54] bg-white dark:bg-[#0d2235] p-4 shadow-sm">
                       <header className="flex items-start justify-between gap-2">
                         <div className="flex items-center gap-2">
-                          <span className="grid size-9 place-items-center rounded-lg bg-[#f1f5f2] dark:bg-[#153448] text-[#07543f] dark:text-[#38bdf8]">
+                          <span className="grid size-9 place-items-center rounded-lg bg-[#f1f5f2] dark:bg-[#1a3c55] text-[#07543f] dark:text-[#38bdf8]">
                             <FinanceIcon name="wallet" size={16} />
                           </span>
                           <div>
@@ -301,7 +310,7 @@ export function SpendingAnalysisScreen({ onNotify }: Props) {
                         <span className="text-[#718078] dark:text-[#8fa7b7]">Số tiền đã chi:</span>
                         <strong className="text-[#34463b] dark:text-[#f8fafc]">{formatVND(catAmount)}</strong>
                       </div>
-                      <div className="mt-2 h-2 overflow-hidden rounded-full bg-[#edf1ee] dark:bg-[#1e3a4e]">
+                      <div className="mt-2 h-2 overflow-hidden rounded-full bg-[#edf1ee] dark:bg-[#1a3350]">
                         <span
                           className="block h-full rounded-full bg-[#087557] dark:bg-[#10b981]"
                           style={{ width: `${Math.min(100, catPercent)}%` }}
@@ -321,8 +330,8 @@ export function SpendingAnalysisScreen({ onNotify }: Props) {
 
         {/* TAB 3: GIAO DỊCH BẤT THƯỜNG (AI ISOLATION FOREST) */}
         {activeTab === 'anomalies' && (
-          <section className="rounded-xl border border-[#e7ece8] dark:border-[#1e3a4e] bg-white dark:bg-[#0b1c28] p-4 shadow-sm sm:p-5">
-            <header className="flex items-center justify-between border-b border-[#edf0ed] dark:border-[#1e3a4e] pb-3 mb-4">
+          <section className="rounded-xl border border-[#e7ece8] dark:border-[#1e3c54] bg-white dark:bg-[#102334] p-4 shadow-sm dark:shadow-[0_8px_20px_rgba(0,0,0,0.35)] sm:p-5">
+            <header className="flex items-center justify-between border-b border-[#edf0ed] dark:border-[#1a3449] pb-3 mb-4">
               <div className="flex items-center gap-2.5">
                 <span className="grid size-9 place-items-center rounded-lg bg-[#fff0e9] dark:bg-[#341816] text-[#b45148]">
                   <FinanceIcon name="expense" size={17} />
@@ -394,7 +403,7 @@ export function SpendingAnalysisScreen({ onNotify }: Props) {
             {recommendations?.recommendations && recommendations.recommendations.length > 0 ? (
               <div className="grid gap-3 xl:grid-cols-2">
                 {recommendations.recommendations.map((rec, i) => (
-                  <article key={i} className="flex flex-col justify-between rounded-xl border border-[#e7ece8] dark:border-[#1e3a4e] bg-white dark:bg-[#0b1c28] p-4 shadow-sm">
+                  <article key={i} className="flex flex-col justify-between rounded-xl border border-[#e7ece8] dark:border-[#1e3c54] bg-white dark:bg-[#102334] p-4 shadow-sm dark:shadow-[0_8px_20px_rgba(0,0,0,0.35)]">
                     <div className="flex items-start gap-3">
                       <span className="grid size-10 shrink-0 place-items-center rounded-lg bg-[#e3f4e9] dark:bg-[#0f494c] text-xl">
                         {rec.icon || '💡'}
@@ -421,23 +430,18 @@ export function SpendingAnalysisScreen({ onNotify }: Props) {
                         )}
                       </div>
                     </div>
-                    <footer className="mt-4 flex flex-wrap items-center justify-between gap-2 border-t border-[#edf0ed] dark:border-[#1e3a4e] pt-3">
-                      <span className="text-[10px] font-medium text-[#087557] dark:text-[#5eead4]">
-                        {rec.summary || 'Đề xuất từ FinAI'}
-                      </span>
-                      <button
-                        type="button"
-                        onClick={() => onNotify(`Đã ghi nhận hành động: ${rec.title}`)}
-                        className="rounded-lg bg-[#07543f] px-3.5 py-1.5 text-[9px] font-semibold text-white hover:bg-[#064232] cursor-pointer"
-                      >
-                        Áp dụng đề xuất
-                      </button>
-                    </footer>
+                    {rec.summary && (
+                      <footer className="mt-4 border-t border-[#edf0ed] dark:border-[#1a3449] pt-3">
+                        <span className="text-[10px] font-medium italic text-[#087557] dark:text-[#5eead4]">
+                          {rec.summary}
+                        </span>
+                      </footer>
+                    )}
                   </article>
                 ))}
               </div>
             ) : (
-              <div className="rounded-xl border border-[#e7ece8] dark:border-[#1e3a4e] bg-white dark:bg-[#0b1c28] p-6 text-center text-xs text-[#718078] dark:text-[#8fa7b7]">
+              <div className="rounded-xl border border-[#e7ece8] dark:border-[#1e3c54] bg-white dark:bg-[#102334] p-6 text-center text-xs text-[#718078] dark:text-[#8fa7b7] dark:shadow-[0_8px_20px_rgba(0,0,0,0.35)]">
                 {recommendations?.message || 'Chưa có khuyến nghị mới. FinAI sẽ tiếp tục học thói quen chi tiêu của bạn!'}
               </div>
             )}
