@@ -104,6 +104,13 @@ public interface ScheduleRepository extends JpaRepository<Schedule, Long> {
             @Param("date") LocalDate date
     );
 
+    @Query("SELECT s FROM Schedule s WHERE s.status = :status " +
+            "AND s.nextOccurrenceDate <= :date AND s.deletedAt IS NULL")
+    List<Schedule> findSchedulesDueOnOrBefore(
+            @Param("status") ScheduleStatus status,
+            @Param("date") LocalDate date
+    );
+
     /**
      * Tìm schedule có notification trước ngày thực hiện
      */

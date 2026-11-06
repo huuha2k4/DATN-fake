@@ -102,6 +102,9 @@ public class ScheduleOccurrence {
     @Column(columnDefinition = "TEXT")
     private String note;
 
+    @Column(name = "notification_sent_at")
+    private LocalDateTime notificationSentAt;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     @Builder.Default
     private LocalDateTime createdAt = LocalDateTime.now();

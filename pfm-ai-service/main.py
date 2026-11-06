@@ -788,7 +788,19 @@ async def chat_with_ai(request: ChatRequest):
         db.commit()
 
         # 3. Chạy AI suy luận & gọi tools
-        answer = run_chat(question=request.question, user_id=user_id)
+        history_messages = db.query(AIChatMessage).filter(
+            AIChatMessage.session_id == session_id,
+            AIChatMessage.id != user_msg.id
+        ).order_by(AIChatMessage.created_at.desc()).limit(12).all()
+        conversation_history = [
+            ("assistant" if message.author == "assistant" else "user", message.text)
+            for message in reversed(history_messages)
+        ]
+        answer = run_chat(
+            question=request.question,
+            user_id=user_id,
+            conversation_history=conversation_history,
+        )
 
         # 4. Lưu câu trả lời của AI vào DB
         ai_msg = AIChatMessage(
@@ -835,12 +847,44 @@ def api_forecast_spending(user_id: str = "test_user_01", days: int = 30):
     return forecast_spending(user_id=user_id, horizon_days=days)
 
 @app.get("/api/forecast/category")
-def api_forecast_category(user_id: str = "test_user_01", category: str = "Ăn uống"):
+def api_forecast_category(user_id: str = "test_user_01", category: Optional[str] = None):
     """
     API Dự báo tổng chi tiêu cho một danh mục đến cuối tháng và đối chiếu ngân sách.
     """
     user_id = resolve_user_id(user_id)
     return forecast_category_spending(user_id=user_id, category_name=category)
+
+@app.get("/api/forecast/categories")
+def api_top_category_forecasts(user_id: str = "test_user_01", limit: int = 3):
+    """Return forecasts for the user's top spending categories this month."""
+    from sqlalchemy import func
+    from datetime import date, datetime
+    from database import Transaction, Category
+
+    user_id = resolve_user_id(user_id)
+    today = date.today()
+    month_start = datetime(today.year, today.month, 1)
+    db = SessionLocal()
+    try:
+        category_ids = [row[0] for row in (
+            db.query(Transaction.category_id)
+            .filter(Transaction.user_id == user_id, Transaction.type == "EXPENSE",
+                    Transaction.occurred_at >= month_start)
+            .group_by(Transaction.category_id)
+            .order_by(func.sum(Transaction.amount).desc())
+            .limit(max(1, min(limit, 6)))
+            .all()
+        )]
+        categories = db.query(Category).filter(Category.id.in_(category_ids)).all() if category_ids else []
+        names_by_id = {category.id: category.name for category in categories}
+        forecasts = [
+            forecast_category_spending(user_id=user_id, category_id=category_id)
+            for category_id in category_ids if category_id in names_by_id
+        ]
+        forecasts = [forecast for forecast in forecasts if forecast.get("current_spent", 0) > 0]
+        return {"status": "success", "forecasts": forecasts}
+    finally:
+        db.close()
 
 @app.get("/api/forecast/goals")
 def api_forecast_goals(user_id: str = "test_user_01", goal_name: Optional[str] = None):

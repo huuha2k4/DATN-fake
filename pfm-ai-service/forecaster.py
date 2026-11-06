@@ -25,12 +25,6 @@ def get_daily_cashflow(user_id: str = "test_user_01") -> pd.DataFrame:
     - Chi tiêu (outflow)
     - Số dư luỹ kế cuối ngày (balance)
     """
-    try:
-        from seed_forecast_data import sync_up_to_today
-        sync_up_to_today()
-    except Exception:
-        pass
-
     db = SessionLocal()
     try:
         user_id = resolve_user_id(user_id, db)
@@ -169,8 +163,10 @@ def forecast_balance(user_id: str = "test_user_01", horizon_days: int = 30) -> D
     model.fit(prophet_df)
 
     # Sinh khung thời gian tương lai
-    future = model.make_future_dataframe(periods=horizon_days, freq="D")
-    forecast = model.predict(future)
+    forecast_dates = pd.DataFrame({
+        "ds": pd.date_range(start=pd.Timestamp(today) + pd.Timedelta(days=1), periods=horizon_days, freq="D")
+    })
+    forecast = model.predict(forecast_dates)
 
     # Tách dữ liệu quá khứ và dự báo tương lai
     last_historical_date = df["ds"].max()
@@ -182,27 +178,27 @@ def forecast_balance(user_id: str = "test_user_01", horizon_days: int = 30) -> D
             "outflow": round(float(row["outflow"]), 0)
         })
 
+    model_today = model.predict(pd.DataFrame({"ds": [pd.Timestamp(today)]})).iloc[0]
+    forecast_offset = current_balance - float(model_today["yhat"])
     future_forecast = []
-    future_rows = forecast[forecast["ds"] > last_historical_date]
+    future_rows = forecast
     for _, row in future_rows.iterrows():
         future_forecast.append({
             "date": row["ds"].strftime("%Y-%m-%d"),
-            "predicted_balance": round(float(row["yhat"]), 0),
-            "lower_bound": round(float(row["yhat_lower"]), 0),
-            "upper_bound": round(float(row["yhat_upper"]), 0)
+            "predicted_balance": round(float(row["yhat"]) + forecast_offset, 0),
+            "lower_bound": round(float(row["yhat_lower"]) + forecast_offset, 0),
+            "upper_bound": round(float(row["yhat_upper"]) + forecast_offset, 0)
         })
 
     # Số dư dự báo tại cuối tháng của chu kỳ hiện tại (hoặc ngày cuối của horizon)
-    last_dt = pd.to_datetime(last_historical_date)
     import calendar
-    _, last_day = calendar.monthrange(last_dt.year, last_dt.month)
-    end_of_month_date = f"{last_dt.year}-{last_dt.month:02d}-{last_day:02d}"
+    _, last_day = calendar.monthrange(today.year, today.month)
+    end_of_month_date = f"{today.year}-{today.month:02d}-{last_day:02d}"
     end_of_month_item = next(
         (item for item in future_forecast if item["date"] == end_of_month_date),
         future_forecast[-1]
     )
 
-    current_balance = float(df["balance"].iloc[-1])
     predicted_end_balance = end_of_month_item["predicted_balance"]
     change = predicted_end_balance - current_balance
 
@@ -271,7 +267,11 @@ def forecast_spending(user_id: str = "test_user_01", horizon_days: int = 30) -> 
         )
     }
 
-def forecast_category_spending(user_id: str = "test_user_01", category_name: str = "Ăn uống") -> Dict[str, Any]:
+def forecast_category_spending(
+    user_id: str = "test_user_01",
+    category_name: Optional[str] = None,
+    category_id: Optional[str] = None,
+) -> Dict[str, Any]:
     """
     Dự báo tổng chi tiêu cho một danh mục cụ thể đến cuối tháng hiện tại.
     Đồng thời đối chiếu với hạn mức ngân sách để đưa ra cảnh báo sớm.
@@ -280,17 +280,29 @@ def forecast_category_spending(user_id: str = "test_user_01", category_name: str
     db = SessionLocal()
     try:
         user_id = resolve_user_id(user_id, db)
-        # Tìm danh mục
-        cat = db.query(Category).filter(Category.name.ilike(f"%{category_name}%")).first()
+        today = date.today()
+        first_day_of_month = datetime(today.year, today.month, 1, 0, 0, 0)
+        if category_id:
+            cat = db.query(Category).filter(Category.id == category_id).first()
+        elif category_name:
+            cat = db.query(Category).filter(Category.name.ilike(f"%{category_name}%")).first()
+        else:
+            top_category = (
+                db.query(Transaction.category_id)
+                .filter(Transaction.user_id == user_id, Transaction.type == "EXPENSE",
+                        Transaction.occurred_at >= first_day_of_month)
+                .group_by(Transaction.category_id)
+                .order_by(func.sum(Transaction.amount).desc())
+                .first()
+            )
+            cat = db.query(Category).filter(Category.id == top_category[0]).first() if top_category else None
         if not cat:
-            return {"status": "error", "message": f"Không tìm thấy danh mục '{category_name}'."}
+            return {"status": "NO_CURRENT_MONTH_EXPENSES",
+                    "message": "Chưa có giao dịch chi tiêu nào trong tháng hiện tại để dự báo theo danh mục."}
 
         # Xác định mốc thời gian thực tế của tháng hiện tại
-        today = date.today()
         import calendar
         _, total_days_in_month = calendar.monthrange(today.year, today.month)
-        
-        first_day_of_month = datetime(today.year, today.month, 1, 0, 0, 0)
         end_of_today = datetime(today.year, today.month, today.day, 23, 59, 59)
 
         days_passed = today.day
@@ -347,6 +359,8 @@ def forecast_category_spending(user_id: str = "test_user_01", category_name: str
         return {
             "status": "success",
             "category_name": cat.name,
+            "category_icon": cat.icon,
+            "category_color": cat.color,
             "days_passed": days_passed,
             "days_remaining": days_remaining,
             "current_spent": current_spent,

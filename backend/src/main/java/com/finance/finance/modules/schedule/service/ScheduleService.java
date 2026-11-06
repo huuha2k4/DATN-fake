@@ -23,6 +23,10 @@ import com.finance.finance.modules.schedule.repository.ScheduleOccurrenceReposit
 import com.finance.finance.modules.schedule.repository.ScheduleRepository;
 import com.finance.finance.modules.transaction.entity.Transaction;
 import com.finance.finance.modules.transaction.repository.TransactionRepository;
+import com.finance.finance.modules.transaction.dto.request.CreateTransactionRequest;
+import com.finance.finance.modules.transaction.dto.response.TransactionResponse;
+import com.finance.finance.modules.transaction.service.TransactionService;
+import com.finance.finance.common.enums.TransactionType;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -55,6 +59,7 @@ public class ScheduleService {
     private final CategoryRepository categoryRepository;
     private final MerchantRepository merchantRepository;
     private final TransactionRepository transactionRepository;
+    private final TransactionService transactionService;
     private final com.finance.finance.modules.notification.service.NotificationService notificationService;
 
     /**
@@ -101,14 +106,19 @@ public class ScheduleService {
         }
 
         // Calculate next occurrence
-        LocalDate nextOccurrence = recurrenceService.calculateNextOccurrence(
-                request.getRecurrenceRule(),
-                LocalDate.now(),
-                request.getStartDate()
-        );
+        LocalDate today = LocalDate.now();
+        LocalDate nextOccurrence = !request.getStartDate().isBefore(today)
+                ? request.getStartDate()
+                : recurrenceService.calculateNextOccurrence(
+                        request.getRecurrenceRule(), today.minusDays(1), request.getStartDate());
         schedule.setNextOccurrenceDate(nextOccurrence);
 
         schedule = scheduleRepository.save(schedule);
+        occurrenceRepository.save(ScheduleOccurrence.builder()
+                .schedule(schedule)
+                .scheduledDate(nextOccurrence)
+                .status(OccurrenceStatus.PENDING)
+                .build());
 
         log.info("Created schedule with id: {}", schedule.getId());
         return mapToScheduleResponse(schedule);
@@ -472,6 +482,7 @@ public class ScheduleService {
         schedule.setNextOccurrenceDate(nextOccurrence);
 
         scheduleRepository.save(schedule);
+        ensurePendingOccurrence(schedule, nextOccurrence);
 
         // Send recurring execution notification
         try {
@@ -498,6 +509,94 @@ public class ScheduleService {
                 .build();
     }
 
+    /**
+     * Runs from the background scheduler. Due schedules are materialised as
+     * occurrences first, so a restart cannot create the same transaction twice.
+     */
+    @Transactional
+    public void processDueSchedules(LocalDate today) {
+        List<Schedule> schedules = scheduleRepository.findSchedulesDueOnOrBefore(
+                ScheduleStatus.ACTIVE, today);
+        for (Schedule schedule : schedules) {
+            LocalDate dueDate = schedule.getNextOccurrenceDate();
+            ScheduleOccurrence occurrence = ensurePendingOccurrence(schedule, dueDate);
+            if (!schedule.isTransaction() || !Boolean.TRUE.equals(schedule.getAutoExecute())) {
+                continue;
+            }
+
+            try {
+                java.util.UUID transactionId = createTransactionFromTemplate(
+                        schedule, dueDate, schedule.getUser().getId());
+                occurrence.markAsExecuted(transactionId, dueDate);
+                occurrenceRepository.save(occurrence);
+                schedule.incrementExecuted();
+                LocalDate nextDate = recurrenceService.calculateNextOccurrence(
+                        schedule.getRecurrenceRule(), dueDate, schedule.getStartDate());
+                schedule.setNextOccurrenceDate(nextDate);
+                scheduleRepository.save(schedule);
+                ensurePendingOccurrence(schedule, nextDate);
+                sendNotification(schedule, "Lịch tài chính: " + schedule.getName(),
+                        "Giao dịch định kỳ đã được thực hiện thành công.");
+            } catch (Exception ex) {
+                log.error("Automatic execution failed for schedule {}", schedule.getId(), ex);
+                occurrence.markAsFailed(ex.getMessage());
+                occurrenceRepository.save(occurrence);
+                schedule.incrementFailed();
+                scheduleRepository.save(schedule);
+                sendNotification(schedule, "Không thể thực hiện lịch: " + schedule.getName(),
+                        "Vui lòng kiểm tra tài khoản và thông tin giao dịch rồi thử lại.");
+            }
+        }
+    }
+
+    /** Send each configured upcoming reminder at most once per occurrence. */
+    @Transactional
+    public void sendUpcomingScheduleNotifications(LocalDate today) {
+        List<Schedule> schedules = scheduleRepository.findSchedulesForNotification(
+                ScheduleStatus.ACTIVE, today, today.plusDays(7));
+        for (Schedule schedule : schedules) {
+            int minutesBefore = schedule.getNotificationTimeBeforeMinutes() == null
+                    ? 1440 : schedule.getNotificationTimeBeforeMinutes();
+            long daysBefore = Math.max(1, (minutesBefore + 1439L) / 1440L);
+            long daysUntil = java.time.temporal.ChronoUnit.DAYS.between(
+                    today, schedule.getNextOccurrenceDate());
+            if (daysUntil > daysBefore) {
+                continue;
+            }
+
+            ScheduleOccurrence occurrence = ensurePendingOccurrence(
+                    schedule, schedule.getNextOccurrenceDate());
+            if (occurrence.getNotificationSentAt() != null) {
+                continue;
+            }
+            sendNotification(schedule, "Sắp đến hạn: " + schedule.getName(),
+                    schedule.isReminder() && schedule.getReminderMessage() != null
+                            ? schedule.getReminderMessage()
+                            : "Lịch tài chính sẽ đến hạn vào " + schedule.getNextOccurrenceDate() + ".");
+            occurrence.setNotificationSentAt(LocalDateTime.now());
+            occurrenceRepository.save(occurrence);
+        }
+    }
+
+    private ScheduleOccurrence ensurePendingOccurrence(Schedule schedule, LocalDate date) {
+        return occurrenceRepository.findByScheduleIdAndScheduledDate(schedule.getId(), date)
+                .orElseGet(() -> occurrenceRepository.save(ScheduleOccurrence.builder()
+                        .schedule(schedule)
+                        .scheduledDate(date)
+                        .status(OccurrenceStatus.PENDING)
+                        .build()));
+    }
+
+    private void sendNotification(Schedule schedule, String title, String body) {
+        if (!Boolean.TRUE.equals(schedule.getNotificationEnabled())) {
+            return;
+        }
+        notificationService.createNotification(schedule.getUser().getId(),
+                com.finance.finance.common.enums.NotificationType.RECURRING_DUE,
+                com.finance.finance.common.enums.NotificationPriority.NORMAL,
+                title, body, "/schedules", "Xem lịch tài chính");
+    }
+
     // ==================== Helper Methods ====================
 
     /**
@@ -519,13 +618,21 @@ public class ScheduleService {
      * Tạo transaction từ template
      */
     private java.util.UUID createTransactionFromTemplate(Schedule schedule, LocalDate transactionDate, UUID userId) {
-        // TODO: Implement actual transaction creation
-        // This is a placeholder - actual implementation should create a real Transaction entity
-        log.info("Creating transaction from template for schedule: {}", schedule.getId());
-        
-        // For now, return a mock transaction ID
-        // In real implementation, this should call TransactionService or create Transaction entity
-        return java.util.UUID.randomUUID();
+        TransactionResponse transaction = transactionService.createTransaction(userId,
+                CreateTransactionRequest.builder()
+                        .transactionType(TransactionType.valueOf(schedule.getTemplateTransactionType()))
+                        .accountId(schedule.getTemplateAccountId())
+                        .toAccountId(schedule.getTemplateToAccountId())
+                        .amount(schedule.getTemplateAmount())
+                        .currencyCode(schedule.getTemplateCurrencyCode())
+                        .categoryId(schedule.getTemplateCategoryId())
+                        .merchantId(schedule.getTemplateMerchantId())
+                        .description(schedule.getTemplateDescription())
+                        .note(schedule.getTemplateNote())
+                        .transactionDate(transactionDate)
+                        .isRecurring(true)
+                        .build());
+        return transaction.getId();
     }
 
     /**

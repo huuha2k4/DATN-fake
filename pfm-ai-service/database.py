@@ -67,6 +67,8 @@ class Category(Base):
     id = Column(String, primary_key=True)
     name = Column(String(100), nullable=False)
     kind = Column(String(20), nullable=False, default="EXPENSE") # EXPENSE, INCOME
+    icon = Column(String(50), nullable=True)
+    color = Column(String(7), nullable=True)
     is_essential = Column(Boolean, default=False)
 
     transactions = relationship("Transaction", back_populates="category")

@@ -114,6 +114,13 @@ public interface ScheduleOccurrenceRepository extends JpaRepository<ScheduleOccu
             @Param("date") LocalDate date
     );
 
+    @Query("SELECT o FROM ScheduleOccurrence o WHERE o.schedule.id = :scheduleId " +
+            "AND o.scheduledDate = :date")
+    Optional<ScheduleOccurrence> findByScheduleIdAndScheduledDate(
+            @Param("scheduleId") Long scheduleId,
+            @Param("date") LocalDate date
+    );
+
     /**
      * Lấy occurrence cuối cùng được execute
      */
