@@ -1,6 +1,7 @@
 import { StatusBar } from 'expo-status-bar';
 import React from 'react';
-import { SafeAreaView, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
+import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { BottomNav, TabKey } from './src/components/BottomNav';
 import { AddTransactionScreen } from './src/modules/add-transaction/screen/AddTransactionScreen';
 import { AccountsScreen } from './src/modules/accounts/screen/AccountsScreen';
@@ -9,6 +10,9 @@ import { BudgetScreen } from './src/modules/budget/screen/BudgetScreen';
 import { HomeScreen } from './src/modules/dashboard/screen/HomeScreen';
 import { GoalsScreen } from './src/modules/goals/screen/GoalsScreen';
 import { SplashScreen } from './src/modules/onboarding/screen/SplashScreen';
+import { LoginScreen } from './src/modules/auth/screen/LoginScreen';
+import { RegisterScreen } from './src/modules/auth/screen/RegisterScreen';
+import { ForgotPasswordScreen } from './src/modules/auth/screen/ForgotPasswordScreen';
 import { ScanInvoiceScreen } from './src/modules/scan-invoice/screen/ScanInvoiceScreen';
 import { SpendingAnalysisScreen } from './src/modules/spending-analysis/screen/SpendingAnalysisScreen';
 import { PeriodicReportsScreen } from './src/modules/periodic-reports/screen/PeriodicReportsScreen';
@@ -17,10 +21,18 @@ import { NotificationsScreen } from './src/modules/notifications/screen/Notifica
 import { ProfileScreen } from './src/modules/profile/screen/ProfileScreen';
 import { RemindersScreen } from './src/modules/reminders/screen/RemindersScreen';
 import { TransactionsScreen } from './src/modules/transactions/screen/TransactionsScreen';
+import { GroupScreen } from './src/modules/group/screen/GroupScreen';
 import { colors } from './src/theme';
 
 export default function App() {
+  return <SafeAreaProvider><AppContent /></SafeAreaProvider>;
+}
+
+function AppContent() {
   const [hasStarted, setHasStarted] = React.useState(false);
+  const [showLogin, setShowLogin] = React.useState(false);
+  const [showRegister, setShowRegister] = React.useState(false);
+  const [showForgotPassword, setShowForgotPassword] = React.useState(false);
   const [activeTab, setActiveTab] = React.useState<TabKey>('home');
   const [showAddTransaction, setShowAddTransaction] = React.useState(false);
   const [showScanInvoice, setShowScanInvoice] = React.useState(false);
@@ -33,24 +45,67 @@ export default function App() {
   const [showNotifications, setShowNotifications] = React.useState(false);
   const [showProfile, setShowProfile] = React.useState(false);
 
+  if (showRegister) {
+    return (
+      <RegisterScreen
+        onBack={() => setShowRegister(false)}
+        onSuccess={() => {
+          setShowRegister(false);
+          setHasStarted(true);
+        }}
+        onSwitchToLogin={() => {
+          setShowRegister(false);
+          setShowLogin(true);
+        }}
+      />
+    );
+  }
+
+  if (showLogin) {
+    return (
+      <LoginScreen
+        onBack={() => setShowLogin(false)}
+        onSuccess={() => {
+          setShowLogin(false);
+          setHasStarted(true);
+        }}
+        onSwitchToRegister={() => {
+          setShowLogin(false);
+          setShowRegister(true);
+        }}
+      />
+    );
+  }
+
   if (!hasStarted) {
-    return <SafeAreaView style={styles.container}>
-      <SplashScreen onStart={() => setHasStarted(true)} />
-      <StatusBar style="dark" />
-    </SafeAreaView>;
+    return (
+      <View style={{ flex: 1, backgroundColor: "#FAFCFB" }}>
+        <SplashScreen
+          onStart={() => setShowRegister(true)}
+          onLogin={() => setShowLogin(true)}
+        />
+        <StatusBar style="dark" />
+      </View>
+    );
   }
 
   if (showAddTransaction) {
-    return <SafeAreaView style={styles.container}>
-      <AddTransactionScreen
-        onBack={() => setShowAddTransaction(false)}
-        onSaved={() => {
-          setShowAddTransaction(false);
-          setActiveTab('transactions');
-        }}
-      />
-      <StatusBar style="dark" />
-    </SafeAreaView>;
+    return (
+      <View style={{ flex: 1, backgroundColor: '#074838' }}>
+        <StatusBar style="light" />
+        <AddTransactionScreen
+          onBack={() => setShowAddTransaction(false)}
+          onSaved={() => {
+            setShowAddTransaction(false);
+            setActiveTab('transactions');
+          }}
+          onOpenInvoiceScanner={() => {
+            setShowAddTransaction(false);
+            setShowScanInvoice(true);
+          }}
+        />
+      </View>
+    );
   }
 
   if (showScanInvoice) {
@@ -74,17 +129,27 @@ export default function App() {
   }
 
   if (showAiAssistant) {
-    return <SafeAreaView style={styles.container}>
-      <AiAssistantScreen onBack={() => setShowAiAssistant(false)} />
-      <StatusBar style="dark" />
-    </SafeAreaView>;
+    return (
+      <View style={{ flex: 1, backgroundColor: '#074838' }}>
+        <StatusBar style="light" />
+        <AiAssistantScreen onBack={() => setShowAiAssistant(false)} />
+      </View>
+    );
   }
 
   if (showAccounts) {
-    return <SafeAreaView style={styles.container}>
-      <AccountsScreen onBack={() => setShowAccounts(false)} />
-      <StatusBar style="dark" />
-    </SafeAreaView>;
+    return (
+      <View style={{ flex: 1, backgroundColor: '#074838' }}>
+        <StatusBar style="light" />
+        <AccountsScreen
+          onBack={() => setShowAccounts(false)}
+          onAddTransaction={() => {
+            setShowAccounts(false);
+            setShowAddTransaction(true);
+          }}
+        />
+      </View>
+    );
   }
 
   if (showSpendingAnalysis) {
@@ -109,79 +174,98 @@ export default function App() {
   }
 
   if (showNotifications) {
-    return <SafeAreaView style={styles.container}>
-      <View style={styles.content}><NotificationsScreen /></View>
-      <BottomNav
-        activeTab={activeTab}
-        onChange={(tab) => {
-          setShowNotifications(false);
-          setActiveTab(tab);
-        }}
-        onScanInvoice={() => {
-          setShowNotifications(false);
-          setShowScanInvoice(true);
-        }}
-        onNotifications={() => setShowNotifications(true)}
-        onProfile={() => {
-          setShowNotifications(false);
-          setShowProfile(true);
-        }}
-        isNotificationsActive
-      />
-      <StatusBar style="dark" />
-    </SafeAreaView>;
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.content}>
+          <NotificationsScreen />
+        </View>
+        <BottomNav
+          activeTab={activeTab}
+          onChange={(tab) => {
+            setShowNotifications(false);
+            setActiveTab(tab);
+          }}
+          onScanInvoice={() => {
+            setShowNotifications(false);
+            setShowScanInvoice(true);
+          }}
+          onProfile={() => {
+            setShowNotifications(false);
+            setShowProfile(true);
+          }}
+        />
+        <StatusBar style="dark" />
+      </SafeAreaView>
+    );
   }
 
   if (showProfile) {
-    return <SafeAreaView style={styles.container}>
-      <View style={styles.content}><ProfileScreen /></View>
-      <BottomNav
-        activeTab={activeTab}
-        onChange={(tab) => {
-          setShowProfile(false);
-          setActiveTab(tab);
-        }}
-        onScanInvoice={() => {
-          setShowProfile(false);
-          setShowScanInvoice(true);
-        }}
-        onNotifications={() => {
-          setShowProfile(false);
-          setShowNotifications(true);
-        }}
-        onProfile={() => setShowProfile(true)}
-        isProfileActive
-      />
-      <StatusBar style="dark" />
-    </SafeAreaView>;
+    return (
+      <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
+        <View style={styles.content}>
+          <ProfileScreen />
+        </View>
+        <BottomNav
+          activeTab={activeTab}
+          onChange={(tab) => {
+            setShowProfile(false);
+            setActiveTab(tab);
+          }}
+          onScanInvoice={() => {
+            setShowProfile(false);
+            setShowScanInvoice(true);
+          }}
+          onProfile={() => setShowProfile(true)}
+          isProfileActive
+        />
+        <StatusBar style="dark" />
+      </SafeAreaView>
+    );
   }
 
   const screen = {
-    home: <HomeScreen
-      onViewTransactions={() => setActiveTab('transactions')}
-      onAddTransaction={() => setShowAddTransaction(true)}
-      onScanInvoice={() => setShowScanInvoice(true)}
-      onViewGoals={() => setActiveTab('goals')}
-      onViewReminders={() => setShowReminders(true)}
-      onViewAiAssistant={() => setShowAiAssistant(true)}
-      onViewAccounts={() => setShowAccounts(true)}
-      onViewSpendingAnalysis={() => setShowSpendingAnalysis(true)}
-      onViewPeriodicReports={() => setShowPeriodicReports(true)}
-      onViewBalanceForecast={() => setShowBalanceForecast(true)}
-    />,
-    transactions: <TransactionsScreen onBack={() => setActiveTab('home')} onAddTransaction={() => setShowAddTransaction(true)} />,
+    home: (
+      <HomeScreen
+        onViewTransactions={() => setActiveTab('transactions')}
+        onAddTransaction={() => setShowAddTransaction(true)}
+        onScanInvoice={() => setShowScanInvoice(true)}
+        onViewGoals={() => setActiveTab('goals')}
+        onViewReminders={() => setShowReminders(true)}
+        onViewAiAssistant={() => setShowAiAssistant(true)}
+        onViewAccounts={() => setShowAccounts(true)}
+        onViewSpendingAnalysis={() => setShowSpendingAnalysis(true)}
+        onViewPeriodicReports={() => setShowPeriodicReports(true)}
+        onViewBalanceForecast={() => setShowBalanceForecast(true)}
+        onNotifications={() => setShowNotifications(true)}
+      />
+    ),
+    transactions: (
+      <TransactionsScreen
+        onBack={() => setActiveTab('home')}
+        onAddTransaction={() => setShowAddTransaction(true)}
+      />
+    ),
+    group: <GroupScreen />,
     budget: <BudgetScreen />,
     goals: <GoalsScreen onBack={() => setActiveTab('home')} />,
   }[activeTab];
 
-  return <SafeAreaView style={styles.container}>
-    <View style={styles.content}>{screen}</View>
-    <BottomNav activeTab={activeTab} onChange={setActiveTab} onScanInvoice={() => setShowScanInvoice(true)} onNotifications={() => setShowNotifications(true)} onProfile={() => setShowProfile(true)} />
-    <StatusBar style="dark" />
-  </SafeAreaView>;
+  return (
+    <View style={styles.container}>
+      <View style={styles.content}>{screen}</View>
+      <BottomNav
+        activeTab={activeTab}
+        onChange={setActiveTab}
+        onScanInvoice={() => setShowScanInvoice(true)}
+        onProfile={() => setShowProfile(true)}
+      />
+      <StatusBar style="light" />
+    </View>
+  );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.paper },
   content: { flex: 1 },
 });
+
