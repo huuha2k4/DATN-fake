@@ -37,6 +37,7 @@ import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 
 @Slf4j
@@ -56,6 +57,11 @@ public class OcrService {
     private static final List<String> ALLOWED_CONTENT_TYPES = List.of("image/jpeg", "image/png", "image/webp");
     private static final long MAX_FILE_SIZE = 15L * 1024 * 1024; // 15 MB
     private static final String RECEIPT_UPLOAD_DIR = "uploads/receipts";
+
+    // Các kind bị từ chối — không lưu DB, trả thẳng về frontend
+    private static final Set<String> REJECTED_KINDS = Set.of(
+            "not_receipt", "low_quality", "handwritten", "draft"
+    );
 
     /**
      * Scan a receipt image via the AI OCR service and persist the result.
@@ -122,6 +128,24 @@ public class OcrService {
         AiReceiptResult result = aiResponse.getBody();
         if (result == null) {
             throw new IllegalStateException("AI service returned empty response");
+        }
+
+        // --- CỔNG KIỂM TRA: từ chối ảnh không hợp lệ, không lưu DB ---
+        if (result.getKind() != null && REJECTED_KINDS.contains(result.getKind())) {
+            log.info("Receipt rejected by AI service: kind={}, reason={}", result.getKind(), result.getRejectReason());
+            // Xóa ảnh đã lưu tạm (nếu có) vì không cần thiết
+            if (imageUrl != null) {
+                try {
+                    Files.deleteIfExists(Paths.get(imageUrl.replaceFirst("^/", "")));
+                } catch (Exception ignored) {}
+            }
+            // Trả về response từ chối mà KHÔNG lưu vào database
+            return OcrReceiptResponse.builder()
+                    .kind(result.getKind())
+                    .confidence(result.getConfidence())
+                    .needsReview(result.getNeedsReview() != null ? result.getNeedsReview() : false)
+                    .rejectReason(result.getRejectReason())
+                    .build();
         }
 
         // --- Parse dates ---
@@ -293,6 +317,7 @@ public class OcrService {
                 .currency(r.getCurrency())
                 .confidence(r.getConfidence() != null ? r.getConfidence().doubleValue() : null)
                 .needsReview(r.getNeedsReview())
+                .rejectReason(null) // receipts đã lưu DB đều là hợp lệ
                 .aiCategoryId(r.getAiCategoryId())
                 .aiCategoryName(r.getAiCategoryName())
                 .aiCategoryConfidence(r.getAiCategoryConfidence() != null
@@ -334,6 +359,9 @@ public class OcrService {
 
         @JsonProperty("needs_review")
         private Boolean needsReview;
+
+        @JsonProperty("reject_reason")
+        private String rejectReason;
 
         @JsonProperty("category")
         private AiCategory category;

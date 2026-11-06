@@ -31,10 +31,17 @@ def strip_accents(s: str) -> str:
 TOTAL_KEYWORD_TIERS: List[List[str]] = [
     # Tier 1 — rõ ràng nhất
     ["tong tien phai", "phai thanh toan", "tong tien phai thanh toan", "phai tra",
-     "tong cong", "tongcong", "grand total"],
+     "tong cong", "tongcong", "grand total",
+     # EVN / tiện ích
+     "so tien phai thanh toan", "tien phai nop", "tong so tien phai tra",
+     "tong tien phai nop", "tien phai thanh toan"],
     # Tier 2 — khá rõ
     ["tong tien", "thanh tien", "tong thanh toan", "total amount", "so tien phai tra",
-     "tien thanh toan", "tong tienphai"],
+     "tien thanh toan", "tong tienphai",
+     # EVN / tiện ích
+     "tien dien", "tong tien dien", "tong tien vat", "tien + vat",
+     "tong cong tien dien", "so tien", "tien nuoc", "tong tien nuoc",
+     "phi dich vu", "cuoc phi"],
     # Tier 3 — dễ nhầm nhất
     ["thanh toan", "total", "so tien", "amount",
      # OCR ghép chữ hay gặp
@@ -73,7 +80,7 @@ EXCLUDE_KEYWORDS = [
 
 # Khoảng hợp lý — đặt thành config để dễ điều chỉnh
 AMOUNT_MIN = 2_000      # Dưới 2.000đ không phải tổng tiền hóa đơn thực tế
-AMOUNT_MAX = 100_000_000
+AMOUNT_MAX = 500_000_000  # Tăng lên 500tr để cover hóa đơn điện doanh nghiệp
 
 # Số dạng 125.000 / 125,000 / 1.250.000 / 125000 — KHÔNG bắt số âm
 NUMBER_RE = re.compile(r"(?<![0-9,.-])\d{1,3}(?:[.,]\d{3})+|\b\d{4,}(?!\d)")
@@ -268,6 +275,16 @@ KNOWN_BRANDS: List[str] = [
     "Shopee", "Lazada", "Tiki", "Sendo",
     # Dược phẩm / sức khỏe
     "Guardian", "Watsons", "Medicare", "Pharmacity", "Long Châu",
+    # Điện lực / tiện ích (EVN và các công ty thành viên)
+    "EVN", "EVNHCMC", "EVNHANOI", "EVNSPC", "EVNCPC", "EVNNPC",
+    "Điện lực", "Tổng Công ty Điện lực",
+    "Điện lực Hà Nội", "Điện lực TP HCM", "Điện lực Hồ Chí Minh",
+    "Điện lực miền Nam", "Điện lực miền Bắc", "Điện lực miền Trung",
+    "Công ty Điện lực",
+    # Nước / viễn thông / gas
+    "SAWACO", "HAWACO", "Cấp thoát nước",
+    "Viettel", "Mobifone", "Vinaphone", "Vietnamobile",
+    "Petrovietnam Gas", "PV Gas", "Saigon Gas",
 ]
 
 # Từ khóa nhận ra tên pháp nhân — khi gặp thì tìm thương hiệu ở dòng kế tiếp
