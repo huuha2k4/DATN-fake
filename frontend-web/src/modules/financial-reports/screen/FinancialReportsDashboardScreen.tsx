@@ -451,7 +451,7 @@ export function FinancialReportsDashboardScreen({ onNotify }: Props) {
 
     // Ghép danh sách danh mục giữa Kỳ này và Kỳ trước để so sánh
     const prevCategories = prevSummaryData?.byCategory || [];
-    const prevCatMap = new Map<string, CategorySummaryItem>();
+    const prevCatMap = new Map<string, any>();
     prevCategories.forEach(c => {
       if (c.categoryId || c.categoryName) {
         prevCatMap.set(c.categoryId || c.categoryName, c);

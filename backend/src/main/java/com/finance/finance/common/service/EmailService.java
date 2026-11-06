@@ -32,6 +32,51 @@ public class EmailService {
     private String appName;
 
     /**
+     * Send group invitation email
+     */
+    @Async
+    public void sendGroupInvitationEmail(String toEmail, String inviteeName, String inviterName, String groupName, String role) {
+        try {
+            String subject = String.format("%s đã mời bạn tham gia nhóm \"%s\" trên Finora", inviterName, groupName);
+            String content = buildGroupInvitationEmailContent(inviteeName, inviterName, groupName, role);
+            sendHtmlEmail(toEmail, subject, content);
+            log.info("Group invitation email sent to: {}", toEmail);
+        } catch (Exception e) {
+            log.error("Failed to send group invitation email to: {}", toEmail, e);
+        }
+    }
+
+    /**
+     * Send email verification with OTP
+     */
+    @Async
+    public void sendVerificationOtpEmail(String toEmail, String fullName, String otp) {
+        String subject = "Mã xác thực tài khoản Finora: " + otp;
+        String content = buildVerificationOtpEmailContent(fullName, otp);
+        try {
+            sendHtmlEmail(toEmail, subject, content);
+            log.info("Verification OTP email sent to: {}", toEmail);
+        } catch (Exception e) {
+            log.error("Failed to send verification OTP email to {}: {}", toEmail, e.getMessage(), e);
+        }
+    }
+
+    /**
+     * Send password reset with OTP
+     */
+    @Async
+    public void sendPasswordResetOtpEmail(String toEmail, String fullName, String otp) {
+        try {
+            String subject = "Mã xác thực đặt lại mật khẩu Finora: " + otp;
+            String content = buildPasswordResetOtpEmailContent(fullName, otp);
+            sendHtmlEmail(toEmail, subject, content);
+            log.info("Password reset OTP email sent to: {}", toEmail);
+        } catch (Exception e) {
+            log.error("Failed to send password reset OTP email to: {}", toEmail, e);
+        }
+    }
+
+    /**
      * Send email verification email
      */
     @Async
@@ -120,9 +165,13 @@ public class EmailService {
      */
     private void sendHtmlEmail(String to, String subject, String htmlContent) throws MessagingException {
         MimeMessage message = mailSender.createMimeMessage();
-        MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
+        MimeMessageHelper helper = new MimeMessageHelper(message, false, "UTF-8");
         
-        helper.setFrom(fromEmail);
+        try {
+            helper.setFrom(new jakarta.mail.internet.InternetAddress(fromEmail, "Finora", "UTF-8"));
+        } catch (Exception e) {
+            helper.setFrom(fromEmail);
+        }
         helper.setTo(to);
         helper.setSubject(subject);
         helper.setText(htmlContent, true);
@@ -315,5 +364,287 @@ public class EmailService {
             </body>
             </html>
             """, fullName, codesHtml.toString());
+    }
+
+    private String buildVerificationOtpEmailContent(String fullName, String otp) {
+        StringBuilder otpBoxes = new StringBuilder();
+        for (char c : otp.toCharArray()) {
+            otpBoxes.append(String.format(
+                "<span style=\"display: inline-block; width: 34px; height: 44px; line-height: 44px; margin: 0 3px; font-size: 22px; font-weight: 700; color: #047857; background: #ffffff; border: 1.5px solid #a7f3d0; border-radius: 8px; box-shadow: 0 1px 3px rgba(4, 120, 87, 0.08); text-align: center; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, monospace;\">%c</span>",
+                c
+            ));
+        }
+
+        return String.format("""
+            <!DOCTYPE html>
+            <html lang="vi">
+            <head>
+                <meta charset="UTF-8">
+                <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            </head>
+            <body style="margin: 0; padding: 24px 12px; background-color: #f8fafc; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; -webkit-font-smoothing: antialiased; color: #1e293b;">
+                <table width="100%%" border="0" cellspacing="0" cellpadding="0">
+                    <tr>
+                        <td align="center">
+                            <table width="100%%" border="0" cellspacing="0" cellpadding="0" style="max-width: 500px; background: #ffffff; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05); border: 1px solid #e2e8f0;">
+                                <!-- Header Nền Sáng Chào Mừng Thương Hiệu Finora -->
+                                <tr>
+                                    <td style="background: linear-gradient(180deg, #ecfdf5 0%%, #ffffff 100%%); padding: 36px 24px 22px 24px; text-align: center; border-bottom: 1px solid #f1f5f9;">
+                                        <div style="display: inline-block; background: #047857; color: #ffffff; font-size: 11px; font-weight: 800; letter-spacing: 1.5px; padding: 4px 12px; border-radius: 9999px; text-transform: uppercase; margin-bottom: 12px;">
+                                            FINORA
+                                        </div>
+                                        <h1 style="color: #064e3b; margin: 0 0 6px 0; font-size: 22px; font-weight: 800; letter-spacing: -0.3px;">
+                                            Chào mừng bạn đến với Finora! 🎉
+                                        </h1>
+                                        <p style="color: #059669; font-size: 13px; margin: 0; font-weight: 600;">
+                                            Nền tảng quản lý tài chính cá nhân thông minh
+                                        </p>
+                                    </td>
+                                </tr>
+
+                                <!-- Body content -->
+                                <tr>
+                                    <td style="padding: 24px 24px 18px 24px;">
+                                        <p style="font-size: 15px; color: #1e293b; margin: 0 0 10px 0; font-weight: 600;">
+                                            Xin chào %s,
+                                        </p>
+                                        <p style="font-size: 14px; color: #475569; line-height: 1.6; margin: 0 0 20px 0;">
+                                            Cảm ơn bạn đã lựa chọn Finora để tối ưu hóa và quản lý tài chính cá nhân. Dưới đây là mã xác thực OTP 6 số để hoàn tất đăng ký tài khoản của bạn:
+                                        </p>
+
+                                        <!-- OTP Display Box -->
+                                        <div style="background: #f0fdf4; border: 1.5px solid #bbf7d0; border-radius: 12px; padding: 18px 12px; text-align: center; margin: 0 0 20px 0;">
+                                            <p style="margin: 0 0 10px 0; font-size: 11px; font-weight: 700; color: #047857; text-transform: uppercase; letter-spacing: 1.5px;">
+                                                MÃ XÁC THỰC OTP CỦA BẠN
+                                            </p>
+                                            <div style="display: inline-block; white-space: nowrap;">
+                                                %s
+                                            </div>
+                                            <p style="margin: 10px 0 0 0; font-size: 12px; color: #059669; font-weight: 500;">
+                                                ⏱️ Mã có hiệu lực trong vòng <strong>10 phút</strong>
+                                            </p>
+                                        </div>
+
+                                        <!-- Giới thiệu các tiện ích Finora -->
+                                        <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 14px 16px; margin: 0 0 20px 0;">
+                                            <p style="margin: 0 0 8px 0; font-size: 12px; font-weight: 700; color: #334155; text-transform: uppercase; letter-spacing: 0.5px;">
+                                                ✨ Tiện ích nổi bật cùng Finora:
+                                            </p>
+                                            <table width="100%%" border="0" cellspacing="0" cellpadding="0" style="font-size: 12.5px; color: #64748b; line-height: 1.6;">
+                                                <tr>
+                                                    <td style="padding: 2px 0;">🤖 <strong>Trợ lý AI:</strong> Phân tích thói quen chi tiêu & đề xuất tiết kiệm</td>
+                                                </tr>
+                                                <tr>
+                                                    <td style="padding: 2px 0;">📸 <strong>Quét hóa đơn OCR:</strong> Nhận diện và ghi chép chi tiêu tức thì</td>
+                                                </tr>
+                                                <tr>
+                                                    <td style="padding: 2px 0;">👨‍👩‍👧 <strong>Ví gia đình & Trẻ em:</strong> Phân quyền và theo dõi ngân sách nhóm</td>
+                                                </tr>
+                                            </table>
+                                        </div>
+
+                                        <p style="font-size: 12px; color: #94a3b8; line-height: 1.5; margin: 0;">
+                                            🔒 <em>Lưu ý bảo mật: Tuyệt đối không chia sẻ mã này với bất kỳ ai, kể cả nhân viên Finora.</em>
+                                        </p>
+                                    </td>
+                                </tr>
+
+                                <!-- Footer -->
+                                <tr>
+                                    <td style="background: #f8fafc; padding: 16px 24px; border-top: 1px solid #f1f5f9; text-align: center;">
+                                        <p style="font-size: 11.5px; color: #94a3b8; margin: 0 0 4px 0;">
+                                            Nếu bạn không thực hiện yêu cầu này, vui lòng bỏ qua thư.
+                                        </p>
+                                        <p style="font-size: 11px; color: #cbd5e1; margin: 0;">
+                                            © 2026 Finora · Nền tảng quản lý tài chính cá nhân thông minh
+                                        </p>
+                                    </td>
+                                </tr>
+                            </table>
+                        </td>
+                    </tr>
+                </table>
+            </body>
+            </html>
+            """, fullName != null && !fullName.isBlank() ? fullName : "bạn", otpBoxes.toString());
+    }
+
+    private String buildPasswordResetOtpEmailContent(String fullName, String otp) {
+        StringBuilder otpBoxes = new StringBuilder();
+        for (char c : otp.toCharArray()) {
+            otpBoxes.append(String.format(
+                "<span style=\"display: inline-block; width: 34px; height: 44px; line-height: 44px; margin: 0 3px; font-size: 22px; font-weight: 700; color: #dc2626; background: #ffffff; border: 1.5px solid #fecaca; border-radius: 8px; box-shadow: 0 1px 3px rgba(220, 38, 38, 0.08); text-align: center; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, monospace;\">%c</span>",
+                c
+            ));
+        }
+
+        return String.format("""
+            <!DOCTYPE html>
+            <html lang="vi">
+            <head>
+                <meta charset="UTF-8">
+                <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            </head>
+            <body style="margin: 0; padding: 24px 12px; background-color: #f8fafc; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; -webkit-font-smoothing: antialiased; color: #1e293b;">
+                <table width="100%%" border="0" cellspacing="0" cellpadding="0">
+                    <tr>
+                        <td align="center">
+                            <table width="100%%" border="0" cellspacing="0" cellpadding="0" style="max-width: 500px; background: #ffffff; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05); border: 1px solid #e2e8f0;">
+                                <!-- Header Nền Sáng Đặt Lại Mật Khẩu -->
+                                <tr>
+                                    <td style="background: linear-gradient(180deg, #fef2f2 0%%, #ffffff 100%%); padding: 36px 24px 22px 24px; text-align: center; border-bottom: 1px solid #f1f5f9;">
+                                        <div style="display: inline-block; background: #dc2626; color: #ffffff; font-size: 11px; font-weight: 800; letter-spacing: 1.5px; padding: 4px 12px; border-radius: 9999px; text-transform: uppercase; margin-bottom: 12px;">
+                                            FINORA
+                                        </div>
+                                        <h1 style="color: #991b1b; margin: 0 0 6px 0; font-size: 22px; font-weight: 800; letter-spacing: -0.3px;">
+                                            Yêu cầu đặt lại mật khẩu
+                                        </h1>
+                                        <p style="color: #ef4444; font-size: 13px; margin: 0; font-weight: 600;">
+                                            Finora · Nền tảng quản lý tài chính cá nhân thông minh
+                                        </p>
+                                    </td>
+                                </tr>
+
+                                <!-- Body content -->
+                                <tr>
+                                    <td style="padding: 24px 24px 18px 24px;">
+                                        <p style="font-size: 15px; color: #1e293b; margin: 0 0 10px 0; font-weight: 600;">
+                                            Xin chào %s,
+                                        </p>
+                                        <p style="font-size: 14px; color: #475569; line-height: 1.6; margin: 0 0 20px 0;">
+                                            Chúng tôi nhận được yêu cầu đặt lại mật khẩu cho tài khoản Finora của bạn. Vui lòng nhập mã OTP 6 số dưới đây để tiếp tục tạo mật khẩu mới:
+                                        </p>
+
+                                        <!-- OTP Display Box -->
+                                        <div style="background: #fef2f2; border: 1.5px solid #fee2e2; border-radius: 12px; padding: 18px 12px; text-align: center; margin: 0 0 20px 0;">
+                                            <p style="margin: 0 0 10px 0; font-size: 11px; font-weight: 700; color: #b91c1c; text-transform: uppercase; letter-spacing: 1.5px;">
+                                                MÃ OTP ĐẶT LẠI MẬT KHẨU
+                                            </p>
+                                            <div style="display: inline-block; white-space: nowrap;">
+                                                %s
+                                            </div>
+                                            <p style="margin: 10px 0 0 0; font-size: 12px; color: #dc2626; font-weight: 500;">
+                                                ⏱️ Mã có hiệu lực trong vòng <strong>10 phút</strong>
+                                            </p>
+                                        </div>
+
+                                        <p style="font-size: 12.5px; color: #64748b; line-height: 1.5; margin: 0;">
+                                            🔒 <em>Nếu bạn không yêu cầu đặt lại mật khẩu, vui lòng bỏ qua thư này. Tài khoản của bạn vẫn được bảo vệ an toàn.</em>
+                                        </p>
+                                    </td>
+                                </tr>
+
+                                <!-- Footer -->
+                                <tr>
+                                    <td style="background: #f8fafc; padding: 16px 24px; border-top: 1px solid #f1f5f9; text-align: center;">
+                                        <p style="font-size: 11.5px; color: #94a3b8; margin: 0 0 4px 0;">
+                                            Hỗ trợ bảo mật tài khoản người dùng Finora
+                                        </p>
+                                        <p style="font-size: 11px; color: #cbd5e1; margin: 0;">
+                                            © 2026 Finora · Nền tảng quản lý tài chính cá nhân thông minh
+                                        </p>
+                                    </td>
+                                </tr>
+                            </table>
+                        </td>
+                    </tr>
+                </table>
+            </body>
+            </html>
+            """, fullName != null && !fullName.isBlank() ? fullName : "bạn", otpBoxes.toString());
+    }
+
+    private String buildGroupInvitationEmailContent(String inviteeName, String inviterName, String groupName, String role) {
+        String roleText = "Thành viên";
+        if ("ADMIN".equalsIgnoreCase(role)) roleText = "Quản trị viên";
+        else if ("VIEWER".equalsIgnoreCase(role)) roleText = "Người theo dõi";
+
+        String groupLink = "https://finora.3congian.com/groups";
+
+        return String.format("""
+            <!DOCTYPE html>
+            <html lang="vi">
+            <head>
+                <meta charset="UTF-8">
+                <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            </head>
+            <body style="margin: 0; padding: 24px 12px; background-color: #f8fafc; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; -webkit-font-smoothing: antialiased; color: #1e293b;">
+                <table width="100%%" border="0" cellspacing="0" cellpadding="0">
+                    <tr>
+                        <td align="center">
+                            <table width="100%%" border="0" cellspacing="0" cellpadding="0" style="max-width: 500px; background: #ffffff; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05); border: 1px solid #e2e8f0;">
+                                <!-- Header Lời Mời Tham Gia Nhóm -->
+                                <tr>
+                                    <td style="background: linear-gradient(180deg, #ecfdf5 0%%, #ffffff 100%%); padding: 36px 24px 22px 24px; text-align: center; border-bottom: 1px solid #f1f5f9;">
+                                        <div style="display: inline-block; background: #047857; color: #ffffff; font-size: 11px; font-weight: 800; letter-spacing: 1.5px; padding: 4px 12px; border-radius: 9999px; text-transform: uppercase; margin-bottom: 12px;">
+                                            FINORA
+                                        </div>
+                                        <h1 style="color: #064e3b; margin: 0 0 6px 0; font-size: 21px; font-weight: 800; letter-spacing: -0.3px;">
+                                            Lời mời tham gia nhóm 👥
+                                        </h1>
+                                        <p style="color: #059669; font-size: 13px; margin: 0; font-weight: 600;">
+                                            Quản lý chi tiêu & ngân sách chung minh bạch
+                                        </p>
+                                    </td>
+                                </tr>
+
+                                <!-- Body content -->
+                                <tr>
+                                    <td style="padding: 24px 24px 20px 24px;">
+                                        <p style="font-size: 15px; color: #1e293b; margin: 0 0 12px 0; font-weight: 600;">
+                                            Xin chào %s,
+                                        </p>
+                                        <p style="font-size: 14px; color: #475569; line-height: 1.6; margin: 0 0 20px 0;">
+                                            <strong>%s</strong> vừa gửi cho bạn một lời mời tham gia nhóm quản lý tài chính trên Finora.
+                                        </p>
+
+                                        <!-- Group Info Card -->
+                                        <div style="background: #f0fdf4; border: 1.5px solid #bbf7d0; border-radius: 14px; padding: 18px 20px; margin: 0 0 22px 0;">
+                                            <p style="margin: 0 0 8px 0; font-size: 13px; color: #065f46;">
+                                                Tên nhóm: <strong style="font-size: 16px; color: #047857;">%s</strong>
+                                            </p>
+                                            <p style="margin: 0; font-size: 13px; color: #065f46;">
+                                                Vai trò được mời: <span style="display: inline-block; background: #ffffff; border: 1px solid #86efac; color: #047857; padding: 2px 10px; border-radius: 6px; font-weight: 700; font-size: 12px;">%s</span>
+                                            </p>
+                                        </div>
+
+                                        <p style="font-size: 13.5px; color: #475569; line-height: 1.6; margin: 0 0 24px 0;">
+                                            Hãy truy cập mục <strong>Nhóm</strong> trên Finora để xem chi tiết và xác nhận lời mời:
+                                        </p>
+
+                                        <!-- CTA Button -->
+                                        <div style="text-align: center; margin: 0 0 24px 0;">
+                                            <a href="%s" style="display: inline-block; background: #059669; color: #ffffff; text-decoration: none; padding: 12px 28px; border-radius: 10px; font-size: 14px; font-weight: 700; box-shadow: 0 3px 8px rgba(5, 150, 105, 0.25);">
+                                                Xem Lời Mời & Tham Gia
+                                            </a>
+                                        </div>
+
+                                        <p style="font-size: 12px; color: #94a3b8; line-height: 1.5; margin: 0;">
+                                            💡 <em>Nếu bạn không biết người gửi hoặc không có nhu cầu tham gia nhóm này, bạn có thể từ chối trực tiếp trên hệ thống hoặc bỏ qua email này.</em>
+                                        </p>
+                                    </td>
+                                </tr>
+
+                                <!-- Footer -->
+                                <tr>
+                                    <td style="background: #f8fafc; padding: 16px 24px; border-top: 1px solid #f1f5f9; text-align: center;">
+                                        <p style="font-size: 11px; color: #cbd5e1; margin: 0;">
+                                            © 2026 Finora · Nền tảng quản lý tài chính cá nhân thông minh
+                                        </p>
+                                    </td>
+                                </tr>
+                            </table>
+                        </td>
+                    </tr>
+                </table>
+            </body>
+            </html>
+            """,
+            inviteeName != null && !inviteeName.isBlank() ? inviteeName : "bạn",
+            inviterName,
+            groupName,
+            roleText,
+            groupLink
+        );
     }
 }

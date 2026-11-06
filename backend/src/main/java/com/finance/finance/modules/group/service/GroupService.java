@@ -41,6 +41,7 @@ public class GroupService {
     private final com.finance.finance.modules.group.repository.GroupInvitationRepository invitationRepository;
     private final com.finance.finance.modules.notification.service.NotificationService notificationService;
     private final GroupFundRepository groupFundRepository;
+    private final com.finance.finance.common.service.EmailService emailService;
 
     // ==================== Groups Management ====================
 
@@ -89,7 +90,7 @@ public class GroupService {
     @Transactional(readOnly = true)
     public Page<GroupResponse> getGroups(Pageable pageable, UUID currentUserId) {
         Page<Group> groups = groupRepository.findByUserId(currentUserId, pageable);
-        return groups.map(this::buildGroupResponse);
+        return groups.map(g -> buildGroupResponse(g, currentUserId));
     }
 
     @Transactional(readOnly = true)
@@ -235,6 +236,23 @@ public class GroupService {
             log.warn("Failed to create invitation notification: {}", e.getMessage());
         }
 
+        // Send email invitation to invitee
+        try {
+            userRepository.findById(request.getUserId()).ifPresent(invitee -> {
+                if (invitee.getEmail() != null && !invitee.getEmail().isBlank()) {
+                    emailService.sendGroupInvitationEmail(
+                            invitee.getEmail(),
+                            invitee.getFullName() != null && !invitee.getFullName().isBlank() ? invitee.getFullName() : invitee.getUsername(),
+                            inviterName,
+                            group.getName(),
+                            role.name()
+                    );
+                }
+            });
+        } catch (Exception e) {
+            log.warn("Failed to send invitation email: {}", e.getMessage());
+        }
+
         // Log activity
         logActivity(groupId, currentUserId, ActivityType.MEMBER_JOINED,
                 "Sent invitation to user", Map.of("userId", request.getUserId().toString()));
@@ -294,8 +312,8 @@ public class GroupService {
                         com.finance.finance.common.enums.NotificationPriority.NORMAL,
                         "Lời mời được chấp nhận",
                         memberName + " đã đồng ý tham gia nhóm \"" + group.getName() + "\"",
-                        "/groups",
-                        "Xem nhóm"
+                        "/groups?groupId=" + group.getId() + "&tab=MEMBERS",
+                        "Xem thành viên"
                 );
             } catch (Exception e) {
                 log.warn("Failed to notify inviter: {}", e.getMessage());
@@ -332,10 +350,19 @@ public class GroupService {
                 .map(u -> u.getFullName() != null ? u.getFullName() : u.getUsername()).orElse("Thành viên");
         return invitationRepository.findByGroupIdAndStatusOrderByCreatedAtDesc(groupId,
                         com.finance.finance.modules.group.entity.GroupInvitation.InvitationStatus.PENDING)
-                .stream().map(inv -> GroupInvitationResponse.builder().id(inv.getId()).groupId(groupId)
-                        .groupName(group.getName()).groupType(group.getGroupType().name()).inviterId(inv.getInviterId())
-                        .inviterName(inviterName).inviteeId(inv.getInviteeId()).role(inv.getRole().name())
-                        .status(inv.getStatus().name()).createdAt(inv.getCreatedAt()).build()).toList();
+                .stream().map(inv -> {
+                    var invitee = userRepository.findById(inv.getInviteeId()).orElse(null);
+                    String inviteeName = invitee != null ? (invitee.getFullName() != null && !invitee.getFullName().isBlank() ? invitee.getFullName() : invitee.getUsername()) : "Người dùng";
+                    String inviteeEmail = invitee != null ? invitee.getEmail() : null;
+                    String inviteeAvatar = invitee != null ? invitee.getAvatarUrl() : null;
+
+                    return GroupInvitationResponse.builder().id(inv.getId()).groupId(groupId)
+                            .groupName(group.getName()).groupType(group.getGroupType().name()).inviterId(inv.getInviterId())
+                            .inviterName(inviterName).inviteeId(inv.getInviteeId())
+                            .inviteeName(inviteeName).inviteeEmail(inviteeEmail).inviteeAvatarUrl(inviteeAvatar)
+                            .role(inv.getRole().name())
+                            .status(inv.getStatus().name()).createdAt(inv.getCreatedAt()).build();
+                }).toList();
     }
 
     @Transactional

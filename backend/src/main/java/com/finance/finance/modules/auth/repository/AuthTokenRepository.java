@@ -19,6 +19,16 @@ public interface AuthTokenRepository extends JpaRepository<AuthToken, UUID> {
     Optional<AuthToken> findByToken(String token);
     
     Optional<AuthToken> findByTokenAndTokenType(String token, TokenType tokenType);
+
+    @Query("SELECT at FROM AuthToken at WHERE at.user.id = :userId AND at.token = :token AND at.tokenType = :tokenType")
+    Optional<AuthToken> findByUserIdAndTokenAndTokenType(@Param("userId") UUID userId, @Param("token") String token, @Param("tokenType") TokenType tokenType);
+    
+    @Query("SELECT at FROM AuthToken at WHERE at.email = :email AND at.token = :token AND at.tokenType = :tokenType")
+    Optional<AuthToken> findByEmailAndTokenAndTokenType(@Param("email") String email, @Param("token") String token, @Param("tokenType") TokenType tokenType);
+
+    @Modifying
+    @Query("UPDATE AuthToken at SET at.used = true, at.usedAt = :now WHERE at.email = :email AND at.tokenType = :tokenType AND at.used = false")
+    void invalidateTokensByEmailAndType(@Param("email") String email, @Param("tokenType") TokenType tokenType, @Param("now") Instant now);
     
     @Query("SELECT at FROM AuthToken at WHERE at.token = :token AND at.tokenType = :tokenType AND at.used = false AND at.expiresAt > :now")
     Optional<AuthToken> findValidToken(@Param("token") String token, @Param("tokenType") TokenType tokenType, @Param("now") Instant now);

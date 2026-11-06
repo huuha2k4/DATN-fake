@@ -1,59 +1,454 @@
-import { useState } from 'react'
-import { FinanceIcon, type IconName } from '../../core/components/FinanceIcon'
+import { useState, useEffect } from 'react'
+import { FinanceIcon } from '../../core/components/FinanceIcon'
+import { useTheme } from '../../core/context/ThemeContext'
+import {
+  getBehaviorProfile,
+  getSpendingAnomalies,
+  getAiRecommendations,
+  type BehaviorProfileResponse,
+  type AnomalyItem,
+  type RecommendationResponse,
+} from '../../ai-assistant/api/aiApi'
 
 type Props = { onNotify: (message: string) => void }
-type Suggestion = { icon: IconName; title: string; priority: string; text: string; saving: string; action: string; tone: string }
-
-const spendingCategories = [
-  { name: 'Ăn uống', amount: '3.450.000 đ', share: '38%', change: '+18%', icon: 'coffee' as const, color: '#b84f46', width: '78%' },
-  { name: 'Mua sắm', amount: '1.250.000 đ', share: '22%', change: '-6%', icon: 'wallet' as const, color: '#168361', width: '46%' },
-  { name: 'Hóa đơn', amount: '1.145.000 đ', share: '20%', change: '-4%', icon: 'bolt' as const, color: '#d99b35', width: '42%' },
-  { name: 'Di chuyển', amount: '850.000 đ', share: '15%', change: '+2%', icon: 'arrows' as const, color: '#52786c', width: '32%' },
-  { name: 'Giải trí', amount: '450.000 đ', share: '5%', change: '-11%', icon: 'chart' as const, color: '#829087', width: '18%' },
-]
-
-const suggestions: Suggestion[] = [
-  { icon: 'wallet', title: 'Cắt giảm ngân sách ăn uống', priority: 'Ưu tiên cao', text: 'Giảm chi tiêu ăn uống khoảng 15% và tăng mức tiết kiệm lên 20% thu nhập để bám sát mục tiêu mua laptop.', saving: 'Tiết kiệm thêm khoảng 600.000 đ/tháng', action: 'Áp dụng hạn mức', tone: 'green' },
-  { icon: 'receipt', title: 'Tối ưu đăng ký định kỳ', priority: 'Tiết kiệm 240.000 đ/tháng', text: 'Có 2 dịch vụ giải trí ít được sử dụng trong 30 ngày qua. Cân nhắc tạm dừng để tăng quỹ dự phòng.', saving: 'Spotify Premium · Gym Pass', action: 'Kiểm tra dịch vụ', tone: 'blue' },
-]
 
 const tabs = [
-  { id: 'overview', label: 'Tổng quan' },
-  { id: 'spending', label: 'Chi tiêu' },
-  { id: 'recommendations', label: 'Khuyến nghị' },
+  { id: 'overview', label: 'Hồ sơ Persona & Chỉ số' },
+  { id: 'spending', label: 'Cơ cấu Danh mục' },
+  { id: 'anomalies', label: 'Giao dịch Bất thường' },
+  { id: 'recommendations', label: 'Khuyến nghị FinAI' },
 ] as const
 
 type TabId = (typeof tabs)[number]['id']
 
+function formatVND(amount: number): string {
+  return Math.round(amount).toLocaleString('vi-VN') + ' đ'
+}
+
 export function SpendingAnalysisScreen({ onNotify }: Props) {
   const [activeTab, setActiveTab] = useState<TabId>('overview')
-  const [confirmed, setConfirmed] = useState(false)
-  const [refreshing, setRefreshing] = useState(false)
-  const [month, setMonth] = useState('09/2025')
+  const [isLoading, setIsLoading] = useState(true)
+  const { theme } = useTheme()
+  const isDark = theme === 'dark'
 
-  const refreshAnalysis = () => {
-    setRefreshing(true)
-    window.setTimeout(() => setRefreshing(false), 700)
-    onNotify('Phân tích đã được cập nhật')
+  // Real AI State
+  const [profile, setProfile] = useState<BehaviorProfileResponse | null>(null)
+  const [anomalies, setAnomalies] = useState<AnomalyItem[]>([])
+  const [recommendations, setRecommendations] = useState<RecommendationResponse | null>(null)
+
+  const loadData = async () => {
+    setIsLoading(true)
+    try {
+      const [profileData, anomaliesData, recsData] = await Promise.allSettled([
+        getBehaviorProfile(),
+        getSpendingAnomalies(),
+        getAiRecommendations(),
+      ])
+
+      if (profileData.status === 'fulfilled') {
+        setProfile(profileData.value)
+      }
+      if (anomaliesData.status === 'fulfilled') {
+        setAnomalies(anomaliesData.value || [])
+      }
+      if (recsData.status === 'fulfilled') {
+        setRecommendations(recsData.value)
+      }
+    } catch (err) {
+      console.error('Lỗi tải dữ liệu AI:', err)
+      onNotify('Không thể kết nối đến AI Service, vui lòng thử lại sau.')
+    } finally {
+      setIsLoading(false)
+    }
   }
 
-  const showOverview = activeTab === 'overview'
-  const showSpending = activeTab === 'overview' || activeTab === 'spending'
-  const showRecommendations = activeTab === 'overview' || activeTab === 'recommendations'
+  useEffect(() => {
+    loadData()
+  }, [])
 
-  return <main className="mx-auto flex min-h-[calc(100vh-64px)] w-full max-w-[1560px] flex-col gap-5 bg-[#f6f8f6] px-3 pb-24 pt-6 text-[#14251f] sm:gap-6 sm:px-[22px] lg:px-[34px] lg:pb-10 lg:pt-8" aria-label="Phân tích hành vi chi tiêu">
-    <header className="flex flex-col justify-between gap-4 xl:flex-row xl:items-center"><div><nav aria-label="Đường dẫn" className="mb-2 flex items-center gap-2 text-[10px] text-[#718078]"><span>FinAI Intelligence</span><FinanceIcon name="arrow" size={12} /><strong className="text-[#07543f]">Phân tích AI</strong></nav><h1 className="text-2xl font-semibold leading-tight text-[#17261f] sm:text-[28px]">Phân tích hành vi chi tiêu</h1><p className="mt-1 max-w-2xl text-xs leading-5 text-[#718078]">Nhận diện xu hướng, phát hiện giao dịch bất thường và tìm cách tối ưu ngân sách.</p></div><div className="flex flex-wrap items-center gap-2"><label className="flex h-9 items-center gap-2 rounded-lg border border-[#e3e9e5] bg-white px-3 text-[10px]"><FinanceIcon name="calendar" size={14} /><select aria-label="Tháng phân tích" value={month} onChange={(event) => setMonth(event.target.value)} className="bg-transparent outline-none"><option value="09/2025">Tháng 09/2025</option><option value="08/2025">Tháng 08/2025</option><option value="07/2025">Tháng 07/2025</option></select></label><button type="button" onClick={refreshAnalysis} className="inline-flex h-9 items-center gap-2 rounded-lg bg-[#07543f] px-3 text-[10px] font-semibold text-white"><FinanceIcon name="refresh" size={14} />{refreshing ? 'Đang phân tích…' : 'Làm mới phân tích AI'}</button></div></header>
+  const refreshAnalysis = async () => {
+    await loadData()
+    onNotify('Phân tích hành vi AI đã được cập nhật thành công!')
+  }
 
-    <div className="flex w-full max-w-md gap-1 rounded-lg bg-[#eaf0fb] p-1" role="tablist" aria-label="Chế độ phân tích">{tabs.map((tab) => <button key={tab.id} id={`analysis-tab-${tab.id}`} type="button" role="tab" aria-selected={activeTab === tab.id} aria-controls="analysis-panel" onClick={() => setActiveTab(tab.id)} className={`flex-1 rounded-md px-3 py-2 text-[10px] font-medium ${activeTab === tab.id ? 'bg-white text-[#07543f] shadow-sm' : 'text-[#66746b]'}`}>{tab.label}</button>)}</div>
+  const persona = profile?.persona
+  const r50 = profile?.rule_50_30_20
+  const dining = profile?.dining_analysis
+  const radar = profile?.radar_scores
+  const findings = profile?.findings || []
 
-    <div id="analysis-panel" role="tabpanel" aria-labelledby={`analysis-tab-${activeTab}`} className="grid gap-5">
-      {showOverview && <section className="grid gap-3 md:grid-cols-3" aria-label="Chỉ số phân tích"><article className="rounded-xl border border-[#e7ece8] bg-white p-4 shadow-sm"><div className="flex items-center justify-between"><span className="text-[9px] font-bold tracking-[.6px] text-[#718078]">TỔNG CHI ĂN UỐNG</span><span className="grid size-9 place-items-center rounded-lg bg-[#fff0e9] text-[#b45148]"><FinanceIcon name="coffee" size={16} /></span></div><strong className="mt-3 block text-[25px] font-semibold text-[#26372e]">3.450.000 <small className="text-xs font-normal">đ</small></strong><p className="mt-1 text-[10px] text-[#718078]">Chiếm 38% tổng chi tiêu sinh hoạt</p></article><article className="rounded-xl border border-[#e7ece8] bg-white p-4 shadow-sm"><div className="flex items-center justify-between"><span className="text-[9px] font-bold tracking-[.6px] text-[#718078]">TỶ LỆ TÍCH LŨY</span><span className="grid size-9 place-items-center rounded-lg bg-[#eaf0fb] text-[#47677f]"><FinanceIcon name="trend" size={16} /></span></div><strong className="mt-3 block text-[25px] font-semibold text-[#26372e]">12%</strong><p className="mt-1 text-[10px] text-[#718078]">Mục tiêu đề xuất: 20% thu nhập</p><div className="mt-3 h-1.5 overflow-hidden rounded-full bg-[#eaf0ec]"><span className="block h-full w-[60%] rounded-full bg-[#d99b35]" /></div></article><article className="rounded-xl border border-[#e7ece8] bg-white p-4 shadow-sm"><div className="flex items-center justify-between"><span className="text-[9px] font-bold tracking-[.6px] text-[#718078]">SỨC KHỎE TÀI CHÍNH</span><span className="grid size-9 place-items-center rounded-lg bg-[#e3f4e9] text-[#087557]"><FinanceIcon name="shield" size={16} /></span></div><strong className="mt-3 block text-[25px] font-semibold text-[#26372e]">Khá tốt</strong><p className="mt-1 text-[10px] text-[#718078]">Còn dư địa cải thiện khoản tiết kiệm</p></article></section>}
+  return (
+    <main className="mx-auto flex min-h-[calc(100vh-64px)] w-full max-w-[1560px] flex-col gap-5 bg-[#f6f8f6] dark:bg-[#07131d] px-3 pb-24 pt-4 text-[#14251f] dark:text-[#e2eaf0] sm:gap-6 sm:px-[22px] lg:px-[34px] lg:pb-10" aria-label="Phân tích hành vi chi tiêu">
+      {/* Thanh điều khiển: 4 Tab dàn trải rộng rãi + Nút làm mới phân tích AI ngang hàng */}
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-1 gap-1 rounded-xl bg-[#eaf0fb] dark:bg-[#102334] p-1 border border-[#d6e3f5] dark:border-[#1e3c54] shadow-sm dark:shadow-[0_4px_14px_rgba(0,0,0,0.25)]" role="tablist">
+          {tabs.map((tab) => (
+            <button
+              key={tab.id}
+              type="button"
+              role="tab"
+              aria-selected={activeTab === tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={`flex-1 rounded-lg py-2 px-3 text-xs sm:text-[13px] transition-all cursor-pointer text-center font-medium ${
+                activeTab === tab.id
+                  ? 'bg-white dark:bg-[#1c3850] shadow-sm font-bold border border-transparent dark:border-[#2d5272]'
+                  : 'hover:bg-black/5 dark:hover:bg-white/10'
+              }`}
+              style={{
+                color: activeTab === tab.id
+                  ? (isDark ? '#ffffff' : '#07543f')
+                  : (isDark ? 'rgba(255,255,255,0.55)' : '#64748b'),
+              }}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
 
-      {showOverview && <section className="grid gap-3 rounded-xl border border-[#ead5d2] bg-white p-4 shadow-sm lg:grid-cols-[1fr_auto] lg:items-center sm:p-5"><div className="flex items-start gap-3"><span className="grid size-10 shrink-0 place-items-center rounded-lg bg-[#fff0e9] text-[#b45148]"><FinanceIcon name="expense" size={17} /></span><div><div className="flex flex-wrap items-center gap-2"><span className="text-[9px] font-bold tracking-[.6px] text-[#a3483e]">PHÁT HIỆN GIAO DỊCH BẤT THƯỜNG</span><span className="rounded-full bg-[#fff0e9] px-2 py-0.5 text-[8px] font-semibold text-[#a3483e]">Cảnh báo rò rỉ</span></div><h2 className="mt-1 text-sm font-semibold text-[#26372e]">{confirmed ? 'Giao dịch đã được xác nhận' : 'Khoản chi 2.500.000 đ lúc 23:45'}</h2><p className="mt-1 text-[10px] leading-4 text-[#718078]">Mức chi cao hơn đáng kể so với trung bình 300.000 đ và phát sinh ngoài khung giờ thường lệ.</p></div></div><div className="flex gap-2 lg:justify-end"><button type="button" onClick={() => onNotify('Đã gắn nhãn chi đặc biệt')} className="h-9 rounded-lg border border-[#dfe7e1] px-3 text-[9px] font-medium text-[#526159]">Gắn nhãn chi đặc biệt</button><button type="button" disabled={confirmed} onClick={() => setConfirmed(true)} className="h-9 rounded-lg bg-[#a3483e] px-3 text-[9px] font-semibold text-white disabled:opacity-60">{confirmed ? 'Đã xác nhận' : 'Xác nhận khoản này'}</button></div></section>}
+        <button
+          type="button"
+          onClick={refreshAnalysis}
+          disabled={isLoading}
+          className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl border border-[#c8d9d1] dark:border-[#1e3c54] bg-white dark:bg-[#1c3850] px-4 py-1.5 text-xs font-semibold text-[#07543f] dark:text-white shadow-sm hover:bg-[#f0f7f4] dark:hover:bg-[#1a3c55] disabled:opacity-50 transition cursor-pointer"
+          style={{ color: isDark ? '#ffffff' : '#07543f' }}
+        >
+          <FinanceIcon name="refresh" size={14} />
+          {isLoading ? 'Đang phân tích dữ liệu…' : 'Làm mới phân tích AI'}
+        </button>
+      </div>
 
-      {showSpending && <section className="grid gap-3"><header className="flex flex-wrap items-center justify-between gap-2"><h2 className="flex items-center gap-2 text-base font-semibold text-[#26372e]"><span className="grid size-8 place-items-center rounded-lg bg-[#e3f4e9] text-[#087557]"><FinanceIcon name="chart" size={15} /></span>Xu hướng chi tiêu theo danh mục</h2><span className="text-[9px] text-[#829087]">Chu kỳ 30 ngày gần nhất</span></header><div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">{spendingCategories.map((item) => <article key={item.name} className="rounded-xl border border-[#e7ece8] bg-white p-4 shadow-sm"><header className="flex items-start justify-between gap-2"><div className="flex items-center gap-2"><span className="grid size-9 place-items-center rounded-lg bg-[#f1f5f2]" style={{ color: item.color }}><FinanceIcon name={item.icon} size={16} /></span><div><h3 className="text-xs font-semibold text-[#34463b]">{item.name}</h3><p className="mt-0.5 text-[9px] text-[#829087]">{item.share} tổng chi</p></div></div><span className={`rounded-full px-2 py-1 text-[8px] font-semibold ${item.change.startsWith('+') ? 'bg-[#fff0e9] text-[#a3483e]' : 'bg-[#e3f4e9] text-[#17794f]'}`}>{item.change}</span></header><div className="mt-4 flex justify-between text-[10px]"><span className="text-[#718078]">Đã chi</span><strong className="text-[#34463b]">{item.amount}</strong></div><div className="mt-2 h-2 overflow-hidden rounded-full bg-[#edf1ee]"><span className="block h-full rounded-full" style={{ width: item.width, backgroundColor: item.color }} /></div></article>)}</div></section>}
+      {/* TRẠNG THÁI ĐANG PHÂN TÍCH DỮ LIỆU TỪ AI */}
+      {isLoading && !profile ? (
+        <div className="flex min-h-[380px] flex-col items-center justify-center rounded-2xl border border-[#e2e8f0] dark:border-[#1e3c54] bg-white dark:bg-[#102334] p-8 text-center shadow-sm dark:shadow-[0_12px_28px_rgba(0,0,0,0.35)]">
+          <div className="relative mb-4 grid size-16 place-items-center rounded-2xl bg-emerald-500/10 text-[#10b981]">
+            <span className="size-8 rounded-full border-3 border-[#10b981] border-t-transparent animate-spin" />
+          </div>
+          <h3 className="text-base font-bold text-[#1e293b] dark:text-white">
+            FinAI đang phân tích hồ sơ & hành vi chi tiêu...
+          </h3>
+          <p className="mt-1.5 max-w-md text-xs text-[#64748b] dark:text-[#94a3b8] leading-relaxed">
+            Hệ thống đang trích xuất dữ liệu giao dịch thực tế, đối soát quy tắc 50/30/20 và quét phát hiện bất thường qua Isolation Forest. Vui lòng chờ giây lát!
+          </p>
+        </div>
+      ) : (
+        <div className="grid gap-5">
+        {/* TAB 1: PERSONA & CHỈ SỐ RADAR */}
+        {activeTab === 'overview' && (
+          <>
+            {persona && (
+              <section className="rounded-xl border border-[#e7ece8] dark:border-[#1e3a4e] bg-gradient-to-r from-[#063d31] to-[#0a664d] p-5 text-white shadow-sm">
+                <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+                  <div className="flex items-start gap-4">
+                    <span className="grid size-14 shrink-0 place-items-center rounded-2xl bg-white/10 text-3xl shadow-inner backdrop-blur">
+                      {persona.icon || '⚖️'}
+                    </span>
+                    <div>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="rounded-full bg-emerald-400/20 px-2.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-emerald-300">
+                          Hình mẫu tài chính (Persona)
+                        </span>
+                        {profile?.status === 'COLD_START' && (
+                          <span className="rounded-full bg-amber-400/20 px-2 py-0.5 text-[8px] font-semibold text-amber-300">
+                            Đang tích lũy giao dịch
+                          </span>
+                        )}
+                      </div>
+                      <h2 className="mt-1 text-xl font-bold tracking-tight">{persona.title}</h2>
+                      <p className="mt-1 text-xs text-white/90 font-medium">{persona.tagline}</p>
+                      <p className="mt-2 text-[11px] leading-5 text-white/80 max-w-2xl">{persona.description}</p>
+                    </div>
+                  </div>
 
-      {showRecommendations && <section className="grid gap-3"><header className="flex items-center justify-between"><h2 className="flex items-center gap-2 text-base font-semibold text-[#26372e]"><span className="grid size-8 place-items-center rounded-lg bg-[#e3f4e9] text-[#087557]"><FinanceIcon name="spark" size={15} /></span>Gợi ý từ FinAI</h2><span className="rounded-full bg-[#e3f4e9] px-2.5 py-1 text-[8px] font-semibold text-[#17794f]">2 gợi ý mới</span></header><div className="grid gap-3 xl:grid-cols-2">{suggestions.map((suggestion) => <article key={suggestion.title} className="flex flex-col justify-between rounded-xl border border-[#e7ece8] bg-white p-4 shadow-sm"><div className="flex items-start gap-3"><span className={`grid size-10 shrink-0 place-items-center rounded-lg ${suggestion.tone === 'green' ? 'bg-[#e3f4e9] text-[#087557]' : 'bg-[#eaf0fb] text-[#47677f]'}`}><FinanceIcon name={suggestion.icon} size={17} /></span><div className="min-w-0"><div className="flex flex-wrap items-center gap-2"><h3 className="text-xs font-semibold text-[#34463b]">{suggestion.title}</h3><span className="rounded-full bg-[#f1f5f2] px-2 py-0.5 text-[8px] text-[#59675f]">{suggestion.priority}</span></div><p className="mt-2 text-[10px] leading-5 text-[#59675f]">{suggestion.text}</p></div></div><footer className="mt-4 flex flex-wrap items-center justify-between gap-2 border-t border-[#edf0ed] pt-3"><span className="flex items-center gap-1.5 text-[9px] text-[#087557]"><FinanceIcon name="trend" size={12} />{suggestion.saving}</span><button type="button" onClick={() => onNotify(`Đã áp dụng: ${suggestion.title}`)} className="rounded-lg bg-[#07543f] px-3 py-2 text-[9px] font-semibold text-white">{suggestion.action}</button></footer></article>)}</div></section>}
-    </div>
-  </main>
+                  {/* Radar summary stats từ AI thật */}
+                  {radar && (
+                    <div className="grid grid-cols-2 gap-2 rounded-lg bg-white/10 p-3 text-center text-xs backdrop-blur min-w-[200px]">
+                      <div className="border-r border-white/10 pr-2">
+                        <span className="block text-[9px] text-white/70">Kỷ luật tích lũy</span>
+                        <strong className="text-base font-bold text-emerald-300">{radar.savings_discipline}/100</strong>
+                      </div>
+                      <div className="pl-2">
+                        <span className="block text-[9px] text-white/70">Cân đối thiết yếu</span>
+                        <strong className="text-base font-bold text-sky-300">{radar.needs_control}/100</strong>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </section>
+            )}
+
+            {/* CÁC PHÁT HIỆN HÀNH VI TỪ AI (FINDINGS) */}
+            {findings.length > 0 && (
+              <section className="rounded-xl border border-[#e7ece8] dark:border-[#1e3c54] bg-white dark:bg-[#102334] p-4 shadow-sm dark:shadow-[0_8px_20px_rgba(0,0,0,0.35)]">
+                <header className="mb-3 flex items-center gap-2 border-b border-[#edf0ed] dark:border-[#1a3449] pb-2.5">
+                  <span className="grid size-7 place-items-center rounded-lg bg-[#e3f4e9] dark:bg-[#0f494c] text-[#087557] dark:text-[#5eead4]">
+                    <FinanceIcon name="spark" size={14} />
+                  </span>
+                  <h3 className="text-xs font-bold uppercase tracking-wider text-[#26372e] dark:text-[#f8fafc]">
+                    Đặc trưng thói quen chi tiêu được AI phát hiện
+                  </h3>
+                </header>
+                <div className="grid gap-2 sm:grid-cols-2">
+                  {findings.map((f, i) => (
+                    <div key={i} className="flex items-center gap-2 rounded-lg bg-[#f8faf9] dark:bg-[#0d2235] p-2.5 text-[11px] text-[#34463b] dark:text-[#cbd5e1]">
+                      <span className="size-1.5 rounded-full bg-[#10b981] shrink-0" />
+                      <span>{f}</span>
+                    </div>
+                  ))}
+                </div>
+              </section>
+            )}
+
+            {/* 3 CHỈ SỐ QUAN TRỌNG: 50/30/20, ĂN UỐNG, HEALTH SCORE */}
+            <section className="grid gap-3 md:grid-cols-3">
+              {/* Thẻ 1: Ăn uống */}
+              {dining && (
+                <article className="rounded-xl border border-[#e7ece8] dark:border-[#1e3c54] bg-white dark:bg-[#102334] p-4 shadow-sm dark:shadow-[0_8px_20px_rgba(0,0,0,0.35)]">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[9px] font-bold tracking-[.6px] text-[#718078] dark:text-[#8fa7b7]">CHI TIÊU ĂN UỐNG</span>
+                    <span className="grid size-9 place-items-center rounded-lg bg-[#fff0e9] dark:bg-[#341816] text-[#b45148]">
+                      <FinanceIcon name="coffee" size={16} />
+                    </span>
+                  </div>
+                  <strong className="mt-3 block text-[24px] font-semibold text-[#26372e] dark:text-[#f8fafc]">
+                    {formatVND(dining.dining_amount)}
+                  </strong>
+                  <p className="mt-1 text-[10px] text-[#718078] dark:text-[#8fa7b7]">
+                    Chiếm <strong className="text-[#b45148]">{dining.dining_percentage}%</strong> tổng chi tiêu
+                  </p>
+                  <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-[#eaf0ec] dark:bg-[#1e3a4e]">
+                    <span
+                      className="block h-full rounded-full bg-[#b45148]"
+                      style={{ width: `${Math.min(100, dining.dining_percentage)}%` }}
+                    />
+                  </div>
+                </article>
+              )}
+
+              {/* Thẻ 2: Tỷ lệ tích lũy & Quy tắc 50/30/20 */}
+              {r50 && (
+                <article className="rounded-xl border border-[#e7ece8] dark:border-[#1e3c54] bg-white dark:bg-[#102334] p-4 shadow-sm dark:shadow-[0_8px_20px_rgba(0,0,0,0.35)]">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[9px] font-bold tracking-[.6px] text-[#718078] dark:text-[#8fa7b7]">QUY TẮC 50/30/20</span>
+                    <span className="grid size-9 place-items-center rounded-lg bg-[#eaf0fb] dark:bg-[#153448] text-[#3b82f6]">
+                      <FinanceIcon name="trend" size={16} />
+                    </span>
+                  </div>
+                  <div className="mt-3 flex items-baseline gap-2">
+                    <strong className="text-[24px] font-semibold text-[#26372e] dark:text-[#f8fafc]">
+                      {r50.savings_pct}%
+                    </strong>
+                    <span className="text-xs text-[#718078] dark:text-[#8fa7b7]">Tích lũy</span>
+                  </div>
+                  <p className="mt-1 text-[10px] text-[#718078] dark:text-[#8fa7b7]">
+                    Thiết yếu: {r50.needs_pct}% | Hưởng thụ: {r50.wants_pct}%
+                  </p>
+                  <div className="mt-3 flex h-2 overflow-hidden rounded-full bg-[#eaf0ec] dark:bg-[#1e3a4e]">
+                    <span className="bg-[#087557]" style={{ width: `${r50.needs_pct}%` }} title="Thiết yếu" />
+                    <span className="bg-[#f59e0b]" style={{ width: `${r50.wants_pct}%` }} title="Hưởng thụ" />
+                    <span className="bg-[#38bdf8]" style={{ width: `${r50.savings_pct}%` }} title="Tích lũy" />
+                  </div>
+                </article>
+              )}
+
+              {/* Thẻ 3: Điểm sức khỏe tài chính */}
+              {recommendations && (
+                <article className="rounded-xl border border-[#e7ece8] dark:border-[#1e3c54] bg-white dark:bg-[#102334] p-4 shadow-sm dark:shadow-[0_8px_20px_rgba(0,0,0,0.35)]">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[9px] font-bold tracking-[.6px] text-[#718078] dark:text-[#8fa7b7]">SỨC KHỎE TÀI CHÍNH</span>
+                    <span className="grid size-9 place-items-center rounded-lg bg-[#e3f4e9] dark:bg-[#0f494c] text-[#087557] dark:text-[#5eead4]">
+                      <FinanceIcon name="shield" size={16} />
+                    </span>
+                  </div>
+                  <strong className="mt-3 block text-[24px] font-semibold text-[#087557] dark:text-[#34d399]">
+                    {recommendations.health_score}/100
+                  </strong>
+                  <p className="mt-1 text-[10px] text-[#718078] dark:text-[#8fa7b7]">
+                    Đánh giá: <strong>{recommendations.health_rating}</strong>
+                  </p>
+                  <p className="mt-2 text-[10px] text-[#59675f] dark:text-[#cbd5e1] line-clamp-2">
+                    {recommendations.overall_advice}
+                  </p>
+                </article>
+              )}
+            </section>
+          </>
+        )}
+
+        {/* TAB 2: CƠ CẤU DANH MỤC THỰC TẾ */}
+        {activeTab === 'spending' && (
+          <section className="rounded-xl border border-[#e7ece8] dark:border-[#1e3c54] bg-white dark:bg-[#102334] p-4 shadow-sm dark:shadow-[0_8px_20px_rgba(0,0,0,0.35)] sm:p-5">
+            <header className="mb-4 flex flex-wrap items-center justify-between gap-2 border-b border-[#edf0ed] dark:border-[#1a3449] pb-3">
+              <h2 className="flex items-center gap-2 text-base font-semibold text-[#26372e] dark:text-[#f8fafc]">
+                <span className="grid size-8 place-items-center rounded-lg bg-[#e3f4e9] dark:bg-[#0f494c] text-[#087557] dark:text-[#5eead4]">
+                  <FinanceIcon name="chart" size={15} />
+                </span>
+                Phân bổ chi tiêu theo danh mục thực tế
+              </h2>
+              <span className="text-[10px] text-[#829087] dark:text-[#8fa7b7]">Dữ liệu thật trích xuất từ database</span>
+            </header>
+
+            {profile?.top_categories && profile.top_categories.length > 0 ? (
+              <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                {profile.top_categories.map((cat, idx) => {
+                  const catName = cat.category_name || (cat as any).category || 'Danh mục'
+                  const catAmount = cat.total_amount ?? (cat as any).amount ?? 0
+                  const catPercent = cat.percentage ?? 0
+                  return (
+                    <article key={cat.category_id || idx} className="rounded-xl border border-[#e7ece8] dark:border-[#1e3c54] bg-white dark:bg-[#0d2235] p-4 shadow-sm">
+                      <header className="flex items-start justify-between gap-2">
+                        <div className="flex items-center gap-2">
+                          <span className="grid size-9 place-items-center rounded-lg bg-[#f1f5f2] dark:bg-[#1a3c55] text-[#07543f] dark:text-[#38bdf8]">
+                            <FinanceIcon name="wallet" size={16} />
+                          </span>
+                          <div>
+                            <h3 className="text-xs font-semibold text-[#34463b] dark:text-[#e2eaf0]">{catName}</h3>
+                            <p className="mt-0.5 text-[9px] text-[#829087] dark:text-[#8fa7b7]">{catPercent}% tổng chi</p>
+                          </div>
+                        </div>
+                      </header>
+                      <div className="mt-4 flex justify-between text-[11px]">
+                        <span className="text-[#718078] dark:text-[#8fa7b7]">Số tiền đã chi:</span>
+                        <strong className="text-[#34463b] dark:text-[#f8fafc]">{formatVND(catAmount)}</strong>
+                      </div>
+                      <div className="mt-2 h-2 overflow-hidden rounded-full bg-[#edf1ee] dark:bg-[#1a3350]">
+                        <span
+                          className="block h-full rounded-full bg-[#087557] dark:bg-[#10b981]"
+                          style={{ width: `${Math.min(100, catPercent)}%` }}
+                        />
+                      </div>
+                    </article>
+                  )
+                })}
+              </div>
+            ) : (
+              <div className="rounded-lg bg-[#f8faf9] dark:bg-[#091722] p-8 text-center text-xs text-[#718078] dark:text-[#8fa7b7]">
+                Chưa có danh mục nào phát sinh giao dịch trong kỳ. Khi bạn thêm giao dịch, AI sẽ tự động phân bổ tại đây!
+              </div>
+            )}
+          </section>
+        )}
+
+        {/* TAB 3: GIAO DỊCH BẤT THƯỜNG (AI ISOLATION FOREST) */}
+        {activeTab === 'anomalies' && (
+          <section className="rounded-xl border border-[#e7ece8] dark:border-[#1e3c54] bg-white dark:bg-[#102334] p-4 shadow-sm dark:shadow-[0_8px_20px_rgba(0,0,0,0.35)] sm:p-5">
+            <header className="flex items-center justify-between border-b border-[#edf0ed] dark:border-[#1a3449] pb-3 mb-4">
+              <div className="flex items-center gap-2.5">
+                <span className="grid size-9 place-items-center rounded-lg bg-[#fff0e9] dark:bg-[#341816] text-[#b45148]">
+                  <FinanceIcon name="expense" size={17} />
+                </span>
+                <div>
+                  <h2 className="text-sm font-semibold text-[#26372e] dark:text-[#f8fafc] sm:text-base">
+                    Phát hiện giao dịch bất thường (Isolation Forest)
+                  </h2>
+                  <p className="text-[10px] text-[#829087] dark:text-[#8fa7b7]">
+                    Quét toàn bộ lịch sử chi tiêu để phát hiện các giao dịch đột biến về số tiền hoặc thời điểm giờ khuya
+                  </p>
+                </div>
+              </div>
+              <span className="rounded-full bg-[#f1f5f2] dark:bg-[#153448] px-2.5 py-1 text-[9px] font-semibold text-[#59675f] dark:text-[#cbd5e1]">
+                {anomalies.length} cảnh báo
+              </span>
+            </header>
+
+            {anomalies.length === 0 ? (
+              <div className="flex items-center gap-3 rounded-lg bg-[#e3f4e9] dark:bg-[#0f494c] p-4 text-[#17794f] dark:text-[#5eead4]">
+                <FinanceIcon name="shield" size={18} />
+                <p className="text-xs font-medium">
+                  Hệ thống không phát hiện giao dịch bất thường nào. Tất cả các khoản chi tiêu đều hoàn toàn tự nhiên và an toàn!
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {anomalies.map((a, idx) => (
+                  <div
+                    key={a.transaction_id || idx}
+                    className="flex flex-col justify-between gap-3 rounded-lg border border-[#ead5d2] dark:border-[#4a2220] bg-[#fff8f7] dark:bg-[#1e1312] p-3.5 sm:flex-row sm:items-center"
+                  >
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="rounded-full bg-[#b45148] px-2 py-0.5 text-[8px] font-bold text-white uppercase">
+                          {a.severity}
+                        </span>
+                        <strong className="text-xs text-[#26372e] dark:text-[#f8fafc]">
+                          {a.category || 'Chi tiêu'}: {formatVND(a.amount)}
+                        </strong>
+                        {a.date && <span className="text-[10px] text-[#829087] dark:text-[#8fa7b7]">({a.date})</span>}
+                      </div>
+                      <p className="mt-1 text-[11px] text-[#59675f] dark:text-[#cbd5e1]">{a.explanation}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </section>
+        )}
+
+        {/* TAB 4: KHUYẾN NGHỊ VÀ GỢI Ý CÁ NHÂN HÓA (AI 5) */}
+        {activeTab === 'recommendations' && (
+          <section className="grid gap-3">
+            <header className="flex items-center justify-between">
+              <h2 className="flex items-center gap-2 text-base font-semibold text-[#26372e] dark:text-[#f8fafc]">
+                <span className="grid size-8 place-items-center rounded-lg bg-[#e3f4e9] dark:bg-[#0f494c] text-[#087557] dark:text-[#5eead4]">
+                  <FinanceIcon name="spark" size={15} />
+                </span>
+                Gợi ý &amp; Tư vấn tài chính cá nhân hóa từ FinAI
+              </h2>
+              {recommendations?.total_monthly_potential_savings ? (
+                <span className="rounded-full bg-[#e3f4e9] dark:bg-[#0f494c] px-3 py-1 text-[9px] font-semibold text-[#17794f] dark:text-[#5eead4]">
+                  Tiềm năng tiết kiệm: +{formatVND(recommendations.total_monthly_potential_savings)}/tháng
+                </span>
+              ) : null}
+            </header>
+
+            {recommendations?.recommendations && recommendations.recommendations.length > 0 ? (
+              <div className="grid gap-3 xl:grid-cols-2">
+                {recommendations.recommendations.map((rec, i) => (
+                  <article key={i} className="flex flex-col justify-between rounded-xl border border-[#e7ece8] dark:border-[#1e3c54] bg-white dark:bg-[#102334] p-4 shadow-sm dark:shadow-[0_8px_20px_rgba(0,0,0,0.35)]">
+                    <div className="flex items-start gap-3">
+                      <span className="grid size-10 shrink-0 place-items-center rounded-lg bg-[#e3f4e9] dark:bg-[#0f494c] text-xl">
+                        {rec.icon || '💡'}
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <h3 className="text-xs font-semibold text-[#34463b] dark:text-[#f8fafc]">{rec.title}</h3>
+                          {rec.priority && (
+                            <span className="rounded-full bg-[#f1f5f2] dark:bg-[#153448] px-2 py-0.5 text-[8px] font-semibold text-[#087557] dark:text-[#5eead4]">
+                              {rec.priority}
+                            </span>
+                          )}
+                        </div>
+                        <p className="mt-1.5 text-[11px] leading-5 text-[#59675f] dark:text-[#cbd5e1]">{rec.explanation || rec.summary}</p>
+                        {rec.action_steps && rec.action_steps.length > 0 && (
+                          <ul className="mt-2 space-y-1 text-[10px] text-[#718078] dark:text-[#8fa7b7]">
+                            {rec.action_steps.map((step, sIdx) => (
+                              <li key={sIdx} className="flex items-center gap-1.5">
+                                <span className="size-1 rounded-full bg-[#087557] dark:bg-[#10b981]" />
+                                {step}
+                              </li>
+                            ))}
+                          </ul>
+                        )}
+                      </div>
+                    </div>
+                    {rec.summary && (
+                      <footer className="mt-4 border-t border-[#edf0ed] dark:border-[#1a3449] pt-3">
+                        <span className="text-[10px] font-medium italic text-[#087557] dark:text-[#5eead4]">
+                          {rec.summary}
+                        </span>
+                      </footer>
+                    )}
+                  </article>
+                ))}
+              </div>
+            ) : (
+              <div className="rounded-xl border border-[#e7ece8] dark:border-[#1e3c54] bg-white dark:bg-[#102334] p-6 text-center text-xs text-[#718078] dark:text-[#8fa7b7] dark:shadow-[0_8px_20px_rgba(0,0,0,0.35)]">
+                {recommendations?.message || 'Chưa có khuyến nghị mới. FinAI sẽ tiếp tục học thói quen chi tiêu của bạn!'}
+              </div>
+            )}
+          </section>
+        )}
+      </div>
+      )}
+    </main>
+  )
 }

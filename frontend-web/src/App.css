@@ -10,6 +10,21 @@
   color: var(--ink);
 }
 
+/* Custom scrollbar gọn gàng cho các panel admin */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 5px;
+}
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background-color: rgba(156, 163, 175, 0.4);
+  border-radius: 9999px;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(156, 163, 175, 0.7);
+}
+
 .sidebar {
   position: fixed;
   z-index: 5;
@@ -21,6 +36,7 @@
   border-right: 1px solid #e9eeea;
   background: #fff;
   transition: width 0.25s cubic-bezier(0.4, 0, 0.2, 1), padding 0.25s ease;
+  overflow: hidden;
 }
 
 /* Khi thu nhỏ sidebar trên Desktop */
@@ -177,6 +193,18 @@ html.dark .desktop-sidebar-toggle:hover {
   width: 100%;
   gap: 4px;
   margin-top: 10px;
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-width: none; /* Firefox: Ẩn thanh cuộn */
+  -ms-overflow-style: none; /* IE/Edge: Ẩn thanh cuộn */
+}
+
+/* Chrome, Safari, Opera: Ẩn hoàn toàn thanh cuộn, vẫn cuộn mượt bằng chuột/trackpad khi dài quá màn hình */
+.nav-list::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
 }
 
 .nav-item {
@@ -322,7 +350,7 @@ html.dark .desktop-sidebar-toggle:hover {
 
 .topbar {
   position: sticky;
-  z-index: 4;
+  z-index: 100;
   top: 0;
   display: flex;
   min-height: 68px;

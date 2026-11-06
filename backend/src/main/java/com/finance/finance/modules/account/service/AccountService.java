@@ -37,6 +37,8 @@ public class AccountService {
     private final AccountRepository accountRepository;
     private final TransactionRepository transactionRepository;
     private final ChildWalletRepository childWalletRepository;
+    private final com.finance.finance.modules.user.repository.UserRepository userRepository;
+    private final com.finance.finance.modules.admin.service.SystemConfigService systemConfigService;
 
     /**
      * Lấy danh sách các loại ví / tài khoản và cấu hình trường nhập liệu
@@ -115,6 +117,16 @@ public class AccountService {
             throw new BusinessException("Tài khoản trẻ em chỉ sử dụng ví do phụ huynh tạo, không thể thêm ví riêng");
         }
         log.info("Creating account for user: {}, name: {}", userId, request.getName());
+
+        // Kiểm tra hạn mức số ví tối đa cho gói FREE
+        com.finance.finance.modules.user.entity.User user = userRepository.findById(userId).orElse(null);
+        if (user != null && user.getSubscriptionTier() == com.finance.finance.common.enums.SubscriptionTier.FREE) {
+            int maxWallets = systemConfigService.getInt("FREE_TIER_MAX_WALLETS", 3);
+            long currentWalletCount = accountRepository.findAllByUserId(userId).size();
+            if (currentWalletCount >= maxWallets) {
+                throw new BusinessException("Gói Miễn phí chỉ cho phép tạo tối đa " + maxWallets + " ví. Vui lòng nâng cấp lên gói Premium để tạo ví không giới hạn!");
+            }
+        }
 
         // Validate duplicate name
         if (accountRepository.existsByNameAndUserId(request.getName(), userId, null)) {

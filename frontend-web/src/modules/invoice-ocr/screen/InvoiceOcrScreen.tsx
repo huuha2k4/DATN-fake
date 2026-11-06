@@ -172,10 +172,23 @@ export function InvoiceOcrScreen({ onCancel, onNotify }: Props) {
     try {
       const result = await ocrApi.scanReceipt(file);
       setScanResult(result);
-      // If server returned imageUrl, use it; otherwise fallback to local blob
-      if (result.imageUrl) {
-        setPreviewUrl(result.imageUrl);
+
+      // --- Xử lý các kind bị từ chối ---
+      const REJECTED_KINDS = ['not_receipt', 'low_quality', 'handwritten', 'draft'];
+      if (REJECTED_KINDS.includes(result.kind)) {
+        const rejectMessages: Record<string, string> = {
+          not_receipt: '❌ Ảnh không phải hóa đơn hoặc biên lai. Vui lòng chụp lại đúng hóa đơn.',
+          low_quality: '📷 Ảnh quá mờ hoặc thiếu thông tin. Vui lòng chụp lại rõ hơn.',
+          handwritten: '✏️ Phát hiện chữ viết tay. Vui lòng nhập thông tin thủ công.',
+          draft: '⚠️ Đây là phiếu tạm tính chưa thanh toán. Vui lòng dùng hóa đơn cuối.',
+        };
+        onNotify(result.rejectReason || rejectMessages[result.kind] || 'Không thể xử lý ảnh này.');
+        // Giữ preview ảnh để người dùng thấy ảnh nào bị reject, nhưng không điền form
+        return;
       }
+
+      // --- Hóa đơn hợp lệ: điền form ---
+      if (result.imageUrl) setPreviewUrl(result.imageUrl);
       setMerchant(result.merchantName || 'Hóa đơn mua sắm');
       if (result.transactionDate) setDate(result.transactionDate);
       if (result.transactionTime) setTime(result.transactionTime.slice(0, 5));
@@ -197,7 +210,8 @@ export function InvoiceOcrScreen({ onCancel, onNotify }: Props) {
         setSelectedCategoryId(categories[0].id);
       }
 
-      onNotify(`Quét thành công: ${result.merchantName || file.name}`);
+      const reviewNote = result.needsReview ? ' — cần kiểm tra lại' : '';
+      onNotify(`✅ Quét thành công: ${result.merchantName || file.name}${reviewNote}`);
       reloadReceipts();
     } catch (err: any) {
       const msg = err?.response?.data?.message || err?.message || 'Không thể quét hóa đơn. Vui lòng thử lại.';
@@ -478,15 +492,37 @@ export function InvoiceOcrScreen({ onCancel, onNotify }: Props) {
 
                 {/* Floating Bottom Badge */}
                 {scanResult && !scanning && (
-                  <div className="absolute bottom-2.5 left-2.5 right-2.5 rounded-xl bg-slate-900/90 backdrop-blur-md p-2.5 border border-white/10 text-white flex items-center justify-between gap-2 shadow-lg">
+                  <div className={`absolute bottom-2.5 left-2.5 right-2.5 rounded-xl backdrop-blur-md p-2.5 border text-white flex items-center justify-between gap-2 shadow-lg ${
+                    ['not_receipt', 'low_quality', 'handwritten', 'draft'].includes(scanResult.kind)
+                      ? 'bg-red-900/90 border-red-500/40'
+                      : 'bg-slate-900/90 border-white/10'
+                  }`}>
                     <div className="min-w-0">
-                      <p className="text-xs font-bold text-white truncate">
-                        {scanResult.merchantName || 'Hóa đơn đã nhận diện'}
-                      </p>
-                      <span className="text-[10px] text-emerald-300 flex items-center gap-1">
-                        <FinanceIcon name="spark" size={10} />
-                        Độ tin cậy: {Math.round((scanResult.confidence || 0.95) * 100)}%
-                      </span>
+                      {['not_receipt', 'low_quality', 'handwritten', 'draft'].includes(scanResult.kind) ? (
+                        <>
+                          <p className="text-xs font-bold text-red-300 truncate">
+                            {{
+                              not_receipt: '❌ Không phải hóa đơn',
+                              low_quality: '📷 Ảnh quá mờ — chụp lại',
+                              handwritten: '✏️ Chữ viết tay — nhập thủ công',
+                              draft: '⚠️ Phiếu tạm tính',
+                            }[scanResult.kind as string] ?? 'Không thể xử lý'}
+                          </p>
+                          <span className="text-[10px] text-red-400 line-clamp-1">
+                            {scanResult.rejectReason || 'Vui lòng thử lại với ảnh khác'}
+                          </span>
+                        </>
+                      ) : (
+                        <>
+                          <p className="text-xs font-bold text-white truncate">
+                            {scanResult.merchantName || 'Hóa đơn đã nhận diện'}
+                          </p>
+                          <span className="text-[10px] text-emerald-300 flex items-center gap-1">
+                            <FinanceIcon name="spark" size={10} />
+                            Độ tin cậy: {Math.round((scanResult.confidence || 0.95) * 100)}%
+                          </span>
+                        </>
+                      )}
                     </div>
 
                     <button
@@ -495,7 +531,7 @@ export function InvoiceOcrScreen({ onCancel, onNotify }: Props) {
                       className="h-7 px-2.5 rounded-lg bg-white/15 hover:bg-white/25 text-[11px] font-semibold text-white transition shrink-0 flex items-center gap-1"
                     >
                       <FinanceIcon name="eye" size={12} />
-                      <span>Xem chi tiết ảnh</span>
+                      <span>Xem to</span>
                     </button>
                   </div>
                 )}

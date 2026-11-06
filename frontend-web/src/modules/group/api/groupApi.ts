@@ -255,6 +255,9 @@ export interface GroupInvitationResponse {
   inviterId: string;
   inviterName: string;
   inviteeId: string;
+  inviteeName?: string;
+  inviteeEmail?: string;
+  inviteeAvatarUrl?: string;
   role: MemberRole;
   status: 'PENDING' | 'ACCEPTED' | 'REJECTED' | 'CANCELLED';
   createdAt?: string;
@@ -311,6 +314,7 @@ export interface SpendRequestItem {
   imageKey?: string;
   status: 'PENDING' | 'APPROVED' | 'REJECTED' | 'CANCELLED';
   respondedByUserId?: string;
+  respondedByUserName?: string;
   respondedAt?: string;
   responseNotes?: string;
   rejectionReason?: string;
@@ -347,6 +351,9 @@ export interface ChildChoreItem {
   difficulty?: 'EASY' | 'MEDIUM' | 'HARD';
   dueDate?: string;
   status: 'ASSIGNED' | 'IN_PROGRESS' | 'SUBMITTED' | 'APPROVED' | 'REJECTED' | 'FAILED';
+  approvedByUserId?: string;
+  approvedByUserName?: string;
+  approvedAt?: string;
   rejectionReason?: string;
   rejectedAt?: string;
   completionNotes?: string;
@@ -360,15 +367,6 @@ export interface CreateChoreRequest {
   frequency?: 'ONCE' | 'DAILY' | 'WEEKLY' | 'MONTHLY';
   dueDate?: string;
   difficulty?: 'EASY' | 'MEDIUM' | 'HARD';
-}
-
-export interface SpendRequestItem {
-  id: string;
-  amount: number;
-  description: string;
-  status: 'PENDING' | 'APPROVED' | 'REJECTED' | 'CANCELLED';
-  rejectionReason?: string;
-  createdAt: string;
 }
 
 export const groupApi = {

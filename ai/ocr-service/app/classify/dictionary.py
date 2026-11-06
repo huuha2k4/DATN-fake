@@ -1,6 +1,8 @@
 # app/classify/dictionary.py
 from __future__ import annotations
 
+import re
+
 import pandas as pd
 from rapidfuzz import fuzz
 
@@ -32,16 +34,17 @@ class BrandDictionary:
         """
         Tra từ điển theo thứ tự:
         1. Bỏ tiền tố pháp nhân (nếu có)
-        2. Khớp nguyên từ
+        2. Khớp nguyên từ (word boundary, không cần khoảng trắng hai đầu)
         3. Khớp mờ (chỉ alias ≥ 6 ký tự)
         """
         # Bỏ tên pháp nhân trước khi tra
         clean_text = strip_legal_prefix(text)
-        n = f" {normalize(clean_text)} "
+        n = normalize(clean_text)
 
-        # Bước 1: khớp nguyên từ
+        # Bước 1: khớp nguyên từ dùng word boundary
         for alias, cat in self.items:
-            if f" {alias} " in n:
+            pattern = r"(?<![a-z0-9])" + re.escape(alias) + r"(?![a-z0-9])"
+            if re.search(pattern, n):
                 return cat, alias
 
         # Bước 2: khớp mờ (chỉ alias dài)

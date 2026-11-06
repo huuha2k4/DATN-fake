@@ -1,4 +1,5 @@
 import { useEffect, useState, useRef } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { isAxiosError } from 'axios';
 import { FinanceIcon, resolveCategoryIconName, type IconName } from '../../core/components/FinanceIcon';
 import {
@@ -104,6 +105,7 @@ function formatMessengerDateDivider(dateStr: string): string {
 
 export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) {
   const currentUser = getStoredUser();
+  const [searchParams] = useSearchParams();
 
   const [groups, setGroups] = useState<GroupResponse[]>([]);
   const [selectedGroup, setSelectedGroup] = useState<GroupResponse | null>(null);
@@ -114,6 +116,7 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
 
   // Tab Data
   const [members, setMembers] = useState<GroupMemberResponse[]>([]);
+  const [sentPendingInvitations, setSentPendingInvitations] = useState<GroupInvitationResponse[]>([]);
   const [expenses, setExpenses] = useState<GroupExpenseResponse[]>([]);
   const [balances, setBalances] = useState<GroupBalanceResponse | null>(null);
   const [settlements, setSettlements] = useState<SettlementResponse[]>([]);
@@ -394,9 +397,11 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
       const data = await groupApi.getGroups();
       setGroups(data);
       if (data.length > 0) {
+        const queryGroupId = searchParams.get('groupId');
         const rememberedId = localStorage.getItem(LAST_SELECTED_GROUP_KEY);
         const currentId = selectedGroup?.id;
-        const groupToOpen = data.find((group) => group.id === currentId)
+        const groupToOpen = (queryGroupId ? data.find((group) => group.id === queryGroupId) : null)
+          || data.find((group) => group.id === currentId)
           || data.find((group) => group.id === rememberedId)
           || data[0];
         setSelectedGroup(groupToOpen);
@@ -431,7 +436,7 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
   const loadGroupDetails = async (group: GroupResponse) => {
     try {
       setLoadingDetails(true);
-      const [membersData, expensesData, balancesData, settlementsData, walletsData, messagesData, fundData, contributionsData] = await Promise.all([
+      const [membersData, expensesData, balancesData, settlementsData, walletsData, messagesData, fundData, contributionsData, sentInvitesData] = await Promise.all([
         groupApi.getMembers(group.id),
         groupApi.getExpenses(group.id),
         groupApi.getBalances(group.id),
@@ -440,8 +445,10 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
         groupApi.getMessages(group.id),
         groupApi.getFund(group.id),
         groupApi.getFundContributions(group.id),
+        groupApi.getSentPendingInvitations(group.id).catch(() => []),
       ]);
       setMembers(membersData);
+      setSentPendingInvitations(sentInvitesData || []);
       setExpenses(expensesData);
       setBalances(balancesData);
       setSettlements(settlementsData);
@@ -540,6 +547,27 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
       loadGroupDetails(selectedGroup);
     }
   }, [selectedGroup?.id]);
+
+  // Xử lý deep link từ thông báo (chuyển thẳng đến đúng tab và mở modal cụ thể)
+  useEffect(() => {
+    const queryTab = searchParams.get('tab');
+    if (queryTab && ['OVERVIEW', 'EXPENSES', 'CHAT', 'BALANCES', 'MEMBERS', 'CHILD_WALLETS'].includes(queryTab)) {
+      setActiveTab(queryTab as any);
+    }
+
+    const queryWalletId = searchParams.get('walletId');
+    const queryModal = searchParams.get('modal');
+    if (queryWalletId && childWallets.length > 0) {
+      const targetWallet = childWallets.find((w) => w.id === queryWalletId);
+      if (targetWallet) {
+        if (queryModal === 'SPEND_REQUESTS') {
+          handleOpenSpendRequests(targetWallet);
+        } else if (queryModal === 'CHORES') {
+          handleOpenChores(targetWallet);
+        }
+      }
+    }
+  }, [searchParams, childWallets]);
 
   // Real-time polling for messages and typing status when viewing CHAT tab
   useEffect(() => {
@@ -835,6 +863,17 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
       }
     } finally {
       setIsSubmittingMember(false);
+    }
+  };
+
+  const handleCancelSentInvitation = async (invitationId: string) => {
+    if (!selectedGroup) return;
+    try {
+      await groupApi.cancelInvitation(selectedGroup.id, invitationId);
+      onNotify('Đã hủy lời mời tham gia nhóm');
+      loadGroupDetails(selectedGroup);
+    } catch {
+      onNotify('Không thể hủy lời mời');
     }
   };
 
@@ -1452,9 +1491,9 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
 
       {/* Main Grid: Left Groups Sidebar / Right Group Content */}
       <div className={`grid grid-cols-1 ${isChildAccount ? 'lg:grid-cols-12' : 'lg:grid-cols-12'} gap-5 items-start`}>
-        {/* Left Column: Groups List - Hidden for child account if they belong to their family group */}
+        {/* Left Column: Groups List - Chiếm gọn 3 cột để nhường 9 cột rộng rãi cho nội dung chi tiết */}
         {!isChildAccount && (
-          <div className={`lg:col-span-3 flex flex-col gap-3 min-w-[260px] ${selectedGroup ? 'hidden lg:flex' : 'flex'}`}>
+          <div className={`lg:col-span-3 flex flex-col gap-3 min-w-[240px] ${selectedGroup ? 'hidden lg:flex' : 'flex'}`}>
             <div className="flex items-center justify-between px-1 gap-2">
               <div className="flex items-center gap-1.5 shrink-0">
                 <h3 className="text-xs font-bold text-gray-600 dark:text-slate-300 uppercase tracking-wider m-0 whitespace-nowrap">
@@ -1467,7 +1506,7 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
               <button
                 type="button"
                 onClick={() => setIsCreateModalOpen(true)}
-                className="h-7 px-2.5 rounded-lg bg-[#07543f] hover:bg-[#064232] text-[11px] font-bold text-white shadow-2xs transition flex items-center gap-1 shrink-0 whitespace-nowrap"
+                className="h-7 px-2.5 rounded-lg bg-[#07543f] hover:bg-[#064232] text-[11px] font-bold text-white shadow-2xs transition flex items-center gap-1 shrink-0 whitespace-nowrap cursor-pointer"
               >
                 <FinanceIcon name="plus" size={13} />
                 <span>Tạo nhóm</span>
@@ -1506,43 +1545,47 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
                     <div
                       key={group.id}
                       onClick={() => setSelectedGroup(group)}
-                      className={`group-nav-item flex items-center justify-between p-3.5 rounded-2xl border transition cursor-pointer ${
+                      className={`group-nav-item flex flex-col p-3 rounded-2xl border transition cursor-pointer gap-2 ${
                         isSelected
                           ? 'is-selected bg-emerald-50/70 dark:bg-emerald-950/40 border-emerald-300 dark:border-emerald-700 shadow-2xs'
                           : 'bg-white dark:bg-slate-900 border-[#e5ede7] dark:border-slate-800 hover:border-emerald-200'
                       }`}
                     >
-                      <div className="flex items-center gap-3 min-w-0">
-                        <div
-                          className="grid size-10 place-items-center rounded-xl shrink-0 group-type-badge border"
-                          style={{
-                            backgroundColor: meta.bg,
-                            color: meta.color,
-                            borderColor: 'transparent',
-                            ['--dark-bg' as any]: meta.darkBg,
-                            ['--dark-color' as any]: meta.darkColor,
-                            ['--dark-border' as any]: meta.darkBorder,
-                          }}
-                        >
-                          <FinanceIcon name={meta.icon} size={18} />
-                        </div>
-                        <div className="min-w-0">
-                          <h4 className="text-sm font-bold text-[#14261e] dark:text-slate-100 truncate m-0">
+                      {/* Dòng 1: Icon + Tên nhóm + Tổng chi tiêu */}
+                      <div className="flex items-center justify-between gap-2 min-w-0">
+                        <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                          <div
+                            className="grid size-8 place-items-center rounded-xl shrink-0 group-type-badge border"
+                            style={{
+                              backgroundColor: meta.bg,
+                              color: meta.color,
+                              borderColor: 'transparent',
+                              ['--dark-bg' as any]: meta.darkBg,
+                              ['--dark-color' as any]: meta.darkColor,
+                              ['--dark-border' as any]: meta.darkBorder,
+                            }}
+                          >
+                            <FinanceIcon name={meta.icon} size={15} />
+                          </div>
+                          <h4 className="text-[13px] font-bold text-[#14261e] dark:text-slate-100 truncate m-0 leading-tight">
                             {group.name}
                           </h4>
-                          <div className="flex items-center gap-2 mt-0.5 text-[11px] text-[#718579] dark:text-slate-400">
-                            <span>{meta.label}</span>
-                            <span>·</span>
-                            <span>{group.memberCount || 1} thành viên</span>
-                          </div>
+                        </div>
+
+                        {/* Tổng chi tiêu của nhóm */}
+                        <div className="text-right shrink-0">
+                          <span className="text-[12px] font-bold text-[#07543f] dark:text-emerald-400 leading-tight whitespace-nowrap">
+                            {(group.totalExpenses || 0).toLocaleString('vi-VN')} đ
+                          </span>
                         </div>
                       </div>
 
-                      <div className="text-right shrink-0">
-                        <span className="text-[12px] font-bold text-[#07543f] dark:text-emerald-400 block">
-                          {(group.totalExpenses || 0).toLocaleString('vi-VN')} đ
+                      {/* Dòng 2: Loại nhóm & Số thành viên (Ghi đầy đủ "thành viên", không viết tắt, không bị rớt dòng) */}
+                      <div className="flex items-center justify-between text-[11px] text-[#718579] dark:text-slate-400 pt-1.5 pb-0.5 border-t border-[#edf3ee]/80 dark:border-slate-800/60 leading-normal">
+                        <span className="truncate">{meta.label}</span>
+                        <span className="shrink-0 font-medium">
+                          {group.memberCount || 1} thành viên
                         </span>
-                        <span className="text-[10px] text-[#84968c]">tổng chi</span>
                       </div>
                     </div>
                   );
@@ -1552,7 +1595,7 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
           </div>
         )}
 
-        {/* Right Column: Active Group Detail Panel (Spans full 12 cols if child account, otherwise 9 cols) */}
+        {/* Right Column: Active Group Detail Panel (Chiếm trọn 9 cột rộng rãi) */}
         <div className={`${isChildAccount ? 'lg:col-span-12' : 'lg:col-span-9'} flex flex-col gap-5 ${!selectedGroup ? 'hidden lg:flex' : 'flex'}`}>
           {selectedGroup ? (
             <div className="rounded-3xl bg-white dark:bg-slate-900 border border-[#e2ece5] dark:border-slate-800 p-5 sm:p-6 flex flex-col gap-5 shadow-xs">
@@ -2947,6 +2990,75 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
                       );
                     })}
                   </div>
+
+                  {/* Danh sách lời mời đang chờ phản hồi (Chỉ hiển thị cho Chủ nhóm & Quản trị viên) */}
+                  {isLeader && sentPendingInvitations.length > 0 && (
+                    <div className="mt-4 pt-4 border-t border-[#edf3ee] dark:border-slate-800">
+                      <div className="flex items-center justify-between mb-3">
+                        <div>
+                          <h4 className="text-sm font-bold text-amber-700 dark:text-amber-400 m-0 flex items-center gap-1.5">
+                            <span>⏳</span>
+                            <span>Lời mời đang chờ phản hồi ({sentPendingInvitations.length})</span>
+                          </h4>
+                          <p className="text-xs text-[#718579] dark:text-slate-400 m-0 mt-0.5">
+                            Các thành viên đã được mời nhưng chưa xác nhận tham gia nhóm
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        {sentPendingInvitations.map((inv) => {
+                          const resolvedAvatar = inv.inviteeAvatarUrl ? userApi.getAvatarUrl(inv.inviteeAvatarUrl) : null;
+                          return (
+                            <div
+                              key={inv.id}
+                              className="flex items-center justify-between p-3.5 rounded-2xl border border-dashed border-amber-300 dark:border-amber-800/60 bg-amber-50/50 dark:bg-amber-950/20 shadow-2xs transition"
+                            >
+                              <div className="flex items-center gap-3 min-w-0">
+                                <div className="size-10 rounded-full bg-amber-100 dark:bg-amber-900/60 text-amber-800 dark:text-amber-300 font-bold text-xs overflow-hidden grid place-items-center shrink-0 border border-amber-200">
+                                  {resolvedAvatar ? (
+                                    <img
+                                      src={resolvedAvatar}
+                                      alt={inv.inviteeName || 'User'}
+                                      className="size-full object-cover"
+                                      onError={(e) => {
+                                        (e.target as HTMLElement).style.display = 'none';
+                                      }}
+                                    />
+                                  ) : (
+                                    inv.inviteeName?.charAt(0) || 'U'
+                                  )}
+                                </div>
+                                <div className="min-w-0">
+                                  <div className="flex items-center gap-1.5">
+                                    <h4 className="text-xs font-bold text-[#14261e] dark:text-slate-100 truncate m-0">
+                                      {inv.inviteeName || 'Người dùng'}
+                                    </h4>
+                                    <span className="text-[10px] bg-amber-200/70 text-amber-900 dark:bg-amber-900 dark:text-amber-200 px-1.5 py-0.2 rounded font-semibold">
+                                      {inv.role}
+                                    </span>
+                                  </div>
+                                  <span className="text-[11px] text-[#718579] dark:text-slate-400 truncate block">
+                                    {inv.inviteeEmail || 'Chờ xác nhận...'}
+                                  </span>
+                                </div>
+                              </div>
+
+                              <button
+                                type="button"
+                                title="Hủy lời mời này"
+                                onClick={() => handleCancelSentInvitation(inv.id)}
+                                className="h-7 px-2.5 rounded-lg border border-red-200 dark:border-red-900 bg-white dark:bg-slate-900 text-[11px] font-semibold text-red-600 hover:bg-red-50 dark:hover:bg-red-950/50 transition shrink-0 ml-2 cursor-pointer flex items-center gap-1"
+                              >
+                                <span>✕</span>
+                                <span>Hủy</span>
+                              </button>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -4338,6 +4450,21 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
                                 {isDeposit ? 'Nạp tiền vào ví' : isChoreReward ? 'Thưởng nhiệm vụ' : 'Đã chi tiêu'}
                               </span>
                             )}
+                            {/* Chỉ hiển thị người duyệt / người từ chối cho các yêu cầu xin tiền hoặc nạp tiền/thưởng nhiệm vụ được phê duyệt, không hiển thị cho các khoản chi tiêu thông thường của bé */}
+                            {!isDeposit && !isChoreReward && !isRequestsTab ? null : (
+                              <>
+                                {req.status === 'APPROVED' && req.respondedByUserName && (
+                                  <span className="text-[10px] text-emerald-700 dark:text-emerald-400 font-semibold bg-emerald-50 dark:bg-emerald-950/40 px-2 py-0.5 rounded-full border border-emerald-200 dark:border-emerald-800/40 whitespace-nowrap">
+                                    {isDeposit ? `✓ Nạp bởi: ${req.respondedByUserName}` : isChoreReward ? `✓ Thưởng: ${req.respondedByUserName}` : `✓ Duyệt: ${req.respondedByUserName}`}
+                                  </span>
+                                )}
+                                {req.status === 'REJECTED' && req.respondedByUserName && (
+                                  <span className="text-[10px] text-rose-600 dark:text-rose-400 font-semibold bg-rose-50 dark:bg-rose-950/40 px-2 py-0.5 rounded-full border border-rose-200 dark:border-rose-800/40 whitespace-nowrap">
+                                    ✕ Từ chối: {req.respondedByUserName}
+                                  </span>
+                                )}
+                              </>
+                            )}
                           </div>
                           <p className="text-xs text-gray-700 dark:text-slate-300 font-medium m-0 mt-1 truncate">
                             {cleanDesc}
@@ -4635,6 +4762,11 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
                             ? 'Không thành công'
                             : 'Đang thực hiện'}
                         </span>
+                        {chore.status === 'APPROVED' && chore.approvedByUserName && (
+                          <span className="rounded-full px-2.5 py-0.5 text-[10px] font-semibold whitespace-nowrap shrink-0 border border-emerald-200 dark:border-emerald-800/40 bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300">
+                            ✓ Duyệt: {chore.approvedByUserName}
+                          </span>
+                        )}
                       </div>
                       {chore.description && (
                         <p className="text-xs text-gray-600 dark:text-slate-400 m-0 mt-0.5 truncate">

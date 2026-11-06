@@ -48,8 +48,13 @@ public class AuthService {
     private final JwtTokenProvider jwtTokenProvider;
     private final EmailService emailService;
     private final UserMapper userMapper;
+    private final com.finance.finance.modules.admin.service.SystemConfigService systemConfigService;
     private final ChildWalletRepository childWalletRepository;
     private final com.finance.finance.modules.notification.service.NotificationService notificationService;
+    private final com.finance.finance.modules.auth.repository.OAuthAccountRepository oauthAccountRepository;
+
+    @Value("${app.oauth2.google.client-id:}")
+    private String googleClientId;
 
     @Value("${app.security.max-login-attempts:5}")
     private int maxLoginAttempts;
@@ -60,15 +65,78 @@ public class AuthService {
     private static final String PASSWORD_PATTERN = "^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[@$!%*?&])[A-Za-z\\d@$!%*?&]{8,}$";
 
     /**
+     * Send email verification OTP before registering
+     */
+    @Transactional
+    public MessageResponse sendRegistrationOtp(String email) {
+        String cleanEmail = email.trim().toLowerCase();
+        log.info("Sending registration OTP to email: {}", cleanEmail);
+
+        if (userRepository.existsByEmailAndDeletedAtIsNull(cleanEmail)) {
+            throw new EmailAlreadyExistsException("Email này đã được sử dụng. Vui lòng đăng nhập hoặc dùng email khác.");
+        }
+
+        // Invalidate old tokens for this email
+        authTokenRepository.invalidateTokensByEmailAndType(cleanEmail, com.finance.finance.common.enums.TokenType.EMAIL_VERIFICATION, Instant.now());
+
+        // Generate 6-digit OTP
+        int randomNum = new java.security.SecureRandom().nextInt(900000) + 100000;
+        String otp = String.valueOf(randomNum);
+        Instant expiresAt = Instant.now().plus(10, ChronoUnit.MINUTES);
+
+        AuthToken authToken = new AuthToken();
+        authToken.setEmail(cleanEmail);
+        authToken.setToken(otp);
+        authToken.setTokenType(com.finance.finance.common.enums.TokenType.EMAIL_VERIFICATION);
+        authToken.setExpiresAt(expiresAt);
+        authToken.setUsed(false);
+
+        authTokenRepository.save(authToken);
+
+        // Send email
+        emailService.sendVerificationOtpEmail(cleanEmail, "bạn", otp);
+
+        return new MessageResponse("Mã xác thực OTP đã được gửi đến email " + cleanEmail);
+    }
+
+    /**
      * Register a new user
      */
     @Transactional
     public AuthResponse register(RegisterRequest request) {
-        log.info("Registering new user: {}", request.getEmail());
+        // Kiểm tra cấu hình hệ thống: Cho phép đăng ký mới
+        boolean allowReg = systemConfigService.getBoolean("ALLOW_REGISTRATION", true);
+        if (!allowReg) {
+            throw new BusinessException("Hệ thống hiện đang tạm đóng tính năng đăng ký thành viên mới theo chính sách quản trị.");
+        }
+
+        String cleanEmail = request.getEmail().trim().toLowerCase();
+        log.info("Registering new user: {}", cleanEmail);
 
         // Check if email already exists
-        if (userRepository.existsByEmailAndDeletedAtIsNull(request.getEmail())) {
+        if (userRepository.existsByEmailAndDeletedAtIsNull(cleanEmail)) {
             throw new EmailAlreadyExistsException("Email đã được sử dụng");
+        }
+
+        // Validate OTP if provided or required
+        if (request.getOtp() != null && !request.getOtp().isBlank()) {
+            String otp = request.getOtp().trim();
+            AuthToken authToken = authTokenRepository.findByEmailAndTokenAndTokenType(
+                    cleanEmail, otp, com.finance.finance.common.enums.TokenType.EMAIL_VERIFICATION
+            ).orElseThrow(() -> new InvalidTokenException("Mã OTP xác thực email không đúng hoặc đã hết hạn"));
+
+            if (authToken.getExpiresAt().isBefore(Instant.now())) {
+                throw new TokenExpiredException("Mã OTP đã hết hạn. Vui lòng nhấn gửi lại mã.");
+            }
+            if (authToken.isUsed()) {
+                throw new InvalidTokenException("Mã OTP này đã được sử dụng.");
+            }
+
+            authToken.setUsed(true);
+            authToken.setUsedAt(Instant.now());
+            authTokenRepository.save(authToken);
+        } else {
+            throw new BusinessException("Vui lòng nhấn 'Gửi mã' và nhập mã OTP 6 số để xác thực email");
         }
         
         // Check if username already exists (if provided)
@@ -81,9 +149,9 @@ public class AuthService {
         // Validate password
         validatePassword(request.getPassword());
 
-        // Create new user
+        // Create new user (Đã xác thực email thành công ngay khi đăng ký)
         User user = new User();
-        user.setEmail(request.getEmail());
+        user.setEmail(cleanEmail);
         user.setUsername(request.getUsername());
         user.setPasswordHash(passwordEncoder.encode(request.getPassword()));
         user.setFullName(request.getFullName());
@@ -95,7 +163,8 @@ public class AuthService {
         user.setSystemRole(SystemRole.USER);
         user.setSubscriptionTier(SubscriptionTier.FREE);
         user.setUserStatus(UserStatus.ACTIVE);
-        user.setEmailVerified(false);
+        user.setEmailVerified(true);
+        user.setEmailVerifiedAt(Instant.now());
         user.setMfaEnabled(false);
         user.setFailedLoginAttempts(0);
 
@@ -117,12 +186,6 @@ public class AuthService {
             log.error("Failed to create welcome notification for user: {}", user.getId(), ex);
         }
 
-        // Generate email verification token
-        String verificationToken = generateVerificationToken(user);
-        
-        // Send verification email
-        emailService.sendVerificationEmail(user.getEmail(), user.getFullName(), verificationToken);
-
         // Generate auth tokens
         String accessToken = jwtTokenProvider.generateAccessToken(user);
         RefreshToken refreshToken = tokenService.createRefreshToken(user, null, null);
@@ -136,7 +199,7 @@ public class AuthService {
                 .refreshToken(refreshToken.getToken())
                 .tokenType("Bearer")
                 .expiresIn(jwtTokenProvider.getAccessTokenExpiration() / 1000) // Convert to seconds
-                .message("Đăng ký thành công. Vui lòng kiểm tra email để xác thực.")
+                .message("Đăng ký tài khoản thành công")
                 .build();
     }
 
@@ -147,9 +210,16 @@ public class AuthService {
     public AuthResponse login(LoginRequest request, HttpServletRequest httpRequest) {
         log.info("User login attempt: {}", request.getLogin());
 
+        // Kiểm tra chế độ bảo trì hệ thống (MAINTENANCE_MODE)
+        boolean maintenanceMode = systemConfigService.getBoolean("MAINTENANCE_MODE", false);
+
         // Find user by email or username
         User user = userRepository.findActiveUserByEmailOrUsername(request.getLogin())
                 .orElseThrow(() -> new InvalidCredentialsException("Email/Username hoặc mật khẩu không đúng"));
+
+        if (maintenanceMode && user.getSystemRole() != com.finance.finance.common.enums.SystemRole.ADMIN) {
+            throw new BusinessException("Hệ thống Finora hiện đang trong thời gian bảo trì nâng cấp. Vui lòng quay lại sau ít phút!");
+        }
 
         // Check if account is locked
         if (user.getLockedUntil() != null && user.getLockedUntil().isAfter(Instant.now())) {
@@ -262,48 +332,99 @@ public class AuthService {
     }
 
     /**
-     * Forgot password - send reset email
+     * Forgot password - send reset OTP email
      */
     @Transactional
     public MessageResponse forgotPassword(ForgotPasswordRequest request) {
-        String email = request.getEmail();
+        String email = request.getEmail().trim().toLowerCase();
         log.info("Forgot password request for email: {}", email);
 
-        // Find user by email (always return success to prevent email enumeration)
+        // Find user by email
         userRepository.findByEmail(email).ifPresent(user -> {
-            // Generate password reset token
-            String resetToken = generatePasswordResetToken(user);
+            // Invalidate old password reset tokens
+            authTokenRepository.invalidateUserTokensByType(user.getId(), com.finance.finance.common.enums.TokenType.PASSWORD_RESET, Instant.now());
+
+            // Generate 6-digit OTP
+            String resetOtp = generate6DigitOtp(user, com.finance.finance.common.enums.TokenType.PASSWORD_RESET);
             
-            // Send reset email
-            emailService.sendPasswordResetEmail(user.getEmail(), user.getFullName(), resetToken);
+            // Send reset OTP email
+            emailService.sendPasswordResetOtpEmail(user.getEmail(), user.getFullName(), resetOtp);
             
-            log.info("Password reset email sent to: {}", email);
+            log.info("Password reset OTP email sent to: {}", email);
         });
 
         // Always return success message
-        return new MessageResponse("Email đặt lại mật khẩu đã được gửi. Vui lòng kiểm tra hộp thư.");
+        return new MessageResponse("Mã xác thực 6 số đã được gửi đến email của bạn. Vui lòng kiểm tra hộp thư.");
     }
 
     /**
-     * Reset password with token
+     * Verify password reset OTP
+     */
+    @Transactional(readOnly = true)
+    public MessageResponse verifyPasswordResetOtp(String email, String token) {
+        log.info("Verifying password reset OTP for email: {}", email);
+        String cleanToken = token.trim();
+        AuthToken authToken = null;
+
+        if (email != null && !email.isBlank()) {
+            User user = userRepository.findByEmail(email.trim().toLowerCase()).orElse(null);
+            if (user != null) {
+                authToken = authTokenRepository.findByUserIdAndTokenAndTokenType(
+                        user.getId(), cleanToken, com.finance.finance.common.enums.TokenType.PASSWORD_RESET
+                ).orElse(null);
+            }
+        }
+
+        if (authToken == null) {
+            authToken = authTokenRepository.findByTokenAndTokenType(
+                    cleanToken, com.finance.finance.common.enums.TokenType.PASSWORD_RESET
+            ).orElseThrow(() -> new InvalidTokenException("Mã OTP không chính xác hoặc không tồn tại"));
+        }
+
+        if (authToken.getExpiresAt().isBefore(Instant.now())) {
+            throw new TokenExpiredException("Mã xác thực OTP đã hết hạn. Vui lòng yêu cầu mã mới.");
+        }
+
+        if (authToken.isUsed()) {
+            throw new InvalidTokenException("Mã xác thực OTP này đã được sử dụng");
+        }
+
+        return new MessageResponse("Mã xác thực OTP hợp lệ");
+    }
+
+    /**
+     * Reset password with token/OTP
      */
     @Transactional
     public MessageResponse resetPassword(ResetPasswordRequest request) {
-        log.info("Resetting password with token");
+        log.info("Resetting password with OTP/token");
 
-        // Find and validate reset token
-        AuthToken authToken = authTokenRepository.findByTokenAndTokenType(
-                request.getToken(), com.finance.finance.common.enums.TokenType.PASSWORD_RESET)
-                .orElseThrow(() -> new InvalidTokenException("Token không hợp lệ hoặc đã hết hạn"));
+        String token = request.getToken().trim();
+        AuthToken authToken = null;
+
+        if (request.getEmail() != null && !request.getEmail().isBlank()) {
+            User user = userRepository.findByEmail(request.getEmail().trim().toLowerCase()).orElse(null);
+            if (user != null) {
+                authToken = authTokenRepository.findByUserIdAndTokenAndTokenType(
+                        user.getId(), token, com.finance.finance.common.enums.TokenType.PASSWORD_RESET
+                ).orElse(null);
+            }
+        }
+
+        if (authToken == null) {
+            authToken = authTokenRepository.findByTokenAndTokenType(
+                    token, com.finance.finance.common.enums.TokenType.PASSWORD_RESET
+            ).orElseThrow(() -> new InvalidTokenException("Mã OTP hoặc token không hợp lệ hoặc đã hết hạn"));
+        }
 
         // Check if token is expired
         if (authToken.getExpiresAt().isBefore(Instant.now())) {
-            throw new TokenExpiredException("Token đã hết hạn");
+            throw new TokenExpiredException("Mã xác thực đã hết hạn. Vui lòng yêu cầu mã mới.");
         }
 
         // Check if token is already used
         if (authToken.isUsed()) {
-            throw new InvalidTokenException("Token đã được sử dụng");
+            throw new InvalidTokenException("Mã xác thực này đã được sử dụng");
         }
 
         // Validate new password
@@ -329,25 +450,38 @@ public class AuthService {
     }
 
     /**
-     * Verify email with token
+     * Verify email with token/OTP
      */
     @Transactional
     public MessageResponse verifyEmail(VerifyEmailRequest request) {
-        log.info("Verifying email with token");
+        log.info("Verifying email with OTP/token");
 
-        // Find and validate verification token
-        AuthToken authToken = authTokenRepository.findByTokenAndTokenType(
-                request.getToken(), com.finance.finance.common.enums.TokenType.EMAIL_VERIFICATION)
-                .orElseThrow(() -> new InvalidTokenException("Token không hợp lệ hoặc đã hết hạn"));
+        String token = request.getToken().trim();
+        AuthToken authToken = null;
+
+        if (request.getEmail() != null && !request.getEmail().isBlank()) {
+            User user = userRepository.findByEmail(request.getEmail().trim().toLowerCase()).orElse(null);
+            if (user != null) {
+                authToken = authTokenRepository.findByUserIdAndTokenAndTokenType(
+                        user.getId(), token, com.finance.finance.common.enums.TokenType.EMAIL_VERIFICATION
+                ).orElse(null);
+            }
+        }
+
+        if (authToken == null) {
+            authToken = authTokenRepository.findByTokenAndTokenType(
+                    token, com.finance.finance.common.enums.TokenType.EMAIL_VERIFICATION
+            ).orElseThrow(() -> new InvalidTokenException("Mã xác thực OTP không chính xác hoặc đã hết hạn"));
+        }
 
         // Check if token is expired
         if (authToken.getExpiresAt().isBefore(Instant.now())) {
-            throw new TokenExpiredException("Token đã hết hạn");
+            throw new TokenExpiredException("Mã xác thực đã hết hạn. Vui lòng nhấn gửi lại mã.");
         }
 
         // Check if token is already used
         if (authToken.isUsed()) {
-            throw new InvalidTokenException("Token đã được sử dụng");
+            throw new InvalidTokenException("Mã xác thực đã được sử dụng");
         }
 
         // Update user email verification status
@@ -367,32 +501,32 @@ public class AuthService {
     }
 
     /**
-     * Resend verification email
+     * Resend verification email (OTP)
      */
     @Transactional
     public MessageResponse resendVerification(String email) {
-        log.info("Resending verification email to: {}", email);
+        log.info("Resending verification OTP email to: {}", email);
 
-        User user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new UserNotFoundException("Không tìm thấy người dùng"));
+        User user = userRepository.findByEmail(email.trim().toLowerCase())
+                .orElseThrow(() -> new UserNotFoundException("Không tìm thấy người dùng với email này"));
 
         // Check if already verified
         if (user.isEmailVerified()) {
-            throw new BusinessException("Email đã được xác thực");
+            throw new BusinessException("Email này đã được xác thực trước đó");
         }
 
         // Invalidate old verification tokens
         authTokenRepository.invalidateUserTokensByType(user.getId(), com.finance.finance.common.enums.TokenType.EMAIL_VERIFICATION, Instant.now());
 
-        // Generate new verification token
-        String verificationToken = generateVerificationToken(user);
+        // Generate new 6-digit OTP
+        String verificationOtp = generate6DigitOtp(user, com.finance.finance.common.enums.TokenType.EMAIL_VERIFICATION);
         
-        // Send verification email
-        emailService.sendVerificationEmail(user.getEmail(), user.getFullName(), verificationToken);
+        // Send verification OTP email
+        emailService.sendVerificationOtpEmail(user.getEmail(), user.getFullName(), verificationOtp);
 
-        log.info("Verification email resent to: {}", email);
+        log.info("Verification OTP email resent to: {}", email);
 
-        return new MessageResponse("Email xác thực đã được gửi lại");
+        return new MessageResponse("Mã xác thực 6 số mới đã được gửi vào email của bạn");
     }
 
     // Helper methods
@@ -453,6 +587,25 @@ public class AuthService {
     }
 
     /**
+     * Generate 6-digit numeric OTP for email verification or password reset (valid for 10 minutes)
+     */
+    private String generate6DigitOtp(User user, com.finance.finance.common.enums.TokenType tokenType) {
+        int randomNum = new java.security.SecureRandom().nextInt(900000) + 100000;
+        String otp = String.valueOf(randomNum);
+        Instant expiresAt = Instant.now().plus(10, ChronoUnit.MINUTES);
+
+        AuthToken authToken = new AuthToken();
+        authToken.setUser(user);
+        authToken.setToken(otp);
+        authToken.setTokenType(tokenType);
+        authToken.setExpiresAt(expiresAt);
+        authToken.setUsed(false);
+
+        authTokenRepository.save(authToken);
+        return otp;
+    }
+
+    /**
      * Generate email verification token
      */
     private String generateVerificationToken(User user) {
@@ -489,6 +642,134 @@ public class AuthService {
 
         authTokenRepository.save(authToken);
         return token;
+    }
+
+    /**
+     * Authenticate with Google ID Token
+     */
+    @Transactional
+    public AuthResponse authenticateWithGoogle(com.finance.finance.modules.auth.dto.request.GoogleAuthRequest request, HttpServletRequest httpRequest) {
+        log.info("Processing Google authentication");
+
+        com.google.api.client.googleapis.auth.oauth2.GoogleIdTokenVerifier verifier =
+                new com.google.api.client.googleapis.auth.oauth2.GoogleIdTokenVerifier.Builder(
+                        new com.google.api.client.http.javanet.NetHttpTransport(),
+                        new com.google.api.client.json.gson.GsonFactory()
+                )
+                .setAudience(java.util.Collections.singletonList(googleClientId))
+                .build();
+
+        com.google.api.client.googleapis.auth.oauth2.GoogleIdToken idToken;
+        try {
+            idToken = verifier.verify(request.getIdToken());
+        } catch (Exception e) {
+            log.error("Failed to verify Google ID Token: {}", e.getMessage());
+            throw new com.finance.finance.common.exception.BusinessException("Token Google không hợp lệ hoặc đã hết hạn");
+        }
+
+        if (idToken == null) {
+            throw new com.finance.finance.common.exception.BusinessException("Xác thực Google thất bại");
+        }
+
+        com.google.api.client.googleapis.auth.oauth2.GoogleIdToken.Payload payload = idToken.getPayload();
+        String googleUserId = payload.getSubject();
+        String email = payload.getEmail();
+        boolean emailVerified = Boolean.TRUE.equals(payload.getEmailVerified());
+        String name = (String) payload.get("name");
+        String pictureUrl = (String) payload.get("picture");
+
+        if (email == null || email.isBlank()) {
+            throw new com.finance.finance.common.exception.BusinessException("Không thể lấy email từ tài khoản Google");
+        }
+
+        // Tìm user theo email hoặc theo OAuth account
+        User user = userRepository.findByEmail(email).orElse(null);
+
+        if (user == null) {
+            // Đăng ký mới qua Google
+            String usernameCandidate = email.split("@")[0].replaceAll("[^a-zA-Z0-9_]", "");
+            if (usernameCandidate.length() < 3) usernameCandidate = "user" + System.currentTimeMillis() % 10000;
+            String uniqueUsername = usernameCandidate;
+            int counter = 1;
+            while (userRepository.existsByUsername(uniqueUsername)) {
+                uniqueUsername = usernameCandidate + counter++;
+            }
+
+            user = User.builder()
+                    .email(email)
+                    .username(uniqueUsername)
+                    .fullName(name != null && !name.isBlank() ? name : uniqueUsername)
+                    .avatarUrl(pictureUrl)
+                    .emailVerified(emailVerified)
+                    .emailVerifiedAt(emailVerified ? Instant.now() : null)
+                    .userStatus(com.finance.finance.common.enums.UserStatus.ACTIVE)
+                    .systemRole(com.finance.finance.common.enums.SystemRole.USER)
+                    .subscriptionTier(com.finance.finance.common.enums.SubscriptionTier.FREE)
+                    .preferredCurrency("VND")
+                    .timezone("Asia/Ho_Chi_Minh")
+                    .language("vi-VN")
+                    .failedLoginAttempts(0)
+                    .lastLoginAt(Instant.now())
+                    .build();
+
+            user = userRepository.save(user);
+            log.info("New user created via Google login: {}", user.getId());
+
+            try {
+                notificationService.createNotification(
+                        user.getId(),
+                        com.finance.finance.common.enums.NotificationType.SYSTEM,
+                        com.finance.finance.common.enums.NotificationPriority.NORMAL,
+                        "Chào mừng bạn đến với Finora!",
+                        "Đăng nhập Google thành công. Hãy khám phá và quản lý tài chính thông minh cùng Finora ngay nhé!",
+                        "/dashboard",
+                        "Khám phá ngay"
+                );
+            } catch (Exception ex) {
+                log.warn("Failed to create welcome notification: {}", ex.getMessage());
+            }
+        } else {
+            // Cập nhật thông tin nếu có
+            if (user.getAvatarUrl() == null && pictureUrl != null) {
+                user.setAvatarUrl(pictureUrl);
+            }
+            if (!user.isEmailVerified() && emailVerified) {
+                user.setEmailVerified(true);
+                user.setEmailVerifiedAt(Instant.now());
+            }
+            user.setLastLoginAt(Instant.now());
+            user.setFailedLoginAttempts(0);
+            user = userRepository.save(user);
+        }
+
+        // Lưu / Cập nhật liên kết OAuth Account
+        final UUID currentUserId = user.getId();
+        oauthAccountRepository.findByProviderAndProviderUserId("GOOGLE", googleUserId)
+                .orElseGet(() -> oauthAccountRepository.save(
+                        com.finance.finance.modules.auth.entity.OAuthAccount.builder()
+                                .userId(currentUserId)
+                                .provider("GOOGLE")
+                                .providerUserId(googleUserId)
+                                .emailAtProvider(email)
+                                .build()
+                ));
+
+        String deviceId = httpRequest != null ? httpRequest.getHeader("X-Device-Id") : null;
+        String deviceName = httpRequest != null ? httpRequest.getHeader("X-Device-Name") : null;
+
+        String accessToken = jwtTokenProvider.generateAccessToken(user);
+        RefreshToken refreshToken = tokenService.createRefreshToken(user, deviceId, deviceName);
+
+        UserResponse userResponse = withChildWalletContext(userMapper.toResponse(user), user.getId());
+
+        return AuthResponse.builder()
+                .user(userResponse)
+                .accessToken(accessToken)
+                .refreshToken(refreshToken.getToken())
+                .tokenType("Bearer")
+                .expiresIn(jwtTokenProvider.getAccessTokenExpiration() / 1000)
+                .message("Đăng nhập bằng Google thành công")
+                .build();
     }
 
     /**

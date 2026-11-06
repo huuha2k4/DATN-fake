@@ -5,6 +5,7 @@ export interface RegisterRequest {
   password: string;
   fullName: string;
   username?: string;
+  otp?: string;
 }
 
 export interface LoginRequest {
@@ -52,6 +53,21 @@ export interface AuthResponse {
 }
 
 export const authApi = {
+  async sendRegisterOtp(email: string): Promise<{ success: boolean; message: string }> {
+    const response = await fetch(`${API_BASE_URL}/auth/send-register-otp`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email }),
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.message || 'Không thể gửi mã xác thực');
+    }
+
+    return response.json();
+  },
+
   async register(data: RegisterRequest): Promise<AuthResponse> {
     const response = await fetch(`${API_BASE_URL}/auth/register`, {
       method: 'POST',
@@ -86,6 +102,23 @@ export const authApi = {
     return response.json();
   },
 
+  async loginWithGoogle(idToken: string): Promise<AuthResponse> {
+    const response = await fetch(`${API_BASE_URL}/auth/google`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ idToken }),
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.message || 'Đăng nhập Google thất bại');
+    }
+
+    return response.json();
+  },
+
   async logout(allDevices = false): Promise<void> {
     const token = localStorage.getItem('access_token');
     const response = await fetch(`${API_BASE_URL}/auth/logout`, {
@@ -100,6 +133,81 @@ export const authApi = {
     if (!response.ok) {
       throw new Error('Đăng xuất thất bại');
     }
+  },
+
+  async verifyEmail(data: { email?: string; token: string }): Promise<{ success: boolean; message: string }> {
+    const response = await fetch(`${API_BASE_URL}/auth/verify-email`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.message || 'Xác thực email thất bại');
+    }
+
+    return response.json();
+  },
+
+  async resendVerification(email: string): Promise<{ success: boolean; message: string }> {
+    const response = await fetch(`${API_BASE_URL}/auth/resend-verification`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email }),
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.message || 'Gửi lại mã xác thực thất bại');
+    }
+
+    return response.json();
+  },
+
+  async forgotPassword(email: string): Promise<{ success: boolean; message: string }> {
+    const response = await fetch(`${API_BASE_URL}/auth/forgot-password`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email }),
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.message || 'Gửi mã khôi phục thất bại');
+    }
+
+    return response.json();
+  },
+
+  async verifyResetOtp(email: string, otp: string): Promise<{ success: boolean; message: string }> {
+    const response = await fetch(`${API_BASE_URL}/auth/verify-reset-otp`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, otp }),
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.message || 'Mã OTP không hợp lệ');
+    }
+
+    return response.json();
+  },
+
+  async resetPassword(data: { email?: string; token: string; newPassword: string }): Promise<{ success: boolean; message: string }> {
+    const response = await fetch(`${API_BASE_URL}/auth/reset-password`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.message || 'Đặt lại mật khẩu thất bại');
+    }
+
+    return response.json();
   },
 };
 

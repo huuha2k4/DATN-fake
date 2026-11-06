@@ -8,11 +8,22 @@ interface ProfileScreenProps {
   onLogout?: () => void;
 }
 
+// Helper function để lấy username chuẩn xác (tránh fallback nhầm cả chuỗi email có @)
+function formatCleanUsername(username?: string | null, email?: string | null): string {
+  if (username && !username.includes('@')) {
+    return username;
+  }
+  if (email && email.includes('@')) {
+    return email.split('@')[0];
+  }
+  return username || '';
+}
+
 export function ProfileScreen({ onLogout: _onLogout }: ProfileScreenProps) {
   const [user, setUser] = useState<User | null>(getStoredUser());
   const [formData, setFormData] = useState({
     fullName: user?.fullName || '',
-    username: user?.username || '',
+    username: formatCleanUsername(user?.username, user?.email),
     email: user?.email || '',
     phone: user?.phone || '',
     preferredCurrency: user?.preferredCurrency || 'VND',
@@ -27,6 +38,8 @@ export function ProfileScreen({ onLogout: _onLogout }: ProfileScreenProps) {
   const [error, setError] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  const isAdmin = user?.systemRole === 'ADMIN';
+
   // Sync avatar and latest profile on mount
   useEffect(() => {
     setAvatarPreview(userApi.getAvatarUrl(user?.avatarUrl));
@@ -34,11 +47,12 @@ export function ProfileScreen({ onLogout: _onLogout }: ProfileScreenProps) {
     // Fetch latest user details from server to ensure fresh state
     userApi.getCurrentUser()
       .then((fresh) => {
+        const cleanUsername = formatCleanUsername(fresh.username, fresh.email);
         setUser(prev => {
           const merged: User = {
             ...prev!,
             ...fresh,
-            username: fresh.username || undefined,
+            username: cleanUsername,
             avatarUrl: fresh.avatarUrl || null,
             lastLoginAt: fresh.lastLoginAt || prev?.lastLoginAt || new Date().toISOString(),
           };
@@ -47,7 +61,7 @@ export function ProfileScreen({ onLogout: _onLogout }: ProfileScreenProps) {
         });
         setFormData({
           fullName: fresh.fullName || '',
-          username: fresh.username || '',
+          username: cleanUsername,
           email: fresh.email || '',
           phone: fresh.phone || '',
           preferredCurrency: fresh.preferredCurrency || 'VND',
@@ -223,15 +237,17 @@ export function ProfileScreen({ onLogout: _onLogout }: ProfileScreenProps) {
           </div>
 
           <div className="profile-hero-meta">
-            <h2>{user.fullName || 'Người dùng Finora'}</h2>
+            <h2>{user.fullName || (isAdmin ? 'Quản trị viên Finora' : 'Người dùng Finora')}</h2>
             <div className="profile-tags-row">
               <span className="tag-verified">
                 <FinanceIcon name="shield" size={13} />
-                Đã xác thực
+                {isAdmin ? 'Quản trị viên Hệ thống' : 'Đã xác thực'}
               </span>
-              <span className="tag-tier">
-                ⭐ {user.subscriptionTier || 'Gói Tiêu Chuẩn'}
-              </span>
+              {!isAdmin && (
+                <span className="tag-tier">
+                  ⭐ {user.subscriptionTier || 'Gói Tiêu Chuẩn'}
+                </span>
+              )}
               <span className="tag-user-id" style={{ fontSize: '12px' }}>
                 ID: {user.id ? `${user.id.slice(0, 8)}...` : 'N/A'}
               </span>
@@ -306,47 +322,52 @@ export function ProfileScreen({ onLogout: _onLogout }: ProfileScreenProps) {
             </div>
           </div>
 
-          <div className="form-grid-2col">
-            <div className="profile-input-group">
-              <label htmlFor="currency">Đơn vị tiền tệ hiển thị</label>
-              <select
-                id="currency"
-                value={formData.preferredCurrency}
-                onChange={(e) => setFormData({ ...formData, preferredCurrency: e.target.value })}
-              >
-                <option value="VND">VND (₫) - Việt Nam Đồng</option>
-                <option value="USD">USD ($) - Đô la Mỹ</option>
-                <option value="EUR">EUR (€) - Euro</option>
-                <option value="JPY">JPY (¥) - Yên Nhật</option>
-              </select>
-            </div>
+          {/* Các tùy chọn tiền tệ, múi giờ, ngôn ngữ chỉ cần thiết cho User quản lý tài chính */}
+          {!isAdmin && (
+            <>
+              <div className="form-grid-2col">
+                <div className="profile-input-group">
+                  <label htmlFor="currency">Đơn vị tiền tệ hiển thị</label>
+                  <select
+                    id="currency"
+                    value={formData.preferredCurrency}
+                    onChange={(e) => setFormData({ ...formData, preferredCurrency: e.target.value })}
+                  >
+                    <option value="VND">VND (₫) - Việt Nam Đồng</option>
+                    <option value="USD">USD ($) - Đô la Mỹ</option>
+                    <option value="EUR">EUR (€) - Euro</option>
+                    <option value="JPY">JPY (¥) - Yên Nhật</option>
+                  </select>
+                </div>
 
-            <div className="profile-input-group">
-              <label htmlFor="timezone">Múi giờ hệ thống</label>
-              <select
-                id="timezone"
-                value={formData.timezone}
-                onChange={(e) => setFormData({ ...formData, timezone: e.target.value })}
-              >
-                <option value="Asia/Ho_Chi_Minh">Việt Nam (GMT+7)</option>
-                <option value="Asia/Bangkok">Bangkok (GMT+7)</option>
-                <option value="Asia/Singapore">Singapore (GMT+8)</option>
-                <option value="Asia/Tokyo">Tokyo (GMT+9)</option>
-              </select>
-            </div>
-          </div>
+                <div className="profile-input-group">
+                  <label htmlFor="timezone">Múi giờ hệ thống</label>
+                  <select
+                    id="timezone"
+                    value={formData.timezone}
+                    onChange={(e) => setFormData({ ...formData, timezone: e.target.value })}
+                  >
+                    <option value="Asia/Ho_Chi_Minh">Việt Nam (GMT+7)</option>
+                    <option value="Asia/Bangkok">Bangkok (GMT+7)</option>
+                    <option value="Asia/Singapore">Singapore (GMT+8)</option>
+                    <option value="Asia/Tokyo">Tokyo (GMT+9)</option>
+                  </select>
+                </div>
+              </div>
 
-          <div className="profile-input-group" style={{ maxWidth: '48%', marginBottom: '10px' }}>
-            <label htmlFor="language">Ngôn ngữ giao diện</label>
-            <select
-              id="language"
-              value={formData.language}
-              onChange={(e) => setFormData({ ...formData, language: e.target.value })}
-            >
-              <option value="vi-VN">Tiếng Việt (vi-VN)</option>
-              <option value="en-US">English (en-US)</option>
-            </select>
-          </div>
+              <div className="profile-input-group" style={{ maxWidth: '48%', marginBottom: '10px' }}>
+                <label htmlFor="language">Ngôn ngữ giao diện</label>
+                <select
+                  id="language"
+                  value={formData.language}
+                  onChange={(e) => setFormData({ ...formData, language: e.target.value })}
+                >
+                  <option value="vi-VN">Tiếng Việt (vi-VN)</option>
+                  <option value="en-US">English (en-US)</option>
+                </select>
+              </div>
+            </>
+          )}
 
           <div className="profile-actions-bar">
             <button

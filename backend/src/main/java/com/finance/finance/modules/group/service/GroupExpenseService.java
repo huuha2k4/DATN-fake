@@ -143,8 +143,8 @@ public class GroupExpenseService {
                             com.finance.finance.common.enums.NotificationPriority.NORMAL,
                             "Giao dịch mới trong nhóm " + groupName,
                             creatorName + " vừa thêm khoản chi \"" + expense.getDescription() + "\" với số tiền " + String.format("%,d", expense.getAmount().longValue()) + "đ trong nhóm " + groupName + ".",
-                            "/groups",
-                            "Xem nhóm"
+                            "/groups?groupId=" + groupId + "&tab=EXPENSES",
+                            "Xem chi tiêu"
                     );
                 }
             }
