@@ -268,15 +268,12 @@ function AppContent() {
   return (
     <View style={styles.container}>
       <View style={styles.content}>{screen}</View>
-      {/* Ẩn thanh 5 nút điều hướng đáy khi đang mở chi tiết nhóm để nhường toàn bộ không gian cho giao diện chat/chi tiết */}
-      {!(activeTab === 'group' && isGroupDetailOpen) && (
-        <BottomNav
-          activeTab={activeTab}
-          onChange={setActiveTab}
-          onScanInvoice={() => setShowScanInvoice(true)}
-          onProfile={() => setShowProfile(true)}
-        />
-      )}
+      <BottomNav
+        activeTab={activeTab}
+        onChange={setActiveTab}
+        onScanInvoice={() => setShowScanInvoice(true)}
+        onProfile={() => setShowProfile(true)}
+      />
       <StatusBar style={isDarkStatusBar ? 'dark' : 'light'} />
     </View>
   );

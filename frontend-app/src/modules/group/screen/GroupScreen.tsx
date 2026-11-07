@@ -912,7 +912,7 @@ export function GroupScreen({ onGroupDetailChange }: { onGroupDetailChange?: (is
              cuộn độc lập bằng ScrollView bên trong, thanh chat ghim cố định ở đáy */
           <KeyboardAvoidingView
             style={styles.chatViewportContainer}
-            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
             keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
           >
             <ScrollView
