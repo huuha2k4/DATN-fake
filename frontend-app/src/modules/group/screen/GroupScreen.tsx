@@ -1182,7 +1182,7 @@ export function GroupScreen({ onGroupDetailChange }: { onGroupDetailChange?: (is
             )}
 
             {/* Khung Gửi Tin Nhắn Ghim Cố Định Ở Đáy Chuẩn Mẫu (Icon Đính kèm + Input bo tròn + Emoji + Nút Send tròn xanh) */}
-            <View style={[styles.chatInputBarContainerWeb, { paddingBottom: Math.max(insets.bottom, 10) }]}>
+            <View style={[styles.chatInputBarContainerWeb, { paddingBottom: 10 }]}>
               <Pressable
                 onPress={handlePickChatImage}
                 hitSlop={10}

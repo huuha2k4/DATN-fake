@@ -1,14 +1,6 @@
-import { NativeModules, Platform } from 'react-native';
+import { API_BASE_URL } from '../../auth/api/authApi';
 
-function getAutoDetectedApiUrl(): string {
-  // Bắt buộc lấy 100% từ file .env
-  if (process.env.EXPO_PUBLIC_API_URL) {
-    return process.env.EXPO_PUBLIC_API_URL;
-  }
-  return 'http://192.168.1.9:1116/api/v1';
-}
-
-const API_BASE_URL = getAutoDetectedApiUrl();
+export { API_BASE_URL };
 
 export async function apiRequest<T>(path: string, options?: RequestInit): Promise<T> {
   const response = await fetch(`${API_BASE_URL}${path}`, {
