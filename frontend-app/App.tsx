@@ -233,6 +233,8 @@ function AppContent() {
     );
   }
 
+  const [isGroupDetailOpen, setIsGroupDetailOpen] = useState(false);
+
   const screen = {
     home: (
       <HomeScreen
@@ -257,21 +259,26 @@ function AppContent() {
         onAddTransaction={() => setShowAddTransaction(true)}
       />
     ),
-    group: <GroupScreen />,
+    group: <GroupScreen onGroupDetailChange={setIsGroupDetailOpen} />,
     budget: <BudgetScreen />,
     goals: <GoalsScreen onBack={() => setActiveTab('home')} />,
   }[activeTab];
 
+  const isDarkStatusBar = (activeTab === 'group' && isGroupDetailOpen);
+
   return (
     <View style={styles.container}>
       <View style={styles.content}>{screen}</View>
-      <BottomNav
-        activeTab={activeTab}
-        onChange={setActiveTab}
-        onScanInvoice={() => setShowScanInvoice(true)}
-        onProfile={() => setShowProfile(true)}
-      />
-      <StatusBar style="light" />
+      {/* Ẩn thanh 5 nút điều hướng đáy khi đang mở chi tiết nhóm để nhường toàn bộ không gian cho giao diện chat/chi tiết */}
+      {!(activeTab === 'group' && isGroupDetailOpen) && (
+        <BottomNav
+          activeTab={activeTab}
+          onChange={setActiveTab}
+          onScanInvoice={() => setShowScanInvoice(true)}
+          onProfile={() => setShowProfile(true)}
+        />
+      )}
+      <StatusBar style={isDarkStatusBar ? 'dark' : 'light'} />
     </View>
   );
 }

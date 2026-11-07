@@ -12,6 +12,7 @@ import {
   Pressable,
   RefreshControl,
   ScrollView,
+  StatusBar,
   StyleSheet,
   Switch,
   Text,
@@ -124,7 +125,7 @@ function formatMessengerDateDivider(dateStr: string): string {
   }
 }
 
-export function GroupScreen() {
+export function GroupScreen({ onGroupDetailChange }: { onGroupDetailChange?: (isOpen: boolean) => void } = {}) {
   const insets = useSafeAreaInsets();
   const currentUser = authStorage.getUser();
 
@@ -144,6 +145,10 @@ export function GroupScreen() {
 
   // State Chi tiết nhóm (Kèm các tab: Tổng quan | Chi tiêu | Nhắn tin | Cân đối nợ | Thành viên)
   const [selectedGroup, setSelectedGroup] = useState<GroupResponse | null>(null);
+
+  useEffect(() => {
+    onGroupDetailChange?.(selectedGroup !== null);
+  }, [selectedGroup, onGroupDetailChange]);
   const [detailTab, setDetailTab] = useState<'OVERVIEW' | 'EXPENSES' | 'CHAT' | 'BALANCES' | 'MEMBERS'>('OVERVIEW');
   const [viewingExpense, setViewingExpense] = useState<GroupExpenseResponse | null>(null);
   const [txTypeFilter, setTxTypeFilter] = useState<'ALL' | 'INCOME' | 'EXPENSE'>('ALL');
@@ -809,6 +814,9 @@ export function GroupScreen() {
 
     return (
       <View style={styles.detailScreenContainer}>
+        {/* Đổi màu chữ/icon thanh trạng thái điện thoại (giờ, pin, sóng) sang màu đen chuẩn nền sáng */}
+        <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" animated />
+
         {/* Header Trang Chi tiết full màn hình - Phong cách sáng & icons tương tác chuẩn mẫu */}
         <View style={[styles.detailScreenHeaderModern, { paddingTop: Math.max(insets.top, 14) + 6 }]}>
           <Pressable
