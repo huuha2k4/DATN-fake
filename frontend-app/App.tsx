@@ -201,9 +201,19 @@ function AppContent() {
 
   if (showProfile) {
     return (
-      <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
+      <View style={{ flex: 1, backgroundColor: '#FFFFFF' }}>
         <View style={styles.content}>
-          <ProfileScreen />
+          <ProfileScreen
+            onLogout={() => {
+              authStorage.clear();
+              setShowProfile(false);
+              setShowLogin(true);
+            }}
+            onNotifications={() => {
+              setShowProfile(false);
+              setShowNotifications(true);
+            }}
+          />
         </View>
         <BottomNav
           activeTab={activeTab}
@@ -219,7 +229,7 @@ function AppContent() {
           isProfileActive
         />
         <StatusBar style="dark" />
-      </SafeAreaView>
+      </View>
     );
   }
 
@@ -230,6 +240,8 @@ function AppContent() {
         onAddTransaction={() => setShowAddTransaction(true)}
         onScanInvoice={() => setShowScanInvoice(true)}
         onViewGoals={() => setActiveTab('goals')}
+        onViewBudget={() => setActiveTab('budget')}
+        onViewDebts={() => Alert.alert('Sổ nợ & Cho vay', 'Tính năng đang kết nối dữ liệu.')}
         onViewReminders={() => setShowReminders(true)}
         onViewAiAssistant={() => setShowAiAssistant(true)}
         onViewAccounts={() => setShowAccounts(true)}

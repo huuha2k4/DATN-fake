@@ -13,7 +13,7 @@ import {
 } from 'react-native';
 import Svg, { Circle, Path } from 'react-native-svg';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import { authApi } from '../api/authApi';
+import { authApi, API_BASE_URL } from '../api/authApi';
 import { styles } from './LoginScreen.styles';
 import { ForgotPasswordModal } from '../components/ForgotPasswordModal';
 
@@ -68,7 +68,7 @@ export function LoginScreen({
       });
       onSuccess();
     } catch (err: any) {
-      setError(err?.message || 'Tài khoản hoặc mật khẩu không chính xác.');
+      setError(`[${API_BASE_URL}] ${err?.message || 'Lỗi kết nối máy chủ'}`);
     } finally {
       setLoading(false);
     }

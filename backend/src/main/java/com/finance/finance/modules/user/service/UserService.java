@@ -91,6 +91,9 @@ public class UserService {
         if (request.getLanguage() != null) {
             user.setLanguage(request.getLanguage());
         }
+        if (request.getAvatarUrl() != null) {
+            user.setAvatarUrl(request.getAvatarUrl().trim().isEmpty() ? null : request.getAvatarUrl().trim());
+        }
         
         User savedUser = userRepository.save(user);
         log.info("Profile updated for user: {}", userId);

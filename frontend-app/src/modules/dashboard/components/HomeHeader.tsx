@@ -79,8 +79,6 @@ export function HomeHeader({ onNotifications, onProfile }: Props) {
               resizeMode="cover"
             />
           )}
-          {/* Chấm tròn trạng thái hoạt động online */}
-          <View style={styles.onlineStatusDot} />
         </View>
 
         <View style={styles.greetingCol}>

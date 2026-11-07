@@ -8,6 +8,7 @@ import {
   RefreshControl,
   ScrollView,
   StyleSheet,
+  Switch,
   Text,
   TextInput,
   View,
@@ -44,6 +45,19 @@ const ACCOUNT_CATEGORIES: Array<{ code: ModalCategory; label: string; icon: stri
   { code: 'OTHER', label: 'Khác', icon: 'wallet', color: '#64748B', bg: '#F1F5F9' },
 ];
 
+// Tabs lọc chuẩn web
+const FILTER_TABS = [
+  { key: 'ALL', label: 'Tất cả nguồn tiền' },
+  { key: 'CASH', label: 'Tiền mặt' },
+  { key: 'BANK_ACCOUNT', label: 'Tài khoản ngân hàng' },
+  { key: 'E_WALLET', label: 'Ví điện tử' },
+  { key: 'DEBIT_CARD', label: 'Thẻ ghi nợ' },
+  { key: 'CREDIT_CARD', label: 'Thẻ tín dụng' },
+  { key: 'CRYPTO', label: 'Ví mã hóa' },
+] as const;
+
+type FilterKey = typeof FILTER_TABS[number]['key'];
+
 export function AccountsScreen({ onBack, onAddTransaction }: Props) {
   const insets = useSafeAreaInsets();
 
@@ -52,8 +66,8 @@ export function AccountsScreen({ onBack, onAddTransaction }: Props) {
   const [accounts, setAccounts] = useState<AccountItem[]>([]);
   const [summaryData, setSummaryData] = useState<AccountSummaryResponse | null>(null);
 
-  // Tab lọc: Tất cả | Tiền mặt & Ngân hàng | Ví điện tử | Tiết kiệm & Khác
-  const [activeFilter, setActiveFilter] = useState<'ALL' | 'CASH_BANK' | 'E_WALLET' | 'OTHER'>('ALL');
+  // Tab lọc: ALL | CASH | BANK_ACCOUNT | E_WALLET | DEBIT_CARD | CREDIT_CARD | CRYPTO
+  const [activeFilter, setActiveFilter] = useState<FilterKey>('ALL');
 
   // Modal tạo tài khoản mới
   const [createModalVisible, setCreateModalVisible] = useState(false);
@@ -67,6 +81,35 @@ export function AccountsScreen({ onBack, onAddTransaction }: Props) {
   const [newAccountNumber, setNewAccountNumber] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
+  // Modal Xem chi tiết ví
+  const [selectedAccountDetail, setSelectedAccountDetail] = useState<AccountItem | null>(null);
+
+  // Modal Chỉnh sửa ví
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [selectedAccountForEdit, setSelectedAccountForEdit] = useState<AccountItem | null>(null);
+  const [editName, setEditName] = useState('');
+  const [editBalance, setEditBalance] = useState('');
+  const [editAccountNumber, setEditAccountNumber] = useState('');
+  const [editDescription, setEditDescription] = useState('');
+  const [editIsActive, setEditIsActive] = useState(true);
+  const [editSubmitting, setEditSubmitting] = useState(false);
+
+  // Modal Xác nhận xóa ví
+  const [accountToDelete, setAccountToDelete] = useState<AccountItem | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  // Định dạng số có dấu chấm ngăn cách hàng nghìn
+  const formatNumberWithDots = (val: string | number) => {
+    if (val == null || val === '') return '';
+    const cleanStr = String(val).replace(/\D/g, '');
+    if (!cleanStr) return '';
+    return cleanStr.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+  };
+
+  const formatVND = (val: number) => {
+    return new Intl.NumberFormat('vi-VN').format(val);
+  };
+
   // Nạp dữ liệu tài khoản
   const loadAccounts = async (isRefresh = false) => {
     if (isRefresh) setRefreshing(true);
@@ -74,7 +117,7 @@ export function AccountsScreen({ onBack, onAddTransaction }: Props) {
 
     try {
       const [accs, sum] = await Promise.all([
-        accountApi.getAccounts({ includeInactive: true }).catch(() => []),
+        accountApi.getAccounts().catch(() => []),
         accountApi.getSummary().catch(() => null),
       ]);
       setAccounts(Array.isArray(accs) ? accs : []);
@@ -91,40 +134,59 @@ export function AccountsScreen({ onBack, onAddTransaction }: Props) {
     loadAccounts();
   }, []);
 
-  // Tính tổng tài sản thực tế
-  const totalBalance = useMemo(() => {
+  // Tính tổng tài sản thực tế và dư nợ (chuẩn web)
+  const totalAssets = useMemo(() => {
     if (summaryData?.summary?.totalAssets !== undefined) {
       return summaryData.summary.totalAssets;
     }
     return accounts
       .filter((a) => a.isActive !== false && a.accountType !== 'CREDIT_CARD')
-      .reduce((acc, curr) => acc + (curr.balance || 0), 0);
+      .reduce((acc, curr) => acc + (Number(curr.balance) || 0), 0);
   }, [accounts, summaryData]);
 
-  // Lọc tài khoản theo Tab
+  const totalLiabilities = useMemo(() => {
+    if (summaryData?.summary?.totalLiabilities !== undefined) {
+      return summaryData.summary.totalLiabilities;
+    }
+    return accounts
+      .filter((a) => a.isActive !== false && a.accountType === 'CREDIT_CARD')
+      .reduce((acc, curr) => acc + (Number(curr.balance) || 0), 0);
+  }, [accounts, summaryData]);
+
+  // Lọc tài khoản theo Tab chuẩn Web
   const filteredAccounts = useMemo(() => {
     if (activeFilter === 'ALL') return accounts;
-    if (activeFilter === 'CASH_BANK') {
-      return accounts.filter((a) => a.accountType === 'CASH' || a.accountType === 'BANK_ACCOUNT');
+    if (activeFilter === 'DEBIT_CARD') {
+      return accounts.filter(
+        (a) =>
+          a.accountType === 'BANK_ACCOUNT' &&
+          (Boolean(a.cardNumberLast4) ||
+            a.name.toLowerCase().includes('thẻ ghi nợ') ||
+            a.name.toLowerCase().includes('thẻ atm'))
+      );
     }
-    if (activeFilter === 'E_WALLET') {
-      return accounts.filter((a) => a.accountType === 'E_WALLET');
+    if (activeFilter === 'BANK_ACCOUNT') {
+      return accounts.filter(
+        (a) =>
+          a.accountType === 'BANK_ACCOUNT' &&
+          !a.cardNumberLast4 &&
+          !a.name.toLowerCase().includes('thẻ ghi nợ') &&
+          !a.name.toLowerCase().includes('thẻ atm')
+      );
     }
-    return accounts.filter(
-      (a) => a.accountType !== 'CASH' && a.accountType !== 'BANK_ACCOUNT' && a.accountType !== 'E_WALLET'
-    );
+    return accounts.filter((a) => a.accountType === activeFilter);
   }, [accounts, activeFilter]);
-
-  const formatVND = (val: number) => {
-    return new Intl.NumberFormat('vi-VN').format(val);
-  };
 
   const getAccountTypeMeta = (type: AccountTypeCode, item?: AccountItem) => {
     switch (type) {
       case 'CASH':
         return { label: 'Tiền mặt', icon: 'wallet', color: '#059669', bg: '#E8F8F0' };
       case 'BANK_ACCOUNT': {
-        const isDebit = Boolean(item?.cardNumberLast4 || item?.name?.toLowerCase().includes('thẻ ghi nợ') || item?.name?.toLowerCase().includes('thẻ atm'));
+        const isDebit = Boolean(
+          item?.cardNumberLast4 ||
+            item?.name?.toLowerCase().includes('thẻ ghi nợ') ||
+            item?.name?.toLowerCase().includes('thẻ atm')
+        );
         if (isDebit) {
           return { label: 'Thẻ ghi nợ', icon: 'bank', color: '#0891B2', bg: '#ECFEFF' };
         }
@@ -145,7 +207,7 @@ export function AccountsScreen({ onBack, onAddTransaction }: Props) {
     }
   };
 
-  // Mở modal tạo mới với reset state chuẩn giống web
+  // Mở modal tạo mới
   const handleOpenAddModal = () => {
     setModalCategory('BANK_ACCOUNT');
     setSelectedPreset(null);
@@ -157,7 +219,7 @@ export function AccountsScreen({ onBack, onAddTransaction }: Props) {
     setCreateModalVisible(true);
   };
 
-  // Khi người dùng chọn danh mục (Tiền mặt, Ngân hàng, Ví điện tử...)
+  // Khi chọn danh mục thêm mới
   const handleSelectCategory = (cat: ModalCategory) => {
     setModalCategory(cat);
     setSelectedPreset(null);
@@ -221,7 +283,6 @@ export function AccountsScreen({ onBack, onAddTransaction }: Props) {
       setSubmitting(true);
       const cleanBalance = newAccBalance ? parseInt(newAccBalance.replace(/\D/g, '') || '0', 10) : 0;
 
-      // Map sang AccountTypeCode chuẩn
       let backendType: AccountTypeCode = 'BANK_ACCOUNT';
       if (modalCategory === 'CASH') backendType = 'CASH';
       else if (modalCategory === 'E_WALLET') backendType = 'E_WALLET';
@@ -233,9 +294,7 @@ export function AccountsScreen({ onBack, onAddTransaction }: Props) {
         name: newAccName.trim(),
         accountType: backendType,
         initialBalance: cleanBalance,
-        accountNumber: newAccountNumber.trim() || undefined,
         currencyCode: 'VND',
-        isIncludedInTotal: true,
       });
 
       setCreateModalVisible(false);
@@ -249,6 +308,94 @@ export function AccountsScreen({ onBack, onAddTransaction }: Props) {
     }
   };
 
+  // Mở modal Sửa ví
+  const handleOpenEdit = (acc: AccountItem) => {
+    setSelectedAccountForEdit(acc);
+    setEditName(acc.name || '');
+    setEditBalance(formatNumberWithDots(acc.balance ?? 0));
+    setEditAccountNumber(acc.accountNumberMasked || acc.accountNumber || '');
+    setEditDescription(acc.description || '');
+    setEditIsActive(acc.isActive !== false);
+    setIsEditModalOpen(true);
+  };
+
+  // Lưu chỉnh sửa ví
+  const handleSaveEdit = async () => {
+    if (!selectedAccountForEdit) return;
+    if (!editName.trim()) {
+      Alert.alert('Thông báo', 'Tên ví không được để trống');
+      return;
+    }
+
+    try {
+      setEditSubmitting(true);
+      const newCleanBalance = editBalance ? parseInt(editBalance.replace(/\D/g, '') || '0', 10) : 0;
+      const isBalanceChanged = Math.abs(newCleanBalance - (selectedAccountForEdit.balance ?? 0)) > 0.001;
+
+      // Cập nhật thông tin cơ bản
+      const updatePayload: any = {
+        name: editName.trim(),
+        description: editDescription.trim(),
+        isActive: editIsActive,
+      };
+
+      const res = await accountApi.updateAccount(selectedAccountForEdit.id, updatePayload);
+      if (!res.success) {
+        Alert.alert('Lỗi', res.message || 'Không thể cập nhật ví');
+        return;
+      }
+
+      // Nếu có đổi số dư -> gọi adjustBalance
+      if (isBalanceChanged) {
+        await accountApi.adjustBalance(selectedAccountForEdit.id, {
+          newBalance: newCleanBalance,
+          reason: 'Cập nhật lại số dư từ quản lý ví',
+          createAdjustmentTransaction: false,
+        });
+      }
+
+      setIsEditModalOpen(false);
+      // Cập nhật lại modal chi tiết nếu đang mở
+      if (selectedAccountDetail?.id === selectedAccountForEdit.id) {
+        setSelectedAccountDetail({
+          ...selectedAccountDetail,
+          name: editName.trim(),
+          balance: newCleanBalance,
+          description: editDescription.trim(),
+          isActive: editIsActive,
+        });
+      }
+      setSelectedAccountForEdit(null);
+      await loadAccounts();
+      Alert.alert('Thành công', 'Đã lưu thông tin ví thành công!');
+    } catch (err: any) {
+      Alert.alert('Lỗi', err?.message || 'Có lỗi xảy ra khi lưu ví');
+    } finally {
+      setEditSubmitting(false);
+    }
+  };
+
+  // Xử lý Xóa ví
+  const handleConfirmDelete = async () => {
+    if (!accountToDelete) return;
+    try {
+      setIsDeleting(true);
+      const res = await accountApi.deleteAccount(accountToDelete.id);
+      if (res.success) {
+        Alert.alert('Thành công', `Đã xóa ví "${accountToDelete.name}" thành công!`);
+        setAccountToDelete(null);
+        setSelectedAccountDetail(null);
+        await loadAccounts();
+      } else {
+        Alert.alert('Lỗi', res.message || 'Không thể xóa ví này.');
+      }
+    } catch (err: any) {
+      Alert.alert('Lỗi', err?.message || 'Có lỗi xảy ra khi xóa ví.');
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
   return (
     <View style={styles.screen}>
       {/* ── 1. HEADER XANH RỪNG SANG TRỌNG PHỦ TRÀN TAI THỎ ── */}
@@ -257,11 +404,7 @@ export function AccountsScreen({ onBack, onAddTransaction }: Props) {
           <Text style={styles.backIcon}>‹</Text>
         </Pressable>
         <Text style={styles.headerTitle}>Ví & Tài khoản</Text>
-        <Pressable
-          onPress={handleOpenAddModal}
-          style={styles.addNavBtn}
-          hitSlop={8}
-        >
+        <Pressable onPress={handleOpenAddModal} style={styles.addNavBtn} hitSlop={8}>
           <Text style={styles.addNavBtnText}>+ Thêm ví</Text>
         </Pressable>
       </View>
@@ -282,9 +425,9 @@ export function AccountsScreen({ onBack, onAddTransaction }: Props) {
         <View style={styles.heroTotalCard}>
           <View style={styles.heroTotalTop}>
             <View>
-              <Text style={styles.heroTotalLabel}>TỔNG TÀI SẢN TÍCH LŨY</Text>
+              <Text style={styles.heroTotalLabel}>TỔNG TÀI SẢN KHẢ DỤNG</Text>
               <Text style={styles.heroTotalValue} numberOfLines={1}>
-                {formatVND(totalBalance)} <Text style={styles.unitSuffix}>₫</Text>
+                {formatVND(totalAssets)} <Text style={styles.unitSuffix}>₫</Text>
               </Text>
             </View>
             <View style={styles.heroWalletIconWrap}>
@@ -292,40 +435,47 @@ export function AccountsScreen({ onBack, onAddTransaction }: Props) {
             </View>
           </View>
 
+          {totalLiabilities > 0 && (
+            <View style={styles.liabilitiesRow}>
+              <Text style={styles.liabilitiesLabel}>Dư nợ thẻ tín dụng:</Text>
+              <Text style={styles.liabilitiesValue}>-{formatVND(totalLiabilities)} ₫</Text>
+            </View>
+          )}
+
           <View style={styles.heroTotalFooter}>
             <Text style={styles.heroFooterLeft}>
-              Đang quản lý <Text style={{ fontWeight: '800', color: '#1E293B' }}>{accounts.length} nguồn tiền</Text>
+              Đang quản lý{' '}
+              <Text style={{ fontWeight: '800', color: '#1E293B' }}>{accounts.length} nguồn tiền</Text>
             </Text>
             <Text style={styles.heroFooterRight}>● Sẵn sàng chi tiêu</Text>
           </View>
         </View>
 
-        {/* ── 3. TABS PHÂN LOẠI NGUỒN TIỀN ── */}
-        <View style={styles.filterPillsRow}>
-          {(
-            [
-              ['ALL', 'Tất cả'],
-              ['CASH_BANK', 'Tiền mặt & Bank'],
-              ['E_WALLET', 'Ví điện tử'],
-              ['OTHER', 'Tiết kiệm & Khác'],
-            ] as const
-          ).map(([key, label]) => {
-            const isSelected = activeFilter === key;
-            return (
-              <Pressable
-                key={key}
-                onPress={() => setActiveFilter(key)}
-                style={[styles.filterPill, isSelected && styles.filterPillActive]}
-              >
-                <Text style={[styles.filterPillText, isSelected && styles.filterPillTextActive]}>
-                  {label}
-                </Text>
-              </Pressable>
-            );
-          })}
+        {/* ── 3. TABS PHÂN LOẠI NGUỒN TIỀN (CHUẨN WEB: 7 MỤC) ── */}
+        <View style={styles.filterTabsContainer}>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.filterPillsScroll}
+          >
+            {FILTER_TABS.map((tab) => {
+              const isSelected = activeFilter === tab.key;
+              return (
+                <Pressable
+                  key={tab.key}
+                  onPress={() => setActiveFilter(tab.key)}
+                  style={[styles.filterPill, isSelected && styles.filterPillActive]}
+                >
+                  <Text style={[styles.filterPillText, isSelected && styles.filterPillTextActive]}>
+                    {tab.label}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </ScrollView>
         </View>
 
-        {/* ── 4. DANH SÁCH CÁC TÀI KHOẢN / VÍ CÓ LOGO CHUẨN WEB ── */}
+        {/* ── 4. DANH SÁCH CÁC TÀI KHOẢN / VÍ (ẤN VÀO CARD ĐỂ XEM CHI TIẾT & SỬA / XÓA) ── */}
         {loading ? (
           <View style={styles.loadingBox}>
             <ActivityIndicator size="large" color="#00A86B" />
@@ -341,11 +491,20 @@ export function AccountsScreen({ onBack, onAddTransaction }: Props) {
           filteredAccounts.map((acc) => {
             const meta = getAccountTypeMeta(acc.accountType, acc);
             const brandPreset = findBankOrWalletPreset(acc.name);
+            const isCredit = acc.accountType === 'CREDIT_CARD';
 
             return (
-              <View key={acc.id} style={styles.accountCard}>
+              <Pressable
+                key={acc.id}
+                onPress={() => setSelectedAccountDetail(acc)}
+                style={({ pressed }) => [
+                  styles.accountCard,
+                  pressed && { opacity: 0.92, transform: [{ scale: 0.99 }] },
+                  acc.isActive === false && styles.accountCardInactive,
+                ]}
+              >
                 <View style={styles.cardMainRow}>
-                  {/* LOGO NGÂN HÀNG / VÍ ĐIỆN TỬ (HOẶC ICON FALLBACK) */}
+                  {/* LOGO NGÂN HÀNG / VÍ ĐIỆN TỬ */}
                   {brandPreset?.logoUrl ? (
                     <View style={styles.brandLogoBox}>
                       <Image
@@ -383,21 +542,333 @@ export function AccountsScreen({ onBack, onAddTransaction }: Props) {
                     </View>
                   </View>
 
-                  {/* Số dư to, rõ ràng */}
+                  {/* Số dư to rõ ràng */}
                   <View style={styles.cardBalanceCol}>
-                    <Text style={styles.cardBalanceValue}>
+                    <Text style={[styles.cardBalanceValue, isCredit && { color: '#E11D48' }]}>
                       {formatVND(acc.balance)} <Text style={styles.currencySmall}>₫</Text>
                     </Text>
-                    <Text style={styles.cardStatusText}>Khả dụng</Text>
+                    <Text style={[styles.cardStatusText, isCredit && { color: '#E11D48' }]}>
+                      {isCredit ? 'Dư nợ' : 'Khả dụng'}
+                    </Text>
                   </View>
                 </View>
-              </View>
+
+                {/* Footer thẻ: Trạng thái & Xem chi tiết */}
+                <View style={styles.cardFooterRow}>
+                  <View style={styles.statusIndicator}>
+                    <View
+                      style={[
+                        styles.statusDot,
+                        { backgroundColor: acc.isActive !== false ? '#10B981' : '#F43F5E' },
+                      ]}
+                    />
+                    <Text
+                      style={[
+                        styles.statusText,
+                        { color: acc.isActive !== false ? '#059669' : '#E11D48' },
+                      ]}
+                    >
+                      {acc.isActive !== false ? 'Đang hoạt động' : 'Tạm tắt'}
+                    </Text>
+                  </View>
+
+                  <Text style={styles.tapToDetailText}>Xem chi tiết ›</Text>
+                </View>
+              </Pressable>
             );
           })
         )}
       </ScrollView>
 
-      {/* ── MODAL THÊM VÍ / TÀI KHOẢN MỚI CÓ BỘ CHỌN LOGO NGÂN HÀNG & VÍ ĐIỆN TỬ ── */}
+      {/* ── 5. MODAL XEM CHI TIẾT VÍ: CÓ NÚT SỬA VÍ & NÚT XÓA VÍ ── */}
+      {selectedAccountDetail && (() => {
+        const isCredit = selectedAccountDetail.accountType === 'CREDIT_CARD';
+        const brandPreset = findBankOrWalletPreset(selectedAccountDetail.name);
+        const meta = getAccountTypeMeta(selectedAccountDetail.accountType, selectedAccountDetail);
+
+        return (
+          <Modal visible transparent animationType="slide">
+            <View style={styles.modalOverlay}>
+              <View style={styles.detailSheet}>
+                {/* Header chi tiết */}
+                <View style={styles.detailHeader}>
+                  <View style={styles.detailHeaderLeft}>
+                    {brandPreset?.logoUrl ? (
+                      <View style={styles.detailLogoWrap}>
+                        <Image
+                          source={{ uri: brandPreset.logoUrl }}
+                          style={styles.brandLogoImg}
+                          resizeMode="contain"
+                        />
+                      </View>
+                    ) : (
+                      <View style={[styles.detailLogoWrap, { backgroundColor: meta.bg }]}>
+                        <FinanceIcon name={meta.icon as any} size={24} color={meta.color} />
+                      </View>
+                    )}
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.detailTitle} numberOfLines={1}>
+                        {selectedAccountDetail.name}
+                      </Text>
+                      <Text style={styles.detailSub}>
+                        {selectedAccountDetail.accountNumberMasked
+                          ? `STK: ${selectedAccountDetail.accountNumberMasked}`
+                          : selectedAccountDetail.phoneNumber || meta.label}
+                      </Text>
+                    </View>
+                  </View>
+                  <Pressable
+                    onPress={() => setSelectedAccountDetail(null)}
+                    hitSlop={10}
+                    style={styles.modalCloseBtn}
+                  >
+                    <Text style={styles.modalCloseText}>✕</Text>
+                  </Pressable>
+                </View>
+
+                {/* Nội dung thông tin số dư & hạn mức */}
+                <View style={styles.detailBody}>
+                  <View style={styles.detailCardBox}>
+                    <View style={styles.detailRow}>
+                      <Text style={styles.detailRowLabel}>
+                        {isCredit ? 'Dư nợ hiện tại:' : 'Số dư khả dụng:'}
+                      </Text>
+                      <Text
+                        style={[
+                          styles.detailRowValueHighlight,
+                          isCredit && { color: '#E11D48' },
+                        ]}
+                      >
+                        {formatVND(selectedAccountDetail.balance)} ₫
+                      </Text>
+                    </View>
+
+                    {isCredit && selectedAccountDetail.creditLimit && selectedAccountDetail.creditLimit > 0 && (
+                      <>
+                        <View style={styles.detailRow}>
+                          <Text style={styles.detailRowLabel}>Hạn mức thẻ:</Text>
+                          <Text style={styles.detailRowValue}>
+                            {formatVND(selectedAccountDetail.creditLimit)} ₫
+                          </Text>
+                        </View>
+                        <View style={styles.detailRow}>
+                          <Text style={styles.detailRowLabel}>Hạn mức còn lại:</Text>
+                          <Text style={[styles.detailRowValue, { color: '#059669' }]}>
+                            {formatVND(
+                              Math.max(0, selectedAccountDetail.creditLimit - selectedAccountDetail.balance)
+                            )}{' '}
+                            ₫
+                          </Text>
+                        </View>
+                      </>
+                    )}
+
+                    <View style={styles.detailRow}>
+                      <Text style={styles.detailRowLabel}>Phân loại nguồn tiền:</Text>
+                      <View style={[styles.badgeTag, { backgroundColor: meta.bg }]}>
+                        <Text style={[styles.badgeTagText, { color: meta.color }]}>{meta.label}</Text>
+                      </View>
+                    </View>
+
+                    {selectedAccountDetail.description ? (
+                      <View style={styles.detailRow}>
+                        <Text style={styles.detailRowLabel}>Ghi chú:</Text>
+                        <Text style={[styles.detailRowValue, { maxWidth: '60%' }]} numberOfLines={2}>
+                          {selectedAccountDetail.description}
+                        </Text>
+                      </View>
+                    ) : null}
+
+                    <View style={styles.detailRow}>
+                      <Text style={styles.detailRowLabel}>Trạng thái:</Text>
+                      <Text
+                        style={{
+                          fontWeight: '800',
+                          fontSize: 13,
+                          color: selectedAccountDetail.isActive !== false ? '#059669' : '#E11D48',
+                        }}
+                      >
+                        {selectedAccountDetail.isActive !== false
+                          ? 'Đang hoạt động ✓'
+                          : 'Đang tạm tắt'}
+                      </Text>
+                    </View>
+                  </View>
+
+                  {/* Nút hành động ở chân modal: Sửa ví & Xóa ví & Đóng */}
+                  <View style={styles.detailActionRow}>
+                    <Pressable
+                      onPress={() => {
+                        const acc = selectedAccountDetail;
+                        setSelectedAccountDetail(null);
+                        handleOpenEdit(acc);
+                      }}
+                      style={styles.editActionBtn}
+                    >
+                      <FinanceIcon name="edit" size={16} color="#074838" />
+                      <Text style={styles.editActionBtnText}>Sửa ví</Text>
+                    </Pressable>
+
+                    <Pressable
+                      onPress={() => {
+                        const acc = selectedAccountDetail;
+                        if (!acc) return;
+                        Alert.alert(
+                          'Xác nhận xóa ví',
+                          `Bạn có chắc chắn muốn xóa ví "${acc.name}" không?\nHành động này không thể hoàn tác.`,
+                          [
+                            { text: 'Hủy', style: 'cancel' },
+                            {
+                              text: 'Xóa ví',
+                              style: 'destructive',
+                              onPress: async () => {
+                                try {
+                                  setSelectedAccountDetail(null);
+                                  const res = await accountApi.deleteAccount(acc.id);
+                                  if (res.success) {
+                                    Alert.alert('Thành công', `Đã xóa ví "${acc.name}" thành công!`);
+                                    await loadAccounts();
+                                  } else {
+                                    Alert.alert('Lỗi', res.message || 'Không thể xóa ví này.');
+                                  }
+                                } catch (err: any) {
+                                  Alert.alert('Lỗi', err?.message || 'Có lỗi xảy ra khi xóa ví.');
+                                }
+                              },
+                            },
+                          ]
+                        );
+                      }}
+                      style={styles.deleteActionBtn}
+                    >
+                      <FinanceIcon name="delete" size={16} color="#DC2626" />
+                      <Text style={styles.deleteActionBtnText}>Xóa</Text>
+                    </Pressable>
+
+                    <Pressable
+                      onPress={() => setSelectedAccountDetail(null)}
+                      style={styles.closeActionBtn}
+                    >
+                      <Text style={styles.closeActionBtnText}>Đóng</Text>
+                    </Pressable>
+                  </View>
+                </View>
+              </View>
+            </View>
+          </Modal>
+        );
+      })()}
+
+      {/* ── 6. MODAL CHỈNH SỬA VÍ (ĐỔI TÊN, SỐ DƯ, BẬT TẮT) ── */}
+      {isEditModalOpen && selectedAccountForEdit && (
+        <Modal visible transparent animationType="slide">
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalSheet}>
+              <View style={styles.modalHeader}>
+                <View style={styles.modalHeaderLeft}>
+                  <View style={[styles.modalIconWrap, { backgroundColor: '#E0F2FE' }]}>
+                    <FinanceIcon name="edit" size={18} color="#0284C7" />
+                  </View>
+                  <View>
+                    <Text style={styles.modalTitle}>Sửa thông tin ví</Text>
+                    <Text style={styles.modalSubTitle}>{selectedAccountForEdit.name}</Text>
+                  </View>
+                </View>
+                <Pressable
+                  onPress={() => setIsEditModalOpen(false)}
+                  hitSlop={10}
+                  style={styles.modalCloseBtn}
+                >
+                  <Text style={styles.modalCloseText}>✕</Text>
+                </Pressable>
+              </View>
+
+              <ScrollView style={styles.modalBody} showsVerticalScrollIndicator={false}>
+                {/* Tên ví */}
+                <View style={styles.modalInputGroup}>
+                  <Text style={styles.modalInputLabel}>Tên hiển thị ví / tài khoản *</Text>
+                  <TextInput
+                    value={editName}
+                    onChangeText={setEditName}
+                    placeholder="Nhập tên ví..."
+                    placeholderTextColor="#94A3B8"
+                    style={styles.modalTextInput}
+                  />
+                </View>
+
+                {/* Số dư hiện tại */}
+                <View style={styles.modalInputGroup}>
+                  <Text style={styles.modalInputLabel}>
+                    {selectedAccountForEdit.accountType === 'CREDIT_CARD'
+                      ? 'Dư nợ hiện tại (VNĐ) *'
+                      : 'Số dư hiện tại (VNĐ) *'}
+                  </Text>
+                  <TextInput
+                    value={editBalance}
+                    onChangeText={(t) => setEditBalance(formatNumberWithDots(t))}
+                    placeholder="0"
+                    placeholderTextColor="#94A3B8"
+                    keyboardType="numeric"
+                    style={[styles.modalTextInput, { fontSize: 16, fontWeight: '800', color: '#059669' }]}
+                  />
+                  <Text style={styles.inputHelperText}>
+                    Hệ thống sẽ tự động cập nhật số dư mới vào lịch sử ví.
+                  </Text>
+                </View>
+
+                {/* Ghi chú / Mô tả */}
+                <View style={styles.modalInputGroup}>
+                  <Text style={styles.modalInputLabel}>Mô tả / Ghi chú ví</Text>
+                  <TextInput
+                    value={editDescription}
+                    onChangeText={setEditDescription}
+                    placeholder="Ghi chú ví (ví dụ: Ví tiền tiêu vặt, tài khoản nhận lương...)"
+                    placeholderTextColor="#94A3B8"
+                    style={styles.modalTextInput}
+                  />
+                </View>
+
+                {/* Trạng thái hoạt động */}
+                <View style={styles.switchRowGroup}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.switchTitle}>Trạng thái hoạt động</Text>
+                    <Text style={styles.switchSub}>Bật hoặc tắt ghi nhận giao dịch của ví này</Text>
+                  </View>
+                  <Switch
+                    value={editIsActive}
+                    onValueChange={setEditIsActive}
+                    trackColor={{ false: '#CBD5E1', true: '#00A86B' }}
+                    thumbColor="#FFFFFF"
+                  />
+                </View>
+
+                {/* Nút lưu */}
+                <View style={styles.editModalButtonsRow}>
+                  <Pressable
+                    onPress={() => setIsEditModalOpen(false)}
+                    style={styles.editCancelBtn}
+                  >
+                    <Text style={styles.editCancelBtnText}>Hủy</Text>
+                  </Pressable>
+                  <Pressable
+                    onPress={handleSaveEdit}
+                    disabled={editSubmitting}
+                    style={[styles.editSubmitBtn, editSubmitting && styles.disabled]}
+                  >
+                    {editSubmitting ? (
+                      <ActivityIndicator color="#FFFFFF" />
+                    ) : (
+                      <Text style={styles.editSubmitBtnText}>Lưu thay đổi</Text>
+                    )}
+                  </Pressable>
+                </View>
+              </ScrollView>
+            </View>
+          </View>
+        </Modal>
+      )}
+
+      {/* ── 7. MODAL THÊM VÍ / TÀI KHOẢN MỚI CÓ BỘ CHỌN LOGO ── */}
       <Modal visible={createModalVisible} transparent animationType="slide">
         <View style={styles.modalOverlay}>
           <View style={styles.modalSheet}>
@@ -439,7 +910,10 @@ export function AccountsScreen({ onBack, onAddTransaction }: Props) {
               </View>
 
               {/* 2. Bộ chọn Ngân hàng / Ví điện tử có Logo chuẩn web */}
-              {(modalCategory === 'BANK_ACCOUNT' || modalCategory === 'DEBIT_CARD' || modalCategory === 'CREDIT_CARD' || modalCategory === 'E_WALLET') && (
+              {(modalCategory === 'BANK_ACCOUNT' ||
+                modalCategory === 'DEBIT_CARD' ||
+                modalCategory === 'CREDIT_CARD' ||
+                modalCategory === 'E_WALLET') && (
                 <View style={styles.modalInputGroup}>
                   <View style={styles.presetLabelRow}>
                     <Text style={styles.modalInputLabel}>
@@ -458,7 +932,6 @@ export function AccountsScreen({ onBack, onAddTransaction }: Props) {
                   </View>
 
                   {selectedPreset ? (
-                    /* Thẻ ngân hàng / ví đã chọn kèm logo */
                     <View style={styles.selectedPresetCard}>
                       <View style={styles.selectedPresetLeft}>
                         <View style={styles.presetLogoSmall}>
@@ -488,7 +961,6 @@ export function AccountsScreen({ onBack, onAddTransaction }: Props) {
                       </View>
                     </View>
                   ) : (
-                    /* Thanh tìm kiếm ngân hàng / ví */
                     <View>
                       <View style={styles.searchPresetBox}>
                         <FinanceIcon name="search" size={16} color="#94A3B8" />
@@ -499,7 +971,11 @@ export function AccountsScreen({ onBack, onAddTransaction }: Props) {
                             setIsBankPickerOpen(true);
                           }}
                           onFocus={() => setIsBankPickerOpen(true)}
-                          placeholder={modalCategory === 'E_WALLET' ? 'Tìm ví: MoMo, ZaloPay, ShopeePay...' : 'Tìm ngân hàng: VCB, MB, Techcombank...'}
+                          placeholder={
+                            modalCategory === 'E_WALLET'
+                              ? 'Tìm ví: MoMo, ZaloPay, ShopeePay...'
+                              : 'Tìm ngân hàng: VCB, MB, Techcombank...'
+                          }
                           placeholderTextColor="#94A3B8"
                           style={styles.searchPresetInput}
                         />
@@ -510,7 +986,6 @@ export function AccountsScreen({ onBack, onAddTransaction }: Props) {
                         ) : null}
                       </View>
 
-                      {/* Dropdown / Grid danh sách ngân hàng / ví gợi ý kèm LOGO */}
                       <View style={styles.presetListWrap}>
                         <Text style={styles.presetListTitle}>Phổ biến nhất:</Text>
                         <ScrollView
@@ -562,7 +1037,9 @@ export function AccountsScreen({ onBack, onAddTransaction }: Props) {
               </View>
 
               {/* 4. Số tài khoản (Nếu là Bank/Card) */}
-              {(modalCategory === 'BANK_ACCOUNT' || modalCategory === 'DEBIT_CARD' || modalCategory === 'CREDIT_CARD') && (
+              {(modalCategory === 'BANK_ACCOUNT' ||
+                modalCategory === 'DEBIT_CARD' ||
+                modalCategory === 'CREDIT_CARD') && (
                 <View style={styles.modalInputGroup}>
                   <Text style={styles.modalInputLabel}>Số tài khoản / Số thẻ (Tùy chọn)</Text>
                   <TextInput
@@ -580,7 +1057,7 @@ export function AccountsScreen({ onBack, onAddTransaction }: Props) {
               <View style={styles.modalInputGroup}>
                 <Text style={styles.modalInputLabel}>Số dư ban đầu (VNĐ)</Text>
                 <TextInput
-                  value={newAccBalance ? formatVND(parseInt(newAccBalance.replace(/\D/g, '') || '0', 10)) : ''}
+                  value={newAccBalance ? formatNumberWithDots(newAccBalance) : ''}
                   onChangeText={setNewAccBalance}
                   placeholder="0"
                   placeholderTextColor="#94A3B8"
@@ -696,6 +1173,26 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
+  liabilitiesRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: '#FFF1F2',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 10,
+    marginTop: 10,
+  },
+  liabilitiesLabel: {
+    fontSize: 11.5,
+    fontWeight: '700',
+    color: '#E11D48',
+  },
+  liabilitiesValue: {
+    fontSize: 12.5,
+    fontWeight: '800',
+    color: '#E11D48',
+  },
   heroTotalFooter: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -714,14 +1211,16 @@ const styles = StyleSheet.create({
     color: '#059669',
     fontWeight: '700',
   },
-  filterPillsRow: {
-    flexDirection: 'row',
-    gap: 6,
+  filterTabsContainer: {
     marginVertical: 2,
   },
+  filterPillsScroll: {
+    gap: 8,
+    paddingVertical: 2,
+  },
   filterPill: {
-    paddingHorizontal: 12,
-    paddingVertical: 7,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
     borderRadius: 18,
     backgroundColor: '#FFFFFF',
     borderWidth: 1,
@@ -749,6 +1248,10 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.03,
     shadowRadius: 6,
     elevation: 2,
+  },
+  accountCardInactive: {
+    opacity: 0.65,
+    backgroundColor: '#F8FAFC',
   },
   cardMainRow: {
     flexDirection: 'row',
@@ -834,6 +1337,34 @@ const styles = StyleSheet.create({
     color: '#059669',
     fontWeight: '700',
     marginTop: 2,
+  },
+  cardFooterRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    borderTopWidth: 1,
+    borderTopColor: '#F1F5F9',
+    marginTop: 12,
+    paddingTop: 10,
+  },
+  statusIndicator: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+  },
+  statusDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 4,
+  },
+  statusText: {
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  tapToDetailText: {
+    fontSize: 11.5,
+    fontWeight: '700',
+    color: '#059669',
   },
   loadingBox: {
     paddingVertical: 40,
@@ -1095,6 +1626,61 @@ const styles = StyleSheet.create({
     color: '#0F172A',
     fontWeight: '600',
   },
+  inputHelperText: {
+    fontSize: 11,
+    color: '#64748B',
+    marginTop: 4,
+  },
+  switchRowGroup: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#F8FAFC',
+    borderRadius: 14,
+    padding: 14,
+    borderWidth: 1.2,
+    borderColor: '#E2E8F0',
+    marginBottom: 18,
+  },
+  switchTitle: {
+    fontSize: 13.5,
+    fontWeight: '700',
+    color: '#0F172A',
+  },
+  switchSub: {
+    fontSize: 11,
+    color: '#64748B',
+    marginTop: 2,
+  },
+  editModalButtonsRow: {
+    flexDirection: 'row',
+    gap: 10,
+    marginTop: 8,
+  },
+  editCancelBtn: {
+    flex: 1,
+    backgroundColor: '#F1F5F9',
+    borderRadius: 14,
+    paddingVertical: 13,
+    alignItems: 'center',
+  },
+  editCancelBtnText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#64748B',
+  },
+  editSubmitBtn: {
+    flex: 2,
+    backgroundColor: '#074838',
+    borderRadius: 14,
+    paddingVertical: 13,
+    alignItems: 'center',
+  },
+  editSubmitBtnText: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#FFFFFF',
+  },
   submitModalBtn: {
     backgroundColor: '#00A86B',
     borderRadius: 16,
@@ -1118,5 +1704,205 @@ const styles = StyleSheet.create({
   },
   disabled: {
     opacity: 0.6,
+  },
+  /* ── CHI TIẾT VÍ MODAL ── */
+  detailSheet: {
+    backgroundColor: '#FFFFFF',
+    borderTopLeftRadius: 26,
+    borderTopRightRadius: 26,
+    paddingBottom: 26,
+    maxHeight: '85%',
+  },
+  detailHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F1F5F9',
+  },
+  detailHeaderLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    flex: 1,
+    marginRight: 10,
+  },
+  detailLogoWrap: {
+    width: 44,
+    height: 44,
+    borderRadius: 14,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 4,
+  },
+  detailTitle: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: '#0F172A',
+  },
+  detailSub: {
+    fontSize: 11.5,
+    color: '#64748B',
+    marginTop: 1,
+  },
+  detailBody: {
+    padding: 20,
+    gap: 16,
+  },
+  detailCardBox: {
+    backgroundColor: '#F8FAFC',
+    borderRadius: 18,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    gap: 12,
+  },
+  detailRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  detailRowLabel: {
+    fontSize: 12.5,
+    fontWeight: '600',
+    color: '#64748B',
+  },
+  detailRowValue: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#0F172A',
+  },
+  detailRowValueHighlight: {
+    fontSize: 18,
+    fontWeight: '900',
+    color: '#059669',
+  },
+  detailActionRow: {
+    flexDirection: 'row',
+    gap: 10,
+    marginTop: 6,
+  },
+  editActionBtn: {
+    flex: 1.2,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    backgroundColor: '#E8F8F0',
+    borderRadius: 14,
+    paddingVertical: 12,
+    borderWidth: 1,
+    borderColor: '#A7F3D0',
+  },
+  editActionBtnText: {
+    fontSize: 13.5,
+    fontWeight: '800',
+    color: '#074838',
+  },
+  deleteActionBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 5,
+    backgroundColor: '#FEE2E2',
+    borderRadius: 14,
+    paddingVertical: 12,
+    borderWidth: 1,
+    borderColor: '#FECACA',
+  },
+  deleteActionBtnText: {
+    fontSize: 13.5,
+    fontWeight: '800',
+    color: '#DC2626',
+  },
+  closeActionBtn: {
+    flex: 1,
+    backgroundColor: '#074838',
+    borderRadius: 14,
+    paddingVertical: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  closeActionBtnText: {
+    fontSize: 13.5,
+    fontWeight: '800',
+    color: '#FFFFFF',
+  },
+  /* ── MODAL XÁC NHẬN XÓA ── */
+  confirmModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 24,
+  },
+  confirmModalBox: {
+    width: '100%',
+    maxWidth: 340,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 22,
+    padding: 22,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    elevation: 6,
+  },
+  deleteIconWrap: {
+    width: 52,
+    height: 52,
+    borderRadius: 18,
+    backgroundColor: '#FEE2E2',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 14,
+  },
+  confirmModalTitle: {
+    fontSize: 17,
+    fontWeight: '800',
+    color: '#0F172A',
+    marginBottom: 6,
+  },
+  confirmModalDesc: {
+    fontSize: 13,
+    color: '#64748B',
+    textAlign: 'center',
+    lineHeight: 19,
+    marginBottom: 20,
+  },
+  confirmActionsRow: {
+    flexDirection: 'row',
+    gap: 10,
+    width: '100%',
+  },
+  confirmCancelBtn: {
+    flex: 1,
+    backgroundColor: '#F1F5F9',
+    borderRadius: 14,
+    paddingVertical: 12,
+    alignItems: 'center',
+  },
+  confirmCancelText: {
+    fontSize: 13.5,
+    fontWeight: '700',
+    color: '#64748B',
+  },
+  confirmDeleteBtn: {
+    flex: 1,
+    backgroundColor: '#DC2626',
+    borderRadius: 14,
+    paddingVertical: 12,
+    alignItems: 'center',
+  },
+  confirmDeleteText: {
+    fontSize: 13.5,
+    fontWeight: '800',
+    color: '#FFFFFF',
   },
 });

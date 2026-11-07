@@ -30,4 +30,7 @@ public class UpdateProfileRequest {
     @Size(max = 10, message = "Language code must not exceed 10 characters")
     @Pattern(regexp = "^[a-z]{2}-[A-Z]{2}$", message = "Language must be in format: xx-XX (e.g., vi-VN, en-US)")
     private String language;
+
+    @Size(max = 500, message = "Avatar URL must not exceed 500 characters")
+    private String avatarUrl;
 }

@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
+  Image,
   Modal,
   Pressable,
   RefreshControl,
@@ -14,6 +15,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { FinanceIcon, resolveCategoryIconName } from '../../core/components/FinanceIcon';
 import { transactionApi, type TransactionType } from '../../add-transaction/api/transactionApi';
 import { API_BASE_URL, authStorage } from '../../auth/api/authApi';
+import { accountApi, type AccountItem, type AccountTypeCode } from '../../accounts/api/accountApi';
+import { findBankOrWalletPreset } from '../../accounts/constants/banksData';
 
 type Props = {
   onBack: () => void;
@@ -32,6 +35,9 @@ export interface TransactionItem {
   description: string;
   transactionDate: string;
   transactionTime?: string;
+  receiptUrl?: string;
+  notes?: string;
+  createdAt?: string;
   category?: {
     id: string;
     name: string;
@@ -69,10 +75,98 @@ export function TransactionsScreen({ onBack, onAddTransaction }: Props) {
   });
 
   const [monthModalVisible, setMonthModalVisible] = useState(false);
+  const [walletModalVisible, setWalletModalVisible] = useState(false);
+  const [selectedTxDetail, setSelectedTxDetail] = useState<TransactionItem | null>(null);
 
-  // Danh sách 12 tháng gần nhất để lọc
+  // Bộ lọc theo Ví / Nguồn tiền cụ thể (ALL hoặc accountId)
+  const [selectedAccount, setSelectedAccount] = useState<string>('ALL');
+  const [accounts, setAccounts] = useState<AccountItem[]>([]);
+
+  // Tải danh sách tài khoản/ví người dùng
+  useEffect(() => {
+    accountApi.getAccounts().then((accList) => {
+      setAccounts(accList || []);
+    });
+  }, []);
+
+  // Map accountId -> AccountItem để tra cứu nhanh thông tin ví
+  const accountMap = useMemo(() => {
+    const map = new Map<string, AccountItem>();
+    accounts.forEach((acc) => {
+      map.set(acc.id, acc);
+    });
+    return map;
+  }, [accounts]);
+
+  // Lấy meta hiển thị cho loại tài khoản (đồng bộ AccountsScreen)
+  const getAccountTypeMeta = (type?: AccountTypeCode) => {
+    switch (type) {
+      case 'CASH':
+        return { label: 'Tiền mặt', icon: 'wallet', color: '#059669', bg: '#E8F8F0' };
+      case 'BANK_ACCOUNT':
+        return { label: 'Ngân hàng', icon: 'bank', color: '#0284C7', bg: '#E0F2FE' };
+      case 'E_WALLET':
+        return { label: 'Ví điện tử', icon: 'wallet', color: '#D97706', bg: '#FEF3C7' };
+      case 'CREDIT_CARD':
+        return { label: 'Thẻ tín dụng', icon: 'card', color: '#E11D48', bg: '#FEE2E2' };
+      case 'SAVINGS':
+        return { label: 'Tiết kiệm', icon: 'savings', color: '#7C3AED', bg: '#F3E8FF' };
+      case 'INVESTMENT':
+        return { label: 'Đầu tư', icon: 'analytics', color: '#2563EB', bg: '#DBEAFE' };
+      case 'CRYPTO':
+        return { label: 'Tiền mã hóa', icon: 'wallet', color: '#F59E0B', bg: '#FEF3C7' };
+      default:
+        return { label: 'Khác', icon: 'wallet', color: '#64748B', bg: '#F1F5F9' };
+    }
+  };
+
+  // Render Icon hoặc Logo thương hiệu của ví (Vietcombank, MB, MoMo, ZaloPay...)
+  const renderWalletBadge = (acc?: AccountItem, size = 38) => {
+    if (!acc) {
+      return (
+        <View style={[styles.walletOptionIconBox, { width: size, height: size, backgroundColor: '#E8F8F0' }]}>
+          <FinanceIcon name="wallet" size={size * 0.48} color="#059669" />
+        </View>
+      );
+    }
+
+    const brand = findBankOrWalletPreset(acc.name);
+    const meta = getAccountTypeMeta(acc.accountType);
+
+    if (brand?.logoUrl) {
+      return (
+        <View style={[styles.walletBrandLogoBox, { width: size, height: size }]}>
+          <Image source={{ uri: brand.logoUrl }} style={styles.walletBrandLogoImg} resizeMode="contain" />
+        </View>
+      );
+    }
+
+    if (brand) {
+      return (
+        <View style={[styles.walletBrandLogoBox, { width: size, height: size, backgroundColor: brand.bgColor }]}>
+          <Text style={[styles.walletBrandLogoText, { color: brand.textColor, fontSize: size * 0.32 }]}>
+            {brand.shortName.slice(0, 3)}
+          </Text>
+        </View>
+      );
+    }
+
+    return (
+      <View style={[styles.walletOptionIconBox, { width: size, height: size, backgroundColor: meta.bg }]}>
+        <FinanceIcon name={meta.icon as any} size={size * 0.48} color={meta.color} />
+      </View>
+    );
+  };
+
+  const selectedAccountLabel = selectedAccount === 'ALL'
+    ? 'Tất cả ví'
+    : accounts.find((a) => a.id === selectedAccount)?.name || 'Tất cả ví';
+
+  // Danh sách kỳ báo cáo: "Tất cả thời gian" ở trên cùng + 12 tháng gần nhất
   const availableMonths = useMemo(() => {
-    const list: { key: string; label: string }[] = [];
+    const list: { key: string; label: string }[] = [
+      { key: 'ALL', label: 'Tất cả thời gian' },
+    ];
     const now = new Date();
     for (let i = 0; i < 12; i++) {
       const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
@@ -151,13 +245,21 @@ export function TransactionsScreen({ onBack, onAddTransaction }: Props) {
     fetchTransactions();
   }, [selectedMonth]);
 
-  // Lọc giao dịch theo Tab & Tìm kiếm
+  // Lọc giao dịch theo Tab, Tìm kiếm & Ví cụ thể
   const filteredTransactions = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();
     return transactions.filter((t) => {
-      // Lọc tab
+      // 1. Lọc theo Ví cụ thể mà người dùng sở hữu (đồng bộ bản Web)
+      if (selectedAccount !== 'ALL') {
+        const matchesFromAcc = t.accountId === selectedAccount;
+        const matchesToAcc = t.toAccountId === selectedAccount;
+        if (!matchesFromAcc && !matchesToAcc) return false;
+      }
+
+      // 2. Lọc tab
       if (activeTab !== 'ALL' && t.transactionType !== activeTab) return false;
-      // Lọc tìm kiếm
+
+      // 3. Lọc tìm kiếm
       if (query) {
         const matchDesc = t.description?.toLowerCase().includes(query);
         const matchCat = t.category?.name?.toLowerCase().includes(query);
@@ -166,7 +268,23 @@ export function TransactionsScreen({ onBack, onAddTransaction }: Props) {
       }
       return true;
     });
-  }, [transactions, activeTab, searchQuery]);
+  }, [transactions, activeTab, searchQuery, selectedAccount]);
+
+  // Tính lại tổng dòng tiền dựa trên danh sách giao dịch đã lọc theo ví
+  const displayedSummary = useMemo(() => {
+    let inc = 0;
+    let exp = 0;
+    filteredTransactions.forEach((t) => {
+      if (t.transactionType === 'INCOME') inc += t.amount;
+      else if (t.transactionType === 'EXPENSE') exp += t.amount;
+    });
+    return {
+      totalIncome: inc,
+      totalExpense: exp,
+      netCashFlow: inc - exp,
+      transactionCount: filteredTransactions.length,
+    };
+  }, [filteredTransactions]);
 
   // Gom nhóm giao dịch theo Ngày (DD/MM/YYYY)
   const groupedTransactions = useMemo(() => {
@@ -253,7 +371,7 @@ export function TransactionsScreen({ onBack, onAddTransaction }: Props) {
             </View>
             <Text style={styles.summaryCardLabel}>TỔNG THU</Text>
             <Text style={styles.summaryCardValueIncome} numberOfLines={1}>
-              +{formatVND(summary.totalIncome)} <Text style={styles.unitSmall}>đ</Text>
+              +{formatVND(displayedSummary.totalIncome)} <Text style={styles.unitSmall}>đ</Text>
             </Text>
           </View>
 
@@ -267,7 +385,7 @@ export function TransactionsScreen({ onBack, onAddTransaction }: Props) {
             </View>
             <Text style={styles.summaryCardLabel}>TỔNG CHI</Text>
             <Text style={styles.summaryCardValueExpense} numberOfLines={1}>
-              -{formatVND(summary.totalExpense)} <Text style={styles.unitSmall}>đ</Text>
+              -{formatVND(displayedSummary.totalExpense)} <Text style={styles.unitSmall}>đ</Text>
             </Text>
           </View>
         </View>
@@ -278,29 +396,55 @@ export function TransactionsScreen({ onBack, onAddTransaction }: Props) {
           <Text
             style={[
               styles.netCashflowValue,
-              summary.netCashFlow >= 0 ? styles.netPositive : styles.netNegative,
+              displayedSummary.netCashFlow >= 0 ? styles.netPositive : styles.netNegative,
             ]}
           >
-            {summary.netCashFlow >= 0 ? '+' : ''}
-            {formatVND(summary.netCashFlow)} đ
+            {displayedSummary.netCashFlow >= 0 ? '+' : ''}
+            {formatVND(displayedSummary.netCashFlow)} đ
           </Text>
         </View>
 
-        {/* ── 3. THANH TÌM KIẾM GIAO DỊCH ── */}
-        <View style={styles.searchBarBox}>
-          <Text style={styles.searchBarIcon}>⌕</Text>
-          <TextInput
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-            placeholder="Tìm theo nội dung, danh mục, tên ví..."
-            placeholderTextColor="#94A3B8"
-            style={styles.searchBarInput}
-          />
-          {searchQuery ? (
-            <Pressable onPress={() => setSearchQuery('')} hitSlop={8}>
-              <Text style={styles.clearSearchIcon}>✕</Text>
-            </Pressable>
-          ) : null}
+        {/* ── 3. HÀNG TÌM KIẾM & BỘ LỌC THẢ XUỐNG LOẠI VÍ ── */}
+        <View style={styles.filterRowContainer}>
+          {/* Thanh tìm kiếm */}
+          <View style={styles.searchBarBox}>
+            <Text style={styles.searchBarIcon}>⌕</Text>
+            <TextInput
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+              placeholder="Tìm kiếm giao dịch..."
+              placeholderTextColor="#94A3B8"
+              style={styles.searchBarInput}
+            />
+            {searchQuery ? (
+              <Pressable onPress={() => setSearchQuery('')} hitSlop={8}>
+                <Text style={styles.clearSearchIcon}>✕</Text>
+              </Pressable>
+            ) : null}
+          </View>
+
+          {/* Nút thả xuống chọn ví / nguồn tiền */}
+          <Pressable
+            onPress={() => setWalletModalVisible(true)}
+            style={[
+              styles.walletFilterDropdownBtn,
+              selectedAccount !== 'ALL' && styles.walletFilterDropdownBtnActive,
+            ]}
+          >
+            <View style={styles.walletFilterBtnContent}>
+              {renderWalletBadge(selectedAccount !== 'ALL' ? accountMap.get(selectedAccount) : undefined, 20)}
+              <Text
+                style={[
+                  styles.walletFilterBtnText,
+                  selectedAccount !== 'ALL' && styles.walletFilterBtnTextActive,
+                ]}
+                numberOfLines={1}
+              >
+                {selectedAccount === 'ALL' ? 'Nguồn tiền' : selectedAccountLabel}
+              </Text>
+              <Text style={styles.walletFilterDropdownChevron}>▾</Text>
+            </View>
+          </Pressable>
         </View>
 
         {/* ── 4. TAB PHÂN LOẠI: TẤT CẢ | CHI TIÊU | THU NHẬP | CHUYỂN KHOẢN ── */}
@@ -372,7 +516,10 @@ export function TransactionsScreen({ onBack, onAddTransaction }: Props) {
 
                   return (
                     <View key={tx.id || idx}>
-                      <View style={styles.txRow}>
+                      <Pressable
+                        onPress={() => setSelectedTxDetail(tx)}
+                        style={({ pressed }) => [styles.txRow, pressed && styles.txRowPressed]}
+                      >
                         {/* Icon vuông bo góc mềm mại */}
                         <View
                           style={[
@@ -453,7 +600,7 @@ export function TransactionsScreen({ onBack, onAddTransaction }: Props) {
                             </Text>
                           ) : null}
                         </View>
-                      </View>
+                      </Pressable>
 
                       {idx < group.items.length - 1 && <View style={styles.itemDivider} />}
                     </View>
@@ -508,6 +655,259 @@ export function TransactionsScreen({ onBack, onAddTransaction }: Props) {
             </ScrollView>
           </View>
         </View>
+      </Modal>
+
+      {/* ── MODAL THẢ XUỐNG CHỌN VÍ / NGUỒN TIỀN (CHUẨN BẢN WEB) ── */}
+      <Modal visible={walletModalVisible} transparent animationType="slide">
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalSheet}>
+            <View style={styles.modalTopBar}>
+              <View>
+                <Text style={styles.modalTopTitle}>Chọn Ví / Nguồn tiền</Text>
+                <Text style={styles.modalTopSub}>Lọc các giao dịch phát sinh từ ví này</Text>
+              </View>
+              <Pressable onPress={() => setWalletModalVisible(false)} hitSlop={10}>
+                <Text style={styles.modalCloseText}>Đóng</Text>
+              </Pressable>
+            </View>
+            <ScrollView style={{ paddingHorizontal: 16, maxHeight: 420 }}>
+              {/* Lựa chọn: Tất cả tài khoản / Ví */}
+              <Pressable
+                onPress={() => {
+                  setSelectedAccount('ALL');
+                  setWalletModalVisible(false);
+                }}
+                style={[styles.walletOptionRow, selectedAccount === 'ALL' && styles.walletOptionRowActive]}
+              >
+                <View style={styles.walletOptionLeft}>
+                  <View style={[styles.walletOptionIconBox, { backgroundColor: '#ECFDF5' }]}>
+                    <FinanceIcon name="wallet" size={18} color="#00A86B" />
+                  </View>
+                  <View>
+                    <Text style={[styles.walletOptionLabel, selectedAccount === 'ALL' && styles.walletOptionLabelActive]}>
+                      Tất cả tài khoản / Ví
+                    </Text>
+                    <Text style={styles.walletOptionCountText}>
+                      {transactions.length} giao dịch
+                    </Text>
+                  </View>
+                </View>
+                {selectedAccount === 'ALL' && <Text style={styles.checkmarkIcon}>✓</Text>}
+              </Pressable>
+
+              {/* Danh sách các ví người dùng thực tế đang có */}
+              {accounts.map((acc) => {
+                const isSelected = selectedAccount === acc.id;
+                // Đếm số lượng giao dịch của ví này
+                const count = transactions.filter(
+                  (t) => t.accountId === acc.id || t.toAccountId === acc.id
+                ).length;
+
+                return (
+                  <Pressable
+                    key={acc.id}
+                    onPress={() => {
+                      setSelectedAccount(acc.id);
+                      setWalletModalVisible(false);
+                    }}
+                    style={[styles.walletOptionRow, isSelected && styles.walletOptionRowActive]}
+                  >
+                    <View style={styles.walletOptionLeft}>
+                      {renderWalletBadge(acc, 40)}
+                      <View style={{ flex: 1 }}>
+                        <Text style={[styles.walletOptionLabel, isSelected && styles.walletOptionLabelActive]} numberOfLines={1}>
+                          {acc.name}
+                        </Text>
+                        <Text style={styles.walletOptionCountText}>
+                          {count} giao dịch · Số dư: {formatVND(acc.balance || 0)} đ
+                        </Text>
+                      </View>
+                    </View>
+                    {isSelected && <Text style={styles.checkmarkIcon}>✓</Text>}
+                  </Pressable>
+                );
+              })}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+
+      {/* ── MODAL CHI TIẾT GIAO DỊCH (BOTTOM SHEET SANG TRỌNG) ── */}
+      <Modal visible={Boolean(selectedTxDetail)} transparent animationType="slide">
+        {selectedTxDetail && (() => {
+          const isIncome = selectedTxDetail.transactionType === 'INCOME';
+          const isTransfer = selectedTxDetail.transactionType === 'TRANSFER';
+          const iconName = resolveCategoryIconName(
+            selectedTxDetail.category?.icon,
+            selectedTxDetail.transactionType,
+            selectedTxDetail.category?.name || selectedTxDetail.description
+          );
+          const fromAccount = accountMap.get(selectedTxDetail.accountId);
+          const toAccount = selectedTxDetail.toAccountId ? accountMap.get(selectedTxDetail.toAccountId) : undefined;
+
+          // Format ngày tháng DD/MM/YYYY
+          let displayDate = selectedTxDetail.transactionDate || '';
+          if (displayDate.includes('-')) {
+            const parts = displayDate.split('-');
+            if (parts.length === 3) displayDate = `${parts[2]}/${parts[1]}/${parts[0]}`;
+          }
+
+          return (
+            <View style={styles.modalOverlay}>
+              <View style={styles.detailSheet}>
+                {/* Header sheet */}
+                <View style={styles.detailTopBar}>
+                  <Text style={styles.detailTopTitle}>Chi tiết giao dịch</Text>
+                  <Pressable onPress={() => setSelectedTxDetail(null)} hitSlop={12}>
+                    <Text style={styles.modalCloseText}>Đóng</Text>
+                  </Pressable>
+                </View>
+
+                <ScrollView style={styles.detailScrollBody} showsVerticalScrollIndicator={false}>
+                  {/* Card số tiền to nổi bật */}
+                  <View style={styles.detailHeroCard}>
+                    <View
+                      style={[
+                        styles.detailBigIconBox,
+                        isIncome
+                          ? styles.txIconBoxIncome
+                          : isTransfer
+                          ? styles.txIconBoxTransfer
+                          : styles.txIconBoxExpense,
+                      ]}
+                    >
+                      <FinanceIcon
+                        name={iconName}
+                        size={28}
+                        color={isIncome ? '#00A86B' : isTransfer ? '#0284C7' : '#E53E3E'}
+                      />
+                    </View>
+
+                    <Text style={styles.detailDescriptionText}>
+                      {selectedTxDetail.description || selectedTxDetail.category?.name || 'Giao dịch'}
+                    </Text>
+
+                    <Text
+                      style={[
+                        styles.detailAmountText,
+                        isIncome ? styles.colorIncome : isTransfer ? { color: '#0284C7' } : styles.colorExpense,
+                      ]}
+                    >
+                      {isIncome ? '+' : isTransfer ? '' : '-'}
+                      {formatVND(selectedTxDetail.amount)} đ
+                    </Text>
+
+                    <View
+                      style={[
+                        styles.detailTypeBadge,
+                        isIncome
+                          ? styles.txCatPillIncome
+                          : isTransfer
+                          ? styles.txCatPillTransfer
+                          : styles.txCatPillExpense,
+                      ]}
+                    >
+                      <Text
+                        style={[
+                          styles.detailTypeBadgeText,
+                          isIncome ? styles.colorIncome : isTransfer ? { color: '#0284C7' } : styles.colorExpense,
+                        ]}
+                      >
+                        {isTransfer
+                          ? 'Giao dịch chuyển khoản'
+                          : isIncome
+                          ? 'Khoản tiền thu vào'
+                          : 'Khoản tiền chi ra'}
+                      </Text>
+                    </View>
+                  </View>
+
+                  {/* Danh sách thông tin chi tiết */}
+                  <View style={styles.detailInfoGroup}>
+                    {/* Danh mục */}
+                    {!isTransfer && (
+                      <View style={styles.detailInfoRow}>
+                        <Text style={styles.detailInfoLabel}>Hạng mục / Danh mục</Text>
+                        <View style={styles.detailInfoValueRow}>
+                          <Text style={styles.detailInfoValueText}>
+                            {selectedTxDetail.category?.name || (isIncome ? 'Thu nhập chung' : 'Chi tiêu chung')}
+                          </Text>
+                        </View>
+                      </View>
+                    )}
+
+                    {/* Nguồn tiền / Ví chuyển */}
+                    <View style={styles.detailInfoRow}>
+                      <Text style={styles.detailInfoLabel}>
+                        {isTransfer ? 'Ví chuyển đi (Nguồn)' : 'Nguồn tiền / Ví'}
+                      </Text>
+                      <View style={styles.detailInfoValueRow}>
+                        {renderWalletBadge(fromAccount, 22)}
+                        <Text style={styles.detailInfoValueText}>
+                          {selectedTxDetail.accountName || fromAccount?.name || 'Ví tiền mặt'}
+                        </Text>
+                      </View>
+                    </View>
+
+                    {/* Ví nhận (nếu chuyển khoản) */}
+                    {isTransfer && (
+                      <View style={styles.detailInfoRow}>
+                        <Text style={styles.detailInfoLabel}>Ví nhận (Đích đến)</Text>
+                        <View style={styles.detailInfoValueRow}>
+                          {renderWalletBadge(toAccount, 22)}
+                          <Text style={styles.detailInfoValueText}>
+                            {selectedTxDetail.toAccountName || toAccount?.name || 'Ví thụ hưởng'}
+                          </Text>
+                        </View>
+                      </View>
+                    )}
+
+                    {/* Thời gian giao dịch (Giờ trước, ngày sau: HH:mm ngày DD/MM/YYYY) */}
+                    <View style={styles.detailInfoRow}>
+                      <Text style={styles.detailInfoLabel}>Thời gian ghi nhận</Text>
+                      <Text style={styles.detailInfoValueText}>
+                        {selectedTxDetail.transactionTime
+                          ? `${selectedTxDetail.transactionTime.slice(0, 5)} ngày ${displayDate}`
+                          : displayDate}
+                      </Text>
+                    </View>
+
+                    {/* Ghi chú */}
+                    {selectedTxDetail.notes ? (
+                      <View style={styles.detailInfoRow}>
+                        <Text style={styles.detailInfoLabel}>Ghi chú thêm</Text>
+                        <Text style={styles.detailInfoValueText}>{selectedTxDetail.notes}</Text>
+                      </View>
+                    ) : null}
+
+                    {/* Mã giao dịch */}
+                    <View style={[styles.detailInfoRow, { borderBottomWidth: 0 }]}>
+                      <Text style={styles.detailInfoLabel}>Mã giao dịch</Text>
+                      <Text style={styles.detailCodeText}>
+                        #{selectedTxDetail.id ? selectedTxDetail.id.slice(0, 10).toUpperCase() : 'TXN'}
+                      </Text>
+                    </View>
+                  </View>
+
+                  {/* Ảnh hóa đơn đính kèm (nếu có) */}
+                  {selectedTxDetail.receiptUrl ? (
+                    <View style={styles.receiptContainer}>
+                      <View style={styles.receiptHeaderRow}>
+                        <FinanceIcon name="receipt" size={16} color="#008B62" />
+                        <Text style={styles.receiptHeaderText}>Hóa đơn đính kèm</Text>
+                      </View>
+                      <Image
+                        source={{ uri: selectedTxDetail.receiptUrl }}
+                        style={styles.receiptImage}
+                        resizeMode="cover"
+                      />
+                    </View>
+                  ) : null}
+                </ScrollView>
+              </View>
+            </View>
+          );
+        })()}
       </Modal>
     </View>
   );
@@ -655,20 +1055,26 @@ const styles = StyleSheet.create({
   netNegative: {
     color: '#DC2626',
   },
+  filterRowContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
   searchBarBox: {
+    flex: 1,
     backgroundColor: '#FFFFFF',
     borderRadius: 16,
-    paddingHorizontal: 14,
-    height: 46,
+    paddingHorizontal: 12,
+    height: 44,
     flexDirection: 'row',
     alignItems: 'center',
     borderWidth: 1,
     borderColor: '#E2E8F0',
   },
   searchBarIcon: {
-    fontSize: 20,
+    fontSize: 18,
     color: '#94A3B8',
-    marginRight: 8,
+    marginRight: 6,
   },
   searchBarInput: {
     flex: 1,
@@ -680,6 +1086,107 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#94A3B8',
     padding: 4,
+  },
+  walletFilterDropdownBtn: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    borderWidth: 1.5,
+    borderColor: '#E2E8F0',
+    height: 44,
+    paddingHorizontal: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+    minWidth: 110,
+    maxWidth: 145,
+  },
+  walletFilterDropdownBtnActive: {
+    backgroundColor: '#ECFDF5',
+    borderColor: '#10B981',
+  },
+  walletFilterBtnContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+  },
+  walletFilterBtnText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#475569',
+    flexShrink: 1,
+  },
+  walletFilterBtnTextActive: {
+    color: '#065F46',
+    fontWeight: '800',
+  },
+  walletFilterDropdownChevron: {
+    fontSize: 11,
+    color: '#64748B',
+    marginLeft: 2,
+  },
+  modalTopSub: {
+    fontSize: 12,
+    color: '#64748B',
+    marginTop: 2,
+    fontWeight: '500',
+  },
+  walletOptionRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F1F5F9',
+    borderRadius: 14,
+  },
+  walletOptionRowActive: {
+    backgroundColor: '#F0FDF4',
+  },
+  walletOptionLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  walletOptionIconBox: {
+    width: 38,
+    height: 38,
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  walletBrandLogoBox: {
+    borderRadius: 12,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 3,
+    shadowColor: '#000',
+    shadowOpacity: 0.04,
+    shadowRadius: 3,
+    elevation: 1,
+  },
+  walletBrandLogoImg: {
+    width: '100%',
+    height: '100%',
+  },
+  walletBrandLogoText: {
+    fontWeight: '800',
+  },
+  walletOptionLabel: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#1E293B',
+  },
+  walletOptionLabelActive: {
+    color: '#00A86B',
+    fontWeight: '800',
+  },
+  walletOptionCountText: {
+    fontSize: 11.5,
+    color: '#64748B',
+    marginTop: 2,
   },
   tabsRow: {
     flexDirection: 'row',
@@ -947,5 +1454,137 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '900',
     color: '#00A86B',
+  },
+  txRowPressed: {
+    opacity: 0.7,
+    backgroundColor: '#F8FAFC',
+  },
+  detailSheet: {
+    backgroundColor: '#FFFFFF',
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    maxHeight: '85%',
+    paddingBottom: 32,
+  },
+  detailTopBar: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 18,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F1F5F9',
+  },
+  detailTopTitle: {
+    fontSize: 17,
+    fontWeight: '800',
+    color: '#0F172A',
+  },
+  detailScrollBody: {
+    paddingHorizontal: 20,
+    paddingTop: 16,
+  },
+  detailHeroCard: {
+    backgroundColor: '#F8FAFC',
+    borderRadius: 20,
+    paddingVertical: 20,
+    paddingHorizontal: 16,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    marginBottom: 16,
+  },
+  detailBigIconBox: {
+    width: 58,
+    height: 58,
+    borderRadius: 18,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  detailDescriptionText: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#475569',
+    textAlign: 'center',
+    marginBottom: 6,
+  },
+  detailAmountText: {
+    fontSize: 26,
+    fontWeight: '900',
+    letterSpacing: -0.5,
+    marginBottom: 10,
+  },
+  detailTypeBadge: {
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  detailTypeBadgeText: {
+    fontSize: 11.5,
+    fontWeight: '700',
+  },
+  detailInfoGroup: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    paddingHorizontal: 16,
+    marginBottom: 16,
+  },
+  detailInfoRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 13,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F1F5F9',
+  },
+  detailInfoLabel: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#64748B',
+  },
+  detailInfoValueRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    maxWidth: '65%',
+  },
+  detailInfoValueText: {
+    fontSize: 13.5,
+    fontWeight: '700',
+    color: '#0F172A',
+    textAlign: 'right',
+  },
+  detailCodeText: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#008B62',
+    fontFamily: 'monospace',
+  },
+  receiptContainer: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    padding: 14,
+    marginBottom: 20,
+  },
+  receiptHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 10,
+  },
+  receiptHeaderText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#0F172A',
+  },
+  receiptImage: {
+    width: '100%',
+    height: 200,
+    borderRadius: 14,
   },
 });

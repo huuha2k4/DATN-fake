@@ -10,6 +10,7 @@ import org.springframework.stereotype.Repository;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -35,6 +36,15 @@ public interface GroupExpenseRepository extends JpaRepository<GroupExpense, UUID
                                                    @Param("endDate") LocalDate endDate,
                                                    Pageable pageable);
     
+    @Query("SELECT ge FROM GroupExpense ge " +
+           "WHERE ge.groupId = :groupId " +
+           "AND ge.expenseDate BETWEEN :startDate AND :endDate " +
+           "AND ge.deletedAt IS NULL " +
+           "ORDER BY ge.expenseDate DESC")
+    List<GroupExpense> findAllByGroupIdAndDateRange(@Param("groupId") UUID groupId,
+                                                    @Param("startDate") LocalDate startDate,
+                                                    @Param("endDate") LocalDate endDate);
+
     @Query("SELECT SUM(ge.amount) FROM GroupExpense ge " +
            "WHERE ge.groupId = :groupId AND ge.deletedAt IS NULL")
     BigDecimal sumAmountByGroupId(@Param("groupId") UUID groupId);

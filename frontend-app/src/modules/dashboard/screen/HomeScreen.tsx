@@ -16,6 +16,7 @@ import { AssetSummaryCard } from '../components/AssetSummaryCard';
 import { BudgetCard } from '../components/BudgetCard';
 import { QuickActionsGrid } from '../components/QuickActionsGrid';
 import { FinAIBanner } from '../components/FinAIBanner';
+import { BalanceForecastBanner } from '../components/BalanceForecastBanner';
 import { RecentTransactions } from '../components/RecentTransactions';
 
 type Props = {
@@ -23,6 +24,8 @@ type Props = {
   onAddTransaction: () => void;
   onScanInvoice: () => void;
   onViewGoals: () => void;
+  onViewBudget: () => void;
+  onViewDebts: () => void;
   onViewReminders: () => void;
   onViewAiAssistant: () => void;
   onViewAccounts: () => void;
@@ -38,6 +41,8 @@ export function HomeScreen({
   onAddTransaction,
   onScanInvoice,
   onViewGoals,
+  onViewBudget,
+  onViewDebts,
   onViewReminders,
   onViewAiAssistant,
   onViewAccounts,
@@ -171,18 +176,24 @@ export function HomeScreen({
         budgetPercent={budgetPercent}
       />
 
-      {/* ── 3. GRID 6 NÚT TIỆN ÍCH CHÍNH (3 CỘT X 2 HÀNG) ── */}
+      {/* ── 3. GRID 8 NÚT TIỆN ÍCH CHÍNH (4 CỘT X 2 HÀNG) ── */}
       <QuickActionsGrid
         onAddTransaction={onAddTransaction}
         onViewAccounts={onViewAccounts}
         onViewGoals={onViewGoals}
+        onViewBudget={onViewBudget}
+        onViewDebts={onViewDebts}
         onViewSpendingAnalysis={onViewSpendingAnalysis}
         onViewReminders={onViewReminders}
         onViewPeriodicReports={onViewPeriodicReports}
       />
 
-      {/* ── 4. BANNER TRỢ LÝ FINAI (ROBOT XANH KÈM MŨI TÊN TRÒN) ── */}
+      {/* ── 4. BỘ ĐÔI BANNER THÔNG MINH AI ── */}
+      {/* 4.1 Trợ lý trò chuyện FinAI Copilot */}
       <FinAIBanner onPress={onViewAiAssistant} />
+
+      {/* 4.2 AI Dự báo số dư & Dòng tiền tương lai */}
+      <BalanceForecastBanner onPress={onViewBalanceForecast} />
 
       {/* ── 5. DANH SÁCH GIAO DỊCH GẦN ĐÂY ── */}
       <RecentTransactions

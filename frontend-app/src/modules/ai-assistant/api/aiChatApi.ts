@@ -1,4 +1,5 @@
 import { NativeModules, Platform } from 'react-native';
+import { API_BASE_URL, authStorage } from '../../auth/api/authApi';
 
 export interface ChatMessage {
   id: string;
@@ -13,28 +14,64 @@ export interface ChatSessionItem {
   created_at: string;
 }
 
-function getAiServiceBaseUrl(): string {
+function getAiServiceBaseUrls(): string[] {
+  const list: string[] = [];
+
+  // 1. Ưu tiên biến môi trường EXPO_PUBLIC_AI_URL từ .env
   if (process.env.EXPO_PUBLIC_AI_URL) {
-    return process.env.EXPO_PUBLIC_AI_URL;
+    list.push(process.env.EXPO_PUBLIC_AI_URL);
   }
-  try {
-    const scriptURL = NativeModules?.SourceCode?.scriptURL || '';
-    const address = scriptURL.split('://')[1]?.split('/')[0];
-    const hostname = address?.split(':')[0];
-    if (hostname && hostname !== 'localhost' && hostname !== '127.0.0.1') {
-      return `http://${hostname}:8000`;
+
+  // 2. Thử qua Nginx Reverse Proxy dựa trên API_BASE_URL (từ EXPO_PUBLIC_API_URL trong .env)
+  // Ví dụ: EXPO_PUBLIC_API_URL="http://192.168.1.13:1116/api/v1" -> Nginx root: "http://192.168.1.13:1116"
+  if (API_BASE_URL) {
+    const nginxRoot = API_BASE_URL.replace(/\/api\/v1\/?$/, '');
+    if (nginxRoot && !list.includes(nginxRoot)) {
+      list.push(nginxRoot);
     }
-  } catch {}
-  return Platform.OS === 'android' ? 'http://10.0.2.2:8000' : 'http://192.168.1.14:8000';
+  }
+
+  return list;
 }
 
-const AI_BASE_URL = getAiServiceBaseUrl();
-const DEFAULT_USER_ID = 'b5f7482d-74a0-4582-8fa2-9c586211a583';
+function getUserId(): string {
+  const u = authStorage.getUser();
+  if (u?.id) return u.id;
+  throw new Error('Vui lòng đăng nhập để sử dụng tính năng trợ lý FinAI.');
+}
+
+async function fetchFromAiEndpoints(path: string, options: RequestInit = {}): Promise<Response> {
+  const baseUrls = getAiServiceBaseUrls();
+  let lastError: any = null;
+
+  for (const base of baseUrls) {
+    try {
+      const url = `${base}${path.startsWith('/') ? path : `/${path}`}`;
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 80000); // AI có thể suy nghĩ lâu hơn
+
+      const res = await fetch(url, {
+        ...options,
+        signal: controller.signal,
+      });
+      clearTimeout(timeoutId);
+
+      if (res.ok) {
+        return res;
+      }
+    } catch (err) {
+      lastError = err;
+    }
+  }
+
+  throw lastError || new Error('Không thể kết nối đến máy chủ AI');
+}
 
 export const aiAssistantApi = {
-  async sendMessage(question: string, sessionId?: string, userId: string = DEFAULT_USER_ID): Promise<{ answer: string; sessionId?: string }> {
+  async sendMessage(question: string, sessionId?: string): Promise<{ answer: string; sessionId?: string }> {
+    const userId = getUserId();
     try {
-      const response = await fetch(`${AI_BASE_URL}/api/chat`, {
+      const response = await fetchFromAiEndpoints('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -43,10 +80,6 @@ export const aiAssistantApi = {
           session_id: sessionId,
         }),
       });
-
-      if (!response.ok) {
-        throw new Error(`AI Service error: ${response.status}`);
-      }
 
       const data = await response.json();
       return {
@@ -59,10 +92,10 @@ export const aiAssistantApi = {
     }
   },
 
-  async getSessions(userId: string = DEFAULT_USER_ID): Promise<ChatSessionItem[]> {
+  async getSessions(): Promise<ChatSessionItem[]> {
+    const userId = getUserId();
     try {
-      const response = await fetch(`${AI_BASE_URL}/api/chat/sessions?user_id=${userId}`);
-      if (!response.ok) return [];
+      const response = await fetchFromAiEndpoints(`/api/chat/sessions?user_id=${userId}`);
       const data = await response.json();
       return Array.isArray(data) ? data : [];
     } catch {
@@ -72,8 +105,7 @@ export const aiAssistantApi = {
 
   async getSessionMessages(sessionId: string): Promise<ChatMessage[]> {
     try {
-      const response = await fetch(`${AI_BASE_URL}/api/chat/sessions/${sessionId}/messages`);
-      if (!response.ok) return [];
+      const response = await fetchFromAiEndpoints(`/api/chat/sessions/${sessionId}/messages`);
       const data = await response.json();
       return (data || []).map((m: any) => ({
         id: m.id || String(Math.random()),
@@ -88,11 +120,12 @@ export const aiAssistantApi = {
 
   async deleteSession(sessionId: string): Promise<boolean> {
     try {
-      const res = await fetch(`${AI_BASE_URL}/api/chat/sessions/${sessionId}`, { method: 'DELETE' });
+      const res = await fetchFromAiEndpoints(`/api/chat/sessions/${sessionId}`, { method: 'DELETE' });
       return res.ok;
     } catch {
       return false;
     }
   },
 };
+
 
