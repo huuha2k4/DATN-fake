@@ -205,8 +205,8 @@ function AppContent() {
       <View style={{ flex: 1, backgroundColor: '#FFFFFF' }}>
         <View style={styles.content}>
           <ProfileScreen
-            onLogout={() => {
-              authStorage.clear();
+            onLogout={async () => {
+              await authApi.logout();
               setShowProfile(false);
               setShowLogin(true);
             }}

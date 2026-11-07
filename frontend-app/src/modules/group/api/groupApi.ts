@@ -154,6 +154,12 @@ export interface MessageAttachmentItem {
   downloadUrl?: string;
 }
 
+export interface GroupMessageReaction {
+  reaction: string;
+  userId: string;
+  userName?: string;
+}
+
 export interface GroupMessageResponse {
   id: string;
   groupId: string;
@@ -165,6 +171,11 @@ export interface GroupMessageResponse {
   attachments?: MessageAttachmentItem[];
   createdAt: string;
   updatedAt?: string;
+  isRecalled?: boolean;
+  isEdited?: boolean;
+  readByUserIds?: string[];
+  readByCount?: number;
+  reactions?: GroupMessageReaction[];
   sender?: {
     id: string;
     fullName?: string;
@@ -420,27 +431,85 @@ export const groupApi = {
   },
 
   async uploadMessageAttachment(groupId: string, file: { uri: string; name: string; type: string }): Promise<MessageAttachmentItem> {
-    const token = await authStorage.getAccessToken();
+    const token = authStorage.getToken();
     const formData = new FormData();
+    // Chuẩn format file multipart cho React Native / Expo
+    // @ts-ignore
     formData.append('file', {
       uri: file.uri,
-      name: file.name,
-      type: file.type,
-    } as any);
-
-    const res = await fetch(`${API_BASE_URL}/groups/${groupId}/messages/upload`, {
-      method: 'POST',
-      headers: {
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      },
-      body: formData,
+      name: file.name || 'image.jpg',
+      type: file.type || 'image/jpeg',
     });
 
-    if (!res.ok) {
-      throw new Error(`Upload failed with status: ${res.status}`);
+    return await new Promise<MessageAttachmentItem>((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      xhr.open('POST', `${API_BASE_URL}/groups/${groupId}/messages/upload`);
+      if (token) {
+        xhr.setRequestHeader('Authorization', `Bearer ${token}`);
+      }
+
+      xhr.onload = () => {
+        try {
+          const res = JSON.parse(xhr.responseText);
+          if (xhr.status >= 200 && xhr.status < 300) {
+            resolve(res?.data || res);
+          } else {
+            reject(new Error(res?.message || `Lỗi tải ảnh (${xhr.status})`));
+          }
+        } catch {
+          if (xhr.status >= 200 && xhr.status < 300) {
+            resolve({} as any);
+          } else {
+            reject(new Error(`Máy chủ phản hồi HTTP ${xhr.status}`));
+          }
+        }
+      };
+
+      xhr.onerror = () => {
+        reject(new Error('Lỗi kết nối mạng khi tải ảnh lên'));
+      };
+
+      xhr.ontimeout = () => {
+        reject(new Error('Hết thời gian tải ảnh lên máy chủ'));
+      };
+
+      xhr.send(formData);
+    });
+  },
+
+  async updateMessage(groupId: string, messageId: string, content: string): Promise<GroupMessageResponse> {
+    return await request<GroupMessageResponse>(`/groups/${groupId}/messages/${messageId}`, {
+      method: 'PUT',
+      body: JSON.stringify({ content }),
+    });
+  },
+
+  async recallMessage(groupId: string, messageId: string): Promise<GroupMessageResponse> {
+    return await request<GroupMessageResponse>(`/groups/${groupId}/messages/${messageId}/recall`, {
+      method: 'POST',
+    });
+  },
+
+  async reactToMessage(groupId: string, messageId: string, reaction: string): Promise<GroupMessageResponse> {
+    return await request<GroupMessageResponse>(`/groups/${groupId}/messages/${messageId}/react?reaction=${encodeURIComponent(reaction)}`, {
+      method: 'POST',
+    });
+  },
+
+  async deleteMessage(groupId: string, messageId: string): Promise<void> {
+    await request<void>(`/groups/${groupId}/messages/${messageId}`, { method: 'DELETE' });
+  },
+
+  async markMessagesAsRead(groupId: string, messageIds: string[]): Promise<void> {
+    if (!messageIds || messageIds.length === 0) return;
+    try {
+      await request<void>(`/groups/${groupId}/messages/mark-read`, {
+        method: 'POST',
+        body: JSON.stringify({ messageIds }),
+      });
+    } catch {
+      // ignore
     }
-    const json = await res.json();
-    return json?.data || json;
   },
 
   // 8. Bình luận trên khoản chi / đóng góp quỹ (Comments)

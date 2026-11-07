@@ -308,5 +308,27 @@ export const authApi = {
       throw err;
     }
   },
+
+  /**
+   * Đăng xuất khỏi hệ thống (/api/v1/auth/logout)
+   */
+  async logout(): Promise<void> {
+    try {
+      const token = authStorage.getToken();
+      if (token) {
+        await fetch(`${API_BASE_URL}/auth/logout`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+        });
+      }
+    } catch (e) {
+      // Bỏ qua lỗi mạng khi logout để luôn xóa token local
+    } finally {
+      authStorage.clear();
+    }
+  },
 };
 

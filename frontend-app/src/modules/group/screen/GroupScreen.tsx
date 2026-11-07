@@ -2,11 +2,13 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  Dimensions,
   FlatList,
   Image,
   ImageBackground,
   Keyboard,
   KeyboardAvoidingView,
+  Linking,
   Modal,
   Platform,
   Pressable,
@@ -70,9 +72,57 @@ function formatVND(val: number) {
   return new Intl.NumberFormat('vi-VN').format(val || 0);
 }
 
-// Helper sắp xếp tin nhắn theo thứ tự thời gian tăng dần (cũ ở trên, mới nhất ở dưới)
+// Component hiển thị ảnh đính kèm tự động tính tỷ lệ theo kích thước ảnh thực tế (không bị crop/hụt chiều cao)
+function ChatAttachmentImageItem({
+  uri,
+  onPress,
+  onLongPress,
+}: {
+  uri: string;
+  onPress: () => void;
+  onLongPress: () => void;
+}) {
+  const [aspectRatio, setAspectRatio] = useState<number>(4 / 3);
+
+  useEffect(() => {
+    if (uri) {
+      Image.getSize(
+        uri,
+        (w, h) => {
+          if (w > 0 && h > 0) {
+            // Giới hạn tỷ lệ khung hình trong khoảng hợp lý (tối thiểu 0.6 cho ảnh đứng, tối đa 1.8 cho ảnh ngang)
+            const ratio = w / h;
+            setAspectRatio(Math.max(0.55, Math.min(1.8, ratio)));
+          }
+        },
+        () => {
+          // Bỏ qua lỗi fallback mặc định
+        }
+      );
+    }
+  }, [uri]);
+
+  return (
+    <Pressable
+      onPress={onPress}
+      onLongPress={onLongPress}
+      style={[styles.chatAttachmentImgContainer, { aspectRatio }]}
+    >
+      <Image
+        source={{ uri }}
+        style={styles.chatAttachmentImg}
+        resizeMode="cover"
+      />
+    </Pressable>
+  );
+}
+
 function sortMessagesChronologically(list: GroupMessageResponse[]): GroupMessageResponse[] {
-  return [...list].sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+  return [...list].sort((a, b) => {
+    const timeA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+    const timeB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+    return timeA - timeB;
+  });
 }
 
 // Định dạng ngày phân cách giống bản Web & Messenger
@@ -97,7 +147,8 @@ function formatMessengerDateDivider(dateStr: string): string {
     const isYesterday = dYear === yesterday.getFullYear() && dMonth === yesterday.getMonth() && dDate === yesterday.getDate();
 
     if (isToday) {
-      return `Hôm nay ${timeStr}`;
+      // Tin nhắn hôm nay: Không ghi "Hôm nay", chỉ ghi giờ như Messenger
+      return timeStr;
     }
     if (isYesterday) {
       return `Hôm qua ${timeStr}`;
@@ -159,6 +210,22 @@ export function GroupScreen({ onGroupDetailChange }: { onGroupDetailChange?: (is
   const [fundData, setFundData] = useState<GroupFundResponse | null>(null);
   const [fundContributions, setFundContributions] = useState<GroupFundContributionResponse[]>([]);
   const [messages, setMessages] = useState<GroupMessageResponse[]>([]);
+  // Message Actions & State theo chuẩn bản Web
+  const [activeMenuMessageId, setActiveMenuMessageId] = useState<string | null>(null);
+  const [activeReactionMessageId, setActiveReactionMessageId] = useState<string | null>(null);
+  const [activeActionTargetMessage, setActiveActionTargetMessage] = useState<GroupMessageResponse | null>(null);
+  const [activeTargetLayout, setActiveTargetLayout] = useState<{ x: number; y: number; width: number; height: number } | null>(null);
+  const messageBubbleRefs = useRef<Record<string, View | null>>({});
+  const [editingMessage, setEditingMessage] = useState<{ id: string; text: string } | null>(null);
+  const [hiddenMessageIds, setHiddenMessageIds] = useState<string[]>([]);
+  const [viewingReactionModalMessage, setViewingReactionModalMessage] = useState<GroupMessageResponse | null>(null);
+  const [reactionModalTab, setReactionModalTab] = useState<string>('ALL');
+  const [lightboxImageUrl, setLightboxImageUrl] = useState<string | null>(null);
+  const [lightboxImageInfo, setLightboxImageInfo] = useState<{ timeStr: string; senderName?: string } | null>(null);
+  const [selectedMessageTimeId, setSelectedMessageTimeId] = useState<string | null>(null);
+  const [recallingMessageId, setRecallingMessageId] = useState<string | null>(null);
+  const shouldAutoScrollRef = useRef<boolean>(true);
+
   const [commentsByTarget, setCommentsByTarget] = useState<Record<string, GroupCommentResponse[]>>({});
   const [inlineCommentText, setInlineCommentText] = useState<Record<string, string>>({});
   const [replyingToCommentId, setReplyingToCommentId] = useState<Record<string, string | null>>({});
@@ -252,7 +319,13 @@ export function GroupScreen({ onGroupDetailChange }: { onGroupDetailChange?: (is
             try {
               const msgs = await groupApi.getMessages(g.id);
               if (msgs && msgs.length > 0) {
-                const last = msgs[msgs.length - 1];
+                // Sắp xếp theo thời gian mới nhất (createdAt DESC) để phần tử đầu tiên luôn là tin nhắn mới nhất
+                const sortedMsgs = [...msgs].sort((a, b) => {
+                  const tA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+                  const tB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+                  return tB - tA;
+                });
+                const last = sortedMsgs[0];
                 let sender = last.sender?.fullName || last.sender?.username || 'Thành viên';
                 if (currentUser && last.senderId === currentUser.id) {
                   sender = 'Bạn';
@@ -268,11 +341,18 @@ export function GroupScreen({ onGroupDetailChange }: { onGroupDetailChange?: (is
                     timeStr = `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}`;
                   }
                 }
+                let previewText = last.content;
+                if (!previewText && last.attachments && last.attachments.length > 0) {
+                  previewText = '[Hình ảnh]';
+                }
+                if (!previewText) {
+                  previewText = 'Đã gửi một tin nhắn';
+                }
                 return [
                   g.id,
                   {
                     senderName: sender,
-                    content: last.content || 'Đã gửi một tin nhắn',
+                    content: previewText,
                     time: timeStr,
                     unreadCount: g.unreadMessageCount || 0,
                   },
@@ -459,6 +539,7 @@ export function GroupScreen({ onGroupDetailChange }: { onGroupDetailChange?: (is
     const interval = setInterval(async () => {
       try {
         const msgs = await groupApi.getMessages(selectedGroup.id);
+        shouldAutoScrollRef.current = false;
         setMessages(sortMessagesChronologically(msgs));
       } catch {
         // ignore
@@ -520,8 +601,21 @@ export function GroupScreen({ onGroupDetailChange }: { onGroupDetailChange?: (is
         attachmentsList = [uploaded];
       }
 
+      shouldAutoScrollRef.current = true;
       const msg = await groupApi.sendMessage(selectedGroup.id, text, undefined, attachmentsList);
       setMessages((prev) => [...prev, msg]);
+      
+      // Cập nhật ngay tin nhắn gần nhất cho nhóm này ở danh sách ngoài
+      setLastMessageMap((prev) => ({
+        ...prev,
+        [selectedGroup.id]: {
+          senderName: 'Bạn',
+          content: msg.content || (msg.attachments && msg.attachments.length > 0 ? '[Hình ảnh]' : 'Đã gửi một tin nhắn'),
+          time: 'Vừa xong',
+          unreadCount: 0,
+        },
+      }));
+
       setTimeout(() => {
         chatScrollViewRef.current?.scrollToEnd({ animated: true });
       }, 80);
@@ -530,6 +624,64 @@ export function GroupScreen({ onGroupDetailChange }: { onGroupDetailChange?: (is
     } finally {
       setSendingMessage(false);
       setUploadingAttachment(false);
+    }
+  };
+
+  // Thả cảm xúc tin nhắn (Messenger style chuẩn bản Web)
+  const handleToggleReaction = async (msgId: string, emoji: string) => {
+    if (!selectedGroup) return;
+    try {
+      shouldAutoScrollRef.current = false;
+      setActiveReactionMessageId(null);
+      setActiveMenuMessageId(null);
+      setActiveActionTargetMessage(null);
+      const updated = await groupApi.reactToMessage(selectedGroup.id, msgId, emoji);
+      setMessages((prev) => prev.map((m) => (m.id === msgId ? updated : m)));
+      setViewingReactionModalMessage((prev) => (prev && prev.id === msgId ? updated : prev));
+    } catch {
+      Alert.alert('Lỗi', 'Không thể thả cảm xúc.');
+    }
+  };
+
+  // Thu hồi tin nhắn với mọi người
+  const handleRecallMessage = async (msgId: string) => {
+    if (!selectedGroup) return;
+    try {
+      shouldAutoScrollRef.current = false;
+      const updated = await groupApi.recallMessage(selectedGroup.id, msgId);
+      setMessages((prev) => prev.map((m) => (m.id === msgId ? updated : m)));
+      setActiveMenuMessageId(null);
+      setRecallingMessageId(null);
+      setActiveActionTargetMessage(null);
+    } catch {
+      Alert.alert('Lỗi', 'Không thể thu hồi tin nhắn này.');
+    }
+  };
+
+  // Xóa tin nhắn ở phía tôi (thu hồi với bạn)
+  const handleHideMessageForMe = (msgId: string) => {
+    shouldAutoScrollRef.current = false;
+    setHiddenMessageIds((prev) => [...prev, msgId]);
+    setActiveMenuMessageId(null);
+    setRecallingMessageId(null);
+    setActiveActionTargetMessage(null);
+  };
+
+  // Lưu chỉnh sửa tin nhắn
+  const handleSaveEditMessage = async () => {
+    if (!selectedGroup || !editingMessage) return;
+    const trimmed = editingMessage.text.trim();
+    if (!trimmed) {
+      Alert.alert('Thông báo', 'Nội dung tin nhắn không được để trống.');
+      return;
+    }
+    try {
+      shouldAutoScrollRef.current = false;
+      const updated = await groupApi.updateMessage(selectedGroup.id, editingMessage.id, trimmed);
+      setMessages((prev) => prev.map((m) => (m.id === editingMessage.id ? updated : m)));
+      setEditingMessage(null);
+    } catch {
+      Alert.alert('Lỗi', 'Không thể lưu tin nhắn.');
     }
   };
 
@@ -920,9 +1072,13 @@ export function GroupScreen({ onGroupDetailChange }: { onGroupDetailChange?: (is
               style={styles.chatMessagesScrollView}
               contentContainerStyle={styles.chatMessagesContentContainer}
               showsVerticalScrollIndicator={false}
-              onContentSizeChange={() => chatScrollViewRef.current?.scrollToEnd({ animated: true })}
+              onContentSizeChange={() => {
+                if (shouldAutoScrollRef.current) {
+                  chatScrollViewRef.current?.scrollToEnd({ animated: false });
+                }
+              }}
             >
-              {messages.length === 0 ? (
+              {messages.filter((m) => !hiddenMessageIds.includes(m.id)).length === 0 ? (
                 <View style={styles.detailEmptyCard}>
                   <Text style={{ fontSize: 32, marginBottom: 8 }}>💬</Text>
                   <Text style={styles.detailEmptyTitle}>Chưa có cuộc trò chuyện nào</Text>
@@ -932,39 +1088,101 @@ export function GroupScreen({ onGroupDetailChange }: { onGroupDetailChange?: (is
                 </View>
               ) : (
                 <View style={styles.chatStreamList}>
-                  {messages.map((msg, index) => {
-                    const isMe = msg.senderId === currentUser?.id;
-                    const senderName = isMe ? 'Bạn' : (msg.sender?.fullName || msg.sender?.username || 'Thành viên');
-                    const prevMsg = index > 0 ? messages[index - 1] : null;
-                    const isSameSenderAsPrev = prevMsg && prevMsg.senderId === msg.senderId;
+                  {(() => {
+                    // Tính toán tin nhắn cuối cùng mỗi thành viên đã xem (giống hệt bản Web)
+                    const lastSeenMap: Record<string, string> = {};
+                    if (currentUser?.id) {
+                      members.forEach((m) => {
+                        const mId = String(m.userId).toLowerCase();
+                        if (mId === String(currentUser.id).toLowerCase()) return;
+                        for (let i = messages.length - 1; i >= 0; i--) {
+                          const item = messages[i];
+                          const readList = (item.readByUserIds || []).map((id) => String(id).toLowerCase());
+                          if (readList.includes(mId)) {
+                            lastSeenMap[m.userId] = item.id;
+                            break;
+                          }
+                        }
+                      });
+                    }
 
-                    // Tính toán vạch phân cách ngày (Messenger style như Web)
-                    // Hiển thị divider nếu là tin nhắn đầu tiên hoặc cách tin nhắn trước >= 10 phút
-                    const prevDiffMins = prevMsg && prevMsg.createdAt && msg.createdAt
-                      ? (new Date(msg.createdAt).getTime() - new Date(prevMsg.createdAt).getTime()) / 60000
-                      : 999;
-                    const showDateDivider = !prevMsg || prevDiffMins >= 10;
-                    const dividerText = showDateDivider && msg.createdAt ? formatMessengerDateDivider(msg.createdAt) : '';
+                    return messages
+                      .filter((m) => !hiddenMessageIds.includes(m.id))
+                      .map((msg, index, filteredArr) => {
+                      const isMe = msg.senderId === currentUser?.id;
+                      const senderName = isMe ? 'Bạn' : (msg.sender?.fullName || msg.sender?.username || 'Thành viên');
+                      const prevMsg = index > 0 ? filteredArr[index - 1] : null;
+                      const nextMsg = index < filteredArr.length - 1 ? filteredArr[index + 1] : null;
 
-                    // Check file đính kèm giả lập hoặc Excel
-                    const isExcelFile = msg.content?.includes('.xlsx') || msg.content?.includes('.xls');
-                    const isBalanceProposal = msg.content.startsWith('[[BALANCE]]');
-                    const isLedgerCard = msg.content.startsWith('[[LEDGER') || msg.content.startsWith('[[TRANSACTION]]');
-                    const cleanContent = msg.content
-                      .replace(/^\[\[BALANCE\]\]/, '')
-                      .replace(/^\[\[LEDGER\|.*?\]\]/, '')
-                      .replace(/^\[\[TRANSACTION\]\]/, '');
+                      const isSameSenderAsPrev = prevMsg && prevMsg.senderId === msg.senderId;
+                      const isSameSenderAsNext = nextMsg && nextMsg.senderId === msg.senderId;
 
-                    // Lấy avatar người gửi
-                    const rawAvatar = isMe ? currentUser?.avatarUrl : msg.sender?.avatarKey;
-                    const avatarUri = rawAvatar ? userProfileApi.formatAvatarUrl(rawAvatar) : null;
+                      // Tính toán vạch phân cách ngày (Messenger style như Web)
+                      const prevDiffMins = prevMsg && prevMsg.createdAt && msg.createdAt
+                        ? (new Date(msg.createdAt).getTime() - new Date(prevMsg.createdAt).getTime()) / 60000
+                        : 999;
+                      const showDateDivider = !prevMsg || prevDiffMins >= 10;
+                      const dividerText = showDateDivider && msg.createdAt ? formatMessengerDateDivider(msg.createdAt) : '';
 
-                    const timeStr = msg.createdAt
-                      ? new Date(msg.createdAt).toLocaleTimeString('vi-VN', {
-                          hour: '2-digit',
-                          minute: '2-digit',
-                        })
-                      : '09:55';
+                      // Kiểm tra xem tin nhắn tiếp theo có cùng khối liên tục (trong vòng 5 phút) hay không
+                      const nextDiffMins = nextMsg && nextMsg.createdAt && msg.createdAt
+                        ? (new Date(nextMsg.createdAt).getTime() - new Date(msg.createdAt).getTime()) / 60000
+                        : 999;
+                      const isNextInSameCluster = isSameSenderAsNext && nextDiffMins < 5;
+                      const isLastInCluster = !isNextInSameCluster;
+                      const isFirstInCluster = !isSameSenderAsPrev || showDateDivider;
+
+                      const isRecalled = msg.isRecalled || msg.content === 'Tin nhắn đã bị thu hồi';
+                      const isEdited = !isRecalled && (msg.isEdited || (msg.updatedAt && msg.createdAt && new Date(msg.updatedAt).getTime() - new Date(msg.createdAt).getTime() > 2000));
+
+                      // Check file đính kèm giả lập hoặc Excel
+                      const isExcelFile = msg.content?.includes('.xlsx') || msg.content?.includes('.xls');
+                      const isBalanceProposal = msg.content.startsWith('[[BALANCE]]');
+                      const isLedgerCard = msg.content.startsWith('[[LEDGER') || msg.content.startsWith('[[TRANSACTION]]');
+                      const cleanContent = msg.content
+                        .replace(/^\[\[BALANCE\]\]/, '')
+                        .replace(/^\[\[LEDGER\|.*?\]\]/, '')
+                        .replace(/^\[\[TRANSACTION\]\]/, '');
+
+                      // Lấy avatar người gửi
+                      const rawAvatar = isMe ? currentUser?.avatarUrl : msg.sender?.avatarKey;
+                      const avatarUri = rawAvatar ? userProfileApi.formatAvatarUrl(rawAvatar) : null;
+
+                      // Định dạng thời gian/ngày tháng khi bấm vào tin nhắn (chuẩn Messenger)
+                      let detailedTimeStr = '';
+                      if (msg.createdAt) {
+                        const d = new Date(msg.createdAt);
+                        const now = new Date();
+                        const timeOnly = d.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', hour12: false });
+                        const isTodayMsg = d.toDateString() === now.toDateString();
+                        const yesterday = new Date(now);
+                        yesterday.setDate(now.getDate() - 1);
+                        const isYesterdayMsg = d.toDateString() === yesterday.toDateString();
+
+                        if (isTodayMsg) {
+                          detailedTimeStr = timeOnly;
+                        } else if (isYesterdayMsg) {
+                          detailedTimeStr = `Hôm qua lúc ${timeOnly}`;
+                        } else {
+                          const dateOnly = `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
+                          detailedTimeStr = `${dateOnly} lúc ${timeOnly}`;
+                        }
+                      }
+
+                      const reactionsList = msg.reactions || [];
+                      const uniqueEmojis = Array.from(new Set(reactionsList.map((r) => r.reaction)));
+
+                      // Lấy danh sách thành viên đã xem tin nhắn này
+                      // 1. Những người mà tin nhắn này là tin mới nhất họ đã đọc
+                      const seenByMembers = members.filter(
+                        (m) => String(m.userId).toLowerCase() !== String(msg.senderId).toLowerCase() && lastSeenMap[m.userId] === msg.id
+                      );
+                      // 2. Toàn bộ người đã đọc tin nhắn này (để hiển thị khi bấm vào tin nhắn)
+                      const readList = (msg.readByUserIds || []).map((id) => String(id).toLowerCase());
+                      const allReadersOfMessage = members.filter(
+                        (m) => String(m.userId).toLowerCase() !== String(msg.senderId).toLowerCase() && readList.includes(String(m.userId).toLowerCase())
+                      );
+                      const isSelected = selectedMessageTimeId === msg.id;
 
                     return (
                       <React.Fragment key={msg.id}>
@@ -981,13 +1199,13 @@ export function GroupScreen({ onGroupDetailChange }: { onGroupDetailChange?: (is
                           style={[
                             styles.chatRowWrapper,
                             isMe ? styles.chatRowMe : styles.chatRowOther,
-                            !isSameSenderAsPrev || showDateDivider ? { marginTop: 12 } : { marginTop: 3 },
+                            !isSameSenderAsPrev || showDateDivider ? { marginTop: 12 } : { marginTop: 2 },
                           ]}
                         >
-                          {/* Avatar người khác ở bên trái */}
+                          {/* Avatar người khác ở bên trái (chỉ hiển thị ở tin nhắn cuối của cụm để gọn đẹp) */}
                           {!isMe && (
                             <View style={styles.chatAvatarBox}>
-                              {!isSameSenderAsPrev || showDateDivider ? (
+                              {isLastInCluster ? (
                                 <View style={styles.chatAvatarCircleWeb}>
                                   {avatarUri ? (
                                     <Image source={{ uri: avatarUri }} style={styles.chatAvatarImgWeb} />
@@ -998,14 +1216,14 @@ export function GroupScreen({ onGroupDetailChange }: { onGroupDetailChange?: (is
                                   )}
                                 </View>
                               ) : (
-                                <View style={{ width: 34 }} />
+                                <View style={{ width: 36 }} />
                               )}
                             </View>
                           )}
 
                           <View style={{ maxWidth: '82%' }}>
-                            {/* Tên người gửi ở trên tin nhắn (nếu là người khác) */}
-                            {!isMe && (!isSameSenderAsPrev || showDateDivider) && (
+                            {/* Tên người gửi ở trên tin nhắn (chỉ hiện ở tin nhắn đầu của cụm nếu là người khác) */}
+                            {!isMe && isFirstInCluster && (
                               <Text style={styles.chatSenderTitleWeb}>{senderName}</Text>
                             )}
 
@@ -1022,21 +1240,46 @@ export function GroupScreen({ onGroupDetailChange }: { onGroupDetailChange?: (is
                               <Pressable hitSlop={8} style={styles.chatFileDownloadBtn}>
                                 <FinanceIcon name="download" size={16} color="#16A34A" />
                               </Pressable>
-                              <Text style={styles.chatFileTimeText}>{timeStr}</Text>
                             </View>
                           ) : msg.attachments && msg.attachments.length > 0 ? (
                             /* Trường hợp Ảnh đính kèm từ thư viện */
-                            <View style={{ gap: 6 }}>
+                            <View
+                              ref={(el) => {
+                                messageBubbleRefs.current[msg.id] = el;
+                              }}
+                              collapsable={false}
+                              style={{ gap: 6 }}
+                            >
                               {msg.attachments.map((att, aIdx) => {
                                 const fileUri = userProfileApi.formatAvatarUrl(att.fileKey) || att.fileKey;
                                 return (
-                                  <View key={aIdx} style={styles.chatAttachmentImgContainer}>
-                                    <Image
-                                      source={{ uri: fileUri }}
-                                      style={styles.chatAttachmentImg}
-                                      resizeMode="cover"
-                                    />
-                                  </View>
+                                  <ChatAttachmentImageItem
+                                    key={aIdx}
+                                    uri={fileUri}
+                                    onPress={() => {
+                                      shouldAutoScrollRef.current = false;
+                                      setLightboxImageUrl(fileUri);
+                                      setLightboxImageInfo({
+                                        timeStr: detailedTimeStr || 'Vừa xong',
+                                        senderName: senderName,
+                                      });
+                                    }}
+                                    onLongPress={() => {
+                                      shouldAutoScrollRef.current = false;
+                                      setActiveMenuMessageId(msg.id);
+                                      setActiveReactionMessageId(null);
+                                      const targetNode = messageBubbleRefs.current[msg.id];
+                                      if (targetNode && targetNode.measureInWindow) {
+                                        targetNode.measureInWindow((x, y, width, height) => {
+                                          setActiveTargetLayout({ x, y, width, height });
+                                          setActiveActionTargetMessage(msg);
+                                        });
+                                      } else {
+                                        setActiveTargetLayout(null);
+                                        setActiveActionTargetMessage(msg);
+                                      }
+                                    }}
+                                  />
                                 );
                               })}
                               {cleanContent && cleanContent !== 'Đã gửi một ảnh' ? (
@@ -1044,8 +1287,16 @@ export function GroupScreen({ onGroupDetailChange }: { onGroupDetailChange?: (is
                                   style={[
                                     styles.chatMessageBubbleWeb,
                                     isMe ? styles.chatBubbleMeWeb : styles.chatBubbleOtherWeb,
+                                    // Bo góc cụm tin nhắn
+                                    !isFirstInCluster && (isMe ? { borderTopRightRadius: 6 } : { borderTopLeftRadius: 6 }),
+                                    !isLastInCluster && (isMe ? { borderBottomRightRadius: 6 } : { borderBottomLeftRadius: 6 }),
                                   ]}
                                 >
+                                  {isEdited && !isRecalled && (
+                                    <Text style={[styles.chatEditedBadge, isMe ? { color: '#047857' } : { color: '#64748B' }]}>
+                                      Đã sửa
+                                    </Text>
+                                  )}
                                   <Text
                                     style={[
                                       styles.chatMessageContentWeb,
@@ -1054,23 +1305,8 @@ export function GroupScreen({ onGroupDetailChange }: { onGroupDetailChange?: (is
                                   >
                                     {cleanContent}
                                   </Text>
-                                  <View style={styles.chatTimeAndStatusRow}>
-                                    <Text
-                                      style={[
-                                        styles.chatTimestampTextWeb,
-                                        isMe ? styles.chatTimestampMeWeb : styles.chatTimestampOtherWeb,
-                                      ]}
-                                    >
-                                      {timeStr}
-                                    </Text>
-                                    {isMe && <FinanceIcon name="checks" size={13} color="#16A34A" />}
-                                  </View>
                                 </View>
-                              ) : (
-                                <View style={{ alignSelf: isMe ? 'flex-end' : 'flex-start', marginTop: 2 }}>
-                                  <Text style={styles.chatTimestampTextWeb}>{timeStr}</Text>
-                                </View>
-                              )}
+                              ) : null}
                             </View>
                           ) : isBalanceProposal || isLedgerCard ? (
                             /* Trường hợp 2: Thẻ cân đối / Bù trừ nợ */
@@ -1100,44 +1336,139 @@ export function GroupScreen({ onGroupDetailChange }: { onGroupDetailChange?: (is
                                 </Text>
                               </Pressable>
                             </View>
+                          ) : isRecalled ? (
+                            /* Tin nhắn đã bị thu hồi */
+                            <View style={[styles.chatMessageBubbleWeb, styles.chatRecalledBubble]}>
+                              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                                <FinanceIcon name="alert-circle" size={13} color="#94A3B8" />
+                                <Text style={styles.chatRecalledText}>Tin nhắn đã bị thu hồi</Text>
+                              </View>
+                            </View>
                           ) : (
                             /* Trường hợp 3: Tin nhắn thông thường chuẩn design */
                             <View
-                              style={[
-                                styles.chatMessageBubbleWeb,
-                                isMe ? styles.chatBubbleMeWeb : styles.chatBubbleOtherWeb,
-                              ]}
+                              ref={(el) => {
+                                messageBubbleRefs.current[msg.id] = el;
+                              }}
+                              collapsable={false}
                             >
-                              <Text
+                              <Pressable
+                                onLongPress={() => {
+                                  shouldAutoScrollRef.current = false;
+                                  setActiveMenuMessageId(msg.id);
+                                  setActiveReactionMessageId(null);
+                                  const targetNode = messageBubbleRefs.current[msg.id];
+                                  if (targetNode && targetNode.measureInWindow) {
+                                    targetNode.measureInWindow((x, y, width, height) => {
+                                      setActiveTargetLayout({ x, y, width, height });
+                                      setActiveActionTargetMessage(msg);
+                                    });
+                                  } else {
+                                    setActiveTargetLayout(null);
+                                    setActiveActionTargetMessage(msg);
+                                  }
+                                }}
+                                onPress={() => {
+                                  shouldAutoScrollRef.current = false;
+                                  setSelectedMessageTimeId((prev) => (prev === msg.id ? null : msg.id));
+                                }}
                                 style={[
-                                  styles.chatMessageContentWeb,
-                                  isMe ? styles.chatMessageTextMeWeb : styles.chatMessageTextOtherWeb,
+                                  styles.chatMessageBubbleWeb,
+                                  isMe ? styles.chatBubbleMeWeb : styles.chatBubbleOtherWeb,
+                                  // Bo góc cụm tin nhắn như Messenger
+                                  !isFirstInCluster && (isMe ? { borderTopRightRadius: 6 } : { borderTopLeftRadius: 6 }),
+                                  !isLastInCluster && (isMe ? { borderBottomRightRadius: 6 } : { borderBottomLeftRadius: 6 }),
                                 ]}
                               >
-                                {cleanContent}
-                              </Text>
-
-                              {/* Thời gian + dấu tích đôi đã đọc bên góc phải */}
-                              <View style={styles.chatTimeAndStatusRow}>
+                                {isEdited && (
+                                  <Text style={[styles.chatEditedBadge, isMe ? { color: '#047857' } : { color: '#64748B' }]}>
+                                    Đã sửa
+                                  </Text>
+                                )}
                                 <Text
                                   style={[
-                                    styles.chatTimestampTextWeb,
-                                    isMe ? styles.chatTimestampMeWeb : styles.chatTimestampOtherWeb,
+                                    styles.chatMessageContentWeb,
+                                    isMe ? styles.chatMessageTextMeWeb : styles.chatMessageTextOtherWeb,
                                   ]}
                                 >
-                                  {timeStr}
+                                  {cleanContent}
                                 </Text>
-                                {isMe && (
-                                  <FinanceIcon name="checks" size={13} color="#16A34A" />
+                              </Pressable>
+                            </View>
+                          )}
+
+                          {/* Hiển thị thanh Reaction badges phía dưới bubble */}
+                          {reactionsList.length > 0 && !isRecalled && (
+                            <Pressable
+                              onPress={() => setViewingReactionModalMessage(msg)}
+                              style={[
+                                styles.chatReactionsBadgeContainer,
+                                isMe ? { alignSelf: 'flex-end', marginRight: 4 } : { alignSelf: 'flex-start', marginLeft: 4 },
+                              ]}
+                            >
+                              <View style={styles.chatReactionsRow}>
+                                {uniqueEmojis.map((emoji) => (
+                                  <Text key={emoji} style={styles.chatReactionEmojiText}>{emoji}</Text>
+                                ))}
+                                <Text style={styles.chatReactionCountText}>{reactionsList.length}</Text>
+                              </View>
+                            </Pressable>
+                          )}
+
+                          {/* Khi ấn vào tin nhắn 1 lần: hiện thời gian gửi (giờ/ngày) và dòng "ai đã xem" chuẩn Messenger */}
+                          {isSelected && !isRecalled && (
+                            <View style={[styles.chatClickedDetailContainer, isMe ? { alignSelf: 'flex-end', marginRight: 4 } : { alignSelf: 'flex-start', marginLeft: 4 }]}>
+                              {/* Dòng thời gian gửi: ví dụ "14:30" (hôm nay) hoặc "Hôm qua lúc 14:30" hoặc "05/11/2026 lúc 14:30" */}
+                              {detailedTimeStr ? (
+                                <Text style={[styles.chatClickedDetailTimeText, isMe ? { textAlign: 'right' } : { textAlign: 'left' }]}>
+                                  {detailedTimeStr}
+                                </Text>
+                              ) : null}
+
+                              {/* Danh sách ai đã xem tin nhắn */}
+                              <View style={styles.chatClickedSeenBox}>
+                                <View style={styles.chatClickedSeenHeader}>
+                                  <FinanceIcon name="seen-eye" size={12} color="#059669" />
+                                  <Text style={styles.chatClickedSeenTitle}>
+                                    {allReadersOfMessage.length > 0
+                                      ? `Đã xem (${allReadersOfMessage.length}):`
+                                      : 'Chưa có ai xem'}
+                                  </Text>
+                                </View>
+                                {allReadersOfMessage.length > 0 && (
+                                  <View style={styles.chatClickedSeenAvatarsList}>
+                                    {allReadersOfMessage.map((sm) => {
+                                      const smName = sm.user?.fullName || sm.nickname || sm.user?.email || 'Thành viên';
+                                      const rawUrl = sm.userId === currentUser?.id ? currentUser?.avatarUrl : (sm.user?.avatarUrl || sm.user?.avatarKey);
+                                      const smAvatar = rawUrl ? userProfileApi.formatAvatarUrl(rawUrl) : null;
+                                      return (
+                                        <View key={sm.userId} style={styles.chatClickedSeenUserChip}>
+                                          <View style={styles.chatSeenAvatarCircle}>
+                                            {smAvatar ? (
+                                              <Image source={{ uri: smAvatar }} style={styles.chatSeenAvatarImg} />
+                                            ) : (
+                                              <Text style={styles.chatSeenAvatarChar}>{smName.slice(0, 1).toUpperCase()}</Text>
+                                            )}
+                                          </View>
+                                          <Text style={styles.chatClickedSeenUserName} numberOfLines={1}>{smName}</Text>
+                                        </View>
+                                      );
+                                    })}
+                                  </View>
                                 )}
                               </View>
                             </View>
                           )}
+
+                          {/* Action Bar nhanh khi bấm chọn tin nhắn (Thả cảm xúc + 3 chấm thao tác) - Chuyển sang Modal chuẩn iOS/Messenger */}
+                          {/* (Đã được chuyển ra Modal overlay toàn màn hình để chạm bất cứ đâu bên ngoài đều tự tắt) */}
+
                         </View>
                       </View>
                     </React.Fragment>
                   );
-                })}
+                })
+              })()}
               </View>
               )}
             </ScrollView>
@@ -1159,6 +1490,35 @@ export function GroupScreen({ onGroupDetailChange }: { onGroupDetailChange?: (is
                       <Text style={{ fontSize: 20 }}>{emoji}</Text>
                     </Pressable>
                   ))}
+                </View>
+              </View>
+            )}
+
+            {/* Modal chỉnh sửa tin nhắn chuẩn Web */}
+            {editingMessage && (
+              <View style={styles.chatEditingBanner}>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.chatEditingBannerTitle}>Đang chỉnh sửa tin nhắn</Text>
+                  <TextInput
+                    style={styles.chatEditingTextInput}
+                    value={editingMessage.text}
+                    onChangeText={(val) => setEditingMessage((prev) => (prev ? { ...prev, text: val } : null))}
+                    multiline
+                  />
+                </View>
+                <View style={{ gap: 6, marginLeft: 8 }}>
+                  <Pressable
+                    onPress={handleSaveEditMessage}
+                    style={styles.chatEditingSaveBtn}
+                  >
+                    <Text style={styles.chatEditingSaveBtnText}>Lưu</Text>
+                  </Pressable>
+                  <Pressable
+                    onPress={() => setEditingMessage(null)}
+                    style={styles.chatEditingCancelBtn}
+                  >
+                    <Text style={styles.chatEditingCancelBtnText}>Hủy</Text>
+                  </Pressable>
                 </View>
               </View>
             )}
@@ -1226,6 +1586,221 @@ export function GroupScreen({ onGroupDetailChange }: { onGroupDetailChange?: (is
                 )}
               </Pressable>
             </View>
+
+            {/* Modal Overlay đè tin nhắn (Messenger style): Vị trí bám sát tin nhắn & Chạm ngoài tự tắt */}
+            <Modal
+              visible={activeActionTargetMessage !== null}
+              transparent
+              animationType="fade"
+              onRequestClose={() => {
+                setActiveActionTargetMessage(null);
+                setActiveTargetLayout(null);
+                setActiveMenuMessageId(null);
+                setActiveReactionMessageId(null);
+                setRecallingMessageId(null);
+              }}
+            >
+              <Pressable
+                style={styles.chatActionModalOverlay}
+                activeOpacity={1}
+                onPress={() => {
+                  setActiveActionTargetMessage(null);
+                  setActiveTargetLayout(null);
+                  setActiveMenuMessageId(null);
+                  setActiveReactionMessageId(null);
+                  setRecallingMessageId(null);
+                }}
+              >
+                {activeActionTargetMessage && (() => {
+                  const target = activeActionTargetMessage;
+                  const isMe = target.senderId === currentUser?.id;
+                  const cleanContent = target.content
+                    .replace(/^\[\[BALANCE\]\]/, '')
+                    .replace(/^\[\[LEDGER\|.*?\]\]/, '')
+                    .replace(/^\[\[TRANSACTION\]\]/, '');
+
+                  const { width: winW, height: winH } = Dimensions.get('window');
+                  // Tính toán vị trí neo (anchor)
+                  const menuW = 270;
+                  const menuH = 170; // Chiều cao ước tính của reaction row + action menu
+                  const placeAbove = activeTargetLayout ? (activeTargetLayout.y > winH * 0.45) : false;
+
+                  return (
+                    <Pressable
+                      style={styles.chatActionModalOverlay}
+                      activeOpacity={1}
+                      onPress={() => {
+                        setActiveActionTargetMessage(null);
+                        setActiveTargetLayout(null);
+                        setActiveMenuMessageId(null);
+                        setActiveReactionMessageId(null);
+                        setRecallingMessageId(null);
+                      }}
+                    >
+                      {activeTargetLayout && (
+                        <>
+                          {/* 1. Tin nhắn / Ảnh nổi lên tại ĐÚNG TỌA ĐỘ VỊ TRÍ GỐC TRÊN MÀN HÌNH */}
+                          <View
+                            pointerEvents="none"
+                            style={{
+                              position: 'absolute',
+                              left: activeTargetLayout.x,
+                              top: activeTargetLayout.y,
+                              width: activeTargetLayout.width,
+                              height: activeTargetLayout.height,
+                              shadowColor: '#000',
+                              shadowOffset: { width: 0, height: 6 },
+                              shadowOpacity: 0.35,
+                              shadowRadius: 14,
+                              elevation: 12,
+                              zIndex: 10,
+                            }}
+                          >
+                            {target.attachments && target.attachments.length > 0 ? (
+                              <View style={[styles.chatAttachmentImgContainer, { width: activeTargetLayout.width, height: activeTargetLayout.height }]}>
+                                <Image
+                                  source={{ uri: userProfileApi.formatAvatarUrl(target.attachments[0].fileKey) || target.attachments[0].fileKey }}
+                                  style={styles.chatAttachmentImg}
+                                  resizeMode="cover"
+                                />
+                              </View>
+                            ) : (
+                              <View
+                                style={[
+                                  styles.chatMessageBubbleWeb,
+                                  isMe ? styles.chatBubbleMeWeb : styles.chatBubbleOtherWeb,
+                                  { width: '100%', height: '100%', margin: 0 },
+                                ]}
+                              >
+                                {target.isEdited && (
+                                  <Text style={[styles.chatEditedBadge, isMe ? { color: '#047857' } : { color: '#64748B' }]}>
+                                    Đã sửa
+                                  </Text>
+                                )}
+                                <Text
+                                  style={[
+                                    styles.chatMessageContentWeb,
+                                    isMe ? styles.chatMessageTextMeWeb : styles.chatMessageTextOtherWeb,
+                                  ]}
+                                >
+                                  {cleanContent}
+                                </Text>
+                              </View>
+                            )}
+                          </View>
+
+                          {/* 2. Menu cảm xúc và hành động gắn ngay trên/dưới tin nhắn gốc */}
+                          <Pressable
+                            style={{
+                              position: 'absolute',
+                              top: placeAbove
+                                ? Math.max(20, activeTargetLayout.y - menuH - 12)
+                                : Math.min(winH - menuH - 30, activeTargetLayout.y + activeTargetLayout.height + 10),
+                              ...(isMe
+                                ? { right: Math.max(12, winW - (activeTargetLayout.x + activeTargetLayout.width)) }
+                                : { left: Math.max(12, activeTargetLayout.x) }),
+                              width: menuW,
+                              zIndex: 20,
+                            }}
+                            activeOpacity={1}
+                            onPress={(e) => e.stopPropagation()}
+                          >
+                            <View style={{ gap: 8 }}>
+                              {/* Thanh 6 Emoji cảm xúc */}
+                              <View style={styles.chatReactionPickRowModal}>
+                                {['❤️', '😆', '😮', '😢', '😡', '👍'].map((emoji) => (
+                                  <Pressable
+                                    key={emoji}
+                                    onPress={() => {
+                                      handleToggleReaction(target.id, emoji);
+                                      setActiveTargetLayout(null);
+                                    }}
+                                    style={({ pressed }) => [styles.chatReactionPickBtnModal, pressed && styles.pressed]}
+                                  >
+                                    <Text style={{ fontSize: 24 }}>{emoji}</Text>
+                                  </Pressable>
+                                ))}
+                              </View>
+
+                              {/* Menu các thao tác: Chỉnh sửa / Thu hồi */}
+                              <View style={styles.chatActionMenuModalBox}>
+                                {isMe && (!target.attachments || target.attachments.length === 0) && (
+                                  <Pressable
+                                    onPress={() => {
+                                      setEditingMessage({ id: target.id, text: cleanContent });
+                                      setActiveActionTargetMessage(null);
+                                      setActiveTargetLayout(null);
+                                      setActiveMenuMessageId(null);
+                                      setRecallingMessageId(null);
+                                    }}
+                                    style={({ pressed }) => [styles.chatActionModalItem, pressed && styles.pressed]}
+                                  >
+                                    <Text style={styles.chatActionModalItemText}>Chỉnh sửa</Text>
+                                    <FinanceIcon name="edit" size={16} color="#334155" />
+                                  </Pressable>
+                                )}
+
+                                {isMe ? (
+                                  <Pressable
+                                    onPress={() => setRecallingMessageId((prev) => (prev === target.id ? null : target.id))}
+                                    style={({ pressed }) => [
+                                      styles.chatActionModalItem,
+                                      pressed && styles.pressed,
+                                      (!target.attachments || target.attachments.length === 0) && { borderTopWidth: 1, borderTopColor: '#F1F5F9' },
+                                    ]}
+                                  >
+                                    <Text style={[styles.chatActionModalItemText, { color: '#DC2626' }]}>Thu hồi</Text>
+                                    <FinanceIcon name="trash" size={16} color="#DC2626" />
+                                  </Pressable>
+                                ) : (
+                                  <Pressable
+                                    onPress={() => {
+                                      handleHideMessageForMe(target.id);
+                                      setActiveTargetLayout(null);
+                                    }}
+                                    style={({ pressed }) => [styles.chatActionModalItem, pressed && styles.pressed]}
+                                  >
+                                    <Text style={styles.chatActionModalItemText}>Xóa ở phía tôi</Text>
+                                    <FinanceIcon name="trash" size={16} color="#64748B" />
+                                  </Pressable>
+                                )}
+                              </View>
+
+                              {/* Bảng phụ xác nhận Thu hồi 2 lựa chọn (khi bấm Thu hồi) */}
+                              {recallingMessageId === target.id && (
+                                <View style={styles.chatRecallSubMenuModalBox}>
+                                  <Text style={styles.chatRecallSubMenuTitleModal}>Bạn muốn thu hồi tin nhắn này ở đâu?</Text>
+                                  <Pressable
+                                    onPress={() => {
+                                      handleHideMessageForMe(target.id);
+                                      setActiveTargetLayout(null);
+                                    }}
+                                    style={({ pressed }) => [styles.chatRecallSubMenuItemModal, pressed && styles.pressed]}
+                                  >
+                                    <Text style={styles.chatRecallSubMenuTextModal}>Thu hồi với bạn</Text>
+                                    <Text style={styles.chatRecallSubMenuSubModal}>Tin nhắn chỉ biến mất khỏi thiết bị của bạn</Text>
+                                  </Pressable>
+                                  <Pressable
+                                    onPress={() => {
+                                      handleRecallMessage(target.id);
+                                      setActiveTargetLayout(null);
+                                    }}
+                                    style={({ pressed }) => [styles.chatRecallSubMenuItemModal, pressed && styles.pressed, { borderTopWidth: 1, borderTopColor: '#F1F5F9' }]}
+                                  >
+                                    <Text style={[styles.chatRecallSubMenuTextModal, { color: '#EF4444' }]}>Thu hồi với mọi người</Text>
+                                    <Text style={styles.chatRecallSubMenuSubModal}>Tin nhắn sẽ bị thu hồi với tất cả thành viên</Text>
+                                  </Pressable>
+                                </View>
+                              )}
+                            </View>
+                          </Pressable>
+                        </>
+                      )}
+                    </Pressable>
+                  );
+                })()}
+              </Pressable>
+            </Modal>
           </KeyboardAvoidingView>
         ) : (
           <ScrollView
@@ -2876,6 +3451,152 @@ export function GroupScreen({ onGroupDetailChange }: { onGroupDetailChange?: (is
                 </View>
               )}
             </View>
+          </View>
+        </Modal>
+        {/* Modal Xem cảm xúc về tin nhắn (Reactions Modal chuẩn Web) */}
+        <Modal visible={!!viewingReactionModalMessage} transparent animationType="fade">
+          <View style={styles.reactionModalOverlay}>
+            <View style={styles.reactionModalSheet}>
+              <View style={styles.reactionModalHeader}>
+                <Text style={styles.reactionModalTitle}>Cảm xúc về tin nhắn</Text>
+                <Pressable onPress={() => setViewingReactionModalMessage(null)} hitSlop={10}>
+                  <Text style={styles.reactionModalCloseText}>✕</Text>
+                </Pressable>
+              </View>
+
+              {viewingReactionModalMessage && (() => {
+                const reactionsList = viewingReactionModalMessage.reactions || [];
+                const uniqueEmojis = Array.from(new Set(reactionsList.map((r) => r.reaction)));
+                const filteredList = reactionModalTab === 'ALL'
+                  ? reactionsList
+                  : reactionsList.filter((r) => r.reaction === reactionModalTab);
+
+                return (
+                  <>
+                    <View style={styles.reactionModalTabsRow}>
+                      <Pressable
+                        onPress={() => setReactionModalTab('ALL')}
+                        style={[styles.reactionModalTabItem, reactionModalTab === 'ALL' && styles.reactionModalTabItemActive]}
+                      >
+                        <Text style={[styles.reactionModalTabText, reactionModalTab === 'ALL' && styles.reactionModalTabTextActive]}>
+                          Tất cả ({reactionsList.length})
+                        </Text>
+                      </Pressable>
+                      {uniqueEmojis.map((emoji) => {
+                        const count = reactionsList.filter((r) => r.reaction === emoji).length;
+                        return (
+                          <Pressable
+                            key={emoji}
+                            onPress={() => setReactionModalTab(emoji)}
+                            style={[styles.reactionModalTabItem, reactionModalTab === emoji && styles.reactionModalTabItemActive]}
+                          >
+                            <Text style={styles.reactionModalTabEmojiText}>{emoji} {count}</Text>
+                          </Pressable>
+                        );
+                      })}
+                    </View>
+
+                    <ScrollView style={{ maxHeight: 280 }} showsVerticalScrollIndicator={false}>
+                      {filteredList.map((r, rIdx) => {
+                        const isCurrentUserReaction = r.userId === currentUser?.id;
+                        const memberInfo = members.find((m) => m.userId === r.userId);
+                        const displayName = isCurrentUserReaction
+                          ? 'Bạn'
+                          : (r.userName || memberInfo?.user?.fullName || memberInfo?.nickname || 'Thành viên');
+                        const rawAvatar = memberInfo?.user?.avatarUrl || memberInfo?.user?.avatarKey;
+                        const avatarSrc = isCurrentUserReaction
+                          ? (currentUser?.avatarUrl ? userProfileApi.formatAvatarUrl(currentUser.avatarUrl) : null)
+                          : (rawAvatar ? userProfileApi.formatAvatarUrl(rawAvatar) : null);
+
+                        return (
+                          <Pressable
+                            key={rIdx}
+                            onPress={() => {
+                              if (isCurrentUserReaction && viewingReactionModalMessage) {
+                                handleToggleReaction(viewingReactionModalMessage.id, r.reaction);
+                              }
+                            }}
+                            style={styles.reactionModalUserRow}
+                          >
+                            <View style={styles.reactionModalUserLeft}>
+                              <View style={styles.reactionModalAvatarBox}>
+                                {avatarSrc ? (
+                                  <Image source={{ uri: avatarSrc }} style={styles.reactionModalAvatarImg} />
+                                ) : (
+                                  <Text style={styles.reactionModalAvatarInitial}>{displayName.slice(0, 1).toUpperCase()}</Text>
+                                )}
+                              </View>
+                              <Text style={styles.reactionModalUserName}>{displayName}</Text>
+                            </View>
+                            <Text style={{ fontSize: 20 }}>{r.reaction}</Text>
+                          </Pressable>
+                        );
+                      })}
+                    </ScrollView>
+                  </>
+                );
+              })()}
+            </View>
+          </View>
+        </Modal>
+
+        {/* Modal Lightbox Xem Ảnh Phóng To Đầy Đủ (Header ngày giờ, Nút tải về và Nút X thoát) */}
+        <Modal visible={!!lightboxImageUrl} transparent animationType="fade">
+          <View style={styles.lightboxModalOverlay}>
+            {/* Header trên cùng: Ngày giờ gửi và nút Tải về + Nút X đóng */}
+            <View style={[styles.lightboxHeaderBar, { paddingTop: Math.max(insets.top, 20) }]}>
+              <View style={styles.lightboxHeaderLeft}>
+                <Text style={styles.lightboxSenderText}>{lightboxImageInfo?.senderName || 'Hình ảnh'}</Text>
+                <Text style={styles.lightboxTimeText}>{lightboxImageInfo?.timeStr || 'Gần đây'}</Text>
+              </View>
+
+              <View style={styles.lightboxHeaderRight}>
+                {/* Nút Tải ảnh về máy / Mở trình duyệt tải */}
+                <Pressable
+                  onPress={async () => {
+                    if (lightboxImageUrl) {
+                      try {
+                        const can = await Linking.canOpenURL(lightboxImageUrl);
+                        if (can) {
+                          await Linking.openURL(lightboxImageUrl);
+                        } else {
+                          Alert.alert('Thông báo', 'Đang mở liên kết tải ảnh: ' + lightboxImageUrl);
+                        }
+                      } catch {
+                        Alert.alert('Lỗi', 'Không thể mở liên kết tải ảnh.');
+                      }
+                    }
+                  }}
+                  style={({ pressed }) => [styles.lightboxActionCircleBtn, pressed && styles.pressed]}
+                  hitSlop={8}
+                >
+                  <FinanceIcon name="download" size={18} color="#FFFFFF" />
+                </Pressable>
+
+                {/* Nút X đóng Lightbox */}
+                <Pressable
+                  onPress={() => {
+                    setLightboxImageUrl(null);
+                    setLightboxImageInfo(null);
+                  }}
+                  style={({ pressed }) => [styles.lightboxActionCircleBtn, pressed && styles.pressed]}
+                  hitSlop={8}
+                >
+                  <FinanceIcon name="close" size={18} color="#FFFFFF" />
+                </Pressable>
+              </View>
+            </View>
+
+            {/* Vùng hiển thị toàn bộ ảnh vừa vặn màn hình */}
+            {lightboxImageUrl && (
+              <View style={styles.lightboxImageWrapper}>
+                <Image
+                  source={{ uri: lightboxImageUrl }}
+                  style={styles.lightboxFullImage}
+                  resizeMode="contain"
+                />
+              </View>
+            )}
           </View>
         </Modal>
       </View>
@@ -5037,6 +5758,87 @@ const styles = StyleSheet.create({
   chatTimestampOtherWeb: {
     color: '#94A3B8',
   },
+  /* Hiển thị avatar những người đã xem ở dưới tin nhắn (Messenger style) */
+  chatSeenRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: -4,
+    marginTop: 3,
+  },
+  chatSeenAvatarCircle: {
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    borderWidth: 1.2,
+    borderColor: '#FFFFFF',
+    backgroundColor: '#D1FAE5',
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+  },
+  chatSeenAvatarImg: {
+    width: 16,
+    height: 16,
+  },
+  chatSeenAvatarChar: {
+    fontSize: 8,
+    fontWeight: '800',
+    color: '#065F46',
+  },
+  /* Chi tiết khi ấn vào tin nhắn: Giờ/ngày gửi và danh sách người đã xem */
+  chatClickedDetailContainer: {
+    marginTop: 4,
+    maxWidth: '92%',
+    gap: 4,
+  },
+  chatClickedDetailTimeText: {
+    fontSize: 10.5,
+    fontWeight: '600',
+    color: '#64748B',
+    paddingHorizontal: 4,
+  },
+  chatClickedSeenBox: {
+    paddingHorizontal: 8,
+    paddingVertical: 5,
+    backgroundColor: '#F8FAFC',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  chatClickedSeenHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginBottom: 4,
+  },
+  chatClickedSeenTitle: {
+    fontSize: 10.5,
+    fontWeight: '700',
+    color: '#059669',
+  },
+  chatClickedSeenAvatarsList: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+    alignItems: 'center',
+  },
+  chatClickedSeenUserChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#FFFFFF',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  chatClickedSeenUserName: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: '#334155',
+    maxWidth: 90,
+  },
   /* Card file Excel đính kèm chuẩn design */
   chatFileCardWeb: {
     flexDirection: 'row',
@@ -5086,18 +5888,17 @@ const styles = StyleSheet.create({
     marginLeft: 4,
     alignSelf: 'flex-end',
   },
-  /* Hiển thị ảnh đính kèm trong tin nhắn */
+  /* Hiển thị ảnh đính kèm trong tin nhắn: Chuẩn Messenger (tự co giãn chiều cao theo tỷ lệ gốc của ảnh) */
   chatAttachmentImgContainer: {
     borderRadius: 16,
     overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    backgroundColor: '#000000',
-    maxWidth: 240,
+    width: 230,
+    maxWidth: '100%',
+    backgroundColor: 'transparent',
   },
   chatAttachmentImg: {
-    width: 240,
-    height: 180,
+    width: '100%',
+    height: '100%',
     borderRadius: 16,
   },
   /* Xem trước ảnh đính kèm ở thanh nhập */
@@ -5150,6 +5951,431 @@ const styles = StyleSheet.create({
     elevation: 6,
     zIndex: 99,
     width: 280,
+  },
+  chatEditedBadge: {
+    fontSize: 9.5,
+    fontWeight: '700',
+    marginBottom: 2,
+  },
+  chatRecalledBubble: {
+    backgroundColor: '#F1F5F9',
+    borderWidth: 1,
+    borderColor: '#CBD5E1',
+    borderStyle: 'dashed',
+  },
+  chatRecalledText: {
+    fontSize: 12,
+    fontStyle: 'italic',
+    color: '#64748B',
+  },
+  chatReactionsBadgeContainer: {
+    marginTop: -8,
+    zIndex: 10,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    borderRadius: 12,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.08,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  chatReactionsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2,
+  },
+  chatReactionEmojiText: {
+    fontSize: 11,
+  },
+  chatReactionCountText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#64748B',
+    marginLeft: 2,
+  },
+  chatQuickActionFloatingBar: {
+    position: 'absolute',
+    bottom: '100%',
+    marginBottom: 6,
+    zIndex: 50,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 20,
+    padding: 6,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.12,
+    shadowRadius: 10,
+    elevation: 8,
+  },
+  chatReactionPickRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 4,
+    paddingVertical: 2,
+  },
+  chatReactionPickBtn: {
+    padding: 4,
+  },
+  chatActionMenuDropdown: {
+    borderTopWidth: 1,
+    borderTopColor: '#F1F5F9',
+    marginTop: 6,
+    paddingTop: 4,
+    gap: 2,
+  },
+  chatActionMenuItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingVertical: 6,
+    paddingHorizontal: 8,
+    borderRadius: 8,
+  },
+  chatActionMenuText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#1E293B',
+  },
+  /* Modal Overlay chuẩn khi đè vào tin nhắn (Messenger style) */
+  chatActionModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.4)',
+  },
+  chatActionModalContent: {
+    // Vị trí động neo theo tin nhắn
+  },
+  chatReactionPickRowModal: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-around',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 30,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    width: '100%',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 10,
+    elevation: 8,
+  },
+  chatReactionPickBtnModal: {
+    padding: 6,
+  },
+  chatActionMenuModalBox: {
+    width: '100%',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 18,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 10,
+    elevation: 8,
+  },
+  chatActionModalItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 13,
+  },
+  chatActionModalItemText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#1E293B',
+  },
+  chatRecallSubMenuModalBox: {
+    width: '100%',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 18,
+    padding: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 10,
+    elevation: 8,
+  },
+  chatRecallSubMenuTitleModal: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#64748B',
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  chatRecallSubMenuItemModal: {
+    paddingVertical: 10,
+    paddingHorizontal: 8,
+  },
+  chatRecallSubMenuTextModal: {
+    fontSize: 13.5,
+    fontWeight: '700',
+    color: '#0F172A',
+  },
+  chatRecallSubMenuSubModal: {
+    fontSize: 11,
+    color: '#64748B',
+    marginTop: 2,
+  },
+  /* Popup 2 tùy chọn thu hồi: với bạn hoặc với mọi người (chuẩn Messenger nền sáng) */
+  chatRecallSubMenuPopup: {
+    position: 'absolute',
+    bottom: '100%',
+    marginBottom: 8,
+    zIndex: 60,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 18,
+    padding: 12,
+    width: 250,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    elevation: 10,
+  },
+  chatRecallSubMenuTitle: {
+    fontSize: 11.5,
+    fontWeight: '700',
+    color: '#64748B',
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  chatRecallSubMenuItem: {
+    paddingVertical: 8,
+    paddingHorizontal: 6,
+  },
+  chatRecallSubMenuText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#0F172A',
+  },
+  chatRecallSubMenuSub: {
+    fontSize: 10.5,
+    color: '#64748B',
+    marginTop: 2,
+  },
+  chatRecallSubMenuCancelBtn: {
+    marginTop: 6,
+    paddingVertical: 8,
+    alignItems: 'center',
+    borderTopWidth: 1,
+    borderTopColor: '#F1F5F9',
+  },
+  chatRecallSubMenuCancelText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#64748B',
+  },
+  /* Chỉnh sửa tin nhắn Banner */
+  chatEditingBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FEF3C7',
+    borderWidth: 1,
+    borderColor: '#FDE68A',
+    borderRadius: 14,
+    marginHorizontal: 12,
+    marginBottom: 6,
+    padding: 10,
+  },
+  chatEditingBannerTitle: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#92400E',
+    marginBottom: 4,
+  },
+  chatEditingTextInput: {
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#FCD34D',
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    fontSize: 13,
+    color: '#0F172A',
+  },
+  chatEditingSaveBtn: {
+    backgroundColor: '#07543f',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  chatEditingSaveBtnText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: '800',
+  },
+  chatEditingCancelBtn: {
+    backgroundColor: '#E2E8F0',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  chatEditingCancelBtnText: {
+    color: '#475569',
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  /* Modal Reactions */
+  reactionModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  reactionModalSheet: {
+    width: '100%',
+    maxWidth: 340,
+    backgroundColor: '#242526',
+    borderRadius: 20,
+    padding: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 10,
+    elevation: 8,
+  },
+  reactionModalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 12,
+  },
+  reactionModalTitle: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#FFFFFF',
+  },
+  reactionModalCloseText: {
+    fontSize: 16,
+    color: '#94A3B8',
+    fontWeight: '700',
+  },
+  reactionModalTabsRow: {
+    flexDirection: 'row',
+    borderBottomWidth: 1,
+    borderBottomColor: '#3A3B3C',
+    paddingBottom: 8,
+    marginBottom: 10,
+    gap: 12,
+  },
+  reactionModalTabItem: {
+    paddingBottom: 4,
+  },
+  reactionModalTabItemActive: {
+    borderBottomWidth: 2,
+    borderBottomColor: '#3B82F6',
+  },
+  reactionModalTabText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#94A3B8',
+  },
+  reactionModalTabTextActive: {
+    color: '#3B82F6',
+  },
+  reactionModalTabEmojiText: {
+    fontSize: 12,
+    color: '#CBD5E1',
+  },
+  reactionModalUserRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#334155',
+  },
+  reactionModalUserLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  reactionModalAvatarBox: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#059669',
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+  },
+  reactionModalAvatarImg: {
+    width: 32,
+    height: 32,
+  },
+  reactionModalAvatarInitial: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#FFFFFF',
+  },
+  reactionModalUserName: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+  /* Lightbox Xem ảnh */
+  lightboxModalOverlay: {
+    flex: 1,
+    backgroundColor: '#000000',
+    justifyContent: 'space-between',
+  },
+  lightboxHeaderBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingBottom: 12,
+    backgroundColor: 'rgba(0, 0, 0, 0.65)',
+    zIndex: 50,
+  },
+  lightboxHeaderLeft: {
+    flex: 1,
+  },
+  lightboxSenderText: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#FFFFFF',
+  },
+  lightboxTimeText: {
+    fontSize: 11.5,
+    color: '#CBD5E1',
+    marginTop: 2,
+  },
+  lightboxHeaderRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  lightboxActionCircleBtn: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  lightboxImageWrapper: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 10,
+  },
+  lightboxFullImage: {
+    width: '100%',
+    height: '100%',
   },
   chatEmojiPickerTitle: {
     fontSize: 11,

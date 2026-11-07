@@ -15,7 +15,7 @@ export type IconName =
   | 'edit' | 'delete' | 'shopping-bag' | 'car' | 'home' | 'heart' | 'zap' | 'book' | 'film' | 'map' | 'piggy-bank' | 'credit-card' | 'help-circle' | 'briefcase' | 'gift' | 'trending-up' | 'store' | 'plus-circle' | 'eye'
   | 'sun' | 'moon' | 'borrowing' | 'lending' | 'hand-coins' | 'menu' | 'close'
   | 'burger' | 'pill' | 'users' | 'group' | 'file-text' | 'utensils' | 'banknote' | 'check' | 'message-square'
-  | 'crown' | 'camera' | 'cloud' | 'info' | 'leaf' | 'gamepad' | 'palmtree' | 'droplet' | 'shopping-cart' | 'thumbs-up' | 'reply' | 'trash' | 'paperclip' | 'send' | 'smile' | 'file-excel' | 'checks';
+  | 'crown' | 'camera' | 'cloud' | 'info' | 'leaf' | 'gamepad' | 'palmtree' | 'droplet' | 'shopping-cart' | 'thumbs-up' | 'reply' | 'trash' | 'paperclip' | 'send' | 'smile' | 'file-excel' | 'checks' | 'image' | 'alert-circle' | 'seen-eye';
 
 export function FinanceIcon({
   name,
@@ -398,6 +398,37 @@ export function FinanceIcon({
           <>
             <Polyline points="18 6 9 15 5 11" />
             <Polyline points="22 10 13 19 11 17" />
+          </>
+        );
+      case 'close':
+        return (
+          <>
+            <Line x1="18" y1="6" x2="6" y2="18" />
+            <Line x1="6" y1="6" x2="18" y2="18" />
+          </>
+        );
+      case 'image':
+        return (
+          <>
+            <Rect x="3" y="3" width="18" height="18" rx="2" />
+            <Circle cx="8.5" cy="8.5" r="1.5" />
+            <Polyline points="21 15 16 10 5 21" />
+          </>
+        );
+      case 'alert-circle':
+        return (
+          <>
+            <Circle cx="12" cy="12" r="10" />
+            <Line x1="12" y1="8" x2="12" y2="12" />
+            <Line x1="12" y1="16" x2="12.01" y2="16" />
+          </>
+        );
+      case 'seen-eye':
+      case 'eye':
+        return (
+          <>
+            <Path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z" />
+            <Circle cx="12" cy="12" r="3" />
           </>
         );
       default:
