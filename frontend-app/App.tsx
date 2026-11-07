@@ -1,5 +1,5 @@
 import { StatusBar } from 'expo-status-bar';
-import React from 'react';
+import React, { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { BottomNav, TabKey } from './src/components/BottomNav';
@@ -44,6 +44,7 @@ function AppContent() {
   const [showBalanceForecast, setShowBalanceForecast] = React.useState(false);
   const [showNotifications, setShowNotifications] = React.useState(false);
   const [showProfile, setShowProfile] = React.useState(false);
+  const [isGroupDetailOpen, setIsGroupDetailOpen] = React.useState(false);
 
   if (showRegister) {
     return (
@@ -232,8 +233,6 @@ function AppContent() {
       </View>
     );
   }
-
-  const [isGroupDetailOpen, setIsGroupDetailOpen] = useState(false);
 
   const screen = {
     home: (

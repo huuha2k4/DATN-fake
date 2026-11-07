@@ -12,7 +12,6 @@ import {
   Pressable,
   RefreshControl,
   ScrollView,
-  StatusBar,
   StyleSheet,
   Switch,
   Text,
@@ -814,9 +813,6 @@ export function GroupScreen({ onGroupDetailChange }: { onGroupDetailChange?: (is
 
     return (
       <View style={styles.detailScreenContainer}>
-        {/* Đổi màu chữ/icon thanh trạng thái điện thoại (giờ, pin, sóng) sang màu đen chuẩn nền sáng */}
-        <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" animated />
-
         {/* Header Trang Chi tiết full màn hình - Phong cách sáng & icons tương tác chuẩn mẫu */}
         <View style={[styles.detailScreenHeaderModern, { paddingTop: Math.max(insets.top, 14) + 6 }]}>
           <Pressable
