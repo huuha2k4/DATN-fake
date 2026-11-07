@@ -5,14 +5,13 @@ import { NativeModules, Platform } from 'react-native';
  * Giúp điện thoại thật chạy Expo Go kết nối thẳng tới Backend trên máy tính mà không sợ bị trỏ nhầm về localhost!
  */
 function getAutoDetectedApiUrl(): string {
-  // 1. Kiểm tra biến môi trường EXPO_PUBLIC_API_URL từ file .env
+  // 1. Tuyệt đối ưu tiên 100% biến môi trường EXPO_PUBLIC_API_URL từ file .env nếu có
   const envUrl = process.env.EXPO_PUBLIC_API_URL?.trim();
-  if (envUrl && !envUrl.includes('192.168.1.9')) {
+  if (envUrl) {
     return envUrl;
   }
 
-  // 2. Tự động lấy IP/Host từ Metro Bundler server đang kết nối tới Expo Go
-  // Khi bạn mở Expo Go (quét mã QR từ VPS hay máy tính cá nhân), scriptURL sẽ chứa IP/Domain của máy chủ Metro.
+  // 2. Nếu không đặt trong .env, tự động lấy IP/Host từ Metro Bundler server khi chạy Expo Go
   try {
     const scriptURL = NativeModules?.SourceCode?.scriptURL || '';
     if (scriptURL) {
@@ -23,12 +22,7 @@ function getAutoDetectedApiUrl(): string {
     }
   } catch {}
 
-  // 3. Nếu envUrl có giá trị, sử dụng giá trị đó
-  if (envUrl) {
-    return envUrl;
-  }
-
-  // 4. Fallback mặc định theo nền tảng
+  // 3. Fallback mặc định
   return Platform.OS === 'android' ? 'http://10.0.2.2:1116/api/v1' : 'http://localhost:1116/api/v1';
 }
 
