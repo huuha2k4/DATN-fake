@@ -140,16 +140,6 @@ export function LoginScreen({
                 </View>
               ) : null}
 
-              {/* Debug Server URL để bạn biết chắc chắn App đang gọi đi đâu */}
-              <View style={{ marginBottom: 12, padding: 8, backgroundColor: '#F1F5F9', borderRadius: 8 }}>
-                <Text style={{ fontSize: 11, color: '#64748B' }}>
-                  📡 API Server: <Text style={{ fontWeight: '700', color: '#0F172A' }}>{API_BASE_URL}</Text>
-                </Text>
-                <Text style={{ fontSize: 10, color: '#94A3B8', marginTop: 2 }}>
-                  ENV: {String(process.env.EXPO_PUBLIC_API_URL)}
-                </Text>
-              </View>
-
               {/* Form group: Email / Tên tài khoản */}
               <View style={styles.formGroup}>
                 <Text style={styles.formLabel}>Email hoặc Tên tài khoản</Text>
