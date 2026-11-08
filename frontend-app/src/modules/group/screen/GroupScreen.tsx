@@ -14,6 +14,7 @@ import {
   Pressable,
   RefreshControl,
   ScrollView,
+  Share,
   StyleSheet,
   Switch,
   Text,
@@ -36,10 +37,16 @@ import {
   type GroupType,
   type UserSearchResult,
 } from '../api/groupApi';
-import { authStorage } from '../../auth/api/authApi';
+import { API_BASE_URL, authStorage } from '../../auth/api/authApi';
 import { userProfileApi } from '../../profile/api/userProfileApi';
 import { transactionApi, type AccountItem, type CategoryItem } from '../../add-transaction/api/transactionApi';
 import * as ImagePicker from 'expo-image-picker';
+import { GroupMembersTab, InviteMemberModal, MemberActionModal } from '../components/members';
+import { KidWalletTab, CreateChildWalletModal, ChildWalletDetailModal } from '../components/kid-wallet';
+import { GroupBalancesTab } from '../components/balances';
+import { GroupSettingsTab } from '../components/settings';
+import { DepositFundModal } from '../components/fund';
+import { ChildWalletResponse, CreateChildWalletRequest } from '../api/groupApi';
 
 const GROUP_ICONS: Record<string, any> = {
   FAMILY: require('../../../assets/icons/groups/group_family.png'),
@@ -72,6 +79,9 @@ function formatVND(val: number) {
   return new Intl.NumberFormat('vi-VN').format(val || 0);
 }
 
+// Bộ nhớ tạm tỷ lệ ảnh trong phiên hoạt động để tránh gọi lại Image.getSize
+const imageAspectRatioCache: Record<string, number> = {};
+
 // Component hiển thị ảnh đính kèm tự động tính tỷ lệ theo kích thước ảnh thực tế (không bị crop/hụt chiều cao)
 function ChatAttachmentImageItem({
   uri,
@@ -82,17 +92,26 @@ function ChatAttachmentImageItem({
   onPress: () => void;
   onLongPress: () => void;
 }) {
-  const [aspectRatio, setAspectRatio] = useState<number>(4 / 3);
+  const [aspectRatio, setAspectRatio] = useState<number>(imageAspectRatioCache[uri] || (4 / 3));
 
   useEffect(() => {
     if (uri) {
+      // Tải trước vào bộ nhớ cache của máy để hiển thị tức thì
+      Image.prefetch(uri).catch(() => {});
+
+      if (imageAspectRatioCache[uri]) {
+        setAspectRatio(imageAspectRatioCache[uri]);
+        return;
+      }
+
       Image.getSize(
         uri,
         (w, h) => {
           if (w > 0 && h > 0) {
-            // Giới hạn tỷ lệ khung hình trong khoảng hợp lý (tối thiểu 0.6 cho ảnh đứng, tối đa 1.8 cho ảnh ngang)
-            const ratio = w / h;
-            setAspectRatio(Math.max(0.55, Math.min(1.8, ratio)));
+            // Giới hạn tỷ lệ khung hình trong khoảng hợp lý (tối thiểu 0.55 cho ảnh đứng, tối đa 1.8 cho ảnh ngang)
+            const ratio = Math.max(0.55, Math.min(1.8, w / h));
+            imageAspectRatioCache[uri] = ratio;
+            setAspectRatio(ratio);
           }
         },
         () => {
@@ -109,7 +128,7 @@ function ChatAttachmentImageItem({
       style={[styles.chatAttachmentImgContainer, { aspectRatio }]}
     >
       <Image
-        source={{ uri }}
+        source={{ uri, cache: 'force-cache' }}
         style={styles.chatAttachmentImg}
         resizeMode="cover"
       />
@@ -199,13 +218,20 @@ export function GroupScreen({ onGroupDetailChange }: { onGroupDetailChange?: (is
   useEffect(() => {
     onGroupDetailChange?.(selectedGroup !== null);
   }, [selectedGroup, onGroupDetailChange]);
-  const [detailTab, setDetailTab] = useState<'OVERVIEW' | 'EXPENSES' | 'CHAT' | 'BALANCES' | 'MEMBERS'>('OVERVIEW');
+  const [detailTab, setDetailTab] = useState<'OVERVIEW' | 'EXPENSES' | 'CHAT' | 'BALANCES' | 'MEMBERS' | 'KIDS' | 'SETTINGS'>('OVERVIEW');
+  const [groupNotificationEnabled, setGroupNotificationEnabled] = useState(true);
+  const [childWallets, setChildWallets] = useState<ChildWalletResponse[]>([]);
+  const [selectedChildWallet, setSelectedChildWallet] = useState<ChildWalletResponse | null>(null);
+  const [childWalletDetailVisible, setChildWalletDetailVisible] = useState(false);
+  const [createChildWalletModalVisible, setCreateChildWalletModalVisible] = useState(false);
+  const [depositFundModalVisible, setDepositFundModalVisible] = useState(false);
   const [viewingExpense, setViewingExpense] = useState<GroupExpenseResponse | null>(null);
   const [txTypeFilter, setTxTypeFilter] = useState<'ALL' | 'INCOME' | 'EXPENSE'>('ALL');
 
   // Dữ liệu trong chi tiết nhóm
   const [expenses, setExpenses] = useState<GroupExpenseResponse[]>([]);
   const [members, setMembers] = useState<GroupMemberResponse[]>([]);
+  const [sentPendingInvitations, setSentPendingInvitations] = useState<GroupInvitationResponse[]>([]);
   const [balanceData, setBalanceData] = useState<GroupBalanceResponse | null>(null);
   const [fundData, setFundData] = useState<GroupFundResponse | null>(null);
   const [fundContributions, setFundContributions] = useState<GroupFundContributionResponse[]>([]);
@@ -234,7 +260,11 @@ export function GroupScreen({ onGroupDetailChange }: { onGroupDetailChange?: (is
   });
   const [editingComment, setEditingComment] = useState<{ targetId: string; comment: GroupCommentResponse } | null>(null);
   const [editingCommentContent, setEditingCommentContent] = useState('');
-  const [commentActionMenuTarget, setCommentActionMenuTarget] = useState<{ targetId: string; comment: GroupCommentResponse } | null>(null);
+  const [commentActionMenuTarget, setCommentActionMenuTarget] = useState<{
+    targetId: string;
+    comment: GroupCommentResponse;
+    anchor?: { x: number; y: number; width: number; height: number };
+  } | null>(null);
   const [expandedComments, setExpandedComments] = useState<Record<string, boolean>>({});
   const [newMessageText, setNewMessageText] = useState('');
   const [sendingMessage, setSendingMessage] = useState(false);
@@ -243,6 +273,31 @@ export function GroupScreen({ onGroupDetailChange }: { onGroupDetailChange?: (is
   const [selectedImageAttachment, setSelectedImageAttachment] = useState<{ uri: string; name: string; type: string } | null>(null);
   const [uploadingAttachment, setUploadingAttachment] = useState(false);
   const chatScrollViewRef = useRef<ScrollView>(null);
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
+  const [showScrollBottomBtn, setShowScrollBottomBtn] = useState(false);
+  const messageItemLayouts = useRef<Record<string, number>>({});
+  const hasAutoScrolledOnEnterRef = useRef(false);
+
+  useEffect(() => {
+    const showSub = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow',
+      (e) => {
+        setKeyboardHeight(e.endCoordinates.height);
+        // Tự động cuộn cuộc trò chuyện xuống tin nhắn cuối cùng khi bàn phím xuất hiện
+        setTimeout(() => {
+          chatScrollViewRef.current?.scrollToEnd({ animated: true });
+        }, 100);
+      }
+    );
+    const hideSub = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide',
+      () => setKeyboardHeight(0)
+    );
+    return () => {
+      showSub.remove();
+      hideSub.remove();
+    };
+  }, []);
 
   // Quản lý theo tháng cho quỹ nhóm
   const [selectedMonth, setSelectedMonth] = useState<string>(() => {
@@ -283,6 +338,7 @@ export function GroupScreen({ onGroupDetailChange }: { onGroupDetailChange?: (is
 
   // Modal Mời thành viên mới
   const [inviteModalVisible, setInviteModalVisible] = useState(false);
+  const [selectedActionMember, setSelectedActionMember] = useState<GroupMemberResponse | null>(null);
   const [searchMemberQuery, setSearchMemberQuery] = useState('');
   const [searchResults, setSearchResults] = useState<UserSearchResult[]>([]);
   const [searchingUser, setSearchingUser] = useState(false);
@@ -348,13 +404,26 @@ export function GroupScreen({ onGroupDetailChange }: { onGroupDetailChange?: (is
                 if (!previewText) {
                   previewText = 'Đã gửi một tin nhắn';
                 }
+                // Tính chính xác số lượng tin nhắn chưa đọc đối với user hiện tại
+                const currentUserIdStr = currentUser?.id ? String(currentUser.id).toLowerCase() : '';
+                let calculatedUnread = 0;
+                if (currentUserIdStr) {
+                  calculatedUnread = msgs.filter((m) => {
+                    if (m.senderId === currentUser?.id) return false;
+                    const readList = (m.readByUserIds || []).map((id) => String(id).toLowerCase());
+                    return !readList.includes(currentUserIdStr);
+                  }).length;
+                } else {
+                  calculatedUnread = g.unreadMessageCount || 0;
+                }
+
                 return [
                   g.id,
                   {
                     senderName: sender,
                     content: previewText,
                     time: timeStr,
-                    unreadCount: g.unreadMessageCount || 0,
+                    unreadCount: calculatedUnread,
                   },
                 ] as const;
               }
@@ -445,13 +514,15 @@ export function GroupScreen({ onGroupDetailChange }: { onGroupDetailChange?: (is
   const loadGroupDetailData = async (groupId: string) => {
     setLoadingDetail(true);
     try {
-      const [expList, memList, bal, fund, contributions, msgList] = await Promise.all([
+      const [expList, memList, bal, fund, contributions, msgList, wallets, pendingInvs] = await Promise.all([
         groupApi.getExpenses(groupId),
         groupApi.getMembers(groupId),
         groupApi.getBalances(groupId),
         groupApi.getFund(groupId),
         groupApi.getFundContributions(groupId),
         groupApi.getMessages(groupId),
+        groupApi.getChildWallets(groupId),
+        groupApi.getSentPendingInvitations(groupId).catch(() => []),
       ]);
       setExpenses(expList);
       setMembers(memList);
@@ -459,6 +530,8 @@ export function GroupScreen({ onGroupDetailChange }: { onGroupDetailChange?: (is
       setFundData(fund);
       setFundContributions(contributions);
       setMessages(sortMessagesChronologically(msgList));
+      setChildWallets(wallets || []);
+      setSentPendingInvitations(pendingInvs || []);
       loadMonthlyFundStats(groupId, selectedMonth);
 
       // Nạp danh sách ví cá nhân & danh mục cho modal thêm giao dịch
@@ -532,6 +605,66 @@ export function GroupScreen({ onGroupDetailChange }: { onGroupDetailChange?: (is
       setLoadingDetail(false);
     }
   };
+
+  // Reset flag tự động cuộn khi chuyển tab hoặc đổi nhóm
+  useEffect(() => {
+    hasAutoScrolledOnEnterRef.current = false;
+  }, [selectedGroup?.id, detailTab]);
+
+  // Đánh dấu đã đọc và tự động cuộn đến tin nhắn chưa đọc hoặc xuống cuối cùng khi vào tab CHAT
+  useEffect(() => {
+    if (!selectedGroup || detailTab !== 'CHAT' || messages.length === 0 || !currentUser?.id) return;
+
+    const currentUserIdStr = String(currentUser.id).toLowerCase();
+    const unreadMsgs = messages.filter((m) => {
+      if (m.senderId === currentUser.id) return false;
+      const readList = (m.readByUserIds || []).map((id) => String(id).toLowerCase());
+      return !readList.includes(currentUserIdStr);
+    });
+
+    // 1. Nếu có tin nhắn chưa đọc, gọi API mark as read
+    if (unreadMsgs.length > 0) {
+      const unreadIds = unreadMsgs.map((m) => m.id);
+      groupApi.markMessagesAsRead(selectedGroup.id, unreadIds).then(() => {
+        // Cập nhật state tin nhắn để hiện avatar đã đọc
+        setMessages((prev) =>
+          prev.map((m) => {
+            if (unreadIds.includes(m.id)) {
+              const currentReads = m.readByUserIds || [];
+              return { ...m, readByUserIds: [...currentReads, currentUser.id] };
+            }
+            return m;
+          })
+        );
+        // Đồng thời cập nhật badge ngoài danh sách nhóm về 0
+        setLastMessageMap((prev) => {
+          if (!prev[selectedGroup.id]) return prev;
+          return {
+            ...prev,
+            [selectedGroup.id]: {
+              ...prev[selectedGroup.id],
+              unreadCount: 0,
+            },
+          };
+        });
+      }).catch(() => {});
+    }
+
+    // 2. Cuộn thông minh khi lần đầu mở vào tab CHAT
+    if (!hasAutoScrolledOnEnterRef.current) {
+      hasAutoScrolledOnEnterRef.current = true;
+      const firstUnread = unreadMsgs.length > 0 ? unreadMsgs[0] : null;
+
+      setTimeout(() => {
+        if (firstUnread && messageItemLayouts.current[firstUnread.id] !== undefined) {
+          const targetY = Math.max(0, messageItemLayouts.current[firstUnread.id] - 60);
+          chatScrollViewRef.current?.scrollTo({ y: targetY, animated: true });
+        } else {
+          chatScrollViewRef.current?.scrollToEnd({ animated: false });
+        }
+      }, 250);
+    }
+  }, [detailTab, selectedGroup?.id, currentUser?.id, messages.length]);
 
   // Polling tin nhắn khi đang ở tab CHAT
   useEffect(() => {
@@ -873,13 +1006,15 @@ export function GroupScreen({ onGroupDetailChange }: { onGroupDetailChange?: (is
   // Tìm kiếm người dùng để mời
   const handleSearchUsers = async (q: string) => {
     setSearchMemberQuery(q);
-    if (q.trim().length < 2) {
+    const trimmed = q.trim();
+    // Bắt đầu tìm kiếm ngay khi người dùng gõ có chứa ký tự @
+    if (!trimmed.includes('@')) {
       setSearchResults([]);
       return;
     }
     setSearchingUser(true);
     try {
-      const res = await groupApi.searchUsers(q);
+      const res = await groupApi.searchUsers(trimmed);
       setSearchResults(res);
     } catch {
       setSearchResults([]);
@@ -906,12 +1041,54 @@ export function GroupScreen({ onGroupDetailChange }: { onGroupDetailChange?: (is
     }
   };
 
+  // Hủy lời mời tham gia nhóm đang chờ phản hồi
+  const handleCancelInvitation = async (invitationId: string, inviteeName?: string) => {
+    if (!selectedGroup) return;
+    Alert.alert(
+      'Hủy lời mời',
+      `Bạn có chắc chắn muốn hủy lời mời gửi tới ${inviteeName || 'người dùng này'}?`,
+      [
+        { text: 'Không', style: 'cancel' },
+        {
+          text: 'Hủy lời mời',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await groupApi.cancelInvitation(selectedGroup.id, invitationId);
+              setSentPendingInvitations((prev) => prev.filter((i) => i.id !== invitationId));
+              Alert.alert('Thành công', 'Đã hủy lời mời tham gia nhóm.');
+            } catch (err: any) {
+              Alert.alert('Lỗi', err?.message || 'Không thể hủy lời mời.');
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  // Cập nhật vai trò thành viên (ADMIN <-> MEMBER)
+  const handleUpdateMemberRole = async (mem: GroupMemberResponse, newRole: 'ADMIN' | 'MEMBER') => {
+    if (!selectedGroup) return;
+    const name = mem.user?.fullName || mem.nickname || mem.fullName || 'thành viên';
+    try {
+      await groupApi.updateMember(selectedGroup.id, mem.userId, { role: newRole });
+      await loadGroupDetailData(selectedGroup.id);
+      Alert.alert(
+        'Thành công',
+        `Đã ${newRole === 'ADMIN' ? 'thăng quyền Quản trị viên' : 'chuyển thành Thành viên'} cho ${name}.`
+      );
+    } catch (err: any) {
+      Alert.alert('Lỗi', err?.message || 'Không thể cập nhật quyền hạn.');
+    }
+  };
+
   // Xóa thành viên
   const handleRemoveMember = (mem: GroupMemberResponse) => {
     if (!selectedGroup) return;
+    const name = mem.user?.fullName || mem.nickname || mem.fullName || 'thành viên này';
     Alert.alert(
       'Xóa thành viên',
-      `Bạn có chắc chắn muốn xóa ${mem.user?.fullName || 'thành viên này'} khỏi nhóm?`,
+      `Bạn có chắc chắn muốn xóa ${name} khỏi nhóm?`,
       [
         { text: 'Hủy', style: 'cancel' },
         {
@@ -921,7 +1098,7 @@ export function GroupScreen({ onGroupDetailChange }: { onGroupDetailChange?: (is
             try {
               await groupApi.removeMember(selectedGroup.id, mem.userId);
               await loadGroupDetailData(selectedGroup.id);
-              Alert.alert('Thành công', 'Đã xóa thành viên khỏi nhóm.');
+              Alert.alert('Thành công', `Đã xóa ${name} khỏi nhóm.`);
             } catch (err: any) {
               Alert.alert('Lỗi', err?.message || 'Không thể xóa thành viên.');
             }
@@ -962,6 +1139,15 @@ export function GroupScreen({ onGroupDetailChange }: { onGroupDetailChange?: (is
   if (selectedGroup) {
     const isFamily = selectedGroup.groupType === 'FAMILY';
     const groupIconSource = GROUP_TYPE_MAP[selectedGroup.groupType]?.imageSource || GROUP_ICONS.FAMILY;
+    const isOwner = selectedGroup.myRole === 'OWNER' || (currentUser && selectedGroup.ownerId === currentUser.id);
+    const isAdmin = isOwner || selectedGroup.myRole === 'ADMIN';
+
+    // Cân đối nợ chỉ có ở nhóm: Ở ghép/Phòng trọ (ROOMMATE), Du lịch (TRAVEL), Dự án (PROJECT), Khác (OTHER)
+    // KHÔNG có ở: Gia đình (FAMILY) và Cặp đôi (COUPLE)
+    const hasBalancesTab = selectedGroup.groupType === 'ROOMMATE' ||
+      selectedGroup.groupType === 'TRAVEL' ||
+      selectedGroup.groupType === 'PROJECT' ||
+      selectedGroup.groupType === 'OTHER';
 
     return (
       <View style={styles.detailScreenContainer}>
@@ -994,21 +1180,14 @@ export function GroupScreen({ onGroupDetailChange }: { onGroupDetailChange?: (is
             </View>
           </View>
 
-          {/* Cụm Action Buttons: Cài đặt và Menu ba chấm */}
+          {/* Cụm Action Buttons: Cài đặt nhóm */}
           <View style={styles.detailHeaderActionsRow}>
             <Pressable
-              onPress={() => Alert.alert('Cài đặt nhóm', 'Cấu hình chi tiêu và phân quyền nhóm')}
+              onPress={() => setDetailTab('SETTINGS')}
               style={styles.detailActionCircleBtn}
               hitSlop={6}
             >
               <FinanceIcon name="settings" size={17} color="#059669" />
-            </Pressable>
-            <Pressable
-              onPress={() => setDetailTab('MEMBERS')}
-              style={styles.detailActionCircleBtn}
-              hitSlop={6}
-            >
-              <Text style={{ fontSize: 16, color: '#059669', fontWeight: '800', lineHeight: 18 }}>···</Text>
             </Pressable>
           </View>
         </View>
@@ -1024,28 +1203,49 @@ export function GroupScreen({ onGroupDetailChange }: { onGroupDetailChange?: (is
               { key: 'OVERVIEW', label: 'Tổng quan', icon: 'chart' },
               { key: 'EXPENSES', label: 'Thu & Chi', icon: 'receipt' },
               { key: 'CHAT', label: 'Trò chuyện', icon: 'message-square' },
+              ...(hasBalancesTab ? [{ key: 'BALANCES', label: 'Cân đối nợ', icon: 'scale' }] : []),
               { key: 'MEMBERS', label: 'Thành viên', icon: 'users' },
+              ...(isFamily ? [{ key: 'KIDS', label: 'Ví trẻ em', icon: 'wallet' }] : []),
+              { key: 'SETTINGS', label: 'Cài đặt', icon: 'settings' },
             ].map((tab) => {
               const isSelected = detailTab === tab.key;
+              // Tính số lượng tin nhắn chưa đọc đối với tab Trò chuyện
+              const unreadChatCount = tab.key === 'CHAT' && currentUser?.id
+                ? messages.filter((m) => {
+                    if (m.senderId === currentUser.id) return false;
+                    const readList = (m.readByUserIds || []).map((id) => String(id).toLowerCase());
+                    return !readList.includes(String(currentUser.id).toLowerCase());
+                  }).length
+                : 0;
+
               return (
                 <Pressable
                   key={tab.key}
                   onPress={() => setDetailTab(tab.key as any)}
                   style={[styles.detailTabItemUnderline, isSelected && styles.detailTabItemUnderlineActive]}
                 >
-                  <FinanceIcon
-                    name={tab.icon as any}
-                    size={16}
-                    color={isSelected ? '#0E964E' : '#64748B'}
-                  />
-                  <Text
-                    style={[
-                      styles.detailTabItemTextClean,
-                      isSelected && styles.detailTabItemTextCleanActive,
-                    ]}
-                  >
-                    {tab.label}
-                  </Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                    <FinanceIcon
+                      name={tab.icon as any}
+                      size={16}
+                      color={isSelected ? '#0E964E' : '#64748B'}
+                    />
+                    <Text
+                      style={[
+                        styles.detailTabItemTextClean,
+                        isSelected && styles.detailTabItemTextCleanActive,
+                      ]}
+                    >
+                      {tab.label}
+                    </Text>
+                    {unreadChatCount > 0 && !isSelected && (
+                      <View style={styles.detailTabUnreadBadge}>
+                        <Text style={styles.detailTabUnreadBadgeText}>
+                          {unreadChatCount > 99 ? '99+' : unreadChatCount}
+                        </Text>
+                      </View>
+                    )}
+                  </View>
                   {isSelected && <View style={styles.detailActiveIndicatorLine} />}
                 </Pressable>
               );
@@ -1064,20 +1264,27 @@ export function GroupScreen({ onGroupDetailChange }: { onGroupDetailChange?: (is
              cuộn độc lập bằng ScrollView bên trong, thanh chat ghim cố định ở đáy */
           <KeyboardAvoidingView
             style={styles.chatViewportContainer}
-            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-            keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
+            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+            keyboardVerticalOffset={0}
           >
-            <ScrollView
-              ref={chatScrollViewRef}
-              style={styles.chatMessagesScrollView}
-              contentContainerStyle={styles.chatMessagesContentContainer}
-              showsVerticalScrollIndicator={false}
-              onContentSizeChange={() => {
-                if (shouldAutoScrollRef.current) {
-                  chatScrollViewRef.current?.scrollToEnd({ animated: false });
-                }
-              }}
-            >
+              <ScrollView
+                ref={chatScrollViewRef}
+                style={styles.chatMessagesScrollView}
+                contentContainerStyle={styles.chatMessagesContentContainer}
+                showsVerticalScrollIndicator={false}
+                scrollEventThrottle={16}
+                onScroll={(e) => {
+                  const { layoutMeasurement, contentOffset, contentSize } = e.nativeEvent;
+                  // Nếu cuộn lên cách đáy hơn 80px thì hiển thị nút cuộn xuống
+                  const isCloseToBottom = layoutMeasurement.height + contentOffset.y >= contentSize.height - 80;
+                  setShowScrollBottomBtn(!isCloseToBottom);
+                }}
+                onContentSizeChange={() => {
+                  if (shouldAutoScrollRef.current) {
+                    chatScrollViewRef.current?.scrollToEnd({ animated: false });
+                  }
+                }}
+              >
               {messages.filter((m) => !hiddenMessageIds.includes(m.id)).length === 0 ? (
                 <View style={styles.detailEmptyCard}>
                   <Text style={{ fontSize: 32, marginBottom: 8 }}>💬</Text>
@@ -1106,9 +1313,20 @@ export function GroupScreen({ onGroupDetailChange }: { onGroupDetailChange?: (is
                       });
                     }
 
+                    // Tìm tin nhắn chưa đọc đầu tiên của user hiện tại
+                    const currentUserIdStr = currentUser?.id ? String(currentUser.id).toLowerCase() : '';
+                    const firstUnreadMsg = currentUserIdStr
+                      ? messages.find((m) => {
+                          if (m.senderId === currentUser?.id) return false;
+                          const readList = (m.readByUserIds || []).map((id) => String(id).toLowerCase());
+                          return !readList.includes(currentUserIdStr);
+                        })
+                      : null;
+
                     return messages
                       .filter((m) => !hiddenMessageIds.includes(m.id))
                       .map((msg, index, filteredArr) => {
+                      const isFirstUnread = firstUnreadMsg && firstUnreadMsg.id === msg.id;
                       const isMe = msg.senderId === currentUser?.id;
                       const senderName = isMe ? 'Bạn' : (msg.sender?.fullName || msg.sender?.username || 'Thành viên');
                       const prevMsg = index > 0 ? filteredArr[index - 1] : null;
@@ -1184,11 +1402,27 @@ export function GroupScreen({ onGroupDetailChange }: { onGroupDetailChange?: (is
                       );
                       const isSelected = selectedMessageTimeId === msg.id;
 
-                    return (
-                      <React.Fragment key={msg.id}>
-                        {/* Thanh phân cách ngày/giờ động chuẩn như Web & Messenger */}
-                        {showDateDivider && (
-                          <View style={styles.chatDayDividerWrap}>
+                      return (
+                        <View
+                          key={msg.id}
+                          onLayout={(e) => {
+                            messageItemLayouts.current[msg.id] = e.nativeEvent.layout.y;
+                          }}
+                        >
+                          {/* Vạch phân cách Tin nhắn chưa đọc (chỉ hiện trước tin nhắn chưa đọc đầu tiên) */}
+                          {isFirstUnread && (
+                            <View style={styles.chatUnreadDividerWrap}>
+                              <View style={styles.chatUnreadDividerLine} />
+                              <View style={styles.chatUnreadDividerBadge}>
+                                <Text style={styles.chatUnreadDividerBadgeText}>Tin nhắn chưa đọc</Text>
+                              </View>
+                              <View style={styles.chatUnreadDividerLine} />
+                            </View>
+                          )}
+
+                          {/* Thanh phân cách ngày/giờ động chuẩn như Web & Messenger */}
+                          {showDateDivider && (
+                            <View style={styles.chatDayDividerWrap}>
                             <View style={styles.chatDayPill}>
                               <Text style={styles.chatDayPillText}>{dividerText || 'Hôm nay'}</Text>
                             </View>
@@ -1465,7 +1699,7 @@ export function GroupScreen({ onGroupDetailChange }: { onGroupDetailChange?: (is
 
                         </View>
                       </View>
-                    </React.Fragment>
+                    </View>
                   );
                 })
               })()}
@@ -1542,7 +1776,7 @@ export function GroupScreen({ onGroupDetailChange }: { onGroupDetailChange?: (is
             )}
 
             {/* Khung Gửi Tin Nhắn Ghim Cố Định Ở Đáy Chuẩn Mẫu (Icon Đính kèm + Input bo tròn + Emoji + Nút Send tròn xanh) */}
-            <View style={[styles.chatInputBarContainerWeb, { paddingBottom: 10 }]}>
+            <View style={[styles.chatInputBarContainerWeb, { paddingBottom: insets.bottom > 0 ? Math.max(insets.bottom - 10, 6) : 6 }]}>
               <Pressable
                 onPress={handlePickChatImage}
                 hitSlop={10}
@@ -1558,6 +1792,11 @@ export function GroupScreen({ onGroupDetailChange }: { onGroupDetailChange?: (is
                   placeholderTextColor="#94A3B8"
                   value={newMessageText}
                   onChangeText={setNewMessageText}
+                  onFocus={() => {
+                    setTimeout(() => {
+                      chatScrollViewRef.current?.scrollToEnd({ animated: true });
+                    }, 150);
+                  }}
                   multiline
                 />
                 <Pressable
@@ -1586,6 +1825,20 @@ export function GroupScreen({ onGroupDetailChange }: { onGroupDetailChange?: (is
                 )}
               </Pressable>
             </View>
+
+            {/* Nút tròn nổi cuộn xuống tin nhắn mới nhất dưới cùng */}
+            {showScrollBottomBtn && (
+              <Pressable
+                onPress={() => {
+                  shouldAutoScrollRef.current = true;
+                  chatScrollViewRef.current?.scrollToEnd({ animated: true });
+                }}
+                style={({ pressed }) => [styles.chatScrollBottomFloatingBtn, pressed && styles.pressed]}
+                hitSlop={8}
+              >
+                <FinanceIcon name="chevron-down" size={20} color="#059669" />
+              </Pressable>
+            )}
 
             {/* Modal Overlay đè tin nhắn (Messenger style): Vị trí bám sát tin nhắn & Chạm ngoài tự tắt */}
             <Modal
@@ -1622,7 +1875,13 @@ export function GroupScreen({ onGroupDetailChange }: { onGroupDetailChange?: (is
                   const { width: winW, height: winH } = Dimensions.get('window');
                   // Tính toán vị trí neo (anchor)
                   const menuW = 270;
-                  const menuH = 170; // Chiều cao ước tính của reaction row + action menu
+                  const isRecallingOpen = recallingMessageId === target.id;
+                  const estimatedMenuH = isRecallingOpen
+                    ? 240
+                    : isMe && (!target.attachments || target.attachments.length === 0)
+                      ? 145
+                      : 100;
+                  const menuH = estimatedMenuH;
                   const placeAbove = activeTargetLayout ? (activeTargetLayout.y > winH * 0.45) : false;
 
                   return (
@@ -1693,9 +1952,9 @@ export function GroupScreen({ onGroupDetailChange }: { onGroupDetailChange?: (is
                           <Pressable
                             style={{
                               position: 'absolute',
-                              top: placeAbove
-                                ? Math.max(20, activeTargetLayout.y - menuH - 12)
-                                : Math.min(winH - menuH - 30, activeTargetLayout.y + activeTargetLayout.height + 10),
+                              ...(placeAbove
+                                ? { bottom: Math.max(16, winH - activeTargetLayout.y + 8) }
+                                : { top: Math.min(winH - 80, activeTargetLayout.y + activeTargetLayout.height + 8) }),
                               ...(isMe
                                 ? { right: Math.max(12, winW - (activeTargetLayout.x + activeTargetLayout.width)) }
                                 : { left: Math.max(12, activeTargetLayout.x) }),
@@ -1837,7 +2096,37 @@ export function GroupScreen({ onGroupDetailChange }: { onGroupDetailChange?: (is
               const txCount = monthlyStats?.transactionCount !== undefined
                 ? monthlyStats.transactionCount
                 : (currentMonthContributions.length + currentMonthExpenses.length);
-              const trendPct = monthlyStats?.trendPercentage;
+              // Tính phần trăm tăng giảm số dư quỹ so với cuối tháng trước
+              let trendPct: number = 0;
+              if (monthlyStats?.trendPercentage !== undefined && monthlyStats?.trendPercentage !== null) {
+                trendPct = monthlyStats.trendPercentage;
+              } else {
+                // Tự tính nếu chưa có dữ liệu từ API stats
+                const prevMonth = thisMonth === 1 ? 12 : thisMonth - 1;
+                const prevYear = thisMonth === 1 ? thisYear - 1 : thisYear;
+                const prevMonthEnd = new Date(prevYear, prevMonth, 0, 23, 59, 59, 999);
+
+                // Tổng nộp vào quỹ tính đến hết tháng trước
+                const prevTotalFundIn = fundContributions
+                  .filter((c) => c.contributedAt && new Date(c.contributedAt) <= prevMonthEnd)
+                  .reduce((sum, c) => sum + (c.amount || 0), 0);
+
+                // Tổng chi từ quỹ nhóm tính đến hết tháng trước
+                const prevTotalFundOut = expenses
+                  .filter((e) => (e as any).paymentSource === 'GROUP_FUND' && e.expenseDate && new Date(e.expenseDate) <= prevMonthEnd)
+                  .reduce((sum, e) => sum + (e.amount || 0), 0);
+
+                const prevBalance = Math.max(0, prevTotalFundIn - prevTotalFundOut);
+
+                if (prevBalance > 0) {
+                  trendPct = ((totalFund - prevBalance) / prevBalance) * 100;
+                } else if (totalFund > 0) {
+                  // Tháng trước số dư = 0đ, tháng này số dư > 0 -> Tăng 100%
+                  trendPct = 100;
+                } else {
+                  trendPct = 0;
+                }
+              }
 
               // 3. Phân loại theo danh mục thực tế
               let categories = monthlyStats?.categoryStats && monthlyStats.categoryStats.length > 0
@@ -1900,6 +2189,37 @@ export function GroupScreen({ onGroupDetailChange }: { onGroupDetailChange?: (is
                       resizeMode="contain"
                     />
                   </ImageBackground>
+
+                  {/* 1.1 CẶP NÚT THAO TÁC: NỘP QUỸ & THÊM GIAO DỊCH (CHUẨN ẢNH MẪU) */}
+                  <View style={styles.heroActionButtonsRow}>
+                    {/* Nút Nộp quỹ: Nền xanh lá đậm #059669, chữ trắng, icon ví */}
+                    <Pressable
+                      onPress={() => setDepositFundModalVisible(true)}
+                      style={({ pressed }) => [
+                        styles.heroDepositFundBtn,
+                        pressed && { opacity: 0.85 },
+                      ]}
+                    >
+                      <FinanceIcon name="wallet" size={17} color="#FFFFFF" />
+                      <Text style={styles.heroDepositFundBtnText}>Nộp quỹ</Text>
+                    </Pressable>
+
+                    {/* Nút Thêm giao dịch: Nền trắng viền xanh nhạt #ECFDF5, chữ xanh #059669 */}
+                    <Pressable
+                      onPress={() => {
+                        setExpDescription('');
+                        setExpAmount('');
+                        setExpenseModalVisible(true);
+                      }}
+                      style={({ pressed }) => [
+                        styles.heroAddTxBtn,
+                        pressed && { opacity: 0.85 },
+                      ]}
+                    >
+                      <FinanceIcon name="plus" size={17} color="#059669" />
+                      <Text style={styles.heroAddTxBtnText}>Thêm giao dịch</Text>
+                    </Pressable>
+                  </View>
 
                   {/* 2. LƯỚI 4 THẺ THỐNG KÊ (THU, CHI, CÒN LẠI, GIAO DỊCH) */}
                   <View style={styles.stat4Grid}>
@@ -2023,52 +2343,150 @@ export function GroupScreen({ onGroupDetailChange }: { onGroupDetailChange?: (is
                     </View>
                   </View>
 
-                  {/* 4. GIAO DỊCH GẦN ĐÂY */}
-                  <View style={styles.recentTxCard}>
-                    <View style={styles.recentTxHeader}>
-                      <Text style={styles.recentTxTitle}>Giao dịch gần đây</Text>
-                      <Pressable onPress={() => setDetailTab('EXPENSES')} hitSlop={8}>
-                        <Text style={styles.recentTxViewMore}>Xem tất cả ›</Text>
-                      </Pressable>
-                    </View>
+                  {/* 4. GIAO DỊCH GẦN ĐÂY (HIỂN THỊ CẢ THU VÀ CHI VỚI ĐÚNG ICON THEO DANH MỤC) */}
+                  {(() => {
+                    // Gom cả khoản Nộp quỹ (Thu) và Khoản chi (Chi) thành danh sách giao dịch tổng hợp
+                    type RecentItem = {
+                      id: string;
+                      type: 'INCOME' | 'EXPENSE';
+                      title: string;
+                      creatorName: string;
+                      dateText: string;
+                      amount: number;
+                      rawDate: Date;
+                      iconName: any;
+                      categoryColor: string;
+                      originalExpense?: GroupExpenseResponse;
+                    };
 
-                    {expenses.length === 0 ? (
-                      <View style={styles.sampleTxItem}>
-                        <View style={styles.sampleTxIconWrap}>
-                          <Text style={{ fontSize: 18 }}>🍴</Text>
+                    const formatDisplayDate = (dStr?: string, cStr?: string) => {
+                      const pad = (n: number) => (n < 10 ? `0${n}` : `${n}`);
+                      if (cStr) {
+                        const dt = new Date(cStr);
+                        if (!isNaN(dt.getTime())) {
+                          const now = new Date();
+                          const isToday = dt.toDateString() === now.toDateString();
+                          const timeStr = `${pad(dt.getHours())}:${pad(dt.getMinutes())}`;
+                          if (isToday) return `${timeStr} • Hôm nay`;
+                          return `${timeStr} • ${pad(dt.getDate())}/${pad(dt.getMonth() + 1)}/${dt.getFullYear()}`;
+                        }
+                      }
+                      if (dStr) {
+                        const parts = dStr.split('-');
+                        if (parts.length === 3) {
+                          return `${parts[2]}/${parts[1]}/${parts[0]}`;
+                        }
+                      }
+                      return 'Hôm nay';
+                    };
+
+                    const recentList: RecentItem[] = [
+                      ...fundContributions.map((c) => {
+                        const d = c.createdAt ? new Date(c.createdAt) : new Date(c.contributedAt || Date.now());
+                        const foundMem = members.find((m) => m.userId === c.contributorUserId);
+                        const cName = c.contributorName || (c.contributorUserId === currentUser?.id ? 'Bạn' : null) || foundMem?.nickname || foundMem?.user?.fullName || 'Thành viên';
+                        return {
+                          id: `fund-${c.id}`,
+                          type: 'INCOME' as const,
+                          title: c.note || 'Nộp quỹ nhóm',
+                          creatorName: cName,
+                          dateText: formatDisplayDate(c.contributedAt, c.createdAt),
+                          amount: c.amount || 0,
+                          rawDate: d,
+                          iconName: 'income' as any,
+                          categoryColor: '#059669',
+                        };
+                      }),
+                      ...expenses.map((exp) => {
+                        const d = exp.createdAt ? new Date(exp.createdAt) : new Date(exp.expenseDate || Date.now());
+                        const payer = exp.payer?.fullName || (exp.paidByUserId === currentUser?.id ? 'Bạn' : null) || members.find((m) => m.userId === exp.paidByUserId)?.user?.fullName || members.find((m) => m.userId === exp.paidByUserId)?.nickname || 'Thành viên';
+                        const catIcon = resolveCategoryIconName(undefined, 'EXPENSE', `${exp.description} ${exp.category?.name || ''}`);
+                        return {
+                          id: `exp-${exp.id}`,
+                          type: 'EXPENSE' as const,
+                          title: exp.description || exp.category?.name || 'Chi tiêu nhóm',
+                          creatorName: payer,
+                          dateText: formatDisplayDate(exp.expenseDate, exp.createdAt),
+                          amount: exp.amount || 0,
+                          rawDate: d,
+                          iconName: catIcon,
+                          categoryColor: exp.category?.color || '#E11D48',
+                          originalExpense: exp,
+                        };
+                      }),
+                    ];
+
+                    recentList.sort((a, b) => b.rawDate.getTime() - a.rawDate.getTime());
+                    const topRecent = recentList.slice(0, 4);
+
+                    return (
+                      <View style={styles.recentTxCard}>
+                        <View style={styles.recentTxHeader}>
+                          <Text style={styles.recentTxTitle}>Giao dịch gần đây</Text>
+                          <Pressable onPress={() => setDetailTab('EXPENSES')} hitSlop={8}>
+                            <Text style={styles.recentTxViewMore}>Xem tất cả ›</Text>
+                          </Pressable>
                         </View>
-                        <View style={{ flex: 1 }}>
-                          <Text style={styles.sampleTxDesc}>Ăn uống</Text>
-                          <Text style={styles.sampleTxSub}>Người tạo: Mẹ • Hôm nay</Text>
-                        </View>
-                        <Text style={styles.sampleTxAmount}>-50.000 đ</Text>
+
+                        {topRecent.length === 0 ? (
+                          <View style={{ alignItems: 'center', justifyContent: 'center', paddingVertical: 24, gap: 6 }}>
+                            <Text style={{ fontSize: 26 }}>🧾</Text>
+                            <Text style={{ fontSize: 13, fontWeight: '600', color: '#64748B' }}>Chưa có giao dịch gần đây</Text>
+                            <Text style={{ fontSize: 11, color: '#94A3B8' }}>Các khoản nộp quỹ và chi tiêu sẽ xuất hiện tại đây</Text>
+                          </View>
+                        ) : (
+                          topRecent.map((item) => {
+                            const isIncome = item.type === 'INCOME';
+                            return (
+                              <Pressable
+                                key={item.id}
+                                onPress={() => {
+                                  if (item.originalExpense) {
+                                    setViewingExpense(item.originalExpense);
+                                  } else {
+                                    setDetailTab('EXPENSES');
+                                  }
+                                }}
+                                style={({ pressed }) => [styles.sampleTxItem, pressed && styles.pressed]}
+                              >
+                                <View
+                                  style={[
+                                    styles.sampleTxIconWrap,
+                                    { backgroundColor: isIncome ? '#ECFDF5' : '#FFF1F2' },
+                                  ]}
+                                >
+                                  <FinanceIcon
+                                    name={item.iconName}
+                                    size={18}
+                                    color={isIncome ? '#059669' : item.categoryColor || '#E11D48'}
+                                  />
+                                </View>
+                                <View style={{ flex: 1, paddingRight: 6 }}>
+                                  <Text style={styles.sampleTxDesc} numberOfLines={1}>
+                                    {item.title}
+                                  </Text>
+                                  <Text style={styles.sampleTxCreator} numberOfLines={1}>
+                                    bởi {item.creatorName}
+                                  </Text>
+                                  <Text style={styles.sampleTxTime} numberOfLines={1}>
+                                    {item.dateText}
+                                  </Text>
+                                </View>
+                                <Text
+                                  style={[
+                                    styles.sampleTxAmount,
+                                    { color: isIncome ? '#059669' : '#E11D48', fontWeight: '800' },
+                                  ]}
+                                >
+                                  {isIncome ? `+${formatVND(item.amount)} đ` : `-${formatVND(item.amount)} đ`}
+                                </Text>
+                              </Pressable>
+                            );
+                          })
+                        )}
                       </View>
-                    ) : (
-                        expenses.slice(0, 3).map((exp) => {
-                          const payerName = exp.payer?.fullName || (exp.paidByUserId === currentUser?.id ? 'Bạn' : null) || members.find((m) => m.userId === exp.paidByUserId)?.user?.fullName || members.find((m) => m.userId === exp.paidByUserId)?.nickname || 'Thành viên';
-                          return (
-                            <Pressable
-                              key={exp.id}
-                              onPress={() => setViewingExpense(exp)}
-                              style={({ pressed }) => [styles.sampleTxItem, pressed && styles.pressed]}
-                            >
-                              <View style={styles.sampleTxIconWrap}>
-                                <FinanceIcon name="receipt" size={17} color="#E11D48" />
-                              </View>
-                              <View style={{ flex: 1 }}>
-                                <Text style={styles.sampleTxDesc} numberOfLines={1}>
-                                  {exp.description}
-                                </Text>
-                                <Text style={styles.sampleTxSub}>
-                                  Người tạo: {payerName} • {exp.expenseDate ? new Date(exp.expenseDate).toLocaleDateString('vi-VN') : 'Hôm nay'}
-                                </Text>
-                              </View>
-                              <Text style={styles.sampleTxAmount}>-{formatVND(exp.amount)} đ</Text>
-                            </Pressable>
-                          );
-                        })
-                    )}
-                  </View>
+                    );
+                  })()}
                 </View>
               );
             })()}
@@ -2143,9 +2561,46 @@ export function GroupScreen({ onGroupDetailChange }: { onGroupDetailChange?: (is
                 return 'Thành viên';
               };
 
+              // Hàm phân tích ngày giờ chính xác, tránh lỗi lệch múi giờ UTC thành 07:00 sáng
+              const parseTxDateTime = (dateValue?: string, timeValue?: string) => {
+                if (timeValue) {
+                  // Nếu có mốc thời gian ISO đầy đủ (createdAt)
+                  const dt = new Date(timeValue);
+                  if (!isNaN(dt.getTime())) {
+                    const pad = (n: number) => (n < 10 ? `0${n}` : `${n}`);
+                    const datePart = `${dt.getFullYear()}-${pad(dt.getMonth() + 1)}-${pad(dt.getDate())}`;
+                    const timePart = `${pad(dt.getHours())}:${pad(dt.getMinutes())}`;
+                    return { rawDate: dt, dateStr: datePart, timeStr: timePart };
+                  }
+                }
+                if (dateValue) {
+                  // Nếu chỉ có ngày YYYY-MM-DD (expenseDate / contributedAt)
+                  const parts = dateValue.split('-');
+                  if (parts.length === 3) {
+                    const y = parseInt(parts[0], 10);
+                    const m = parseInt(parts[1], 10) - 1;
+                    const d = parseInt(parts[2], 10);
+                    const localDate = new Date(y, m, d, 12, 0, 0);
+                    const pad = (n: number) => (n < 10 ? `0${n}` : `${n}`);
+                    return {
+                      rawDate: localDate,
+                      dateStr: `${y}-${pad(m + 1)}-${pad(d)}`,
+                      timeStr: 'Hôm nay',
+                    };
+                  }
+                }
+                const now = new Date();
+                const pad = (n: number) => (n < 10 ? `0${n}` : `${n}`);
+                return {
+                  rawDate: now,
+                  dateStr: `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`,
+                  timeStr: `${pad(now.getHours())}:${pad(now.getMinutes())}`,
+                };
+              };
+
               const unifiedList: UnifiedTx[] = [
                 ...monthContributions.map((c) => {
-                  const d = new Date(c.contributedAt || c.createdAt || Date.now());
+                  const { rawDate, dateStr, timeStr } = parseTxDateTime(c.contributedAt, c.createdAt);
                   const displayName = getContributorDisplayName(c);
                   return {
                     id: `fund-${c.id}`,
@@ -2153,16 +2608,16 @@ export function GroupScreen({ onGroupDetailChange }: { onGroupDetailChange?: (is
                     title: c.note || 'Đóng tiền quỹ nhóm',
                     subtitle: `Bởi ${displayName}`,
                     amount: c.amount || 0,
-                    dateStr: d.toISOString().split('T')[0],
-                    timeStr: d.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }),
-                    rawDate: d,
+                    dateStr,
+                    timeStr,
+                    rawDate,
                     categoryName: 'Thu quỹ',
                     commentCount: (commentsByTarget[c.id] || []).length,
                     originalExpense: undefined,
                   };
                 }),
                 ...monthExpenses.map((e) => {
-                  const d = new Date(e.expenseDate || e.createdAt || Date.now());
+                  const { rawDate, dateStr, timeStr } = parseTxDateTime(e.expenseDate, e.createdAt);
                   const displayName = getPayerDisplayName(e);
                   return {
                     id: e.id,
@@ -2170,12 +2625,13 @@ export function GroupScreen({ onGroupDetailChange }: { onGroupDetailChange?: (is
                     title: e.description,
                     subtitle: `Bởi ${displayName}`,
                     amount: e.amount || 0,
-                    dateStr: d.toISOString().split('T')[0],
-                    timeStr: d.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }),
-                    rawDate: d,
+                    dateStr,
+                    timeStr,
+                    rawDate,
                     categoryName: e.category?.name || 'Chi tiêu',
                     commentCount: (commentsByTarget[e.id] || []).length,
                     originalExpense: e,
+                    category: e.category,
                   };
                 }),
               ];
@@ -2402,169 +2858,109 @@ export function GroupScreen({ onGroupDetailChange }: { onGroupDetailChange?: (is
 
 
 
-            {/* TAB 2: CÂN ĐỐI NỢ & QUYẾT TOÁN */}
-            {detailTab === 'BALANCES' && (
-              <View style={{ gap: 14 }}>
-                <View style={styles.balanceSummaryCard}>
-                  <Text style={styles.balanceSummaryTitle}>Ma trận nợ & Quyết toán</Text>
-                  <Text style={styles.balanceSummarySub}>
-                    Finora tự động tối ưu hóa số giao dịch để hoàn tất trả nợ ít lần nhất.
-                  </Text>
-                </View>
-
-                {(!balanceData?.settlements || balanceData.settlements.length === 0) ? (
-                  <View style={styles.detailEmptyCard}>
-                    <Text style={{ fontSize: 28, marginBottom: 6 }}>⚖️</Text>
-                    <Text style={styles.detailEmptyTitle}>Tất cả đã cân bằng</Text>
-                    <Text style={styles.detailEmptySub}>
-                      Hiện tại không có thành viên nào nợ tiền nhau trong nhóm.
-                    </Text>
-                  </View>
-                ) : (
-                  balanceData.settlements.map((s, idx) => {
-                    const isMyDebt = s.fromUserId === currentUser?.id;
-                    return (
-                      <View key={idx} style={styles.settleCard}>
-                        <View style={styles.settleRowTop}>
-                          <View style={{ flex: 1 }}>
-                            <Text style={styles.settleFromText}>
-                              <Text style={{ fontWeight: '800', color: '#0F172A' }}>{s.fromUserName}</Text> cần chuyển cho
-                            </Text>
-                            <Text style={styles.settleToText}>{s.toUserName}</Text>
-                          </View>
-                          <Text style={styles.settleAmountText}>{formatVND(s.amount)} ₫</Text>
-                        </View>
-
-                        {isMyDebt && (
-                          <Pressable
-                            onPress={() => handleSettleDebt(s.toUserId, s.amount, s.toUserName)}
-                            style={styles.settleActionBtn}
-                          >
-                            <Text style={styles.settleActionBtnText}>Xác nhận đã trả nợ</Text>
-                          </Pressable>
-                        )}
-                      </View>
-                    );
-                  })
-                )}
-              </View>
+            {/* TAB 2: CÂN ĐỐI NỢ & QUYẾT TOÁN (CHỈ HIỂN THỊ Ở NHÓM PHÒNG TRỌ, DU LỊCH, DỰ ÁN, KHÁC) */}
+            {detailTab === 'BALANCES' && hasBalancesTab && (
+              <GroupBalancesTab
+                balanceData={balanceData}
+                members={members}
+                currentUser={currentUser}
+                onSettleDebt={(debt) => handleSettleDebt(debt)}
+                onRemindDebt={(debt) => {
+                  Alert.alert(
+                    'Gửi nhắc nhở',
+                    `Bạn muốn gửi lời nhắc thanh toán ${formatVND(debt.amount)} đ đến ${debt.fromUserName} qua phòng chat nhóm không?`,
+                    [
+                      { text: 'Hủy', style: 'cancel' },
+                      {
+                        text: 'Nhắc nhở ngay',
+                        onPress: async () => {
+                          try {
+                            if (!selectedGroup) return;
+                            await groupApi.sendMessage(selectedGroup.id, {
+                              content: `[[BALANCE]]Nhắc nhở công nợ: @${debt.fromUserName} vui lòng thanh toán ${formatVND(debt.amount)} đ cho @Bạn để cân bằng nợ nhóm nhé!`,
+                            });
+                            Alert.alert('Thành công', 'Đã gửi lời nhắc công nợ vào tin nhắn nhóm.');
+                          } catch {
+                            Alert.alert('Thông báo', 'Đã ghi nhận yêu cầu nhắc nhở.');
+                          }
+                        },
+                      },
+                    ]
+                  );
+                }}
+              />
             )}
 
-            {/* TAB: THÀNH VIÊN (MEMBERS - CHUẨN WEB HIỆN ĐẠI) */}
+            {/* TAB: THÀNH VIÊN & QUẢN LÝ NHÓM */}
             {detailTab === 'MEMBERS' && (
-              <View style={{ gap: 14 }}>
-                {/* Banner Header Quản lý thành viên */}
-                <View style={styles.memberHeaderCard}>
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.memberHeaderTitle}>Danh sách thành viên ({members.length})</Text>
-                    <Text style={styles.memberHeaderSub}>
-                      Quản lý quyền hạn và phân công chi tiêu trong nhóm
-                    </Text>
-                  </View>
-                  <Pressable
-                    onPress={() => {
-                      setSearchMemberQuery('');
-                      setSearchResults([]);
-                      setInviteModalVisible(true);
-                    }}
-                    style={styles.inviteMemberModernBtn}
-                  >
-                    <Text style={styles.inviteMemberModernBtnText}>+ Mời người mới</Text>
-                  </Pressable>
-                </View>
+              <GroupMembersTab
+                members={members}
+                selectedGroup={selectedGroup}
+                currentUser={currentUser}
+                sentPendingInvitations={sentPendingInvitations}
+                onCancelInvitation={handleCancelInvitation}
+                onInvitePress={() => {
+                  if (selectedGroup.groupType === 'COUPLE') {
+                    const currentCount = members.length + (sentPendingInvitations?.length || 0);
+                    if (currentCount >= 2) {
+                      Alert.alert('Thông báo', 'Nhóm cặp đôi chỉ có thể có tối đa 2 thành viên.');
+                      return;
+                    }
+                  }
+                  setSearchMemberQuery('');
+                  setSearchResults([]);
+                  setInviteModalVisible(true);
+                }}
+                onMemberOptionsPress={(member) => {
+                  setSelectedActionMember(member);
+                }}
+                onUpdateMemberRole={(member, newRole) => {
+                  handleUpdateMemberRole(member, newRole);
+                }}
+                onOpenGroupSettings={() => {
+                  setDetailTab('SETTINGS');
+                }}
+                onToggleNotification={(val) => setGroupNotificationEnabled(val)}
+                notificationEnabled={groupNotificationEnabled}
+              />
+            )}
 
-                {/* Danh sách thành viên card đẹp mắt */}
-                <View style={{ gap: 10 }}>
-                  {members.map((m) => {
-                    const isOwner = m.role === 'OWNER';
-                    const isAdmin = m.role === 'ADMIN';
-                    const isSelf = m.userId === currentUser?.id;
-                    const canManage = (selectedGroup.myRole === 'OWNER' || selectedGroup.myRole === 'ADMIN') && !isSelf && !isOwner;
+            {/* TAB: VÍ TRẺ EM (KID WALLET) */}
+            {detailTab === 'KIDS' && (
+              <KidWalletTab
+                childWallets={childWallets}
+                onAddWalletPress={() => setCreateChildWalletModalVisible(true)}
+                onWalletItemPress={(wallet) => {
+                  setSelectedChildWallet(wallet);
+                  setChildWalletDetailVisible(true);
+                }}
+                onGoalPress={() => {
+                  Alert.alert('Mục tiêu cùng con', 'Tính năng lập mục tiêu tiết kiệm mua sách, đồ chơi cùng con sắp ra mắt!');
+                }}
+              />
+            )}
 
-                    return (
-                      <View key={m.id} style={styles.modernMemberCard}>
-                        {/* Avatar */}
-                        <View
-                          style={[
-                            styles.modernMemberAvatar,
-                            isOwner
-                              ? { backgroundColor: '#FEF3C7', borderColor: '#F59E0B' }
-                              : isAdmin
-                              ? { backgroundColor: '#F3E8FF', borderColor: '#A855F7' }
-                              : { backgroundColor: '#E8F8F0', borderColor: '#10B981' },
-                          ]}
-                        >
-                          <Text
-                            style={[
-                              styles.modernMemberAvatarText,
-                              isOwner
-                                ? { color: '#B45309' }
-                                : isAdmin
-                                ? { color: '#7E22CE' }
-                                : { color: '#047857' },
-                            ]}
-                          >
-                            {(m.fullName || m.username || 'U').slice(0, 2).toUpperCase()}
-                          </Text>
-                        </View>
-
-                        {/* Info */}
-                        <View style={{ flex: 1, minWidth: 0 }}>
-                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                            <Text style={styles.modernMemberName} numberOfLines={1}>
-                              {m.fullName || m.username}
-                            </Text>
-                            {isSelf && (
-                              <View style={styles.selfPill}>
-                                <Text style={styles.selfPillText}>Bạn</Text>
-                              </View>
-                            )}
-                          </View>
-                          <Text style={styles.modernMemberEmail} numberOfLines={1}>
-                            {m.email || 'Thành viên Finora'}
-                          </Text>
-                        </View>
-
-                        {/* Role Badge */}
-                        <View
-                          style={[
-                            styles.modernRoleBadge,
-                            isOwner
-                              ? { backgroundColor: '#FEF3C7', borderColor: '#FDE68A' }
-                              : isAdmin
-                              ? { backgroundColor: '#F3E8FF', borderColor: '#E9D5FF' }
-                              : { backgroundColor: '#F1F5F9', borderColor: '#E2E8F0' },
-                          ]}
-                        >
-                          <Text
-                            style={[
-                              styles.modernRoleBadgeText,
-                              isOwner
-                                ? { color: '#B45309' }
-                                : isAdmin
-                                ? { color: '#6B21A8' }
-                                : { color: '#475569' },
-                            ]}
-                          >
-                            {isOwner ? '👑 Trưởng nhóm' : isAdmin ? '⭐ Quản trị' : 'Thành viên'}
-                          </Text>
-                        </View>
-
-                        {/* Nút xóa thành viên */}
-                        {canManage && (
-                          <Pressable
-                            onPress={() => handleRemoveMember(m.userId, m.fullName || m.username || '')}
-                            hitSlop={10}
-                            style={styles.modernDeleteMemBtn}
-                          >
-                            <FinanceIcon name="close" size={13} color="#EF4444" />
-                          </Pressable>
-                        )}
-                      </View>
-                    );
-                  })}
-                </View>
-              </View>
+            {/* TAB: CÀI ĐẶT NHÓM (SETTINGS) */}
+            {detailTab === 'SETTINGS' && (
+              <GroupSettingsTab
+                group={selectedGroup}
+                isOwner={selectedGroup.ownerId === currentUser?.id || selectedGroup.myRole === 'OWNER'}
+                isAdmin={selectedGroup.myRole === 'ADMIN'}
+                notificationEnabled={groupNotificationEnabled}
+                onToggleNotification={(val) => setGroupNotificationEnabled(val)}
+                onGroupUpdated={(updatedGroup) => {
+                  setSelectedGroup(updatedGroup);
+                  loadGroups();
+                }}
+                onGroupDeleted={() => {
+                  setSelectedGroup(null);
+                  loadGroups();
+                }}
+                onLeaveGroup={() => {
+                  setSelectedGroup(null);
+                  loadGroups();
+                }}
+              />
             )}
           </ScrollView>
         )}
@@ -3011,110 +3407,7 @@ export function GroupScreen({ onGroupDetailChange }: { onGroupDetailChange?: (is
         </Modal>
 
         {/* ── MODAL ACTIONS CHO BÌNH LUẬN (BOTTOM SHEET 3 CHẤM) ── */}
-        <Modal visible={!!commentActionMenuTarget} transparent animationType="fade">
-          <Pressable
-            style={styles.actionMenuModalOverlay}
-            onPress={() => setCommentActionMenuTarget(null)}
-          >
-            <View style={styles.actionMenuModalSheet}>
-              {commentActionMenuTarget && (() => {
-                const { targetId, comment } = commentActionMenuTarget;
-                const isMine = comment.userId === currentUser?.id;
-                const authorName = comment.user?.fullName || 'Thành viên';
-
-                return (
-                  <View style={{ gap: 6 }}>
-                    <Text style={styles.actionMenuSheetTitle} numberOfLines={1}>
-                      Bình luận của {authorName}
-                    </Text>
-
-                    {/* Trả lời */}
-                    <Pressable
-                      onPress={() => {
-                        setCommentActionMenuTarget(null);
-                        setReplyingToCommentId((prev) => ({ ...prev, [targetId]: comment.id }));
-                        setInlineCommentText((prev) => ({ ...prev, [targetId]: `@${authorName} ` }));
-                      }}
-                      style={styles.actionMenuItemRow}
-                    >
-                      <FinanceIcon name="reply" size={18} color="#059669" />
-                      <Text style={styles.actionMenuItemText}>Trả lời bình luận</Text>
-                    </Pressable>
-
-                    {/* Sửa nếu là của mình */}
-                    {isMine && (
-                      <Pressable
-                        onPress={() => {
-                          setCommentActionMenuTarget(null);
-                          setEditingComment({ targetId, comment });
-                          setEditingCommentContent(comment.content);
-                        }}
-                        style={styles.actionMenuItemRow}
-                      >
-                        <FinanceIcon name="edit" size={18} color="#0284C7" />
-                        <Text style={styles.actionMenuItemText}>Chỉnh sửa bình luận</Text>
-                      </Pressable>
-                    )}
-
-                    {/* Xóa nếu là của mình hoặc là chủ nhóm */}
-                    {(isMine || selectedGroup?.myRole === 'OWNER' || selectedGroup?.myRole === 'ADMIN') && (
-                      <Pressable
-                        onPress={() => {
-                          setCommentActionMenuTarget(null);
-                          handleDeleteCommentConfirm(targetId, comment.id);
-                        }}
-                        style={styles.actionMenuItemRow}
-                      >
-                        <FinanceIcon name="trash" size={18} color="#EF4444" />
-                        <Text style={[styles.actionMenuItemText, { color: '#EF4444' }]}>Xóa bình luận</Text>
-                      </Pressable>
-                    )}
-
-                    {/* Hủy */}
-                    <Pressable
-                      onPress={() => setCommentActionMenuTarget(null)}
-                      style={[styles.actionMenuItemRow, { borderTopWidth: 1, borderTopColor: '#F1F5F9', marginTop: 4 }]}
-                    >
-                      <Text style={[styles.actionMenuItemText, { textAlign: 'center', flex: 1, color: '#64748B' }]}>
-                        Đóng
-                      </Text>
-                    </Pressable>
-                  </View>
-                );
-              })()}
-            </View>
-          </Pressable>
-        </Modal>
-
-        {/* ── MODAL SỬA BÌNH LUẬN ── */}
-        <Modal visible={!!editingComment} transparent animationType="slide">
-          <View style={styles.modalOverlay}>
-            <View style={styles.inputModalSheet}>
-              <View style={styles.inputModalHeader}>
-                <Text style={styles.inputModalTitle}>Chỉnh sửa bình luận</Text>
-                <Pressable onPress={() => setEditingComment(null)} hitSlop={10}>
-                  <Text style={styles.modalCloseText}>✕</Text>
-                </Pressable>
-              </View>
-
-              <TextInput
-                value={editingCommentContent}
-                onChangeText={setEditingCommentContent}
-                multiline
-                placeholder="Nhập nội dung mới..."
-                placeholderTextColor="#94A3B8"
-                style={[styles.textInput, { minHeight: 90, textAlignVertical: 'top', paddingTop: 10 }]}
-              />
-
-              <Pressable
-                onPress={handleSaveEditComment}
-                style={[styles.submitActionBtn, { marginTop: 12 }]}
-              >
-                <Text style={styles.submitActionBtnText}>Lưu chỉnh sửa</Text>
-              </Pressable>
-            </View>
-          </View>
-        </Modal>
+        {/* Đã được tích hợp trực tiếp vào trong Modal viewingExpense để hoạt động mượt mà trên cả iOS & Android */}
 
         {/* ── MODAL CHI TIẾT GIAO DỊCH (CHUẨN DESIGN ẢNH MẪU) ── */}
         <Modal visible={!!viewingExpense} transparent animationType="slide">
@@ -3135,13 +3428,18 @@ export function GroupScreen({ onGroupDetailChange }: { onGroupDetailChange?: (is
                 const exp = viewingExpense;
                 const catName = exp.category?.name || 'Chi tiêu';
                 const iconName = resolveCategoryIconName(undefined, 'EXPENSE', `${exp.description} ${catName}`);
-                let iconBg = '#FEF3C7';
-                let iconColor = '#D97706';
-                if (iconName === 'droplet') { iconBg = '#E0F2FE'; iconColor = '#0284C7'; }
-                else if (iconName === 'shopping-cart') { iconBg = '#FFE4E6'; iconColor = '#E11D48'; }
+                // Màu icon đỏ cho khoản chi tiền chuẩn theo thiết kế
+                const iconBg = '#FCE8E6';
+                const iconColor = '#C5221F';
 
                 const payerName = exp.payer?.fullName || (exp.paidByUserId === currentUser?.id ? 'Bạn' : null) || members.find((m) => m.userId === exp.paidByUserId)?.user?.fullName || 'Thành viên';
-                const comments = commentsByTarget[exp.id] || [];
+                // Sắp xếp bình luận theo thứ tự thời gian cũ trước, mới sau để đọc liền mạch từ trên xuống dưới
+                const rawComments = commentsByTarget[exp.id] || [];
+                const comments = [...rawComments].sort((a, b) => {
+                  const tA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+                  const tB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+                  return tA - tB;
+                });
                 const cmtInput = inlineCommentText[exp.id] || '';
 
                 // Phân chia chi phí thực tế từ splits
@@ -3169,7 +3467,7 @@ export function GroupScreen({ onGroupDetailChange }: { onGroupDetailChange?: (is
                         <View style={[styles.unifiedTxIconCircle, { backgroundColor: iconBg }]}>
                           <FinanceIcon name={iconName} size={20} color={iconColor} />
                         </View>
-                        <Text style={styles.txDetailMainTitle} numberOfLines={1}>{exp.description}</Text>
+                        <Text style={styles.txDetailMainTitle}>{exp.description}</Text>
                         <Text style={styles.txDetailMainAmount}>-{formatVND(exp.amount)} đ</Text>
                       </View>
 
@@ -3303,14 +3601,20 @@ export function GroupScreen({ onGroupDetailChange }: { onGroupDetailChange?: (is
                         ) : (
                           comments.map((c) => {
                             const isMe = c.userId === currentUser?.id;
-                            const authorName = c.user?.fullName || (isMe ? 'Bạn' : 'Thành viên');
-                            const rawAvatar = c.user?.avatarUrl || c.user?.avatarKey || (isMe ? currentUser?.avatarUrl : null);
+                            const memberInfo = members.find((m) => m.userId === c.userId);
+                            const authorDisplayName = isMe
+                              ? 'Bạn'
+                              : (c.user?.fullName || memberInfo?.user?.fullName || memberInfo?.nickname || c.user?.username || 'Thành viên');
+                            const actualAuthorName = c.user?.fullName || memberInfo?.user?.fullName || memberInfo?.nickname || c.user?.username || (isMe ? (currentUser?.fullName || currentUser?.username || 'Thành viên') : 'Thành viên');
+                            const rawAvatar = c.user?.avatarUrl || c.user?.avatarKey || memberInfo?.user?.avatarUrl || (isMe ? currentUser?.avatarUrl : null);
                             const avatarUri = rawAvatar ? userProfileApi.formatAvatarUrl(rawAvatar) : null;
                             const parent = c.parentCommentId ? comments.find((p) => p.id === c.parentCommentId) : null;
+                            const parentMemberInfo = parent ? members.find((m) => m.userId === parent.userId) : null;
+                            const parentActualName = parent?.user?.fullName || parentMemberInfo?.user?.fullName || parentMemberInfo?.nickname || parent?.user?.username || (parent?.userId === currentUser?.id ? (currentUser?.fullName || currentUser?.username) : null) || 'Thành viên';
                             const isEdited = !!(c.updatedAt && c.createdAt && new Date(c.updatedAt).getTime() > new Date(c.createdAt).getTime() + 1000);
 
                             const timeStr = c.createdAt
-                              ? new Date(c.createdAt).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })
+                              ? formatMessengerDateDivider(c.createdAt)
                               : 'Vừa xong';
 
                             const likeInfo = commentLikes[c.id] || { count: 0, liked: false };
@@ -3324,7 +3628,7 @@ export function GroupScreen({ onGroupDetailChange }: { onGroupDetailChange?: (is
                                       <Image source={{ uri: avatarUri }} style={styles.commentMockAvatarImg} />
                                     ) : (
                                       <Text style={styles.commentMockAvatarText}>
-                                        {authorName.slice(0, 1).toUpperCase()}
+                                        {actualAuthorName.slice(0, 1).toUpperCase()}
                                       </Text>
                                     )}
                                   </View>
@@ -3333,7 +3637,7 @@ export function GroupScreen({ onGroupDetailChange }: { onGroupDetailChange?: (is
                                     {/* Hàng tên tác giả + giờ ngày + nút ... */}
                                     <View style={styles.commentAuthorRow}>
                                       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap', flex: 1 }}>
-                                        <Text style={styles.commentMockAuthor}>{authorName}</Text>
+                                        <Text style={styles.commentMockAuthor}>{authorDisplayName}</Text>
                                         <Text style={styles.commentMockTimeDot}>•</Text>
                                         <Text style={styles.commentMockTimeText}>{timeStr}</Text>
                                         {isEdited && (
@@ -3343,7 +3647,16 @@ export function GroupScreen({ onGroupDetailChange }: { onGroupDetailChange?: (is
 
                                       {/* Nút 3 chấm dọc cho bình luận */}
                                       <Pressable
-                                        onPress={() => setCommentActionMenuTarget({ targetId: exp.id, comment: c })}
+                                        onPress={(e) => {
+                                          const targetEl = e.currentTarget as any;
+                                          if (targetEl && targetEl.measureInWindow) {
+                                            targetEl.measureInWindow((x: number, y: number, width: number, height: number) => {
+                                              setCommentActionMenuTarget({ targetId: exp.id, comment: c, anchor: { x, y, width, height } });
+                                            });
+                                          } else {
+                                            setCommentActionMenuTarget({ targetId: exp.id, comment: c });
+                                          }
+                                        }}
                                         hitSlop={8}
                                         style={styles.commentMoreOptionBtn}
                                       >
@@ -3353,12 +3666,22 @@ export function GroupScreen({ onGroupDetailChange }: { onGroupDetailChange?: (is
 
                                     {/* Nội dung bình luận */}
                                     <Text style={styles.commentMockContent}>
-                                      {parent && (
-                                        <Text style={{ color: '#059669', fontWeight: '700' }}>
-                                          @{parent.user?.fullName || 'Người dùng'}{' '}
-                                        </Text>
-                                      )}
-                                      {c.content}
+                                      {(() => {
+                                        let displayContent = c.content || '';
+                                        // Nếu comment đã có liên kết parent và nội dung bắt đầu bằng @... thì làm sạch tag thừa để tránh bị lặp thành 2 cái @
+                                        if (parent) {
+                                          displayContent = displayContent.replace(/^@\S+\s*/, '');
+                                          return (
+                                            <>
+                                              <Text style={{ color: '#059669', fontWeight: '700' }}>
+                                                @{parentActualName}{' '}
+                                              </Text>
+                                              {displayContent}
+                                            </>
+                                          );
+                                        }
+                                        return displayContent;
+                                      })()}
                                     </Text>
 
                                     {/* Hàng hành động: Nút Like + Nút Trả lời */}
@@ -3373,7 +3696,7 @@ export function GroupScreen({ onGroupDetailChange }: { onGroupDetailChange?: (is
                                       >
                                         <FinanceIcon
                                           name="thumbs-up"
-                                          size={13}
+                                          size={16}
                                           color={likeInfo.liked ? '#16A34A' : '#64748B'}
                                         />
                                         {likeInfo.count > 0 && (
@@ -3391,9 +3714,10 @@ export function GroupScreen({ onGroupDetailChange }: { onGroupDetailChange?: (is
                                       <Pressable
                                         onPress={() => {
                                           setReplyingToCommentId((prev) => ({ ...prev, [exp.id]: c.id }));
+                                          // Không chèn thêm chuỗi text `@Tên` vào ô nhập để tránh lưu thừa text lặp
                                           setInlineCommentText((prev) => ({
                                             ...prev,
-                                            [exp.id]: `@${authorName} `,
+                                            [exp.id]: '',
                                           }));
                                         }}
                                         style={styles.commentReplyBtn}
@@ -3416,21 +3740,40 @@ export function GroupScreen({ onGroupDetailChange }: { onGroupDetailChange?: (is
 
               {/* Khung chat bình luận dưới cùng modal chi tiết */}
               {viewingExpense && (
-                <View style={[styles.detailTxBottomInputBar, { paddingBottom: Math.max(insets.bottom, 12) }]}>
-                  {replyingToCommentId[viewingExpense.id] && (
-                    <View style={styles.replyingNoticeBar}>
-                      <Text style={styles.replyingNoticeText}>Đang trả lời bình luận...</Text>
-                      <Pressable
-                        onPress={() => {
-                          setReplyingToCommentId((prev) => ({ ...prev, [viewingExpense.id]: null }));
-                          setInlineCommentText((prev) => ({ ...prev, [viewingExpense.id]: '' }));
-                        }}
-                        hitSlop={8}
-                      >
-                        <Text style={styles.replyingCancelText}>✕ Hủy</Text>
-                      </Pressable>
-                    </View>
-                  )}
+                <View
+                  style={[
+                    styles.detailTxBottomInputBar,
+                    {
+                      bottom: keyboardHeight,
+                      paddingBottom: keyboardHeight > 0 ? 10 : Math.max(insets.bottom, 12),
+                    },
+                  ]}
+                >
+                  {replyingToCommentId[viewingExpense.id] && (() => {
+                    const currentExpenseComments = commentsByTarget[viewingExpense.id] || [];
+                    const replyingCmt = currentExpenseComments.find((c) => c && c.id === replyingToCommentId[viewingExpense.id]);
+                    const repMember = (replyingCmt && members) ? members.find((m) => m && m.userId === replyingCmt.userId) : null;
+                    const repName = replyingCmt?.userId === currentUser?.id
+                      ? (currentUser?.fullName || currentUser?.username || 'bạn')
+                      : (replyingCmt?.user?.fullName || repMember?.user?.fullName || repMember?.nickname || replyingCmt?.user?.username || 'thành viên');
+
+                    return (
+                      <View style={styles.replyingNoticeBar}>
+                        <Text style={styles.replyingNoticeText}>
+                          Đang trả lời <Text style={{ fontWeight: '800', color: '#059669' }}>@{repName}</Text>
+                        </Text>
+                        <Pressable
+                          onPress={() => {
+                            setReplyingToCommentId((prev) => ({ ...prev, [viewingExpense.id]: null }));
+                            setInlineCommentText((prev) => ({ ...prev, [viewingExpense.id]: '' }));
+                          }}
+                          hitSlop={8}
+                        >
+                          <Text style={styles.replyingCancelText}>✕ Hủy</Text>
+                        </Pressable>
+                      </View>
+                    );
+                  })()}
                   <View style={styles.detailTxInputWrapper}>
                     <TextInput
                       style={styles.detailTxTextInput}
@@ -3446,6 +3789,113 @@ export function GroupScreen({ onGroupDetailChange }: { onGroupDetailChange?: (is
                       style={styles.detailTxSendBtn}
                     >
                       <FinanceIcon name="send" size={16} color="#FFFFFF" />
+                    </Pressable>
+                  </View>
+                </View>
+              )}
+
+              {/* ── ACTION MENU CHO BÌNH LUẬN (3 CHẤM) NỔI NGAY TẠI NÚT 3 CHẤM (POPOVER) ── */}
+              {commentActionMenuTarget && (
+                <Pressable
+                  style={[StyleSheet.absoluteFill, { backgroundColor: 'transparent', zIndex: 9999 }]}
+                  onPress={() => setCommentActionMenuTarget(null)}
+                >
+                  {(() => {
+                    const { targetId, comment, anchor } = commentActionMenuTarget;
+                    const isMine = comment.userId === currentUser?.id;
+                    const memberInfo = members.find((m) => m.userId === comment.userId);
+                    const authorActualName = comment.user?.fullName || memberInfo?.user?.fullName || memberInfo?.nickname || comment.user?.username || (isMine ? (currentUser?.fullName || currentUser?.username || 'Thành viên') : 'Thành viên');
+                    const canDelete = isMine || selectedGroup?.myRole === 'OWNER' || selectedGroup?.myRole === 'ADMIN';
+
+                    // Tính toán tọa độ popover bám theo nút 3 chấm
+                    const popoverWidth = 160;
+                    const popoverTop = anchor ? Math.max(insets.top + 50, anchor.y + anchor.height + 4) : 250;
+                    const popoverRight = anchor ? Math.max(16, Dimensions.get('window').width - anchor.x - anchor.width) : 16;
+
+                    return (
+                      <Pressable
+                        style={[
+                          styles.commentPopoverMenu,
+                          {
+                            top: popoverTop,
+                            right: popoverRight,
+                            width: popoverWidth,
+                          },
+                        ]}
+                        onPress={(e) => e.stopPropagation()}
+                      >
+                        {/* Trả lời */}
+                        <Pressable
+                          onPress={() => {
+                            setCommentActionMenuTarget(null);
+                            setReplyingToCommentId((prev) => ({ ...prev, [targetId]: comment.id }));
+                            setInlineCommentText((prev) => ({ ...prev, [targetId]: '' }));
+                          }}
+                          style={styles.commentPopoverItem}
+                        >
+                          <FinanceIcon name="reply" size={15} color="#059669" />
+                          <Text style={styles.commentPopoverText}>Trả lời</Text>
+                        </Pressable>
+
+                        {/* Chỉnh sửa nếu là bình luận của mình */}
+                        {isMine && (
+                          <Pressable
+                            onPress={() => {
+                              setCommentActionMenuTarget(null);
+                              setEditingComment({ targetId, comment });
+                              setEditingCommentContent(comment.content);
+                            }}
+                            style={styles.commentPopoverItem}
+                          >
+                            <FinanceIcon name="edit" size={15} color="#0284C7" />
+                            <Text style={styles.commentPopoverText}>Chỉnh sửa</Text>
+                          </Pressable>
+                        )}
+
+                        {/* Xóa nếu là của mình hoặc quản trị viên */}
+                        {canDelete && (
+                          <Pressable
+                            onPress={() => {
+                              setCommentActionMenuTarget(null);
+                              handleDeleteCommentConfirm(targetId, comment.id);
+                            }}
+                            style={[styles.commentPopoverItem, { borderBottomWidth: 0 }]}
+                          >
+                            <FinanceIcon name="trash" size={15} color="#EF4444" />
+                            <Text style={[styles.commentPopoverText, { color: '#EF4444' }]}>Xóa</Text>
+                          </Pressable>
+                        )}
+                      </Pressable>
+                    );
+                  })()}
+                </Pressable>
+              )}
+
+              {/* ── MODAL SỬA BÌNH LUẬN LỒNG TRONG MODAL CHI TIẾT ── */}
+              {editingComment && (
+                <View style={[StyleSheet.absoluteFill, styles.modalOverlay, { zIndex: 10000 }]}>
+                  <View style={styles.inputModalSheet}>
+                    <View style={styles.inputModalHeader}>
+                      <Text style={styles.inputModalTitle}>Chỉnh sửa bình luận</Text>
+                      <Pressable onPress={() => setEditingComment(null)} hitSlop={10}>
+                        <Text style={styles.modalCloseText}>✕</Text>
+                      </Pressable>
+                    </View>
+
+                    <TextInput
+                      value={editingCommentContent}
+                      onChangeText={setEditingCommentContent}
+                      multiline
+                      placeholder="Nhập nội dung mới..."
+                      placeholderTextColor="#94A3B8"
+                      style={[styles.textInput, { minHeight: 90, textAlignVertical: 'top', paddingTop: 10 }]}
+                    />
+
+                    <Pressable
+                      onPress={handleSaveEditComment}
+                      style={[styles.submitActionBtn, { marginTop: 12 }]}
+                    >
+                      <Text style={styles.submitActionBtnText}>Lưu chỉnh sửa</Text>
                     </Pressable>
                   </View>
                 </View>
@@ -3551,19 +4001,44 @@ export function GroupScreen({ onGroupDetailChange }: { onGroupDetailChange?: (is
               </View>
 
               <View style={styles.lightboxHeaderRight}>
-                {/* Nút Tải ảnh về máy / Mở trình duyệt tải */}
+                {/* Nút Tải ảnh về máy */}
                 <Pressable
                   onPress={async () => {
-                    if (lightboxImageUrl) {
-                      try {
-                        const can = await Linking.canOpenURL(lightboxImageUrl);
-                        if (can) {
-                          await Linking.openURL(lightboxImageUrl);
+                    if (!lightboxImageUrl) return;
+                    try {
+                      // Tạo direct download URL qua endpoint có Content-Disposition: attachment
+                      let downloadUrl = lightboxImageUrl;
+                      const filenameMatch = lightboxImageUrl.match(/[^/\\&?]+\.\w{3,4}(?=([?&].*$|$))/);
+                      const filename = filenameMatch ? filenameMatch[0] : '';
+
+                      if (filename) {
+                        downloadUrl = `${API_BASE_URL}/groups/messages/attachments/download?filename=${encodeURIComponent(filename)}`;
+                      }
+
+                      if (Platform.OS === 'web') {
+                        // Trên Web: Kích hoạt thẻ <a> download
+                        const link = document.createElement('a');
+                        link.href = downloadUrl;
+                        link.download = filename || `finora_chat_${Date.now()}.jpg`;
+                        link.target = '_blank';
+                        document.body.appendChild(link);
+                        link.click();
+                        document.body.removeChild(link);
+                      } else {
+                        // Trên Mobile (Android / iOS):
+                        // Mở downloadUrl qua Linking - Hệ điều hành và trình duyệt tải trực tiếp file về máy
+                        const canOpen = await Linking.canOpenURL(downloadUrl);
+                        if (canOpen) {
+                          await Linking.openURL(downloadUrl);
                         } else {
-                          Alert.alert('Thông báo', 'Đang mở liên kết tải ảnh: ' + lightboxImageUrl);
+                          await Linking.openURL(lightboxImageUrl);
                         }
+                      }
+                    } catch (err: any) {
+                      try {
+                        await Linking.openURL(lightboxImageUrl);
                       } catch {
-                        Alert.alert('Lỗi', 'Không thể mở liên kết tải ảnh.');
+                        Alert.alert('Thông báo', 'Không thể mở liên kết tải ảnh: ' + (err?.message || ''));
                       }
                     }
                   }}
@@ -3599,6 +4074,84 @@ export function GroupScreen({ onGroupDetailChange }: { onGroupDetailChange?: (is
             )}
           </View>
         </Modal>
+
+        {/* ── 7. MODAL MỜI THÀNH VIÊN HIỆN ĐẠI (ĐẶT TRONG CHI TIẾT NHÓM) ── */}
+        <InviteMemberModal
+          visible={inviteModalVisible}
+          onClose={() => setInviteModalVisible(false)}
+          searchQuery={searchMemberQuery}
+          onChangeSearchQuery={handleSearchUsers}
+          searchResults={searchResults}
+          searching={searchingUser}
+          onInviteUser={handleInviteUser}
+          existingMemberUserIds={members.map((m) => m.userId)}
+        />
+
+        {/* ── 8. MODAL THAO TÁC / SỬA QUYỀN / XÓA THÀNH VIÊN (ĐẶT TRONG CHI TIẾT NHÓM) ── */}
+        <MemberActionModal
+          visible={selectedActionMember !== null}
+          member={selectedActionMember}
+          canManage={
+            selectedActionMember !== null &&
+            (selectedGroup?.myRole === 'OWNER' || selectedGroup?.myRole === 'ADMIN') &&
+            String(selectedActionMember.userId).toLowerCase() !== String(currentUser?.id).toLowerCase()
+          }
+          onClose={() => setSelectedActionMember(null)}
+          onUpdateRole={(mem, newRole) => handleUpdateMemberRole(mem, newRole)}
+          onRemoveMember={(mem) => handleRemoveMember(mem)}
+        />
+
+        {/* ── 9. MODAL THÊM VÍ TRẺ EM (ĐÃ TÁCH COMPONENT) ── */}
+        <CreateChildWalletModal
+          visible={createChildWalletModalVisible}
+          groupId={selectedGroup.id}
+          onClose={() => setCreateChildWalletModalVisible(false)}
+          onSubmit={async (data) => {
+            if (!selectedGroup) return;
+            const newWallet = await groupApi.createChildWallet(selectedGroup.id, data);
+            setChildWallets((prev) => [newWallet, ...prev]);
+            Alert.alert('Thành công', `Đã tạo ví trẻ em cho bé ${data.childName}!`);
+          }}
+        />
+
+        {/* ── 10. MODAL NỘP QUỸ NHÓM (ĐÃ TÁCH COMPONENT) ── */}
+        <DepositFundModal
+          visible={depositFundModalVisible}
+          onClose={() => setDepositFundModalVisible(false)}
+          accounts={personalAccounts}
+          groupName={selectedGroup?.name}
+          currentFundAmount={fundData?.balance ?? monthlyStats?.fundBalance ?? 0}
+          onSubmit={async (data) => {
+            if (!selectedGroup) return;
+            await groupApi.contributeToFund(selectedGroup.id, {
+              sourceAccountId: data.sourceAccountId,
+              amount: data.amount,
+              contributedAt: new Date().toISOString(),
+              note: data.note,
+            });
+            await loadGroupDetailData(selectedGroup.id);
+            Alert.alert('Thành công', `Đã nộp ${new Intl.NumberFormat('vi-VN').format(data.amount)} đ vào quỹ nhóm!`);
+          }}
+        />
+
+        {/* Modal Chi tiết Ví Trẻ Em (ChildWalletDetailModal) */}
+        <ChildWalletDetailModal
+          visible={childWalletDetailVisible}
+          wallet={selectedChildWallet}
+          groupId={selectedGroup?.id || ''}
+          isOwnerOrAdmin={isOwner || isAdmin}
+          accounts={personalAccounts}
+          fundBalance={fundData?.balance ?? monthlyStats?.fundBalance ?? 0}
+          onClose={() => {
+            setChildWalletDetailVisible(false);
+            setSelectedChildWallet(null);
+          }}
+          onRefreshWallet={async () => {
+            if (selectedGroup) {
+              await loadGroupDetailData(selectedGroup.id);
+            }
+          }}
+        />
       </View>
     );
   }
@@ -3830,58 +4383,31 @@ export function GroupScreen({ onGroupDetailChange }: { onGroupDetailChange?: (is
         </View>
       </Modal>
 
-      {/* ── 7. MODAL MỜI THÀNH VIÊN (TÌM KIẾM THEO EMAIL/TÊN) ── */}
-      <Modal visible={inviteModalVisible} transparent animationType="slide">
-        <View style={styles.modalOverlay}>
-          <View style={styles.inputModalSheet}>
-            <View style={styles.inputModalHeader}>
-              <Text style={styles.inputModalTitle}>Mời thành viên vào nhóm</Text>
-              <Pressable onPress={() => setInviteModalVisible(false)} hitSlop={10}>
-                <Text style={styles.modalCloseText}>✕</Text>
-              </Pressable>
-            </View>
+      {/* ── 7. MODAL MỜI THÀNH VIÊN HIỆN ĐẠI (ĐÃ TÁCH COMPONENT) ── */}
+      <InviteMemberModal
+        visible={inviteModalVisible}
+        onClose={() => setInviteModalVisible(false)}
+        searchQuery={searchMemberQuery}
+        onChangeSearchQuery={handleSearchUsers}
+        searchResults={searchResults}
+        searching={searchingUser}
+        onInviteUser={handleInviteUser}
+        existingMemberUserIds={members.map((m) => m.userId)}
+      />
 
-            <TextInput
-              value={searchMemberQuery}
-              onChangeText={handleSearchUsers}
-              placeholder="Nhập email hoặc tên người dùng..."
-              placeholderTextColor="#94A3B8"
-              style={[styles.textInput, { marginBottom: 12 }]}
-            />
-
-            {searchingUser ? (
-              <ActivityIndicator color="#00A86B" style={{ marginVertical: 20 }} />
-            ) : searchResults.length > 0 ? (
-              <View style={{ maxHeight: 220 }}>
-                {searchResults.map((u) => (
-                  <Pressable
-                    key={u.id}
-                    onPress={() => handleInviteUser(u)}
-                    style={styles.searchUserItem}
-                  >
-                    <View style={styles.memberAvatar}>
-                      <Text style={styles.memberAvatarText}>
-                        {(u.fullName || 'U').slice(0, 2).toUpperCase()}
-                      </Text>
-                    </View>
-                    <View style={{ flex: 1 }}>
-                      <Text style={styles.memberName}>{u.fullName}</Text>
-                      <Text style={styles.memberEmail}>{u.email}</Text>
-                    </View>
-                    <Text style={styles.inviteActionLabel}>Mời +</Text>
-                  </Pressable>
-                ))}
-              </View>
-            ) : searchMemberQuery.trim().length >= 2 ? (
-              <Text style={styles.noUserFoundText}>Không tìm thấy người dùng phù hợp</Text>
-            ) : (
-              <Text style={styles.searchHintText}>
-                Nhập ít nhất 2 ký tự để tìm kiếm thành viên trong hệ thống Finora
-              </Text>
-            )}
-          </View>
-        </View>
-      </Modal>
+      {/* ── 8. MODAL THAO TÁC / SỬA QUYỀN / XÓA THÀNH VIÊN (ĐÃ TÁCH COMPONENT) ── */}
+      <MemberActionModal
+        visible={selectedActionMember !== null}
+        member={selectedActionMember}
+        canManage={
+          selectedActionMember !== null &&
+          (selectedGroup?.myRole === 'OWNER' || selectedGroup?.myRole === 'ADMIN') &&
+          String(selectedActionMember.userId).toLowerCase() !== String(currentUser?.id).toLowerCase()
+        }
+        onClose={() => setSelectedActionMember(null)}
+        onUpdateRole={(mem, newRole) => handleUpdateMemberRole(mem, newRole)}
+        onRemoveMember={(mem) => handleRemoveMember(mem)}
+      />
     </View>
   );
 }
@@ -4399,6 +4925,21 @@ const styles = StyleSheet.create({
     height: 2.5,
     backgroundColor: '#0E964E',
     borderRadius: 2,
+  },
+  detailTabUnreadBadge: {
+    backgroundColor: '#EF4444',
+    borderRadius: 10,
+    minWidth: 18,
+    height: 18,
+    paddingHorizontal: 5,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: 2,
+  },
+  detailTabUnreadBadgeText: {
+    color: '#FFFFFF',
+    fontSize: 10,
+    fontWeight: '800',
   },
   detailTabsRow: {
     flexDirection: 'row',
@@ -5104,6 +5645,35 @@ const styles = StyleSheet.create({
     color: '#64748B',
     fontWeight: '800',
   },
+  /* Popover nổi ngay tại nút 3 chấm của bình luận */
+  commentPopoverMenu: {
+    position: 'absolute',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 14,
+    paddingVertical: 4,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 10,
+    elevation: 8,
+    zIndex: 10000,
+  },
+  commentPopoverItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F8FAFC',
+  },
+  commentPopoverText: {
+    fontSize: 12.5,
+    fontWeight: '700',
+    color: '#334155',
+  },
   commentMockContent: {
     fontSize: 13,
     color: '#334155',
@@ -5121,6 +5691,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 4,
     paddingVertical: 2,
+    paddingHorizontal: 2,
   },
   commentLikeBtnActive: {
     opacity: 1,
@@ -5312,6 +5883,54 @@ const styles = StyleSheet.create({
     fontSize: 10.5,
     fontWeight: '700',
   },
+  /* Cặp nút Nộp quỹ & Thêm giao dịch chuẩn ảnh */
+  heroActionButtonsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  heroDepositFundBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: '#059669',
+    height: 46,
+    borderRadius: 16,
+    shadowColor: '#059669',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.25,
+    shadowRadius: 6,
+    elevation: 3,
+  },
+  heroDepositFundBtnText: {
+    fontSize: 14.5,
+    fontWeight: '800',
+    color: '#FFFFFF',
+  },
+  heroAddTxBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: '#FFFFFF',
+    height: 46,
+    borderRadius: 16,
+    borderWidth: 1.5,
+    borderColor: '#A7F3D0',
+    shadowColor: '#64748B',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 6,
+    elevation: 1,
+  },
+  heroAddTxBtnText: {
+    fontSize: 14.5,
+    fontWeight: '800',
+    color: '#059669',
+  },
   fundBannerIllustration: {
     width: 155,
     height: 112,
@@ -5492,6 +6111,18 @@ const styles = StyleSheet.create({
     fontSize: 13.5,
     fontWeight: '800',
     color: '#0F172A',
+    marginBottom: 2,
+  },
+  sampleTxCreator: {
+    fontSize: 11,
+    color: '#94A3B8',
+    lineHeight: 16,
+  },
+  sampleTxTime: {
+    fontSize: 10.5,
+    color: '#94A3B8',
+    marginTop: 1,
+    lineHeight: 14,
   },
   sampleTxSub: {
     fontSize: 11.5,
@@ -5896,6 +6527,52 @@ const styles = StyleSheet.create({
     maxWidth: '100%',
     backgroundColor: 'transparent',
   },
+  /* Vạch phân cách tin nhắn chưa đọc */
+  chatUnreadDividerWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginVertical: 10,
+    paddingHorizontal: 12,
+    gap: 8,
+  },
+  chatUnreadDividerLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: '#FCA5A5',
+  },
+  chatUnreadDividerBadge: {
+    backgroundColor: '#FEF2F2',
+    paddingHorizontal: 10,
+    paddingVertical: 3,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#FECACA',
+  },
+  chatUnreadDividerBadgeText: {
+    fontSize: 10.5,
+    fontWeight: '800',
+    color: '#DC2626',
+  },
+  /* Nút nổi cuộn xuống cuối */
+  chatScrollBottomFloatingBtn: {
+    position: 'absolute',
+    right: 16,
+    bottom: 80,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#CBD5E1',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 8,
+    zIndex: 99,
+  },
   chatAttachmentImg: {
     width: '100%',
     height: '100%',
@@ -6230,7 +6907,7 @@ const styles = StyleSheet.create({
   /* Modal Reactions */
   reactionModalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    backgroundColor: 'rgba(0, 0, 0, 0.45)',
     justifyContent: 'center',
     alignItems: 'center',
     padding: 20,
@@ -6238,12 +6915,12 @@ const styles = StyleSheet.create({
   reactionModalSheet: {
     width: '100%',
     maxWidth: 340,
-    backgroundColor: '#242526',
+    backgroundColor: '#FFFFFF',
     borderRadius: 20,
     padding: 16,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
+    shadowOpacity: 0.15,
     shadowRadius: 10,
     elevation: 8,
   },
@@ -6256,17 +6933,17 @@ const styles = StyleSheet.create({
   reactionModalTitle: {
     fontSize: 14,
     fontWeight: '800',
-    color: '#FFFFFF',
+    color: '#0F172A',
   },
   reactionModalCloseText: {
     fontSize: 16,
-    color: '#94A3B8',
+    color: '#64748B',
     fontWeight: '700',
   },
   reactionModalTabsRow: {
     flexDirection: 'row',
     borderBottomWidth: 1,
-    borderBottomColor: '#3A3B3C',
+    borderBottomColor: '#F1F5F9',
     paddingBottom: 8,
     marginBottom: 10,
     gap: 12,
@@ -6276,27 +6953,28 @@ const styles = StyleSheet.create({
   },
   reactionModalTabItemActive: {
     borderBottomWidth: 2,
-    borderBottomColor: '#3B82F6',
+    borderBottomColor: '#059669',
   },
   reactionModalTabText: {
     fontSize: 12,
     fontWeight: '700',
-    color: '#94A3B8',
+    color: '#64748B',
   },
   reactionModalTabTextActive: {
-    color: '#3B82F6',
+    color: '#059669',
+    fontWeight: '800',
   },
   reactionModalTabEmojiText: {
     fontSize: 12,
-    color: '#CBD5E1',
+    color: '#334155',
   },
   reactionModalUserRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical: 8,
+    paddingVertical: 10,
     borderBottomWidth: 1,
-    borderBottomColor: '#334155',
+    borderBottomColor: '#F8FAFC',
   },
   reactionModalUserLeft: {
     flexDirection: 'row',
@@ -6304,27 +6982,27 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   reactionModalAvatarBox: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+    width: 34,
+    height: 34,
+    borderRadius: 17,
     backgroundColor: '#059669',
     alignItems: 'center',
     justifyContent: 'center',
     overflow: 'hidden',
   },
   reactionModalAvatarImg: {
-    width: 32,
-    height: 32,
+    width: 34,
+    height: 34,
   },
   reactionModalAvatarInitial: {
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: '800',
     color: '#FFFFFF',
   },
   reactionModalUserName: {
     fontSize: 13,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: '#0F172A',
   },
   /* Lightbox Xem ảnh */
   lightboxModalOverlay: {
@@ -6404,15 +7082,16 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#FFFFFF',
-    paddingVertical: 10,
-    gap: 10,
+    paddingTop: 8,
+    paddingHorizontal: 12,
+    gap: 8,
     borderTopWidth: 1,
     borderTopColor: '#F1F5F9',
   },
   chatInputAttachmentBtn: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -6423,29 +7102,31 @@ const styles = StyleSheet.create({
     backgroundColor: '#F1F5F9',
     borderRadius: 24,
     paddingHorizontal: 14,
-    paddingVertical: 4,
+    minHeight: 44,
   },
   chatTextInputWeb: {
     flex: 1,
     fontSize: 13.5,
     color: '#0F172A',
-    paddingVertical: 8,
+    paddingVertical: 6,
     maxHeight: 100,
   },
   chatEmojiBtn: {
     padding: 4,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   chatSendCircleBtnWeb: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     backgroundColor: '#0E964E',
     alignItems: 'center',
     justifyContent: 'center',
     shadowColor: '#0E964E',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.3,
-    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
     elevation: 3,
   },
   chatMessageBubble: {

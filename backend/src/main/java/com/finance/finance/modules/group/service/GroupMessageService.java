@@ -10,6 +10,8 @@ import com.finance.finance.modules.group.entity.*;
 import com.finance.finance.modules.group.repository.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.core.io.Resource;
+import org.springframework.core.io.UrlResource;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -410,5 +412,21 @@ public class GroupMessageService {
                 .updatedAt(message.getUpdatedAt())
                 .deletedAt(message.getDeletedAt())
                 .build();
+    }
+
+    public Resource getAttachmentResource(String filename) {
+        try {
+            // Ngăn chặn Path Traversal
+            String cleanName = Paths.get(filename).getFileName().toString();
+            Path filePath = Paths.get(ATTACHMENT_UPLOAD_DIR).resolve(cleanName).normalize();
+            Resource resource = new UrlResource(filePath.toUri());
+            if (resource.exists() && resource.isReadable()) {
+                return resource;
+            }
+            return null;
+        } catch (Exception e) {
+            log.error("Lỗi khi tải file đính kèm: {}", filename, e);
+            return null;
+        }
     }
 }

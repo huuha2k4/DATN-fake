@@ -13,6 +13,7 @@ import { SplashScreen } from './src/modules/onboarding/screen/SplashScreen';
 import { LoginScreen } from './src/modules/auth/screen/LoginScreen';
 import { RegisterScreen } from './src/modules/auth/screen/RegisterScreen';
 import { ForgotPasswordScreen } from './src/modules/auth/screen/ForgotPasswordScreen';
+import { authApi, authStorage } from './src/modules/auth/api/authApi';
 import { ScanInvoiceScreen } from './src/modules/scan-invoice/screen/ScanInvoiceScreen';
 import { SpendingAnalysisScreen } from './src/modules/spending-analysis/screen/SpendingAnalysisScreen';
 import { PeriodicReportsScreen } from './src/modules/periodic-reports/screen/PeriodicReportsScreen';
@@ -206,8 +207,27 @@ function AppContent() {
         <View style={styles.content}>
           <ProfileScreen
             onLogout={async () => {
-              await authApi.logout();
+              try {
+                await authApi.logout();
+              } catch (e) {
+                // Đảm bảo luôn xóa auth cache cục bộ
+                authStorage.clear();
+              }
+              // Reset toàn bộ navigation state về màn hình Đăng nhập
               setShowProfile(false);
+              setShowNotifications(false);
+              setShowAddTransaction(false);
+              setShowScanInvoice(false);
+              setShowReminders(false);
+              setShowAiAssistant(false);
+              setShowAccounts(false);
+              setShowSpendingAnalysis(false);
+              setShowPeriodicReports(false);
+              setShowBalanceForecast(false);
+              setShowRegister(false);
+              setShowForgotPassword(false);
+              setActiveTab('home');
+              setHasStarted(false);
               setShowLogin(true);
             }}
             onNotifications={() => {
@@ -268,12 +288,15 @@ function AppContent() {
   return (
     <View style={styles.container}>
       <View style={styles.content}>{screen}</View>
-      <BottomNav
-        activeTab={activeTab}
-        onChange={setActiveTab}
-        onScanInvoice={() => setShowScanInvoice(true)}
-        onProfile={() => setShowProfile(true)}
-      />
+      {/* Ẩn thanh 5 nút điều hướng đáy khi đang mở chi tiết nhóm để nhường toàn bộ không gian cho chat và các tab chi tiết */}
+      {!(activeTab === 'group' && isGroupDetailOpen) && (
+        <BottomNav
+          activeTab={activeTab}
+          onChange={setActiveTab}
+          onScanInvoice={() => setShowScanInvoice(true)}
+          onProfile={() => setShowProfile(true)}
+        />
+      )}
       <StatusBar style={isDarkStatusBar ? 'dark' : 'light'} />
     </View>
   );

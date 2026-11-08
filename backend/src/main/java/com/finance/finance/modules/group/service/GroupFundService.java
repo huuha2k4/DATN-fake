@@ -136,19 +136,34 @@ public class GroupFundService {
         long txCount = contributions.size() + expenses.size();
         BigDecimal remaining = totalIncome.subtract(totalExpense);
 
-        // 4. Previous month trend
+        // 4. So sánh số dư quỹ (Wallet Balance Trend) so với cuối tháng trước
         YearMonth prevYm = targetYm.minusMonths(1);
-        List<GroupFundContribution> prevContributions = contributionRepository.findByFundIdAndDateRange(
-                fund.getId(), prevYm.atDay(1), prevYm.atEndOfMonth());
-        BigDecimal prevIncome = prevContributions.stream()
-                .map(GroupFundContribution::getAmount)
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        LocalDate prevMonthEnd = prevYm.atEndOfMonth();
 
-        Double trendPercentage = null;
-        if (prevIncome.compareTo(BigDecimal.ZERO) > 0) {
-            BigDecimal diff = totalIncome.subtract(prevIncome);
-            trendPercentage = diff.divide(prevIncome, 4, RoundingMode.HALF_UP)
+        // Số dư cuối tháng trước = (Tổng đóng góp vào quỹ tính đến hết tháng trước) - (Tổng chi tiêu từ quỹ tính đến hết tháng trước)
+        BigDecimal prevTotalFundContributions = contributionRepository.findByFundIdAndContributedAtBeforeOrEqual(fund.getId(), prevMonthEnd)
+                .stream().map(GroupFundContribution::getAmount).reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal prevTotalFundExpenses = groupExpenseRepository.findAllFundExpensesBeforeOrEqual(groupId, prevMonthEnd)
+                .stream().map(GroupExpense::getAmount).reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal prevBalance = prevTotalFundContributions.subtract(prevTotalFundExpenses);
+        if (prevBalance.compareTo(BigDecimal.ZERO) < 0) {
+            prevBalance = BigDecimal.ZERO;
+        }
+
+        // Số dư hiện tại của quỹ
+        BigDecimal currentBalance = fund.getBalance() != null ? fund.getBalance() : BigDecimal.ZERO;
+
+        Double trendPercentage;
+        if (prevBalance.compareTo(BigDecimal.ZERO) > 0) {
+            BigDecimal diff = currentBalance.subtract(prevBalance);
+            trendPercentage = diff.divide(prevBalance, 4, RoundingMode.HALF_UP)
                     .multiply(BigDecimal.valueOf(100)).doubleValue();
+        } else if (currentBalance.compareTo(BigDecimal.ZERO) > 0) {
+            // Tháng trước không có số dư (0đ) mà tháng này số dư > 0 -> Tăng 100%
+            trendPercentage = 100.0;
+        } else {
+            // Cả tháng trước và tháng này số dư đều bằng 0
+            trendPercentage = 0.0;
         }
 
         // 5. Group by category

@@ -8,6 +8,7 @@ import {
   StyleSheet,
   Text,
   View,
+  ActivityIndicator,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { FinanceIcon } from '../../core/components/FinanceIcon';
@@ -31,6 +32,7 @@ export function ProfileScreen({ onLogout, onNotifications }: ProfileScreenProps)
   const [showPricingModal, setShowPricingModal] = useState<boolean>(false);
   const [showAccountInfoModal, setShowAccountInfoModal] = useState<boolean>(false);
   const [showAvatarPickerModal, setShowAvatarPickerModal] = useState<boolean>(false);
+  const [isLoggingOut, setIsLoggingOut] = useState<boolean>(false);
   const currentUser = authStorage.getUser();
 
   useEffect(() => {
@@ -114,13 +116,21 @@ export function ProfileScreen({ onLogout, onNotifications }: ProfileScreenProps)
     : { label: 'Thành viên Cơ bản', color: '#047857', bg: '#ECFDF5', icon: 'leaf' };
 
   const handleLogout = () => {
+    if (isLoggingOut) return;
     Alert.alert('Đăng xuất', 'Bạn có chắc chắn muốn đăng xuất khỏi tài khoản?', [
       { text: 'Hủy', style: 'cancel' },
       {
         text: 'Đăng xuất',
         style: 'destructive',
-        onPress: () => {
-          if (onLogout) onLogout();
+        onPress: async () => {
+          setIsLoggingOut(true);
+          try {
+            if (onLogout) {
+              await onLogout();
+            }
+          } finally {
+            setIsLoggingOut(false);
+          }
         },
       },
     ]);
@@ -402,10 +412,21 @@ export function ProfileScreen({ onLogout, onNotifications }: ProfileScreenProps)
           {/* ── 7. NÚT ĐĂNG XUẤT NỀN ĐỎ NHẸ CAO CẤP ── */}
           <Pressable
             onPress={handleLogout}
-            style={({ pressed }) => [styles.logoutBtnCard, pressed && styles.pressed]}
+            disabled={isLoggingOut}
+            style={({ pressed }) => [
+              styles.logoutBtnCard,
+              (pressed || isLoggingOut) && styles.pressed,
+              isLoggingOut && { opacity: 0.6 },
+            ]}
           >
-            <FinanceIcon name="logout" size={17} color="#EF4444" />
-            <Text style={styles.logoutBtnText}>Đăng xuất</Text>
+            {isLoggingOut ? (
+              <ActivityIndicator size="small" color="#EF4444" />
+            ) : (
+              <>
+                <FinanceIcon name="logout" size={17} color="#EF4444" />
+                <Text style={styles.logoutBtnText}>Đăng xuất</Text>
+              </>
+            )}
           </Pressable>
         </ScrollView>
 

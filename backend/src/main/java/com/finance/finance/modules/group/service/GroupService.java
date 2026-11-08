@@ -185,6 +185,26 @@ public class GroupService {
         groupRepository.save(group);
     }
 
+    @Transactional
+    public void leaveGroup(UUID groupId, UUID currentUserId) {
+        GroupMember member = groupMemberRepository.findByGroupIdAndUserId(groupId, currentUserId)
+                .orElseThrow(() -> new ResourceNotFoundException("Bạn không phải là thành viên của nhóm"));
+
+        if (member.getRole() == MemberRole.OWNER) {
+            throw new IllegalStateException("Trưởng nhóm không thể rời nhóm. Hãy chuyển quyền trưởng nhóm hoặc giải tán nhóm.");
+        }
+
+        BigDecimal balance = calculateMemberBalance(groupId, currentUserId);
+        if (balance != null && balance.abs().compareTo(BigDecimal.ZERO) > 0) {
+            throw new IllegalStateException("Bạn còn số dư chưa quyết toán trong nhóm, vui lòng thanh toán trước khi rời nhóm.");
+        }
+
+        groupMemberRepository.delete(member);
+
+        logActivity(groupId, currentUserId, ActivityType.MEMBER_LEFT,
+                "Thành viên tự rời nhóm", Map.of("userId", currentUserId.toString()));
+    }
+
     // ==================== Members Management ====================
 
     @Transactional
@@ -192,6 +212,15 @@ public class GroupService {
         validateAdminOrOwner(groupId, currentUserId);
 
         Group group = findGroupOrThrow(groupId);
+
+        // Validation for COUPLE group: maximum 2 members
+        if (group.getGroupType() == GroupType.COUPLE) {
+            long memberCount = groupMemberRepository.countByGroupId(groupId);
+            long pendingCount = invitationRepository.countByGroupIdAndStatus(groupId, com.finance.finance.modules.group.entity.GroupInvitation.InvitationStatus.PENDING);
+            if (memberCount + pendingCount >= 2) {
+                throw new IllegalArgumentException("Nhóm cặp đôi chỉ có thể có tối đa 2 thành viên");
+            }
+        }
 
         // Check if user is already a member
         if (groupMemberRepository.existsByGroupIdAndUserId(groupId, request.getUserId())) {
@@ -284,6 +313,16 @@ public class GroupService {
             throw new IllegalStateException("Lời mời này không còn ở trạng thái chờ phản hồi");
         }
 
+        Group group = findGroupOrThrow(invitation.getGroupId());
+        if (group.getGroupType() == GroupType.COUPLE) {
+            long memberCount = groupMemberRepository.countByGroupId(invitation.getGroupId());
+            if (memberCount >= 2) {
+                invitation.setStatus(com.finance.finance.modules.group.entity.GroupInvitation.InvitationStatus.REJECTED);
+                invitationRepository.save(invitation);
+                throw new IllegalStateException("Nhóm cặp đôi đã đủ tối đa 2 thành viên");
+            }
+        }
+
         invitation.setStatus(com.finance.finance.modules.group.entity.GroupInvitation.InvitationStatus.ACCEPTED);
         invitationRepository.save(invitation);
 
@@ -301,7 +340,6 @@ public class GroupService {
                     "Accepted group invitation", Map.of("userId", currentUserId.toString()));
 
             // Notify inviter
-            Group group = findGroupOrThrow(invitation.getGroupId());
             String memberName = userRepository.findById(currentUserId)
                     .map(u -> u.getFullName() != null ? u.getFullName() : u.getUsername())
                     .orElse("Thành viên");

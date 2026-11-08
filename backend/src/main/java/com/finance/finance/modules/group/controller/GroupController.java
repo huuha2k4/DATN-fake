@@ -10,9 +10,11 @@ import com.finance.finance.modules.group.service.*;
 import com.finance.finance.modules.user.entity.User;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.core.io.Resource;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.format.annotation.DateTimeFormat;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -132,6 +134,14 @@ public class GroupController {
             @PathVariable UUID groupId,
             @AuthenticationPrincipal User currentUser) {
         groupService.deleteGroup(groupId, currentUser.getId());
+        return ResponseEntity.noContent().build();
+    }
+
+    @PostMapping("/{groupId}/leave")
+    public ResponseEntity<Void> leaveGroup(
+            @PathVariable UUID groupId,
+            @AuthenticationPrincipal User currentUser) {
+        groupService.leaveGroup(groupId, currentUser.getId());
         return ResponseEntity.noContent().build();
     }
 
@@ -396,6 +406,23 @@ public class GroupController {
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
         }
+    }
+
+    @GetMapping("/messages/attachments/download")
+    @PreAuthorize("permitAll()")
+    public ResponseEntity<Resource> downloadMessageAttachment(@RequestParam("filename") String filename) {
+        Resource resource = messageService.getAttachmentResource(filename);
+        if (resource == null) {
+            return ResponseEntity.notFound().build();
+        }
+        String downloadName = resource.getFilename();
+        if (downloadName == null) {
+            downloadName = "finora_attachment.jpg";
+        }
+        return ResponseEntity.ok()
+                .contentType(MediaType.APPLICATION_OCTET_STREAM)
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + downloadName + "\"")
+                .body(resource);
     }
 
     @GetMapping("/{groupId}/messages")

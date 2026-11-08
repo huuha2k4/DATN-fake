@@ -45,6 +45,14 @@ public interface GroupExpenseRepository extends JpaRepository<GroupExpense, UUID
                                                     @Param("startDate") LocalDate startDate,
                                                     @Param("endDate") LocalDate endDate);
 
+    @Query("SELECT ge FROM GroupExpense ge " +
+           "WHERE ge.groupId = :groupId " +
+           "AND ge.paymentSource = 'GROUP_FUND' " +
+           "AND ge.expenseDate <= :endDate " +
+           "AND ge.deletedAt IS NULL")
+    List<GroupExpense> findAllFundExpensesBeforeOrEqual(@Param("groupId") UUID groupId,
+                                                        @Param("endDate") LocalDate endDate);
+
     @Query("SELECT SUM(ge.amount) FROM GroupExpense ge " +
            "WHERE ge.groupId = :groupId AND ge.deletedAt IS NULL")
     BigDecimal sumAmountByGroupId(@Param("groupId") UUID groupId);

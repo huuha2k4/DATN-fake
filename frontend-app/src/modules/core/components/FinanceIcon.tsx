@@ -6,16 +6,17 @@ import Svg, {
   Polyline,
   Line,
   Polygon,
+  G,
 } from 'react-native-svg';
 
 export type IconName =
   | 'grid' | 'arrows' | 'wallet' | 'chart' | 'spark' | 'bank' | 'settings'
   | 'search' | 'plus' | 'receipt' | 'bell' | 'calendar' | 'refresh' | 'download'
   | 'trend' | 'income' | 'expense' | 'coffee' | 'bolt' | 'more' | 'arrow' | 'shield' | 'clock' | 'user' | 'logout' | 'key' | 'lock'
-  | 'edit' | 'delete' | 'shopping-bag' | 'car' | 'home' | 'heart' | 'zap' | 'book' | 'film' | 'map' | 'piggy-bank' | 'credit-card' | 'help-circle' | 'briefcase' | 'gift' | 'trending-up' | 'store' | 'plus-circle' | 'eye'
-  | 'sun' | 'moon' | 'borrowing' | 'lending' | 'hand-coins' | 'menu' | 'close'
+  | 'edit' | 'delete' | 'shopping-bag' | 'car' | 'home' | 'heart' | 'zap' | 'book' | 'film' | 'map' | 'piggy-bank' | 'coin-stack' | 'credit-card' | 'help-circle' | 'briefcase' | 'gift' | 'trending-up' | 'store' | 'plus-circle' | 'eye'
+  | 'sun' | 'moon' | 'borrowing' | 'lending' | 'hand-coins' | 'menu' | 'close' | 'scale'
   | 'burger' | 'pill' | 'users' | 'group' | 'file-text' | 'utensils' | 'banknote' | 'check' | 'message-square'
-  | 'crown' | 'camera' | 'cloud' | 'info' | 'leaf' | 'gamepad' | 'palmtree' | 'droplet' | 'shopping-cart' | 'thumbs-up' | 'reply' | 'trash' | 'paperclip' | 'send' | 'smile' | 'file-excel' | 'checks' | 'image' | 'alert-circle' | 'seen-eye';
+  | 'crown' | 'camera' | 'cloud' | 'info' | 'leaf' | 'gamepad' | 'palmtree' | 'droplet' | 'shopping-cart' | 'thumbs-up' | 'reply' | 'trash' | 'paperclip' | 'send' | 'smile' | 'file-excel' | 'checks' | 'image' | 'alert-circle' | 'seen-eye' | 'chevron-down' | 'chevron-up' | 'chevron-right' | 'chevron-left' | 'more-horizontal' | 'phone' | 'video' | 'target';
 
 export function FinanceIcon({
   name,
@@ -77,6 +78,71 @@ export function FinanceIcon({
           <>
             <Rect x="3" y="5" width="18" height="16" rx="2" />
             <Path d="M16 3v4M8 3v4M3 10h18" />
+          </>
+        );
+      case 'refresh':
+        return (
+          <>
+            <Path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.19" />
+          </>
+        );
+      case 'scale':
+        return (
+          <G strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round">
+            {/* Đỉnh tròn & Cọc trụ giữa */}
+            <Circle cx="12" cy="5" r="1.5" />
+            <Line x1="12" y1="6.5" x2="12" y2="19" />
+            <Path d="M9 19h6" />
+            {/* Đòn cân cong mềm mại */}
+            <Path d="M4.5 9c2.5-1.5 5-2 7.5-2s5 .5 7.5 2" />
+            {/* Đĩa cân trái */}
+            <Line x1="4.5" y1="9" x2="2.5" y2="13.5" />
+            <Line x1="4.5" y1="9" x2="6.5" y2="13.5" />
+            <Path d="M1.5 13.5h6c0 2-1.3 3.5-3 3.5s-3-1.5-3-3.5Z" />
+            {/* Đĩa cân phải */}
+            <Line x1="19.5" y1="9" x2="17.5" y2="13.5" />
+            <Line x1="19.5" y1="9" x2="21.5" y2="13.5" />
+            <Path d="M16.5 13.5h6c0 2-1.3 3.5-3 3.5s-3-1.5-3-3.5Z" />
+          </G>
+        );
+      case 'borrowing':
+        return (
+          <G strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
+            {/* Bàn tay ngửa nét đơn thanh lịch theo chuẩn UI Finora */}
+            <Path d="M2 14.5h3.5l3.2 3.2c.6.6 1.5.6 2.1 0l1.2-1.2c.6-.6.6-1.5 0-2.1L8.5 11H5" />
+            <Path d="M2 14.5v4.5c0 1.1.9 2 2 2h8.5c1 0 1.9-.6 2.3-1.5l2.2-4.5c.3-.6.1-1.4-.5-1.7l-2.5-1.3" />
+            {/* 3 cánh hoa / đồng xu tiền lượn rơi xuống */}
+            <Path d="M11 5.5c0-1.5 1.5-2.5 2.5-2.5s2.5 1 2.5 2.5c0 1.8-2.5 3-2.5 3S11 7.3 11 5.5Z" />
+            <Path d="M16 6.5c0-1.2 1.2-2 2-2s2 .8 2 2c0 1.5-2 2.5-2 2.5S16 8 16 6.5Z" />
+            <Path d="M8.5 7c0-1 1-1.8 1.8-1.8s1.8.8 1.8 1.8c0 1.3-1.8 2.2-1.8 2.2S8.5 8.3 8.5 7Z" />
+          </G>
+        );
+      case 'lending':
+        return (
+          <G strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
+            {/* Bàn tay nâng hứng mầm cây xanh */}
+            <Path d="M2 14.5h3.5l3.2 3.2c.6.6 1.5.6 2.1 0l1.2-1.2c.6-.6.6-1.5 0-2.1L8.5 11H5" />
+            <Path d="M2 14.5v4.5c0 1.1.9 2 2 2h8.5c1 0 1.9-.6 2.3-1.5l2.2-4.5c.3-.6.1-1.4-.5-1.7l-2.5-1.3" />
+            {/* Mầm lá cây chồi biếc tài chính */}
+            <Path d="M12.5 8.5c0-3.5 3-5 5.5-5 0 2.5-1.5 5.5-5.5 5Z" />
+            <Path d="M18 3.5c-2.5 0-4.5 1.8-4.5 4.5 0 .5.1.7.1.7" />
+          </G>
+        );
+      case 'hand-coins':
+        return (
+          <>
+            <Path d="M11 15h2a2 2 0 1 0 0-4h-3c-.6 0-1.1.2-1.4.6L3 17" />
+            <Path d="m7 15 4 4" />
+            <Circle cx="18" cy="8" r="3" />
+            <Path d="M2 13v6a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2" />
+          </>
+        );
+      case 'banknote':
+        return (
+          <>
+            <Rect width="20" height="12" x="2" y="6" rx="2" />
+            <Circle cx="12" cy="12" r="2" />
+            <Path d="M6 12h.01M18 12h.01" />
           </>
         );
       case 'income':
@@ -151,6 +217,20 @@ export function FinanceIcon({
             <Path d="M19 5c-1.5 0-2.8 1.4-3 2-3.5-1.5-11-.3-11 5 0 1.8 0 3 2 4.5V20h4v-2h3v2h4v-4c1-.5 1.7-1 2-2h2v-4h-2c0-1-.5-1.5-1-2V5z" />
             <Path d="M16 9h.01" />
           </>
+        );
+      case 'coin-stack':
+        return (
+          <G strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
+            {/* Chồng 3 đồng xu vàng xếp tầng tròn trịa */}
+            <Path d="M7 6c0 1.66 2.69 3 6 3s6-1.34 6-3-2.69-3-6-3-6 1.34-6 3Z" />
+            <Path d="M7 6v3.5c0 1.66 2.69 3 6 3s6-1.34 6-3V6" />
+            <Path d="M7 9.5v3.5c0 1.66 2.69 3 6 3s6-1.34 6-3V9.5" />
+            <Path d="M7 13v3.5c0 1.66 2.69 3 6 3s6-1.34 6-3V13" />
+            {/* Cột xu nhỏ phía trước bên trái */}
+            <Path d="M3 14c0 1.1 1.79 2 4 2s4-.9 4-2-1.79-2-4-2-4 .9-4 2Z" />
+            <Path d="M3 14v3c0 1.1 1.79 2 4 2s4-.9 4-2v-3" />
+            <Path d="M3 17v3c0 1.1 1.79 2 4 2s4-.9 4-2v-3" />
+          </G>
         );
       case 'credit-card':
         return (
@@ -339,8 +419,8 @@ export function FinanceIcon({
       case 'thumbs-up':
         return (
           <>
-            <Path d="M7 10v12" />
-            <Path d="M15 5.88 14 10h5.83a2 2 0 0 1 1.92 2.56l-2.33 8A2 2 0 0 1 17.5 22H4a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2h3" />
+            <Path d="M7 11v9" />
+            <Path d="M14 6c0-2-1-3-2.5-3-1.5 0-2 1.5-2 3v3H5a2 2 0 0 0-2 2v7a2 2 0 0 0 2 2h11a3 3 0 0 0 3-2.5l1.5-7.5A2 2 0 0 0 18.5 9H14V6z" />
           </>
         );
       case 'reply':
@@ -429,6 +509,49 @@ export function FinanceIcon({
           <>
             <Path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z" />
             <Circle cx="12" cy="12" r="3" />
+          </>
+        );
+      case 'chevron-down':
+        return (
+          <Polyline points="6 9 12 15 18 9" />
+        );
+      case 'chevron-up':
+        return (
+          <Polyline points="18 15 12 9 6 15" />
+        );
+      case 'chevron-left':
+        return (
+          <Polyline points="15 18 9 12 15 6" />
+        );
+      case 'chevron-right':
+        return (
+          <Polyline points="9 18 15 12 9 6" />
+        );
+      case 'more-horizontal':
+        return (
+          <>
+            <Circle cx="12" cy="12" r="1.8" fill={color} />
+            <Circle cx="19" cy="12" r="1.8" fill={color} />
+            <Circle cx="5" cy="12" r="1.8" fill={color} />
+          </>
+        );
+      case 'phone':
+        return (
+          <Path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" />
+        );
+      case 'video':
+        return (
+          <>
+            <Polygon points="23 7 16 12 23 17 23 7" />
+            <Rect x="1" y="5" width="15" height="14" rx="2" ry="2" />
+          </>
+        );
+      case 'target':
+        return (
+          <>
+            <Circle cx="12" cy="12" r="10" />
+            <Circle cx="12" cy="12" r="6" />
+            <Circle cx="12" cy="12" r="2" />
           </>
         );
       default:
@@ -591,4 +714,7 @@ export function resolveCategoryIconName(
 
   return fallbackKind === 'INCOME' ? 'income' : 'expense';
 }
+
+export default FinanceIcon;
+
 

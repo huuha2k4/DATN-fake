@@ -25,19 +25,27 @@ export interface GroupResponse {
 }
 
 export interface GroupMemberResponse {
-  id: string;
+  id?: string;
   groupId: string;
   userId: string;
   role: MemberRole;
   nickname?: string;
-  status: string;
-  joinedAt: string;
+  status?: string;
+  joinedAt?: string;
   user?: {
     id: string;
-    fullName: string;
-    email: string;
+    fullName?: string;
+    displayName?: string;
+    username?: string;
+    email?: string;
     avatarUrl?: string;
+    avatarKey?: string;
   };
+  fullName?: string;
+  displayName?: string;
+  username?: string;
+  email?: string;
+  avatarUrl?: string;
 }
 
 export interface GroupExpenseResponse {
@@ -218,6 +226,57 @@ export interface UserSearchResult {
   avatarUrl?: string;
 }
 
+export interface GroupInvitationResponse {
+  id: string;
+  groupId: string;
+  groupName?: string;
+  groupType?: GroupType;
+  inviterId: string;
+  inviterName?: string;
+  inviteeId: string;
+  inviteeName?: string;
+  inviteeEmail?: string;
+  inviteeAvatarUrl?: string;
+  role: MemberRole;
+  status: 'PENDING' | 'ACCEPTED' | 'REJECTED' | 'CANCELLED';
+  createdAt?: string;
+}
+
+export interface ChildWalletResponse {
+  id: string;
+  groupId: string;
+  userId?: string;
+  childUsername?: string;
+  childName: string;
+  grade?: string; // Ví dụ: "Lớp 6", "Lớp 3"
+  dateOfBirth?: string;
+  age?: number;
+  avatarKey?: string;
+  avatarUrl?: string;
+  balance: number;
+  currency?: string;
+  weeklyAllowance?: number;
+  spentToday?: number;
+  spentThisWeek?: number;
+  createdAt?: string;
+}
+
+export interface CreateChildWalletRequest {
+  childName: string;
+  username?: string;
+  password?: string;
+  dateOfBirth?: string;
+  balance?: number;
+  grade?: string;
+  avatarKey?: string;
+  weeklyAllowance?: number;
+  allowanceSource?: 'PERSONAL_ACCOUNT' | 'GROUP_FUND';
+  allowanceAccountId?: string;
+  privacyLevel?: 'FULL_ACCESS' | 'PARENT_SUPERVISED' | 'VIEW_ONLY';
+  spendLimitDaily?: number;
+  spendLimitWeekly?: number;
+}
+
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   const token = authStorage.getToken();
   const res = await fetch(`${API_BASE_URL}${path.startsWith('/') ? path : `/${path}`}`, {
@@ -269,6 +328,17 @@ export const groupApi = {
     await request<void>(`/groups/${groupId}`, { method: 'DELETE' });
   },
 
+  async updateGroup(groupId: string, req: Partial<CreateGroupRequest>): Promise<GroupResponse> {
+    return await request<GroupResponse>(`/groups/${groupId}`, {
+      method: 'PUT',
+      body: JSON.stringify(req),
+    });
+  },
+
+  async leaveGroup(groupId: string): Promise<void> {
+    await request<void>(`/groups/${groupId}/leave`, { method: 'POST' });
+  },
+
   // 2. Thành viên nhóm & Mời thành viên
   async getMembers(groupId: string): Promise<GroupMemberResponse[]> {
     try {
@@ -298,6 +368,35 @@ export const groupApi = {
 
   async removeMember(groupId: string, userId: string): Promise<void> {
     await request<void>(`/groups/${groupId}/members/${userId}`, { method: 'DELETE' });
+  },
+
+  async updateMember(groupId: string, userId: string, data: { role?: string; contributionRatio?: number }): Promise<any> {
+    return await request<any>(`/groups/${groupId}/members/${userId}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  },
+
+  // 2.1 Ví trẻ em (Child Wallets)
+  async getChildWallets(groupId: string): Promise<ChildWalletResponse[]> {
+    try {
+      const data = await request<any>(`/groups/${groupId}/child-wallets`);
+      if (Array.isArray(data)) return data;
+      if (Array.isArray(data?.content)) return data.content;
+      return [];
+    } catch {
+      return [];
+    }
+  },
+
+  async createChildWallet(groupId: string, data: CreateChildWalletRequest): Promise<ChildWalletResponse> {
+    return await request<ChildWalletResponse>(`/groups/${groupId}/child-wallets`, {
+      method: 'POST',
+      body: JSON.stringify({
+        privacyLevel: 'PARENT_SUPERVISED',
+        ...data,
+      }),
+    });
   },
 
   // 3. Chi tiêu chung (Expenses)
@@ -500,6 +599,15 @@ export const groupApi = {
     await request<void>(`/groups/${groupId}/messages/${messageId}`, { method: 'DELETE' });
   },
 
+  async getUnreadMessageCount(groupId: string): Promise<number> {
+    try {
+      const data = await request<{ unreadCount: number }>(`/groups/${groupId}/messages/unread-count`);
+      return data?.unreadCount || 0;
+    } catch {
+      return 0;
+    }
+  },
+
   async markMessagesAsRead(groupId: string, messageIds: string[]): Promise<void> {
     if (!messageIds || messageIds.length === 0) return;
     try {
@@ -544,6 +652,178 @@ export const groupApi = {
 
   async deleteComment(groupId: string, commentId: string): Promise<void> {
     await request<void>(`/groups/${groupId}/comments/${commentId}`, { method: 'DELETE' });
+  },
+
+  // 9. Quản lý chi tiết ví trẻ em (Kid Wallet Detail & Spend Requests)
+  async getSpendRequests(groupId: string, walletId: string, status?: string): Promise<any[]> {
+    try {
+      const url = status
+        ? `/groups/${groupId}/child-wallets/${walletId}/spend-requests?status=${status}&page=0&size=50`
+        : `/groups/${groupId}/child-wallets/${walletId}/spend-requests?page=0&size=50`;
+      const res = await request<any>(url);
+      if (Array.isArray(res)) return res;
+      if (res?.content && Array.isArray(res.content)) return res.content;
+      if (res?.data?.spend_requests && Array.isArray(res.data.spend_requests)) return res.data.spend_requests;
+      return [];
+    } catch {
+      return [];
+    }
+  },
+
+  async approveSpendRequest(groupId: string, walletId: string, requestId: string, notes?: string): Promise<any> {
+    return await request<any>(`/groups/${groupId}/child-wallets/${walletId}/spend-requests/${requestId}/approve`, {
+      method: 'POST',
+      body: JSON.stringify({ notes }),
+    });
+  },
+
+  async rejectSpendRequest(groupId: string, walletId: string, requestId: string, reason?: string): Promise<any> {
+    return await request<any>(`/groups/${groupId}/child-wallets/${walletId}/spend-requests/${requestId}/reject`, {
+      method: 'POST',
+      body: JSON.stringify({ reason }),
+    });
+  },
+
+  async depositToChildWallet(groupId: string, walletId: string, data: { amount: number; source?: string; sourceAccountId?: string; description?: string; notes?: string }): Promise<ChildWalletResponse> {
+    return await request<ChildWalletResponse>(`/groups/${groupId}/child-wallets/${walletId}/deposit`, {
+      method: 'POST',
+      body: JSON.stringify({
+        amount: data.amount,
+        source: data.source || (data.sourceAccountId ? 'PERSONAL_ACCOUNT' : 'GROUP_FUND'),
+        sourceAccountId: data.sourceAccountId,
+        description: data.description || data.notes || 'Nạp tiền tiêu vặt cho con',
+      }),
+    });
+  },
+
+  async withdrawFromChildWallet(groupId: string, walletId: string, data: { amount: number; targetAccountId?: string; notes?: string }): Promise<ChildWalletResponse> {
+    return await request<ChildWalletResponse>(`/groups/${groupId}/child-wallets/${walletId}/withdraw`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
+  async updateChildWallet(
+    groupId: string,
+    walletId: string,
+    data: {
+      childName?: string;
+      weeklyAllowance?: number;
+      spendLimitDaily?: number;
+      spendLimitWeekly?: number;
+      requireApprovalAbove?: number;
+      notes?: string;
+      allowanceSource?: string;
+      allowanceAccountId?: string;
+      privacyLevel?: string;
+    }
+  ): Promise<ChildWalletResponse> {
+    return await request<ChildWalletResponse>(`/groups/${groupId}/child-wallets/${walletId}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  },
+
+  async deleteChildWallet(groupId: string, walletId: string): Promise<void> {
+    await request<void>(`/groups/${groupId}/child-wallets/${walletId}`, {
+      method: 'DELETE',
+    });
+  },
+
+  // 10. Nhiệm vụ nhận thưởng của bé (Child Chores)
+  async getChores(groupId: string, walletId: string): Promise<any[]> {
+    try {
+      const res = await request<any>(`/groups/${groupId}/child-wallets/${walletId}/chores?size=50`);
+      if (Array.isArray(res)) return res;
+      if (res?.content && Array.isArray(res.content)) return res.content;
+      return [];
+    } catch {
+      return [];
+    }
+  },
+
+  async createChore(groupId: string, walletId: string, req: { title: string; description?: string; rewardAmount: number; frequency?: string; difficulty?: string; dueDate?: string }): Promise<any> {
+    return await request<any>(`/groups/${groupId}/child-wallets/${walletId}/chores`, {
+      method: 'POST',
+      body: JSON.stringify(req),
+    });
+  },
+
+  // 11. Ghi chi tiêu trực tiếp cho ví của bé (Dành cho bố mẹ hoặc ví bé tự ghi chi tiêu)
+  async createDirectChildSpend(
+    groupId: string,
+    walletId: string,
+    data: {
+      amount: number;
+      description: string;
+      categoryId?: string;
+      notes?: string;
+    }
+  ): Promise<any> {
+    return await request<any>(`/groups/${groupId}/child-wallets/${walletId}/spend-requests`, {
+      method: 'POST',
+      body: JSON.stringify({
+        amount: data.amount,
+        description: data.description,
+        categoryId: data.categoryId,
+        notes: data.notes,
+      }),
+    });
+  },
+
+  async approveChore(groupId: string, walletId: string, choreId: string, payload?: { feedback?: string; source?: string; sourceAccountId?: string }): Promise<any> {
+    return await request<any>(`/groups/${groupId}/child-wallets/${walletId}/chores/${choreId}/approve`, {
+      method: 'POST',
+      body: JSON.stringify(payload || {}),
+    });
+  },
+
+  async rejectChore(groupId: string, walletId: string, choreId: string, reason: string, canRetry: boolean = true): Promise<any> {
+    return await request<any>(`/groups/${groupId}/child-wallets/${walletId}/chores/${choreId}/reject`, {
+      method: 'POST',
+      body: JSON.stringify({ reason, canRetry }),
+    });
+  },
+
+  // 12. Lời mời thành viên tham gia nhóm (Group Invitations)
+  async getSentPendingInvitations(groupId: string): Promise<GroupInvitationResponse[]> {
+    try {
+      const res = await request<any>(`/groups/${groupId}/invitations/pending`);
+      if (Array.isArray(res)) return res;
+      if (res?.data && Array.isArray(res.data)) return res.data;
+      return [];
+    } catch {
+      return [];
+    }
+  },
+
+  async cancelInvitation(groupId: string, invitationId: string): Promise<void> {
+    await request<void>(`/groups/${groupId}/invitations/${invitationId}`, {
+      method: 'DELETE',
+    });
+  },
+
+  async getPendingInvitations(): Promise<GroupInvitationResponse[]> {
+    try {
+      const res = await request<any>(`/groups/invitations/pending`);
+      if (Array.isArray(res)) return res;
+      if (res?.data && Array.isArray(res.data)) return res.data;
+      return [];
+    } catch {
+      return [];
+    }
+  },
+
+  async acceptInvitation(invitationId: string): Promise<any> {
+    return await request<any>(`/groups/invitations/${invitationId}/accept`, {
+      method: 'POST',
+    });
+  },
+
+  async rejectInvitation(invitationId: string): Promise<void> {
+    await request<void>(`/groups/invitations/${invitationId}/reject`, {
+      method: 'POST',
+    });
   },
 };
 

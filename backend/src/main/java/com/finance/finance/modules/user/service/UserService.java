@@ -60,11 +60,17 @@ public class UserService {
 
     @Transactional(readOnly = true)
     public java.util.List<UserResponse> searchUsers(String query) {
-        if (query == null || query.trim().length() < 2) {
+        if (query == null) {
             return java.util.Collections.emptyList();
         }
+        String cleanQuery = query.trim().toLowerCase();
+        // Chỉ bắt đầu tìm kiếm khi người dùng đã gõ ký tự @
+        if (!cleanQuery.contains("@")) {
+            return java.util.Collections.emptyList();
+        }
+
         org.springframework.data.domain.Pageable limit = org.springframework.data.domain.PageRequest.of(0, 10);
-        java.util.List<User> users = userRepository.searchUsersByKeyword(query.trim(), limit);
+        java.util.List<User> users = userRepository.searchUsersByKeyword(cleanQuery, limit);
         return users.stream()
                 .map(userMapper::toResponse)
                 .collect(java.util.stream.Collectors.toList());

@@ -100,7 +100,7 @@ public class ChildWalletService {
             childUser.setPreferredCurrency("VND");
             childUser.setTimezone("Asia/Ho_Chi_Minh");
             childUser.setLanguage("vi-VN");
-            childUser.setAvatarUrl("/default-avatar.png");
+            childUser.setAvatarUrl(request.getAvatarKey() != null ? request.getAvatarKey() : "/default-avatar.png");
             childUser = userRepository.save(childUser);
             childUserId = childUser.getId();
 
@@ -122,6 +122,7 @@ public class ChildWalletService {
                 .userId(childUserId)
                 .childUsername(childUsername)
                 .childName(request.getChildName())
+                .avatarKey(request.getAvatarKey())
                 .dateOfBirth(request.getDateOfBirth())
                 .currency("VND")
                 .balance(initialBal)
@@ -190,6 +191,16 @@ public class ChildWalletService {
         // Update fields
         if (request.getChildName() != null) {
             wallet.setChildName(request.getChildName());
+        }
+        if (request.getAvatarKey() != null) {
+            wallet.setAvatarKey(request.getAvatarKey());
+            // Đồng bộ avatar sang tài khoản User của bé nếu có tài khoản liên kết
+            if (wallet.getUserId() != null) {
+                userRepository.findById(wallet.getUserId()).ifPresent(childUser -> {
+                    childUser.setAvatarUrl(request.getAvatarKey());
+                    userRepository.save(childUser);
+                });
+            }
         }
         if (request.getDateOfBirth() != null) {
             wallet.setDateOfBirth(request.getDateOfBirth());
@@ -444,6 +455,7 @@ public class ChildWalletService {
                 .childName(wallet.getChildName())
                 .dateOfBirth(wallet.getDateOfBirth())
                 .age(age)
+                .avatarKey(wallet.getAvatarKey())
                 .currency(wallet.getCurrency() != null ? wallet.getCurrency() : "VND")
                 .balance(wallet.getBalance())
                 .weeklyAllowance(wallet.getWeeklyAllowance())

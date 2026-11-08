@@ -162,6 +162,22 @@ public class CommentService {
         // Get reply count
         long replyCount = commentRepository.countByParentCommentId(comment.getId());
 
+        // Get user info
+        CommentResponse.UserSummary userSummary = null;
+        if (comment.getUserId() != null) {
+            userSummary = userRepository.findById(comment.getUserId())
+                    .map(u -> {
+                        String name = (u.getFullName() != null && !u.getFullName().isBlank()) ? u.getFullName() : u.getUsername();
+                        return CommentResponse.UserSummary.builder()
+                                .id(u.getId())
+                                .fullName(name)
+                                .displayName(name)
+                                .avatarKey(u.getAvatarUrl())
+                                .build();
+                    })
+                    .orElse(null);
+        }
+
         return CommentResponse.builder()
                 .id(comment.getId())
                 .groupId(comment.getGroupId())
@@ -171,6 +187,7 @@ public class CommentService {
                 .content(comment.getContent())
                 .parentCommentId(comment.getParentCommentId())
                 .replyCount((int) replyCount)
+                .user(userSummary)
                 .createdAt(comment.getCreatedAt())
                 .updatedAt(comment.getUpdatedAt())
                 .build();
