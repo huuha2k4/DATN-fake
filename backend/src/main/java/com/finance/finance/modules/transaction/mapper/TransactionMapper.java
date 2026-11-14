@@ -10,7 +10,7 @@ import java.time.LocalTime;
 public class TransactionMapper {
     
     public TransactionResponse toResponse(Transaction transaction) {
-        return toResponse(transaction, null, null, null, null, null, null);
+        return toResponse(transaction, null, null, null, null, null, null, null, null);
     }
 
     public TransactionResponse toResponse(
@@ -20,7 +20,9 @@ public class TransactionMapper {
             String toAccountName,
             TransactionResponse.CategoryDto category,
             java.math.BigDecimal balanceBefore,
-            java.math.BigDecimal balanceAfter
+            java.math.BigDecimal balanceAfter,
+            TransactionResponse.MerchantDto merchant,
+            java.util.List<TransactionResponse.TagDto> tags
     ) {
         if (transaction == null) {
             return null;
@@ -49,8 +51,8 @@ public class TransactionMapper {
                 .transactionTime(transactionTime)
                 .occurredAt(transaction.getOccurredAt())
                 .category(category)
-                .merchant(null) // TODO: Get from Merchant service
-                .tags(null) // TODO: Get from Tag service
+                .merchant(merchant)
+                .tags(tags)
                 .location(parseLocation(transaction.getLocation()))
                 .note(transaction.getNote())
                 .categoryStatus(transaction.getCategoryStatus())
@@ -60,8 +62,8 @@ public class TransactionMapper {
                 .balanceAfter(balanceAfter)
                 .receiptId(transaction.getReceiptId())
                 .receiptUrl(transaction.getReceiptUrl())
-                .hasAttachments(transaction.getReceiptUrl() != null || transaction.getReceiptId() != null) // TODO: Check attachments
-                .isRecurring(false) // TODO: Check recurring template
+                .hasAttachments(transaction.getReceiptUrl() != null || transaction.getReceiptId() != null)
+                .isRecurring(false) // TODO: Link to recurring_transactions table if needed
                 .recurringTemplateId(null)
                 .isExcludedFromReport(transaction.isExcludedFromReport())
                 .syncSeq(transaction.getSyncSeq())
@@ -74,7 +76,6 @@ public class TransactionMapper {
     private String formatAmount(java.math.BigDecimal amount, String currencyCode) {
         if (amount == null) return null;
         
-        // Simple formatting - TODO: Use proper currency formatter
         String symbol = switch (currencyCode) {
             case "VND" -> "₫";
             case "USD" -> "$";
@@ -90,7 +91,8 @@ public class TransactionMapper {
             return null;
         }
         
-        // TODO: Parse JSON properly
+        // Location stored as JSON string, parse if needed in future
+        // For now return null as location feature is not prioritized
         return null;
     }
 }

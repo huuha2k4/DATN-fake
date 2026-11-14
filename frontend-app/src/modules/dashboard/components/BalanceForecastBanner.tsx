@@ -1,5 +1,6 @@
 import React from 'react';
 import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ChevronRight } from 'lucide-react-native';
 import { themeTokens } from '../themeTokens';
 
 type Props = {
@@ -47,9 +48,9 @@ export function BalanceForecastBanner({ onPress }: Props) {
           </Text>
         </View>
 
-        {/* 3. Bên phải: Nút tròn mũi tên trắng sắc nét */}
+        {/* 3. Bên phải: Nút tròn mũi tên xanh ngọc sắc nét trên nền trắng */}
         <View style={styles.arrowCircle}>
-          <Text style={styles.arrowIcon}>›</Text>
+          <ChevronRight size={19} color="#007F53" strokeWidth={2.6} />
         </View>
       </View>
     </Pressable>

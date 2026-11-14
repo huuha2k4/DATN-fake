@@ -346,7 +346,7 @@ export function AvatarPickerModal({
                   <Text style={styles.optionTitle}>Chụp ảnh mới</Text>
                   <Text style={styles.optionDesc}>Mở camera chụp và tải lên máy chủ</Text>
                 </View>
-                <Text style={styles.optionChevron}>›</Text>
+                <FinanceIcon name="chevron-right" size={18} color="#94A3B8" />
               </Pressable>
 
               {/* Nút 2: Tải lên từ bộ sưu tập thiết bị */}
@@ -362,7 +362,7 @@ export function AvatarPickerModal({
                   <Text style={styles.optionTitle}>Tải ảnh từ thiết bị lên</Text>
                   <Text style={styles.optionDesc}>Chọn từ thư viện ảnh máy và tải lên</Text>
                 </View>
-                <Text style={styles.optionChevron}>›</Text>
+                <FinanceIcon name="chevron-right" size={18} color="#94A3B8" />
               </Pressable>
             </View>
 

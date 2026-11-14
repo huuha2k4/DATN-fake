@@ -1,4 +1,4 @@
-package com.finance.finance.modules.admin.entity;
+package com.finance.finance.modules.feedback.entity;
 
 import jakarta.persistence.*;
 import lombok.*;
@@ -56,4 +56,3 @@ public class Feedback {
     @Column(name = "updated_at", nullable = false)
     private Instant updatedAt;
 }
-

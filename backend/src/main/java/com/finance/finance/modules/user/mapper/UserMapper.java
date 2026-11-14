@@ -33,6 +33,7 @@ public class UserMapper {
                 .emailVerified(user.isEmailVerified())
                 .phone(user.getPhone())
                 .mfaEnabled(user.isMfaEnabled())
+                .loginAlertEnabled(user.isLoginAlertEnabled())
                 .userStatus(user.getUserStatus())
                 .systemRole(user.getSystemRole())
                 .subscriptionTier(user.getSubscriptionTier())

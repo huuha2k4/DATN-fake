@@ -552,13 +552,23 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
   useEffect(() => {
     const queryTab = searchParams.get('tab');
     if (queryTab && ['OVERVIEW', 'EXPENSES', 'CHAT', 'BALANCES', 'MEMBERS', 'CHILD_WALLETS'].includes(queryTab)) {
-      setActiveTab(queryTab as any);
+      if (
+        queryTab === 'BALANCES' &&
+        selectedGroup &&
+        (selectedGroup.groupType === 'FAMILY' || selectedGroup.groupType === 'COUPLE')
+      ) {
+        setActiveTab('OVERVIEW');
+      } else {
+        setActiveTab(queryTab as any);
+      }
     }
 
     const queryWalletId = searchParams.get('walletId');
     const queryModal = searchParams.get('modal');
-    if (queryWalletId && childWallets.length > 0) {
-      const targetWallet = childWallets.find((w) => w.id === queryWalletId);
+    if ((queryWalletId || queryModal) && childWallets.length > 0) {
+      const targetWallet = queryWalletId
+        ? childWallets.find((w) => w.id === queryWalletId) || childWallets[0]
+        : childWallets[0];
       if (targetWallet) {
         if (queryModal === 'SPEND_REQUESTS') {
           handleOpenSpendRequests(targetWallet);
@@ -567,7 +577,7 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
         }
       }
     }
-  }, [searchParams, childWallets]);
+  }, [searchParams, childWallets, selectedGroup?.groupType]);
 
   // Real-time polling for messages and typing status when viewing CHAT tab
   useEffect(() => {
@@ -2289,11 +2299,7 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
                                                 }`}
                                                 title="Tùy chọn tin nhắn"
                                               >
-                                                <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor">
-                                                  <circle cx="12" cy="5" r="2.2" />
-                                                  <circle cx="12" cy="12" r="2.2" />
-                                                  <circle cx="12" cy="19" r="2.2" />
-                                                </svg>
+                                                <FinanceIcon name="more-vertical" size={15} />
                                               </button>
 
                                               {/* Popover Actions Menu - No icons as requested */}
@@ -2357,12 +2363,7 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
                                                 }`}
                                                 title="Bày tỏ cảm xúc"
                                               >
-                                                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                                  <circle cx="12" cy="12" r="10" />
-                                                  <path d="M8 14s1.5 2 4 2 4-2 4-2" />
-                                                  <line x1="9" y1="9" x2="9.01" y2="9" strokeWidth="2.5" />
-                                                  <line x1="15" y1="9" x2="15.01" y2="9" strokeWidth="2.5" />
-                                                </svg>
+                                                <FinanceIcon name="smile" size={15} />
                                               </button>
 
                                               {/* Emoji Reaction Selector Bar (exact 6 emojis in order: Heart, Laugh, Surprised, Sad, Angry, Thumbs-up) */}
@@ -2500,14 +2501,7 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
                           className="absolute right-4 bottom-20 z-20 size-9 rounded-full bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 shadow-lg text-[#07543f] dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-slate-750 transition flex items-center justify-center animate-bounce group"
                           title="Cuộn xuống tin nhắn mới nhất"
                         >
-                          <svg
-                            className="size-4 transform rotate-90 transition group-hover:translate-y-0.5"
-                            fill="none"
-                            stroke="currentColor"
-                            viewBox="0 0 24 24"
-                          >
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M9 5l7 7-7 7" />
-                          </svg>
+                          <FinanceIcon name="chevron-down" size={16} className="transition group-hover:translate-y-0.5" />
                         </button>
                       )}
 

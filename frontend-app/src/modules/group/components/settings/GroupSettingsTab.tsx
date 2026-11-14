@@ -10,6 +10,7 @@ import {
   ActivityIndicator,
   ScrollView,
   Platform,
+  Modal,
 } from 'react-native';
 import { FinanceIcon } from '../../../core/components/FinanceIcon';
 import { GroupResponse, GroupType, groupApi } from '../../api/groupApi';
@@ -194,10 +195,9 @@ export const GroupSettingsTab: React.FC<GroupSettingsTabProps> = ({
                   {/* Thanh hiển thị loại nhóm hiện tại */}
                   <Pressable
                     disabled={!isLeader}
-                    onPress={() => setTypeDropdownOpen(!typeDropdownOpen)}
+                    onPress={() => setTypeDropdownOpen(true)}
                     style={({ pressed }) => [
                       styles.dropdownTrigger,
-                      typeDropdownOpen && styles.dropdownTriggerActive,
                       !isLeader && styles.dropdownTriggerDisabled,
                       pressed && isLeader && { opacity: 0.85 },
                     ]}
@@ -215,65 +215,86 @@ export const GroupSettingsTab: React.FC<GroupSettingsTabProps> = ({
                     </View>
                     {isLeader && (
                       <FinanceIcon
-                        name={typeDropdownOpen ? 'chevron-up' : 'chevron-down'}
+                        name="chevron-down"
                         size={18}
-                        color="#64748B"
+                        color="#059669"
                       />
                     )}
                   </Pressable>
 
-                  {/* Danh sách thả dọc các lựa chọn khi bấm mở */}
-                  {typeDropdownOpen && isLeader && (
-                    <View style={styles.dropdownMenu}>
-                      {GROUP_TYPE_OPTIONS.map((opt, index) => {
-                        const isSelected = groupType === opt.key;
-                        return (
+                  {/* MODAL BOTTOM SHEET NỔI LÊN CHỌN LOẠI NHÓM (KHÔNG ĐẨY GIAO DIỆN) */}
+                  <Modal
+                    visible={typeDropdownOpen && isLeader}
+                    transparent
+                    animationType="fade"
+                    onRequestClose={() => setTypeDropdownOpen(false)}
+                  >
+                    <Pressable
+                      style={styles.modalBackdrop}
+                      onPress={() => setTypeDropdownOpen(false)}
+                    >
+                      <View style={styles.modalSheetBox}>
+                        <View style={styles.modalSheetHeader}>
+                          <Text style={styles.modalSheetTitle}>Chọn phân loại nhóm</Text>
                           <Pressable
-                            key={opt.key}
-                            onPress={() => {
-                              setGroupType(opt.key);
-                              setTypeDropdownOpen(false);
-                            }}
-                            style={({ pressed }) => [
-                              styles.dropdownMenuItem,
-                              index < GROUP_TYPE_OPTIONS.length - 1 && styles.dropdownMenuItemBorder,
-                              isSelected && styles.dropdownMenuItemActive,
-                              pressed && { backgroundColor: '#F1F5F9' },
-                            ]}
+                            onPress={() => setTypeDropdownOpen(false)}
+                            hitSlop={10}
                           >
-                            <View
-                              style={[
-                                styles.typeIconCircle,
-                                isSelected ? { backgroundColor: '#D1FAE5' } : { backgroundColor: '#F8FAFC' },
-                              ]}
-                            >
-                              <FinanceIcon
-                                name={opt.icon as any}
-                                size={18}
-                                color={isSelected ? '#059669' : '#64748B'}
-                              />
-                            </View>
-                            <View style={{ flex: 1 }}>
-                              <Text
-                                style={[
-                                  styles.menuItemLabel,
-                                  isSelected && styles.menuItemLabelActive,
+                            <FinanceIcon name="close" size={18} color="#64748B" />
+                          </Pressable>
+                        </View>
+
+                        <ScrollView style={{ maxHeight: 380 }} showsVerticalScrollIndicator={false}>
+                          {GROUP_TYPE_OPTIONS.map((opt) => {
+                            const isSelected = groupType === opt.key;
+                            return (
+                              <Pressable
+                                key={opt.key}
+                                onPress={() => {
+                                  setGroupType(opt.key);
+                                  setTypeDropdownOpen(false);
+                                }}
+                                style={({ pressed }) => [
+                                  styles.modalSheetItemRow,
+                                  isSelected && styles.modalSheetItemRowActive,
+                                  pressed && { backgroundColor: '#F1F5F9' },
                                 ]}
                               >
-                                {opt.label}
-                              </Text>
-                              <Text style={styles.menuItemDesc} numberOfLines={1}>
-                                {opt.desc}
-                              </Text>
-                            </View>
-                            {isSelected && (
-                              <FinanceIcon name="check" size={16} color="#059669" />
-                            )}
-                          </Pressable>
-                        );
-                      })}
-                    </View>
-                  )}
+                                <View
+                                  style={[
+                                    styles.typeIconCircle,
+                                    isSelected ? { backgroundColor: '#D1FAE5' } : { backgroundColor: '#F8FAFC' },
+                                  ]}
+                                >
+                                  <FinanceIcon
+                                    name={opt.icon as any}
+                                    size={18}
+                                    color={isSelected ? '#059669' : '#64748B'}
+                                  />
+                                </View>
+                                <View style={{ flex: 1 }}>
+                                  <Text
+                                    style={[
+                                      styles.menuItemLabel,
+                                      isSelected && styles.menuItemLabelActive,
+                                    ]}
+                                  >
+                                    {opt.label}
+                                  </Text>
+                                  <Text style={styles.menuItemDesc} numberOfLines={1}>
+                                    {opt.desc}
+                                  </Text>
+                                </View>
+                                {isSelected && (
+                                  <FinanceIcon name="check" size={16} color="#059669" />
+                                )}
+                              </Pressable>
+                            );
+                          })}
+                        </ScrollView>
+                      </View>
+                    </Pressable>
+                  </Modal>
                 </View>
               );
             })()}
@@ -575,32 +596,50 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  dropdownMenu: {
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(15, 23, 42, 0.45)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  modalSheetBox: {
+    width: '100%',
+    maxHeight: 460,
     backgroundColor: '#FFFFFF',
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    borderRadius: 14,
-    marginTop: 6,
-    overflow: 'hidden',
+    borderRadius: 22,
+    padding: 18,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.08,
+    shadowOpacity: 0.15,
     shadowRadius: 10,
-    elevation: 4,
+    elevation: 8,
   },
-  dropdownMenuItem: {
+  modalSheetHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 11,
-    gap: 12,
-    backgroundColor: '#FFFFFF',
-  },
-  dropdownMenuItemBorder: {
+    justifyContent: 'space-between',
+    paddingBottom: 12,
     borderBottomWidth: 1,
     borderBottomColor: '#F1F5F9',
+    marginBottom: 6,
   },
-  dropdownMenuItemActive: {
+  modalSheetTitle: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: '#0F172A',
+  },
+  modalSheetItemRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F8FAFC',
+    borderRadius: 10,
+    gap: 12,
+  },
+  modalSheetItemRowActive: {
     backgroundColor: '#F0FDF4',
   },
   menuItemLabel: {

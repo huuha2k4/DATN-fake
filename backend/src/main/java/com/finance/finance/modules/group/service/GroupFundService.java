@@ -20,6 +20,9 @@ import com.finance.finance.modules.transaction.service.TransactionService;
 import com.finance.finance.common.enums.TransactionType;
 import com.finance.finance.modules.category.repository.CategoryRepository;
 import com.finance.finance.modules.user.repository.UserRepository;
+import com.finance.finance.modules.notification.service.NotificationService;
+import com.finance.finance.common.enums.NotificationType;
+import com.finance.finance.common.enums.NotificationPriority;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -42,6 +45,7 @@ public class GroupFundService {
     private final TransactionService transactionService;
     private final CategoryRepository categoryRepository;
     private final UserRepository userRepository;
+    private final NotificationService notificationService;
 
     @Transactional(readOnly = true)
     public GroupFundResponse getFund(UUID groupId, UUID currentUserId) {
@@ -96,7 +100,7 @@ public class GroupFundService {
                         .amount(request.getAmount()).currencyCode(fund.getCurrency())
                         .transactionDate(request.getContributedAt())
                         .description("Nộp quỹ nhóm: " + group.getName()).note(request.getNote())
-                        .isExcludedFromReport(true).build());
+                        .isExcludedFromReport(false).build());
 
         contributionRepository.save(GroupFundContribution.builder().fundId(fund.getId())
                 .contributorUserId(currentUserId).sourceAccountId(request.getSourceAccountId())
@@ -104,6 +108,33 @@ public class GroupFundService {
                 .contributedAt(request.getContributedAt()).note(request.getNote()).build());
         fund.setBalance(fund.getBalance().add(request.getAmount()));
         groupFundRepository.save(fund);
+
+        // Bắn thông báo nộp quỹ đến tất cả các thành viên khác trong nhóm (chưa tắt thông báo)
+        try {
+            String contributorName = userRepository.findById(currentUserId)
+                    .map(u -> u.getFullName() != null && !u.getFullName().isBlank() ? u.getFullName() : (u.getUsername() != null ? u.getUsername() : "Một thành viên"))
+                    .orElse("Một thành viên");
+            String groupName = group.getName();
+            String formattedAmount = String.format("%,d", request.getAmount().longValue()) + "đ";
+
+            var members = groupMemberRepository.findByGroupId(groupId);
+            for (var member : members) {
+                if (!member.getUserId().equals(currentUserId) && Boolean.TRUE.equals(member.getNotificationEnabled())) {
+                    notificationService.createNotification(
+                            member.getUserId(),
+                            NotificationType.GROUP_FUND_DEPOSIT,
+                            NotificationPriority.NORMAL,
+                            "Thành viên đã nộp quỹ",
+                            contributorName + " đã nộp " + formattedAmount + " vào quỹ \"" + groupName + "\".",
+                            "/groups?groupId=" + groupId + "&tab=BALANCES",
+                            "Xem quỹ nhóm"
+                    );
+                }
+            }
+        } catch (Exception ex) {
+            // Không làm gián đoạn transaction nộp quỹ nếu bắn notification gặp lỗi
+        }
+
         return GroupFundResponse.builder().id(fund.getId()).groupId(groupId).currency(fund.getCurrency())
                 .balance(fund.getBalance()).updatedAt(fund.getUpdatedAt()).build();
     }

@@ -804,16 +804,33 @@ export const POPULAR_BANKS_AND_WALLETS: BankOrWalletPreset[] = [
 ];
 
 /**
- * Tìm preset thương hiệu theo mã code, id hoặc tên
+ * Tìm preset thương hiệu theo mã code, id hoặc tên (hỗ trợ cả tiếng Việt có dấu / không dấu và tên viết tắt)
  */
 export function findBankOrWalletPreset(query?: string): BankOrWalletPreset | undefined {
   if (!query) return undefined;
-  const q = query.trim().toUpperCase();
-  return POPULAR_BANKS_AND_WALLETS.find(
-    (item) =>
-      item.code.toUpperCase() === q ||
-      item.shortName.toUpperCase() === q ||
-      q.includes(item.shortName.toUpperCase()) ||
-      item.name.toUpperCase().includes(q)
-  );
+  const normalize = (str: string) =>
+    str
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/đ/g, 'd')
+      .replace(/Đ/g, 'D')
+      .toUpperCase()
+      .trim();
+
+  const q = normalize(query);
+  if (!q) return undefined;
+
+  return POPULAR_BANKS_AND_WALLETS.find((item) => {
+    const code = normalize(item.code);
+    const shortName = normalize(item.shortName);
+    const fullName = normalize(item.name);
+
+    return (
+      code === q ||
+      shortName === q ||
+      q.includes(shortName) ||
+      q.includes(code) ||
+      fullName.includes(q)
+    );
+  });
 }

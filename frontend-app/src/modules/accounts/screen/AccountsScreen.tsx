@@ -11,10 +11,15 @@ import {
   Switch,
   Text,
   TextInput,
+  useWindowDimensions,
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { ArrowLeft, Plus } from 'lucide-react-native';
 import { FinanceIcon } from '../../core/components/FinanceIcon';
+
+const BG_INCOME_WAVE = require('../../add-transaction/assets/bg-income-wave.jpg');
+const WALLET_3D_ICON = require('../../../assets/icons/hero_wallet_3d.png');
 import {
   accountApi,
   type AccountItem,
@@ -45,21 +50,23 @@ const ACCOUNT_CATEGORIES: Array<{ code: ModalCategory; label: string; icon: stri
   { code: 'OTHER', label: 'Khác', icon: 'wallet', color: '#64748B', bg: '#F1F5F9' },
 ];
 
-// Tabs lọc chuẩn web
+// Tabs lọc chuẩn web kèm bộ icon tương ứng
 const FILTER_TABS = [
-  { key: 'ALL', label: 'Tất cả nguồn tiền' },
-  { key: 'CASH', label: 'Tiền mặt' },
-  { key: 'BANK_ACCOUNT', label: 'Tài khoản ngân hàng' },
-  { key: 'E_WALLET', label: 'Ví điện tử' },
-  { key: 'DEBIT_CARD', label: 'Thẻ ghi nợ' },
-  { key: 'CREDIT_CARD', label: 'Thẻ tín dụng' },
-  { key: 'CRYPTO', label: 'Ví mã hóa' },
+  { key: 'ALL', label: 'Tất cả nguồn tiền', icon: 'layers' },
+  { key: 'CASH', label: 'Tiền mặt', icon: 'wallet' },
+  { key: 'BANK_ACCOUNT', label: 'Tài khoản ngân hàng', icon: 'bank' },
+  { key: 'E_WALLET', label: 'Ví điện tử', icon: 'smartphone' },
+  { key: 'DEBIT_CARD', label: 'Thẻ ghi nợ', icon: 'credit-card' },
+  { key: 'CREDIT_CARD', label: 'Thẻ tín dụng', icon: 'credit-card' },
+  { key: 'CRYPTO', label: 'Ví mã hóa', icon: 'coin-stack' },
 ] as const;
 
 type FilterKey = typeof FILTER_TABS[number]['key'];
 
 export function AccountsScreen({ onBack, onAddTransaction }: Props) {
   const insets = useSafeAreaInsets();
+  const { width: screenWidth } = useWindowDimensions();
+  const cardWidth = Math.max(300, screenWidth - 32);
 
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -398,14 +405,15 @@ export function AccountsScreen({ onBack, onAddTransaction }: Props) {
 
   return (
     <View style={styles.screen}>
-      {/* ── 1. HEADER XANH RỪNG SANG TRỌNG PHỦ TRÀN TAI THỎ ── */}
-      <View style={[styles.header, { paddingTop: Math.max(insets.top, 12) + 4 }]}>
+      {/* ── 1. HEADER SÁNG TRẮNG ĐỒNG BỘ MÀN THÊM GIAO DỊCH ── */}
+      <View style={[styles.header, { paddingTop: Math.max(insets.top, 10) + 4 }]}>
         <Pressable onPress={onBack} hitSlop={12} style={styles.backBtn}>
-          <Text style={styles.backIcon}>‹</Text>
+          <ArrowLeft size={25} color="#0F172A" strokeWidth={2.5} />
         </Pressable>
         <Text style={styles.headerTitle}>Ví & Tài khoản</Text>
         <Pressable onPress={handleOpenAddModal} style={styles.addNavBtn} hitSlop={8}>
-          <Text style={styles.addNavBtnText}>+ Thêm ví</Text>
+          <Plus size={16} color="#FFFFFF" strokeWidth={2.6} />
+          <Text style={styles.addNavBtnText}>Thêm ví</Text>
         </Pressable>
       </View>
 
@@ -421,18 +429,26 @@ export function AccountsScreen({ onBack, onAddTransaction }: Props) {
           />
         }
       >
-        {/* ── 2. HERO CARD TỔNG SỐ DƯ TÀI SẢN ── */}
-        <View style={styles.heroTotalCard}>
+        {/* ── 2. HERO CARD TỔNG TÀI SẢN NỀN SÓNG XANH 3D + ICON VÍ 3D NGOÀI TRANG CHỦ ── */}
+        <View style={[styles.heroTotalCard, { width: cardWidth }]}>
+          <Image
+            source={BG_INCOME_WAVE}
+            style={[styles.heroWaveBgImg, { width: cardWidth }]}
+            resizeMode="cover"
+          />
+
           <View style={styles.heroTotalTop}>
-            <View>
+            <View style={{ flex: 1, paddingRight: 8 }}>
               <Text style={styles.heroTotalLabel}>TỔNG TÀI SẢN KHẢ DỤNG</Text>
-              <Text style={styles.heroTotalValue} numberOfLines={1}>
+              <Text style={styles.heroTotalValue} numberOfLines={1} adjustsFontSizeToFit>
                 {formatVND(totalAssets)} <Text style={styles.unitSuffix}>₫</Text>
               </Text>
             </View>
-            <View style={styles.heroWalletIconWrap}>
-              <FinanceIcon name="wallet" size={26} color="#059669" />
-            </View>
+            <Image
+              source={WALLET_3D_ICON}
+              style={styles.heroWallet3DImg}
+              resizeMode="contain"
+            />
           </View>
 
           {totalLiabilities > 0 && (
@@ -443,15 +459,20 @@ export function AccountsScreen({ onBack, onAddTransaction }: Props) {
           )}
 
           <View style={styles.heroTotalFooter}>
-            <Text style={styles.heroFooterLeft}>
-              Đang quản lý{' '}
-              <Text style={{ fontWeight: '800', color: '#1E293B' }}>{accounts.length} nguồn tiền</Text>
-            </Text>
-            <Text style={styles.heroFooterRight}>● Sẵn sàng chi tiêu</Text>
+            <View style={styles.heroFooterLeftRow}>
+              <FinanceIcon name="layers" size={18} color="#FFFFFF" />
+              <Text style={styles.heroFooterLeft}>
+                Đang quản lý{' '}
+                <Text style={{ fontWeight: '800', color: '#FFFFFF' }}>{accounts.length} nguồn tiền</Text>
+              </Text>
+            </View>
+            <View style={styles.readyBadgePill}>
+              <Text style={styles.heroFooterRight}>● Sẵn sàng chi tiêu</Text>
+            </View>
           </View>
         </View>
 
-        {/* ── 3. TABS PHÂN LOẠI NGUỒN TIỀN (CHUẨN WEB: 7 MỤC) ── */}
+        {/* ── 3. TABS PHÂN LOẠI NGUỒN TIỀN (CHUẨN WEB: 7 MỤC KÈM BỘ ICON) ── */}
         <View style={styles.filterTabsContainer}>
           <ScrollView
             horizontal
@@ -466,6 +487,11 @@ export function AccountsScreen({ onBack, onAddTransaction }: Props) {
                   onPress={() => setActiveFilter(tab.key)}
                   style={[styles.filterPill, isSelected && styles.filterPillActive]}
                 >
+                  <FinanceIcon
+                    name={tab.icon}
+                    size={16}
+                    color={isSelected ? '#FFFFFF' : '#15803D'}
+                  />
                   <Text style={[styles.filterPillText, isSelected && styles.filterPillTextActive]}>
                     {tab.label}
                   </Text>
@@ -490,7 +516,11 @@ export function AccountsScreen({ onBack, onAddTransaction }: Props) {
         ) : (
           filteredAccounts.map((acc) => {
             const meta = getAccountTypeMeta(acc.accountType, acc);
-            const brandPreset = findBankOrWalletPreset(acc.name);
+            const brandPreset =
+              findBankOrWalletPreset(acc.name) ||
+              findBankOrWalletPreset(acc.bank?.name) ||
+              findBankOrWalletPreset(acc.description);
+            const resolvedLogoUrl = acc.bank?.logoUrl || brandPreset?.logoUrl;
             const isCredit = acc.accountType === 'CREDIT_CARD';
 
             return (
@@ -504,11 +534,11 @@ export function AccountsScreen({ onBack, onAddTransaction }: Props) {
                 ]}
               >
                 <View style={styles.cardMainRow}>
-                  {/* LOGO NGÂN HÀNG / VÍ ĐIỆN TỬ */}
-                  {brandPreset?.logoUrl ? (
+                  {/* LOGO NGÂN HÀNG / VÍ ĐIỆN TỬ TRONG Ô VUÔNG BO GÓC TRẮNG */}
+                  {resolvedLogoUrl ? (
                     <View style={styles.brandLogoBox}>
                       <Image
-                        source={{ uri: brandPreset.logoUrl }}
+                        source={{ uri: resolvedLogoUrl }}
                         style={styles.brandLogoImg}
                         resizeMode="contain"
                       />
@@ -572,7 +602,10 @@ export function AccountsScreen({ onBack, onAddTransaction }: Props) {
                     </Text>
                   </View>
 
-                  <Text style={styles.tapToDetailText}>Xem chi tiết ›</Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 2 }}>
+                    <Text style={styles.tapToDetailText}>Xem chi tiết</Text>
+                    <FinanceIcon name="chevron-right" size={14} color="#059669" />
+                  </View>
                 </View>
               </Pressable>
             );
@@ -622,7 +655,7 @@ export function AccountsScreen({ onBack, onAddTransaction }: Props) {
                     hitSlop={10}
                     style={styles.modalCloseBtn}
                   >
-                    <Text style={styles.modalCloseText}>✕</Text>
+                    <FinanceIcon name="close" size={18} color="#475569" />
                   </Pressable>
                 </View>
 
@@ -779,7 +812,7 @@ export function AccountsScreen({ onBack, onAddTransaction }: Props) {
                   hitSlop={10}
                   style={styles.modalCloseBtn}
                 >
-                  <Text style={styles.modalCloseText}>✕</Text>
+                  <FinanceIcon name="close" size={18} color="#475569" />
                 </Pressable>
               </View>
 
@@ -883,7 +916,7 @@ export function AccountsScreen({ onBack, onAddTransaction }: Props) {
                 </View>
               </View>
               <Pressable onPress={() => setCreateModalVisible(false)} hitSlop={10} style={styles.modalCloseBtn}>
-                <Text style={styles.modalCloseText}>✕</Text>
+                <FinanceIcon name="close" size={18} color="#475569" />
               </Pressable>
             </View>
 
@@ -980,8 +1013,8 @@ export function AccountsScreen({ onBack, onAddTransaction }: Props) {
                           style={styles.searchPresetInput}
                         />
                         {bankSearchQuery ? (
-                          <Pressable onPress={() => setBankSearchQuery('')}>
-                            <Text style={styles.clearSearchBtn}>✕</Text>
+                          <Pressable onPress={() => setBankSearchQuery('')} hitSlop={8}>
+                            <FinanceIcon name="close" size={16} color="#94A3B8" />
                           </Pressable>
                         ) : null}
                       </View>
@@ -1089,12 +1122,12 @@ export function AccountsScreen({ onBack, onAddTransaction }: Props) {
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
-    backgroundColor: '#F8FAFC',
+    backgroundColor: '#F6F8FA',
   },
   header: {
-    backgroundColor: '#074838',
+    backgroundColor: '#F6F8FA',
     paddingHorizontal: 16,
-    paddingBottom: 16,
+    paddingBottom: 10,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -1103,85 +1136,106 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     justifyContent: 'center',
+    alignItems: 'flex-start',
   },
   backIcon: {
-    color: '#FFFFFF',
+    color: '#0F172A',
     fontSize: 32,
     lineHeight: 32,
   },
   headerTitle: {
-    color: '#FFFFFF',
-    fontSize: 18,
+    color: '#0F172A',
+    fontSize: 19,
     fontWeight: '800',
+    letterSpacing: -0.3,
   },
   addNavBtn: {
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    backgroundColor: '#137A4B',
+    paddingHorizontal: 13,
+    paddingVertical: 7.5,
+    borderRadius: 999,
+    shadowColor: '#065F46',
+    shadowOpacity: 0.22,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 3,
   },
   addNavBtnText: {
     color: '#FFFFFF',
-    fontSize: 12.5,
+    fontSize: 13,
     fontWeight: '700',
   },
   scrollContent: {
-    padding: 16,
+    paddingHorizontal: 16,
+    paddingTop: 6,
     paddingBottom: 40,
     gap: 14,
   },
   heroTotalCard: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#0A683B',
     borderRadius: 22,
-    padding: 18,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    shadowColor: '#000',
-    shadowOpacity: 0.05,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 3 },
-    elevation: 3,
+    paddingHorizontal: 18,
+    paddingTop: 16,
+    paddingBottom: 14,
+    overflow: 'hidden',
+    position: 'relative',
+    shadowColor: '#064E3B',
+    shadowOpacity: 0.18,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 5 },
+    elevation: 5,
+  },
+  heroWaveBgImg: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    height: 220,
+    borderRadius: 22,
   },
   heroTotalTop: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    minHeight: 102,
   },
   heroTotalLabel: {
-    fontSize: 11,
+    fontSize: 11.5,
     fontWeight: '800',
-    color: '#64748B',
-    letterSpacing: 0.5,
+    color: 'rgba(255, 255, 255, 0.92)',
+    letterSpacing: 0.6,
   },
   heroTotalValue: {
-    fontSize: 26,
-    fontWeight: '900',
-    color: '#0F172A',
-    marginTop: 4,
+    fontSize: 31,
+    fontWeight: '800',
+    color: '#FFFFFF',
+    marginTop: 5,
     letterSpacing: -0.5,
   },
   unitSuffix: {
-    fontSize: 18,
-    color: '#059669',
+    fontSize: 24,
+    color: '#FFFFFF',
     fontWeight: '800',
+    textDecorationLine: 'underline',
   },
-  heroWalletIconWrap: {
-    width: 48,
-    height: 48,
-    borderRadius: 16,
-    backgroundColor: '#E8F8F0',
-    justifyContent: 'center',
-    alignItems: 'center',
+  heroWallet3DImg: {
+    width: 158,
+    height: 122,
+    marginRight: -10,
+    marginTop: -10,
+    marginBottom: -8,
   },
   liabilitiesRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    backgroundColor: '#FFF1F2',
+    backgroundColor: 'rgba(255, 255, 255, 0.92)',
     paddingHorizontal: 12,
-    paddingVertical: 6,
+    paddingVertical: 6.5,
     borderRadius: 10,
-    marginTop: 10,
+    marginTop: 8,
   },
   liabilitiesLabel: {
     fontSize: 11.5,
@@ -1198,18 +1252,29 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     borderTopWidth: 1,
-    borderTopColor: '#F1F5F9',
-    marginTop: 14,
-    paddingTop: 12,
+    borderTopColor: 'rgba(255, 255, 255, 0.22)',
+    marginTop: 12,
+    paddingTop: 11,
+  },
+  heroFooterLeftRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
   },
   heroFooterLeft: {
-    fontSize: 12,
-    color: '#64748B',
+    fontSize: 12.5,
+    color: 'rgba(255, 255, 255, 0.95)',
+  },
+  readyBadgePill: {
+    backgroundColor: 'rgba(255, 255, 255, 0.92)',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 999,
   },
   heroFooterRight: {
     fontSize: 11.5,
-    color: '#059669',
-    fontWeight: '700',
+    color: '#065F46',
+    fontWeight: '800',
   },
   filterTabsContainer: {
     marginVertical: 2,
@@ -1219,21 +1284,24 @@ const styles = StyleSheet.create({
     paddingVertical: 2,
   },
   filterPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
     paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 18,
+    paddingVertical: 8.5,
+    borderRadius: 999,
     backgroundColor: '#FFFFFF',
     borderWidth: 1,
     borderColor: '#CBD5E1',
   },
   filterPillActive: {
-    backgroundColor: '#074838',
-    borderColor: '#074838',
+    backgroundColor: '#056A3F',
+    borderColor: '#056A3F',
   },
   filterPillText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#475569',
+    fontSize: 12.5,
+    fontWeight: '800',
+    color: '#0F172A',
   },
   filterPillTextActive: {
     color: '#FFFFFF',
@@ -1258,8 +1326,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   brandLogoBox: {
-    width: 46,
-    height: 46,
+    width: 50,
+    height: 50,
     borderRadius: 14,
     backgroundColor: '#FFFFFF',
     borderWidth: 1,
@@ -1267,23 +1335,26 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12,
-    padding: 5,
-    shadowColor: '#000',
-    shadowOpacity: 0.04,
-    shadowRadius: 4,
-    elevation: 1,
+    padding: 2,
+    overflow: 'hidden',
+    shadowColor: '#0F172A',
+    shadowOpacity: 0.05,
+    shadowRadius: 5,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 2,
   },
   brandLogoImg: {
     width: '100%',
     height: '100%',
+    transform: [{ scale: 1.18 }],
   },
   brandLogoFallbackText: {
     fontSize: 12,
     fontWeight: '800',
   },
   accountTypeIconBox: {
-    width: 46,
-    height: 46,
+    width: 50,
+    height: 50,
     borderRadius: 14,
     justifyContent: 'center',
     alignItems: 'center',
@@ -1523,13 +1594,14 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   presetLogoSmall: {
-    width: 38,
-    height: 38,
-    borderRadius: 10,
+    width: 44,
+    height: 44,
+    borderRadius: 11,
     backgroundColor: '#FFFFFF',
     borderWidth: 1,
     borderColor: '#E2E8F0',
-    padding: 4,
+    padding: 0,
+    overflow: 'hidden',
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -1594,13 +1666,14 @@ const styles = StyleSheet.create({
     width: 66,
   },
   popularPresetLogo: {
-    width: 48,
-    height: 48,
+    width: 52,
+    height: 52,
     borderRadius: 14,
     backgroundColor: '#FFFFFF',
     borderWidth: 1,
     borderColor: '#E2E8F0',
-    padding: 6,
+    padding: 0,
+    overflow: 'hidden',
     justifyContent: 'center',
     alignItems: 'center',
     shadowColor: '#000',
@@ -1730,15 +1803,16 @@ const styles = StyleSheet.create({
     marginRight: 10,
   },
   detailLogoWrap: {
-    width: 44,
-    height: 44,
+    width: 50,
+    height: 50,
     borderRadius: 14,
     backgroundColor: '#FFFFFF',
     borderWidth: 1,
     borderColor: '#E2E8F0',
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 4,
+    padding: 0,
+    overflow: 'hidden',
   },
   detailTitle: {
     fontSize: 16,

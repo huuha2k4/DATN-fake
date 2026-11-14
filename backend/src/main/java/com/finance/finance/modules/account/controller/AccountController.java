@@ -1,5 +1,6 @@
 package com.finance.finance.modules.account.controller;
 
+import com.finance.finance.common.annotation.Idempotent;
 import com.finance.finance.common.enums.AccountType;
 import com.finance.finance.modules.account.dto.request.AdjustBalanceRequest;
 import com.finance.finance.modules.account.dto.request.CreateAccountRequest;
@@ -52,11 +53,14 @@ public class AccountController {
     /**
      * Tạo account mới
      * POST /api/v1/accounts
+     * Idempotent: Prevent duplicate account creation
      */
+    @Idempotent(resourceType = "account")
     @PostMapping
     public ResponseEntity<Map<String, Object>> createAccount(
             @AuthenticationPrincipal User user,
-            @Valid @RequestBody CreateAccountRequest request) {
+            @Valid @RequestBody CreateAccountRequest request,
+            @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey) {
         log.info("Create account request from user: {}", user.getId());
 
         AccountResponse accountResponse = accountService.createAccount(user.getId(), request);
@@ -177,12 +181,15 @@ public class AccountController {
     /**
      * Điều chỉnh số dư
      * POST /api/v1/accounts/{id}/adjust-balance
+     * Idempotent: Prevent duplicate balance adjustments
      */
+    @Idempotent(resourceType = "balance_adjustment")
     @PostMapping("/{id}/adjust-balance")
     public ResponseEntity<Map<String, Object>> adjustBalance(
             @AuthenticationPrincipal User user,
             @PathVariable UUID id,
-            @Valid @RequestBody AdjustBalanceRequest request) {
+            @Valid @RequestBody AdjustBalanceRequest request,
+            @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey) {
         log.info("Adjust balance for account: {} by user: {}", id, user.getId());
 
         AdjustBalanceResponse adjustResponse = accountService.adjustBalance(user.getId(), id, request);

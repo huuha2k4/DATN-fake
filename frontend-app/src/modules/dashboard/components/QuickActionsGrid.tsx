@@ -58,7 +58,7 @@ export function QuickActionsGrid({
     },
     {
       id: 'goals',
-      title: 'Mục tiêu tích lũy',
+      title: 'Mục tiêu & Tiết kiệm',
       image: actionIcons.goals,
       onPress: onViewGoals,
     },
@@ -69,16 +69,16 @@ export function QuickActionsGrid({
       onPress: onViewDebts,
     },
     {
-      id: 'analytics',
-      title: 'Phân tích thu chi',
-      image: actionIcons.analytics,
-      onPress: onViewSpendingAnalysis,
-    },
-    {
       id: 'calendar',
       title: 'Lịch tài chính',
       image: actionIcons.calendar,
       onPress: onViewReminders,
+    },
+    {
+      id: 'analytics',
+      title: 'Phân tích thu chi',
+      image: actionIcons.analytics,
+      onPress: onViewSpendingAnalysis,
     },
     {
       id: 'reports',

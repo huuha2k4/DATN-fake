@@ -241,107 +241,7 @@ export function DebtManagementScreen({ onNotify }: Props) {
         reminder_days_before: formNotifyDaysBefore,
       });
 
-      // 2. Nếu người dùng chọn gắn với Lịch tài chính tự động
-      if (syncToCalendar) {
-        try {
-          const scheduleName = formType === 'BORROWING' 
-            ? `Trả nợ: ${formPartnerName.trim()}` 
-            : `Thu nợ: ${formPartnerName.trim()}`;
-
-          const isAutoDebit = !!selectedAccountId; // Có chọn tài khoản -> Lịch trừ/cộng tự động
-          const notifyMinutes = formNotifyDaysBefore * 24 * 60; // Số phút báo trước
-
-          if (paymentPlanType === 'INSTALLMENT') {
-            const countNum = Math.max(1, Number(formInstallmentCount) || 1);
-            const payAmount = periodicAmountNum || Math.ceil(principalNum / countNum);
-            
-            // Xây dựng Recurrence Rule (RFC5545) chuẩn kèm COUNT để giới hạn đúng số kỳ
-            let rrule = `FREQ=${formFrequency}`;
-            if (formFrequency === 'MONTHLY') {
-              rrule += `;BYMONTHDAY=${formDayOfMonth}`;
-            } else if (formFrequency === 'WEEKLY') {
-              const weekDays = ['SU', 'MO', 'TU', 'WE', 'TH', 'FR', 'SA'];
-              rrule += `;BYDAY=${weekDays[formDayOfWeek]}`;
-            }
-            // Giới hạn đúng số kỳ được tạo
-            rrule += `;COUNT=${countNum}`;
-
-            // Tự động tính ngày kỳ trả nợ cuối cùng (end_date)
-            // Ví dụ: bắt đầu ngày 24/11/2026, 2 kỳ hàng tháng -> kỳ 1: 24/11/2026, kỳ 2: 24/12/2026 -> kết thúc 24/12/2026
-            let calculatedEndDate: string | null = null;
-            if (countNum > 1 && firstPayDate) {
-              const [fYear, fMonth, fDay] = firstPayDate.split('-').map(Number);
-              if (formFrequency === 'MONTHLY') {
-                const endMonth = fMonth - 1 + (countNum - 1);
-                const eDate = new Date(fYear, endMonth, fDay);
-                calculatedEndDate = formatLocalDate(eDate);
-              } else if (formFrequency === 'WEEKLY') {
-                const eDate = new Date(fYear, fMonth - 1, fDay + (countNum - 1) * 7);
-                calculatedEndDate = formatLocalDate(eDate);
-              } else if (formFrequency === 'QUARTERLY') {
-                const endMonth = fMonth - 1 + (countNum - 1) * 3;
-                const eDate = new Date(fYear, endMonth, fDay);
-                calculatedEndDate = formatLocalDate(eDate);
-              }
-            }
-
-            // Backend yêu cầu: nếu có end_date thì end_date PHẢI strictly sau start_date (isAfter)
-            const finalEndDate = formDueDate && formDueDate > firstPayDate 
-              ? formDueDate 
-              : (calculatedEndDate && calculatedEndDate > firstPayDate ? calculatedEndDate : null);
-
-            await scheduleApi.createSchedule({
-              schedule_type: isAutoDebit ? 'TRANSACTION' : 'REMINDER',
-              name: scheduleName,
-              recurrence_rule: rrule,
-              start_date: firstPayDate,
-              end_date: finalEndDate,
-              auto_execute: isAutoDebit,
-              transaction_template: isAutoDebit ? {
-                transaction_type: formType === 'BORROWING' ? 'EXPENSE' : 'INCOME',
-                account_id: selectedAccountId,
-                amount: payAmount,
-                currency_code: 'VND',
-                description: `Tự động ${formType === 'BORROWING' ? 'trả nợ' : 'thu nợ'}: ${formPartnerName.trim()}`,
-              } : undefined,
-              reminder_message: `Kỳ trả nợ ${formPartnerName.trim()}: ${formatCurrency(payAmount)}. Tổng nợ: ${formatCurrency(principalNum)}`,
-              notification_enabled: true,
-              notification_time_before_minutes: notifyMinutes,
-            });
-          } else {
-            // Trả 1 lần vào ngày hẹn
-            const targetPayDate = formDueDate || formStartDate || new Date().toISOString().split('T')[0];
-            await scheduleApi.createSchedule({
-              schedule_type: isAutoDebit ? 'TRANSACTION' : 'REMINDER',
-              name: scheduleName,
-              recurrence_rule: 'FREQ=DAILY;COUNT=1',
-              start_date: targetPayDate,
-              end_date: null, // Không truyền end_date bằng start_date vì backend yêu cầu endDate.isAfter(startDate)
-              auto_execute: isAutoDebit,
-              transaction_template: isAutoDebit ? {
-                transaction_type: formType === 'BORROWING' ? 'EXPENSE' : 'INCOME',
-                account_id: selectedAccountId,
-                amount: principalNum,
-                currency_code: 'VND',
-                description: `Thanh toán khoản ${formType === 'BORROWING' ? 'nợ' : 'cho vay'}: ${formPartnerName.trim()}`,
-              } : undefined,
-              reminder_message: `Hạn thanh toán khoản ${formType === 'BORROWING' ? 'nợ' : 'cho vay'}: ${formatCurrency(principalNum)} cho ${formPartnerName.trim()}`,
-              notification_enabled: true,
-              notification_time_before_minutes: notifyMinutes,
-            });
-          }
-        } catch (schedErr: any) {
-          console.error('Lỗi khi đồng bộ lên Lịch tài chính:', schedErr);
-          const schedMsg = schedErr?.response?.data?.message || 'Không thể tạo lịch nhắc nhở';
-          onNotify(`Đã lưu khoản nợ nhưng chưa đồng bộ được vào Lịch: ${schedMsg}`);
-          setIsCreateModalOpen(false);
-          resetCreateForm();
-          loadDebts();
-          return;
-        }
-      }
-
-      onNotify('Tạo khoản nợ mới thành công' + (syncToCalendar ? ' và đã đồng bộ lên Lịch tài chính!' : '!'));
+      onNotify('Tạo khoản nợ mới thành công!');
       setIsCreateModalOpen(false);
       resetCreateForm();
       loadDebts();
@@ -539,7 +439,7 @@ export function DebtManagementScreen({ onNotify }: Props) {
                   <div className="flex items-start justify-between gap-2 pb-3 border-b border-gray-100">
                     <div className="flex items-center gap-2.5 min-w-0">
                       <span className={`debt-type-badge-icon ${isBorrowing ? 'borrowing' : 'lending'}`}>
-                        <FinanceIcon name={isBorrowing ? 'expense' : 'income'} size={15} />
+                        <FinanceIcon name={isBorrowing ? 'borrowing' : 'lending'} size={15} />
                       </span>
                       <div className="min-w-0">
                         <span className={`debt-type-label ${isBorrowing ? 'borrowing' : 'lending'}`}>

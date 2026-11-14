@@ -15,6 +15,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { FinanceIcon } from '../../../core/components/FinanceIcon';
 import type { AccountItem } from '../../../add-transaction/api/transactionApi';
+import { AccountBadge } from '../../../accounts/components/AccountBadge';
 
 export interface DepositFundModalProps {
   visible: boolean;
@@ -25,7 +26,7 @@ export interface DepositFundModalProps {
   onSubmit: (data: { sourceAccountId: string; amount: number; note?: string }) => Promise<void>;
 }
 
-const QUICK_AMOUNTS = [50000, 100000, 200000, 500000, 1000000];
+const QUICK_AMOUNTS = [50000, 100000, 200000, 500000];
 
 function formatVND(val: number) {
   return new Intl.NumberFormat('vi-VN').format(val || 0);
@@ -44,6 +45,9 @@ export const DepositFundModal: React.FC<DepositFundModalProps> = ({
   const [selectedAccountId, setSelectedAccountId] = useState<string>('');
   const [note, setNote] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [showAccountDropdown, setShowAccountDropdown] = useState(false);
+  const [isAmountFocused, setIsAmountFocused] = useState(false);
+  const scrollRef = React.useRef<ScrollView>(null);
 
   useEffect(() => {
     if (accounts.length > 0 && !selectedAccountId) {
@@ -90,7 +94,7 @@ export const DepositFundModal: React.FC<DepositFundModalProps> = ({
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
         <Pressable style={styles.backdrop} onPress={onClose} />
-        <View style={[styles.sheet, { paddingBottom: Math.max(insets.bottom, 16) + 12 }]}>
+        <View style={[styles.sheet, { paddingBottom: Math.max(insets.bottom, 12), position: 'relative' }]}>
           {/* Thanh gạch nhỏ kéo modal */}
           <View style={styles.dragBar} />
 
@@ -107,7 +111,12 @@ export const DepositFundModal: React.FC<DepositFundModalProps> = ({
             </Pressable>
           </View>
 
-          <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+          <ScrollView
+            ref={scrollRef}
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+            contentContainerStyle={{ paddingBottom: 20 }}
+          >
             {/* Banner tóm tắt số dư hiện tại */}
             <View style={styles.currentFundBox}>
               <View style={styles.currentFundIconWrap}>
@@ -120,7 +129,7 @@ export const DepositFundModal: React.FC<DepositFundModalProps> = ({
             </View>
 
             {/* Ô nhập số tiền lớn hiện đại */}
-            <View style={styles.amountInputCard}>
+            <View style={[styles.amountInputCard, isAmountFocused && styles.amountInputCardFocused]}>
               <Text style={styles.amountInputLabel}>SỐ TIỀN MUỐN NỘP</Text>
               <View style={styles.amountInputRow}>
                 <TextInput
@@ -130,11 +139,19 @@ export const DepositFundModal: React.FC<DepositFundModalProps> = ({
                       : ''
                   }
                   onChangeText={setAmount}
+                  onFocus={() => {
+                    setIsAmountFocused(true);
+                    setTimeout(() => {
+                      scrollRef.current?.scrollTo({ y: 120, animated: true });
+                    }, 100);
+                  }}
+                  onBlur={() => setIsAmountFocused(false)}
                   placeholder="0"
                   placeholderTextColor="#CBD5E1"
+                  cursorColor="#059669"
+                  selectionColor="#059669"
                   keyboardType="numeric"
                   style={styles.amountTextInput}
-                  autoFocus
                 />
                 <Text style={styles.amountCurrency}>đ</Text>
               </View>
@@ -153,55 +170,31 @@ export const DepositFundModal: React.FC<DepositFundModalProps> = ({
               </View>
             </View>
 
-            {/* Chọn nguồn trích tiền */}
+            {/* Chọn nguồn trích tiền (Thả xuống chuẩn Quản lý nợ) */}
             <View style={styles.sectionBox}>
               <Text style={styles.sectionLabel}>Nguồn tiền trích</Text>
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={{ gap: 10, paddingVertical: 4 }}
-              >
-                {accounts.map((acc) => {
-                  const isSelected = selectedAccountId === acc.id;
-                  return (
-                    <Pressable
-                      key={acc.id}
-                      onPress={() => setSelectedAccountId(acc.id)}
-                      style={[
-                        styles.accountCard,
-                        isSelected && styles.accountCardSelected,
-                      ]}
-                    >
-                      <View
-                        style={[
-                          styles.accountIconBox,
-                          isSelected && { backgroundColor: '#10B981' },
-                        ]}
-                      >
-                        <FinanceIcon
-                          name="wallet"
-                          size={16}
-                          color={isSelected ? '#FFFFFF' : '#059669'}
-                        />
-                      </View>
-                      <View>
-                        <Text
-                          style={[
-                            styles.accountName,
-                            isSelected && styles.accountNameSelected,
-                          ]}
-                          numberOfLines={1}
-                        >
-                          {acc.name}
+              {(() => {
+                const selAcc = accounts.find((a) => a.id === selectedAccountId) || accounts[0];
+                return (
+                  <Pressable
+                    onPress={() => setShowAccountDropdown(true)}
+                    style={styles.dropdownSelectorCard}
+                  >
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 }}>
+                      <AccountBadge account={selAcc} size={28} />
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.dropdownTitle} numberOfLines={1}>
+                          {selAcc?.name || 'Chọn ví thanh toán'}
                         </Text>
-                        <Text style={styles.accountBal}>
-                          {formatVND(acc.balance || 0)} đ
+                        <Text style={styles.dropdownSub}>
+                          Số dư: <Text style={{ color: '#059669', fontWeight: '800' }}>{formatVND(selAcc?.balance || 0)} đ</Text>
                         </Text>
                       </View>
-                    </Pressable>
-                  );
-                })}
-              </ScrollView>
+                    </View>
+                    <FinanceIcon name="chevron-down" size={18} color="#059669" />
+                  </Pressable>
+                );
+              })()}
             </View>
 
             {/* Ghi chú */}
@@ -236,6 +229,53 @@ export const DepositFundModal: React.FC<DepositFundModalProps> = ({
               )}
             </Pressable>
           </ScrollView>
+
+          {/* OVERLAY POPUP CHỌN TÀI KHOẢN (Chuẩn Dropdown Quản lý nợ) */}
+          {showAccountDropdown && (
+            <View style={[StyleSheet.absoluteFillObject, styles.pickerModalBackdrop, { zIndex: 9999, elevation: 9999 }]}>
+              <Pressable
+                style={StyleSheet.absoluteFillObject}
+                onPress={() => setShowAccountDropdown(false)}
+              />
+              <View style={styles.pickerModalBox}>
+                <View style={styles.pickerModalHeader}>
+                  <Text style={styles.pickerModalTitle}>Chọn ví thanh toán</Text>
+                  <Pressable onPress={() => setShowAccountDropdown(false)} hitSlop={10}>
+                    <FinanceIcon name="close" size={18} color="#64748B" />
+                  </Pressable>
+                </View>
+
+                <ScrollView style={{ maxHeight: 340 }} showsVerticalScrollIndicator={false}>
+                  {accounts.map((acc) => {
+                    const isSelected = selectedAccountId === acc.id;
+                    return (
+                      <Pressable
+                        key={acc.id}
+                        onPress={() => {
+                          setSelectedAccountId(acc.id);
+                          setShowAccountDropdown(false);
+                        }}
+                        style={[styles.pickerItemRow, isSelected && styles.pickerItemRowActive]}
+                      >
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 }}>
+                          <AccountBadge account={acc} size={34} />
+                          <View style={{ flex: 1 }}>
+                            <Text style={[styles.pickerItemText, isSelected && styles.pickerItemTextActive]}>
+                              {acc.name}
+                            </Text>
+                            <Text style={styles.pickerItemSub}>
+                              Số dư: {formatVND(acc.balance || 0)} đ
+                            </Text>
+                          </View>
+                        </View>
+                        {isSelected && <FinanceIcon name="check" size={16} color="#059669" />}
+                      </Pressable>
+                    );
+                  })}
+                </ScrollView>
+              </View>
+            </View>
+          )}
         </View>
       </KeyboardAvoidingView>
     </Modal>
@@ -325,10 +365,19 @@ const styles = StyleSheet.create({
     backgroundColor: '#F8FAFC',
     borderRadius: 20,
     padding: 16,
-    borderWidth: 1,
+    borderWidth: 1.5,
     borderColor: '#E2E8F0',
     marginBottom: 16,
     alignItems: 'center',
+  },
+  amountInputCardFocused: {
+    backgroundColor: '#F0FDF4',
+    borderColor: '#10B981',
+    shadowColor: '#10B981',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.12,
+    shadowRadius: 6,
+    elevation: 3,
   },
   amountInputLabel: {
     fontSize: 11,
@@ -341,20 +390,23 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
+    paddingVertical: 4,
   },
   amountTextInput: {
-    fontSize: 32,
+    fontSize: 34,
     fontWeight: '900',
     color: '#059669',
     textAlign: 'center',
-    minWidth: 120,
     paddingVertical: 0,
+    paddingHorizontal: 4,
+    includeFontPadding: false,
   },
   amountCurrency: {
-    fontSize: 22,
+    fontSize: 24,
     fontWeight: '800',
     color: '#059669',
     marginLeft: 4,
+    includeFontPadding: false,
   },
   quickAmountRow: {
     flexDirection: 'row',
@@ -452,6 +504,98 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '800',
     color: '#FFFFFF',
+  },
+
+  /* DROPDOWN SELECTOR & OVERLAY POPUP CHUẨN */
+  dropdownSelectorCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#F8FAFC',
+    borderRadius: 14,
+    borderWidth: 1.2,
+    borderColor: '#E2E8F0',
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+  },
+  dropdownIconBox: {
+    width: 34,
+    height: 34,
+    borderRadius: 10,
+    backgroundColor: '#ECFDF5',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  dropdownTitle: {
+    fontSize: 13.5,
+    fontWeight: '700',
+    color: '#0F172A',
+  },
+  dropdownSub: {
+    fontSize: 11.5,
+    color: '#64748B',
+    marginTop: 2,
+  },
+  pickerModalBackdrop: {
+    backgroundColor: 'rgba(15, 23, 42, 0.45)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+  },
+  pickerModalBox: {
+    width: '100%',
+    maxHeight: 400,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 20,
+    padding: 18,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 10,
+    elevation: 8,
+  },
+  pickerModalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingBottom: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F1F5F9',
+    marginBottom: 6,
+  },
+  pickerModalTitle: {
+    fontSize: 15.5,
+    fontWeight: '800',
+    color: '#0F172A',
+  },
+  pickerItemRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 12,
+    paddingHorizontal: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F8FAFC',
+    borderRadius: 8,
+  },
+  pickerItemRowActive: {
+    backgroundColor: '#F0FDF4',
+  },
+  pickerItemText: {
+    fontSize: 13.5,
+    fontWeight: '600',
+    color: '#334155',
+  },
+  pickerItemTextActive: {
+    color: '#059669',
+    fontWeight: '800',
+  },
+  pickerItemSub: {
+    fontSize: 11,
+    color: '#64748B',
+    marginTop: 2,
   },
 });
 

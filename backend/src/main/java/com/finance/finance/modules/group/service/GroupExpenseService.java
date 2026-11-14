@@ -1,5 +1,6 @@
 package com.finance.finance.modules.group.service;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.finance.finance.common.enums.ActivityType;
 import com.finance.finance.common.enums.SplitMethod;
 import com.finance.finance.modules.group.dto.request.CreateExpenseRequest;
@@ -47,6 +48,8 @@ public class GroupExpenseService {
     private final com.finance.finance.modules.category.repository.CategoryRepository categoryRepository;
     private final com.finance.finance.modules.user.repository.UserRepository userRepository;
     private final com.finance.finance.modules.notification.service.NotificationService notificationService;
+    private final com.finance.finance.modules.transaction.repository.TransactionRepository transactionRepository;
+    private final com.fasterxml.jackson.databind.ObjectMapper objectMapper;
 
     @Transactional
     public ExpenseResponse createExpense(UUID groupId, CreateExpenseRequest request, UUID currentUserId) {
@@ -136,7 +139,7 @@ public class GroupExpenseService {
                     .orElse("Một thành viên");
             List<GroupMember> members = groupMemberRepository.findByGroupId(groupId);
             for (GroupMember member : members) {
-                if (!member.getUserId().equals(currentUserId)) {
+                if (!member.getUserId().equals(currentUserId) && Boolean.TRUE.equals(member.getNotificationEnabled())) {
                     notificationService.createNotification(
                             member.getUserId(),
                             com.finance.finance.common.enums.NotificationType.GROUP_EXPENSE,
@@ -205,6 +208,33 @@ public class GroupExpenseService {
 
         expense = groupExpenseRepository.save(expense);
 
+        // Đồng bộ ngược lại sang Transaction cá nhân nếu chi tiêu nhóm được gắn personalTransactionId
+        if (expense.getPersonalTransactionId() != null) {
+            try {
+                final GroupExpense expFinal = expense;
+                transactionRepository.findById(expense.getPersonalTransactionId()).ifPresent(tx -> {
+                    boolean changed = false;
+                    if (request.getAmount() != null) {
+                        tx.setAmount(request.getAmount());
+                        changed = true;
+                    }
+                    if (request.getDescription() != null) {
+                        tx.setDescriptionRaw("Chi cho nhóm: " + expFinal.getDescription());
+                        changed = true;
+                    }
+                    if (request.getExpenseDate() != null) {
+                        tx.setOccurredDate(request.getExpenseDate());
+                        changed = true;
+                    }
+                    if (changed) {
+                        transactionRepository.save(tx);
+                    }
+                });
+            } catch (Exception ex) {
+                log.error("Failed to sync personal transaction on group expense update", ex);
+            }
+        }
+
         // Update splits if provided
         if (request.getSplits() != null && !request.getSplits().isEmpty()) {
             expenseSplitRepository.deleteByExpenseId(expenseId);
@@ -241,6 +271,18 @@ public class GroupExpenseService {
 
         expense.setDeletedAt(LocalDateTime.now());
         groupExpenseRepository.save(expense);
+
+        // Soft delete transaction cá nhân nếu có
+        if (expense.getPersonalTransactionId() != null) {
+            try {
+                transactionRepository.findById(expense.getPersonalTransactionId()).ifPresent(tx -> {
+                    tx.markAsDeleted();
+                    transactionRepository.save(tx);
+                });
+            } catch (Exception ex) {
+                log.error("Failed to delete personal transaction on group expense delete", ex);
+            }
+        }
 
         // Log activity
         logActivity(groupId, currentUserId, ActivityType.EXPENSE_DELETED,
@@ -368,7 +410,12 @@ public class GroupExpenseService {
     private void validateAdminOrOwner(UUID groupId, UUID userId) {
         GroupMember member = groupMemberRepository.findByGroupIdAndUserId(groupId, userId)
                 .orElseThrow(() -> new SecurityException("User is not a member"));
-        // TODO: Check role
+        
+        // Check if user has permission (owner or admin can delete/edit expenses)
+        if (member.getRole() != com.finance.finance.common.enums.MemberRole.OWNER && 
+            member.getRole() != com.finance.finance.common.enums.MemberRole.ADMIN) {
+            throw new SecurityException("Only group owner or admin can perform this action");
+        }
     }
 
     private void logActivity(UUID groupId, UUID userId, ActivityType type, String description, Map<String, Object> metadata) {
@@ -376,8 +423,15 @@ public class GroupExpenseService {
     }
 
     private String serializeLocation(Object location) {
-        // TODO: Implement location serialization if needed
-        return null;
+        if (location == null) {
+            return null;
+        }
+        try {
+            return objectMapper.writeValueAsString(location);
+        } catch (Exception e) {
+            log.warn("Failed to serialize location: {}", e.getMessage());
+            return null;
+        }
     }
 
     private ExpenseResponse buildExpenseResponse(GroupExpense expense, List<ExpenseSplit> splits) {

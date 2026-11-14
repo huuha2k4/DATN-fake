@@ -15,6 +15,7 @@ import {
   RefreshControl,
   ScrollView,
   Share,
+  StatusBar,
   StyleSheet,
   Switch,
   Text,
@@ -41,6 +42,8 @@ import { API_BASE_URL, authStorage } from '../../auth/api/authApi';
 import { userProfileApi } from '../../profile/api/userProfileApi';
 import { transactionApi, type AccountItem, type CategoryItem } from '../../add-transaction/api/transactionApi';
 import * as ImagePicker from 'expo-image-picker';
+import * as MediaLibrary from 'expo-media-library/legacy';
+import * as FileSystem from 'expo-file-system/legacy';
 import { GroupMembersTab, InviteMemberModal, MemberActionModal } from '../components/members';
 import { KidWalletTab, CreateChildWalletModal, ChildWalletDetailModal } from '../components/kid-wallet';
 import { GroupBalancesTab } from '../components/balances';
@@ -194,7 +197,23 @@ function formatMessengerDateDivider(dateStr: string): string {
   }
 }
 
-export function GroupScreen({ onGroupDetailChange }: { onGroupDetailChange?: (isOpen: boolean) => void } = {}) {
+export function GroupScreen({
+  onGroupDetailChange,
+  onConsumeInitialNav,
+  initialGroupId,
+  initialGroupName,
+  initialTab,
+  initialKidWalletId,
+  initialKidSubTab,
+}: {
+  onGroupDetailChange?: (isOpen: boolean) => void;
+  onConsumeInitialNav?: () => void;
+  initialGroupId?: string;
+  initialGroupName?: string;
+  initialTab?: 'OVERVIEW' | 'EXPENSES' | 'CHAT' | 'BALANCES' | 'MEMBERS' | 'KIDS' | 'SETTINGS';
+  initialKidWalletId?: string;
+  initialKidSubTab?: 'REQUESTS' | 'SPENDS' | 'CHORES' | 'DEPOSIT' | 'SETTINGS';
+} = {}) {
   const insets = useSafeAreaInsets();
   const currentUser = authStorage.getUser();
 
@@ -212,13 +231,96 @@ export function GroupScreen({ onGroupDetailChange }: { onGroupDetailChange?: (is
   const [newGroupDesc, setNewGroupDesc] = useState('');
   const [submittingGroup, setSubmittingGroup] = useState(false);
 
+  // Mời nhiều thành viên khi tạo nhóm
+  const createScrollViewRef = useRef<ScrollView>(null);
+  const [createMemberSearchQuery, setCreateMemberSearchQuery] = useState('');
+  const [createMemberSearchResults, setCreateMemberSearchResults] = useState<UserSearchResult[]>([]);
+  const [searchingCreateMember, setSearchingCreateMember] = useState(false);
+  const [selectedInviteUsers, setSelectedInviteUsers] = useState<UserSearchResult[]>([]);
+
   // State Chi tiết nhóm (Kèm các tab: Tổng quan | Chi tiêu | Nhắn tin | Cân đối nợ | Thành viên)
   const [selectedGroup, setSelectedGroup] = useState<GroupResponse | null>(null);
+  const consumedNavRef = useRef<string | null>(null);
 
   useEffect(() => {
     onGroupDetailChange?.(selectedGroup !== null);
   }, [selectedGroup, onGroupDetailChange]);
-  const [detailTab, setDetailTab] = useState<'OVERVIEW' | 'EXPENSES' | 'CHAT' | 'BALANCES' | 'MEMBERS' | 'KIDS' | 'SETTINGS'>('OVERVIEW');
+  const [detailTab, setDetailTab] = useState<'OVERVIEW' | 'EXPENSES' | 'CHAT' | 'BALANCES' | 'MEMBERS' | 'KIDS' | 'SETTINGS'>(initialTab || 'OVERVIEW');
+
+  // Tự động mở đúng nhóm và tab nếu được truyền initialGroupId / initialGroupName / initialTab (VD: từ Thông báo)
+  useEffect(() => {
+    if (!initialGroupId && !initialGroupName && !initialTab) {
+      consumedNavRef.current = null;
+      return;
+    }
+    if (groups.length === 0) return;
+
+    const navKey = `${initialGroupId || ''}_${initialGroupName || ''}_${initialTab || ''}_${initialKidSubTab || ''}_${initialKidWalletId || ''}`;
+    if (consumedNavRef.current === navKey) return;
+
+    // 1. Tìm chính xác nhóm theo ID, hoặc theo Tên nhóm, hoặc theo loại nhóm phù hợp với mục tiêu
+    let targetGroup: GroupResponse | undefined;
+    if (initialGroupId) {
+      targetGroup = groups.find((g) => String(g.id).toLowerCase() === String(initialGroupId).toLowerCase());
+    }
+    if (!targetGroup && initialGroupName) {
+      const normalizedSearch = initialGroupName.trim().toLowerCase();
+      targetGroup =
+        groups.find((g) => g.name.trim().toLowerCase() === normalizedSearch) ||
+        groups.find(
+          (g) =>
+            g.name.trim().toLowerCase().includes(normalizedSearch) ||
+            normalizedSearch.includes(g.name.trim().toLowerCase())
+        );
+    }
+    if (!targetGroup && initialTab === 'KIDS') {
+      targetGroup = groups.find((g) => g.groupType === 'FAMILY');
+    }
+    if (!targetGroup) {
+      targetGroup = groups[0];
+    }
+
+    if (targetGroup) {
+      consumedNavRef.current = navKey;
+      // 2. Đối với nhóm Gia đình (FAMILY) và Cặp đôi (COUPLE), giao diện không có tab BALANCES riêng
+      // mà Quỹ chung nằm ngay trên tab Tổng quan (OVERVIEW) hoặc Thu & Chi (EXPENSES).
+      let resolvedTab = initialTab || 'OVERVIEW';
+      const hasBalTab =
+        targetGroup.groupType === 'ROOMMATE' ||
+        targetGroup.groupType === 'TRAVEL' ||
+        targetGroup.groupType === 'PROJECT' ||
+        targetGroup.groupType === 'OTHER';
+      if (resolvedTab === 'BALANCES' && !hasBalTab) {
+        resolvedTab = 'OVERVIEW';
+      }
+
+      setSelectedGroup(targetGroup);
+      setGroupNotificationEnabled(targetGroup.notificationEnabled !== false);
+      setDetailTab(resolvedTab);
+      loadGroupDetailData(targetGroup.id);
+
+      // Nếu không cần đợi childWallets để mở modal con thì xóa trạng thái điều hướng ngay sau khi vào tận nơi
+      if (resolvedTab !== 'KIDS' || !initialKidSubTab) {
+        onConsumeInitialNav?.();
+      }
+    }
+  }, [initialGroupId, initialGroupName, initialTab, initialKidSubTab, initialKidWalletId, groups, onConsumeInitialNav]);
+
+  // Nếu chuyển vào tab KIDS và có yêu cầu mở thẳng chi tiết ví của bé (hoặc ví đầu tiên)
+  const [activeKidSubTab, setActiveKidSubTab] = useState<'REQUESTS' | 'SPENDS' | 'CHORES' | 'DEPOSIT' | 'SETTINGS' | undefined>(initialKidSubTab);
+  useEffect(() => {
+    if (detailTab === 'KIDS' && childWallets.length > 0 && initialKidSubTab) {
+      const targetWallet = initialKidWalletId
+        ? childWallets.find((w) => w.id === initialKidWalletId) || childWallets[0]
+        : childWallets[0];
+      if (targetWallet) {
+        setActiveKidSubTab(initialKidSubTab);
+        setSelectedChildWallet(targetWallet);
+        setChildWalletDetailVisible(true);
+        onConsumeInitialNav?.();
+      }
+    }
+  }, [detailTab, childWallets, initialKidSubTab, initialKidWalletId, onConsumeInitialNav]);
   const [groupNotificationEnabled, setGroupNotificationEnabled] = useState(true);
   const [childWallets, setChildWallets] = useState<ChildWalletResponse[]>([]);
   const [selectedChildWallet, setSelectedChildWallet] = useState<ChildWalletResponse | null>(null);
@@ -273,6 +375,7 @@ export function GroupScreen({ onGroupDetailChange }: { onGroupDetailChange?: (is
   const [selectedImageAttachment, setSelectedImageAttachment] = useState<{ uri: string; name: string; type: string } | null>(null);
   const [uploadingAttachment, setUploadingAttachment] = useState(false);
   const chatScrollViewRef = useRef<ScrollView>(null);
+  const detailTxScrollViewRef = useRef<ScrollView>(null);
   const [keyboardHeight, setKeyboardHeight] = useState(0);
   const [showScrollBottomBtn, setShowScrollBottomBtn] = useState(false);
   const messageItemLayouts = useRef<Record<string, number>>({});
@@ -283,9 +386,10 @@ export function GroupScreen({ onGroupDetailChange }: { onGroupDetailChange?: (is
       Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow',
       (e) => {
         setKeyboardHeight(e.endCoordinates.height);
-        // Tự động cuộn cuộc trò chuyện xuống tin nhắn cuối cùng khi bàn phím xuất hiện
+        // Tự động cuộn cuộc trò chuyện hoặc bình luận chi tiết xuống cuối khi bàn phím xuất hiện
         setTimeout(() => {
           chatScrollViewRef.current?.scrollToEnd({ animated: true });
+          detailTxScrollViewRef.current?.scrollToEnd({ animated: true });
         }, 100);
       }
     );
@@ -311,6 +415,7 @@ export function GroupScreen({ onGroupDetailChange }: { onGroupDetailChange?: (is
   // Modal Thêm khoản chi chung (Form theo chuẩn bản Web & App AddTransaction)
   const [expenseModalVisible, setExpenseModalVisible] = useState(false);
   const [activePickerModal, setActivePickerModal] = useState<'CATEGORY' | 'ACCOUNT' | null>(null);
+  const [groupPickerModalType, setGroupPickerModalType] = useState<'NONE' | 'ACCOUNT' | 'CATEGORY'>('NONE');
   const [showInlineAccountPicker, setShowInlineAccountPicker] = useState(false);
   const [showInlineCategoryPicker, setShowInlineCategoryPicker] = useState(false);
   const [expDescription, setExpDescription] = useState('');
@@ -838,6 +943,9 @@ export function GroupScreen({ onGroupDetailChange }: { onGroupDetailChange?: (is
       }));
       setInlineCommentText((prev) => ({ ...prev, [expenseId]: '' }));
       setReplyingToCommentId((prev) => ({ ...prev, [expenseId]: null }));
+      setTimeout(() => {
+        detailTxScrollViewRef.current?.scrollToEnd({ animated: true });
+      }, 150);
     } catch (err: any) {
       Alert.alert('Lỗi', err?.message || 'Không thể gửi bình luận.');
     }
@@ -903,11 +1011,47 @@ export function GroupScreen({ onGroupDetailChange }: { onGroupDetailChange?: (is
 
   const handleOpenGroupDetail = (group: GroupResponse) => {
     setSelectedGroup(group);
+    setGroupNotificationEnabled(group.notificationEnabled !== false);
     setDetailTab('OVERVIEW');
     loadGroupDetailData(group.id);
   };
 
   // Tạo nhóm mới
+  // Tìm kiếm người dùng để mời khi tạo nhóm
+  const handleSearchCreateMembers = async (q: string) => {
+    setCreateMemberSearchQuery(q);
+    const trimmed = q.trim();
+    if (!trimmed.includes('@')) {
+      setCreateMemberSearchResults([]);
+      return;
+    }
+    setSearchingCreateMember(true);
+    try {
+      const res = await groupApi.searchUsers(trimmed);
+      setCreateMemberSearchResults(res);
+      if (res.length > 0) {
+        setTimeout(() => {
+          createScrollViewRef.current?.scrollToEnd({ animated: true });
+        }, 150);
+      }
+    } catch {
+      setCreateMemberSearchResults([]);
+    } finally {
+      setSearchingCreateMember(false);
+    }
+  };
+
+  const toggleSelectInviteUser = (u: UserSearchResult) => {
+    setSelectedInviteUsers((prev) => {
+      const exists = prev.some((it) => it.id === u.id);
+      if (exists) {
+        return prev.filter((it) => it.id !== u.id);
+      } else {
+        return [...prev, u];
+      }
+    });
+  };
+
   const handleCreateGroup = async () => {
     if (!newGroupName.trim()) {
       Alert.alert('Thông báo', 'Vui lòng nhập tên nhóm');
@@ -915,17 +1059,39 @@ export function GroupScreen({ onGroupDetailChange }: { onGroupDetailChange?: (is
     }
     setSubmittingGroup(true);
     try {
-      await groupApi.createGroup({
+      const created = await groupApi.createGroup({
         name: newGroupName.trim(),
         groupType: newGroupType,
         description: newGroupDesc.trim() || undefined,
         baseCurrency: 'VND',
       });
+
+      // Mời hàng loạt thành viên đã chọn vào nhóm
+      if (created?.id && selectedInviteUsers.length > 0) {
+        for (const user of selectedInviteUsers) {
+          try {
+            await groupApi.addMember(created.id, {
+              userId: user.id,
+              role: 'MEMBER',
+            });
+          } catch (e) {
+            console.warn(`Lỗi khi mời ${user.fullName}:`, e);
+          }
+        }
+      }
+
       setCreateModalVisible(false);
       setNewGroupName('');
       setNewGroupDesc('');
+      setSelectedInviteUsers([]);
+      setCreateMemberSearchQuery('');
+      setCreateMemberSearchResults([]);
       await loadGroups();
-      Alert.alert('Thành công', `Đã tạo nhóm "${newGroupName.trim()}"!`);
+      
+      const inviteMsg = selectedInviteUsers.length > 0 
+        ? ` và đã gửi lời mời đến ${selectedInviteUsers.length} thành viên`
+        : '';
+      Alert.alert('Thành công', `Đã tạo nhóm "${newGroupName.trim()}"${inviteMsg}!`);
     } catch (err: any) {
       Alert.alert('Lỗi', err?.message || 'Không thể tạo nhóm vào lúc này.');
     } finally {
@@ -1151,14 +1317,18 @@ export function GroupScreen({ onGroupDetailChange }: { onGroupDetailChange?: (is
 
     return (
       <View style={styles.detailScreenContainer}>
+        <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
         {/* Header Trang Chi tiết full màn hình - Phong cách sáng & icons tương tác chuẩn mẫu */}
         <View style={[styles.detailScreenHeaderModern, { paddingTop: Math.max(insets.top, 14) + 6 }]}>
           <Pressable
-            onPress={() => setSelectedGroup(null)}
+            onPress={() => {
+              setSelectedGroup(null);
+              setDetailTab('OVERVIEW');
+            }}
             hitSlop={12}
             style={({ pressed }) => [styles.detailModernBackBtn, pressed && styles.pressed]}
           >
-            <Text style={styles.detailModernBackArrow}>‹</Text>
+            <FinanceIcon name="chevron-left" size={22} color="#0F172A" />
           </Pressable>
 
           <View style={styles.detailModernHeaderCenter}>
@@ -1172,7 +1342,7 @@ export function GroupScreen({ onGroupDetailChange }: { onGroupDetailChange?: (is
                 <Text style={styles.detailModernTitle} numberOfLines={1}>
                   {selectedGroup.name}
                 </Text>
-                {isFamily && <Text style={{ fontSize: 13 }}>👑</Text>}
+                {isFamily && <FinanceIcon name="crown" size={14} color="#D97706" />}
               </View>
               <Text style={styles.detailModernSub}>
                 {members.length} thành viên
@@ -2423,14 +2593,15 @@ export function GroupScreen({ onGroupDetailChange }: { onGroupDetailChange?: (is
                       <View style={styles.recentTxCard}>
                         <View style={styles.recentTxHeader}>
                           <Text style={styles.recentTxTitle}>Giao dịch gần đây</Text>
-                          <Pressable onPress={() => setDetailTab('EXPENSES')} hitSlop={8}>
-                            <Text style={styles.recentTxViewMore}>Xem tất cả ›</Text>
+                          <Pressable onPress={() => setDetailTab('EXPENSES')} hitSlop={8} style={{ flexDirection: 'row', alignItems: 'center', gap: 2 }}>
+                            <Text style={styles.recentTxViewMore}>Xem tất cả</Text>
+                            <FinanceIcon name="chevron-right" size={14} color="#059669" />
                           </Pressable>
                         </View>
 
                         {topRecent.length === 0 ? (
                           <View style={{ alignItems: 'center', justifyContent: 'center', paddingVertical: 24, gap: 6 }}>
-                            <Text style={{ fontSize: 26 }}>🧾</Text>
+                            <FinanceIcon name="receipt" size={28} color="#94A3B8" />
                             <Text style={{ fontSize: 13, fontWeight: '600', color: '#64748B' }}>Chưa có giao dịch gần đây</Text>
                             <Text style={{ fontSize: 11, color: '#94A3B8' }}>Các khoản nộp quỹ và chi tiêu sẽ xuất hiện tại đây</Text>
                           </View>
@@ -2920,7 +3091,14 @@ export function GroupScreen({ onGroupDetailChange }: { onGroupDetailChange?: (is
                 onOpenGroupSettings={() => {
                   setDetailTab('SETTINGS');
                 }}
-                onToggleNotification={(val) => setGroupNotificationEnabled(val)}
+                onToggleNotification={async (val) => {
+                  setGroupNotificationEnabled(val);
+                  if (selectedGroup) {
+                    setSelectedGroup({ ...selectedGroup, notificationEnabled: val });
+                    await groupApi.toggleNotification(selectedGroup.id, val);
+                    loadGroups();
+                  }
+                }}
                 notificationEnabled={groupNotificationEnabled}
               />
             )}
@@ -2947,7 +3125,14 @@ export function GroupScreen({ onGroupDetailChange }: { onGroupDetailChange?: (is
                 isOwner={selectedGroup.ownerId === currentUser?.id || selectedGroup.myRole === 'OWNER'}
                 isAdmin={selectedGroup.myRole === 'ADMIN'}
                 notificationEnabled={groupNotificationEnabled}
-                onToggleNotification={(val) => setGroupNotificationEnabled(val)}
+                onToggleNotification={async (val) => {
+                  setGroupNotificationEnabled(val);
+                  if (selectedGroup) {
+                    setSelectedGroup({ ...selectedGroup, notificationEnabled: val });
+                    await groupApi.toggleNotification(selectedGroup.id, val);
+                    loadGroups();
+                  }
+                }}
                 onGroupUpdated={(updatedGroup) => {
                   setSelectedGroup(updatedGroup);
                   loadGroups();
@@ -2981,7 +3166,7 @@ export function GroupScreen({ onGroupDetailChange }: { onGroupDetailChange?: (is
         {/* ── MODAL CHỌN KHOẢN CHI CHUNG (CHO NHÓM) ĐẶT NGAY TRONG VIEW CHI TIẾT ── */}
         <Modal visible={expenseModalVisible} transparent animationType="slide">
           <View style={styles.modalOverlay}>
-            <View style={[styles.inputModalSheet, { maxHeight: '90%' }]}>
+            <View style={[styles.inputModalSheet, { maxHeight: '90%', position: 'relative' }]}>
               <View style={styles.inputModalHeader}>
                 <View>
                   <Text style={styles.inputModalTitle}>Thêm giao dịch nhóm</Text>
@@ -2992,7 +3177,7 @@ export function GroupScreen({ onGroupDetailChange }: { onGroupDetailChange?: (is
                   </Text>
                 </View>
                 <Pressable onPress={() => setExpenseModalVisible(false)} hitSlop={10}>
-                  <Text style={styles.modalCloseText}>✕</Text>
+                  <FinanceIcon name="close" size={18} color="#475569" />
                 </Pressable>
               </View>
 
@@ -3096,7 +3281,7 @@ export function GroupScreen({ onGroupDetailChange }: { onGroupDetailChange?: (is
                       return (
                         <View>
                           <Pressable
-                            onPress={() => setShowInlineAccountPicker((prev) => !prev)}
+                            onPress={() => setGroupPickerModalType('ACCOUNT')}
                             style={styles.dropdownSelectorCard}
                           >
                             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 }}>
@@ -3112,48 +3297,15 @@ export function GroupScreen({ onGroupDetailChange }: { onGroupDetailChange?: (is
                                 </Text>
                               </View>
                             </View>
-                            <Text style={[styles.chevronIcon, showInlineAccountPicker && { transform: [{ rotate: '180deg' }] }]}>⌄</Text>
+                            <FinanceIcon name="chevron-down" size={18} color="#059669" />
                           </Pressable>
-
-                          {/* Bảng thả xuống chọn ví tích hợp trực tiếp ngay bên dưới */}
-                          {showInlineAccountPicker && (
-                            <View style={styles.inlinePickerDropdownContainer}>
-                              <Text style={styles.inlinePickerHeaderTitle}>CHỌN VÍ THANH TOÁN</Text>
-                              {personalAccounts.map((acc) => {
-                                const isSelected = (expAccountId || selAcc?.id) === acc.id;
-                                return (
-                                  <Pressable
-                                    key={acc.id}
-                                    onPress={() => {
-                                      setExpAccountId(acc.id);
-                                      setShowInlineAccountPicker(false);
-                                    }}
-                                    style={[styles.inlinePickerRow, isSelected && styles.inlinePickerRowActive]}
-                                  >
-                                    <View style={[styles.selectIconWrap, { backgroundColor: '#E0F2FE' }]}>
-                                      <FinanceIcon name="wallet" size={16} color="#0284C7" />
-                                    </View>
-                                    <View style={{ flex: 1 }}>
-                                      <Text style={[styles.inlinePickerItemTitle, isSelected && styles.inlinePickerItemTitleActive]}>
-                                        {acc.name}
-                                      </Text>
-                                      <Text style={styles.inlinePickerItemSub}>
-                                        Số dư: <Text style={{ color: '#059669', fontWeight: '800' }}>{formatVND(acc.balance)} đ</Text>
-                                      </Text>
-                                    </View>
-                                    {isSelected && <Text style={styles.checkmarkIcon}>✓</Text>}
-                                  </Pressable>
-                                );
-                              })}
-                            </View>
-                          )}
                         </View>
                       );
                     })()
                   )}
                 </View>
 
-                {/* 4. Danh mục chi thả xuống (Dropdown selector tích hợp trực tiếp) */}
+                {/* 4. Danh mục chi thả xuống (Popup Bottom Sheet mượt mà chuẩn Quản lý nợ) */}
                 <View style={{ marginBottom: 14 }}>
                   <Text style={styles.inputLabel}>Danh mục chi tiêu</Text>
                   {(() => {
@@ -3161,7 +3313,7 @@ export function GroupScreen({ onGroupDetailChange }: { onGroupDetailChange?: (is
                     return (
                       <View>
                         <Pressable
-                          onPress={() => setShowInlineCategoryPicker((prev) => !prev)}
+                          onPress={() => setGroupPickerModalType('CATEGORY')}
                           style={styles.dropdownSelectorCard}
                         >
                           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 }}>
@@ -3176,44 +3328,8 @@ export function GroupScreen({ onGroupDetailChange }: { onGroupDetailChange?: (is
                               {selCat?.name || 'Chọn danh mục chi'}
                             </Text>
                           </View>
-                          <Text style={[styles.chevronIcon, showInlineCategoryPicker && { transform: [{ rotate: '180deg' }] }]}>⌄</Text>
+                          <FinanceIcon name="chevron-down" size={18} color="#059669" />
                         </Pressable>
-
-                        {/* Bảng thả xuống chọn danh mục tích hợp trực tiếp */}
-                        {showInlineCategoryPicker && (
-                          <View style={styles.inlinePickerDropdownContainer}>
-                            <Text style={styles.inlinePickerHeaderTitle}>CHỌN DANH MỤC CHI TIÊU</Text>
-                            <View style={{ maxHeight: 260 }}>
-                              <ScrollView nestedScrollEnabled showsVerticalScrollIndicator={false}>
-                                {categoriesList.map((cat) => {
-                                  const isSelected = (expCategoryId || selCat?.id) === cat.id;
-                                  return (
-                                    <Pressable
-                                      key={cat.id}
-                                      onPress={() => {
-                                        setExpCategoryId(cat.id);
-                                        setShowInlineCategoryPicker(false);
-                                      }}
-                                      style={[styles.inlinePickerRow, isSelected && styles.inlinePickerRowActive]}
-                                    >
-                                      <View style={[styles.catCircleIconWrap, { backgroundColor: '#FEE2E2', width: 32, height: 32 }]}>
-                                        <FinanceIcon
-                                          name={resolveCategoryIconName(cat.icon, 'EXPENSE', cat.name)}
-                                          size={16}
-                                          color="#E11D48"
-                                        />
-                                      </View>
-                                      <Text style={[styles.inlinePickerItemTitle, isSelected && styles.inlinePickerItemTitleActive, { flex: 1 }]}>
-                                        {cat.name}
-                                      </Text>
-                                      {isSelected && <Text style={styles.checkmarkIcon}>✓</Text>}
-                                    </Pressable>
-                                  );
-                                })}
-                              </ScrollView>
-                            </View>
-                          </View>
-                        )}
                       </View>
                     );
                   })()}
@@ -3285,6 +3401,96 @@ export function GroupScreen({ onGroupDetailChange }: { onGroupDetailChange?: (is
                   )}
                 </Pressable>
               </ScrollView>
+
+              {/* OVERLAY POPUP DROPDOWN (Nằm trực tiếp trong Modal Thêm giao dịch nhóm) */}
+              {groupPickerModalType !== 'NONE' && (
+                <View style={[StyleSheet.absoluteFillObject, styles.pickerModalBackdrop, { zIndex: 9999, elevation: 9999 }]}>
+                  <Pressable
+                    style={StyleSheet.absoluteFillObject}
+                    onPress={() => setGroupPickerModalType('NONE')}
+                  />
+                  <View style={styles.pickerModalBox}>
+                    <View style={styles.pickerModalHeader}>
+                      <Text style={styles.pickerModalTitle}>
+                        {groupPickerModalType === 'ACCOUNT' && 'Chọn ví thanh toán'}
+                        {groupPickerModalType === 'CATEGORY' && 'Chọn danh mục chi tiêu'}
+                      </Text>
+                      <Pressable onPress={() => setGroupPickerModalType('NONE')} hitSlop={10}>
+                        <FinanceIcon name="close" size={18} color="#64748B" />
+                      </Pressable>
+                    </View>
+
+                    <ScrollView style={{ maxHeight: 340 }} showsVerticalScrollIndicator={false}>
+                      {/* Chọn ví */}
+                      {groupPickerModalType === 'ACCOUNT' && (
+                        <>
+                          {personalAccounts.map((acc) => {
+                            const isSelected = expAccountId === acc.id;
+                            return (
+                              <Pressable
+                                key={acc.id}
+                                onPress={() => {
+                                  setExpAccountId(acc.id);
+                                  setGroupPickerModalType('NONE');
+                                }}
+                                style={[styles.pickerItemRow, isSelected && styles.pickerItemRowActive]}
+                              >
+                                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 }}>
+                                  <View style={[styles.selectIconWrap, { backgroundColor: '#E0F2FE' }]}>
+                                    <FinanceIcon name="wallet" size={16} color="#0284C7" />
+                                  </View>
+                                  <View style={{ flex: 1 }}>
+                                    <Text style={[styles.pickerItemText, isSelected && styles.pickerItemTextActive]}>
+                                      {acc.name}
+                                    </Text>
+                                    <Text style={styles.pickerItemSub}>
+                                      Số dư: {formatVND(acc.balance)} đ
+                                    </Text>
+                                  </View>
+                                </View>
+                                {isSelected && <FinanceIcon name="check" size={16} color="#059669" />}
+                              </Pressable>
+                            );
+                          })}
+                        </>
+                      )}
+
+                      {/* Chọn danh mục */}
+                      {groupPickerModalType === 'CATEGORY' && (
+                        <>
+                          {categoriesList.map((cat) => {
+                            const isSelected = expCategoryId === cat.id;
+                            return (
+                              <Pressable
+                                key={cat.id}
+                                onPress={() => {
+                                  setExpCategoryId(cat.id);
+                                  setGroupPickerModalType('NONE');
+                                }}
+                                style={[styles.pickerItemRow, isSelected && styles.pickerItemRowActive]}
+                              >
+                                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 }}>
+                                  <View style={[styles.catCircleIconWrap, { backgroundColor: '#FEE2E2', width: 34, height: 34 }]}>
+                                    <FinanceIcon
+                                      name={resolveCategoryIconName(cat.icon, 'EXPENSE', cat.name)}
+                                      size={16}
+                                      color="#E11D48"
+                                    />
+                                  </View>
+                                  <Text style={[styles.pickerItemText, isSelected && styles.pickerItemTextActive, { flex: 1 }]}>
+                                    {cat.name}
+                                  </Text>
+                                </View>
+                                {isSelected && <FinanceIcon name="check" size={16} color="#059669" />}
+                              </Pressable>
+                            );
+                          })}
+                        </>
+                      )}
+                    </ScrollView>
+                  </View>
+                </View>
+              )}
             </View>
           </View>
         </Modal>
@@ -3412,15 +3618,20 @@ export function GroupScreen({ onGroupDetailChange }: { onGroupDetailChange?: (is
         {/* ── MODAL CHI TIẾT GIAO DỊCH (CHUẨN DESIGN ẢNH MẪU) ── */}
         <Modal visible={!!viewingExpense} transparent animationType="slide">
           <View style={styles.detailTxModalOverlay}>
-            <View style={[styles.detailTxModalContainer, { paddingTop: Math.max(insets.top, 14) + 8 }]}>
+            <KeyboardAvoidingView
+              style={{ flex: 1 }}
+              behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+              keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
+            >
+              <View style={[styles.detailTxModalContainer, { paddingTop: Math.max(insets.top, 14) + 8 }]}>
               {/* Header Modal */}
               <View style={styles.detailTxHeaderRow}>
                 <Pressable onPress={() => setViewingExpense(null)} hitSlop={12} style={styles.detailTxBackBtn}>
-                  <Text style={styles.detailModernBackArrow}>‹</Text>
+                  <FinanceIcon name="chevron-left" size={22} color="#0F172A" />
                 </Pressable>
                 <Text style={styles.detailTxHeaderTitle}>Chi tiết giao dịch</Text>
                 <Pressable hitSlop={12} style={styles.detailTxOptionBtn}>
-                  <Text style={{ fontSize: 18, color: '#059669', fontWeight: '900' }}>···</Text>
+                  <FinanceIcon name="more-horizontal" size={18} color="#059669" />
                 </Pressable>
               </View>
 
@@ -3457,9 +3668,15 @@ export function GroupScreen({ onGroupDetailChange }: { onGroupDetailChange?: (is
 
                 return (
                   <ScrollView
+                    ref={detailTxScrollViewRef}
                     style={{ flex: 1 }}
-                    contentContainerStyle={{ padding: 18, paddingBottom: insets.bottom + 80, gap: 18 }}
+                    contentContainerStyle={{
+                      padding: 18,
+                      paddingBottom: keyboardHeight > 0 ? keyboardHeight + 80 : Math.max(insets.bottom, 16) + 80,
+                      gap: 18,
+                    }}
                     showsVerticalScrollIndicator={false}
+                    keyboardShouldPersistTaps="handled"
                   >
                     {/* CARD 1: THÔNG TIN GIAO DỊCH CHÍNH */}
                     <View style={styles.txDetailMainCard}>
@@ -3719,6 +3936,9 @@ export function GroupScreen({ onGroupDetailChange }: { onGroupDetailChange?: (is
                                             ...prev,
                                             [exp.id]: '',
                                           }));
+                                          setTimeout(() => {
+                                            detailTxScrollViewRef.current?.scrollToEnd({ animated: true });
+                                          }, 200);
                                         }}
                                         style={styles.commentReplyBtn}
                                         hitSlop={6}
@@ -3783,6 +4003,11 @@ export function GroupScreen({ onGroupDetailChange }: { onGroupDetailChange?: (is
                       onChangeText={(val) =>
                         setInlineCommentText((prev) => ({ ...prev, [viewingExpense.id]: val }))
                       }
+                      onFocus={() => {
+                        setTimeout(() => {
+                          detailTxScrollViewRef.current?.scrollToEnd({ animated: true });
+                        }, 250);
+                      }}
                     />
                     <Pressable
                       onPress={() => handleSendComment(viewingExpense.id)}
@@ -3878,7 +4103,7 @@ export function GroupScreen({ onGroupDetailChange }: { onGroupDetailChange?: (is
                     <View style={styles.inputModalHeader}>
                       <Text style={styles.inputModalTitle}>Chỉnh sửa bình luận</Text>
                       <Pressable onPress={() => setEditingComment(null)} hitSlop={10}>
-                        <Text style={styles.modalCloseText}>✕</Text>
+                        <FinanceIcon name="close" size={18} color="#475569" />
                       </Pressable>
                     </View>
 
@@ -3901,8 +4126,9 @@ export function GroupScreen({ onGroupDetailChange }: { onGroupDetailChange?: (is
                 </View>
               )}
             </View>
-          </View>
-        </Modal>
+          </KeyboardAvoidingView>
+        </View>
+      </Modal>
         {/* Modal Xem cảm xúc về tin nhắn (Reactions Modal chuẩn Web) */}
         <Modal visible={!!viewingReactionModalMessage} transparent animationType="fade">
           <View style={styles.reactionModalOverlay}>
@@ -3910,7 +4136,7 @@ export function GroupScreen({ onGroupDetailChange }: { onGroupDetailChange?: (is
               <View style={styles.reactionModalHeader}>
                 <Text style={styles.reactionModalTitle}>Cảm xúc về tin nhắn</Text>
                 <Pressable onPress={() => setViewingReactionModalMessage(null)} hitSlop={10}>
-                  <Text style={styles.reactionModalCloseText}>✕</Text>
+                  <FinanceIcon name="close" size={18} color="#475569" />
                 </Pressable>
               </View>
 
@@ -4006,40 +4232,53 @@ export function GroupScreen({ onGroupDetailChange }: { onGroupDetailChange?: (is
                   onPress={async () => {
                     if (!lightboxImageUrl) return;
                     try {
-                      // Tạo direct download URL qua endpoint có Content-Disposition: attachment
-                      let downloadUrl = lightboxImageUrl;
-                      const filenameMatch = lightboxImageUrl.match(/[^/\\&?]+\.\w{3,4}(?=([?&].*$|$))/);
-                      const filename = filenameMatch ? filenameMatch[0] : '';
-
-                      if (filename) {
-                        downloadUrl = `${API_BASE_URL}/groups/messages/attachments/download?filename=${encodeURIComponent(filename)}`;
-                      }
-
                       if (Platform.OS === 'web') {
-                        // Trên Web: Kích hoạt thẻ <a> download
+                        // Trên Web: Tải trực tiếp qua thẻ <a>
+                        let downloadUrl = lightboxImageUrl;
+                        const filenameMatch = lightboxImageUrl.match(/[^/\\&?]+\.\w{3,4}(?=([?&].*$|$))/);
+                        const filename = filenameMatch ? filenameMatch[0] : `finora_chat_${Date.now()}.jpg`;
+                        if (filenameMatch) {
+                          downloadUrl = `${API_BASE_URL}/groups/messages/attachments/download?filename=${encodeURIComponent(filename)}`;
+                        }
                         const link = document.createElement('a');
                         link.href = downloadUrl;
-                        link.download = filename || `finora_chat_${Date.now()}.jpg`;
+                        link.download = filename;
                         link.target = '_blank';
                         document.body.appendChild(link);
                         link.click();
                         document.body.removeChild(link);
-                      } else {
-                        // Trên Mobile (Android / iOS):
-                        // Mở downloadUrl qua Linking - Hệ điều hành và trình duyệt tải trực tiếp file về máy
-                        const canOpen = await Linking.canOpenURL(downloadUrl);
-                        if (canOpen) {
-                          await Linking.openURL(downloadUrl);
-                        } else {
-                          await Linking.openURL(lightboxImageUrl);
+                        return;
+                      }
+
+                      // Trên Mobile (Android / iOS): Tải và lưu trực tiếp vào Thư viện ảnh (Gallery/Album)
+                      // 1. Xin quyền truy cập Thư viện ảnh (Write-only hoặc Full)
+                      const permissionRes = await MediaLibrary.requestPermissionsAsync(true);
+                      if (permissionRes.status !== 'granted') {
+                        Alert.alert('Quyền truy cập', 'Vui lòng cấp quyền truy cập để Finora có thể lưu ảnh vào Thư viện của bạn.');
+                        return;
+                      }
+
+                      // 2. Tải ảnh về thư mục tạm trên thiết bị
+                      const filenameMatch = lightboxImageUrl.match(/[^/\\&?]+\.\w{3,4}(?=([?&].*$|$))/);
+                      const ext = filenameMatch ? filenameMatch[0].split('.').pop() : 'jpg';
+                      const cacheDir = FileSystem.cacheDirectory || FileSystem.documentDirectory || '';
+                      const fileUri = `${cacheDir}finora_${Date.now()}.${ext}`;
+
+                      const downloadRes = await FileSystem.downloadAsync(lightboxImageUrl, fileUri);
+                      if (downloadRes.status === 200 && downloadRes.uri) {
+                        // 3. Lưu ảnh trực tiếp vào Thư viện ảnh (Gallery)
+                        if (typeof (MediaLibrary as any).saveToLibraryAsync === 'function') {
+                          await (MediaLibrary as any).saveToLibraryAsync(downloadRes.uri);
+                        } else if (typeof (MediaLibrary as any).createAssetAsync === 'function') {
+                          await (MediaLibrary as any).createAssetAsync(downloadRes.uri);
                         }
+                        Alert.alert('Thành công', 'Đã lưu ảnh vào Thư viện ảnh của bạn!');
+                        return;
                       }
+
+                      throw new Error('Tải ảnh không thành công');
                     } catch (err: any) {
-                      try {
-                        await Linking.openURL(lightboxImageUrl);
-                      } catch {
-                        Alert.alert('Thông báo', 'Không thể mở liên kết tải ảnh: ' + (err?.message || ''));
-                      }
+                      Alert.alert('Thông báo', 'Không thể lưu ảnh vào thiết bị: ' + (err?.message || ''));
                     }
                   }}
                   style={({ pressed }) => [styles.lightboxActionCircleBtn, pressed && styles.pressed]}
@@ -4142,9 +4381,11 @@ export function GroupScreen({ onGroupDetailChange }: { onGroupDetailChange?: (is
           isOwnerOrAdmin={isOwner || isAdmin}
           accounts={personalAccounts}
           fundBalance={fundData?.balance ?? monthlyStats?.fundBalance ?? 0}
+          initialTab={activeKidSubTab || initialKidSubTab}
           onClose={() => {
             setChildWalletDetailVisible(false);
             setSelectedChildWallet(null);
+            setActiveKidSubTab(undefined);
           }}
           onRefreshWallet={async () => {
             if (selectedGroup) {
@@ -4158,17 +4399,18 @@ export function GroupScreen({ onGroupDetailChange }: { onGroupDetailChange?: (is
 
   return (
     <View style={styles.screen}>
-      {/* ── 1. HEADER XANH RỪNG PHỦ TRÀN TAI THỎ ── */}
+      <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
+      {/* ── 1. HEADER NỀN TRẮNG THANH LỊCH ĐỒNG BỘ ── */}
       <View style={[styles.header, { paddingTop: Math.max(insets.top, 12) + 4 }]}>
         <View style={styles.headerLeft}>
-          <Text style={styles.headerTitle}>Nhóm & Quỹ chung</Text>
-          <Text style={styles.headerSub}>Quản lý chi tiêu gia đình, bạn cùng phòng & du lịch</Text>
+          <Text style={styles.headerTitle}>Quản lý nhóm</Text>
         </View>
         <Pressable
           onPress={() => setCreateModalVisible(true)}
           style={({ pressed }) => [styles.createGroupBtn, pressed && styles.pressed]}
         >
-          <Text style={styles.createGroupBtnText}>+ Tạo nhóm</Text>
+          <FinanceIcon name="plus" size={16} color="#047857" />
+          <Text style={styles.createGroupBtnText}>Tạo nhóm</Text>
         </Pressable>
       </View>
 
@@ -4305,17 +4547,33 @@ export function GroupScreen({ onGroupDetailChange }: { onGroupDetailChange?: (is
       )}
 
       {/* ── 5. MODAL TẠO NHÓM MỚI ── */}
-      <Modal visible={createModalVisible} transparent animationType="slide">
-        <View style={styles.modalOverlay}>
-          <View style={styles.inputModalSheet}>
+      <Modal visible={createModalVisible} transparent animationType="slide" onRequestClose={() => setCreateModalVisible(false)}>
+        <KeyboardAvoidingView
+          style={styles.keyboardContainer}
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
+        >
+          <Pressable style={styles.modalBackdrop} onPress={() => setCreateModalVisible(false)} />
+          <View style={[styles.inputModalSheet, { maxHeight: '78%' }]}>
+            {/* Thanh kéo trang trí drag-bar nhỏ mềm mại */}
+            <View style={styles.modalDragBar} />
+
             <View style={styles.inputModalHeader}>
-              <Text style={styles.inputModalTitle}>Tạo nhóm tài chính mới</Text>
-              <Pressable onPress={() => setCreateModalVisible(false)} hitSlop={10}>
-                <Text style={styles.modalCloseText}>✕</Text>
+              <View>
+                <Text style={styles.inputModalTitle}>Tạo nhóm tài chính mới</Text>
+                <Text style={styles.inputModalSubtitle}>Quản lý thu chi chung cùng người thân, bạn bè</Text>
+              </View>
+              <Pressable onPress={() => setCreateModalVisible(false)} hitSlop={10} style={styles.modalCloseBtn}>
+                <FinanceIcon name="close" size={18} color="#64748B" />
               </Pressable>
             </View>
 
-            <ScrollView showsVerticalScrollIndicator={false}>
+            <ScrollView
+              ref={createScrollViewRef}
+              showsVerticalScrollIndicator={false}
+              keyboardShouldPersistTaps="handled"
+              contentContainerStyle={{ paddingBottom: 32 }}
+            >
               <Text style={styles.inputLabel}>Tên nhóm *</Text>
               <TextInput
                 value={newGroupName}
@@ -4323,6 +4581,9 @@ export function GroupScreen({ onGroupDetailChange }: { onGroupDetailChange?: (is
                 placeholder="Ví dụ: Gia đình nhỏ, Chuyến đi Đà Lạt..."
                 placeholderTextColor="#94A3B8"
                 style={styles.textInput}
+                onFocus={() => {
+                  createScrollViewRef.current?.scrollTo({ y: 0, animated: true });
+                }}
               />
 
               <Text style={styles.inputLabel}>Loại nhóm *</Text>
@@ -4365,7 +4626,106 @@ export function GroupScreen({ onGroupDetailChange }: { onGroupDetailChange?: (is
                 placeholder="Mục đích chi tiêu, quỹ ăn uống..."
                 placeholderTextColor="#94A3B8"
                 style={styles.textInput}
+                onFocus={() => {
+                  setTimeout(() => {
+                    createScrollViewRef.current?.scrollTo({ y: 220, animated: true });
+                  }, 150);
+                }}
               />
+
+              {/* ── MỜI THÀNH VIÊN VÀO NHÓM (CHỌN NHIỀU NGƯỜI) ── */}
+              <View style={styles.createInviteSection}>
+                <View style={styles.createInviteHeader}>
+                  <Text style={styles.inputLabel}>Mời thành viên (Tùy chọn)</Text>
+                  {selectedInviteUsers.length > 0 && (
+                    <Text style={styles.selectedCountBadge}>
+                      Đã chọn {selectedInviteUsers.length} người
+                    </Text>
+                  )}
+                </View>
+
+                {/* Danh sách các thành viên đã chọn mời */}
+                {selectedInviteUsers.length > 0 && (
+                  <View style={styles.selectedUserTagsRow}>
+                    {selectedInviteUsers.map((u) => (
+                      <View key={u.id} style={styles.userTagPill}>
+                        <Text style={styles.userTagText} numberOfLines={1}>
+                          {u.fullName || u.email}
+                        </Text>
+                        <Pressable
+                          onPress={() => toggleSelectInviteUser(u)}
+                          hitSlop={6}
+                          style={styles.userTagRemoveBtn}
+                        >
+                          <FinanceIcon name="close" size={12} color="#EF4444" />
+                        </Pressable>
+                      </View>
+                    ))}
+                  </View>
+                )}
+
+                {/* Ô tìm kiếm người dùng theo email (@) */}
+                <View style={styles.createMemberSearchBox}>
+                  <FinanceIcon name="search" size={16} color="#94A3B8" />
+                  <TextInput
+                    value={createMemberSearchQuery}
+                    onChangeText={handleSearchCreateMembers}
+                    onFocus={() => {
+                      setTimeout(() => {
+                        createScrollViewRef.current?.scrollToEnd({ animated: true });
+                      }, 200);
+                    }}
+                    placeholder="Nhập email có chứa @ để tìm..."
+                    placeholderTextColor="#94A3B8"
+                    autoCapitalize="none"
+                    style={styles.createMemberSearchInput}
+                  />
+                  {searchingCreateMember && (
+                    <ActivityIndicator size="small" color="#047857" style={{ marginLeft: 6 }} />
+                  )}
+                </View>
+
+                {/* Kết quả tìm kiếm có thể bấm chọn nhiều người */}
+                {createMemberSearchResults.length > 0 && (
+                  <View style={styles.createSearchResultsBox}>
+                    {createMemberSearchResults.map((u) => {
+                      const isSelected = selectedInviteUsers.some((it) => it.id === u.id);
+                      return (
+                        <Pressable
+                          key={u.id}
+                          onPress={() => toggleSelectInviteUser(u)}
+                          style={[
+                            styles.searchResultUserRow,
+                            isSelected && styles.searchResultUserRowSelected,
+                          ]}
+                        >
+                          <View style={styles.searchUserAvatar}>
+                            <Text style={styles.searchUserAvatarText}>
+                              {(u.fullName || u.email || 'U').charAt(0).toUpperCase()}
+                            </Text>
+                          </View>
+                          <View style={styles.searchUserInfoCol}>
+                            <Text style={styles.searchUserNameText} numberOfLines={1}>
+                              {u.fullName}
+                            </Text>
+                            <Text style={styles.searchUserEmailText} numberOfLines={1}>
+                              {u.email}
+                            </Text>
+                          </View>
+                          <View
+                            style={[
+                              styles.multiSelectCheckCircle,
+                              isSelected && styles.multiSelectCheckCircleActive,
+                            ]}
+                          >
+                            {isSelected && <FinanceIcon name="check" size={12} color="#FFFFFF" />}
+                          </View>
+                        </Pressable>
+                      );
+                    })}
+                  </View>
+                )}
+              </View>
 
               <Pressable
                 onPress={handleCreateGroup}
@@ -4375,12 +4735,16 @@ export function GroupScreen({ onGroupDetailChange }: { onGroupDetailChange?: (is
                 {submittingGroup ? (
                   <ActivityIndicator color="#FFFFFF" />
                 ) : (
-                  <Text style={styles.submitActionBtnText}>Tạo nhóm ngay</Text>
+                  <Text style={styles.submitActionBtnText}>
+                    {selectedInviteUsers.length > 0
+                      ? `Tạo nhóm & Mời (${selectedInviteUsers.length})`
+                      : 'Tạo nhóm ngay'}
+                  </Text>
                 )}
               </Pressable>
             </ScrollView>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
 
       {/* ── 7. MODAL MỜI THÀNH VIÊN HIỆN ĐẠI (ĐÃ TÁCH COMPONENT) ── */}
@@ -4559,36 +4923,44 @@ const styles = StyleSheet.create({
   },
 
   header: {
-    backgroundColor: '#074838',
+    backgroundColor: '#FFFFFF',
     paddingHorizontal: 16,
-    paddingBottom: 16,
+    paddingBottom: 14,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    borderBottomWidth: 1,
+    borderBottomColor: '#F1F5F9',
   },
   headerLeft: {
     flex: 1,
     marginRight: 10,
   },
   headerTitle: {
-    color: '#FFFFFF',
-    fontSize: 18,
-    fontWeight: '800',
+    color: '#0F172A',
+    fontSize: 20,
+    fontWeight: '700',
   },
   headerSub: {
-    color: 'rgba(255, 255, 255, 0.8)',
-    fontSize: 11,
+    color: '#64748B',
+    fontSize: 12,
     marginTop: 2,
+    fontWeight: '500',
   },
   createGroupBtn: {
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#ECFDF5',
     paddingHorizontal: 12,
     paddingVertical: 7,
     borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#A7F3D0',
   },
   createGroupBtnText: {
-    color: '#FFFFFF',
-    fontSize: 12.5,
+    color: '#047857',
+    fontSize: 13,
     fontWeight: '700',
   },
   smartShareBanner: {
@@ -4887,6 +5259,28 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.45)',
     justifyContent: 'flex-end',
+  },
+  keyboardContainer: {
+    flex: 1,
+    justifyContent: 'flex-end',
+    backgroundColor: 'rgba(15, 23, 42, 0.45)',
+  },
+  modalBackdrop: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  modalCloseBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#F1F5F9',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  inputModalSubtitle: {
+    fontSize: 12,
+    color: '#64748B',
+    marginTop: 2,
+    fontWeight: '500',
   },
   /* ── TABS CHUẨN DESIGN THEO ẢNH MẪU ── */
   tabsScrollWrapper: {
@@ -7682,10 +8076,24 @@ const styles = StyleSheet.create({
   /* ── FORM MODAL ── */
   inputModalSheet: {
     backgroundColor: '#FFFFFF',
-    borderTopLeftRadius: 26,
-    borderTopRightRadius: 26,
-    padding: 20,
-    maxHeight: '85%',
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    paddingHorizontal: 20,
+    paddingTop: 12,
+    maxHeight: '78%',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 12,
+    elevation: 10,
+  },
+  modalDragBar: {
+    width: 40,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: '#E2E8F0',
+    alignSelf: 'center',
+    marginBottom: 14,
   },
   inputModalHeader: {
     flexDirection: 'row',
@@ -8017,6 +8425,126 @@ const styles = StyleSheet.create({
     marginTop: 8,
     marginBottom: 16,
   },
+  /* Mời thành viên khi tạo nhóm */
+  createInviteSection: {
+    marginTop: 14,
+    marginBottom: 14,
+  },
+  createInviteHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 6,
+  },
+  selectedCountBadge: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#047857',
+    backgroundColor: '#ECFDF5',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 10,
+  },
+  selectedUserTagsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+    marginBottom: 10,
+  },
+  userTagPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#ECFDF5',
+    borderWidth: 1,
+    borderColor: '#A7F3D0',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 12,
+    maxWidth: 160,
+    gap: 4,
+  },
+  userTagText: {
+    fontSize: 12,
+    color: '#047857',
+    fontWeight: '600',
+    flexShrink: 1,
+  },
+  userTagRemoveBtn: {
+    padding: 2,
+  },
+  createMemberSearchBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F8FAFC',
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    paddingHorizontal: 12,
+    height: 44,
+  },
+  createMemberSearchInput: {
+    flex: 1,
+    fontSize: 13,
+    color: '#0F172A',
+    marginLeft: 8,
+  },
+  createSearchResultsBox: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    marginTop: 8,
+    maxHeight: 240,
+    padding: 4,
+  },
+  searchResultUserRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 8,
+    borderRadius: 10,
+    gap: 10,
+  },
+  searchResultUserRowSelected: {
+    backgroundColor: '#F0FDF4',
+  },
+  searchUserAvatar: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#E0F2FE',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  searchUserAvatarText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#0284C7',
+  },
+  searchUserInfoCol: {
+    flex: 1,
+  },
+  searchUserNameText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#0F172A',
+  },
+  searchUserEmailText: {
+    fontSize: 11,
+    color: '#64748B',
+  },
+  multiSelectCheckCircle: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    borderWidth: 2,
+    borderColor: '#CBD5E1',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  multiSelectCheckCircleActive: {
+    backgroundColor: '#047857',
+    borderColor: '#047857',
+  },
   submitActionBtnText: {
     color: '#FFFFFF',
     fontSize: 14.5,
@@ -8053,5 +8581,68 @@ const styles = StyleSheet.create({
   },
   disabled: {
     opacity: 0.6,
+  },
+
+  /* MODAL DROPDOWN PICKER SHEET ĐỒNG BỘ */
+  pickerModalBackdrop: {
+    backgroundColor: 'rgba(15, 23, 42, 0.45)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+  },
+  pickerModalBox: {
+    width: '100%',
+    maxHeight: 420,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 20,
+    padding: 18,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 10,
+    elevation: 8,
+  },
+  pickerModalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingBottom: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F1F5F9',
+    marginBottom: 6,
+  },
+  pickerModalTitle: {
+    fontSize: 15.5,
+    fontWeight: '800',
+    color: '#0F172A',
+  },
+  pickerItemRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 12,
+    paddingHorizontal: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F8FAFC',
+    borderRadius: 8,
+  },
+  pickerItemRowActive: {
+    backgroundColor: '#F0FDF4',
+  },
+  pickerItemText: {
+    fontSize: 13.5,
+    fontWeight: '600',
+    color: '#334155',
+  },
+  pickerItemTextActive: {
+    color: '#059669',
+    fontWeight: '800',
+  },
+  pickerItemSub: {
+    fontSize: 11,
+    color: '#64748B',
+    marginTop: 2,
   },
 });

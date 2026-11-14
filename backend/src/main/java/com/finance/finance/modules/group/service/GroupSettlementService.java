@@ -49,7 +49,7 @@ public class GroupSettlementService {
         var outgoing = transactionService.createTransaction(currentUserId, CreateTransactionRequest.builder()
                 .transactionType(TransactionType.EXPENSE).accountId(sourceAccount.getId()).categoryId(expenseCategory)
                 .amount(request.getAmount()).currencyCode(sourceAccount.getCurrencyCode()).transactionDate(request.getSettlementDate())
-                .description("Bù trừ nhóm").note(request.getNotes()).isExcludedFromReport(true).build());
+                .description("Bù trừ nhóm").note(request.getNotes()).isExcludedFromReport(false).build());
         GroupSettlement settlement = GroupSettlement.builder()
                 .groupId(groupId)
                 .fromUserId(currentUserId)
@@ -99,7 +99,7 @@ public class GroupSettlementService {
         var incoming = transactionService.createTransaction(currentUserId, CreateTransactionRequest.builder()
                 .transactionType(TransactionType.INCOME).accountId(receivingAccount.getId()).categoryId(incomeCategory)
                 .amount(settlement.getAmount()).currencyCode(receivingAccount.getCurrencyCode()).transactionDate(settlement.getSettlementDate())
-                .description("Nhận bù trừ nhóm").note(settlement.getNotes()).isExcludedFromReport(true).build());
+                .description("Nhận bù trừ nhóm").note(settlement.getNotes()).isExcludedFromReport(false).build());
         settlement.setToAccountId(receivingAccount.getId());
         settlement.setIncomingTransactionId(incoming.getId());
         settlement.setStatus(SettlementStatus.CONFIRMED);

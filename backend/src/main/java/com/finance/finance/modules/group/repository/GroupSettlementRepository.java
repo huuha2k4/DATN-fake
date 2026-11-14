@@ -11,6 +11,7 @@ import org.springframework.stereotype.Repository;
 
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 @Repository
@@ -40,4 +41,6 @@ public interface GroupSettlementRepository extends JpaRepository<GroupSettlement
     long countPendingByGroupId(@Param("groupId") UUID groupId);
     
     List<GroupSettlement> findByGroupIdAndFromUserIdOrToUserId(UUID groupId, UUID fromUserId, UUID toUserId);
+
+    Optional<GroupSettlement> findByOutgoingTransactionIdOrIncomingTransactionId(UUID outgoingTransactionId, UUID incomingTransactionId);
 }

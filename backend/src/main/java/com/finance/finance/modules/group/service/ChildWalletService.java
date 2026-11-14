@@ -36,6 +36,8 @@ import com.finance.finance.modules.user.repository.UserRepository;
 import com.finance.finance.modules.notification.service.NotificationService;
 import com.finance.finance.common.enums.NotificationType;
 import com.finance.finance.common.enums.NotificationPriority;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -47,6 +49,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 @Slf4j
@@ -66,6 +69,7 @@ public class ChildWalletService {
     private final GroupFundRepository groupFundRepository;
     private final GroupExpenseRepository groupExpenseRepository;
     private final GroupRepository groupRepository;
+    private final ObjectMapper objectMapper;
 
     @Transactional
     public ChildWalletResponse createWallet(UUID groupId, CreateChildWalletRequest request, UUID currentUserId) {
@@ -224,13 +228,23 @@ public class ChildWalletService {
             wallet.setSpendLimitWeekly(request.getSpendLimitWeekly());
         }
         if (request.getAllowedCategories() != null) {
-            wallet.setAllowedCategories(null); // TODO: Serialize to JSON
+            try {
+                wallet.setAllowedCategories(objectMapper.writeValueAsString(request.getAllowedCategories()));
+            } catch (JsonProcessingException e) {
+                log.error("Failed to serialize allowed categories", e);
+                wallet.setAllowedCategories(null);
+            }
         }
         if (request.getRequireApprovalAbove() != null) {
             wallet.setRequireApprovalAbove(request.getRequireApprovalAbove());
         }
         if (request.getSettings() != null) {
-            wallet.setSettings(null); // TODO: Serialize to JSON
+            try {
+                wallet.setSettings(objectMapper.writeValueAsString(request.getSettings()));
+            } catch (JsonProcessingException e) {
+                log.error("Failed to serialize settings", e);
+                wallet.setSettings(null);
+            }
         }
 
         wallet.setUpdatedAt(LocalDateTime.now());
@@ -384,7 +398,7 @@ public class ChildWalletService {
                         NotificationPriority.HIGH,
                         "Bạn vừa được cộng tiền vào ví! 🎉",
                         senderName + " đã nạp cho bạn " + String.format("%,d", request.getAmount().longValue()) + "đ (" + note + ").",
-                        "/child-wallet",
+                        "/groups?groupId=" + groupId + "&tab=CHILD_WALLETS&walletId=" + walletId,
                         "Xem ví của em"
                 );
             } catch (Exception e) {
@@ -417,7 +431,8 @@ public class ChildWalletService {
         wallet.setUpdatedAt(LocalDateTime.now());
         wallet = walletRepository.save(wallet);
 
-        // TODO: Log activity
+        // Log activity
+        log.info("Withdraw from child wallet: walletId={}, amount={}, by userId={}", walletId, request.getAmount(), currentUserId);
 
         return buildWalletResponse(wallet);
     }
@@ -465,14 +480,34 @@ public class ChildWalletService {
                 .privacyLevel(wallet.getPrivacyLevel() != null ? wallet.getPrivacyLevel().name() : "PARENT_SUPERVISED")
                 .spendLimitDaily(wallet.getSpendLimitDaily())
                 .spendLimitWeekly(wallet.getSpendLimitWeekly())
-                .allowedCategories(null) // TODO: Deserialize from JSON
+                .allowedCategories(deserializeAllowedCategories(wallet.getAllowedCategories()))
                 .requireApprovalAbove(wallet.getRequireApprovalAbove())
-                .settings(null) // TODO: Deserialize from JSON
+                .settings(deserializeSettings(wallet.getSettings()))
                 .stats(ChildWalletResponse.WalletStats.builder()
                         .pendingRequestCount((int) pendingRequests)
                         .build())
                 .createdAt(wallet.getCreatedAt())
                 .updatedAt(wallet.getUpdatedAt())
                 .build();
+    }
+
+    private List<UUID> deserializeAllowedCategories(String json) {
+        if (json == null || json.isBlank()) return null;
+        try {
+            return objectMapper.readValue(json, objectMapper.getTypeFactory().constructCollectionType(List.class, UUID.class));
+        } catch (JsonProcessingException e) {
+            log.error("Failed to deserialize allowed categories", e);
+            return null;
+        }
+    }
+
+    private CreateChildWalletRequest.WalletSettingsDto deserializeSettings(String json) {
+        if (json == null || json.isBlank()) return null;
+        try {
+            return objectMapper.readValue(json, CreateChildWalletRequest.WalletSettingsDto.class);
+        } catch (JsonProcessingException e) {
+            log.error("Failed to deserialize settings", e);
+            return null;
+        }
     }
 }

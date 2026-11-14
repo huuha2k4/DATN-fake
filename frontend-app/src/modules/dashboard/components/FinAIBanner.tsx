@@ -1,5 +1,6 @@
 import React from 'react';
 import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ChevronRight } from 'lucide-react-native';
 import { themeTokens } from '../themeTokens';
 
 type Props = {
@@ -33,7 +34,7 @@ export function FinAIBanner({ onPress }: Props) {
 
       {/* Nút tròn mũi tên xanh lá đặc trưng */}
       <View style={styles.arrowCircle}>
-        <Text style={styles.arrowIcon}>›</Text>
+        <ChevronRight size={18} color="#FFFFFF" strokeWidth={2.5} />
       </View>
     </Pressable>
   );

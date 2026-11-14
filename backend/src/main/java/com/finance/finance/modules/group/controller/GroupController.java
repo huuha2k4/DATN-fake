@@ -1,5 +1,6 @@
 package com.finance.finance.modules.group.controller;
 
+import com.finance.finance.common.annotation.Idempotent;
 import com.finance.finance.common.enums.ActivityType;
 import com.finance.finance.common.enums.ChoreStatus;
 import com.finance.finance.common.enums.CommentableType;
@@ -48,10 +49,12 @@ public class GroupController {
     // 1. GROUPS & MEMBERS MANAGEMENT (12 endpoints)
     // ============================================================
 
+    @Idempotent(resourceType = "group")
     @PostMapping
     public ResponseEntity<GroupResponse> createGroup(
             @Valid @RequestBody CreateGroupRequest request,
-            @AuthenticationPrincipal User currentUser) {
+            @AuthenticationPrincipal User currentUser,
+            @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey) {
         GroupResponse response = groupService.createGroup(request, currentUser.getId());
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
@@ -135,6 +138,19 @@ public class GroupController {
             @AuthenticationPrincipal User currentUser) {
         groupService.deleteGroup(groupId, currentUser.getId());
         return ResponseEntity.noContent().build();
+    }
+
+    @PutMapping("/{groupId}/notifications")
+    public ResponseEntity<Map<String, Object>> toggleGroupNotification(
+            @PathVariable UUID groupId,
+            @RequestParam boolean enabled,
+            @AuthenticationPrincipal User currentUser) {
+        groupService.toggleGroupNotification(groupId, currentUser.getId(), enabled);
+        return ResponseEntity.ok(Map.of(
+                "success", true,
+                "message", enabled ? "Đã bật thông báo nhóm" : "Đã tắt thông báo nhóm",
+                "notificationEnabled", enabled
+        ));
     }
 
     @PostMapping("/{groupId}/leave")
@@ -230,11 +246,13 @@ public class GroupController {
     // 2. EXPENSES & BALANCES (6 endpoints)
     // ============================================================
 
+    @Idempotent(resourceType = "group_expense")
     @PostMapping("/{groupId}/expenses")
     public ResponseEntity<ExpenseResponse> createExpense(
             @PathVariable UUID groupId,
             @Valid @RequestBody CreateExpenseRequest request,
-            @AuthenticationPrincipal User currentUser) {
+            @AuthenticationPrincipal User currentUser,
+            @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey) {
         ExpenseResponse response = expenseService.createExpense(groupId, request, currentUser.getId());
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }

@@ -17,6 +17,7 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -129,6 +130,20 @@ public class AuthController {
         response.put("success", true);
         response.put("message", messageResponse.getMessage());
         
+        return ResponseEntity.ok(response);
+    }
+
+    /**
+     * Lấy danh sách thiết bị đang đăng nhập và lần truy cập
+     * GET /api/v1/auth/devices
+     */
+    @GetMapping("/devices")
+    public ResponseEntity<Map<String, Object>> getActiveDevices(@AuthenticationPrincipal User user) {
+        List<Map<String, Object>> devices = authService.getActiveDevices(user);
+        Map<String, Object> response = new HashMap<>();
+        response.put("success", true);
+        response.put("totalDevices", devices.size());
+        response.put("devices", devices);
         return ResponseEntity.ok(response);
     }
 

@@ -38,4 +38,8 @@ public class GroupMember {
     @Column(name = "joined_at", nullable = false)
     @Builder.Default
     private LocalDateTime joinedAt = LocalDateTime.now();
+
+    @Column(name = "notification_enabled", nullable = false)
+    @Builder.Default
+    private Boolean notificationEnabled = true;
 }

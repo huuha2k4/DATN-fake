@@ -17,13 +17,25 @@ import { userProfileApi, type UserProfileResponse } from '../api/userProfileApi'
 import { PricingModal } from '../components/PricingModal';
 import { AccountInfoModal } from '../components/AccountInfoModal';
 import { AvatarPickerModal } from '../components/AvatarPickerModal';
+import { SecurityScreen } from './SecurityScreen';
+import { HelpCenterScreen } from './HelpCenterScreen';
+import { AboutFinoraScreen } from './AboutFinoraScreen';
+import { NotificationSettingsScreen } from './NotificationSettingsScreen';
+import { SystemSettingsScreen } from './SystemSettingsScreen';
 
 interface ProfileScreenProps {
   onLogout?: () => void;
   onNotifications?: () => void;
+  onOpenAiAssistant?: () => void;
+  onSubPageChange?: (isSubPageOpen: boolean) => void;
 }
 
-export function ProfileScreen({ onLogout, onNotifications }: ProfileScreenProps) {
+export function ProfileScreen({
+  onLogout,
+  onNotifications,
+  onOpenAiAssistant,
+  onSubPageChange,
+}: ProfileScreenProps) {
   const insets = useSafeAreaInsets();
   const [profile, setProfile] = useState<UserProfileResponse | null>(null);
   const [totalTxCount, setTotalTxCount] = useState<number>(0);
@@ -32,6 +44,11 @@ export function ProfileScreen({ onLogout, onNotifications }: ProfileScreenProps)
   const [showPricingModal, setShowPricingModal] = useState<boolean>(false);
   const [showAccountInfoModal, setShowAccountInfoModal] = useState<boolean>(false);
   const [showAvatarPickerModal, setShowAvatarPickerModal] = useState<boolean>(false);
+  const [currentSubPage, setCurrentSubPage] = useState<'MAIN' | 'SECURITY' | 'HELP_CENTER' | 'ABOUT' | 'NOTIFICATION_SETTINGS' | 'SYSTEM_SETTINGS'>('MAIN');
+
+  useEffect(() => {
+    onSubPageChange?.(currentSubPage !== 'MAIN');
+  }, [currentSubPage, onSubPageChange]);
   const [isLoggingOut, setIsLoggingOut] = useState<boolean>(false);
   const currentUser = authStorage.getUser();
 
@@ -136,6 +153,50 @@ export function ProfileScreen({ onLogout, onNotifications }: ProfileScreenProps)
     ]);
   };
 
+  if (currentSubPage === 'SECURITY') {
+    return (
+      <SecurityScreen
+        onBack={() => setCurrentSubPage('MAIN')}
+        userEmail={displayEmail}
+        onLogoutRequested={handleLogout}
+      />
+    );
+  }
+
+  if (currentSubPage === 'HELP_CENTER') {
+    return (
+      <HelpCenterScreen
+        onBack={() => setCurrentSubPage('MAIN')}
+        onOpenAiAssistant={onOpenAiAssistant}
+      />
+    );
+  }
+
+  if (currentSubPage === 'ABOUT') {
+    return (
+      <AboutFinoraScreen
+        onBack={() => setCurrentSubPage('MAIN')}
+      />
+    );
+  }
+
+  if (currentSubPage === 'NOTIFICATION_SETTINGS') {
+    return (
+      <NotificationSettingsScreen
+        onBack={() => setCurrentSubPage('MAIN')}
+        onViewNotificationsHistory={onNotifications}
+      />
+    );
+  }
+
+  if (currentSubPage === 'SYSTEM_SETTINGS') {
+    return (
+      <SystemSettingsScreen
+        onBack={() => setCurrentSubPage('MAIN')}
+      />
+    );
+  }
+
   return (
     <View style={styles.screen}>
       {/* ── BACKGROUND LƯỢN SÓNG XANH CHỈ Ở PHẦN ĐẦU (Header & User Info) ── */}
@@ -159,7 +220,7 @@ export function ProfileScreen({ onLogout, onNotifications }: ProfileScreenProps)
             <View style={styles.bellBadge} />
           </Pressable>
           <Pressable
-            onPress={() => Alert.alert('Cài đặt', 'Cài đặt hệ thống')}
+            onPress={() => setCurrentSubPage('SYSTEM_SETTINGS')}
             style={({ pressed }) => [styles.headerIconBtn, pressed && styles.pressed]}
             hitSlop={8}
           >
@@ -224,7 +285,7 @@ export function ProfileScreen({ onLogout, onNotifications }: ProfileScreenProps)
               onPress={() => setShowAccountInfoModal(true)}
               hitSlop={12}
             >
-              <Text style={styles.userChevron}>›</Text>
+              <FinanceIcon name="chevron-right" size={20} color="#64748B" />
             </Pressable>
           </View>
 
@@ -253,7 +314,7 @@ export function ProfileScreen({ onLogout, onNotifications }: ProfileScreenProps)
                   <Text style={styles.upgradeBtnText}>
                     {isPremiumUser ? 'Quản lý gói' : 'Nâng cấp ngay'}
                   </Text>
-                  <Text style={styles.upgradeBtnArrow}>→</Text>
+                  <FinanceIcon name="arrow-right" size={14} color="#064E3B" strokeWidth={2.5} />
                 </Pressable>
               </View>
 
@@ -308,13 +369,13 @@ export function ProfileScreen({ onLogout, onNotifications }: ProfileScreenProps)
                 <Text style={styles.menuItemTitle}>Thông tin tài khoản</Text>
                 <Text style={styles.menuItemSub}>Xem và cập nhật thông tin</Text>
               </View>
-              <Text style={styles.menuChevron}>›</Text>
+              <FinanceIcon name="chevron-right" size={18} color="#94A3B8" />
             </Pressable>
 
             <View style={styles.menuDivider} />
 
             <Pressable
-              onPress={() => Alert.alert('Bảo mật & Đăng nhập', 'Mật khẩu, 2FA')}
+              onPress={() => setCurrentSubPage('SECURITY')}
               style={styles.menuItemRow}
             >
               <View style={[styles.menuIconBox, { backgroundColor: '#E8F8F0' }]}>
@@ -324,7 +385,7 @@ export function ProfileScreen({ onLogout, onNotifications }: ProfileScreenProps)
                 <Text style={styles.menuItemTitle}>Bảo mật & Đăng nhập</Text>
                 <Text style={styles.menuItemSub}>Mật khẩu, xác thực 2 bước (2FA)</Text>
               </View>
-              <Text style={styles.menuChevron}>›</Text>
+              <FinanceIcon name="chevron-right" size={18} color="#94A3B8" />
             </Pressable>
 
             <View style={styles.menuDivider} />
@@ -340,46 +401,30 @@ export function ProfileScreen({ onLogout, onNotifications }: ProfileScreenProps)
                 <Text style={styles.menuItemTitle}>Gói thành viên</Text>
                 <Text style={styles.menuItemSub}>Quản lý gói và quyền lợi Premium</Text>
               </View>
-              <Text style={styles.menuChevron}>›</Text>
+              <FinanceIcon name="chevron-right" size={18} color="#94A3B8" />
             </Pressable>
           </View>
 
           {/* ── 6. NHÓM TÍNH NĂNG 2: THIẾT LẬP & TRỢ GIÚP ── */}
           <View style={styles.menuGroupCard}>
             <Pressable
-              onPress={onNotifications}
+              onPress={() => setCurrentSubPage('NOTIFICATION_SETTINGS')}
               style={styles.menuItemRow}
             >
               <View style={[styles.menuIconBox, { backgroundColor: '#E8F8F0' }]}>
                 <FinanceIcon name="bell" size={18} color="#059669" />
               </View>
               <View style={styles.menuTextWrap}>
-                <Text style={styles.menuItemTitle}>Thông báo</Text>
-                <Text style={styles.menuItemSub}>Quản lý thông báo, nhắc nhở</Text>
+                <Text style={styles.menuItemTitle}>Cài đặt thông báo</Text>
+                <Text style={styles.menuItemSub}>Tùy chỉnh thông báo, lịch nhắc & cảnh báo</Text>
               </View>
-              <Text style={styles.menuChevron}>›</Text>
+              <FinanceIcon name="chevron-right" size={18} color="#94A3B8" />
             </Pressable>
 
             <View style={styles.menuDivider} />
 
             <Pressable
-              onPress={() => Alert.alert('Sao lưu & Đồng bộ', 'Dữ liệu được đồng bộ đám mây an toàn')}
-              style={styles.menuItemRow}
-            >
-              <View style={[styles.menuIconBox, { backgroundColor: '#E8F8F0' }]}>
-                <FinanceIcon name="cloud" size={18} color="#059669" />
-              </View>
-              <View style={styles.menuTextWrap}>
-                <Text style={styles.menuItemTitle}>Sao lưu & Đồng bộ</Text>
-                <Text style={styles.menuItemSub}>Đồng bộ dữ liệu trên nhiều thiết bị</Text>
-              </View>
-              <Text style={styles.menuChevron}>›</Text>
-            </Pressable>
-
-            <View style={styles.menuDivider} />
-
-            <Pressable
-              onPress={() => Alert.alert('Trung tâm trợ giúp', 'Hướng dẫn và câu hỏi thường gặp')}
+              onPress={() => setCurrentSubPage('HELP_CENTER')}
               style={styles.menuItemRow}
             >
               <View style={[styles.menuIconBox, { backgroundColor: '#E8F8F0' }]}>
@@ -387,15 +432,31 @@ export function ProfileScreen({ onLogout, onNotifications }: ProfileScreenProps)
               </View>
               <View style={styles.menuTextWrap}>
                 <Text style={styles.menuItemTitle}>Trung tâm trợ giúp</Text>
-                <Text style={styles.menuItemSub}>Hướng dẫn, câu hỏi thường gặp</Text>
+                <Text style={styles.menuItemSub}>Hướng dẫn, câu hỏi thường gặp & gửi phản hồi</Text>
               </View>
-              <Text style={styles.menuChevron}>›</Text>
+              <FinanceIcon name="chevron-right" size={18} color="#94A3B8" />
             </Pressable>
 
             <View style={styles.menuDivider} />
 
             <Pressable
-              onPress={() => Alert.alert('Giới thiệu Finora', 'Phiên bản 2.4.0 (Build 2026)')}
+              onPress={() => setCurrentSubPage('SYSTEM_SETTINGS')}
+              style={styles.menuItemRow}
+            >
+              <View style={[styles.menuIconBox, { backgroundColor: '#E8F8F0' }]}>
+                <FinanceIcon name="settings" size={18} color="#059669" />
+              </View>
+              <View style={styles.menuTextWrap}>
+                <Text style={styles.menuItemTitle}>Cài đặt hệ thống</Text>
+                <Text style={styles.menuItemSub}>Giao diện, ngôn ngữ, tiền tệ & bảo mật app</Text>
+              </View>
+              <FinanceIcon name="chevron-right" size={18} color="#94A3B8" />
+            </Pressable>
+
+            <View style={styles.menuDivider} />
+
+            <Pressable
+              onPress={() => setCurrentSubPage('ABOUT')}
               style={styles.menuItemRow}
             >
               <View style={[styles.menuIconBox, { backgroundColor: '#E8F8F0' }]}>
@@ -403,9 +464,9 @@ export function ProfileScreen({ onLogout, onNotifications }: ProfileScreenProps)
               </View>
               <View style={styles.menuTextWrap}>
                 <Text style={styles.menuItemTitle}>Giới thiệu Finora</Text>
-                <Text style={styles.menuItemSub}>Phiên bản, điều khoản và chính sách</Text>
+                <Text style={styles.menuItemSub}>Phiên bản, đội ngũ phát triển & điều khoản</Text>
               </View>
-              <Text style={styles.menuChevron}>›</Text>
+              <FinanceIcon name="chevron-right" size={18} color="#94A3B8" />
             </Pressable>
           </View>
 

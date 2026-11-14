@@ -11,6 +11,7 @@ import {
 } from '../api/scheduleApi';
 import { accountApi, type AccountItem } from '../../account-management/api/accountApi';
 import { transactionApi, type CategoryItem } from '../../cash-flow-management/api/transactionApi';
+import { debtApi, type DebtSummaryItem } from '../../debt-management/api/debtApi';
 import { formatDate } from '../../core/utils/dateUtils';
 import { DatePicker } from '../../core/components/DatePicker';
 import './FinancialRemindersScreen.css';
@@ -33,7 +34,18 @@ function getScheduleIconName(item: ScheduleListItem): IconName {
   const nameLower = (item.name || '').toLowerCase();
   const catLower = (item.transaction_template?.category || '').toLowerCase();
 
-  // 1. Tiền nhà / Trọ / Thuê phòng / Điện nước
+  // 1. Khoản vay nợ / Cho vay
+  if (nameLower.startsWith('thu nợ') || nameLower.includes('cho vay')) {
+    return 'lending';
+  }
+  if (nameLower.startsWith('trả nợ') || nameLower.includes('vay')) {
+    return 'borrowing';
+  }
+
+  // 2. Tiền lương / Thưởng / Thu nhập công việc
+  if (nameLower.includes('lương') || catLower.includes('lương') || nameLower.includes('thưởng')) return 'briefcase';
+
+  // 3. Tiền nhà / Trọ / Thuê phòng / Điện nước
   if (
     nameLower.includes('nhà') ||
     nameLower.includes('trọ') ||
@@ -45,7 +57,28 @@ function getScheduleIconName(item: ScheduleListItem): IconName {
     return 'home';
   }
 
-  // 2. Ăn uống / Cafe / Trà sữa / Đi chợ / Siêu thị ẩm thực
+  // 4. Điện & Nước / Hóa đơn tiện ích
+  if (
+    nameLower.includes('điện') ||
+    nameLower.includes('nước') ||
+    catLower.includes('điện') ||
+    catLower.includes('nước') ||
+    catLower.includes('hóa đơn')
+  ) {
+    return 'bolt';
+  }
+
+  // 5. Thẻ tín dụng / Ngân hàng
+  if (
+    nameLower.includes('thẻ') ||
+    nameLower.includes('tín dụng') ||
+    catLower.includes('tín dụng') ||
+    nameLower.includes('ngân hàng')
+  ) {
+    return 'credit-card';
+  }
+
+  // 6. Ăn uống / Cafe / Trà sữa / Đi chợ / Siêu thị ẩm thực
   if (
     nameLower.includes('ăn') ||
     nameLower.includes('uống') ||
@@ -61,32 +94,7 @@ function getScheduleIconName(item: ScheduleListItem): IconName {
     return 'coffee';
   }
 
-  // 3. Tiền lương / Thưởng / Thu nhập công việc
-  if (nameLower.includes('lương') || catLower.includes('lương') || nameLower.includes('thưởng')) return 'briefcase';
-
-  // 4. Điện & Nước / Hóa đơn tiện ích
-  if (
-    nameLower.includes('điện') ||
-    nameLower.includes('nước') ||
-    catLower.includes('điện') ||
-    catLower.includes('nước') ||
-    catLower.includes('hóa đơn')
-  ) {
-    return 'bolt';
-  }
-
-  // 5. Thẻ tín dụng / Vay / Trả góp
-  if (
-    nameLower.includes('thẻ') ||
-    nameLower.includes('tín dụng') ||
-    catLower.includes('tín dụng') ||
-    nameLower.includes('trả góp') ||
-    nameLower.includes('vay')
-  ) {
-    return 'credit-card';
-  }
-
-  // 6. Gói giải trí / Xem phim / Netflix / Spotify / Dịch vụ số
+  // 7. Gói giải trí / Xem phim / Netflix / Spotify / Dịch vụ số
   if (
     nameLower.includes('netflix') ||
     nameLower.includes('cloud') ||
@@ -97,7 +105,7 @@ function getScheduleIconName(item: ScheduleListItem): IconName {
     return 'film';
   }
 
-  // 7. Đi lại / Xăng xe / Gửi xe / Grab
+  // 8. Đi lại / Xăng xe / Gửi xe / Grab
   if (
     nameLower.includes('xăng') ||
     nameLower.includes('xe') ||
@@ -108,7 +116,7 @@ function getScheduleIconName(item: ScheduleListItem): IconName {
     return 'car';
   }
 
-  // 8. Mua sắm / Shopee / Quần áo
+  // 9. Mua sắm / Shopee / Quần áo
   if (
     nameLower.includes('mua sắm') ||
     nameLower.includes('shopee') ||
@@ -124,6 +132,7 @@ function getScheduleIconName(item: ScheduleListItem): IconName {
 export function FinancialRemindersScreen({ onNotify }: Props) {
   // Dữ liệu từ Backend
   const [schedules, setSchedules] = useState<ScheduleListItem[]>([]);
+  const [debts, setDebts] = useState<DebtSummaryItem[]>([]);
   const [accounts, setAccounts] = useState<AccountItem[]>([]);
   const [categories, setCategories] = useState<CategoryItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -165,18 +174,25 @@ export function FinancialRemindersScreen({ onNotify }: Props) {
   // Chi tiết Lịch
   const [selectedSchedule, setSelectedSchedule] = useState<ScheduleDetail | null>(null);
 
-  // 1. Tải danh sách lịch từ Backend
+  // 1. Tải danh sách lịch và khoản nợ từ Backend
   const loadSchedules = async () => {
     try {
       setLoading(true);
-      const res = await scheduleApi.getSchedules({ size: 100 });
-      if (res && Array.isArray(res.content)) {
-        setSchedules(res.content);
+      const [res, debtRes] = await Promise.all([
+        scheduleApi.getSchedules({ size: 100 }).catch(() => []),
+        debtApi.getDebts().catch(() => ({ debts: [] })),
+      ]);
+
+      if (res && Array.isArray((res as any).content)) {
+        setSchedules((res as any).content);
       } else if (Array.isArray(res)) {
         setSchedules(res);
       } else {
         setSchedules([]);
       }
+
+      const debtList = Array.isArray(debtRes) ? debtRes : (debtRes as any)?.debts || [];
+      setDebts(Array.isArray(debtList) ? debtList : []);
     } catch (err: any) {
       console.error('Lỗi tải lịch:', err);
       onNotify(err?.response?.data?.message || 'Không thể tải danh sách lịch');
@@ -258,7 +274,11 @@ export function FinancialRemindersScreen({ onNotify }: Props) {
     for (let d = 1; d <= totalDaysInMonth; d++) {
       const dateStr = toLocalDateStr(year, month, d);
 
-      const dayItems = schedules.filter((s) => {
+      // 1. Lọc từ schedules
+      const daySchedItems = schedules.filter((s) => {
+        const sName = (s.name || '').trim();
+        if (sName.startsWith('Trả nợ:') || sName.startsWith('Thu nợ:')) return false;
+
         if (!s.next_occurrence) return false;
         const occDateOnly = s.next_occurrence.split('T')[0];
 
@@ -267,7 +287,6 @@ export function FinancialRemindersScreen({ onNotify }: Props) {
 
         // Nếu là lịch định kỳ Hàng tháng
         if (s.recurrence_text && (s.recurrence_text.includes('Hàng tháng') || s.recurrence_text.includes('tháng'))) {
-          // 1. Kiểm tra ngày trong tháng có khớp không
           const parts = occDateOnly.split('-');
           if (parts.length === 3) {
             const occDay = parseInt(parts[2], 10);
@@ -276,28 +295,12 @@ export function FinancialRemindersScreen({ onNotify }: Props) {
             return false;
           }
 
-          // 2. Kiểm tra giới hạn start_date (không hiện trước ngày bắt đầu)
           const sStart = s.start_date ? s.start_date.split('T')[0] : occDateOnly;
           if (dateStr < sStart) return false;
 
-          // 3. Kiểm tra giới hạn end_date (nếu có thì không hiện sau ngày kết thúc)
           if (s.end_date) {
             const sEnd = s.end_date.split('T')[0];
             if (dateStr > sEnd) return false;
-          }
-
-          // 4. Nếu trong recurrence_rule có COUNT=N (ví dụ COUNT=2)
-          if (s.recurrence_rule && s.recurrence_rule.includes('COUNT=')) {
-            const countMatch = s.recurrence_rule.match(/COUNT=(\d+)/);
-            if (countMatch) {
-              const maxCount = parseInt(countMatch[1], 10);
-              // Tính số tháng chênh lệch giữa ngày này và start_date
-              const [sy, sm] = sStart.split('-').map(Number);
-              const monthsDiff = (year - sy) * 12 + (month + 1 - sm);
-              if (monthsDiff < 0 || monthsDiff >= maxCount) {
-                return false;
-              }
-            }
           }
 
           return true;
@@ -305,6 +308,32 @@ export function FinancialRemindersScreen({ onNotify }: Props) {
 
         return false;
       });
+
+      // 2. Lọc từ debts (hiển thị khoản nợ đúng ngày hẹn)
+      const dayDebtItems: ScheduleListItem[] = [];
+      debts.forEach((debt) => {
+        const dDate = debt.due_date || debt.next_payment_date || '';
+        const dateOnly = dDate.includes('T') ? dDate.split('T')[0] : dDate;
+        if (dateOnly === dateStr) {
+          const isLend = debt.debt_type === 'LENDING';
+          const isPaid = debt.status === 'PAID' || debt.status === 'PAID_OFF' || debt.remaining === 0;
+          dayDebtItems.push({
+            id: Number(debt.id) || 999000 + Math.floor(Math.random() * 1000),
+            schedule_type: 'TRANSACTION',
+            name: `${isLend ? 'Thu nợ' : 'Trả nợ'}: ${debt.debtor_name || debt.creditor_name || 'Khoản nợ'}`,
+            recurrence_text: 'Một lần',
+            next_occurrence: dateStr,
+            status: isPaid ? 'COMPLETED' : 'ACTIVE',
+            transaction_template: {
+              type: isLend ? 'INCOME' : 'EXPENSE',
+              amount: String(debt.remaining || debt.principal_amount || 0),
+              category: isLend ? 'Thu nợ' : 'Trả nợ',
+            },
+          } as ScheduleListItem);
+        }
+      });
+
+      const dayItems = [...daySchedItems, ...dayDebtItems];
 
       days.push({
         dateStr,
@@ -329,7 +358,7 @@ export function FinancialRemindersScreen({ onNotify }: Props) {
     }
 
     return days;
-  }, [currentDate, schedules]);
+  }, [currentDate, schedules, debts]);
 
   // 4. Thống kê dòng tiền theo tháng
   const monthlyCashflow = useMemo(() => {
@@ -337,7 +366,12 @@ export function FinancialRemindersScreen({ onNotify }: Props) {
     let expenseMonth = 0;
     let activeCount = 0;
 
+    const [curYear, curMonth] = [currentDate.getFullYear(), currentDate.getMonth() + 1];
+
     schedules.forEach((s) => {
+      const sName = (s.name || '').trim();
+      if (sName.startsWith('Trả nợ:') || sName.startsWith('Thu nợ:')) return;
+
       if (s.status === 'ACTIVE') {
         activeCount++;
         const amt = Number(s.transaction_template?.amount) || 0;
@@ -347,15 +381,71 @@ export function FinancialRemindersScreen({ onNotify }: Props) {
       }
     });
 
+    debts.forEach((debt) => {
+      const dDate = debt.due_date || debt.next_payment_date || '';
+      if (dDate) {
+        const parts = dDate.split('T')[0].split('-');
+        if (parts.length === 3) {
+          const dy = parseInt(parts[0], 10);
+          const dm = parseInt(parts[1], 10);
+          if (dy === curYear && dm === curMonth) {
+            const isPaid = debt.status === 'PAID' || debt.status === 'PAID_OFF' || debt.remaining === 0;
+            if (!isPaid) {
+              activeCount++;
+              const amt = debt.remaining || debt.principal_amount || 0;
+              if (debt.debt_type === 'LENDING') incomeMonth += amt;
+              else expenseMonth += amt;
+            }
+          }
+        }
+      }
+    });
+
     const netCashflow = incomeMonth - expenseMonth;
     return { incomeMonth, expenseMonth, netCashflow, activeCount };
-  }, [schedules]);
+  }, [schedules, debts, currentDate]);
 
   // Danh sách sự kiện của ngày đang chọn
   const selectedDateEvents = useMemo(() => {
     const curDay = calendarDays.find((d) => d.dateStr === selectedCalendarDate);
     return curDay ? curDay.items : [];
   }, [calendarDays, selectedCalendarDate]);
+
+  // Danh sách kết hợp cho Timeline (Lịch định kỳ + Khoản nợ)
+  const allTimelineItems = useMemo(() => {
+    const list: ScheduleListItem[] = [];
+
+    // 1. Thêm từ schedules (bỏ các bản ghi nợ phụ)
+    schedules.forEach((s) => {
+      const sName = (s.name || '').trim();
+      if (sName.startsWith('Trả nợ:') || sName.startsWith('Thu nợ:')) return;
+      list.push(s);
+    });
+
+    // 2. Thêm từ debts
+    debts.forEach((debt) => {
+      const isLend = debt.debt_type === 'LENDING';
+      const isPaid = debt.status === 'PAID' || debt.status === 'PAID_OFF' || debt.remaining === 0;
+      const dDate = debt.due_date || debt.next_payment_date || '';
+      const dateOnly = dDate.includes('T') ? dDate.split('T')[0] : dDate;
+
+      list.push({
+        id: Number(debt.id) || 999000 + Math.floor(Math.random() * 1000),
+        schedule_type: 'TRANSACTION',
+        name: `${isLend ? 'Thu nợ' : 'Trả nợ'}: ${debt.debtor_name || debt.creditor_name || 'Khoản nợ'}`,
+        recurrence_text: 'Một lần',
+        next_occurrence: dateOnly,
+        status: isPaid ? 'COMPLETED' : 'ACTIVE',
+        transaction_template: {
+          type: isLend ? 'INCOME' : 'EXPENSE',
+          amount: String(debt.remaining || debt.principal_amount || 0),
+          category: isLend ? 'Thu nợ' : 'Trả nợ',
+        },
+      } as ScheduleListItem);
+    });
+
+    return list;
+  }, [schedules, debts]);
 
   // Chọn nút nhanh (Quick Preset)
   const handleApplyPreset = (preset: typeof PRESETS[0]) => {
@@ -726,7 +816,7 @@ export function FinancialRemindersScreen({ onNotify }: Props) {
                     title="Tháng trước"
                     className="grid size-8 place-items-center rounded-lg border border-[#e2e8e4] text-[#34463b] hover:bg-[#f1f5f2]"
                   >
-                    ‹
+                    <FinanceIcon name="chevron-left" size={16} />
                   </button>
                   <button
                     type="button"
@@ -734,7 +824,7 @@ export function FinancialRemindersScreen({ onNotify }: Props) {
                     title="Tháng sau"
                     className="grid size-8 place-items-center rounded-lg border border-[#e2e8e4] text-[#34463b] hover:bg-[#f1f5f2]"
                   >
-                    ›
+                    <FinanceIcon name="chevron-right" size={16} />
                   </button>
                 </div>
               </div>
@@ -935,13 +1025,13 @@ export function FinancialRemindersScreen({ onNotify }: Props) {
               <div className="flex h-40 items-center justify-center">
                 <div className="size-6 animate-spin rounded-full border-2 border-[#07543f] border-t-transparent" />
               </div>
-            ) : schedules.length === 0 ? (
+            ) : allTimelineItems.length === 0 ? (
               <div className="py-12 text-center text-xs text-[#718078]">
                 Chưa có lịch nào. Hãy bấm "Thêm lịch mới" để bắt đầu!
               </div>
             ) : (
               <div className="space-y-3">
-                {schedules.map((item) => {
+                {allTimelineItems.map((item) => {
                   const isIncome = item.transaction_template?.type === 'INCOME';
                   const isReminder = item.schedule_type === 'REMINDER';
                   const isPaused = item.status === 'PAUSED';
@@ -1125,7 +1215,8 @@ export function FinancialRemindersScreen({ onNotify }: Props) {
                 onClick={() => handleOpenEditSchedule(selectedSchedule)}
                 className="rounded-xl border border-[#07543f] bg-[#07543f] px-4 py-2.5 text-xs font-semibold text-white hover:bg-[#064735] transition shadow-sm flex items-center gap-1.5"
               >
-                <span>✏️ Chỉnh sửa</span>
+                <FinanceIcon name="edit" size={14} />
+                <span>Chỉnh sửa</span>
               </button>
               <button
                 type="button"

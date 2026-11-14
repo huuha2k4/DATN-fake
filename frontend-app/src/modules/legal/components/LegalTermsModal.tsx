@@ -7,6 +7,7 @@ import {
   Text,
   View,
 } from 'react-native';
+import { FileText, X } from 'lucide-react-native';
 
 interface LegalTermsModalProps {
   visible: boolean;
@@ -39,7 +40,7 @@ export function LegalTermsModal({
           {/* Header */}
           <View style={modalStyles.header}>
             <View style={modalStyles.titleWrap}>
-              <Text style={modalStyles.icon}>📜</Text>
+              <FileText size={22} color="#006747" strokeWidth={2.2} />
               <View>
                 <Text style={modalStyles.title}>
                   {activeTab === 'terms' ? 'Điều khoản dịch vụ' : 'Chính sách bảo mật'}
@@ -48,7 +49,7 @@ export function LegalTermsModal({
               </View>
             </View>
             <Pressable onPress={onClose} style={modalStyles.closeBtn} hitSlop={12}>
-              <Text style={modalStyles.closeText}>✕</Text>
+              <X size={18} color="#475569" strokeWidth={2.2} />
             </Pressable>
           </View>
 

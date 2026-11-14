@@ -1,7 +1,7 @@
 import React from 'react';
-import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import Svg, { Path, Rect, Circle } from 'react-native-svg';
+import { Home, ArrowLeftRight, ScanLine, Users, User } from 'lucide-react-native';
 
 export type TabKey = 'home' | 'transactions' | 'budget' | 'goals' | 'group';
 
@@ -52,11 +52,11 @@ export function BottomNav({
               currentTab === 'home' && styles.iconPillActive,
             ]}
           >
-            {/* Icon ngôi nhà vector phẳng */}
-            <Svg width={22} height={22} viewBox="0 0 24 24" fill={currentTab === 'home' ? '#00A86B' : 'none'} stroke={currentTab === 'home' ? '#00A86B' : '#475569'} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
-              <Path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
-              <Path d="M9 22V12h6v10" />
-            </Svg>
+            <Home
+              size={22}
+              color={currentTab === 'home' ? '#00A86B' : '#475569'}
+              strokeWidth={currentTab === 'home' ? 2.4 : 2}
+            />
           </View>
           <Text
             style={[
@@ -81,10 +81,11 @@ export function BottomNav({
               currentTab === 'transactions' && styles.iconPillActive,
             ]}
           >
-            {/* Icon 2 mũi tên đối xứng qua lại vector */}
-            <Svg width={22} height={22} viewBox="0 0 24 24" fill="none" stroke={currentTab === 'transactions' ? '#00A86B' : '#475569'} strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round">
-              <Path d="M20 7H4m0 0l4-4M4 7l4 4M4 17h16m0 0l-4-4m4 4l-4 4" />
-            </Svg>
+            <ArrowLeftRight
+              size={22}
+              color={currentTab === 'transactions' ? '#00A86B' : '#475569'}
+              strokeWidth={currentTab === 'transactions' ? 2.4 : 2}
+            />
           </View>
           <Text
             style={[
@@ -104,18 +105,7 @@ export function BottomNav({
             accessibilityRole="button"
             accessibilityLabel="Quét hóa đơn"
           >
-            {/* Icon Quét hóa đơn (Khung scan + Tờ hóa đơn có răng cưa) */}
-            <Svg width={28} height={28} viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
-              {/* 4 góc khung ngắm máy quét */}
-              <Path d="M3 7V5a2 2 0 0 1 2-2h2" />
-              <Path d="M17 3h2a2 2 0 0 1 2 2v2" />
-              <Path d="M21 17v2a2 2 0 0 1-2 2h-2" />
-              <Path d="M7 21H5a2 2 0 0 1-2-2v-2" />
-              {/* Tờ hóa đơn ở giữa */}
-              <Path d="M7 8h10v8l-2-1-3 1-3-1-2 1V8z" />
-              <Path d="M10 11h4" />
-              <Path d="M10 14h2" />
-            </Svg>
+            <ScanLine size={30} color="#FFFFFF" strokeWidth={2.4} />
           </Pressable>
         </View>
 
@@ -132,13 +122,11 @@ export function BottomNav({
               currentTab === 'group' && styles.iconPillActive,
             ]}
           >
-            {/* Icon 3 người nhóm vector */}
-            <Svg width={22} height={22} viewBox="0 0 24 24" fill="none" stroke={currentTab === 'group' ? '#00A86B' : '#475569'} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
-              <Path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
-              <Circle cx="9" cy="7" r="4" />
-              <Path d="M22 21v-2a4 4 0 0 0-3-3.87" />
-              <Path d="M16 3.13a4 4 0 0 1 0 7.75" />
-            </Svg>
+            <Users
+              size={22}
+              color={currentTab === 'group' ? '#00A86B' : '#475569'}
+              strokeWidth={currentTab === 'group' ? 2.4 : 2}
+            />
           </View>
           <Text
             style={[
@@ -163,11 +151,11 @@ export function BottomNav({
               currentTab === 'profile' && styles.iconPillActive,
             ]}
           >
-            {/* Icon người cá nhân vector */}
-            <Svg width={22} height={22} viewBox="0 0 24 24" fill="none" stroke={currentTab === 'profile' ? '#00A86B' : '#475569'} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
-              <Path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
-              <Circle cx="12" cy="7" r="4" />
-            </Svg>
+            <User
+              size={22}
+              color={currentTab === 'profile' ? '#00A86B' : '#475569'}
+              strokeWidth={currentTab === 'profile' ? 2.4 : 2}
+            />
           </View>
           <Text
             style={[

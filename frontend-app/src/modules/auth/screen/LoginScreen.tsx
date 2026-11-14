@@ -11,7 +11,8 @@ import {
   useWindowDimensions,
   View,
 } from 'react-native';
-import Svg, { Circle, Path } from 'react-native-svg';
+import Svg, { Path } from 'react-native-svg';
+import { Eye, EyeOff, ChevronLeft, AlertTriangle } from 'lucide-react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { authApi, API_BASE_URL } from '../api/authApi';
 import { styles } from './LoginScreen.styles';
@@ -101,7 +102,7 @@ export function LoginScreen({
                 accessibilityLabel="Quay lại"
                 hitSlop={8}
               >
-                <Text style={styles.loginBackArrow}>‹</Text>
+                <ChevronLeft size={18} color="#FFFFFF" strokeWidth={2.5} />
                 <Text style={styles.loginBackText}>Quay lại</Text>
               </Pressable>
 
@@ -135,7 +136,7 @@ export function LoginScreen({
               {/* Thông báo lỗi nếu có */}
               {error ? (
                 <View style={styles.alertBox}>
-                  <Text style={styles.alertIcon}>⚠️</Text>
+                  <AlertTriangle size={16} color="#DC2626" strokeWidth={2.2} />
                   <Text style={styles.alertText}>{error}</Text>
                 </View>
               ) : null}
@@ -217,34 +218,9 @@ export function LoginScreen({
                     accessibilityLabel={showPassword ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'}
                   >
                     {showPassword ? (
-                      /* Eye Open Icon - Tinh tế, đơn giản */
-                      <Svg width={20} height={20} viewBox="0 0 24 24" fill="none">
-                        <Path
-                          d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"
-                          stroke="#6b7571"
-                          strokeWidth={1.8}
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                        />
-                        <Circle
-                          cx={12}
-                          cy={12}
-                          r={3}
-                          stroke="#6b7571"
-                          strokeWidth={1.8}
-                        />
-                      </Svg>
+                      <Eye size={20} color="#6b7571" strokeWidth={1.8} />
                     ) : (
-                      /* Eye Off (Gạch chéo) Icon - Hiện đại, rõ ràng */
-                      <Svg width={20} height={20} viewBox="0 0 24 24" fill="none">
-                        <Path
-                          d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24M1 1l22 22"
-                          stroke="#8c9c93"
-                          strokeWidth={1.8}
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                        />
-                      </Svg>
+                      <EyeOff size={20} color="#8c9c93" strokeWidth={1.8} />
                     )}
                   </Pressable>
                 </View>

@@ -60,4 +60,6 @@ public interface GroupExpenseRepository extends JpaRepository<GroupExpense, UUID
     @Query("SELECT COUNT(ge) FROM GroupExpense ge " +
            "WHERE ge.groupId = :groupId AND ge.deletedAt IS NULL")
     long countByGroupId(@Param("groupId") UUID groupId);
+
+    Optional<GroupExpense> findByPersonalTransactionId(UUID personalTransactionId);
 }

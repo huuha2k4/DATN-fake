@@ -1,4 +1,4 @@
-import { API_BASE_URL, authStorage } from '../../auth/api/authApi';
+import { API_BASE_URL, authStorage, authFetch } from '../../auth/api/authApi';
 
 export type TransactionType = 'EXPENSE' | 'INCOME' | 'TRANSFER';
 
@@ -26,9 +26,24 @@ export interface CreateTransactionPayload {
   amount: number;
   currencyCode: string;
   description?: string;
+  note?: string;
   transactionDate: string;
   transactionTime?: string;
   categoryId?: string;
+  receiptId?: string;
+  receiptUrl?: string;
+}
+
+export interface UpdateTransactionPayload {
+  amount?: number;
+  description?: string;
+  note?: string;
+  transactionDate?: string;
+  transactionTime?: string;
+  categoryId?: string;
+  accountId?: string;
+  toAccountId?: string;
+  version?: number;
 }
 
 export const transactionApi = {
@@ -36,18 +51,12 @@ export const transactionApi = {
    * Lấy danh mục thu chi thực tế từ Backend (/api/v1/categories)
    */
   async getCategories(kind?: 'INCOME' | 'EXPENSE'): Promise<CategoryItem[]> {
-    const token = authStorage.getToken();
     try {
       const url = new URL(`${API_BASE_URL}/categories`);
       url.searchParams.append('includeSystem', 'true');
       if (kind) url.searchParams.append('kind', kind);
 
-      const res = await fetch(url.toString(), {
-        headers: {
-          'Content-Type': 'application/json',
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
-      });
+      const res = await authFetch(url.toString());
 
       if (!res.ok) return [];
       const json = await res.json();
@@ -61,14 +70,8 @@ export const transactionApi = {
    * Lấy danh sách tài khoản / ví từ Backend (/api/v1/accounts)
    */
   async getAccounts(): Promise<AccountItem[]> {
-    const token = authStorage.getToken();
     try {
-      const res = await fetch(`${API_BASE_URL}/accounts`, {
-        headers: {
-          'Content-Type': 'application/json',
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
-      });
+      const res = await authFetch(`${API_BASE_URL}/accounts`);
 
       if (!res.ok) return [];
       const json = await res.json();
@@ -82,14 +85,9 @@ export const transactionApi = {
    * Tạo giao dịch thu/chi/chuyển khoản (/api/v1/transactions)
    */
   async createTransaction(payload: CreateTransactionPayload): Promise<{ success: boolean; data?: any; message?: string }> {
-    const token = authStorage.getToken();
     try {
-      const res = await fetch(`${API_BASE_URL}/transactions`, {
+      const res = await authFetch(`${API_BASE_URL}/transactions`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
         body: JSON.stringify(payload),
       });
 
@@ -105,6 +103,73 @@ export const transactionApi = {
         success: true,
         data: json?.data || json,
       };
+    } catch (err: any) {
+      return {
+        success: false,
+        message: err?.message || 'Lỗi kết nối máy chủ.',
+      };
+    }
+  },
+
+  /**
+   * Cập nhật thông tin giao dịch (/api/v1/transactions/{id})
+   */
+  async updateTransaction(
+    id: string,
+    payload: UpdateTransactionPayload
+  ): Promise<{ success: boolean; data?: any; message?: string }> {
+    try {
+      const res = await authFetch(`${API_BASE_URL}/transactions/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify(payload),
+      });
+
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        return {
+          success: false,
+          message: json?.message || 'Không thể cập nhật giao dịch. Vui lòng thử lại.',
+        };
+      }
+
+      return {
+        success: true,
+        data: json?.data || json,
+      };
+    } catch (err: any) {
+      return {
+        success: false,
+        message: err?.message || 'Lỗi kết nối máy chủ.',
+      };
+    }
+  },
+
+  /**
+   * Xóa giao dịch và hoàn trả lại số dư ví (/api/v1/transactions/{id})
+   */
+  async deleteTransaction(
+    id: string,
+    version?: number
+  ): Promise<{ success: boolean; message?: string }> {
+    try {
+      const url = new URL(`${API_BASE_URL}/transactions/${id}`);
+      if (version != null) {
+        url.searchParams.append('version', String(version));
+      }
+
+      const res = await authFetch(url.toString(), {
+        method: 'DELETE',
+      });
+
+      if (!res.ok) {
+        const json = await res.json().catch(() => ({}));
+        return {
+          success: false,
+          message: json?.message || 'Không thể xóa giao dịch. Vui lòng thử lại.',
+        };
+      }
+
+      return { success: true };
     } catch (err: any) {
       return {
         success: false,

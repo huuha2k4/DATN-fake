@@ -31,7 +31,11 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 /**
  * Service for authentication operations
@@ -44,6 +48,22 @@ public class AuthService {
     private final UserRepository userRepository;
     private final AuthTokenRepository authTokenRepository;
     private final TokenService tokenService;
+
+    @Transactional(readOnly = true)
+    public List<Map<String, Object>> getActiveDevices(User user) {
+        return tokenService.getActiveSessions(user.getId()).stream()
+                .filter(rt -> !rt.isExpired())
+                .map(rt -> {
+                    Map<String, Object> map = new HashMap<>();
+                    map.put("id", rt.getId());
+                    map.put("deviceId", rt.getDeviceId());
+                    map.put("deviceName", rt.getDeviceName());
+                    map.put("createdAt", rt.getCreatedAt());
+                    map.put("expiresAt", rt.getExpiresAt());
+                    return map;
+                })
+                .collect(Collectors.toList());
+    }
     private final PasswordEncoder passwordEncoder;
     private final JwtTokenProvider jwtTokenProvider;
     private final EmailService emailService;
@@ -259,10 +279,40 @@ public class AuthService {
         String deviceName = request.getDeviceName();
         String ipAddress = getClientIP(httpRequest);
 
-        // TODO: Check if MFA is enabled and return MFA challenge
+        // Check if MFA / 2FA is enabled
         if (user.isMfaEnabled()) {
-            // Return MFA required response
-            // This will be implemented later
+            if (request.getOtp() == null || request.getOtp().isBlank()) {
+                // Generate and send 2FA OTP via email
+                String otp = generate6DigitOtp(user, com.finance.finance.common.enums.TokenType.PASSWORD_RESET);
+                try {
+                    emailService.sendVerificationOtpEmail(user.getEmail(), user.getFullName() != null ? user.getFullName() : "bạn", otp);
+                } catch (Exception e) {
+                    log.error("Failed to send 2FA OTP email", e);
+                }
+                return AuthResponse.builder()
+                        .requires2fa(true)
+                        .message("Mã xác thực 2 bước (2FA) đã được gửi đến email của bạn")
+                        .build();
+            } else {
+                // Verify provided 2FA OTP
+                String inputOtp = request.getOtp().trim();
+                AuthToken authToken = authTokenRepository.findByEmailAndTokenAndTokenType(
+                                user.getEmail().trim().toLowerCase(),
+                                inputOtp,
+                                com.finance.finance.common.enums.TokenType.PASSWORD_RESET
+                        )
+                        .filter(t -> !t.isUsed() && t.getExpiresAt().isAfter(Instant.now()))
+                        .orElse(null);
+
+                if (authToken == null) {
+                    // Try finding by user ID
+                    authToken = authTokenRepository.findByTokenAndTokenType(inputOtp, com.finance.finance.common.enums.TokenType.PASSWORD_RESET)
+                            .filter(t -> t.getUser() != null && t.getUser().getId().equals(user.getId()) && !t.isUsed() && t.getExpiresAt().isAfter(Instant.now()))
+                            .orElseThrow(() -> new BusinessException("Mã xác thực 2FA không đúng hoặc đã hết hạn"));
+                }
+                authToken.setUsed(true);
+                authTokenRepository.save(authToken);
+            }
         }
 
         // Generate auth tokens

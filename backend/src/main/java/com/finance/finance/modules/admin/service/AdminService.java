@@ -42,7 +42,7 @@ public class AdminService {
     private final com.finance.finance.modules.debt.repository.DebtRepository debtRepository;
     private final com.finance.finance.modules.notification.repository.NotificationRepository notificationRepository;
     private final com.finance.finance.modules.admin.repository.AuditLogRepository auditLogRepository;
-    private final com.finance.finance.modules.admin.repository.FeedbackRepository feedbackRepository;
+    private final com.finance.finance.modules.feedback.repository.FeedbackRepository feedbackRepository;
     private final com.finance.finance.modules.admin.repository.NotificationTemplateRepository notificationTemplateRepository;
     private final com.finance.finance.modules.admin.repository.SystemSettingRepository systemSettingRepository;
     private final javax.sql.DataSource dataSource;
@@ -553,7 +553,7 @@ public class AdminService {
     // 7. Quản lý Phản hồi & Hỗ trợ (Feedbacks & Support) - LƯU & ĐỌC DATABASE THẬT
     @Transactional(readOnly = true)
     public List<com.finance.finance.modules.admin.dto.response.AdminFeedbackItem> listFeedbacks(String status, String category) {
-        List<com.finance.finance.modules.admin.entity.Feedback> feedbacks = feedbackRepository.findWithFilters(
+        List<com.finance.finance.modules.feedback.entity.Feedback> feedbacks = feedbackRepository.findWithFilters(
                 status != null && !status.isBlank() ? status.trim().toUpperCase() : null,
                 category != null && !category.isBlank() ? category.trim().toUpperCase() : null
         );
@@ -583,7 +583,7 @@ public class AdminService {
     @Transactional
     public com.finance.finance.modules.admin.dto.response.AdminFeedbackItem replyFeedback(
             UUID feedbackId, com.finance.finance.modules.admin.dto.request.AdminReplyFeedbackRequest request) {
-        com.finance.finance.modules.admin.entity.Feedback feedback = feedbackRepository.findById(feedbackId)
+        com.finance.finance.modules.feedback.entity.Feedback feedback = feedbackRepository.findById(feedbackId)
                 .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy phản hồi với ID: " + feedbackId));
 
         feedback.setAdminReply(request.getReply().trim());
@@ -723,6 +723,15 @@ public class AdminService {
 
         return notificationTemplateRepository.findAll().stream()
                 .map(t -> {
+                    // Đảm bảo template báo cáo tuần luôn hiển thị đúng lịch 08:00 sáng Thứ Hai
+                    if ("AUTO_WEEKLY_REPORT".equals(t.getCode()) || "WEEKLY_SPENDING_REPORT".equals(t.getTriggerEvent())) {
+                        if (!"0 0 8 ? * MON".equals(t.getScheduleCron())) {
+                            t.setScheduleCron("0 0 8 ? * MON");
+                            t.setTitle("📊 Báo cáo tài chính tuần của bạn đã sẵn sàng!");
+                            notificationTemplateRepository.save(t);
+                        }
+                    }
+
                     // Đếm chính xác số lượng thông báo thật đã gửi trong DB
                     long realDispatchedCount = allNotifications.stream()
                             .filter(n -> n.getTitle() != null && (
@@ -730,7 +739,7 @@ public class AdminService {
                                     t.getTitle().toLowerCase().contains(n.getTitle().toLowerCase()) ||
                                     n.getTitle().contains("Chào mừng bạn") && t.getCode().contains("WELCOME") ||
                                     n.getTitle().contains("Đầu tháng") && t.getCode().contains("MONTHLY") ||
-                                    n.getTitle().contains("Báo cáo tài chính") && t.getCode().contains("WEEKLY") ||
+                                    (n.getTitle().contains("Báo cáo tài chính") || n.getType() == com.finance.finance.common.enums.NotificationType.WEEKLY_SUMMARY) && t.getCode().contains("WEEKLY") ||
                                     n.getTitle().contains("Gói cước") && t.getCode().contains("VIP") ||
                                     n.getTitle().contains("chưa ghi nhận") && t.getCode().contains("DAILY") ||
                                     n.getTitle().contains("quét hóa đơn") && t.getCode().contains("OCR")

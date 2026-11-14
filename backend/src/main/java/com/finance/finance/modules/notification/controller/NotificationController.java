@@ -4,6 +4,7 @@ import com.finance.finance.common.enums.NotificationPriority;
 import com.finance.finance.common.enums.NotificationType;
 import com.finance.finance.modules.notification.dto.request.RegisterDeviceRequest;
 import com.finance.finance.modules.notification.dto.request.UnregisterDeviceRequest;
+import com.finance.finance.modules.notification.dto.request.UpdateNotificationSettingsRequest;
 import com.finance.finance.modules.notification.dto.response.*;
 import com.finance.finance.modules.notification.service.NotificationDeviceService;
 import com.finance.finance.modules.notification.service.NotificationService;
@@ -202,6 +203,38 @@ public class NotificationController {
         responseBody.put("success", true);
         responseBody.put("message", "Thiết bị đã được hủy đăng ký");
 
+        return ResponseEntity.ok(responseBody);
+    }
+
+    /**
+     * GET /api/v1/notifications/settings - Get current user notification settings
+     */
+    @GetMapping("/settings")
+    public ResponseEntity<Map<String, Object>> getNotificationSettings(@AuthenticationPrincipal User user) {
+        log.info("GET /api/v1/notifications/settings - user: {}", user.getId());
+        NotificationSettingsResponse settings = notificationService.getNotificationSettings(user.getId());
+
+        Map<String, Object> responseBody = new HashMap<>();
+        responseBody.put("success", true);
+        responseBody.put("data", settings);
+        return ResponseEntity.ok(responseBody);
+    }
+
+    /**
+     * PUT /api/v1/notifications/settings - Update notification settings
+     */
+    @PutMapping("/settings")
+    public ResponseEntity<Map<String, Object>> updateNotificationSettings(
+            @AuthenticationPrincipal User user,
+            @RequestBody UpdateNotificationSettingsRequest request
+    ) {
+        log.info("PUT /api/v1/notifications/settings - user: {}", user.getId());
+        NotificationSettingsResponse updated = notificationService.updateNotificationSettings(user.getId(), request);
+
+        Map<String, Object> responseBody = new HashMap<>();
+        responseBody.put("success", true);
+        responseBody.put("data", updated);
+        responseBody.put("message", "Cập nhật cài đặt thông báo thành công");
         return ResponseEntity.ok(responseBody);
     }
 }

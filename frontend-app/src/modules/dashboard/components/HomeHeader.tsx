@@ -1,9 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
-import Svg, { Path } from 'react-native-svg';
-import { themeTokens } from '../themeTokens';
+import { Bell } from 'lucide-react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { authStorage } from '../../auth/api/authApi';
 import { userProfileApi } from '../../profile/api/userProfileApi';
+import { notificationApi } from '../../notifications/api';
 
 type Props = {
   onNotifications?: () => void;
@@ -23,6 +24,26 @@ function getGreetingByHour(hours: number): string {
 export function HomeHeader({ onNotifications, onProfile }: Props) {
   const [greeting, setGreeting] = useState(() => getGreetingByHour(new Date().getHours()));
   const [userProfile, setUserProfile] = useState(() => authStorage.getUser());
+  const [unreadCount, setUnreadCount] = useState(0);
+
+  // Tự động kiểm tra số lượng thông báo chưa đọc
+  useEffect(() => {
+    let isMounted = true;
+    const fetchUnread = () => {
+      notificationApi
+        .getUnreadCount()
+        .then((count) => {
+          if (isMounted) setUnreadCount(count || 0);
+        })
+        .catch(() => {});
+    };
+    fetchUnread();
+    const interval = setInterval(fetchUnread, 15000);
+    return () => {
+      isMounted = false;
+      clearInterval(interval);
+    };
+  }, []);
 
   // Tự động gọi API lấy thông tin người dùng và avatar mới nhất
   useEffect(() => {
@@ -54,11 +75,13 @@ export function HomeHeader({ onNotifications, onProfile }: Props) {
   }, []);
 
   const displayName = userProfile?.fullName || authStorage.getUser()?.fullName || 'bạn';
-  const fullAvatarUrl = userProfileApi.formatAvatarUrl(userProfile?.avatarUrl || authStorage.getUser()?.avatarUrl);
+  const fullAvatarUrl = userProfileApi.formatAvatarUrl(
+    userProfile?.avatarUrl || authStorage.getUser()?.avatarUrl
+  );
 
   return (
     <View style={styles.container}>
-      {/* Cụm trái: Avatar thật của User + Lời chào + Tên */}
+      {/* Cụm trái: Avatar thật của User + Lời chào + Tên người dùng */}
       <Pressable
         onPress={onProfile}
         style={({ pressed }) => [styles.userProfileRow, pressed && styles.pressed]}
@@ -67,17 +90,9 @@ export function HomeHeader({ onNotifications, onProfile }: Props) {
       >
         <View style={styles.avatarWrap}>
           {fullAvatarUrl ? (
-            <Image
-              source={{ uri: fullAvatarUrl }}
-              style={styles.avatarImg}
-              resizeMode="cover"
-            />
+            <Image source={{ uri: fullAvatarUrl }} style={styles.avatarImg} resizeMode="cover" />
           ) : (
-            <Image
-              source={defaultAvatar}
-              style={styles.avatarImg}
-              resizeMode="cover"
-            />
+            <Image source={defaultAvatar} style={styles.avatarImg} resizeMode="cover" />
           )}
         </View>
 
@@ -89,21 +104,23 @@ export function HomeHeader({ onNotifications, onProfile }: Props) {
         </View>
       </Pressable>
 
-      {/* Cụm phải: Chuông thông báo xanh bo tròn với chấm đỏ */}
+      {/* Cụm phải: Nút Chuông thông báo tròn nền xanh gradient bóng 3D */}
       <View style={styles.rightActions}>
         <Pressable
           onPress={onNotifications}
-          style={({ pressed }) => [styles.bellButton, pressed && styles.pressed]}
+          style={({ pressed }) => [styles.settingsBtnOuter, pressed && styles.pressed]}
           hitSlop={8}
           accessibilityLabel="Thông báo"
         >
-          {/* Icon chuông vector trắng phẳng đơn giản */}
-          <Svg width={20} height={20} viewBox="0 0 24 24" fill="#FFFFFF">
-            <Path d="M12 2a5 5 0 0 0-5 5v3.17c0 .6-.24 1.17-.66 1.58L4.6 13.48A2 2 0 0 0 6 17h12a2 2 0 0 0 1.4-3.52l-1.74-1.73a2.23 2.23 0 0 1-.66-1.58V7a5 5 0 0 0-5-5Zm0 20a3 3 0 0 0 2.82-2H9.18A3 3 0 0 0 12 22Z" />
-          </Svg>
-
-          {/* Chấm đỏ thông báo viền xanh */}
-          <View style={styles.badgeDot} />
+          <LinearGradient
+            colors={['#43D988', '#0D9A5C', '#067346']}
+            start={{ x: 0.2, y: 0 }}
+            end={{ x: 0.85, y: 1 }}
+            style={styles.settingsBtnGradient}
+          >
+            <Bell size={21} color="#FFFFFF" strokeWidth={2.3} />
+          </LinearGradient>
+          {unreadCount > 0 && <View style={styles.unreadDot} />}
         </Pressable>
       </View>
     </View>
@@ -115,92 +132,89 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: themeTokens.spacing.md,
+    marginBottom: 14,
     paddingHorizontal: 2,
   },
   userProfileRow: {
     flexDirection: 'row',
     alignItems: 'center',
     flex: 1,
-    marginRight: 10,
+    marginRight: 12,
     gap: 12,
   },
   avatarWrap: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    borderWidth: 2,
-    borderColor: 'rgba(255, 255, 255, 0.45)',
-    position: 'relative',
+    width: 54,
+    height: 54,
+    borderRadius: 27,
+    borderWidth: 2.2,
+    borderColor: 'rgba(255, 255, 255, 0.82)',
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#0F765E',
-    shadowColor: '#000',
-    shadowOpacity: 0.15,
-    shadowRadius: 4,
-    shadowOffset: { width: 0, height: 2 },
-    elevation: 3,
+    backgroundColor: '#004D3B',
+    shadowColor: '#002E23',
+    shadowOpacity: 0.22,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 4,
   },
   avatarImg: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-  },
-  onlineStatusDot: {
-    position: 'absolute',
-    bottom: -1,
-    right: -1,
-    width: 13,
-    height: 13,
-    borderRadius: 6.5,
-    backgroundColor: '#10B981',
-    borderWidth: 2.2,
-    borderColor: '#054738',
+    width: 49,
+    height: 49,
+    borderRadius: 24.5,
   },
   greetingCol: {
     justifyContent: 'center',
     flexShrink: 1,
   },
   greetingText: {
-    fontSize: 12,
-    color: '#A8EBCA',
-    fontWeight: '500',
+    fontSize: 13,
+    color: 'rgba(255, 255, 255, 0.92)',
+    fontWeight: '600',
     letterSpacing: 0.1,
+    marginBottom: 2,
   },
   userNameText: {
-    fontSize: 16.5,
+    fontSize: 18.5,
     fontWeight: '800',
     color: '#FFFFFF',
-    letterSpacing: -0.2,
+    letterSpacing: -0.3,
   },
   rightActions: {
     flexDirection: 'row',
     alignItems: 'center',
   },
-  bellButton: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
-    backgroundColor: '#0F765E',
-    justifyContent: 'center',
-    alignItems: 'center',
+  settingsBtnOuter: {
+    width: 46,
+    height: 46,
+    borderRadius: 23,
+    padding: 1.5,
+    backgroundColor: 'rgba(255, 255, 255, 0.42)',
+    shadowColor: '#00382B',
+    shadowOpacity: 0.28,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 5,
     position: 'relative',
-    borderWidth: 1.5,
-    borderColor: 'rgba(255, 255, 255, 0.25)',
   },
-  badgeDot: {
+  settingsBtnGradient: {
+    flex: 1,
+    borderRadius: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  unreadDot: {
     position: 'absolute',
-    top: 4,
-    right: 4,
-    width: 11,
-    height: 11,
-    borderRadius: 5.5,
+    top: 2,
+    right: 2,
+    width: 9,
+    height: 9,
+    borderRadius: 4.5,
     backgroundColor: '#EF4444',
-    borderWidth: 2,
-    borderColor: '#0F765E',
+    borderWidth: 1.5,
+    borderColor: '#FFFFFF',
   },
   pressed: {
-    opacity: 0.82,
+    opacity: 0.86,
     transform: [{ scale: 0.96 }],
   },
 });

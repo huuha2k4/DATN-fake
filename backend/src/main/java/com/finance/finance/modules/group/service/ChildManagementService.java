@@ -148,8 +148,6 @@ public class ChildManagementService {
             wallet.setBalance(wallet.getBalance().subtract(request.getAmount()));
             wallet.setUpdatedAt(LocalDateTime.now());
             walletRepository.save(wallet);
-
-            // TODO: Create actual transaction
         }
 
         spendRequest = spendRequestRepository.save(spendRequest);
@@ -299,8 +297,6 @@ public class ChildManagementService {
         spendRequest.setRespondedAt(LocalDateTime.now());
         spendRequest.setUpdatedAt(LocalDateTime.now());
 
-        // TODO: Create actual transaction with transactionId from request
-
         spendRequest = spendRequestRepository.save(spendRequest);
 
         if (wallet.getUserId() != null) {
@@ -311,7 +307,7 @@ public class ChildManagementService {
                         NotificationPriority.HIGH,
                         "Yêu cầu xin tiền đã được duyệt! 🎉",
                         "Yêu cầu xin " + String.format("%,d", spendRequest.getAmount().longValue()) + "đ của bạn đã được duyệt và cộng vào ví.",
-                        "/child-wallet",
+                        "/groups?groupId=" + groupId + "&tab=CHILD_WALLETS&walletId=" + walletId + "&modal=SPEND_REQUESTS",
                         "Xem ví của em"
                 );
             } catch (Exception e) {
@@ -357,7 +353,7 @@ public class ChildManagementService {
                         NotificationPriority.NORMAL,
                         "Yêu cầu xin tiền chưa được duyệt",
                         "Yêu cầu xin " + String.format("%,d", spendRequest.getAmount().longValue()) + "đ của bạn chưa được chấp thuận." + reason,
-                        "/child-wallet",
+                        "/groups?groupId=" + groupId + "&tab=CHILD_WALLETS&walletId=" + walletId + "&modal=SPEND_REQUESTS",
                         "Xem ví của em"
                 );
             } catch (Exception e) {
@@ -433,7 +429,7 @@ public class ChildManagementService {
                         NotificationPriority.NORMAL,
                         "Bạn có nhiệm vụ mới! 🎯",
                         "Bạn vừa được giao nhiệm vụ: " + chore.getTitle() + "." + rewardStr,
-                        "/child-wallet",
+                        "/groups?groupId=" + groupId + "&tab=CHILD_WALLETS&walletId=" + walletId + "&modal=CHORES",
                         "Xem nhiệm vụ"
                 );
             } catch (Exception e) {
@@ -637,7 +633,7 @@ public class ChildManagementService {
                         NotificationPriority.HIGH,
                         "Nhiệm vụ đã được duyệt! 🎉",
                         "Nhiệm vụ " + chore.getTitle() + " đã được duyệt! Bạn được thưởng " + String.format("%,d", reward.longValue()) + "đ vào ví.",
-                        "/child-wallet",
+                        "/groups?groupId=" + groupId + "&tab=CHILD_WALLETS&walletId=" + walletId + "&modal=CHORES",
                         "Xem ví của em"
                 );
             } catch (Exception e) {
@@ -689,7 +685,7 @@ public class ChildManagementService {
                         NotificationPriority.NORMAL,
                         title,
                         message,
-                        "/child-wallet",
+                        "/groups?groupId=" + groupId + "&tab=CHILD_WALLETS&walletId=" + walletId + "&modal=CHORES",
                         "Xem nhiệm vụ"
                 );
             } catch (Exception e) {

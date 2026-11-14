@@ -1,11 +1,15 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
   Image,
+  KeyboardAvoidingView,
   Modal,
+  Platform,
   Pressable,
   RefreshControl,
   ScrollView,
+  StatusBar,
   StyleSheet,
   Text,
   TextInput,
@@ -13,10 +17,16 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { FinanceIcon, resolveCategoryIconName } from '../../core/components/FinanceIcon';
-import { transactionApi, type TransactionType } from '../../add-transaction/api/transactionApi';
+import {
+  transactionApi,
+  type CategoryItem,
+  type TransactionType,
+} from '../../add-transaction/api/transactionApi';
 import { API_BASE_URL, authStorage } from '../../auth/api/authApi';
 import { accountApi, type AccountItem, type AccountTypeCode } from '../../accounts/api/accountApi';
 import { findBankOrWalletPreset } from '../../accounts/constants/banksData';
+import { exportTransactionHistoryToExcel } from '../utils/exportTransactionHistoryHelper';
+import { ocrApi } from '../../scan-invoice/api';
 
 type Props = {
   onBack: () => void;
@@ -35,8 +45,11 @@ export interface TransactionItem {
   description: string;
   transactionDate: string;
   transactionTime?: string;
+  receiptId?: string;
   receiptUrl?: string;
+  note?: string;
   notes?: string;
+  version?: number;
   createdAt?: string;
   category?: {
     id: string;
@@ -77,17 +90,183 @@ export function TransactionsScreen({ onBack, onAddTransaction }: Props) {
   const [monthModalVisible, setMonthModalVisible] = useState(false);
   const [walletModalVisible, setWalletModalVisible] = useState(false);
   const [selectedTxDetail, setSelectedTxDetail] = useState<TransactionItem | null>(null);
+  const [fullReceiptUri, setFullReceiptUri] = useState<string | null>(null);
+
+  // Chế độ chỉnh sửa & xóa giao dịch ngay trong Modal Chi tiết
+  const [isEditingTx, setIsEditingTx] = useState(false);
+  const [editAmount, setEditAmount] = useState('');
+  const [editDescription, setEditDescription] = useState('');
+  const [editNote, setEditNote] = useState('');
+  const [editDate, setEditDate] = useState('');
+  const [editTime, setEditTime] = useState('');
+  const [editCategoryId, setEditCategoryId] = useState('');
+  const [editAccountId, setEditAccountId] = useState('');
+  const [editToAccountId, setEditToAccountId] = useState('');
+  const [editSubmitting, setEditSubmitting] = useState(false);
+  const [deleteSubmitting, setDeleteSubmitting] = useState(false);
+  const [categories, setCategories] = useState<CategoryItem[]>([]);
+  const [editPickerType, setEditPickerType] = useState<'NONE' | 'CATEGORY' | 'ACCOUNT' | 'TO_ACCOUNT'>('NONE');
 
   // Bộ lọc theo Ví / Nguồn tiền cụ thể (ALL hoặc accountId)
   const [selectedAccount, setSelectedAccount] = useState<string>('ALL');
   const [accounts, setAccounts] = useState<AccountItem[]>([]);
 
-  // Tải danh sách tài khoản/ví người dùng
-  useEffect(() => {
+  // Tải danh sách tài khoản/ví và danh mục người dùng
+  const reloadAccountsAndCategories = () => {
     accountApi.getAccounts().then((accList) => {
       setAccounts(accList || []);
     });
+    transactionApi.getCategories().then((catList) => {
+      setCategories(catList || []);
+    });
+  };
+
+  useEffect(() => {
+    reloadAccountsAndCategories();
   }, []);
+
+  // Mở chế độ chỉnh sửa cho giao dịch đang chọn
+  const handleStartEditTx = (tx: TransactionItem) => {
+    setEditAmount(new Intl.NumberFormat('vi-VN').format(tx.amount || 0));
+    setEditDescription(tx.description || '');
+    setEditNote(tx.note || tx.notes || '');
+    // Format YYYY-MM-DD -> DD/MM/YYYY cho dễ sửa
+    let formattedDate = tx.transactionDate || '';
+    if (formattedDate.includes('-')) {
+      const parts = formattedDate.split('-');
+      if (parts.length === 3) {
+        formattedDate = `${parts[2]}/${parts[1]}/${parts[0]}`;
+      }
+    }
+    setEditDate(formattedDate);
+    setEditTime(tx.transactionTime ? tx.transactionTime.slice(0, 5) : '12:00');
+    setEditCategoryId(tx.category?.id || '');
+    setEditAccountId(tx.accountId || '');
+    setEditToAccountId(tx.toAccountId || '');
+    setIsEditingTx(true);
+  };
+
+  // Lưu thay đổi giao dịch
+  const handleSaveEditTx = async () => {
+    if (!selectedTxDetail) return;
+    const numericAmount = parseInt(editAmount.replace(/\D/g, ''), 10) || 0;
+    if (numericAmount <= 0) {
+      Alert.alert('Số tiền chưa hợp lệ', 'Vui lòng nhập số tiền lớn hơn 0.');
+      return;
+    }
+
+    let isoDate = selectedTxDetail.transactionDate;
+    const cleanDate = editDate.trim();
+    if (cleanDate.includes('/')) {
+      const parts = cleanDate.split('/');
+      if (parts.length === 3) {
+        isoDate = `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
+      }
+    } else if (cleanDate.includes('-')) {
+      isoDate = cleanDate;
+    }
+
+    const cleanTime = editTime.trim();
+    const formattedTime = cleanTime.length === 5 ? `${cleanTime}:00` : cleanTime || undefined;
+
+    setEditSubmitting(true);
+    try {
+      const res = await transactionApi.updateTransaction(selectedTxDetail.id, {
+        amount: numericAmount,
+        description: editDescription.trim() || 'Giao dịch',
+        note: editNote.trim(),
+        transactionDate: isoDate,
+        transactionTime: formattedTime,
+        categoryId:
+          selectedTxDetail.transactionType !== 'TRANSFER' && editCategoryId
+            ? editCategoryId
+            : undefined,
+        accountId: editAccountId || selectedTxDetail.accountId,
+        toAccountId:
+          selectedTxDetail.transactionType === 'TRANSFER' && editToAccountId
+            ? editToAccountId
+            : undefined,
+        version: selectedTxDetail.version,
+      });
+
+      if (!res.success) {
+        Alert.alert('Không thể cập nhật', res.message || 'Vui lòng thử lại.');
+        return;
+      }
+
+      const updatedCat = categories.find((c) => c.id === editCategoryId) || selectedTxDetail.category;
+      const updatedAcc = accounts.find((a) => a.id === editAccountId);
+      const updatedToAcc = accounts.find((a) => a.id === editToAccountId);
+
+      const updatedItem: TransactionItem = {
+        ...selectedTxDetail,
+        ...(res.data || {}),
+        amount: numericAmount,
+        description: editDescription.trim() || 'Giao dịch',
+        note: editNote.trim(),
+        notes: editNote.trim(),
+        transactionDate: isoDate,
+        transactionTime: cleanTime.slice(0, 5),
+        accountId: editAccountId || selectedTxDetail.accountId,
+        accountName: updatedAcc?.name || selectedTxDetail.accountName,
+        toAccountId: editToAccountId || selectedTxDetail.toAccountId,
+        toAccountName: updatedToAcc?.name || selectedTxDetail.toAccountName,
+        category: updatedCat
+          ? {
+              id: updatedCat.id,
+              name: updatedCat.name,
+              icon: updatedCat.icon,
+              color: updatedCat.color,
+            }
+          : selectedTxDetail.category,
+      };
+
+      setSelectedTxDetail(updatedItem);
+      setIsEditingTx(false);
+      await fetchTransactions(true);
+      reloadAccountsAndCategories();
+      Alert.alert('Thành công', 'Đã cập nhật thông tin giao dịch và đồng bộ số dư ví.');
+    } catch (err: any) {
+      Alert.alert('Lỗi', err?.message || 'Không thể lưu thay đổi.');
+    } finally {
+      setEditSubmitting(false);
+    }
+  };
+
+  // Xác nhận và xóa giao dịch
+  const handleConfirmDeleteTx = (tx: TransactionItem) => {
+    Alert.alert(
+      'Xóa giao dịch?',
+      `Bạn có chắc chắn muốn xóa giao dịch "${tx.description || tx.category?.name || 'Giao dịch'}" (${formatVND(tx.amount)} đ)?\n\nSố dư ví liên quan sẽ được hoàn trả tự động.`,
+      [
+        { text: 'Hủy', style: 'cancel' },
+        {
+          text: 'Xóa giao dịch',
+          style: 'destructive',
+          onPress: async () => {
+            setDeleteSubmitting(true);
+            try {
+              const res = await transactionApi.deleteTransaction(tx.id, tx.version);
+              if (!res.success) {
+                Alert.alert('Không thể xóa', res.message || 'Vui lòng thử lại.');
+                return;
+              }
+              setFullReceiptUri(null);
+              setIsEditingTx(false);
+              setSelectedTxDetail(null);
+              await fetchTransactions(true);
+              reloadAccountsAndCategories();
+              Alert.alert('Đã xóa', 'Giao dịch đã được xóa và hoàn lại số dư ví.');
+            } catch (err: any) {
+              Alert.alert('Lỗi', err?.message || 'Không thể xóa giao dịch.');
+            } finally {
+              setDeleteSubmitting(false);
+            }
+          },
+        },
+      ]
+    );
+  };
 
   // Map accountId -> AccountItem để tra cứu nhanh thông tin ví
   const accountMap = useMemo(() => {
@@ -329,21 +508,22 @@ export function TransactionsScreen({ onBack, onAddTransaction }: Props) {
 
   return (
     <View style={styles.screen}>
-      {/* ── 1. HEADER XANH RỪNG SANG TRỌNG PHỦ TRÀN TAI THỎ ── */}
+      <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
+      {/* ── 1. HEADER THANH LỊCH NỀN TRẮNG ĐỒNG BỘ ── */}
       <View style={[styles.header, { paddingTop: Math.max(insets.top, 12) + 4 }]}>
-        <Pressable onPress={onBack} hitSlop={12} style={styles.backBtn}>
-          <Text style={styles.backIcon}>‹</Text>
-        </Pressable>
-        <Text style={styles.headerTitle}>Quản lý Thu & Chi</Text>
+        <View style={styles.headerLeftGroup}>
+          <Text style={styles.headerTitle}>Quản lý Thu & Chi</Text>
+        </View>
 
-        {/* Nút chọn tháng lọc nhanh */}
+        {/* Nút chọn tháng lọc nhanh đồng bộ phong cách Ngân sách */}
         <Pressable
           onPress={() => setMonthModalVisible(true)}
           style={styles.monthBadgeBtn}
           hitSlop={8}
         >
+          <FinanceIcon name="calendar" size={15} color="#047857" />
           <Text style={styles.monthBadgeText}>{selectedMonthLabel}</Text>
-          <Text style={styles.monthChevron}>⌄</Text>
+          <FinanceIcon name="chevron-down" size={13} color="#047857" />
         </Pressable>
       </View>
 
@@ -404,11 +584,11 @@ export function TransactionsScreen({ onBack, onAddTransaction }: Props) {
           </Text>
         </View>
 
-        {/* ── 3. HÀNG TÌM KIẾM & BỘ LỌC THẢ XUỐNG LOẠI VÍ ── */}
+        {/* ── 3. HÀNG TÌM KIẾM, BỘ LỌC VÍ & NÚT XUẤT EXCEL ── */}
         <View style={styles.filterRowContainer}>
           {/* Thanh tìm kiếm */}
           <View style={styles.searchBarBox}>
-            <Text style={styles.searchBarIcon}>⌕</Text>
+            <FinanceIcon name="search" size={16} color="#94A3B8" />
             <TextInput
               value={searchQuery}
               onChangeText={setSearchQuery}
@@ -418,7 +598,7 @@ export function TransactionsScreen({ onBack, onAddTransaction }: Props) {
             />
             {searchQuery ? (
               <Pressable onPress={() => setSearchQuery('')} hitSlop={8}>
-                <Text style={styles.clearSearchIcon}>✕</Text>
+                <FinanceIcon name="close" size={16} color="#94A3B8" />
               </Pressable>
             ) : null}
           </View>
@@ -444,6 +624,31 @@ export function TransactionsScreen({ onBack, onAddTransaction }: Props) {
               </Text>
               <Text style={styles.walletFilterDropdownChevron}>▾</Text>
             </View>
+          </Pressable>
+
+          {/* Nút Xuất Excel */}
+          <Pressable
+            onPress={() => {
+              const tabLabels: Record<string, string> = {
+                ALL: 'Tất cả',
+                EXPENSE: 'Tiền chi',
+                INCOME: 'Tiền thu',
+                TRANSFER: 'Chuyển khoản',
+              };
+              exportTransactionHistoryToExcel(filteredTransactions, {
+                monthLabel: selectedMonthLabel,
+                walletLabel: selectedAccount === 'ALL' ? 'Tất cả ví' : selectedAccountLabel,
+                tabLabel: tabLabels[activeTab] || 'Tất cả',
+                searchQuery: searchQuery.trim(),
+                activeTab,
+                selectedMonth,
+                summary: displayedSummary,
+              });
+            }}
+            style={styles.exportExcelBtn}
+          >
+            <Text style={styles.exportExcelIcon}>⤓</Text>
+            <Text style={styles.exportExcelText}>Xuất Excel</Text>
           </Pressable>
         </View>
 
@@ -571,6 +776,12 @@ export function TransactionsScreen({ onBack, onAddTransaction }: Props) {
                                   : tx.category?.name || (isIncome ? 'Thu nhập' : 'Chi tiêu')}
                               </Text>
                             </View>
+                            {tx.receiptUrl ? (
+                              <View style={styles.txReceiptBadge}>
+                                <FinanceIcon name="receipt" size={10} color="#059669" />
+                                <Text style={styles.txReceiptBadgeText}>Hóa đơn</Text>
+                              </View>
+                            ) : null}
                             <Text style={styles.txAccountName} numberOfLines={1}>
                               {isTransfer
                                 ? `${tx.accountName} → ${tx.toAccountName || 'Ví nhận'}`
@@ -732,7 +943,7 @@ export function TransactionsScreen({ onBack, onAddTransaction }: Props) {
         </View>
       </Modal>
 
-      {/* ── MODAL CHI TIẾT GIAO DỊCH (BOTTOM SHEET SANG TRỌNG) ── */}
+      {/* ── MODAL CHI TIẾT GIAO DỊCH (HỖ TRỢ XEM, CHỈNH SỬA & XÓA GIAO DỊCH) ── */}
       <Modal visible={Boolean(selectedTxDetail)} transparent animationType="slide">
         {selectedTxDetail && (() => {
           const isIncome = selectedTxDetail.transactionType === 'INCOME';
@@ -742,8 +953,13 @@ export function TransactionsScreen({ onBack, onAddTransaction }: Props) {
             selectedTxDetail.transactionType,
             selectedTxDetail.category?.name || selectedTxDetail.description
           );
-          const fromAccount = accountMap.get(selectedTxDetail.accountId);
-          const toAccount = selectedTxDetail.toAccountId ? accountMap.get(selectedTxDetail.toAccountId) : undefined;
+          const fromAccount = accountMap.get(isEditingTx ? editAccountId : selectedTxDetail.accountId);
+          const toAccount = selectedTxDetail.toAccountId
+            ? accountMap.get(isEditingTx ? editToAccountId : selectedTxDetail.toAccountId)
+            : undefined;
+          const editCategories = categories.filter((c) => c.kind === selectedTxDetail.transactionType);
+          const selectedEditCategory =
+            categories.find((c) => c.id === editCategoryId) || selectedTxDetail.category;
 
           // Format ngày tháng DD/MM/YYYY
           let displayDate = selectedTxDetail.transactionDate || '';
@@ -753,17 +969,34 @@ export function TransactionsScreen({ onBack, onAddTransaction }: Props) {
           }
 
           return (
-            <View style={styles.modalOverlay}>
+            <KeyboardAvoidingView
+              style={styles.modalOverlay}
+              behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+            >
               <View style={styles.detailSheet}>
                 {/* Header sheet */}
                 <View style={styles.detailTopBar}>
-                  <Text style={styles.detailTopTitle}>Chi tiết giao dịch</Text>
-                  <Pressable onPress={() => setSelectedTxDetail(null)} hitSlop={12}>
+                  <Text style={styles.detailTopTitle}>
+                    {isEditingTx ? 'Chỉnh sửa giao dịch' : 'Chi tiết giao dịch'}
+                  </Text>
+                  <Pressable
+                    onPress={() => {
+                      setFullReceiptUri(null);
+                      setIsEditingTx(false);
+                      setEditPickerType('NONE');
+                      setSelectedTxDetail(null);
+                    }}
+                    hitSlop={12}
+                  >
                     <Text style={styles.modalCloseText}>Đóng</Text>
                   </Pressable>
                 </View>
 
-                <ScrollView style={styles.detailScrollBody} showsVerticalScrollIndicator={false}>
+                <ScrollView
+                  style={styles.detailScrollBody}
+                  showsVerticalScrollIndicator={false}
+                  keyboardShouldPersistTaps="handled"
+                >
                   {/* Card số tiền to nổi bật */}
                   <View style={styles.detailHeroCard}>
                     <View
@@ -783,19 +1016,45 @@ export function TransactionsScreen({ onBack, onAddTransaction }: Props) {
                       />
                     </View>
 
-                    <Text style={styles.detailDescriptionText}>
-                      {selectedTxDetail.description || selectedTxDetail.category?.name || 'Giao dịch'}
-                    </Text>
+                    {isEditingTx ? (
+                      <View style={styles.editHeroInputsWrap}>
+                        <Text style={styles.editFieldLabel}>SỐ TIỀN GIAO DỊCH</Text>
+                        <TextInput
+                          value={editAmount}
+                          onChangeText={(txt) => {
+                            const raw = txt.replace(/\D/g, '');
+                            setEditAmount(raw ? formatVND(parseInt(raw, 10)) : '');
+                          }}
+                          keyboardType="numeric"
+                          placeholder="Nhập số tiền..."
+                          placeholderTextColor="#94A3B8"
+                          style={[
+                            styles.editAmountInput,
+                            isIncome
+                              ? styles.colorIncome
+                              : isTransfer
+                              ? { color: '#0284C7' }
+                              : styles.colorExpense,
+                          ]}
+                        />
+                      </View>
+                    ) : (
+                      <>
+                        <Text style={styles.detailDescriptionText}>
+                          {selectedTxDetail.description || selectedTxDetail.category?.name || 'Giao dịch'}
+                        </Text>
 
-                    <Text
-                      style={[
-                        styles.detailAmountText,
-                        isIncome ? styles.colorIncome : isTransfer ? { color: '#0284C7' } : styles.colorExpense,
-                      ]}
-                    >
-                      {isIncome ? '+' : isTransfer ? '' : '-'}
-                      {formatVND(selectedTxDetail.amount)} đ
-                    </Text>
+                        <Text
+                          style={[
+                            styles.detailAmountText,
+                            isIncome ? styles.colorIncome : isTransfer ? { color: '#0284C7' } : styles.colorExpense,
+                          ]}
+                        >
+                          {isIncome ? '+' : isTransfer ? '' : '-'}
+                          {formatVND(selectedTxDetail.amount)} đ
+                        </Text>
+                      </>
+                    )}
 
                     <View
                       style={[
@@ -822,90 +1081,448 @@ export function TransactionsScreen({ onBack, onAddTransaction }: Props) {
                     </View>
                   </View>
 
-                  {/* Danh sách thông tin chi tiết */}
-                  <View style={styles.detailInfoGroup}>
-                    {/* Danh mục */}
-                    {!isTransfer && (
+                  {isEditingTx ? (
+                    /* ── BIỂU MẪU CHỈNH SỬA GIAO DỊCH TRỰC TIẾP ── */
+                    <View style={styles.editFormCard}>
+                      {/* Tên / Mô tả giao dịch */}
+                      <View style={styles.editFieldGroup}>
+                        <Text style={styles.editFieldLabel}>TÊN / NỘI DUNG GIAO DỊCH</Text>
+                        <TextInput
+                          value={editDescription}
+                          onChangeText={setEditDescription}
+                          placeholder="Nhập mô tả giao dịch..."
+                          placeholderTextColor="#94A3B8"
+                          style={styles.editTextInput}
+                        />
+                      </View>
+
+                      {/* Danh mục thu / chi (Dropdown chuẩn theo phong cách Sổ nợ) */}
+                      {!isTransfer && (
+                        <View style={styles.editFieldGroup}>
+                          <Text style={styles.editFieldLabel}>HẠNG MỤC / DANH MỤC</Text>
+                          <Pressable
+                            onPress={() => setEditPickerType('CATEGORY')}
+                            style={styles.modernSelectDropdown}
+                          >
+                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 }}>
+                              <View
+                                style={[
+                                  styles.pickerCategoryBadge,
+                                  { backgroundColor: isIncome ? '#DCFCE7' : '#FEE2E2' },
+                                ]}
+                              >
+                                <FinanceIcon
+                                  name={resolveCategoryIconName(
+                                    selectedEditCategory?.icon,
+                                    selectedTxDetail.transactionType,
+                                    selectedEditCategory?.name
+                                  )}
+                                  size={15}
+                                  color={isIncome ? '#059669' : '#E11D48'}
+                                />
+                              </View>
+                              <Text style={styles.modernSelectText} numberOfLines={1}>
+                                {selectedEditCategory?.name || (isIncome ? 'Thu nhập chung' : 'Chi tiêu chung')}
+                              </Text>
+                            </View>
+                            <FinanceIcon name="chevron-down" size={16} color="#047857" />
+                          </Pressable>
+                        </View>
+                      )}
+
+                      {/* Ví / Nguồn tiền (Dropdown chuẩn theo phong cách Sổ nợ) */}
+                      <View style={styles.editFieldGroup}>
+                        <Text style={styles.editFieldLabel}>
+                          {isTransfer ? 'VÍ CHUYỂN ĐI' : 'NGUỒN TIỀN / VÍ'}
+                        </Text>
+                        <Pressable
+                          onPress={() => setEditPickerType('ACCOUNT')}
+                          style={styles.modernSelectDropdown}
+                        >
+                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1 }}>
+                            {renderWalletBadge(fromAccount, 22)}
+                            <Text style={styles.modernSelectText} numberOfLines={1}>
+                              {fromAccount
+                                ? `${fromAccount.name} (Số dư: ${formatVND(fromAccount.balance || 0)} đ)`
+                                : selectedTxDetail.accountName || 'Ví tiền mặt'}
+                            </Text>
+                          </View>
+                          <FinanceIcon name="chevron-down" size={16} color="#047857" />
+                        </Pressable>
+                      </View>
+
+                      {/* Ví nhận nếu là giao dịch chuyển khoản */}
+                      {isTransfer && (
+                        <View style={styles.editFieldGroup}>
+                          <Text style={styles.editFieldLabel}>VÍ NHẬN</Text>
+                          <Pressable
+                            onPress={() => setEditPickerType('TO_ACCOUNT')}
+                            style={styles.modernSelectDropdown}
+                          >
+                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1 }}>
+                              {renderWalletBadge(toAccount, 22)}
+                              <Text style={styles.modernSelectText} numberOfLines={1}>
+                                {toAccount
+                                  ? `${toAccount.name} (Số dư: ${formatVND(toAccount.balance || 0)} đ)`
+                                  : selectedTxDetail.toAccountName || 'Ví thụ hưởng'}
+                              </Text>
+                            </View>
+                            <FinanceIcon name="chevron-down" size={16} color="#047857" />
+                          </Pressable>
+                        </View>
+                      )}
+
+                      {/* Giờ trước - Ngày sau */}
+                      <View style={styles.editRowTwoCols}>
+                        <View style={[styles.editFieldGroup, { flex: 0.9 }]}>
+                          <Text style={styles.editFieldLabel}>GIỜ</Text>
+                          <TextInput
+                            value={editTime}
+                            onChangeText={setEditTime}
+                            placeholder="12:00"
+                            placeholderTextColor="#94A3B8"
+                            style={styles.editTextInput}
+                          />
+                        </View>
+                        <View style={[styles.editFieldGroup, { flex: 1.1 }]}>
+                          <Text style={styles.editFieldLabel}>NGÀY</Text>
+                          <TextInput
+                            value={editDate}
+                            onChangeText={setEditDate}
+                            placeholder="12/11/2026"
+                            placeholderTextColor="#94A3B8"
+                            style={styles.editTextInput}
+                          />
+                        </View>
+                      </View>
+
+                      {/* Ghi chú */}
+                      <View style={styles.editFieldGroup}>
+                        <Text style={styles.editFieldLabel}>GHI CHÚ THÊM</Text>
+                        <TextInput
+                          value={editNote}
+                          onChangeText={setEditNote}
+                          placeholder="Nhập ghi chú (không bắt buộc)..."
+                          placeholderTextColor="#94A3B8"
+                          multiline
+                          style={[styles.editTextInput, { minHeight: 64, textAlignVertical: 'top' }]}
+                        />
+                      </View>
+                    </View>
+                  ) : (
+                    /* ── CHẾ ĐỘ XEM THÔNG TIN CHI TIẾT ── */
+                    <View style={styles.detailInfoGroup}>
+                      {/* Danh mục */}
+                      {!isTransfer && (
+                        <View style={styles.detailInfoRow}>
+                          <Text style={styles.detailInfoLabel}>Hạng mục / Danh mục</Text>
+                          <View style={styles.detailInfoValueRow}>
+                            <Text style={styles.detailInfoValueText}>
+                              {selectedTxDetail.category?.name || (isIncome ? 'Thu nhập chung' : 'Chi tiêu chung')}
+                            </Text>
+                          </View>
+                        </View>
+                      )}
+
+                      {/* Nguồn tiền / Ví chuyển */}
                       <View style={styles.detailInfoRow}>
-                        <Text style={styles.detailInfoLabel}>Hạng mục / Danh mục</Text>
+                        <Text style={styles.detailInfoLabel}>
+                          {isTransfer ? 'Ví chuyển đi' : 'Nguồn tiền / Ví'}
+                        </Text>
                         <View style={styles.detailInfoValueRow}>
+                          {renderWalletBadge(fromAccount, 22)}
                           <Text style={styles.detailInfoValueText}>
-                            {selectedTxDetail.category?.name || (isIncome ? 'Thu nhập chung' : 'Chi tiêu chung')}
+                            {selectedTxDetail.accountName || fromAccount?.name || 'Ví tiền mặt'}
                           </Text>
                         </View>
                       </View>
-                    )}
 
-                    {/* Nguồn tiền / Ví chuyển */}
-                    <View style={styles.detailInfoRow}>
-                      <Text style={styles.detailInfoLabel}>
-                        {isTransfer ? 'Ví chuyển đi (Nguồn)' : 'Nguồn tiền / Ví'}
-                      </Text>
-                      <View style={styles.detailInfoValueRow}>
-                        {renderWalletBadge(fromAccount, 22)}
+                      {/* Ví nhận (nếu chuyển khoản) */}
+                      {isTransfer && (
+                        <View style={styles.detailInfoRow}>
+                          <Text style={styles.detailInfoLabel}>Ví nhận</Text>
+                          <View style={styles.detailInfoValueRow}>
+                            {renderWalletBadge(toAccount, 22)}
+                            <Text style={styles.detailInfoValueText}>
+                              {selectedTxDetail.toAccountName || toAccount?.name || 'Ví thụ hưởng'}
+                            </Text>
+                          </View>
+                        </View>
+                      )}
+
+                      {/* Thời gian giao dịch (Giờ trước, ngày sau: HH:mm ngày DD/MM/YYYY) */}
+                      <View style={styles.detailInfoRow}>
+                        <Text style={styles.detailInfoLabel}>Thời gian ghi nhận</Text>
                         <Text style={styles.detailInfoValueText}>
-                          {selectedTxDetail.accountName || fromAccount?.name || 'Ví tiền mặt'}
+                          {selectedTxDetail.transactionTime
+                            ? `${selectedTxDetail.transactionTime.slice(0, 5)} ngày ${displayDate}`
+                            : displayDate}
+                        </Text>
+                      </View>
+
+                      {/* Ghi chú */}
+                      {selectedTxDetail.note || selectedTxDetail.notes ? (
+                        <View style={styles.detailInfoRow}>
+                          <Text style={styles.detailInfoLabel}>Ghi chú thêm</Text>
+                          <Text style={styles.detailInfoValueText}>
+                            {selectedTxDetail.note || selectedTxDetail.notes}
+                          </Text>
+                        </View>
+                      ) : null}
+
+                      {/* Mã giao dịch */}
+                      <View style={[styles.detailInfoRow, { borderBottomWidth: 0 }]}>
+                        <Text style={styles.detailInfoLabel}>Mã giao dịch</Text>
+                        <Text style={styles.detailCodeText}>
+                          #{selectedTxDetail.id ? selectedTxDetail.id.slice(0, 10).toUpperCase() : 'TXN'}
                         </Text>
                       </View>
                     </View>
-
-                    {/* Ví nhận (nếu chuyển khoản) */}
-                    {isTransfer && (
-                      <View style={styles.detailInfoRow}>
-                        <Text style={styles.detailInfoLabel}>Ví nhận (Đích đến)</Text>
-                        <View style={styles.detailInfoValueRow}>
-                          {renderWalletBadge(toAccount, 22)}
-                          <Text style={styles.detailInfoValueText}>
-                            {selectedTxDetail.toAccountName || toAccount?.name || 'Ví thụ hưởng'}
-                          </Text>
-                        </View>
-                      </View>
-                    )}
-
-                    {/* Thời gian giao dịch (Giờ trước, ngày sau: HH:mm ngày DD/MM/YYYY) */}
-                    <View style={styles.detailInfoRow}>
-                      <Text style={styles.detailInfoLabel}>Thời gian ghi nhận</Text>
-                      <Text style={styles.detailInfoValueText}>
-                        {selectedTxDetail.transactionTime
-                          ? `${selectedTxDetail.transactionTime.slice(0, 5)} ngày ${displayDate}`
-                          : displayDate}
-                      </Text>
-                    </View>
-
-                    {/* Ghi chú */}
-                    {selectedTxDetail.notes ? (
-                      <View style={styles.detailInfoRow}>
-                        <Text style={styles.detailInfoLabel}>Ghi chú thêm</Text>
-                        <Text style={styles.detailInfoValueText}>{selectedTxDetail.notes}</Text>
-                      </View>
-                    ) : null}
-
-                    {/* Mã giao dịch */}
-                    <View style={[styles.detailInfoRow, { borderBottomWidth: 0 }]}>
-                      <Text style={styles.detailInfoLabel}>Mã giao dịch</Text>
-                      <Text style={styles.detailCodeText}>
-                        #{selectedTxDetail.id ? selectedTxDetail.id.slice(0, 10).toUpperCase() : 'TXN'}
-                      </Text>
-                    </View>
-                  </View>
+                  )}
 
                   {/* Ảnh hóa đơn đính kèm (nếu có) */}
-                  {selectedTxDetail.receiptUrl ? (
-                    <View style={styles.receiptContainer}>
-                      <View style={styles.receiptHeaderRow}>
-                        <FinanceIcon name="receipt" size={16} color="#008B62" />
-                        <Text style={styles.receiptHeaderText}>Hóa đơn đính kèm</Text>
+                  {(() => {
+                    const resolvedReceiptUri = ocrApi.formatReceiptImageUrl(selectedTxDetail.receiptUrl);
+                    if (!resolvedReceiptUri) return null;
+                    return (
+                      <View style={styles.receiptContainer}>
+                        <View style={styles.receiptHeaderRow}>
+                          <View style={styles.receiptHeaderLeft}>
+                            <FinanceIcon name="receipt" size={16} color="#008B62" />
+                            <Text style={styles.receiptHeaderText}>Hóa đơn đính kèm</Text>
+                          </View>
+                          <Pressable
+                            onPress={() => setFullReceiptUri(resolvedReceiptUri)}
+                            style={styles.receiptZoomBtn}
+                            hitSlop={8}
+                          >
+                            <FinanceIcon name="eye" size={14} color="#008B62" />
+                            <Text style={styles.receiptZoomBtnText}>Xem rõ toàn màn hình</Text>
+                          </Pressable>
+                        </View>
+                        <Pressable
+                          onPress={() => setFullReceiptUri(resolvedReceiptUri)}
+                          style={styles.receiptImageWrapper}
+                        >
+                          <Image
+                            source={{ uri: resolvedReceiptUri }}
+                            style={styles.receiptImage}
+                            resizeMode="contain"
+                          />
+                        </Pressable>
                       </View>
-                      <Image
-                        source={{ uri: selectedTxDetail.receiptUrl }}
-                        style={styles.receiptImage}
-                        resizeMode="cover"
-                      />
+                    );
+                  })()}
+
+                  {/* ── THANH HÀNH ĐỘNG SỬA & XÓA GIAO DỊCH ── */}
+                  {isEditingTx ? (
+                    <View style={styles.detailActionRow}>
+                      <Pressable
+                        onPress={() => {
+                          setIsEditingTx(false);
+                          setEditPickerType('NONE');
+                        }}
+                        disabled={editSubmitting}
+                        style={styles.detailSecondaryBtn}
+                      >
+                        <Text style={styles.detailSecondaryBtnText}>Hủy</Text>
+                      </Pressable>
+
+                      <Pressable
+                        onPress={handleSaveEditTx}
+                        disabled={editSubmitting}
+                        style={[styles.detailPrimarySaveBtn, editSubmitting && { opacity: 0.7 }]}
+                      >
+                        {editSubmitting ? (
+                          <ActivityIndicator size="small" color="#FFFFFF" />
+                        ) : (
+                          <>
+                            <FinanceIcon name="check" size={16} color="#FFFFFF" />
+                            <Text style={styles.detailPrimarySaveBtnText}>Lưu thay đổi</Text>
+                          </>
+                        )}
+                      </Pressable>
                     </View>
-                  ) : null}
+                  ) : (
+                    <View style={styles.detailActionRow}>
+                      <Pressable
+                        onPress={() => handleStartEditTx(selectedTxDetail)}
+                        disabled={deleteSubmitting}
+                        style={styles.detailEditBtn}
+                      >
+                        <FinanceIcon name="edit" size={16} color="#047857" />
+                        <Text style={styles.detailEditBtnText}>Sửa giao dịch</Text>
+                      </Pressable>
+
+                      <Pressable
+                        onPress={() => handleConfirmDeleteTx(selectedTxDetail)}
+                        disabled={deleteSubmitting}
+                        style={[styles.detailDeleteBtn, deleteSubmitting && { opacity: 0.7 }]}
+                      >
+                        {deleteSubmitting ? (
+                          <ActivityIndicator size="small" color="#E11D48" />
+                        ) : (
+                          <>
+                            <FinanceIcon name="delete" size={16} color="#E11D48" />
+                            <Text style={styles.detailDeleteBtnText}>Xóa giao dịch</Text>
+                          </>
+                        )}
+                      </Pressable>
+                    </View>
+                  )}
                 </ScrollView>
+
+                {/* ── OVERLAY PICKER CHỌN DANH MỤC / TÀI KHOẢN (ĐỒNG BỘ CHUẨN SỔ NỢ) ── */}
+                {editPickerType !== 'NONE' && (
+                  <View
+                    style={[
+                      StyleSheet.absoluteFillObject,
+                      styles.pickerModalBackdrop,
+                      { zIndex: 9999, elevation: 9999 },
+                    ]}
+                  >
+                    <Pressable
+                      style={StyleSheet.absoluteFillObject}
+                      onPress={() => setEditPickerType('NONE')}
+                    />
+                    <View style={styles.pickerModalBox}>
+                      <View style={styles.pickerModalHeader}>
+                        <Text style={styles.pickerModalTitle}>
+                          {editPickerType === 'CATEGORY'
+                            ? 'Chọn hạng mục giao dịch'
+                            : editPickerType === 'TO_ACCOUNT'
+                            ? 'Chọn ví nhận'
+                            : 'Chọn nguồn tiền / ví'}
+                        </Text>
+                        <Pressable onPress={() => setEditPickerType('NONE')} hitSlop={10}>
+                          <FinanceIcon name="close" size={18} color="#64748B" />
+                        </Pressable>
+                      </View>
+
+                      <ScrollView style={{ maxHeight: 340 }} showsVerticalScrollIndicator={false}>
+                        {editPickerType === 'CATEGORY' &&
+                          editCategories.map((cat) => {
+                            const active = cat.id === editCategoryId;
+                            return (
+                              <Pressable
+                                key={cat.id}
+                                onPress={() => {
+                                  setEditCategoryId(cat.id);
+                                  setEditPickerType('NONE');
+                                }}
+                                style={[
+                                  styles.pickerItemRow,
+                                  active && styles.pickerItemRowActive,
+                                ]}
+                              >
+                                <View
+                                  style={[
+                                    styles.pickerCategoryBadge,
+                                    {
+                                      width: 34,
+                                      height: 34,
+                                      borderRadius: 17,
+                                      backgroundColor: isIncome ? '#DCFCE7' : '#FEE2E2',
+                                    },
+                                  ]}
+                                >
+                                  <FinanceIcon
+                                    name={resolveCategoryIconName(
+                                      cat.icon,
+                                      selectedTxDetail.transactionType,
+                                      cat.name
+                                    )}
+                                    size={17}
+                                    color={isIncome ? '#059669' : '#E11D48'}
+                                  />
+                                </View>
+                                <View style={{ flex: 1, marginLeft: 10 }}>
+                                  <Text
+                                    style={[
+                                      styles.pickerItemText,
+                                      active && styles.pickerItemTextActive,
+                                    ]}
+                                  >
+                                    {cat.name}
+                                  </Text>
+                                  <Text style={styles.pickerItemSub}>
+                                    {isIncome ? 'Hạng mục thu nhập' : 'Hạng mục chi tiêu'}
+                                  </Text>
+                                </View>
+                                {active && <FinanceIcon name="check" size={16} color="#0E964E" />}
+                              </Pressable>
+                            );
+                          })}
+
+                        {(editPickerType === 'ACCOUNT' || editPickerType === 'TO_ACCOUNT') &&
+                          accounts.map((acc) => {
+                            const active =
+                              editPickerType === 'TO_ACCOUNT'
+                                ? acc.id === editToAccountId
+                                : acc.id === editAccountId;
+                            return (
+                              <Pressable
+                                key={acc.id}
+                                onPress={() => {
+                                  if (editPickerType === 'TO_ACCOUNT') {
+                                    setEditToAccountId(acc.id);
+                                  } else {
+                                    setEditAccountId(acc.id);
+                                  }
+                                  setEditPickerType('NONE');
+                                }}
+                                style={[
+                                  styles.pickerItemRow,
+                                  active && styles.pickerItemRowActive,
+                                ]}
+                              >
+                                {renderWalletBadge(acc, 34)}
+                                <View style={{ flex: 1, marginLeft: 10 }}>
+                                  <Text
+                                    style={[
+                                      styles.pickerItemText,
+                                      active && styles.pickerItemTextActive,
+                                    ]}
+                                  >
+                                    {acc.name}
+                                  </Text>
+                                  <Text style={styles.pickerItemSub}>
+                                    Số dư: {formatVND(acc.balance || 0)} đ
+                                  </Text>
+                                </View>
+                                {active && <FinanceIcon name="check" size={16} color="#0E964E" />}
+                              </Pressable>
+                            );
+                          })}
+                      </ScrollView>
+                    </View>
+                  </View>
+                )}
               </View>
-            </View>
+
+              {/* ── LỚP PHÓNG TO ẢNH HÓA ĐƠN TOÀN MÀN HÌNH NGAY TRONG MODAL ── */}
+              {fullReceiptUri ? (
+                <View style={styles.fullReceiptOverlay}>
+                  <Pressable
+                    style={[styles.fullReceiptCloseBtn, { top: Math.max(insets.top, 20) + 12 }]}
+                    onPress={() => setFullReceiptUri(null)}
+                    hitSlop={14}
+                  >
+                    <FinanceIcon name="close" size={20} color="#FFFFFF" />
+                  </Pressable>
+                  <Pressable
+                    style={styles.fullReceiptBackdropPress}
+                    onPress={() => setFullReceiptUri(null)}
+                  >
+                    <Image
+                      source={{ uri: fullReceiptUri }}
+                      style={styles.fullReceiptImage}
+                      resizeMode="contain"
+                    />
+                  </Pressable>
+                </View>
+              ) : null}
+            </KeyboardAvoidingView>
           );
         })()}
       </Modal>
@@ -919,50 +1536,52 @@ const styles = StyleSheet.create({
     backgroundColor: '#F8FAFC',
   },
   header: {
-    backgroundColor: '#074838',
+    backgroundColor: '#FFFFFF',
     paddingHorizontal: 16,
     paddingBottom: 14,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    borderBottomWidth: 1,
+    borderBottomColor: '#F1F5F9',
+  },
+  headerLeftGroup: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
   },
   backBtn: {
     width: 36,
     height: 36,
+    borderRadius: 18,
+    backgroundColor: '#ECFDF5',
+    alignItems: 'center',
     justifyContent: 'center',
   },
-  backIcon: {
-    color: '#FFFFFF',
-    fontSize: 32,
-    lineHeight: 32,
-  },
   headerTitle: {
-    color: '#FFFFFF',
-    fontSize: 18,
-    fontWeight: '800',
+    color: '#0F172A',
+    fontSize: 20,
+    fontWeight: '700',
   },
   monthBadgeBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    paddingHorizontal: 10,
-    paddingVertical: 6,
+    gap: 6,
+    backgroundColor: '#ECFDF5',
+    paddingHorizontal: 12,
+    paddingVertical: 7,
     borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#A7F3D0',
   },
   monthBadgeText: {
-    color: '#FFFFFF',
-    fontSize: 12,
+    color: '#047857',
+    fontSize: 13,
     fontWeight: '700',
-  },
-  monthChevron: {
-    color: '#FFFFFF',
-    fontSize: 14,
-    marginTop: -2,
   },
   scrollContent: {
     padding: 16,
-    paddingBottom: 100,
+    paddingBottom: 150,
     gap: 12,
   },
   summaryRibbon: {
@@ -1122,6 +1741,28 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: '#64748B',
     marginLeft: 2,
+  },
+  exportExcelBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#ECFDF5',
+    borderWidth: 1.5,
+    borderColor: '#059669',
+    borderRadius: 16,
+    height: 44,
+    paddingHorizontal: 10,
+    justifyContent: 'center',
+  },
+  exportExcelIcon: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#047857',
+  },
+  exportExcelText: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#047857',
   },
   modalTopSub: {
     fontSize: 12,
@@ -1368,7 +2009,7 @@ const styles = StyleSheet.create({
   floatingAddBtn: {
     position: 'absolute',
     right: 18,
-    bottom: 24,
+    bottom: 30,
     backgroundColor: '#00A86B',
     borderRadius: 24,
     paddingHorizontal: 18,
@@ -1574,17 +2215,304 @@ const styles = StyleSheet.create({
   receiptHeaderRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
     gap: 8,
     marginBottom: 10,
+  },
+  receiptHeaderLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
   },
   receiptHeaderText: {
     fontSize: 13,
     fontWeight: '700',
     color: '#0F172A',
   },
+  receiptZoomBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    backgroundColor: '#ECFDF5',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#A7F3D0',
+  },
+  receiptZoomBtnText: {
+    fontSize: 11.5,
+    fontWeight: '700',
+    color: '#008B62',
+  },
+  receiptImageWrapper: {
+    width: '100%',
+    height: 280,
+    borderRadius: 14,
+    backgroundColor: '#F8FAFC',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    overflow: 'hidden',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   receiptImage: {
     width: '100%',
-    height: 200,
+    height: '100%',
     borderRadius: 14,
+  },
+  txReceiptBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    backgroundColor: '#ECFDF5',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#A7F3D0',
+  },
+  txReceiptBadgeText: {
+    fontSize: 9.5,
+    fontWeight: '700',
+    color: '#059669',
+  },
+  fullReceiptOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    zIndex: 999,
+    elevation: 20,
+    backgroundColor: 'rgba(15, 23, 42, 0.94)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 16,
+  },
+  fullReceiptBackdropPress: {
+    width: '100%',
+    height: '100%',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  fullReceiptCloseBtn: {
+    position: 'absolute',
+    top: 48,
+    right: 20,
+    zIndex: 1000,
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: 'rgba(255, 255, 255, 0.22)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  fullReceiptImage: {
+    width: '100%',
+    height: '84%',
+    borderRadius: 16,
+  },
+  editHeroInputsWrap: {
+    width: '100%',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  editAmountInput: {
+    width: '90%',
+    fontSize: 24,
+    fontWeight: '900',
+    textAlign: 'center',
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1.5,
+    borderColor: '#10B981',
+    borderRadius: 14,
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+    marginTop: 6,
+  },
+  editFormCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    padding: 16,
+    marginBottom: 16,
+    gap: 14,
+  },
+  editFieldGroup: {
+    gap: 6,
+  },
+  editFieldLabel: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#64748B',
+    letterSpacing: 0.4,
+  },
+  editTextInput: {
+    backgroundColor: '#F8FAFC',
+    borderWidth: 1,
+    borderColor: '#CBD5E1',
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#0F172A',
+  },
+  modernSelectDropdown: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    paddingHorizontal: 12,
+    paddingVertical: 9,
+    minHeight: 42,
+  },
+  modernSelectText: {
+    fontSize: 13.5,
+    color: '#0F172A',
+    fontWeight: '600',
+    flex: 1,
+    marginRight: 6,
+  },
+  pickerCategoryBadge: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  pickerModalBackdrop: {
+    backgroundColor: 'rgba(15, 23, 42, 0.45)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+  },
+  pickerModalBox: {
+    width: '100%',
+    maxHeight: 420,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 20,
+    padding: 18,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 10,
+    elevation: 8,
+  },
+  pickerModalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingBottom: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F1F5F9',
+    marginBottom: 6,
+  },
+  pickerModalTitle: {
+    fontSize: 15.5,
+    fontWeight: '800',
+    color: '#0F172A',
+  },
+  pickerItemRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 12,
+    paddingHorizontal: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F8FAFC',
+    borderRadius: 8,
+  },
+  pickerItemRowActive: {
+    backgroundColor: '#F0FDF4',
+  },
+  pickerItemText: {
+    fontSize: 13.5,
+    fontWeight: '600',
+    color: '#334155',
+  },
+  pickerItemTextActive: {
+    color: '#047857',
+    fontWeight: '800',
+  },
+  pickerItemSub: {
+    fontSize: 11,
+    color: '#64748B',
+    marginTop: 2,
+  },
+  editRowTwoCols: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  detailActionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginBottom: 24,
+  },
+  detailEditBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 7,
+    backgroundColor: '#ECFDF5',
+    borderWidth: 1.5,
+    borderColor: '#10B981',
+    borderRadius: 16,
+    paddingVertical: 13,
+  },
+  detailEditBtnText: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#047857',
+  },
+  detailDeleteBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 7,
+    backgroundColor: '#FFF1F2',
+    borderWidth: 1.5,
+    borderColor: '#FECDD3',
+    borderRadius: 16,
+    paddingVertical: 13,
+  },
+  detailDeleteBtnText: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#E11D48',
+  },
+  detailSecondaryBtn: {
+    flex: 0.9,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#F1F5F9',
+    borderRadius: 16,
+    paddingVertical: 13,
+  },
+  detailSecondaryBtnText: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#475569',
+  },
+  detailPrimarySaveBtn: {
+    flex: 1.4,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 7,
+    backgroundColor: '#047857',
+    borderRadius: 16,
+    paddingVertical: 13,
+  },
+  detailPrimarySaveBtnText: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#FFFFFF',
   },
 });

@@ -1,6 +1,6 @@
-package com.finance.finance.modules.admin.repository;
+package com.finance.finance.modules.feedback.repository;
 
-import com.finance.finance.modules.admin.entity.Feedback;
+import com.finance.finance.modules.feedback.entity.Feedback;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -20,4 +20,3 @@ public interface FeedbackRepository extends JpaRepository<Feedback, UUID> {
 
     List<Feedback> findByUserIdOrderByCreatedAtDesc(UUID userId);
 }
-

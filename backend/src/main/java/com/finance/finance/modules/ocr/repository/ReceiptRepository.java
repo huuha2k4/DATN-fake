@@ -14,5 +14,9 @@ public interface ReceiptRepository extends JpaRepository<Receipt, UUID> {
 
     Optional<Receipt> findByIdAndUserId(UUID id, UUID userId);
 
+    Optional<Receipt> findByTransactionId(UUID transactionId);
+
     Page<Receipt> findByUserIdOrderByCreatedAtDesc(UUID userId, Pageable pageable);
+
+    Page<Receipt> findByUserIdAndTransactionIdIsNotNullOrderByCreatedAtDesc(UUID userId, Pageable pageable);
 }

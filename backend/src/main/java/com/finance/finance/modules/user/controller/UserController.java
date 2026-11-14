@@ -81,4 +81,21 @@ public class UserController {
                     .body(java.util.Map.of("message", "Đổi mật khẩu thất bại, vui lòng thử lại sau."));
         }
     }
+
+    @PutMapping("/me/security-settings")
+    public ResponseEntity<?> updateSecuritySettings(
+            Authentication authentication,
+            @RequestBody java.util.Map<String, Boolean> body) {
+        log.info("Updating security settings for user: {}, body: {}", authentication.getName(), body);
+        Boolean twoFactor = body.get("twoFactorEnabled");
+        Boolean loginAlert = body.get("loginAlertEnabled");
+
+        UserResponse updated = userService.updateSecuritySettings(authentication.getName(), twoFactor, loginAlert);
+        return ResponseEntity.ok(java.util.Map.of(
+                "success", true,
+                "message", "Cập nhật cài đặt bảo mật thành công",
+                "twoFactorEnabled", updated.getMfaEnabled(),
+                "loginAlertEnabled", updated.getLoginAlertEnabled()
+        ));
+    }
 }

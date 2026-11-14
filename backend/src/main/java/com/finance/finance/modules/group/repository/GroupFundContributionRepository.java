@@ -25,4 +25,6 @@ public interface GroupFundContributionRepository extends JpaRepository<GroupFund
            "AND gfc.contributedAt <= :endDate")
     List<GroupFundContribution> findByFundIdAndContributedAtBeforeOrEqual(@Param("fundId") UUID fundId,
                                                                          @Param("endDate") LocalDate endDate);
+
+    java.util.Optional<GroupFundContribution> findByPersonalTransactionId(UUID personalTransactionId);
 }

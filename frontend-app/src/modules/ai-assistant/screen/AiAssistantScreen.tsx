@@ -176,7 +176,7 @@ export function AiAssistantScreen({ onBack }: Props) {
       <View style={[styles.header, { paddingTop: Math.max(insets.top, 12) + 4 }]}>
         <View style={styles.headerLeft}>
           <Pressable onPress={onBack} hitSlop={12} style={styles.backBtn}>
-            <Text style={styles.backIcon}>‹</Text>
+            <FinanceIcon name="chevron-left" size={24} color="#FFFFFF" />
           </Pressable>
           <View style={styles.copilotBadge}>
             <View style={styles.sparkleIconWrap}>

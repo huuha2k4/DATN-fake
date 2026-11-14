@@ -152,10 +152,10 @@ function formatScheduleCron(triggerEvent: string, cron?: string): { typeBadge: s
       badgeColor: 'bg-purple-50 text-purple-700 dark:bg-purple-950/60 dark:text-purple-300 border border-purple-200/60'
     };
   }
-  if (cron && cron.includes('* * 0') || triggerEvent.includes('WEEKLY')) {
+  if (cron && (cron.includes('MON') || cron.includes('* * 1') || cron.includes('* * 0')) || triggerEvent.includes('WEEKLY')) {
     return {
       typeBadge: 'Định kỳ Hàng tuần',
-      detail: 'Tối Chủ Nhật hàng tuần lúc 20:00',
+      detail: 'Sáng Thứ Hai hàng tuần lúc 08:00',
       badgeColor: 'bg-teal-50 text-teal-700 dark:bg-teal-950/60 dark:text-teal-300 border border-teal-200/60'
     };
   }

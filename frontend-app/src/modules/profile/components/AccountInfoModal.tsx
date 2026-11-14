@@ -91,8 +91,9 @@ export function AccountInfoModal({
       <View style={[styles.screen, { paddingTop: Math.max(insets.top, 14) + 4 }]}>
         {/* Top Header */}
         <View style={styles.topHeader}>
-          <Pressable onPress={onClose} hitSlop={12} style={styles.backBtn}>
-            <Text style={styles.backBtnText}>‹ Quay lại</Text>
+          <Pressable onPress={onClose} hitSlop={12} style={[styles.backBtn, { flexDirection: 'row', alignItems: 'center', gap: 2 }]}>
+            <FinanceIcon name="chevron-left" size={18} color="#074838" />
+            <Text style={styles.backBtnText}>Quay lại</Text>
           </Pressable>
           <Text style={styles.headerTitle}>Hồ sơ tài khoản</Text>
           <Pressable onPress={handleReset} hitSlop={12} style={styles.resetBtn}>

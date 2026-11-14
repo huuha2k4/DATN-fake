@@ -281,7 +281,7 @@ public class BudgetService {
         List<BudgetStatusResponse.CategoryAtRisk> categoriesAtRisk = itemsAtRisk.stream()
                 .map(item -> BudgetStatusResponse.CategoryAtRisk.builder()
                         .categoryId(item.getCategoryId())
-                        .categoryName(getCategoryName(item.getCategoryId())) // TODO: Get from category service
+                        .categoryName(getCategoryName(item.getCategoryId()))
                         .percentageUsed(item.getPercentageUsed())
                         .alertLevel(item.getAlertLevel())
                         .build())

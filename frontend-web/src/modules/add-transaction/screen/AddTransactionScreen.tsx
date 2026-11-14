@@ -473,7 +473,7 @@ export function AddTransactionScreen({ onCancel, onNotify, onOpenInvoiceScanner 
                 className="inline-flex h-9 items-center gap-2 rounded-xl bg-white/15 px-3.5 text-xs font-semibold text-white backdrop-blur-md border border-white/20 hover:bg-white/25 active:scale-95 transition shadow-sm"
                 title="Tự động nhận diện số tiền, ngày và thông tin từ hóa đơn"
               >
-                <FinanceIcon name="receipt" size={14} />
+                <FinanceIcon name="scan" size={18} strokeWidth={2.2} />
                 <span>Quét hóa đơn OCR</span>
               </button>}
             </div>
@@ -582,9 +582,7 @@ export function AddTransactionScreen({ onCancel, onNotify, onOpenInvoiceScanner 
                       </div>
                     </div>
 
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className={`text-gray-400 transition-transform ${isAccountPickerOpen ? 'rotate-180' : ''}`}>
-                      <polyline points="6 9 12 15 18 9" />
-                    </svg>
+                    <FinanceIcon name="chevron-down" size={14} className={`text-gray-400 transition-transform ${isAccountPickerOpen ? 'rotate-180' : ''}`} />
                   </button>
 
                   {/* Account Dropdown Menu */}
@@ -670,9 +668,7 @@ export function AddTransactionScreen({ onCancel, onNotify, onOpenInvoiceScanner 
                         </div>
                       </div>
 
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className={`text-gray-400 transition-transform ${isToAccountPickerOpen ? 'rotate-180' : ''}`}>
-                        <polyline points="6 9 12 15 18 9" />
-                      </svg>
+                      <FinanceIcon name="chevron-down" size={14} className={`text-gray-400 transition-transform ${isToAccountPickerOpen ? 'rotate-180' : ''}`} />
                     </button>
 
                     {/* To Account Dropdown */}
@@ -747,9 +743,7 @@ export function AddTransactionScreen({ onCancel, onNotify, onOpenInvoiceScanner 
                         </div>
                       </div>
 
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className={`text-gray-400 transition-transform ${isCategoryPickerOpen ? 'rotate-180' : ''}`}>
-                        <polyline points="6 9 12 15 18 9" />
-                      </svg>
+                      <FinanceIcon name="chevron-down" size={14} className={`text-gray-400 transition-transform ${isCategoryPickerOpen ? 'rotate-180' : ''}`} />
                     </button>
 
                     {/* Category Dropdown Grid */}

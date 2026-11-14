@@ -19,6 +19,7 @@ export interface GroupResponse {
   unreadMessageCount?: number;
   myRole?: MemberRole;
   myBalance?: number;
+  notificationEnabled?: boolean;
   lastActivityAt?: string;
   createdAt?: string;
   updatedAt?: string;
@@ -326,6 +327,18 @@ export const groupApi = {
 
   async deleteGroup(groupId: string): Promise<void> {
     await request<void>(`/groups/${groupId}`, { method: 'DELETE' });
+  },
+
+  async toggleNotification(groupId: string, enabled: boolean): Promise<boolean> {
+    try {
+      await request<any>(`/groups/${groupId}/notifications?enabled=${enabled}`, {
+        method: 'PUT',
+      });
+      return true;
+    } catch (e) {
+      console.warn('Lỗi bật/tắt thông báo nhóm:', e);
+      return false;
+    }
   },
 
   async updateGroup(groupId: string, req: Partial<CreateGroupRequest>): Promise<GroupResponse> {

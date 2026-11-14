@@ -1,112 +1,349 @@
-import type { ReactNode } from 'react'
+import {
+  LayoutGrid,
+  ArrowLeftRight,
+  Wallet,
+  LineChart,
+  BarChart3,
+  PieChart,
+  Sparkles,
+  Landmark,
+  Settings,
+  Search,
+  Plus,
+  Receipt,
+  Bell,
+  Calendar,
+  RefreshCw,
+  Download,
+  TrendingUp,
+  TrendingDown,
+  ArrowUp,
+  ArrowDown,
+  ArrowUpRight,
+  ArrowDownLeft,
+  ArrowLeft,
+  ArrowRight,
+  Coffee,
+  Zap,
+  MoreHorizontal,
+  MoreVertical,
+  ShieldCheck,
+  Clock,
+  User,
+  UserPlus,
+  LogOut,
+  Key,
+  Lock,
+  Pencil,
+  Trash2,
+  ShoppingBag,
+  Car,
+  Home,
+  Heart,
+  BookOpen,
+  Film,
+  Map,
+  PiggyBank,
+  Coins,
+  CreditCard,
+  CircleHelp,
+  Briefcase,
+  Gift,
+  Store,
+  PlusCircle,
+  Eye,
+  EyeOff,
+  Sun,
+  Moon,
+  HandCoins,
+  Handshake,
+  Menu,
+  X,
+  Scale,
+  Utensils,
+  UtensilsCrossed,
+  Pill,
+  Users,
+  FileText,
+  Banknote,
+  Check,
+  CheckCheck,
+  CheckCircle2,
+  MessageSquare,
+  Crown,
+  Camera,
+  Cloud,
+  Info,
+  Leaf,
+  Gamepad2,
+  Palmtree,
+  Droplet,
+  ShoppingCart,
+  ThumbsUp,
+  Reply,
+  Paperclip,
+  Send,
+  Smile,
+  FileSpreadsheet,
+  Image as LucideImage,
+  AlertCircle,
+  AlertTriangle,
+  ChevronDown,
+  ChevronUp,
+  ChevronRight,
+  ChevronLeft,
+  Phone,
+  Video,
+  Target,
+  Megaphone,
+  Laptop,
+  Tag,
+  Layers,
+  RotateCcw,
+  Share2,
+  Folder,
+  Filter,
+  Copy,
+  QrCode,
+  ScanLine,
+  ScanText,
+  Building2,
+  Globe,
+  Mail,
+  Smartphone,
+  Award,
+  Flame,
+  Star,
+  Bookmark,
+  ExternalLink,
+  SlidersHorizontal,
+  Bot,
+  PanelLeftClose,
+  PanelLeftOpen,
+  type LucideIcon,
+} from 'lucide-react'
 
 export type IconName =
   | 'grid' | 'arrows' | 'wallet' | 'chart' | 'spark' | 'bank' | 'settings'
   | 'search' | 'plus' | 'receipt' | 'bell' | 'calendar' | 'refresh' | 'download'
-  | 'trend' | 'income' | 'expense' | 'coffee' | 'bolt' | 'more' | 'arrow' | 'shield' | 'clock' | 'user' | 'logout' | 'key' | 'lock'
-  | 'edit' | 'delete' | 'shopping-bag' | 'car' | 'home' | 'heart' | 'zap' | 'book' | 'film' | 'map' | 'piggy-bank' | 'credit-card' | 'help-circle' | 'briefcase' | 'gift' | 'trending-up' | 'store' | 'plus-circle' | 'eye'
-  | 'sun' | 'moon' | 'borrowing' | 'lending' | 'hand-coins' | 'menu' | 'close'
-  | 'burger' | 'pill' | 'users' | 'group' | 'file-text' | 'utensils' | 'banknote' | 'paperclip' | 'image' | 'message-square' | 'alert-circle'
+  | 'trend' | 'income' | 'expense' | 'coffee' | 'bolt' | 'more' | 'arrow' | 'shield' | 'clock' | 'user' | 'user-plus' | 'logout' | 'key' | 'lock'
+  | 'edit' | 'delete' | 'shopping-bag' | 'car' | 'home' | 'heart' | 'zap' | 'book' | 'film' | 'map' | 'piggy-bank' | 'coin-stack' | 'credit-card' | 'help-circle' | 'briefcase' | 'gift' | 'trending-up' | 'store' | 'plus-circle' | 'eye' | 'eye-off'
+  | 'sun' | 'moon' | 'borrowing' | 'lending' | 'hand-coins' | 'menu' | 'close' | 'scale'
+  | 'burger' | 'pill' | 'users' | 'group' | 'file-text' | 'utensils' | 'banknote' | 'check' | 'message-square'
+  | 'crown' | 'camera' | 'cloud' | 'info' | 'leaf' | 'gamepad' | 'palmtree' | 'droplet' | 'shopping-cart' | 'thumbs-up' | 'reply' | 'trash' | 'paperclip' | 'send' | 'smile' | 'file-excel' | 'checks' | 'image' | 'alert-circle' | 'seen-eye' | 'chevron-down' | 'chevron-up' | 'chevron-right' | 'chevron-left' | 'more-horizontal' | 'phone' | 'video' | 'target'
+  | 'arrow-up' | 'arrow-down' | 'arrow-left' | 'arrow-right' | 'megaphone' | 'laptop' | 'tag' | 'layers' | 'rotate-ccw' | 'share-2'
+  | 'analytics' | 'savings' | 'folder' | 'filter' | 'copy' | 'qr-code' | 'scan' | 'check-circle' | 'x' | 'landmark' | 'building'
+  | (string & {})
 
-export function FinanceIcon({ name, size = 18, className }: { name: IconName; size?: number; className?: string }) {
-  const drawings: Record<IconName, ReactNode> = {
-    grid: <><rect x="3" y="3" width="7" height="7" rx="1.5" /><rect x="14" y="3" width="7" height="7" rx="1.5" /><rect x="3" y="14" width="7" height="7" rx="1.5" /><rect x="14" y="14" width="7" height="7" rx="1.5" /></>,
-    arrows: <><path d="M4 8h13m0 0l-3.5-3.5M17 8l-3.5 3.5" /><path d="M20 16H7m0 0l3.5-3.5M7 16l3.5 3.5" /></>,
-    wallet: <><rect x="3" y="5" width="18" height="15" rx="2.5" /><path d="M3 9h18M16 14h2" /><path d="M6 5V4a1 1 0 0 1 1-1h12" /></>,
-    chart: <><path d="M3 3v18h18" /><path d="m7 14 4-4 4 3 6-7" /></>,
-    spark: <><path d="m12 3 1.9 5.8L20 11l-6.1 2.2L12 19l-1.9-5.8L4 11l6.1-2.2L12 3Z" /><path d="m19 14 1.2 2.8L23 18l-2.8 1.2L19 22l-1.2-2.8L15 18l2.8-1.2L19 14Z" /></>,
-    bank: <path d="m3 9 9-6 9 6M5 10v8m4-8v8m6-8v8m4-8v8M3 21h18M2 18h20" />,
-    settings: <><circle cx="12" cy="12" r="3" /><path d="m19.4 15 .1.1 1.4 1.1-1.4 2.4-1.7-.7a8 8 0 0 1-1.7 1l-.3 1.8h-2.8l-.3-1.8a8 8 0 0 1-1.7-1l-1.7.7-1.4-2.4L7.3 15a8 8 0 0 1 0-2l-1.4-1.1 1.4-2.4 1.7.7a8 8 0 0 1 1.7-1l.3-1.8h2.8l.3 1.8a8 8 0 0 1 1.7 1l1.7-.7 1.4 2.4-1.4 1.1a8 8 0 0 1-.1 2Z" transform="translate(-1 -1)" /></>,
-    search: <><circle cx="10.8" cy="10.8" r="6.8" /><path d="m16 16 4.5 4.5" /></>,
-    plus: <path d="M12 5v14M5 12h14" />,
-    receipt: <><path d="M5 3h14v18l-3-2-4 2-4-2-3 2V3Z" /><path d="M9 8h6m-6 4h6" /></>,
-    bell: <path d="M18 9a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9m-8 12h4" />,
-    calendar: <><rect x="3" y="5" width="18" height="16" rx="2" /><path d="M16 3v4M8 3v4M3 10h18" /></>,
-    refresh: <><path d="M20 7v5h-5M4 17v-5h5" /><path d="M5.5 9a7 7 0 0 1 11.6-2L20 12M4 12l2.9 5a7 7 0 0 0 11.6-2" /></>,
-    download: <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5m-5 5V3" />,
-    trend: <><path d="m3 17 6-6 4 4 8-8" /><path d="M15 7h6v6" /></>,
-    income: <path d="M12 19V5m-6 6 6-6 6 6" />,
-    expense: <path d="M12 5v14m6-6-6 6-6-6" />,
-    coffee: <path d="M5 8h12v9a4 4 0 0 1-4 4H9a4 4 0 0 1-4-4V8Zm12 2h2a2 2 0 1 1 0 4h-2M8 3v2m4-2v2" />,
-    bolt: <path d="m13 2-3 9h7L9 22l2-9H4l9-11Z" />,
-    more: <><circle cx="5" cy="12" r="1" /><circle cx="12" cy="12" r="1" /><circle cx="19" cy="12" r="1" /></>,
-    arrow: <path d="M5 12h14m-6-6 6 6-6 6" />,
-    shield: <><path d="M12 22s8-4 8-11V5l-8-3-8 3v6c0 7 8 11 8 11Z" /><path d="m9 12 2 2 4-4" /></>,
-    clock: <><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></>,
-    user: <><circle cx="12" cy="8" r="3.5" /><path d="M5 21a7 7 0 0 1 14 0" /></>,
-    logout: <><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" /><polyline points="16 17 21 12 16 7" /><line x1="21" y1="12" x2="9" y2="12" /></>,
-    key: <><circle cx="7.5" cy="15.5" r="4.5" /><path d="m11 12 7-7m-3 0 3 3m-2-1 2 2" /></>,
-    lock: <><rect x="5" y="11" width="14" height="10" rx="2" /><path d="M8 11V7a4 4 0 0 1 8 0v4" /><circle cx="12" cy="16" r="1.2" fill="currentColor" /></>,
-    edit: <path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z" />,
-    delete: <><polyline points="3 6 5 6 21 6" /><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" /><line x1="10" y1="11" x2="10" y2="17" /><line x1="14" y1="11" x2="14" y2="17" /></>,
-    'shopping-bag': <><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z" /><line x1="3" y1="6" x2="21" y2="6" /><path d="M16 10a4 4 0 0 1-8 0" /></>,
-    car: <><path d="M19 17h2c.6 0 1-.4 1-1v-3c0-.9-.7-1.7-1.5-1.9C18.7 10.6 16 10 16 10s-1.3-1.4-2.2-2.3c-.5-.4-1.1-.7-1.8-.7H5c-.6 0-1.1.4-1.4.9l-1.4 2.9A3.7 3.7 0 0 0 2 12v4c0 .6.4 1 1 1h2" /><circle cx="7" cy="17" r="2" /><path d="M9 17h6" /><circle cx="17" cy="17" r="2" /></>,
-    home: <><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" /><polyline points="9 22 9 12 15 12 15 22" /></>,
-    heart: <path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z" />,
-    zap: <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />,
-    book: <><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1-2.5-2.5Z" /><path d="M6 2v20" /></>,
-    film: <><rect width="20" height="20" x="2" y="2" rx="2.18" ry="2.18" /><line x1="7" x2="7" y1="2" y2="22" /><line x1="17" x2="17" y1="2" y2="22" /><line x1="2" x2="22" y1="12" y2="12" /><line x1="2" x2="7" y1="7" y2="7" /><line x1="2" x2="7" y1="17" y2="17" /><line x1="17" x2="22" y1="17" y2="17" /><line x1="17" x2="22" y1="7" y2="7" /></>,
-    map: <><polygon points="3 6 9 3 15 6 21 3 21 18 15 21 9 18 3 21" /><line x1="9" x2="9" y1="3" y2="18" /><line x1="15" x2="15" y1="6" y2="21" /></>,
-    'piggy-bank': <><path d="M19 5c-1.5 0-2.8 1.4-3 2-3.5-1.5-11-.3-11 5 0 1.8 0 3 2 4.5V20h4v-2h3v2h4v-4c1-.5 1.7-1 2-2h2v-4h-2c0-1-.5-1.5-1-2V5z" /><path d="M16 9h.01" /></>,
-    'credit-card': <><rect width="20" height="14" x="2" y="5" rx="2" /><line x1="2" x2="22" y1="10" y2="10" /></>,
-    'help-circle': <><circle cx="12" cy="12" r="10" /><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" /><line x1="12" x2="12.01" y1="17" y2="17" /></>,
-    briefcase: <><rect width="20" height="14" x="2" y="7" rx="3" /><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2" /><circle cx="12" cy="14" r="1.5" /><path d="M8 14h2.5m3 0H16" /></>,
-    gift: <><polyline points="20 12 20 22 4 22 4 12" /><rect width="20" height="5" x="2" y="7" rx="1" /><line x1="12" x2="12" y1="22" y2="7" /><path d="M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7z" /><path d="M12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z" /></>,
-    'trending-up': <><polyline points="22 7 13.5 15.5 8.5 10.5 2 17" /><polyline points="16 7 22 7 22 13" /></>,
-    store: <><path d="m2 7 4.41-4.41A2 2 0 0 1 7.83 2h8.34a2 2 0 0 1 1.42.59L22 7" /><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8" /><path d="M15 22v-4a2 2 0 0 0-2-2h-2a2 2 0 0 0-2 2v4" /><path d="M2 7h20" /><path d="M22 7v3a2 2 0 0 1-2 2v0a2.7 2.7 0 0 1-1.59-.63.7.7 0 0 0-.82 0A2.7 2.7 0 0 1 16 12a2.7 2.7 0 0 1-1.59-.63.7.7 0 0 0-.82 0A2.7 2.7 0 0 1 12 12a2.7 2.7 0 0 1-1.59-.63.7.7 0 0 0-.82 0A2.7 2.7 0 0 1 8 12a2.7 2.7 0 0 1-1.59-.63.7.7 0 0 0-.82 0A2.7 2.7 0 0 1 4 12v0a2 2 0 0 1-2-2V7" /></>,
-    'plus-circle': <><circle cx="12" cy="12" r="10" /><line x1="12" x2="12" y1="8" y2="16" /><line x1="8" x2="16" y1="12" y2="12" /></>,
-    eye: <><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z" /><circle cx="12" cy="12" r="3" /></>,
-    sun: <><circle cx="12" cy="12" r="4" /><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41" /></>,
-    moon: <path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z" />,
-    borrowing: <><path d="M11 15h2a2 2 0 1 0 0-4h-3c-.6 0-1.1.2-1.4.6L3 17" /><path d="m7 21 1.6-1.4c.3-.4.8-.6 1.4-.6h4c1.1 0 2.1-.6 2.6-1.5l2.2-4.1a2 2 0 0 0-.8-2.7l-2.5-1.4a2 2 0 0 0-2.3.2L11 11" /><circle cx="17" cy="5" r="3" /><path d="M17 12V8" /></>,
-    lending: <><path d="M18 11V6a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v0" /><path d="M14 10V4a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v2" /><path d="M10 10.5V6a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v8" /><path d="M18 8a2 2 0 1 1 4 0v6a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.86-5.99-2.34l-3.6-3.6a2 2 0 0 1 2.83-2.82L7 15" /><circle cx="18" cy="4" r="2" /></>,
-    menu: <><line x1="3" y1="12" x2="21" y2="12" /><line x1="3" y1="6" x2="21" y2="6" /><line x1="3" y1="18" x2="21" y2="18" /></>,
-    close: <><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></>,
-    'hand-coins': <><circle cx="8" cy="8" r="5" /><circle cx="16" cy="6" r="3" /><path d="M3 17a3 3 0 0 0 3 3h7c.8 0 1.5-.4 1.9-1l3.1-4.7a2 2 0 0 0-2-3h-4" /></>,
-    burger: <><path d="M18 8h1a4 4 0 0 1 0 8h-1" /><path d="M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8Z" /><line x1="6" y1="1" x2="6" y2="4" /><line x1="10" y1="1" x2="10" y2="4" /><line x1="14" y1="1" x2="14" y2="4" /></>,
-    utensils: <><path d="M18 2v20M21 15V2a5 5 0 0 0-5 5v6c0 1.1.9 2 2 2h3Zm0 0v7" /><path d="M4 2v6a3 3 0 0 0 6 0V2M7 2v20" /></>,
-    pill: <><path d="m10.5 20.5 10-10a4.95 4.95 0 1 0-7-7l-10 10a4.95 4.95 0 1 0 7 7Z" /><path d="m8.5 8.5 7 7" /></>,
-    users: <><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M22 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" /></>,
-    group: <><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M22 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" /></>,
-    'file-text': <><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /><line x1="16" y1="13" x2="8" y2="13" /><line x1="16" y1="17" x2="8" y2="17" /><polyline points="10 9 9 9 8 9" /></>,
-    banknote: <><rect width="20" height="12" x="2" y="6" rx="2" /><circle cx="12" cy="12" r="2.5" /><path d="M6 12h.01M18 12h.01" /></>,
-    paperclip: <path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l8.57-8.57A4 4 0 1 1 18 8.84l-8.59 8.57a2 2 0 0 1-2.83-2.83l8.49-8.48" />,
-    image: <><rect width="18" height="18" x="3" y="3" rx="2" ry="2" /><circle cx="9" cy="9" r="2" /><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21" /></>,
-    'message-square': <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />,
-    'alert-circle': <><circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" /></>,
-  }
-
-  return <svg aria-hidden="true" className={className} width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">{drawings[name] || drawings.grid}</svg>
+const LUCIDE_ICON_MAP: Record<string, LucideIcon> = {
+  grid: LayoutGrid,
+  'layout-grid': LayoutGrid,
+  arrows: ArrowLeftRight,
+  'arrow-left-right': ArrowLeftRight,
+  wallet: Wallet,
+  chart: LineChart,
+  'line-chart': LineChart,
+  analytics: BarChart3,
+  'bar-chart': BarChart3,
+  'bar-chart-3': BarChart3,
+  'pie-chart': PieChart,
+  spark: Sparkles,
+  sparkles: Sparkles,
+  bank: Landmark,
+  landmark: Landmark,
+  building: Building2,
+  settings: Settings,
+  search: Search,
+  plus: Plus,
+  receipt: Receipt,
+  bell: Bell,
+  calendar: Calendar,
+  refresh: RefreshCw,
+  'refresh-cw': RefreshCw,
+  download: Download,
+  trend: TrendingUp,
+  'trending-up': TrendingUp,
+  'trending-down': TrendingDown,
+  income: ArrowUp,
+  expense: ArrowDown,
+  'arrow-up': ArrowUp,
+  'arrow-down': ArrowDown,
+  'arrow-left': ArrowLeft,
+  'arrow-right': ArrowRight,
+  'arrow-up-right': ArrowUpRight,
+  'arrow-down-left': ArrowDownLeft,
+  arrow: ArrowRight,
+  coffee: Coffee,
+  bolt: Zap,
+  zap: Zap,
+  more: MoreHorizontal,
+  'more-horizontal': MoreHorizontal,
+  'more-vertical': MoreVertical,
+  shield: ShieldCheck,
+  'shield-check': ShieldCheck,
+  clock: Clock,
+  user: User,
+  'user-plus': UserPlus,
+  logout: LogOut,
+  'log-out': LogOut,
+  key: Key,
+  lock: Lock,
+  edit: Pencil,
+  pencil: Pencil,
+  delete: Trash2,
+  trash: Trash2,
+  'trash-2': Trash2,
+  'shopping-bag': ShoppingBag,
+  'shopping-cart': ShoppingCart,
+  car: Car,
+  home: Home,
+  heart: Heart,
+  book: BookOpen,
+  'book-open': BookOpen,
+  film: Film,
+  map: Map,
+  'piggy-bank': PiggyBank,
+  savings: PiggyBank,
+  'coin-stack': Coins,
+  coins: Coins,
+  'credit-card': CreditCard,
+  'help-circle': CircleHelp,
+  'circle-help': CircleHelp,
+  briefcase: Briefcase,
+  gift: Gift,
+  store: Store,
+  'plus-circle': PlusCircle,
+  eye: Eye,
+  'seen-eye': Eye,
+  'eye-off': EyeOff,
+  sun: Sun,
+  moon: Moon,
+  borrowing: HandCoins,
+  'hand-coins': HandCoins,
+  lending: Handshake,
+  handshake: Handshake,
+  menu: Menu,
+  close: X,
+  x: X,
+  scale: Scale,
+  burger: UtensilsCrossed,
+  utensils: Utensils,
+  pill: Pill,
+  users: Users,
+  group: Users,
+  'file-text': FileText,
+  banknote: Banknote,
+  check: Check,
+  checks: CheckCheck,
+  'check-check': CheckCheck,
+  'check-circle': CheckCircle2,
+  'message-square': MessageSquare,
+  message: MessageSquare,
+  bot: Bot,
+  'panel-left-close': PanelLeftClose,
+  'panel-left-open': PanelLeftOpen,
+  crown: Crown,
+  camera: Camera,
+  cloud: Cloud,
+  info: Info,
+  leaf: Leaf,
+  gamepad: Gamepad2,
+  'gamepad-2': Gamepad2,
+  palmtree: Palmtree,
+  droplet: Droplet,
+  'thumbs-up': ThumbsUp,
+  reply: Reply,
+  paperclip: Paperclip,
+  send: Send,
+  smile: Smile,
+  'file-excel': FileSpreadsheet,
+  'file-spreadsheet': FileSpreadsheet,
+  image: LucideImage,
+  'alert-circle': AlertCircle,
+  'alert-triangle': AlertTriangle,
+  'chevron-down': ChevronDown,
+  'chevron-up': ChevronUp,
+  'chevron-right': ChevronRight,
+  'chevron-left': ChevronLeft,
+  phone: Phone,
+  video: Video,
+  target: Target,
+  megaphone: Megaphone,
+  laptop: Laptop,
+  tag: Tag,
+  layers: Layers,
+  'rotate-ccw': RotateCcw,
+  'share-2': Share2,
+  folder: Folder,
+  filter: Filter,
+  copy: Copy,
+  'qr-code': QrCode,
+  scan: ScanText,
+  'scan-text': ScanText,
+  'scan-line': ScanLine,
+  ocr: ScanText,
+  globe: Globe,
+  mail: Mail,
+  smartphone: Smartphone,
+  award: Award,
+  flame: Flame,
+  star: Star,
+  bookmark: Bookmark,
+  'external-link': ExternalLink,
+  sliders: SlidersHorizontal,
 }
 
-/**
- * Đồng bộ toàn bộ icon danh mục về hệ thống SVG Line Icon hiện đại, sang trọng:
- * Tự động chuyển đổi emoji (🍔, 🚗, 💊, 👨‍👩‍👧, 📄...) hoặc các tên icon cũ về đúng IconName chuẩn.
- */
+export function FinanceIcon({
+  name,
+  size = 18,
+  className,
+  color,
+  strokeWidth = 1.9,
+}: {
+  name: IconName
+  size?: number
+  className?: string
+  color?: string
+  strokeWidth?: number
+}) {
+  const normalizedKey = String(name || 'grid').trim().toLowerCase()
+  const IconComponent = LUCIDE_ICON_MAP[normalizedKey] || LayoutGrid
+
+  return (
+    <IconComponent
+      aria-hidden="true"
+      className={className}
+      size={size}
+      color={color}
+      strokeWidth={strokeWidth}
+    />
+  )
+}
+
 /**
  * Chuẩn hóa khóa nhận diện danh mục để loại bỏ trùng lặp giữa các bộ seed (ví dụ 'Di chuyển' và 'Đi lại')
  */
 export function getCategoryCanonicalKey(kind: string = '', name: string = ''): string {
-  const n = name.trim().toLowerCase();
-  if (n === 'di chuyển' || n === 'đi lại') return `${kind}_transport`;
-  if (n.includes('hóa đơn') || n.includes('tiện ích')) return `${kind}_utilities`;
-  if (n.includes('sức khỏe') || n.includes('y tế')) return `${kind}_health`;
-  if (n.includes('gia đình') || n.includes('con cái')) return `${kind}_family`;
-  if (n.includes('đầu tư')) return `${kind}_investment`;
-  if (n.includes('kinh doanh')) return `${kind}_business`;
-  if (n.includes('thưởng') || n.includes('quà tặng')) return `${kind}_bonus`;
-  if (n.includes('ăn uống') || n.includes('ẩm thực')) return `${kind}_food`;
-  return `${kind}_${n}`;
+  const n = name.trim().toLowerCase()
+  if (n === 'di chuyển' || n === 'đi lại') return `${kind}_transport`
+  if (n.includes('hóa đơn') || n.includes('tiện ích')) return `${kind}_utilities`
+  if (n.includes('sức khỏe') || n.includes('y tế')) return `${kind}_health`
+  if (n.includes('gia đình') || n.includes('con cái')) return `${kind}_family`
+  if (n.includes('đầu tư')) return `${kind}_investment`
+  if (n.includes('kinh doanh')) return `${kind}_business`
+  if (n.includes('thưởng') || n.includes('quà tặng')) return `${kind}_bonus`
+  if (n.includes('ăn uống') || n.includes('ẩm thực')) return `${kind}_food`
+  return `${kind}_${n}`
 }
 
 export function resolveCategoryIconName(iconOrEmoji?: string, fallbackKind?: string, categoryName?: string): IconName {
   if (!iconOrEmoji && !categoryName) {
-    return fallbackKind === 'INCOME' ? 'income' : 'expense';
+    return fallbackKind === 'INCOME' ? 'income' : 'expense'
   }
 
-  const str = `${iconOrEmoji || ''} ${categoryName || ''}`.toLowerCase();
+  const str = `${iconOrEmoji || ''} ${categoryName || ''}`.toLowerCase()
 
-  // 1. Trả nợ / Vay nợ / Thẻ tín dụng (Biểu tượng Minimal Line Icon thẻ thanh toán / tín dụng)
+  // 1. Trả nợ / Vay nợ / Thẻ tín dụng
   if (
     str.includes('trả nợ') ||
     str.includes('thanh toán nợ') ||
@@ -123,13 +360,13 @@ export function resolveCategoryIconName(iconOrEmoji?: string, fallbackKind?: str
     iconOrEmoji === 'borrowing' ||
     iconOrEmoji === 'hand-coins'
   ) {
-    return 'credit-card';
+    return 'credit-card'
   }
   if (str.includes('thu nợ') || str.includes('cho vay') || str.includes('đòi nợ') || iconOrEmoji === 'lending') {
-    return 'lending';
+    return 'lending'
   }
 
-  // 2. Ăn uống / Nhà hàng / Cafe (Biểu tượng đồ ăn thức uống tối giản)
+  // 2. Ăn uống / Nhà hàng / Cafe
   if (
     str.includes('🍔') ||
     str.includes('🍕') ||
@@ -146,10 +383,10 @@ export function resolveCategoryIconName(iconOrEmoji?: string, fallbackKind?: str
     iconOrEmoji === 'coffee' ||
     iconOrEmoji === 'burger'
   ) {
-    return 'utensils';
+    return 'utensils'
   }
 
-  // 3. Đi lại / Di chuyển / Xe cộ (Biểu tượng phương tiện xe cộ)
+  // 3. Đi lại / Di chuyển / Xe cộ
   if (
     str.includes('🚗') ||
     str.includes('di chuyển') ||
@@ -163,10 +400,10 @@ export function resolveCategoryIconName(iconOrEmoji?: string, fallbackKind?: str
     iconOrEmoji === 'car' ||
     /\bcar\b/i.test(iconOrEmoji || '')
   ) {
-    return 'car';
+    return 'car'
   }
 
-  // 4. Sức khỏe / Y tế / Khám bệnh (Biểu tượng nhịp tim y tế)
+  // 4. Sức khỏe / Y tế / Khám bệnh
   if (
     str.includes('💊') ||
     str.includes('sức khỏe') ||
@@ -177,10 +414,10 @@ export function resolveCategoryIconName(iconOrEmoji?: string, fallbackKind?: str
     iconOrEmoji === 'heart' ||
     iconOrEmoji === 'pill'
   ) {
-    return 'heart';
+    return 'heart'
   }
 
-  // 5. Mua sắm / Shopping / Tạp hóa / Tiêu dùng (Biểu tượng túi mua sắm)
+  // 5. Mua sắm / Shopping / Tạp hóa / Tiêu dùng
   if (
     str.includes('🛍️') ||
     str.includes('🛒') ||
@@ -190,10 +427,10 @@ export function resolveCategoryIconName(iconOrEmoji?: string, fallbackKind?: str
     str.includes('tạp hóa') ||
     iconOrEmoji === 'shopping-bag'
   ) {
-    return 'shopping-bag';
+    return 'shopping-bag'
   }
 
-  // 6. Giáo dục / Học tập / Sách vở (Biểu tượng cuốn sách)
+  // 6. Giáo dục / Học tập / Sách vở
   if (
     str.includes('📚') ||
     str.includes('học tập') ||
@@ -203,10 +440,10 @@ export function resolveCategoryIconName(iconOrEmoji?: string, fallbackKind?: str
     str.includes('khóa học') ||
     iconOrEmoji === 'book'
   ) {
-    return 'book';
+    return 'book'
   }
 
-  // 7. Hóa đơn / Điện nước / Tiện ích / Chi phí khác (Đồng bộ biểu tượng biên lai receipt)
+  // 7. Hóa đơn / Điện nước / Tiện ích / Chi phí khác
   if (
     str.includes('⚡') ||
     str.includes('tiền điện') ||
@@ -221,10 +458,10 @@ export function resolveCategoryIconName(iconOrEmoji?: string, fallbackKind?: str
     iconOrEmoji === 'file-text' ||
     iconOrEmoji === 'zap'
   ) {
-    return 'receipt';
+    return 'receipt'
   }
 
-  // 8. Nhà ở / Tiền phòng / Thuê nhà (Biểu tượng ngôi nhà)
+  // 8. Nhà ở / Tiền phòng / Thuê nhà
   if (
     str.includes('🏠') ||
     str.includes('nhà ở') ||
@@ -232,10 +469,10 @@ export function resolveCategoryIconName(iconOrEmoji?: string, fallbackKind?: str
     str.includes('thuê nhà') ||
     iconOrEmoji === 'home'
   ) {
-    return 'home';
+    return 'home'
   }
 
-  // 9. Gia đình & Con cái (Biểu tượng nhóm thành viên)
+  // 9. Gia đình & Con cái
   if (
     str.includes('👨‍👩‍👧') ||
     str.includes('👪') ||
@@ -244,30 +481,30 @@ export function resolveCategoryIconName(iconOrEmoji?: string, fallbackKind?: str
     str.includes('bố mẹ') ||
     iconOrEmoji === 'users'
   ) {
-    return 'users';
+    return 'users'
   }
 
-  // 10. Giải trí / Phim ảnh (Biểu tượng cuộn phim)
+  // 10. Giải trí / Phim ảnh
   if (str.includes('🎬') || str.includes('phim') || str.includes('giải trí') || iconOrEmoji === 'film') {
-    return 'film';
+    return 'film'
   }
 
-  // 11. Du lịch / Nghỉ dưỡng (Biểu tượng bản đồ)
+  // 11. Du lịch / Nghỉ dưỡng
   if (
     str.includes('✈️') ||
     str.includes('du lịch') ||
     str.includes('nghỉ dưỡng') ||
     iconOrEmoji === 'map'
   ) {
-    return 'map';
+    return 'map'
   }
 
   // 12. Tiết kiệm / Heo đất
   if (str.includes('tiết kiệm') || str.includes('heo đất') || iconOrEmoji === 'piggy-bank') {
-    return 'piggy-bank';
+    return 'piggy-bank'
   }
 
-  // 13. Đầu tư / Chứng khoán (Biểu tượng biểu đồ tăng trưởng)
+  // 13. Đầu tư / Chứng khoán
   if (
     str.includes('đầu tư') ||
     str.includes('chứng khoán') ||
@@ -275,51 +512,42 @@ export function resolveCategoryIconName(iconOrEmoji?: string, fallbackKind?: str
     iconOrEmoji === 'trending-up' ||
     iconOrEmoji === 'trend'
   ) {
-    return 'trending-up';
+    return 'trending-up'
   }
 
-  // 14. Bảo hiểm (Biểu tượng khiên bảo vệ)
+  // 14. Bảo hiểm
   if (str.includes('bảo hiểm') || iconOrEmoji === 'shield') {
-    return 'shield';
+    return 'shield'
   }
 
-  // 15. Quà tặng / Thưởng (Biểu tượng hộp quà)
+  // 15. Quà tặng / Thưởng
   if (str.includes('🎁') || str.includes('quà') || str.includes('thưởng') || iconOrEmoji === 'gift') {
-    return 'gift';
+    return 'gift'
   }
 
-  // 16. Lương / Thu nhập chính (Biểu tượng cặp công việc)
+  // 16. Lương / Thu nhập chính
   if (str.includes('lương') || str.includes('thù lao') || iconOrEmoji === 'briefcase') {
-    return 'briefcase';
+    return 'briefcase'
   }
 
-  // 17. Kinh doanh (Biểu tượng cửa hàng)
+  // 17. Kinh doanh
   if (str.includes('kinh doanh') || iconOrEmoji === 'store') {
-    return 'store';
+    return 'store'
   }
 
-  // 18. Thu nhập khác (Biểu tượng cộng tròn)
+  // 18. Thu nhập khác
   if (str.includes('thu nhập khác') || iconOrEmoji === 'plus-circle' || iconOrEmoji === 'banknote') {
-    return 'plus-circle';
+    return 'plus-circle'
   }
 
   // Chưa phân loại
   if (str.includes('chưa phân loại') || iconOrEmoji === 'help-circle') {
-    return 'help-circle';
+    return 'help-circle'
   }
 
-  // Nếu icon truyền vào là một IconName hợp lệ
-  const validIconNames: IconName[] = [
-    'grid', 'arrows', 'wallet', 'chart', 'spark', 'bank', 'settings',
-    'search', 'plus', 'receipt', 'bell', 'calendar', 'refresh', 'download',
-    'trend', 'income', 'expense', 'coffee', 'bolt', 'more', 'arrow', 'shield', 'clock', 'user', 'logout', 'key', 'lock',
-    'edit', 'delete', 'shopping-bag', 'car', 'home', 'heart', 'zap', 'book', 'film', 'map', 'piggy-bank', 'credit-card', 'help-circle', 'briefcase', 'gift', 'trending-up', 'store', 'plus-circle', 'eye',
-    'sun', 'moon', 'borrowing', 'lending', 'hand-coins', 'menu', 'close', 'burger', 'pill', 'users', 'file-text', 'utensils', 'banknote'
-  ];
-
-  if (iconOrEmoji && validIconNames.includes(iconOrEmoji as IconName)) {
-    return iconOrEmoji as IconName;
+  if (iconOrEmoji && LUCIDE_ICON_MAP[iconOrEmoji.trim().toLowerCase()]) {
+    return iconOrEmoji.trim().toLowerCase() as IconName
   }
 
-  return fallbackKind === 'INCOME' ? 'income' : 'expense';
+  return fallbackKind === 'INCOME' ? 'income' : 'expense'
 }

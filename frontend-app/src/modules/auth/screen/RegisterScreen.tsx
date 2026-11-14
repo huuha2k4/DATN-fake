@@ -10,7 +10,8 @@ import {
   useWindowDimensions,
   View,
 } from 'react-native';
-import Svg, { Circle, Path } from 'react-native-svg';
+import Svg, { Path } from 'react-native-svg';
+import { Eye, EyeOff, ChevronLeft, AlertTriangle, CheckCircle2, Lock } from 'lucide-react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { authApi } from '../api/authApi';
 import { styles } from './RegisterScreen.styles';
@@ -179,7 +180,7 @@ export function RegisterScreen({
                 accessibilityLabel="Quay lại"
                 hitSlop={10}
               >
-                <Text style={styles.inlineBackArrow}>‹</Text>
+                <ChevronLeft size={18} color="#006747" strokeWidth={2.5} />
                 <Text style={styles.inlineBackText}>Quay lại</Text>
               </Pressable>
 
@@ -191,7 +192,7 @@ export function RegisterScreen({
               {/* Thông báo lỗi */}
               {error ? (
                 <View style={styles.alertBox}>
-                  <Text style={styles.alertIcon}>⚠️</Text>
+                  <AlertTriangle size={16} color="#DC2626" strokeWidth={2.2} />
                   <Text style={styles.alertText}>{error}</Text>
                 </View>
               ) : null}
@@ -199,7 +200,7 @@ export function RegisterScreen({
               {/* Thông báo thành công gửi OTP */}
               {successMsg ? (
                 <View style={styles.successBox}>
-                  <Text style={styles.successIcon}>✅</Text>
+                  <CheckCircle2 size={16} color="#00A86B" strokeWidth={2.2} />
                   <Text style={styles.successText}>{successMsg}</Text>
                 </View>
               ) : null}
@@ -381,26 +382,9 @@ export function RegisterScreen({
                     accessibilityLabel={showPassword ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'}
                   >
                     {showPassword ? (
-                      <Svg width={20} height={20} viewBox="0 0 24 24" fill="none">
-                        <Path
-                          d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"
-                          stroke="#6b7571"
-                          strokeWidth={1.8}
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                        />
-                        <Circle cx={12} cy={12} r={3} stroke="#6b7571" strokeWidth={1.8} />
-                      </Svg>
+                      <Eye size={20} color="#6b7571" strokeWidth={1.8} />
                     ) : (
-                      <Svg width={20} height={20} viewBox="0 0 24 24" fill="none">
-                        <Path
-                          d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24M1 1l22 22"
-                          stroke="#8c9c93"
-                          strokeWidth={1.8}
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                        />
-                      </Svg>
+                      <EyeOff size={20} color="#8c9c93" strokeWidth={1.8} />
                     )}
                   </Pressable>
                 </View>
@@ -441,26 +425,9 @@ export function RegisterScreen({
                     accessibilityLabel={showConfirmPassword ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'}
                   >
                     {showConfirmPassword ? (
-                      <Svg width={20} height={20} viewBox="0 0 24 24" fill="none">
-                        <Path
-                          d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"
-                          stroke="#6b7571"
-                          strokeWidth={1.8}
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                        />
-                        <Circle cx={12} cy={12} r={3} stroke="#6b7571" strokeWidth={1.8} />
-                      </Svg>
+                      <Eye size={20} color="#6b7571" strokeWidth={1.8} />
                     ) : (
-                      <Svg width={20} height={20} viewBox="0 0 24 24" fill="none">
-                        <Path
-                          d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24M1 1l22 22"
-                          stroke="#8c9c93"
-                          strokeWidth={1.8}
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                        />
-                      </Svg>
+                      <EyeOff size={20} color="#8c9c93" strokeWidth={1.8} />
                     )}
                   </Pressable>
                 </View>
@@ -468,7 +435,7 @@ export function RegisterScreen({
 
               {/* Password requirement hint */}
               <View style={styles.passwordHintBox}>
-                <Text style={styles.passwordHintIcon}>🔒</Text>
+                <Lock size={14} color="#006747" strokeWidth={2} />
                 <Text style={styles.passwordHintText}>
                   Mật khẩu từ 8 ký tự, gồm chữ hoa, chữ thường, số và ký tự đặc biệt (!@#$%^&*).
                 </Text>

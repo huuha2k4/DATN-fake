@@ -1,5 +1,6 @@
 package com.finance.finance.modules.transaction.controller;
 
+import com.finance.finance.common.annotation.Idempotent;
 import com.finance.finance.modules.transaction.dto.request.*;
 import com.finance.finance.modules.transaction.dto.response.*;
 import com.finance.finance.modules.transaction.service.TransactionService;
@@ -32,14 +33,18 @@ public class TransactionController {
     /**
      * POST /api/v1/transactions
      * Create a new transaction (INCOME, EXPENSE, or TRANSFER)
+     * Idempotent: Use Idempotency-Key header to prevent duplicates
      */
+    @Idempotent(resourceType = "transaction")
     @PostMapping
     public ResponseEntity<TransactionResponse> createTransaction(
             @AuthenticationPrincipal User user,
+            @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey,
             @Valid @RequestBody CreateTransactionRequest request) {
         
         UUID userId = user.getId();
-        log.info("POST /transactions - user: {}, type: {}", userId, request.getTransactionType());
+        log.info("POST /transactions - user: {}, type: {}, idempotency-key: {}", 
+                userId, request.getTransactionType(), idempotencyKey);
         
         TransactionResponse response = transactionService.createTransaction(userId, request);
         

@@ -128,8 +128,9 @@ export function PricingModal({
       <View style={[styles.modalScreen, { paddingTop: Math.max(insets.top, 16) + 4 }]}>
         {/* Header với nút đóng */}
         <View style={styles.topHeaderBar}>
-          <Pressable onPress={onClose} hitSlop={12} style={styles.closeBtn}>
-            <Text style={styles.closeBtnText}>‹ Quay lại</Text>
+          <Pressable onPress={onClose} hitSlop={12} style={[styles.closeBtn, { flexDirection: 'row', alignItems: 'center', gap: 2 }]}>
+            <FinanceIcon name="chevron-left" size={18} color="#074838" />
+            <Text style={styles.closeBtnText}>Quay lại</Text>
           </Pressable>
           <Text style={styles.topHeaderTitle}>Gói hội viên Finora</Text>
           <View style={{ width: 60 }} />

@@ -1,9 +1,8 @@
-import { useEffect, useMemo, useState } from 'react';
-import { FinanceIcon, type IconName } from '../../core/components/FinanceIcon';
+import React, { useEffect, useMemo, useState } from 'react';
+import { FinanceIcon } from '../../core/components/FinanceIcon';
 import {
   goalApi,
   type GoalResponse,
-  type GoalSummaryResponse,
   type GoalType,
   type GoalPriority,
 } from '../api/goalApi';
@@ -12,19 +11,144 @@ import './GoalsManagementScreen.css';
 
 type Props = { onNotify: (message: string) => void };
 
-// Danh sách các loại mục tiêu thân thiện với người dùng
-const goalTypeOptions: { value: GoalType; label: string; icon: IconName; color: string }[] = [
-  { value: 'PURCHASE', label: 'Mua sắm lớn (xe, nhà, máy tính...)', icon: 'wallet', color: '#06b6d4' },
-  { value: 'SAVINGS' as any, label: 'Tích lũy & Tiết kiệm', icon: 'trend', color: '#10b981' },
-  { value: 'EMERGENCY_FUND', label: 'Quỹ dự phòng khẩn cấp', icon: 'shield', color: '#3b82f6' },
-  { value: 'VACATION', label: 'Du lịch & Nghỉ dưỡng', icon: 'calendar', color: '#f59e0b' },
-  { value: 'EDUCATION', label: 'Học tập & Phát triển bản thân', icon: 'book', color: '#8b5cf6' },
-  { value: 'INVESTMENT', label: 'Đầu tư sinh lời', icon: 'chart', color: '#059669' },
-  { value: 'DEBT_PAYOFF', label: 'Thanh toán nợ', icon: 'bank', color: '#ec4899' },
-  { value: 'OTHER', label: 'Mục tiêu khác', icon: 'spark', color: '#64748b' },
+// Danh mục Mục tiêu 3D chuẩn như bản App
+export const GOAL_TYPES = [
+  {
+    label: 'Mua sắm lớn',
+    value: 'PURCHASE' as GoalType,
+    iconKey: 'shopping',
+    image: '/goal_cat_shopping_3d.png',
+    desc: 'Mua xe, điện thoại, máy tính, sắm đồ gia dụng...',
+  },
+  {
+    label: 'Du lịch & Nghỉ dưỡng',
+    value: 'VACATION' as GoalType,
+    iconKey: 'travel',
+    image: '/goal_cat_travel_3d.png',
+    desc: 'Nghỉ dưỡng, khám phá, vé máy bay, tour...',
+  },
+  {
+    label: 'Học tập & Tri thức',
+    value: 'EDUCATION' as GoalType,
+    iconKey: 'education',
+    image: '/goal_cat_education_3d.png',
+    desc: 'Học phí, chứng chỉ ngoại ngữ, sách vở, laptop...',
+  },
+  {
+    label: 'Đầu tư sinh lời',
+    value: 'INVESTMENT' as GoalType,
+    iconKey: 'investment',
+    image: '/goal_cat_investment_3d.png',
+    desc: 'Chứng khoán, vàng, bất động sản, tích sản...',
+  },
+  {
+    label: 'Thanh toán nợ',
+    value: 'DEBT_PAYOFF' as GoalType,
+    iconKey: 'debt',
+    image: '/goal_cat_debt_3d.png',
+    desc: 'Tất toán thẻ tín dụng, nợ ngân hàng, nợ người thân...',
+  },
+  {
+    label: 'Gia đình & Nhà cửa',
+    value: 'EMERGENCY_FUND' as GoalType,
+    iconKey: 'family',
+    image: '/goal_cat_family_3d.png',
+    desc: 'Chăm sóc ba mẹ, con cái, sửa sang nhà cửa...',
+  },
+  {
+    label: 'Mục tiêu khác',
+    value: 'OTHER' as GoalType,
+    iconKey: 'other',
+    image: '/goal_cat_other_3d.png',
+    desc: 'Các kế hoạch tài chính và ước mơ khác...',
+  },
 ];
 
-// Helper format ngày giờ dd/mm/yyyy hh:mm
+// Danh mục Tiết kiệm 3D chuẩn như bản App
+export const SAVING_TYPES = [
+  {
+    label: 'Quỹ dự phòng khẩn cấp',
+    value: 'Quỹ dự phòng khẩn cấp',
+    iconKey: 'saving_emergency',
+    image: '/saving_cat_emergency_3d.png',
+    desc: 'Dành cho các tình huống khẩn cấp, y tế, bất khả kháng...',
+  },
+  {
+    label: 'Tiết kiệm tự do',
+    value: 'Tiết kiệm tự do',
+    iconKey: 'saving_free',
+    image: '/saving_cat_free_3d.png',
+    desc: 'Tích lũy linh hoạt, không gò bó mục đích hay thời hạn...',
+  },
+  {
+    label: 'Tiết kiệm có kỳ hạn',
+    value: 'Tiết kiệm có kỳ hạn',
+    iconKey: 'saving_term',
+    image: '/saving_cat_term_3d.png',
+    desc: 'Gửi định kỳ hàng tuần, hàng tháng có lãi suất...',
+  },
+  {
+    label: 'Tiết kiệm dài hạn',
+    value: 'Tiết kiệm dài hạn',
+    iconKey: 'saving_longterm',
+    image: '/saving_cat_longterm_3d.png',
+    desc: 'Kế hoạch hưu trí, mua nhà, tương lai lâu dài...',
+  },
+  {
+    label: 'Khoản tiết kiệm khác',
+    value: 'Khác',
+    iconKey: 'saving_other',
+    image: '/saving_cat_other_3d.png',
+    desc: 'Các quỹ và mục đích tiết kiệm linh hoạt khác...',
+  },
+];
+
+function formatVND(amount?: number | null): string {
+  if (amount == null) return '0 đ';
+  return Math.round(amount).toLocaleString('vi-VN') + ' đ';
+}
+
+function getGoalIconSrc(iconKey?: string, name?: string) {
+  const key = (iconKey || name || '').toLowerCase();
+  if (key.includes('travel') || key.includes('du lịch') || key.includes('vacation')) return '/goal_cat_travel_3d.png';
+  if (key.includes('education') || key.includes('học') || key.includes('cap')) return '/goal_cat_education_3d.png';
+  if (key.includes('investment') || key.includes('đầu tư')) return '/goal_cat_investment_3d.png';
+  if (key.includes('debt') || key.includes('nợ')) return '/goal_cat_debt_3d.png';
+  if (key.includes('family') || key.includes('gia đình')) return '/goal_cat_family_3d.png';
+  if (key.includes('other') || key.includes('khác')) return '/goal_cat_other_3d.png';
+  return '/goal_cat_shopping_3d.png';
+}
+
+function getSavingIconSrc(iconKey?: string, name?: string) {
+  const key = (iconKey || name || '').toLowerCase();
+  if (key.includes('emergency') || key.includes('khẩn cấp') || key.includes('dự phòng')) return '/saving_cat_emergency_3d.png';
+  if (key.includes('term') || key.includes('kỳ hạn') || key.includes('kì hạn')) return '/saving_cat_term_3d.png';
+  if (key.includes('longterm') || key.includes('dài hạn')) return '/saving_cat_longterm_3d.png';
+  if (key.includes('other') || key.includes('khác')) return '/saving_cat_other_3d.png';
+  return '/saving_cat_free_3d.png';
+}
+
+function formatDisplayDate(dateStr?: string | null): string {
+  if (!dateStr) return '';
+  // Nếu đã ở dạng dd/mm/yyyy hoặc d/m/yyyy
+  if (/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(dateStr)) return dateStr;
+  try {
+    // Nếu dạng yyyy-mm-dd
+    const parts = dateStr.split('-');
+    if (parts.length === 3 && parts[0].length === 4) {
+      return `${parts[2].padStart(2, '0')}/${parts[1].padStart(2, '0')}/${parts[0]}`;
+    }
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return dateStr;
+    const day = String(d.getDate()).padStart(2, '0');
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const year = d.getFullYear();
+    return `${day}/${month}/${year}`;
+  } catch {
+    return dateStr;
+  }
+}
+
 function formatGoalDateTime(dateStr?: string | null): string {
   if (!dateStr) return '';
   try {
@@ -41,487 +165,1215 @@ function formatGoalDateTime(dateStr?: string | null): string {
   }
 }
 
-function ProgressBar({ percent, color = 'bg-[#006c49]', height = 'h-2' }: { percent: number; color?: string; height?: string }) {
-  const bounded = Math.min(100, Math.max(0, percent));
-  return (
-    <div className={`relative w-full ${height} overflow-hidden rounded-full bg-[#e2e8f0] goal-progress-track`} role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={bounded}>
-      <div className={`h-full rounded-full transition-all duration-500 ${color}`} style={{ width: `${bounded}%` }} />
-    </div>
-  );
-}
-
 export function GoalsManagementScreen({ onNotify }: Props) {
-  const [goals, setGoals] = useState<GoalResponse[]>([]);
-  const [summaryData, setSummaryData] = useState<GoalSummaryResponse | null>(null);
+  const [activeTab, setActiveTab] = useState<'goals' | 'savings'>('goals');
+  const [allGoals, setAllGoals] = useState<GoalResponse[]>([]);
   const [accounts, setAccounts] = useState<AccountItem[]>([]);
   const [isLoading, setIsLoading] = useState(false);
-  const [goalFilter, setGoalFilter] = useState<'all' | 'in_progress' | 'completed'>('all');
 
-  // Modal Tạo mục tiêu mới
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [newName, setNewName] = useState('');
-  const [newType, setNewType] = useState<GoalType>('PURCHASE');
-  const [newTarget, setNewTarget] = useState('');
-  const [newAccumulated, setNewAccumulated] = useState('');
-  const [newDeadline, setNewDeadline] = useState('');
-  const [newPriority, setNewPriority] = useState<GoalPriority>('MEDIUM');
-  const [newDesc, setNewDesc] = useState('');
-  const [isSubmittingCreate, setIsSubmittingCreate] = useState(false);
+  // Modals Tạo mới
+  const [showCreateGoalModal, setShowCreateGoalModal] = useState(false);
+  const [showCreateSavingModal, setShowCreateSavingModal] = useState(false);
 
-  // Modal Nạp thêm tiền (Đóng góp)
-  const [depositGoal, setDepositGoal] = useState<GoalResponse | null>(null);
-  const [depositAmount, setDepositAmount] = useState('');
-  const [depositSourceId, setDepositSourceId] = useState('');
-  const [depositNote, setDepositNote] = useState('');
-  const [isSubmittingDeposit, setIsSubmittingDeposit] = useState(false);
+  // Form tạo Goal
+  const [goalName, setGoalName] = useState('');
+  const [goalType, setGoalType] = useState<GoalType>('PURCHASE');
+  const [goalTargetAmount, setGoalTargetAmount] = useState('');
+  const [goalInitialAmount, setGoalInitialAmount] = useState('');
+  const [goalDeadline, setGoalDeadline] = useState('');
+  const [goalDesc, setGoalDesc] = useState('');
+  const [isSubmittingGoal, setIsSubmittingGoal] = useState(false);
 
-  // Modal Chi tiết mục tiêu
-  const [detailGoal, setDetailGoal] = useState<GoalResponse | null>(null);
+  // Form tạo Saving
+  const [savingName, setSavingName] = useState('');
+  const [savingCategory, setSavingCategory] = useState(SAVING_TYPES[1].value);
+  const [savingInitialAmount, setSavingInitialAmount] = useState('');
+  const [savingDesc, setSavingDesc] = useState('');
+  const [isSubmittingSaving, setIsSubmittingSaving] = useState(false);
 
-  // Tải danh sách mục tiêu & tổng quan từ backend
-  const loadGoalsData = async () => {
+  // Modal Chi tiết & Nạp / Rút & Chỉnh sửa & Chi tiết giao dịch
+  const [selectedGoal, setSelectedGoal] = useState<GoalResponse | null>(null);
+  const [selectedGoalDetail, setSelectedGoalDetail] = useState<GoalResponse | null>(null);
+  const [isLoadingDetail, setIsLoadingDetail] = useState(false);
+  const [selectedTxItem, setSelectedTxItem] = useState<{
+    title: string;
+    date: string;
+    amount: number;
+    type: 'deposit' | 'withdraw';
+    accountName?: string;
+    note?: string;
+  } | null>(null);
+  const [showDepositModal, setShowDepositModal] = useState(false);
+  const [showWithdrawModal, setShowWithdrawModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editName, setEditName] = useState('');
+  const [editTargetAmount, setEditTargetAmount] = useState('');
+  const [editTargetDate, setEditTargetDate] = useState('');
+  const [editDesc, setEditDesc] = useState('');
+  const [isSubmittingEdit, setIsSubmittingEdit] = useState(false);
+  const [txAmount, setTxAmount] = useState('');
+  const [txAccount, setTxAccount] = useState('');
+  const [txNote, setTxNote] = useState('');
+  const [isSubmittingTx, setIsSubmittingTx] = useState(false);
+
+  // Mở modal sửa với dữ liệu khởi tạo
+  const handleOpenEdit = (g: GoalResponse) => {
+    setEditName(g.name || '');
+    setEditTargetAmount(g.targetAmount ? Number(g.targetAmount).toLocaleString('vi-VN') : '');
+    setEditTargetDate(g.targetDate ? g.targetDate.split('T')[0] : '');
+    setEditDesc(g.description || '');
+    setShowEditModal(true);
+  };
+
+  // Submit cập nhật mục tiêu
+  const handleUpdateGoalSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedGoal) return;
+    if (!editName.trim()) {
+      onNotify('Vui lòng nhập tên mục tiêu.');
+      return;
+    }
+    const isSaving = (Number(selectedGoal.targetAmount) || 0) <= 0;
+    const targetAmt = isSaving ? 0 : parseFloat(editTargetAmount.replace(/\D/g, ''));
+    if (!isSaving && (!targetAmt || targetAmt <= 0)) {
+      onNotify('Vui lòng nhập số tiền mục tiêu hợp lệ (> 0).');
+      return;
+    }
+
+    try {
+      setIsSubmittingEdit(true);
+      await goalApi.updateGoal(selectedGoal.id, {
+        name: editName.trim(),
+        targetAmount: targetAmt,
+        targetDate: editTargetDate || undefined,
+        description: editDesc.trim() || undefined,
+      });
+
+      onNotify('Đã cập nhật thông tin thành công!');
+      setShowEditModal(false);
+
+      // Refresh lại chi tiết và danh sách
+      const updated = await goalApi.getGoalById(selectedGoal.id);
+      setSelectedGoal(updated);
+      setSelectedGoalDetail(updated);
+      loadData();
+    } catch (err: any) {
+      onNotify(err.response?.data?.message || 'Cập nhật thất bại. Vui lòng thử lại.');
+    } finally {
+      setIsSubmittingEdit(false);
+    }
+  };
+
+  // Mở modal chi tiết + tải đầy đủ contributions từ API
+  const openGoalDetail = async (g: GoalResponse) => {
+    setSelectedGoal(g);
+    setSelectedGoalDetail(null);
+    setIsLoadingDetail(true);
+    try {
+      const detail = await goalApi.getGoalById(g.id);
+      setSelectedGoalDetail(detail);
+    } catch {
+      // fallback: dùng dữ liệu list
+    } finally {
+      setIsLoadingDetail(false);
+    }
+  };
+
+  // Tải dữ liệu từ backend
+  const loadData = async () => {
     try {
       setIsLoading(true);
-      const [listRes, sumRes] = await Promise.all([
+      const [goalRes, accRes] = await Promise.all([
         goalApi.getGoals(),
-        goalApi.getGoalsSummary().catch(() => null),
+        accountApi.getAccounts().catch(() => []),
       ]);
-      setGoals(listRes.goals || []);
-      if (sumRes) setSummaryData(sumRes);
+      setAllGoals(goalRes.goals || []);
+      setAccounts(accRes || []);
+      if (accRes && accRes.length > 0 && !txAccount) {
+        setTxAccount(accRes[0].id);
+      }
     } catch {
-      onNotify('Không thể tải danh sách mục tiêu tài chính');
+      onNotify('Không thể tải dữ liệu mục tiêu & tiết kiệm.');
     } finally {
       setIsLoading(false);
     }
   };
 
-  // Tải danh sách ví/tài khoản để chọn nguồn nạp
-  const loadAccounts = async () => {
-    try {
-      const res = await accountApi.getAccounts();
-      setAccounts(res || []);
-      if (res && res.length > 0) {
-        setDepositSourceId(res[0].id);
-      }
-    } catch {
-      // ignore
-    }
-  };
-
   useEffect(() => {
-    loadGoalsData();
-    loadAccounts();
+    loadData();
   }, []);
 
-  // Lọc mục tiêu theo tab
-  const filteredGoals = useMemo(() => {
-    if (goalFilter === 'completed') {
-      return goals.filter((g) => g.status === 'COMPLETED' || (g.percentageComplete || 0) >= 100);
-    }
-    if (goalFilter === 'in_progress') {
-      return goals.filter((g) => g.status !== 'COMPLETED' && (g.percentageComplete || 0) < 100);
-    }
-    return goals;
-  }, [goals, goalFilter]);
+  // Phân loại Mục tiêu vs Tiết kiệm theo chuẩn giống App
+  // Tiết kiệm: targetAmount == 0 hoặc icon/description chứa saving
+  const { goalsList, savingsList } = useMemo(() => {
+    const goals: GoalResponse[] = [];
+    const savings: GoalResponse[] = [];
 
-  // Tổng hợp số liệu
-  const totalTargetSum = useMemo(() => {
-    if (summaryData?.summary?.totalTargetAmount != null) {
-      return Number(summaryData.summary.totalTargetAmount);
-    }
-    return goals.reduce((sum, g) => sum + (Number(g.targetAmount) || 0), 0);
-  }, [summaryData, goals]);
+    allGoals.forEach((g) => {
+      const target = Number(g.targetAmount) || 0;
+      const desc = (g.description || '').toLowerCase();
+      const icon = (g.icon || '').toLowerCase();
+      const isSaving = target <= 0 || icon.includes('saving') || desc.includes('tiết kiệm') || desc.includes('quỹ dự phòng');
 
-  const totalAccumulatedSum = useMemo(() => {
-    if (summaryData?.summary?.totalSaved != null) {
-      return Number(summaryData.summary.totalSaved);
-    }
-    return goals.reduce((sum, g) => sum + (Number(g.currentAmount) || 0), 0);
-  }, [summaryData, goals]);
+      if (isSaving) {
+        savings.push(g);
+      } else {
+        goals.push(g);
+      }
+    });
 
-  const overallPercent = totalTargetSum > 0 ? Math.min(100, Math.round((totalAccumulatedSum / totalTargetSum) * 100)) : 0;
-  const missingSum = Math.max(0, totalTargetSum - totalAccumulatedSum);
+    return { goalsList: goals, savingsList: savings };
+  }, [allGoals]);
 
-  // Tạo mục tiêu mới
+  // Tổng số liệu
+  const totalTargetAmount = useMemo(() => {
+    return goalsList.reduce((sum, g) => sum + (Number(g.targetAmount) || 0), 0);
+  }, [goalsList]);
+
+  const totalGoalsAmount = useMemo(() => {
+    return goalsList.reduce((sum, g) => sum + (Number(g.currentAmount) || 0), 0);
+  }, [goalsList]);
+
+  const totalSavingsAmount = useMemo(() => {
+    return savingsList.reduce((sum, s) => sum + (Number(s.currentAmount) || 0), 0);
+  }, [savingsList]);
+
+  const totalAccumulated = totalGoalsAmount + totalSavingsAmount;
+  const missingAmount = Math.max(0, totalTargetAmount - totalGoalsAmount);
+  const completionPercent = totalTargetAmount > 0
+    ? Math.min(100, Math.round((totalGoalsAmount / totalTargetAmount) * 100))
+    : 0;
+
+  // Xử lý tạo Mục tiêu
   const handleCreateGoal = async (e: React.FormEvent) => {
     e.preventDefault();
-    const targetNum = parseFloat(newTarget.replace(/\D/g, ''));
-    const accNum = parseFloat(newAccumulated.replace(/\D/g, '')) || 0;
+    const target = parseFloat(goalTargetAmount.replace(/\D/g, ''));
+    const initial = parseFloat(goalInitialAmount.replace(/\D/g, '')) || 0;
 
-    if (!newName.trim()) {
+    if (!goalName.trim()) {
       onNotify('Vui lòng nhập tên mục tiêu');
       return;
     }
-    if (!targetNum || targetNum <= 0) {
+    if (!target || target <= 0) {
       onNotify('Vui lòng nhập số tiền mục tiêu hợp lệ (> 0)');
       return;
     }
 
     try {
-      setIsSubmittingCreate(true);
-      const selectedTypeConfig = goalTypeOptions.find((o) => o.value === newType);
+      setIsSubmittingGoal(true);
+      const selectedTypeObj = GOAL_TYPES.find((t) => t.value === goalType) || GOAL_TYPES[0];
       await goalApi.createGoal({
-        name: newName.trim(),
-        goalType: newType,
-        targetAmount: targetNum,
-        currentAmount: accNum,
-        targetDate: newDeadline || undefined,
-        priority: newPriority,
-        description: newDesc.trim() || undefined,
-        icon: selectedTypeConfig?.icon || 'trend',
-        color: selectedTypeConfig?.color || '#10b981',
+        name: goalName.trim(),
+        goalType,
+        targetAmount: target,
+        currentAmount: initial,
+        targetDate: goalDeadline || undefined,
+        description: goalDesc.trim() || undefined,
+        icon: selectedTypeObj.iconKey,
+        priority: 'MEDIUM',
       });
 
       onNotify('Tạo mục tiêu tài chính mới thành công!');
-      setIsModalOpen(false);
-      setNewName('');
-      setNewTarget('');
-      setNewAccumulated('');
-      setNewDeadline('');
-      setNewDesc('');
-      loadGoalsData();
+      setShowCreateGoalModal(false);
+      setGoalName('');
+      setGoalTargetAmount('');
+      setGoalInitialAmount('');
+      setGoalDeadline('');
+      setGoalDesc('');
+      loadData();
     } catch (err: any) {
-      const msg = err.response?.data?.message || 'Tạo mục tiêu thất bại. Vui lòng thử lại';
-      onNotify(msg);
+      onNotify(err.response?.data?.message || 'Tạo mục tiêu thất bại.');
     } finally {
-      setIsSubmittingCreate(false);
+      setIsSubmittingGoal(false);
     }
   };
 
-  // Nạp thêm tiền vào mục tiêu
+  // Xử lý tạo Tiết kiệm
+  const handleCreateSaving = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const initial = parseFloat(savingInitialAmount.replace(/\D/g, '')) || 0;
+
+    if (!savingName.trim()) {
+      onNotify('Vui lòng nhập tên khoản tiết kiệm');
+      return;
+    }
+
+    try {
+      setIsSubmittingSaving(true);
+      const selectedTypeObj = SAVING_TYPES.find((t) => t.value === savingCategory) || SAVING_TYPES[1];
+      await goalApi.createGoal({
+        name: savingName.trim(),
+        goalType: 'EMERGENCY_FUND',
+        targetAmount: 0,
+        currentAmount: initial,
+        description: savingDesc.trim() ? `${savingCategory} • ${savingDesc.trim()}` : savingCategory,
+        icon: selectedTypeObj.iconKey,
+        priority: 'MEDIUM',
+      });
+
+      onNotify('Thêm khoản tiết kiệm mới thành công!');
+      setShowCreateSavingModal(false);
+      setSavingName('');
+      setSavingInitialAmount('');
+      setSavingDesc('');
+      loadData();
+    } catch (err: any) {
+      onNotify(err.response?.data?.message || 'Tạo khoản tiết kiệm thất bại.');
+    } finally {
+      setIsSubmittingSaving(false);
+    }
+  };
+
+  // Nạp tiền
   const handleDepositSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!depositGoal) return;
-    const addNum = parseFloat(depositAmount.replace(/\D/g, ''));
-    if (!addNum || addNum <= 0) {
+    if (!selectedGoal) return;
+    const amount = parseFloat(txAmount.replace(/\D/g, ''));
+    if (!amount || amount <= 0) {
       onNotify('Vui lòng nhập số tiền nạp hợp lệ (> 0)');
       return;
     }
 
     try {
-      setIsSubmittingDeposit(true);
-      await goalApi.contribute(depositGoal.id, {
-        amount: addNum,
-        note: depositNote.trim() || undefined,
-        sourceAccountId: depositSourceId || undefined,
+      setIsSubmittingTx(true);
+      await goalApi.contribute(selectedGoal.id, {
+        amount,
+        note: txNote.trim() || undefined,
+        sourceAccountId: txAccount || undefined,
       });
 
-      onNotify(`Đã nạp ${addNum.toLocaleString('vi-VN')} đ vào mục tiêu "${depositGoal.name}"!`);
-      const targetGoalId = depositGoal.id;
-      setDepositGoal(null);
-      setDepositAmount('');
-      setDepositNote('');
-      loadGoalsData();
+      onNotify(`Đã nạp ${formatVND(amount)} vào "${selectedGoal.name}" thành công!`);
+      setShowDepositModal(false);
+      setTxAmount('');
+      setTxNote('');
 
-      // Cập nhật lại modal chi tiết nếu đang mở mục tiêu này
-      try {
-        const updatedGoal = await goalApi.getGoalById(targetGoalId);
-        if (updatedGoal) {
-          setDetailGoal(updatedGoal);
-        }
-      } catch {
-        // bỏ qua nếu lỗi
-      }
+      // Refresh lại chi tiết
+      const updated = await goalApi.getGoalById(selectedGoal.id);
+      setSelectedGoal(updated);
+      loadData();
     } catch (err: any) {
-      const msg = err.response?.data?.message || 'Nạp tiền vào mục tiêu thất bại';
-      onNotify(msg);
+      onNotify(err.response?.data?.message || 'Nạp tiền thất bại.');
     } finally {
-      setIsSubmittingDeposit(false);
+      setIsSubmittingTx(false);
     }
   };
 
-  // Xóa mục tiêu
-  const handleDeleteGoal = async (goal: GoalResponse) => {
-    if (!window.confirm(`Bạn có chắc chắn muốn xóa mục tiêu "${goal.name}"?`)) return;
+  // Rút tiền
+  const handleWithdrawSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedGoal) return;
+    const amount = parseFloat(txAmount.replace(/\D/g, ''));
+    if (!amount || amount <= 0) {
+      onNotify('Vui lòng nhập số tiền rút hợp lệ (> 0)');
+      return;
+    }
+    const current = Number(selectedGoal.currentAmount) || 0;
+    if (amount > current) {
+      onNotify(`Số tiền rút không được vượt quá số dư hiện tại (${formatVND(current)})`);
+      return;
+    }
+
     try {
-      await goalApi.deleteGoal(goal.id);
-      onNotify('Đã xóa mục tiêu thành công!');
-      setDetailGoal(null);
-      loadGoalsData();
-    } catch {
-      onNotify('Xóa mục tiêu thất bại');
+      setIsSubmittingTx(true);
+      await goalApi.withdraw(selectedGoal.id, {
+        amount,
+        note: txNote.trim() || undefined,
+        targetAccountId: txAccount || undefined,
+      });
+
+      onNotify(`Đã rút ${formatVND(amount)} từ "${selectedGoal.name}" về tài khoản!`);
+      setShowWithdrawModal(false);
+      setTxAmount('');
+      setTxNote('');
+
+      // Refresh lại chi tiết
+      const updated = await goalApi.getGoalById(selectedGoal.id);
+      setSelectedGoal(updated);
+      loadData();
+    } catch (err: any) {
+      onNotify(err.response?.data?.message || 'Rút tiền thất bại.');
+    } finally {
+      setIsSubmittingTx(false);
     }
   };
 
-  // Mở modal chi tiết mục tiêu (fetch đầy đủ lịch sử đóng góp)
-  const handleOpenDetailGoal = async (g: GoalResponse) => {
-    setDetailGoal(g);
+  // Xóa
+  const handleDelete = async (g: GoalResponse) => {
+    if (!window.confirm(`Bạn có chắc chắn muốn xóa "${g.name}" không?`)) return;
     try {
-      const fullGoal = await goalApi.getGoalById(g.id);
-      if (fullGoal) {
-        setDetailGoal(fullGoal);
-      }
+      await goalApi.deleteGoal(g.id);
+      onNotify('Đã xóa thành công!');
+      setSelectedGoal(null);
+      loadData();
     } catch {
-      // Dùng dữ liệu hiện tại
+      onNotify('Xóa thất bại. Vui lòng thử lại sau.');
     }
-  };
-
-  // Lấy icon hợp lệ và màu sắc cho mục tiêu
-  const getGoalVisual = (goal: GoalResponse) => {
-    const matched = goalTypeOptions.find((o) => o.value === goal.goalType);
-    const color = goal.color || matched?.color || '#10b981';
-    const icon: IconName = (goal.icon as IconName) || matched?.icon || 'trend';
-    const label = matched?.label || 'Tích lũy tài chính';
-    return { color, icon, label };
   };
 
   return (
-    <main className="goals-management-page mx-auto flex min-h-[calc(100vh-64px)] w-full max-w-[1560px] flex-col gap-6 bg-[#f6f8f6] px-3 pb-24 pt-4 text-[#14251f] sm:gap-6 sm:px-[22px] lg:px-[34px] lg:pb-10 lg:pt-6" aria-label="Quản lý mục tiêu tài chính">
-      {/* 3 Cards thống kê tổng quan */}
-      <section className="grid gap-4 sm:grid-cols-3" aria-label="Thống kê mục tiêu">
-        {/* Card 1: Tổng mục tiêu */}
-        <article className="goal-stat-card flex min-h-[140px] flex-col justify-between rounded-2xl border border-[#e7ece8] bg-white p-5 shadow-sm">
-          <div className="flex items-start justify-between">
-            <div>
-              <p className="text-[11px] font-bold uppercase tracking-wider text-[#718078]">Tổng Mục Tiêu Cần Tích Lũy</p>
-              <p className="mt-1 text-2xl font-bold text-[#14251f]">
-                {totalTargetSum.toLocaleString('vi-VN')} <span className="text-sm font-normal text-[#718078]">đ</span>
-              </p>
-            </div>
-            <span className="grid size-11 place-items-center rounded-xl bg-[#eaf0fb] text-[#2563eb]">
-              <FinanceIcon name="chart" size={20} />
+    <main className="goals-management-page mx-auto w-full max-w-6xl space-y-6 pb-12 pt-2">
+      {/* 2. 3 Ô THỐNG KÊ TRÊN CÙNG: Tổng tích lũy, Theo mục tiêu, Tiết kiệm tự do (Chuẩn 100% theo ảnh) */}
+      <section className="grid gap-4 sm:grid-cols-3" aria-label="Thống kê mục tiêu & tích lũy">
+        {/* Ô 1: Tổng tiền đã tích lũy */}
+        <article className="flex min-h-[105px] items-center justify-between rounded-2xl border border-gray-100 dark:border-slate-800 bg-white dark:bg-slate-850 p-4 sm:p-5 shadow-xs">
+          <div className="flex items-center gap-3.5 min-w-0">
+            <span className="grid size-12 shrink-0 place-items-center rounded-2xl bg-[#e6f9f0] text-[#00a86b] dark:bg-emerald-950/60 dark:text-emerald-400">
+              <FinanceIcon name="wallet" size={22} color="#00a86b" />
             </span>
-          </div>
-          <p className="text-[11px] text-[#718078]">
-            Tổng cộng <strong className="text-[#14251f]">{goals.length}</strong> mục tiêu đang theo dõi
-          </p>
-        </article>
-
-        {/* Card 2: Đã tích lũy */}
-        <article className="goal-stat-card flex min-h-[140px] flex-col justify-between rounded-2xl border border-[#e7ece8] bg-white p-5 shadow-sm">
-          <div className="flex items-start justify-between">
-            <div>
-              <p className="text-[11px] font-bold uppercase tracking-wider text-[#718078]">Đã Tích Lũy Được</p>
-              <p className="goal-saved-amount mt-1 text-2xl font-bold text-[#10b981]">
-                {totalAccumulatedSum.toLocaleString('vi-VN')} <span className="text-sm font-normal text-[#718078]">đ</span>
+            <div className="min-w-0">
+              <p className="text-xs font-semibold text-gray-600 dark:text-gray-400">
+                Tổng tiền đã tích lũy
               </p>
+              <div className="flex items-center gap-2 mt-0.5">
+                <span className="text-xl sm:text-2xl font-black text-[#006747] dark:text-emerald-400 tracking-tight">
+                  {totalAccumulated.toLocaleString('vi-VN')} <span className="text-sm font-bold text-[#006747] dark:text-emerald-400">đ</span>
+                </span>
+                <span className="inline-flex items-center gap-1 text-[11px] font-bold text-[#00a86b] bg-[#e6f9f0] dark:bg-emerald-950/60 dark:text-emerald-300 px-2 py-0.5 rounded-full shrink-0">
+                  <FinanceIcon name="trend" size={11} color="#00a86b" />
+                  +12,4%
+                </span>
+              </div>
             </div>
-            <span className="grid size-11 place-items-center rounded-xl bg-[#e3f4e9] text-[#10b981]">
-              <FinanceIcon name="trend" size={20} />
-            </span>
-          </div>
-          <div className="space-y-1">
-            <div className="flex justify-between text-[11px] text-[#718078]">
-              <span>Tiến độ hoàn thành</span>
-              <span className="font-semibold text-[#10b981]">{overallPercent}%</span>
-            </div>
-            <ProgressBar percent={overallPercent} color="bg-[#10b981]" />
           </div>
         </article>
 
-        {/* Card 3: Còn thiếu */}
-        <article className="goal-hero-card flex min-h-[140px] flex-col justify-between rounded-2xl bg-gradient-to-br from-[#063d31] via-[#07543f] to-[#063d31] p-5 text-white shadow-sm">
-          <div className="flex items-start justify-between">
-            <div>
-              <p className="text-[11px] font-bold uppercase tracking-wider text-[#a8ebca]">Còn Thiếu Cần Phấn Đấu</p>
-              <p className="mt-1 text-2xl font-bold text-white">
-                {missingSum.toLocaleString('vi-VN')} <span className="text-sm text-[#a8ebca]">đ</span>
+        {/* Ô 2: Theo mục tiêu đã tích lũy */}
+        <article className="flex min-h-[105px] items-center justify-between rounded-2xl border border-gray-100 dark:border-slate-800 bg-white dark:bg-slate-850 p-4 sm:p-5 shadow-xs">
+          <div className="flex items-center gap-3.5 min-w-0">
+            <span className="grid size-12 shrink-0 place-items-center rounded-2xl bg-[#e6f9f0] text-[#00a86b] dark:bg-emerald-950/60 dark:text-emerald-400">
+              <FinanceIcon name="target" size={22} color="#00a86b" />
+            </span>
+            <div className="min-w-0">
+              <p className="text-xs font-semibold text-gray-600 dark:text-gray-400">
+                Theo mục tiêu đã tích lũy
+              </p>
+              <p className="mt-0.5 text-xl sm:text-2xl font-black text-gray-900 dark:text-white tracking-tight">
+                {totalGoalsAmount.toLocaleString('vi-VN')} <span className="text-sm font-bold text-gray-800 dark:text-gray-200">đ</span>
               </p>
             </div>
-            <span className="grid size-11 place-items-center rounded-xl bg-white/10 text-[#a8ebca]">
-              <FinanceIcon name="spark" size={20} />
-            </span>
           </div>
-          <p className="text-[11px] text-[#d1fae5]">FinAI khuyến nghị tích lũy định kỳ để sớm về đích.</p>
+        </article>
+
+        {/* Ô 3: Tiết kiệm tự do & Quỹ dự phòng */}
+        <article className="flex min-h-[105px] items-center justify-between rounded-2xl border border-gray-100 dark:border-slate-800 bg-white dark:bg-slate-850 p-4 sm:p-5 shadow-xs">
+          <div className="flex items-center gap-3.5 min-w-0">
+            <span className="grid size-12 shrink-0 place-items-center rounded-2xl bg-[#e6f9f0] text-[#00a86b] dark:bg-emerald-950/60 dark:text-emerald-400">
+              <FinanceIcon name="piggy-bank" size={22} color="#00a86b" />
+            </span>
+            <div className="min-w-0">
+              <p className="text-xs font-semibold text-gray-600 dark:text-gray-400">
+                Tiết kiệm tự do &amp; Quỹ dự phòng
+              </p>
+              <p className="mt-0.5 text-xl sm:text-2xl font-black text-gray-900 dark:text-white tracking-tight">
+                {totalSavingsAmount.toLocaleString('vi-VN')} <span className="text-sm font-bold text-gray-800 dark:text-gray-200">đ</span>
+              </p>
+            </div>
+          </div>
         </article>
       </section>
 
-      {/* Thanh công cụ: Tiêu đề, Bộ lọc, Nút Tạo mục tiêu */}
-      <section className="flex flex-col gap-4" aria-label="Danh sách mục tiêu">
-        <div className="flex flex-col justify-between gap-3 lg:flex-row lg:items-center">
-          <div>
-            <h2 className="text-lg font-semibold text-[#14251f]">Danh Sách Mục Tiêu Tài Chính</h2>
-            <p className="text-xs text-[#718078]">Bấm &quot;Nạp thêm tiền&quot; khi bạn vừa trích tiền vào quỹ tích lũy</p>
-          </div>
-
-          <div className="flex flex-wrap items-center gap-3">
-            {/* Bộ lọc trạng thái kiểu pill */}
-            <div className="goal-filter-box inline-flex h-[38px] items-center rounded-xl bg-[#f0f5f2] p-1 gap-1">
-              {([
-                ['all', 'Tất cả'],
-                ['in_progress', 'Đang thực hiện'],
-                ['completed', 'Đã hoàn thành'],
-              ] as const).map(([val, label]) => (
-                <button
-                  key={val}
-                  type="button"
-                  onClick={() => setGoalFilter(val)}
-                  className={`h-full rounded-lg px-3.5 text-xs font-bold transition flex items-center justify-center whitespace-nowrap ${goalFilter === val
-                      ? 'is-active bg-[#07543f] text-white shadow-xs'
-                      : 'text-[#52665a] hover:text-[#07543f] hover:bg-[#e4ede7]'
-                    }`}
-                >
-                  {label}
-                </button>
-              ))}
+      {/* 3. BÊN DƯỚI CHIA ĐÔI CÓ ĐƯỜNG PHÂN CÁCH Ở GIỮA */}
+      {isLoading ? (
+        <div className="flex flex-col items-center justify-center py-20 gap-3">
+          <div className="size-8 border-3 border-emerald-600 border-t-transparent rounded-full animate-spin" />
+          <p className="text-xs text-gray-500">Đang tải dữ liệu...</p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start relative">
+          {/* CỘT TRÁI: MỤC TIÊU TÀI CHÍNH */}
+          <section className="space-y-4">
+            <div className="flex items-center justify-between pb-1">
+              <span className="text-sm font-bold text-gray-700 dark:text-gray-200">
+                Mục tiêu ({goalsList.length})
+              </span>
+              <button
+                type="button"
+                onClick={() => setShowCreateGoalModal(true)}
+                className="inline-flex h-9 items-center justify-center gap-1.5 rounded-xl bg-[#006747] px-4 text-xs font-bold text-white shadow-xs hover:bg-[#005238] transition cursor-pointer"
+              >
+                <FinanceIcon name="plus" size={14} color="#FFFFFF" />
+                <span>Thêm mục tiêu</span>
+              </button>
             </div>
 
-            {/* Nút Tạo mục tiêu mới */}
-            <button
-              type="button"
-              onClick={() => setIsModalOpen(true)}
-              className="btn-goal-create inline-flex h-[38px] items-center justify-center rounded-xl bg-[#07543f] px-4 text-xs font-semibold text-white shadow-sm hover:bg-[#064232] transition"
-            >
-              Tạo mục tiêu mới
-            </button>
-          </div>
-        </div>
-
-        {/* Danh sách mục tiêu */}
-        {isLoading ? (
-          <div className="grid place-items-center rounded-2xl border border-[#e7ece8] bg-white py-16 text-sm text-[#718078]">
-            <span className="inline-block size-6 animate-spin rounded-full border-2 border-[#07543f] border-t-transparent" />
-            <p className="mt-2">Đang tải mục tiêu tài chính...</p>
-          </div>
-        ) : filteredGoals.length === 0 ? (
-          <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-[#cbd5e1] bg-white py-14 text-center">
-            <span className="grid size-12 place-items-center rounded-2xl bg-[#f1f5f2] text-[#718078]">
-              <FinanceIcon name="trend" size={24} />
-            </span>
-            <p className="mt-3 text-sm font-semibold text-[#14251f]">Chưa có mục tiêu nào trong nhóm này</p>
-            <p className="mt-1 text-xs text-[#718078]">Bấm &quot;Tạo mục tiêu mới&quot; để thiết lập mục tiêu tích lũy.</p>
-          </div>
-        ) : (
-          <div className="grid gap-4 md:grid-cols-2">
-            {filteredGoals.map((g) => {
-              const current = Number(g.currentAmount) || 0;
-              const target = Number(g.targetAmount) || 0;
-              const remaining = Math.max(0, target - current);
-              const pct = Math.min(100, Math.round(g.percentageComplete ?? (target > 0 ? (current / target) * 100 : 0)));
-              const isDone = g.status === 'COMPLETED' || pct >= 100;
-              const visual = getGoalVisual(g);
-
-              return (
-                <article
-                  key={g.id}
-                  className="goal-item-card group flex flex-col justify-between gap-4 rounded-2xl border border-[#e7ece8] bg-white p-5 shadow-sm transition hover:shadow-md cursor-pointer"
-                  onClick={() => handleOpenDetailGoal(g)}
+            {goalsList.length === 0 ? (
+              <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-gray-200 dark:border-gray-700 bg-white dark:bg-slate-850 py-12 text-center p-4">
+                <img src="/goal_cat_shopping_3d.png" alt="Mục tiêu trống" className="size-14 object-contain mb-2.5 opacity-80" />
+                <h4 className="text-xs font-bold text-gray-700 dark:text-gray-300">Chưa có mục tiêu nào</h4>
+                <p className="text-[11px] text-gray-400 mt-0.5 mb-3">Đặt mục tiêu mua sắm, du lịch, học tập...</p>
+                <button
+                  type="button"
+                  onClick={() => setShowCreateGoalModal(true)}
+                  className="px-3.5 py-1.5 bg-[#006747] text-white rounded-xl text-xs font-bold hover:bg-[#005238] transition cursor-pointer"
                 >
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="flex items-center gap-3">
-                      <span
-                        className="grid size-12 shrink-0 place-items-center rounded-2xl transition"
-                        style={{
-                          backgroundColor: `${visual.color}15`,
-                          borderColor: `${visual.color}35`,
-                          color: visual.color,
-                          borderWidth: '1px',
-                          borderStyle: 'solid',
-                        }}
-                      >
-                        <FinanceIcon name={visual.icon} size={22} />
-                      </span>
-                      <div className="min-w-0">
-                        <h3 className="goal-item-title truncate text-base font-bold text-[#14251f] group-hover:text-[#07543f]">
-                          {g.name}
-                        </h3>
-                        <p className="goal-item-sub mt-0.5 text-xs text-[#718078]">
-                          {g.targetDate ? `Hạn chót: ${g.targetDate}` : 'Không thời hạn'} ·{' '}
-                          <span className="font-semibold" style={{ color: visual.color }}>
-                            {visual.label}
+                  + Thêm mục tiêu
+                </button>
+              </div>
+            ) : (
+              <div className="space-y-3.5">
+                {goalsList.map((g) => {
+                  const current = Number(g.currentAmount) || 0;
+                  const target = Number(g.targetAmount) || 0;
+                  const pct = target > 0 ? Math.min(100, Math.round((current / target) * 100)) : 0;
+                  const imgSrc = getGoalIconSrc(g.icon, g.name);
+
+                  return (
+                    <div
+                      key={g.id}
+                      onClick={() => openGoalDetail(g)}
+                      className="flex items-center gap-4 p-4 rounded-2xl border border-gray-100 dark:border-slate-800 bg-white dark:bg-slate-850 shadow-[0_2px_8px_rgba(0,0,0,0.02)] hover:shadow-md transition-all cursor-pointer group"
+                    >
+                      <div className="size-16 shrink-0 rounded-2xl flex items-center justify-center overflow-hidden">
+                        <img src={imgSrc} alt={g.name} className="size-full object-contain" />
+                      </div>
+
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between gap-2 mb-1">
+                          <h4 className="text-[15px] font-bold text-gray-900 dark:text-white truncate">
+                            {g.name}
+                          </h4>
+                          <div className="flex items-center gap-1.5 shrink-0">
+                            <span className="text-xs font-bold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/60 px-3 py-1 rounded-full">
+                              {pct}%
+                            </span>
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                openGoalDetail(g);
+                              }}
+                              className="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition cursor-pointer"
+                              title="Tùy chọn"
+                            >
+                              <FinanceIcon name="more" size={16} />
+                            </button>
+                          </div>
+                        </div>
+
+                        <p className="text-xs text-gray-500 dark:text-gray-400 mb-2.5 flex items-center gap-1.5">
+                          <FinanceIcon name="calendar" size={13} color="#64748B" />
+                          <span>{g.targetDate ? `Hạn: ${formatDisplayDate(g.targetDate)}` : 'Không giới hạn thời gian'}</span>
+                        </p>
+
+                        <div className="w-full h-2 rounded-full bg-gray-100 dark:bg-gray-800 overflow-hidden mb-2.5">
+                          <div
+                            className="h-full bg-[#006747] dark:bg-emerald-500 rounded-full transition-all duration-500"
+                            style={{ width: `${pct}%` }}
+                          />
+                        </div>
+
+                        <div className="text-xs font-medium">
+                          <strong className="text-[#006747] dark:text-emerald-400 font-extrabold text-[13px]">
+                            {formatVND(current)}
+                          </strong>
+                          <span className="text-gray-400 mx-1">/</span>
+                          <span className="text-gray-400 dark:text-gray-400">
+                            {formatVND(target)}
                           </span>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </section>
+
+          {/* CỘT PHẢI: KHOẢN TIẾT KIỆM (CÓ ĐƯỜNG KẺ CHIA Ở GIỮA TRÊN MÀN HÌNH LỚN) */}
+          <section className="space-y-4 lg:pl-8 lg:border-l lg:border-gray-200 dark:lg:border-slate-800">
+            <div className="flex items-center justify-between pb-1">
+              <span className="text-sm font-bold text-gray-700 dark:text-gray-200">
+                Tiết kiệm ({savingsList.length})
+              </span>
+              <button
+                type="button"
+                onClick={() => setShowCreateSavingModal(true)}
+                className="inline-flex h-9 items-center justify-center gap-1.5 rounded-xl bg-[#006747] px-4 text-xs font-bold text-white shadow-xs hover:bg-[#005238] transition cursor-pointer"
+              >
+                <FinanceIcon name="plus" size={14} color="#FFFFFF" />
+                <span>Thêm tiết kiệm</span>
+              </button>
+            </div>
+
+            {savingsList.length === 0 ? (
+              <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-gray-200 dark:border-gray-700 bg-white dark:bg-slate-850 py-12 text-center p-4">
+                <img src="/saving_cat_free_3d.png" alt="Tiết kiệm trống" className="size-14 object-contain mb-2.5 opacity-80" />
+                <h4 className="text-xs font-bold text-gray-700 dark:text-gray-300">Chưa có khoản tiết kiệm nào</h4>
+                <p className="text-[11px] text-gray-400 mt-0.5 mb-3">Tạo quỹ dự phòng khẩn cấp, tiết kiệm tự do...</p>
+                <button
+                  type="button"
+                  onClick={() => setShowCreateSavingModal(true)}
+                  className="px-3.5 py-1.5 bg-[#006747] text-white rounded-xl text-xs font-bold hover:bg-[#005238] transition cursor-pointer"
+                >
+                  + Thêm tiết kiệm
+                </button>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {savingsList.map((s) => {
+                  const current = Number(s.currentAmount) || 0;
+                  const imgSrc = getSavingIconSrc(s.icon, s.name);
+
+                  return (
+                    <div
+                      key={s.id}
+                      onClick={() => openGoalDetail(s)}
+                      className="goal-app-card flex items-center gap-3.5 group"
+                    >
+                      <div className="goal-3d-box">
+                        <img src={imgSrc} alt={s.name} className="goal-3d-img" />
+                      </div>
+
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between gap-2 mb-1">
+                          <h4 className="text-sm font-bold text-gray-900 dark:text-white truncate group-hover:text-[#006747] transition">
+                            {s.name}
+                          </h4>
+                          <FinanceIcon name="chevron-right" size={16} color="#94A3B8" />
+                        </div>
+
+                        <p className="text-[11px] text-gray-500 dark:text-gray-400 mb-2 truncate">
+                          {s.description || 'Tiết kiệm tự do'}
+                        </p>
+
+                        <p className="text-base font-extrabold text-[#006747] dark:text-emerald-400">
+                          {formatVND(current)}
                         </p>
                       </div>
                     </div>
-                    <span className="text-lg font-extrabold text-[#10b981]">{pct}%</span>
-                  </div>
+                  );
+                })}
+              </div>
+            )}
+          </section>
+        </div>
+      )}
 
-                  <div className="space-y-1.5">
-                    <div className="flex justify-between text-xs text-[#718078]">
-                      <span>
-                        Đã tích lũy: <strong className="text-[#14251f] font-bold">{current.toLocaleString('vi-VN')} đ</strong>
-                      </span>
-                      <span>
-                        Mục tiêu: <strong className="text-[#14251f] font-bold">{target.toLocaleString('vi-VN')} đ</strong>
-                      </span>
-                    </div>
-                    <ProgressBar percent={pct} color={isDone ? 'bg-[#10b981]' : 'bg-[#07543f]'} height="h-2.5" />
-                    <p className="goal-item-sub text-[11px] text-[#718078] flex justify-between">
-                      <span>
-                        Còn thiếu: <strong className="text-[#f43f5e] font-semibold">{remaining.toLocaleString('vi-VN')} đ</strong>
-                      </span>
-                      {g.suggestedMonthlySaving && (
-                        <span>Gợi ý: ~{Number(g.suggestedMonthlySaving).toLocaleString('vi-VN')} đ/tháng</span>
-                      )}
-                    </p>
-                  </div>
-
-                  <div className="flex items-center justify-end gap-2 border-t border-[#f1f5f2] pt-3" onClick={(e) => e.stopPropagation()}>
-                    <button
-                      type="button"
-                      onClick={() => handleOpenDetailGoal(g)}
-                      className="btn-goal-detail rounded-xl border border-[#d2dcd5] bg-[#f8fafc] px-3.5 py-1.5 text-xs font-semibold text-[#52665a] hover:bg-[#edf2f7] transition"
-                    >
-                      Chi tiết
-                    </button>
-                    {!isDone && (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setDepositGoal(g);
-                          setDepositAmount('');
-                          setDepositNote('');
-                        }}
-                        className="btn-goal-deposit rounded-xl bg-[#07543f] px-3.5 py-1.5 text-xs font-semibold text-white shadow-sm hover:bg-[#064232] transition"
-                      >
-                        + Nạp thêm tiền
-                      </button>
-                    )}
-                  </div>
-                </article>
-              );
-            })}
-          </div>
-        )}
-      </section>
-
-      {/* Modal Nạp thêm tiền vào mục tiêu */}
-      {depositGoal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm" onClick={() => setDepositGoal(null)}>
-          <div className="goal-modal-card w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl" onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-center justify-between border-b border-[#e7ece8] pb-3">
+      {/* ================= MODAL TẠO MỤC TIÊU ================= */}
+      {showCreateGoalModal && (
+        <div className="goal-modal-backdrop" onClick={() => setShowCreateGoalModal(false)}>
+          <div className="goal-modal-card p-6" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between border-b border-gray-100 dark:border-gray-800 pb-3 mb-4">
               <div>
-                <h3 className="text-base font-bold text-[#14251f]">Nạp Tiền Vào Mục Tiêu</h3>
-                <p className="text-xs text-[#718078]">
-                  Mục tiêu: <strong>{depositGoal.name}</strong>
-                </p>
+                <h3 className="text-base font-bold text-gray-900 dark:text-white">Thêm mục tiêu mới</h3>
+                <p className="text-xs text-gray-500">Kế hoạch mua sắm hoặc chi tiêu lớn trong tương lai</p>
               </div>
               <button
                 type="button"
-                onClick={() => setDepositGoal(null)}
-                className="grid size-8 place-items-center rounded-lg text-[#718078] hover:bg-[#f1f5f2]"
+                onClick={() => setShowCreateGoalModal(false)}
+                className="size-8 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 dark:hover:bg-slate-700 flex items-center justify-center cursor-pointer"
               >
                 ✕
               </button>
             </div>
 
-            <form onSubmit={handleDepositSubmit} className="mt-4 space-y-4">
+            <form onSubmit={handleCreateGoal} className="space-y-4">
               <div>
-                <label className="block text-xs font-semibold text-[#14251f] mb-1">Số tiền nạp (VND) *</label>
+                <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">Tên mục tiêu *</label>
+                <input
+                  type="text"
+                  placeholder="Ví dụ: Mua Macbook Pro, Du lịch Nhật Bản..."
+                  value={goalName}
+                  onChange={(e) => setGoalName(e.target.value)}
+                  className="w-full h-10 px-3.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-slate-800 text-xs text-gray-900 dark:text-white focus:outline-none focus:border-emerald-600"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">Loại mục tiêu</label>
+                <div className="grid grid-cols-2 gap-2 max-h-44 overflow-y-auto pr-1">
+                  {GOAL_TYPES.map((t) => (
+                    <div
+                      key={t.value}
+                      onClick={() => setGoalType(t.value)}
+                      className={`p-2.5 rounded-xl border text-left cursor-pointer flex items-center gap-2.5 transition ${
+                        goalType === t.value
+                          ? 'border-[#006747] bg-emerald-50/50 dark:bg-emerald-950/40 text-[#006747] font-bold'
+                          : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 text-gray-700 dark:text-gray-300'
+                      }`}
+                    >
+                      <img src={t.image} alt={t.label} className="size-7 object-contain shrink-0" />
+                      <span className="text-xs truncate">{t.label}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">Số tiền mục tiêu *</label>
+                  <input
+                    type="text"
+                    placeholder="20,000,000"
+                    value={goalTargetAmount}
+                    onChange={(e) => {
+                      const val = e.target.value.replace(/\D/g, '');
+                      setGoalTargetAmount(val ? Number(val).toLocaleString('vi-VN') : '');
+                    }}
+                    className="w-full h-10 px-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-slate-800 text-xs text-gray-900 dark:text-white focus:outline-none focus:border-emerald-600"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">Đã có sẵn (nếu có)</label>
+                  <input
+                    type="text"
+                    placeholder="0"
+                    value={goalInitialAmount}
+                    onChange={(e) => {
+                      const val = e.target.value.replace(/\D/g, '');
+                      setGoalInitialAmount(val ? Number(val).toLocaleString('vi-VN') : '');
+                    }}
+                    className="w-full h-10 px-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-slate-800 text-xs text-gray-900 dark:text-white focus:outline-none focus:border-emerald-600"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">Hạn chót hoàn thành</label>
+                <input
+                  type="date"
+                  value={goalDeadline}
+                  onChange={(e) => setGoalDeadline(e.target.value)}
+                  className="w-full h-10 px-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-slate-800 text-xs text-gray-900 dark:text-white focus:outline-none focus:border-emerald-600"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">Ghi chú thêm</label>
+                <textarea
+                  rows={2}
+                  placeholder="Kế hoạch trích lương hàng tháng, mục đích tiết kiệm..."
+                  value={goalDesc}
+                  onChange={(e) => setGoalDesc(e.target.value)}
+                  className="w-full p-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-slate-800 text-xs text-gray-900 dark:text-white focus:outline-none focus:border-emerald-600"
+                />
+              </div>
+
+              <div className="flex justify-end gap-2.5 pt-3 border-t border-gray-100 dark:border-gray-800">
+                <button
+                  type="button"
+                  onClick={() => setShowCreateGoalModal(false)}
+                  className="px-4 py-2 rounded-xl border border-gray-200 dark:border-gray-700 text-xs font-semibold text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-slate-700 transition cursor-pointer"
+                >
+                  Hủy
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSubmittingGoal}
+                  className="px-5 py-2 rounded-xl bg-[#006747] text-white text-xs font-bold hover:bg-[#005238] transition disabled:opacity-50 cursor-pointer shadow-sm"
+                >
+                  {isSubmittingGoal ? 'Đang tạo...' : 'Tạo mục tiêu'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ================= MODAL TẠO KHOẢN TIẾT KIỆM ================= */}
+      {showCreateSavingModal && (
+        <div className="goal-modal-backdrop" onClick={() => setShowCreateSavingModal(false)}>
+          <div className="goal-modal-card p-6" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between border-b border-gray-100 dark:border-gray-800 pb-3 mb-4">
+              <div>
+                <h3 className="text-base font-bold text-gray-900 dark:text-white">Thêm khoản tiết kiệm mới</h3>
+                <p className="text-xs text-gray-500">Tích lũy tự do, quỹ khẩn cấp không giới hạn hạn mức</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowCreateSavingModal(false)}
+                className="size-8 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 dark:hover:bg-slate-700 flex items-center justify-center cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
+
+            <form onSubmit={handleCreateSaving} className="space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">Tên khoản tiết kiệm *</label>
+                <input
+                  type="text"
+                  placeholder="Ví dụ: Quỹ dự phòng cá nhân, Tiết kiệm tự do..."
+                  value={savingName}
+                  onChange={(e) => setSavingName(e.target.value)}
+                  className="w-full h-10 px-3.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-slate-800 text-xs text-gray-900 dark:text-white focus:outline-none focus:border-emerald-600"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">Phân loại quỹ</label>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  {SAVING_TYPES.map((t) => (
+                    <div
+                      key={t.value}
+                      onClick={() => setSavingCategory(t.value)}
+                      className={`p-2.5 rounded-xl border text-left cursor-pointer flex items-center gap-2.5 transition ${
+                        savingCategory === t.value
+                          ? 'border-[#006747] bg-emerald-50/50 dark:bg-emerald-950/40 text-[#006747] font-bold'
+                          : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 text-gray-700 dark:text-gray-300'
+                      }`}
+                    >
+                      <img src={t.image} alt={t.label} className="size-7 object-contain shrink-0" />
+                      <span className="text-xs truncate">{t.label}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">Số tiền khởi điểm (VND)</label>
+                <input
+                  type="text"
+                  placeholder="0"
+                  value={savingInitialAmount}
+                  onChange={(e) => {
+                    const val = e.target.value.replace(/\D/g, '');
+                    setSavingInitialAmount(val ? Number(val).toLocaleString('vi-VN') : '');
+                  }}
+                  className="w-full h-10 px-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-slate-800 text-xs text-gray-900 dark:text-white focus:outline-none focus:border-emerald-600"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">Mô tả / Ghi chú</label>
+                <textarea
+                  rows={2}
+                  placeholder="Ghi chú về mục đích khoản tiết kiệm..."
+                  value={savingDesc}
+                  onChange={(e) => setSavingDesc(e.target.value)}
+                  className="w-full p-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-slate-800 text-xs text-gray-900 dark:text-white focus:outline-none focus:border-emerald-600"
+                />
+              </div>
+
+              <div className="flex justify-end gap-2.5 pt-3 border-t border-gray-100 dark:border-gray-800">
+                <button
+                  type="button"
+                  onClick={() => setShowCreateSavingModal(false)}
+                  className="px-4 py-2 rounded-xl border border-gray-200 dark:border-gray-700 text-xs font-semibold text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-slate-700 transition cursor-pointer"
+                >
+                  Hủy
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSubmittingSaving}
+                  className="px-5 py-2 rounded-xl bg-[#006747] text-white text-xs font-bold hover:bg-[#005238] transition disabled:opacity-50 cursor-pointer shadow-sm"
+                >
+                  {isSubmittingSaving ? 'Đang tạo...' : 'Lưu khoản tiết kiệm'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ================= MODAL CHI TIẾT MỤC TIÊU / TIẾT KIỆM ================= */}
+      {selectedGoal && (() => {
+        const activeGoal = selectedGoalDetail || selectedGoal;
+        const current = Number(activeGoal.currentAmount) || 0;
+        const target = Number(activeGoal.targetAmount) || 0;
+        const isSaving = target <= 0;
+        const pct = target > 0 ? Math.min(100, (current / target) * 100) : 0;
+        const pctDisplay = target > 0 ? Math.min(100, Math.round((current / target) * 100)) : 0;
+        const imgSrc = isSaving
+          ? getSavingIconSrc(activeGoal.icon, activeGoal.name)
+          : getGoalIconSrc(activeGoal.icon, activeGoal.name);
+
+        // SVG gauge: 150x150 chuẩn như bản app: Center (75, 75), radius = 56, strokeWidth = 11
+        // Start: 135 deg (bottom-left) -> End: 45 deg (bottom-right)
+        // Arc length = 2 * PI * 56 * (270 / 360) = 263.89
+        const totalArcLen = 263.89;
+        const pctRatio = Math.min(1, Math.max(0, pct / 100));
+        const strokeDashoffset = totalArcLen * (1 - pctRatio);
+
+        // Days remaining
+        let daysRemaining: number | null = null;
+        if (activeGoal.targetDate) {
+          const deadline = new Date(activeGoal.targetDate);
+          const today = new Date();
+          const diff = Math.ceil((deadline.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+          daysRemaining = diff > 0 ? diff : 0;
+        }
+
+        const historyItems = activeGoal.contributions || [];
+
+        return (
+          <div className="goal-modal-backdrop" onClick={() => setSelectedGoal(null)}>
+            <div
+              className="relative bg-white dark:bg-slate-900 rounded-3xl shadow-2xl w-full max-w-4xl mx-4 max-h-[92vh] overflow-y-auto"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* ── HEADER ── */}
+              <div className="flex items-start gap-4 p-6 pb-4">
+                <div className="size-16 shrink-0 rounded-2xl overflow-hidden flex items-center justify-center">
+                  <img src={imgSrc} alt={selectedGoal.name} className="size-full object-contain" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <h3 className="text-xl font-extrabold text-gray-900 dark:text-white leading-tight">{selectedGoal.name}</h3>
+                  <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+                    <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-700 bg-emerald-50 dark:bg-emerald-950/60 dark:text-emerald-400 px-2.5 py-1 rounded-full border border-emerald-100 dark:border-emerald-800/40">
+                      <FinanceIcon name="target" size={12} color="#16a34a" />
+                      {isSaving ? 'Tiết kiệm' : 'Mục tiêu Tiết kiệm'}
+                    </span>
+                    {!isSaving && (
+                      <span className="text-xs font-bold text-blue-600 bg-blue-50 dark:bg-blue-950/60 dark:text-blue-400 px-2.5 py-1 rounded-full">
+                        {pctDisplay}%
+                      </span>
+                    )}
+                  </div>
+                  {selectedGoal.description && (
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1.5 line-clamp-2">{selectedGoal.description}</p>
+                  )}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setSelectedGoal(null)}
+                  className="size-9 rounded-xl text-gray-400 hover:text-gray-700 hover:bg-gray-100 dark:hover:bg-slate-800 flex items-center justify-center cursor-pointer shrink-0 transition"
+                >
+                  <FinanceIcon name="close" size={18} />
+                </button>
+              </div>
+
+              {/* ── BODY: 2-column ── */}
+              <div className="grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-0 px-6 pb-6">
+                {/* ── LEFT ── */}
+                <div className="space-y-4 lg:pr-6">
+                  {isSaving ? (
+                    /* GIAO DIỆN KHOẢN TIẾT KIỆM (KHÔNG CÓ TIẾN ĐỘ, MỤC TIÊU HAY HẠN CHÓT) */
+                    <div className="rounded-3xl bg-emerald-50/50 dark:bg-emerald-950/30 border border-emerald-100 dark:border-emerald-800/40 p-6 relative overflow-hidden">
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="flex-1">
+                          <p className="text-xs font-semibold text-gray-600 dark:text-gray-300 mb-1.5 flex items-center gap-1.5">
+                            <span>Tổng số dư đang tích lũy</span>
+                          </p>
+                          <p className="text-3xl font-black text-[#006747] dark:text-emerald-400 mb-3 tracking-tight">
+                            {formatVND(current)}
+                          </p>
+                          <p className="text-xs text-gray-500 dark:text-gray-400 leading-relaxed max-w-sm">
+                            {activeGoal.description || 'Khoản tiết kiệm tự do không giới hạn thời gian và số tiền mục tiêu. Bạn có thể nộp thêm hoặc rút ra bất cứ khi nào.'}
+                          </p>
+                        </div>
+
+                        <div className="flex flex-col items-end gap-2 shrink-0">
+                          <span className="inline-flex items-center gap-1.5 text-xs font-bold text-emerald-700 bg-emerald-100/80 dark:bg-emerald-900/50 dark:text-emerald-300 px-3 py-1 rounded-full">
+                            <FinanceIcon name="bell" size={13} color="#006747" />
+                            Đang tích lũy
+                          </span>
+                          <img
+                            src="/saving_detail_piggy_3d.png"
+                            alt="Heo tiết kiệm"
+                            className="size-28 object-contain mt-1 drop-shadow-sm"
+                            onError={(e) => { (e.target as HTMLImageElement).src = '/saving_cat_free_3d.png'; }}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    /* GIAO DIỆN MỤC TIÊU TÀI CHÍNH (CÓ GAUGE TRÒN, 3 CHỈ SỐ, HẠN CHÓT & TẦN SUẤT) */
+                    <>
+                      {/* Gauge + 3 Metrics */}
+                      <div className="flex items-center gap-6">
+                        {/* SVG Circular Gauge chuẩn 100% như bản App */}
+                        <div className="relative shrink-0 flex items-center justify-center" style={{ width: 150, height: 150 }}>
+                          <svg width={150} height={150} viewBox="0 0 150 150">
+                            {/* Background Track (Màu xám nhạt) */}
+                            <path
+                              d="M 35.4 114.6 A 56 56 0 1 1 114.6 114.6"
+                              fill="none"
+                              stroke="#E2E8F0"
+                              strokeWidth={11}
+                              strokeLinecap="round"
+                            />
+                            {/* Active Progress Track (Màu xanh lá thương hiệu) */}
+                            {pct > 0 && (
+                              <path
+                                d="M 35.4 114.6 A 56 56 0 1 1 114.6 114.6"
+                                fill="none"
+                                stroke="#006747"
+                                strokeWidth={11}
+                                strokeLinecap="round"
+                                strokeDasharray={`${totalArcLen}`}
+                                strokeDashoffset={strokeDashoffset}
+                                style={{ transition: 'stroke-dashoffset 0.8s ease' }}
+                              />
+                            )}
+                          </svg>
+
+                          {/* Center overlay — hình con lợn tiết kiệm + số tiền */}
+                          <div className="absolute inset-0 flex flex-col items-center justify-center pt-1 pb-5">
+                            <img
+                              src="/gauge_pouch_icon.png"
+                              alt="Tiết kiệm"
+                              className="size-7 object-contain mb-1"
+                              onError={(e) => { (e.target as HTMLImageElement).src = '/saving_cat_free_3d.png'; }}
+                            />
+                            <p className="text-sm font-extrabold text-[#006747] dark:text-emerald-400 leading-tight">{formatVND(current)}</p>
+                            <p className="text-[11px] text-gray-400 font-medium">/{formatVND(target)}</p>
+                          </div>
+
+                          {/* % label — nằm ở giữa khoảng trống 2 đầu cung arc */}
+                          <div className="absolute left-1/2 -translate-x-1/2" style={{ top: 118 }}>
+                            <span className="text-xs font-bold text-gray-600 dark:text-gray-300 whitespace-nowrap">
+                              {pctDisplay.toFixed(1).replace('.', ',')}%
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* 3 Metric rows */}
+                        <div className="flex-1 space-y-2.5">
+                          {[
+                            { label: 'Mục tiêu', value: formatVND(target), icon: 'target' as const, color: '#006747', bold: false },
+                            { label: 'Đã tiết kiệm', value: formatVND(current), icon: 'wallet' as const, color: '#006747', bold: true },
+                            { label: 'Còn thiếu', value: formatVND(Math.max(0, target - current)), icon: 'trend' as const, color: '#DC2626', bold: true },
+                          ].map((m) => (
+                            <div key={m.label} className="flex items-center gap-3">
+                              <div className="size-8 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 flex items-center justify-center shrink-0">
+                                <FinanceIcon name={m.icon} size={15} color="#006747" />
+                              </div>
+                              <div>
+                                <p className="text-[11px] text-gray-500 dark:text-gray-400 leading-none mb-0.5">{m.label}</p>
+                                <p className={`text-sm font-extrabold leading-tight ${m.label === 'Còn thiếu' ? 'text-rose-600' : 'text-gray-900 dark:text-white'}`}>
+                                  {m.value}
+                                </p>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Hạn chót + Tần suất (2 cols gọn gàng hơn) */}
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="rounded-2xl border border-gray-100 dark:border-slate-800 bg-gray-50 dark:bg-slate-800/60 p-3">
+                          <div className="flex items-center gap-2 mb-1">
+                            <div className="size-7 rounded-lg bg-emerald-50 dark:bg-emerald-950/40 flex items-center justify-center">
+                              <FinanceIcon name="calendar" size={14} color="#006747" />
+                            </div>
+                            <span className="text-[11px] text-gray-500 dark:text-gray-400 font-medium">Hạn chót</span>
+                          </div>
+                          <p className="text-sm font-extrabold text-gray-900 dark:text-white">
+                            {selectedGoal.targetDate ? formatDisplayDate(selectedGoal.targetDate) : 'Không thời hạn'}
+                          </p>
+                          {daysRemaining !== null && (
+                            <p className="text-[11px] text-emerald-600 font-semibold mt-0.5">Còn {daysRemaining} ngày</p>
+                          )}
+                        </div>
+                        <div className="rounded-2xl border border-gray-100 dark:border-slate-800 bg-gray-50 dark:bg-slate-800/60 p-3">
+                          <div className="flex items-center gap-2 mb-1">
+                            <div className="size-7 rounded-lg bg-emerald-50 dark:bg-emerald-950/40 flex items-center justify-center">
+                              <FinanceIcon name="layers" size={14} color="#006747" />
+                            </div>
+                            <span className="text-[11px] text-gray-500 dark:text-gray-400 font-medium">Tần suất đóng góp</span>
+                          </div>
+                          <p className="text-sm font-extrabold text-gray-900 dark:text-white">
+                            {(() => {
+                              const freq = selectedGoal.autoSave?.frequency;
+                              if (!freq) return 'Hàng tháng';
+                              const f = freq.toUpperCase();
+                              if (f === 'DAILY') return 'Hàng ngày';
+                              if (f === 'WEEKLY') return 'Hàng tuần';
+                              if (f === 'BI_WEEKLY') return 'Hai tuần/lần';
+                              if (f === 'MONTHLY') return 'Hàng tháng';
+                              return 'Hàng tháng';
+                            })()}
+                          </p>
+                        </div>
+                      </div>
+                    </>
+                  )}
+
+                  {/* Action Buttons — hàng 1: Nạp + Rút | hàng 2: Sửa + Xóa */}
+                  <div className="space-y-2 pt-1">
+                    <div className="grid grid-cols-2 gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setShowDepositModal(true)}
+                        className="inline-flex items-center justify-center gap-1.5 py-3 rounded-xl bg-[#006747] text-white hover:bg-[#005238] text-sm font-bold transition cursor-pointer shadow-sm"
+                      >
+                        <FinanceIcon name="plus" size={15} color="#fff" />
+                        Nạp thêm
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setShowWithdrawModal(true)}
+                        className="inline-flex items-center justify-center gap-1.5 py-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-slate-800 text-gray-700 dark:text-gray-200 hover:bg-gray-50 text-sm font-bold transition cursor-pointer"
+                      >
+                        <FinanceIcon name="arrow-up" size={15} color="#374151" />
+                        Rút tiền
+                      </button>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <button
+                        type="button"
+                        onClick={() => handleOpenEdit(activeGoal)}
+                        className="inline-flex items-center justify-center gap-1.5 py-2.5 rounded-xl border border-emerald-200 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 hover:bg-emerald-100 text-xs font-bold transition cursor-pointer"
+                      >
+                        <FinanceIcon name="edit" size={13} color="#006747" />
+                        Chỉnh sửa
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleDelete(selectedGoal)}
+                        className="inline-flex items-center justify-center gap-1.5 py-2.5 rounded-xl border border-rose-200 bg-rose-50 dark:bg-rose-950/40 text-rose-600 hover:bg-rose-100 text-xs font-bold transition cursor-pointer"
+                      >
+                        <FinanceIcon name="trash" size={13} color="#DC2626" />
+                        Xóa mục tiêu
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                  {/* ── RIGHT: Lịch sử nạp & rút tiền ── */}
+                <div className="lg:border-l lg:border-gray-100 dark:lg:border-slate-800 lg:pl-6 mt-6 lg:mt-0">
+                  <div className="flex items-center gap-2 mb-4">
+                    <FinanceIcon name="file-text" size={18} color="#006747" />
+                    <h4 className="text-sm font-bold text-gray-900 dark:text-white">
+                      Lịch sử nạp &amp; rút tiền ({historyItems.length})
+                    </h4>
+                    {isLoadingDetail && (
+                      <span className="text-[10px] text-gray-400 italic animate-pulse">Đang tải...</span>
+                    )}
+                  </div>
+
+                  {historyItems.length === 0 ? (
+                    current > 0 ? (
+                      <div className="rounded-xl bg-emerald-50/60 dark:bg-emerald-950/30 border border-emerald-100 dark:border-emerald-800/40 p-3 flex items-center justify-between text-xs">
+                        <div>
+                          <p className="font-bold text-[#006747]">+{formatVND(current)}</p>
+                          <span className="text-[11px] text-gray-500">Số tiền tích lũy ban đầu</span>
+                        </div>
+                        <span className="text-[11px] font-semibold text-emerald-600">Khởi điểm ✓</span>
+                      </div>
+                    ) : (
+                      <p className="text-xs text-gray-400 italic text-center py-6">Chưa có giao dịch nào</p>
+                    )
+                  ) : (
+                    <div className="max-h-[380px] overflow-y-auto divide-y divide-gray-50 dark:divide-slate-800 pr-1">
+                      {historyItems.map((ct, idx) => {
+                        // Map đúng như bản app: amount luôn >= 0, phân biệt qua sign của raw
+                        const rawAmt = Number(ct.amount || 0);
+                        const isWd = rawAmt < 0;
+                        const absAmt = Math.abs(rawAmt);
+
+                        // Title: c.note nếu có, else default theo type
+                        const title = ct.note
+                          ? ct.note
+                          : isWd ? 'Rút tiền mục tiêu' : 'Tiết kiệm định kỳ';
+
+                        // Date: HH:mm • DD/MM/YYYY (chuẩn app dùng •)
+                        let dateLabel = '';
+                        if (ct.contributedAt) {
+                          try {
+                            const d = new Date(ct.contributedAt);
+                            if (!isNaN(d.getTime())) {
+                              dateLabel = `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')} • ${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}/${d.getFullYear()}`;
+                            }
+                          } catch { /* ignore */ }
+                        }
+
+                        // Account name
+                        const accName = (ct as any).sourceAccountName
+                          || (ct as any).accountName
+                          || ((ct as any).sourceAccountId
+                            ? `Tài khoản (${String((ct as any).sourceAccountId).substring(0, 8)})`
+                            : '');
+
+                        return (
+                          <div
+                            key={ct.id || idx}
+                            onClick={() => setSelectedTxItem({
+                              title,
+                              date: dateLabel || 'Giao dịch gần đây',
+                              amount: absAmt,
+                              type: isWd ? 'withdraw' : 'deposit',
+                              accountName: accName,
+                              note: ct.note,
+                            })}
+                            className="flex items-center gap-3 py-3 cursor-pointer hover:bg-gray-50/60 dark:hover:bg-slate-800/40 rounded-xl px-1.5 transition"
+                          >
+                            {/* Circle icon (giống app) */}
+                            <div className={`size-9 rounded-full flex items-center justify-center shrink-0 ${isWd ? 'bg-rose-50 dark:bg-rose-950/40' : 'bg-emerald-50 dark:bg-emerald-950/40'}`}>
+                              <FinanceIcon
+                                name={isWd ? 'arrow-up' : 'arrow-down'}
+                                size={15}
+                                color={isWd ? '#DC2626' : '#006747'}
+                              />
+                            </div>
+
+                            {/* Info col */}
+                            <div className="flex-1 min-w-0">
+                              <p className="text-xs font-semibold text-gray-900 dark:text-gray-100 truncate">{title}</p>
+                              <p className="text-[11px] text-gray-400 mt-0.5">
+                                {dateLabel}
+                                {accName ? ` · ${accName}` : ''}
+                              </p>
+                            </div>
+
+                            {/* Amount + chevron */}
+                            <div className="flex items-center gap-1 shrink-0">
+                              <span className={`text-xs font-extrabold ${isWd ? 'text-rose-600' : 'text-emerald-600'}`}>
+                                {isWd ? '-' : '+'}{formatVND(absAmt)}
+                              </span>
+                              <FinanceIcon name="chevron-right" size={13} color="#94A3B8" />
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* ================= MODAL NẠP TIỀN ================= */}
+      {showDepositModal && selectedGoal && (
+        <div className="goal-modal-backdrop" onClick={() => setShowDepositModal(false)}>
+          <div className="goal-modal-card p-6" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between border-b border-gray-100 dark:border-gray-800 pb-3 mb-4">
+              <div>
+                <h3 className="text-base font-bold text-gray-900 dark:text-white">Nạp tiền vào quỹ</h3>
+                <p className="text-xs text-gray-500">Mục: <strong>{selectedGoal.name}</strong></p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowDepositModal(false)}
+                className="size-8 rounded-lg text-gray-400 hover:text-gray-600 flex items-center justify-center cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
+
+            <form onSubmit={handleDepositSubmit} className="space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">Số tiền nạp (VND) *</label>
                 <input
                   type="text"
                   placeholder="Ví dụ: 1,000,000"
-                  value={depositAmount}
+                  value={txAmount}
                   onChange={(e) => {
                     const val = e.target.value.replace(/\D/g, '');
-                    setDepositAmount(val ? Number(val).toLocaleString('vi-VN') : '');
+                    setTxAmount(val ? Number(val).toLocaleString('vi-VN') : '');
                   }}
-                  className="w-full rounded-xl border border-[#d2dcd5] px-3.5 py-2.5 text-xs text-[#14251f] focus:border-[#07543f] focus:outline-none"
+                  className="w-full h-10 px-3.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-slate-800 text-xs text-gray-900 dark:text-white focus:outline-none focus:border-emerald-600"
                   required
                 />
               </div>
 
               {accounts.length > 0 && (
                 <div>
-                  <label className="block text-xs font-semibold text-[#14251f] mb-1">Nguồn tiền trích nạp</label>
+                  <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">Trích từ ví / tài khoản</label>
                   <select
-                    value={depositSourceId}
-                    onChange={(e) => setDepositSourceId(e.target.value)}
-                    className="w-full rounded-xl border border-[#d2dcd5] bg-white px-3.5 py-2.5 text-xs text-[#14251f] focus:border-[#07543f] focus:outline-none"
+                    value={txAccount}
+                    onChange={(e) => setTxAccount(e.target.value)}
+                    className="w-full h-10 px-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-slate-800 text-xs text-gray-900 dark:text-white focus:outline-none focus:border-emerald-600"
                   >
                     {accounts.map((acc) => (
                       <option key={acc.id} value={acc.id}>
-                        {acc.name} ({acc.balance.toLocaleString('vi-VN')} đ)
+                        {acc.name} ({formatVND(acc.balance)})
                       </option>
                     ))}
                   </select>
@@ -529,31 +1381,30 @@ export function GoalsManagementScreen({ onNotify }: Props) {
               )}
 
               <div>
-                <label className="block text-xs font-semibold text-[#14251f] mb-1">Ghi chú (Tùy chọn)</label>
+                <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">Ghi chú</label>
                 <input
                   type="text"
-                  placeholder="Ví dụ: Trích từ lương tháng 10"
-                  value={depositNote}
-                  onChange={(e) => setDepositNote(e.target.value)}
-                  maxLength={200}
-                  className="w-full rounded-xl border border-[#d2dcd5] px-3.5 py-2 text-xs text-[#14251f] focus:border-[#07543f] focus:outline-none"
+                  placeholder="Ví dụ: Trích từ lương tháng này..."
+                  value={txNote}
+                  onChange={(e) => setTxNote(e.target.value)}
+                  className="w-full h-10 px-3.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-slate-800 text-xs text-gray-900 dark:text-white focus:outline-none focus:border-emerald-600"
                 />
               </div>
 
-              <div className="flex justify-end gap-2 pt-3 border-t border-[#e7ece8]">
+              <div className="flex justify-end gap-2.5 pt-3 border-t border-gray-100 dark:border-gray-800">
                 <button
                   type="button"
-                  onClick={() => setDepositGoal(null)}
-                  className="rounded-xl border border-[#d2dcd5] px-4 py-2 text-xs font-semibold text-[#53645a] hover:bg-[#f1f5f2]"
+                  onClick={() => setShowDepositModal(false)}
+                  className="px-4 py-2 rounded-xl border border-gray-200 dark:border-gray-700 text-xs font-semibold text-gray-600 dark:text-gray-300"
                 >
                   Hủy
                 </button>
                 <button
                   type="submit"
-                  disabled={isSubmittingDeposit}
-                  className="rounded-xl bg-[#07543f] px-5 py-2 text-xs font-semibold text-white hover:bg-[#064232] disabled:opacity-50"
+                  disabled={isSubmittingTx}
+                  className="px-5 py-2 rounded-xl bg-[#006747] text-white text-xs font-bold hover:bg-[#005238] transition disabled:opacity-50 cursor-pointer shadow-sm"
                 >
-                  {isSubmittingDeposit ? 'Đang nạp...' : 'Xác nhận nạp'}
+                  {isSubmittingTx ? 'Đang nạp...' : 'Xác nhận nạp'}
                 </button>
               </div>
             </form>
@@ -561,133 +1412,84 @@ export function GoalsManagementScreen({ onNotify }: Props) {
         </div>
       )}
 
-      {/* Modal Tạo mục tiêu mới */}
-      {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm" onClick={() => setIsModalOpen(false)}>
-          <div className="goal-modal-card w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl" onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-center justify-between border-b border-[#e7ece8] pb-3">
+      {/* ================= MODAL RÚT TIỀN ================= */}
+      {showWithdrawModal && selectedGoal && (
+        <div className="goal-modal-backdrop" onClick={() => setShowWithdrawModal(false)}>
+          <div className="goal-modal-card p-6" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between border-b border-gray-100 dark:border-gray-800 pb-3 mb-4">
               <div>
-                <h3 className="text-base font-bold text-[#14251f]">Tạo Mục Tiêu Tài Chính Mới</h3>
-                <p className="text-xs text-[#718078]">Thiết lập kế hoạch tích lũy rõ ràng cùng FinAI</p>
+                <h3 className="text-base font-bold text-gray-900 dark:text-white">Rút tiền về ví</h3>
+                <p className="text-xs text-gray-500">Mục: <strong>{selectedGoal.name}</strong></p>
               </div>
               <button
                 type="button"
-                onClick={() => setIsModalOpen(false)}
-                className="grid size-8 place-items-center rounded-lg text-[#718078] hover:bg-[#f1f5f2]"
+                onClick={() => setShowWithdrawModal(false)}
+                className="size-8 rounded-lg text-gray-400 hover:text-gray-600 flex items-center justify-center cursor-pointer"
               >
                 ✕
               </button>
             </div>
 
-            <form onSubmit={handleCreateGoal} className="mt-4 space-y-3">
+            <form onSubmit={handleWithdrawSubmit} className="space-y-4">
               <div>
-                <label className="block text-xs font-semibold text-[#14251f] mb-1">Tên mục tiêu *</label>
+                <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">
+                  Số tiền rút (Tối đa: {formatVND(selectedGoal.currentAmount)}) *
+                </label>
                 <input
                   type="text"
-                  placeholder="Ví dụ: Mua Macbook Pro M3"
-                  value={newName}
-                  onChange={(e) => setNewName(e.target.value)}
-                  maxLength={200}
-                  className="w-full rounded-xl border border-[#d2dcd5] px-3.5 py-2 text-xs text-[#14251f] focus:border-[#07543f] focus:outline-none"
+                  placeholder="Ví dụ: 500,000"
+                  value={txAmount}
+                  onChange={(e) => {
+                    const val = e.target.value.replace(/\D/g, '');
+                    setTxAmount(val ? Number(val).toLocaleString('vi-VN') : '');
+                  }}
+                  className="w-full h-10 px-3.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-slate-800 text-xs text-gray-900 dark:text-white focus:outline-none focus:border-emerald-600"
                   required
                 />
               </div>
 
-              <div>
-                <label className="block text-xs font-semibold text-[#14251f] mb-1">Phân loại mục tiêu *</label>
-                <select
-                  value={newType}
-                  onChange={(e) => setNewType(e.target.value as GoalType)}
-                  className="w-full rounded-xl border border-[#d2dcd5] bg-white px-3.5 py-2 text-xs text-[#14251f] focus:border-[#07543f] focus:outline-none"
-                >
-                  {goalTypeOptions.map((opt) => (
-                    <option key={opt.value} value={opt.value}>
-                      {opt.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="grid grid-cols-2 gap-2">
+              {accounts.length > 0 && (
                 <div>
-                  <label className="block text-xs font-semibold text-[#14251f] mb-1">Mục tiêu (VND) *</label>
-                  <input
-                    type="text"
-                    placeholder="Ví dụ: 30,000,000"
-                    value={newTarget}
-                    onChange={(e) => {
-                      const val = e.target.value.replace(/\D/g, '');
-                      setNewTarget(val ? Number(val).toLocaleString('vi-VN') : '');
-                    }}
-                    className="w-full rounded-xl border border-[#d2dcd5] px-3 py-1.5 text-xs text-[#14251f] focus:border-[#07543f] focus:outline-none"
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold text-[#14251f] mb-1">Đã có sẵn (VND)</label>
-                  <input
-                    type="text"
-                    placeholder="Ví dụ: 5,000,000"
-                    value={newAccumulated}
-                    onChange={(e) => {
-                      const val = e.target.value.replace(/\D/g, '');
-                      setNewAccumulated(val ? Number(val).toLocaleString('vi-VN') : '');
-                    }}
-                    className="w-full rounded-xl border border-[#d2dcd5] px-3 py-1.5 text-xs text-[#14251f] focus:border-[#07543f] focus:outline-none"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-2">
-                <div>
-                  <label className="block text-xs font-semibold text-[#14251f] mb-1">Hạn chót</label>
-                  <input
-                    type="date"
-                    value={newDeadline}
-                    onChange={(e) => setNewDeadline(e.target.value)}
-                    className="w-full rounded-xl border border-[#d2dcd5] px-3 py-1.5 text-xs text-[#14251f] focus:border-[#07543f] focus:outline-none"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold text-[#14251f] mb-1">Mức độ ưu tiên</label>
+                  <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">Nhận vào ví / tài khoản</label>
                   <select
-                    value={newPriority}
-                    onChange={(e) => setNewPriority(e.target.value as GoalPriority)}
-                    className="w-full rounded-xl border border-[#d2dcd5] bg-white px-3 py-1.5 text-xs text-[#14251f] focus:border-[#07543f] focus:outline-none"
+                    value={txAccount}
+                    onChange={(e) => setTxAccount(e.target.value)}
+                    className="w-full h-10 px-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-slate-800 text-xs text-gray-900 dark:text-white focus:outline-none focus:border-emerald-600"
                   >
-                    <option value="LOW">Thấp</option>
-                    <option value="MEDIUM">Trung bình</option>
-                    <option value="HIGH">Cao (Khẩn cấp)</option>
+                    {accounts.map((acc) => (
+                      <option key={acc.id} value={acc.id}>
+                        {acc.name} ({formatVND(acc.balance)})
+                      </option>
+                    ))}
                   </select>
                 </div>
-              </div>
+              )}
 
               <div>
-                <label className="block text-xs font-semibold text-[#14251f] mb-1">Mô tả thêm (Tùy chọn)</label>
-                <textarea
-                  placeholder="Ghi chú về kế hoạch tiết kiệm..."
-                  value={newDesc}
-                  onChange={(e) => setNewDesc(e.target.value)}
-                  rows={2}
-                  maxLength={500}
-                  className="w-full rounded-xl border border-[#d2dcd5] px-3.5 py-1.5 text-xs text-[#14251f] focus:border-[#07543f] focus:outline-none"
+                <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">Lý do / Ghi chú rút tiền</label>
+                <input
+                  type="text"
+                  placeholder="Ví dụ: Cần chi tiêu đột xuất, thanh toán học phí..."
+                  value={txNote}
+                  onChange={(e) => setTxNote(e.target.value)}
+                  className="w-full h-10 px-3.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-slate-800 text-xs text-gray-900 dark:text-white focus:outline-none focus:border-emerald-600"
                 />
               </div>
 
-              <div className="flex justify-end gap-2 pt-3 border-t border-[#e7ece8]">
+              <div className="flex justify-end gap-2.5 pt-3 border-t border-gray-100 dark:border-gray-800">
                 <button
                   type="button"
-                  onClick={() => setIsModalOpen(false)}
-                  className="rounded-xl border border-[#d2dcd5] px-4 py-2 text-xs font-semibold text-[#53645a] hover:bg-[#f1f5f2]"
+                  onClick={() => setShowWithdrawModal(false)}
+                  className="px-4 py-2 rounded-xl border border-gray-200 dark:border-gray-700 text-xs font-semibold text-gray-600 dark:text-gray-300"
                 >
                   Hủy
                 </button>
                 <button
                   type="submit"
-                  disabled={isSubmittingCreate}
-                  className="rounded-xl bg-[#07543f] px-5 py-2 text-xs font-semibold text-white hover:bg-[#064232] disabled:opacity-50"
+                  disabled={isSubmittingTx}
+                  className="px-5 py-2 rounded-xl bg-rose-600 text-white text-xs font-bold hover:bg-rose-700 transition disabled:opacity-50 cursor-pointer shadow-sm"
                 >
-                  {isSubmittingCreate ? 'Đang tạo...' : 'Tạo mục tiêu'}
+                  {isSubmittingTx ? 'Đang xử lý...' : 'Xác nhận rút'}
                 </button>
               </div>
             </form>
@@ -695,175 +1497,177 @@ export function GoalsManagementScreen({ onNotify }: Props) {
         </div>
       )}
 
-      {/* Modal Xem chi tiết mục tiêu */}
-      {detailGoal && (() => {
-        const visual = getGoalVisual(detailGoal);
-        const current = Number(detailGoal.currentAmount) || 0;
-        const target = Number(detailGoal.targetAmount) || 0;
-        const remaining = Math.max(0, target - current);
-        const pct = Math.min(100, Math.round(detailGoal.percentageComplete ?? (target > 0 ? (current / target) * 100 : 0)));
+      {/* ================= MODAL CHỈNH SỬA MỤC TIÊU / TIẾT KIỆM ================= */}
+      {showEditModal && selectedGoal && (
+        <div className="goal-modal-backdrop" onClick={() => setShowEditModal(false)}>
+          <div className="goal-modal-card p-6" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between border-b border-gray-100 dark:border-gray-800 pb-3 mb-4">
+              <div>
+                <h3 className="text-base font-bold text-gray-900 dark:text-white">
+                  Chỉnh sửa {(Number(selectedGoal.targetAmount) || 0) <= 0 ? 'khoản tiết kiệm' : 'mục tiêu'}
+                </h3>
+                <p className="text-xs text-gray-500">Cập nhật thông tin và kế hoạch tài chính của bạn</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowEditModal(false)}
+                className="size-8 rounded-lg text-gray-400 hover:text-gray-600 flex items-center justify-center cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
 
-        return (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm" onClick={() => setDetailGoal(null)}>
-            <div className="goal-modal-card w-full max-w-md rounded-2xl bg-white p-5 sm:p-6 shadow-2xl max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <span
-                    className="grid size-12 place-items-center rounded-2xl"
-                    style={{
-                      backgroundColor: `${visual.color}15`,
-                      borderColor: `${visual.color}35`,
-                      color: visual.color,
-                      borderWidth: '1px',
-                      borderStyle: 'solid',
-                    }}
-                  >
-                    <FinanceIcon name={visual.icon} size={22} />
-                  </span>
+            <form onSubmit={handleUpdateGoalSubmit} className="space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">
+                  Tên mục tiêu / khoản tiết kiệm *
+                </label>
+                <input
+                  type="text"
+                  value={editName}
+                  onChange={(e) => setEditName(e.target.value)}
+                  placeholder="Ví dụ: Mua nhà, Mua xe..."
+                  className="w-full h-10 px-3.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-slate-800 text-xs text-gray-900 dark:text-white focus:outline-none focus:border-emerald-600"
+                  required
+                />
+              </div>
+
+              {(Number(selectedGoal.targetAmount) || 0) > 0 && (
+                <>
                   <div>
-                    <h3 className="text-base font-bold text-[#14251f]">{detailGoal.name}</h3>
-                    <p className="text-xs text-[#718078] font-semibold" style={{ color: visual.color }}>
-                      {visual.label}
-                    </p>
+                    <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">
+                      Số tiền mục tiêu cần tích lũy (VND) *
+                    </label>
+                    <input
+                      type="text"
+                      value={editTargetAmount}
+                      onChange={(e) => {
+                        const val = e.target.value.replace(/\D/g, '');
+                        setEditTargetAmount(val ? Number(val).toLocaleString('vi-VN') : '');
+                      }}
+                      placeholder="Ví dụ: 50,000,000"
+                      className="w-full h-10 px-3.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-slate-800 text-xs text-gray-900 dark:text-white focus:outline-none focus:border-emerald-600"
+                      required
+                    />
                   </div>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setDetailGoal(null)}
-                  className="grid size-8 place-items-center rounded-lg text-[#718078] hover:bg-[#f1f5f2]"
-                >
-                  ✕
-                </button>
-              </div>
 
-              <div className="goal-modal-box mt-4 rounded-xl bg-[#f8fafc] p-3.5 border border-[#e2e8f0] space-y-2 text-xs">
-                <div className="flex justify-between">
-                  <span className="text-[#718078]">Mục tiêu tích lũy:</span>
-                  <strong className="text-[#14251f]">{target.toLocaleString('vi-VN')} đ</strong>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-[#718078]">Đã tích lũy:</span>
-                  <strong className="text-[#10b981]">{current.toLocaleString('vi-VN')} đ</strong>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-[#718078]">Còn thiếu:</span>
-                  <strong className="text-[#f43f5e]">{remaining.toLocaleString('vi-VN')} đ</strong>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-[#718078]">Hạn chót:</span>
-                  <strong className="text-[#14251f]">{detailGoal.targetDate || 'Không thời hạn'}</strong>
-                </div>
-                {detailGoal.suggestedMonthlySaving && (
-                  <div className="flex justify-between">
-                    <span className="text-[#718078]">Gợi ý tiết kiệm:</span>
-                    <strong className="text-[#10b981]">~{Number(detailGoal.suggestedMonthlySaving).toLocaleString('vi-VN')} đ/tháng</strong>
+                  <div>
+                    <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">
+                      Hạn chót hoàn thành (Ngày kết thúc)
+                    </label>
+                    <input
+                      type="date"
+                      value={editTargetDate}
+                      onChange={(e) => setEditTargetDate(e.target.value)}
+                      className="w-full h-10 px-3.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-slate-800 text-xs text-gray-900 dark:text-white focus:outline-none focus:border-emerald-600"
+                    />
                   </div>
-                )}
-                <div className="pt-1">
-                  <ProgressBar percent={pct} color={pct >= 100 ? 'bg-[#10b981]' : 'bg-[#07543f]'} />
-                </div>
-              </div>
-
-              {detailGoal.description && (
-                <p className="mt-3 text-xs text-[#718078] italic bg-[#f8fafc] p-2.5 rounded-xl border border-[#e2e8f0]">
-                  &quot;{detailGoal.description}&quot;
-                </p>
+                </>
               )}
 
-              {/* Lịch sử nạp tiền / tích lũy thực tế vào mục tiêu */}
-              <div className="mt-4 pt-3 border-t border-gray-100 dark:border-gray-800">
-                <h4 className="text-xs font-bold text-[#14261e] dark:text-gray-200 mb-2">
-                  Lịch sử nạp tiền ({(detailGoal.contributions?.length || 0) + (current > (detailGoal.contributions?.reduce((s, c) => s + (c.amount || 0), 0) || 0) ? 1 : 0)})
-                </h4>
-
-                {(!detailGoal.contributions || detailGoal.contributions.length === 0) ? (
-                  current > 0 ? (
-                    <div className="py-2.5 px-3 rounded-xl bg-emerald-50/60 dark:bg-emerald-950/30 border border-emerald-100 dark:border-emerald-800/50 flex items-center justify-between text-xs">
-                      <div className="min-w-0 pr-2">
-                        <p className="font-bold text-[#10b981]">
-                          +{current.toLocaleString('vi-VN')} đ
-                        </p>
-                        <span className="text-[10.5px] text-gray-500 dark:text-gray-400">
-                          {detailGoal.createdAt ? formatGoalDateTime(detailGoal.createdAt) : 'Ban đầu'} · Số tiền tích lũy ban đầu
-                        </span>
-                      </div>
-                      <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-semibold shrink-0">Tích lũy sẵn ✓</span>
-                    </div>
-                  ) : (
-                    <p className="text-xs text-gray-400 italic py-2 text-center">Chưa có giao dịch nạp tiền nào được ghi nhận</p>
-                  )
-                ) : (
-                  <div className="max-h-48 overflow-y-auto divide-y divide-gray-100 dark:divide-gray-800 pr-1">
-                    {detailGoal.contributions.map((ct) => (
-                      <div key={ct.id || Math.random()} className="py-2 flex items-center justify-between text-xs">
-                        <div className="min-w-0 pr-2">
-                          <p className="font-bold text-[#10b981]">
-                            +{Number(ct.amount || 0).toLocaleString('vi-VN')} đ
-                          </p>
-                          <span className="text-[10.5px] text-gray-500 dark:text-gray-400">
-                            {ct.contributedAt ? formatGoalDateTime(ct.contributedAt) : 'Vừa xong'} {ct.note ? `· ${ct.note}` : ''}
-                          </span>
-                        </div>
-                        <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-semibold shrink-0">Đã nạp ✓</span>
-                      </div>
-                    ))}
-                    {/* Nếu số tiền hiện tại lớn hơn tổng các lần nạp (có số tiền tích lũy sẵn ban đầu), hiển thị thêm dòng ban đầu */}
-                    {(() => {
-                      const totalContributed = detailGoal.contributions.reduce((s, c) => s + (c.amount || 0), 0);
-                      const initialDiff = current - totalContributed;
-                      if (initialDiff > 0) {
-                        return (
-                          <div key="initial-seed" className="py-2 flex items-center justify-between text-xs">
-                            <div className="min-w-0 pr-2">
-                              <p className="font-bold text-[#10b981]">
-                                +{initialDiff.toLocaleString('vi-VN')} đ
-                              </p>
-                              <span className="text-[10.5px] text-gray-500 dark:text-gray-400">
-                                {detailGoal.createdAt ? formatGoalDateTime(detailGoal.createdAt) : 'Ban đầu'} · Số tiền tích lũy ban đầu
-                              </span>
-                            </div>
-                            <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-semibold shrink-0">Tích lũy sẵn ✓</span>
-                          </div>
-                        );
-                      }
-                      return null;
-                    })()}
-                  </div>
-                )}
+              <div>
+                <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">
+                  Mô tả / Ghi chú kế hoạch
+                </label>
+                <textarea
+                  rows={2}
+                  value={editDesc}
+                  onChange={(e) => setEditDesc(e.target.value)}
+                  placeholder="Ghi chú thêm về mục tiêu này..."
+                  className="w-full p-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-slate-800 text-xs text-gray-900 dark:text-white focus:outline-none focus:border-emerald-600"
+                />
               </div>
 
-              <div className="mt-5 flex gap-2">
+              <div className="flex justify-end gap-2.5 pt-3 border-t border-gray-100 dark:border-gray-800">
                 <button
                   type="button"
-                  onClick={() => handleDeleteGoal(detailGoal)}
-                  className="btn-goal-delete flex-1 rounded-xl border border-[#fecaca] bg-[#fff1f2] py-2.5 text-xs font-semibold text-[#dc2626] hover:bg-[#ffe4e6] transition flex items-center justify-center gap-1.5"
+                  onClick={() => setShowEditModal(false)}
+                  className="px-4 py-2 rounded-xl border border-gray-200 dark:border-gray-700 text-xs font-semibold text-gray-600 dark:text-gray-300 hover:bg-gray-50 transition cursor-pointer"
                 >
-                  <FinanceIcon name="delete" size={14} />
-                  Xóa
+                  Hủy
                 </button>
                 <button
-                  type="button"
-                  onClick={() => {
-                    const g = detailGoal;
-                    setDetailGoal(null);
-                    setDepositGoal(g);
-                  }}
-                  className="flex-1 rounded-xl bg-[#07543f] py-2.5 text-xs font-semibold text-white hover:bg-[#064232] transition"
+                  type="submit"
+                  disabled={isSubmittingEdit}
+                  className="px-5 py-2 rounded-xl bg-[#006747] text-white text-xs font-bold hover:bg-[#005238] transition disabled:opacity-50 cursor-pointer shadow-sm"
                 >
-                  + Nạp tiền
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setDetailGoal(null)}
-                  className="btn-goal-detail flex-1 rounded-xl border border-[#d2dcd5] bg-white py-2.5 text-xs font-semibold text-[#52665a] hover:bg-[#f1f5f2] transition"
-                >
-                  Đóng
+                  {isSubmittingEdit ? 'Đang lưu...' : 'Lưu thay đổi'}
                 </button>
               </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ================= MODAL XEM CHI TIẾT GIAO DỊCH NẠP / RÚT TIỀN (CHUẨN BẢN APP) ================= */}
+      {selectedTxItem && (
+        <div className="goal-modal-backdrop" onClick={() => setSelectedTxItem(null)}>
+          <div className="goal-modal-card p-6 max-w-md w-full" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between border-b border-gray-100 dark:border-gray-800 pb-3 mb-4">
+              <h3 className="text-base font-bold text-gray-900 dark:text-white">Chi tiết giao dịch</h3>
+              <button
+                type="button"
+                onClick={() => setSelectedTxItem(null)}
+                className="size-8 rounded-lg text-gray-400 hover:text-gray-600 flex items-center justify-center cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Khối hiển thị số tiền lớn */}
+            <div className={`p-4 rounded-2xl text-center mb-4 ${selectedTxItem.type === 'withdraw' ? 'bg-rose-50/70 dark:bg-rose-950/40 border border-rose-100 dark:border-rose-900/40' : 'bg-emerald-50/70 dark:bg-emerald-950/40 border border-emerald-100 dark:border-emerald-900/40'}`}>
+              <p className="text-xs font-medium text-gray-500 mb-1">
+                {selectedTxItem.type === 'withdraw' ? 'Số tiền đã rút' : 'Số tiền đã nộp'}
+              </p>
+              <p className={`text-2xl font-black ${selectedTxItem.type === 'withdraw' ? 'text-rose-600' : 'text-[#006747] dark:text-emerald-400'}`}>
+                {selectedTxItem.type === 'withdraw' ? '-' : '+'}{formatVND(selectedTxItem.amount)}
+              </p>
+            </div>
+
+            {/* Các hàng thông tin chi tiết */}
+            <div className="divide-y divide-gray-100 dark:divide-gray-800 text-xs">
+              <div className="py-2.5 flex justify-between items-center">
+                <span className="text-gray-500">Loại giao dịch</span>
+                <span className="font-bold text-gray-900 dark:text-white">
+                  {selectedTxItem.type === 'withdraw' ? 'Rút tiền từ mục tiêu' : 'Nộp tiền vào mục tiêu'}
+                </span>
+              </div>
+              <div className="py-2.5 flex justify-between items-center">
+                <span className="text-gray-500">Thời gian</span>
+                <span className="font-semibold text-gray-800 dark:text-gray-200">{selectedTxItem.date}</span>
+              </div>
+              <div className="py-2.5 flex justify-between items-center">
+                <span className="text-gray-500">Mục tiêu</span>
+                <span className="font-semibold text-gray-800 dark:text-gray-200">{selectedGoal?.name}</span>
+              </div>
+              {selectedTxItem.accountName && (
+                <div className="py-2.5 flex justify-between items-center">
+                  <span className="text-gray-500">
+                    {selectedTxItem.type === 'withdraw' ? 'Tài khoản nhận' : 'Tài khoản trích'}
+                  </span>
+                  <span className="font-semibold text-gray-800 dark:text-gray-200">{selectedTxItem.accountName}</span>
+                </div>
+              )}
+              {selectedTxItem.note && (
+                <div className="py-2.5 flex justify-between items-center">
+                  <span className="text-gray-500">Ghi chú</span>
+                  <span className="font-semibold text-gray-800 dark:text-gray-200 italic">&ldquo;{selectedTxItem.note}&rdquo;</span>
+                </div>
+              )}
+            </div>
+
+            <div className="pt-4 mt-2 border-t border-gray-100 dark:border-gray-800">
+              <button
+                type="button"
+                onClick={() => setSelectedTxItem(null)}
+                className="w-full py-2.5 rounded-xl bg-gray-100 dark:bg-slate-800 text-gray-700 dark:text-gray-200 text-xs font-bold hover:bg-gray-200 transition cursor-pointer"
+              >
+                Đóng
+              </button>
             </div>
           </div>
-        );
-      })()}
+        </div>
+      )}
     </main>
   );
 }

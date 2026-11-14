@@ -51,7 +51,7 @@ export function FloatingActions({
             aria-label="Quét hóa đơn"
           >
             <span className="fab-tooltip">Quét hóa đơn</span>
-            <FinanceIcon name="receipt" size={17} />
+            <FinanceIcon name="scan" size={17} />
           </button>}
 
           {!isChildAccount && <button
@@ -92,7 +92,7 @@ export function FloatingActions({
           aria-label={isOpen ? 'Đóng menu' : 'Mở menu thao tác nhanh'}
         >
           <span className="fab-trigger-icon">
-            {isOpen ? '✕' : <FinanceIcon name="plus" size={20} />}
+            {isOpen ? <FinanceIcon name="close" size={20} /> : <FinanceIcon name="plus" size={20} />}
           </span>
         </button>
       </aside>

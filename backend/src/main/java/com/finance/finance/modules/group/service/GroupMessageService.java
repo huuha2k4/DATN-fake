@@ -1,5 +1,6 @@
 package com.finance.finance.modules.group.service;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.finance.finance.common.enums.MessageType;
 import com.finance.finance.modules.group.exception.ResourceNotFoundException;
 import com.finance.finance.modules.group.dto.request.MarkMessagesReadRequest;
@@ -24,6 +25,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
@@ -71,6 +73,9 @@ public class GroupMessageService {
     private final GroupMemberRepository groupMemberRepository;
     private final GroupExpenseRepository expenseRepository;
     private final com.finance.finance.modules.user.repository.UserRepository userRepository;
+    private final com.finance.finance.modules.group.repository.GroupRepository groupRepository;
+    private final com.finance.finance.modules.notification.service.NotificationService notificationService;
+    private final com.fasterxml.jackson.databind.ObjectMapper objectMapper;
 
     @Transactional
     public MessageResponse.AttachmentSummary uploadAttachment(UUID groupId, MultipartFile file, UUID currentUserId) throws IOException {
@@ -131,7 +136,7 @@ public class GroupMessageService {
                 .content(request.getContent())
                 .replyToMessageId(request.getReplyToMessageId())
                 .expenseId(request.getExpenseId())
-                .mentionedUserIds(null) // TODO: Serialize to JSON
+                .mentionedUserIds(serializeMentions(request.getMentionedUserIds()))
                 .createdAt(LocalDateTime.now())
                 .updatedAt(LocalDateTime.now())
                 .build();
@@ -161,6 +166,33 @@ public class GroupMessageService {
                 .readAt(LocalDateTime.now())
                 .build();
         readRepository.save(read);
+
+        // Notify other group members about the new chat message
+        try {
+            String groupName = groupRepository.findById(groupId).map(Group::getName).orElse("nhóm");
+            String senderName = userRepository.findById(currentUserId)
+                    .map(u -> u.getFullName() != null && !u.getFullName().isBlank() ? u.getFullName() : u.getUsername())
+                    .orElse("Một thành viên");
+            String rawContent = message.getContent() != null ? message.getContent().trim() : "";
+            String preview = rawContent.isEmpty() ? "[Hình ảnh / Tệp đính kèm]" : (rawContent.length() > 60 ? rawContent.substring(0, 57) + "..." : rawContent);
+
+            List<GroupMember> members = groupMemberRepository.findByGroupId(groupId);
+            for (GroupMember member : members) {
+                if (!member.getUserId().equals(currentUserId) && Boolean.TRUE.equals(member.getNotificationEnabled())) {
+                    notificationService.createNotification(
+                            member.getUserId(),
+                            com.finance.finance.common.enums.NotificationType.GROUP_COMMENT,
+                            com.finance.finance.common.enums.NotificationPriority.NORMAL,
+                            "Tin nhắn mới trong nhóm " + groupName,
+                            senderName + ": \"" + preview + "\"",
+                            "/groups?groupId=" + groupId + "&tab=CHAT",
+                            "Mở trò chuyện"
+                    );
+                }
+            }
+        } catch (Exception e) {
+            log.warn("Failed to send group message notification: {}", e.getMessage());
+        }
 
         return buildMessageResponse(message);
     }
@@ -392,7 +424,7 @@ public class GroupMessageService {
                 .content(message.getContent())
                 .replyToMessageId(message.getReplyToMessageId())
                 .expenseId(message.getExpenseId())
-                .mentionedUserIds(null) // TODO: Deserialize from JSON
+                .mentionedUserIds(deserializeMentions(message.getMentionedUserIds()))
                 .attachments(attachments.stream()
                         .map(att -> MessageResponse.AttachmentSummary.builder()
                                 .id(att.getId())
@@ -427,6 +459,31 @@ public class GroupMessageService {
         } catch (Exception e) {
             log.error("Lỗi khi tải file đính kèm: {}", filename, e);
             return null;
+        }
+    }
+
+    private String serializeMentions(List<UUID> mentionedUserIds) {
+        if (mentionedUserIds == null || mentionedUserIds.isEmpty()) {
+            return null;
+        }
+        try {
+            return objectMapper.writeValueAsString(mentionedUserIds);
+        } catch (Exception e) {
+            log.warn("Failed to serialize mentions: {}", e.getMessage());
+            return null;
+        }
+    }
+
+    private List<UUID> deserializeMentions(String mentionsJson) {
+        if (mentionsJson == null || mentionsJson.isBlank()) {
+            return new ArrayList<>();
+        }
+        try {
+            return objectMapper.readValue(mentionsJson, 
+                    objectMapper.getTypeFactory().constructCollectionType(List.class, UUID.class));
+        } catch (Exception e) {
+            log.warn("Failed to deserialize mentions: {}", e.getMessage());
+            return new ArrayList<>();
         }
     }
 }

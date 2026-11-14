@@ -68,26 +68,223 @@ export interface AuthResponse {
   message?: string;
 }
 
+import * as FileSystem from 'expo-file-system/legacy';
+
+const AUTH_FILE_NAME = 'finora_auth_session.json';
+const INACTIVITY_LIMIT_MS = 3 * 24 * 60 * 60 * 1000; // 3 ngày không vào app mới thu hồi
+
+export interface StoredSession {
+  user: User;
+  tokens: AuthTokens;
+  lastActiveTime: number; // Timestamp ms
+}
+
 // Memory cache token phục vụ phiên đăng nhập
 let currentAccessToken: string | null = null;
+let currentRefreshToken: string | null = null;
 let currentUser: User | null = null;
+
+let onSessionExpiredCallback: (() => void) | null = null;
+
+// Quản lý refresh token tự động
+let refreshInFlight: Promise<string | null> | null = null;
 
 export const authStorage = {
   setAuth(user: User, tokens: AuthTokens) {
     currentUser = user;
     currentAccessToken = tokens.access_token;
+    currentRefreshToken = tokens.refresh_token;
+
+    // Lưu phiên bền vững vào file hệ thống để giữ đăng nhập
+    try {
+      const dir = FileSystem.documentDirectory;
+      if (dir) {
+        const session: StoredSession = {
+          user,
+          tokens,
+          lastActiveTime: Date.now(),
+        };
+        FileSystem.writeAsStringAsync(`${dir}${AUTH_FILE_NAME}`, JSON.stringify(session)).catch(() => {});
+      }
+    } catch {}
   },
+
+  setOnSessionExpired(cb: () => void) {
+    onSessionExpiredCallback = cb;
+  },
+
+  triggerSessionExpired() {
+    this.clear();
+    if (onSessionExpiredCallback) {
+      onSessionExpiredCallback();
+    }
+  },
+
   getToken() {
     return currentAccessToken;
   },
+
+  getRefreshToken() {
+    return currentRefreshToken;
+  },
+
   getUser() {
     return currentUser;
   },
+
+  /**
+   * Tự động làm mới access token khi hết hạn (15 phút) sử dụng refresh token
+   */
+  async refreshAccessToken(): Promise<string | null> {
+    if (refreshInFlight) return refreshInFlight;
+
+    refreshInFlight = (async () => {
+      const rfToken = currentRefreshToken;
+      if (!rfToken) {
+        this.triggerSessionExpired();
+        return null;
+      }
+
+      try {
+        const res = await fetch(`${API_BASE_URL}/auth/refresh`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Accept: 'application/json',
+          },
+          body: JSON.stringify({ refreshToken: rfToken }),
+        });
+
+        if (!res.ok) {
+          // Refresh token cũng hết hạn -> Bắt buộc chuyển về màn hình đăng nhập
+          this.triggerSessionExpired();
+          return null;
+        }
+
+        const json = await res.json();
+        const data = json?.data;
+        const newAccessToken = data?.access_token || data?.tokens?.access_token;
+        const newRefreshToken = data?.refresh_token || data?.tokens?.refresh_token || rfToken;
+
+        if (newAccessToken && currentUser) {
+          this.setAuth(currentUser, {
+            access_token: newAccessToken,
+            refresh_token: newRefreshToken,
+            token_type: 'Bearer',
+            expires_in: 900,
+          });
+          return newAccessToken;
+        }
+
+        this.triggerSessionExpired();
+        return null;
+      } catch (e) {
+        console.warn('Lỗi khi tự động refresh token:', e);
+        return null;
+      }
+    })();
+
+    return refreshInFlight.finally(() => {
+      refreshInFlight = null;
+    });
+  },
+
+  touchActivity() {
+    try {
+      const dir = FileSystem.documentDirectory;
+      if (dir && currentUser && currentAccessToken) {
+        const session: StoredSession = {
+          user: currentUser,
+          tokens: {
+            access_token: currentAccessToken,
+            refresh_token: currentRefreshToken || '',
+            token_type: 'Bearer',
+            expires_in: 3600,
+          },
+          lastActiveTime: Date.now(),
+        };
+        FileSystem.writeAsStringAsync(`${dir}${AUTH_FILE_NAME}`, JSON.stringify(session)).catch(() => {});
+      }
+    } catch {}
+  },
+
+  async loadPersistedSession(): Promise<{ user: User; tokens: AuthTokens } | null> {
+    try {
+      const dir = FileSystem.documentDirectory;
+      if (!dir) return null;
+      const path = `${dir}${AUTH_FILE_NAME}`;
+      const info = await FileSystem.getInfoAsync(path);
+      if (!info.exists) return null;
+
+      const content = await FileSystem.readAsStringAsync(path);
+      if (!content) return null;
+
+      const session: StoredSession = JSON.parse(content);
+      const now = Date.now();
+      const lastActive = session.lastActiveTime || 0;
+
+      // Nếu trong vòng 3 ngày không vào app -> Hết hạn phiên, thu hồi
+      if (now - lastActive > INACTIVITY_LIMIT_MS) {
+        await FileSystem.deleteAsync(path, { idempotent: true }).catch(() => {});
+        return null;
+      }
+
+      // Cập nhật lại thời gian hoạt động mới nhất (vì người dùng vừa mở app)
+      session.lastActiveTime = now;
+      await FileSystem.writeAsStringAsync(path, JSON.stringify(session)).catch(() => {});
+
+      currentUser = session.user;
+      currentAccessToken = session.tokens.access_token;
+      currentRefreshToken = session.tokens.refresh_token;
+
+      return session;
+    } catch {
+      return null;
+    }
+  },
+
   clear() {
     currentUser = null;
     currentAccessToken = null;
+    currentRefreshToken = null;
+    try {
+      const dir = FileSystem.documentDirectory;
+      if (dir) {
+        FileSystem.deleteAsync(`${dir}${AUTH_FILE_NAME}`, { idempotent: true }).catch(() => {});
+      }
+    } catch {}
   },
 };
+
+/**
+ * Hàm gọi API an toàn tích hợp tự động Refresh Token khi gặp lỗi 401
+ */
+export async function authFetch(url: string, options: RequestInit = {}): Promise<Response> {
+  const token = authStorage.getToken();
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    Accept: 'application/json',
+    ...(options.headers as Record<string, string> || {}),
+  };
+
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+
+  let response = await fetch(url, { ...options, headers });
+
+  // Nếu Backend trả về 401 hoặc 403 (Token hết hạn sau 15 phút)
+  if (response.status === 401 || response.status === 403) {
+    const newToken = await authStorage.refreshAccessToken();
+    if (newToken) {
+      headers['Authorization'] = `Bearer ${newToken}`;
+      // Thử lại request với token mới
+      response = await fetch(url, { ...options, headers });
+    }
+  }
+
+  return response;
+}
 
 export const authApi = {
   /**

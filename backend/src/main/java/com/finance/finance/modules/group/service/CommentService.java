@@ -65,7 +65,7 @@ public class CommentService {
                     .orElse("Một thành viên");
             List<GroupMember> members = groupMemberRepository.findByGroupId(groupId);
             for (GroupMember member : members) {
-                if (!member.getUserId().equals(currentUserId)) {
+                if (!member.getUserId().equals(currentUserId) && Boolean.TRUE.equals(member.getNotificationEnabled())) {
                     notificationService.createNotification(
                             member.getUserId(),
                             NotificationType.GROUP_COMMENT,

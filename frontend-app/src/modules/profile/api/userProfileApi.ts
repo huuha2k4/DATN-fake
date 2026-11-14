@@ -8,6 +8,8 @@ export interface UserProfileResponse {
   avatarUrl: string | null;
   phone: string | null;
   subscriptionTier: string;
+  mfaEnabled?: boolean;
+  loginAlertEnabled?: boolean;
   createdAt?: string;
 }
 
@@ -205,6 +207,76 @@ export const userProfileApi = {
     }
 
     return updated;
+  },
+
+  /**
+   * Lấy danh sách thiết bị đang đăng nhập (/api/v1/auth/devices)
+   */
+  async getActiveDevices(): Promise<{ totalDevices: number; devices: any[] }> {
+    const token = authStorage.getToken();
+    if (!token) return { totalDevices: 1, devices: [] };
+
+    try {
+      const res = await fetch(`${API_BASE_URL}/auth/devices`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok && data?.devices) {
+        return data;
+      }
+    } catch {}
+
+    return { totalDevices: 1, devices: [] };
+  },
+
+  /**
+   * Đổi mật khẩu tài khoản (/api/v1/users/me/change-password)
+   */
+  async changePassword(req: { currentPassword: string; newPassword: string }): Promise<{ message: string }> {
+    const token = authStorage.getToken();
+    if (!token) throw new Error('Chưa đăng nhập');
+
+    const res = await fetch(`${API_BASE_URL}/users/me/change-password`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(req),
+    });
+
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      throw new Error(data.message || 'Đổi mật khẩu thất bại, vui lòng kiểm tra lại');
+    }
+
+    return data;
+  },
+
+  /**
+   * Cập nhật cài đặt bảo mật 2FA và Cảnh báo đăng nhập (/api/v1/users/me/security-settings)
+   */
+  async updateSecuritySettings(req: { twoFactorEnabled?: boolean; loginAlertEnabled?: boolean }): Promise<any> {
+    const token = authStorage.getToken();
+    if (!token) throw new Error('Chưa đăng nhập');
+
+    const res = await fetch(`${API_BASE_URL}/users/me/security-settings`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(req),
+    });
+
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      throw new Error(data.message || 'Cập nhật bảo mật thất bại');
+    }
+    return data;
   },
 
   /**

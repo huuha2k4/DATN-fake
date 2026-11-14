@@ -9,6 +9,7 @@ import org.springframework.stereotype.Repository;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 @Repository
@@ -36,4 +37,7 @@ public interface GoalContributionRepository extends JpaRepository<GoalContributi
     @Query("SELECT gc FROM GoalContribution gc WHERE gc.goal.userId = :userId " +
            "ORDER BY gc.contributedAt DESC")
     List<GoalContribution> findByUserId(@Param("userId") UUID userId);
+
+    @Query("SELECT gc FROM GoalContribution gc WHERE gc.transactionId = :transactionId")
+    Optional<GoalContribution> findByTransactionId(@Param("transactionId") UUID transactionId);
 }

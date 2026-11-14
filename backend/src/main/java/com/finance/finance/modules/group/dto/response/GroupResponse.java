@@ -28,6 +28,7 @@ public class GroupResponse {
     private Integer unreadMessageCount;
     private String myRole;
     private BigDecimal myBalance;
+    private Boolean notificationEnabled;
     private LocalDateTime lastActivityAt;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;

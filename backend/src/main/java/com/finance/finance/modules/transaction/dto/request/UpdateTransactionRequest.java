@@ -45,6 +45,9 @@ public class UpdateTransactionRequest {
     
     private Boolean isExcludedFromReport;
     
-    @NotNull(message = "Version is required for optimistic locking")
+    private UUID accountId;
+    
+    private UUID toAccountId;
+    
     private Long version;
 }

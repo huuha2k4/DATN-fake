@@ -1,4 +1,4 @@
-import { API_BASE_URL, authStorage } from '../../auth/api/authApi';
+import { API_BASE_URL, authStorage, authFetch } from '../../auth/api/authApi';
 
 export interface DashboardTransaction {
   id: string;
@@ -138,7 +138,7 @@ export async function fetchDashboardData(): Promise<DashboardSummary> {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 8000);
     try {
-      const res = await fetch(url, { headers, credentials: 'omit', signal: controller.signal });
+      const res = await authFetch(url, { credentials: 'omit', signal: controller.signal });
       clearTimeout(timeout);
       if (!res.ok) return null;
       return await res.json();

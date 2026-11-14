@@ -31,6 +31,7 @@ public class GroupDetailResponse {
     private CreateGroupRequest.GroupSettingsDto settings;
     private String myRole;
     private BigDecimal myBalance;
+    private Boolean notificationEnabled;
     private List<String> myPermissions;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;

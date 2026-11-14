@@ -1,618 +1,378 @@
 import React from 'react';
-import Svg, {
-  Path,
-  Rect,
-  Circle,
-  Polyline,
-  Line,
-  Polygon,
-  G,
-} from 'react-native-svg';
+import {
+  LayoutGrid,
+  ArrowLeftRight,
+  Wallet,
+  LineChart,
+  BarChart3,
+  PieChart,
+  Sparkles,
+  Landmark,
+  Settings,
+  Search,
+  Plus,
+  Receipt,
+  Bell,
+  Calendar,
+  RefreshCw,
+  Download,
+  TrendingUp,
+  TrendingDown,
+  ArrowUp,
+  ArrowDown,
+  ArrowUpRight,
+  ArrowDownLeft,
+  ArrowLeft,
+  ArrowRight,
+  Coffee,
+  Zap,
+  MoreHorizontal,
+  MoreVertical,
+  ShieldCheck,
+  Clock,
+  User,
+  UserPlus,
+  LogOut,
+  Key,
+  Lock,
+  Pencil,
+  Trash2,
+  ShoppingBag,
+  Car,
+  Home,
+  Heart,
+  BookOpen,
+  Film,
+  Map,
+  PiggyBank,
+  Coins,
+  CreditCard,
+  CircleHelp,
+  Briefcase,
+  Gift,
+  Store,
+  PlusCircle,
+  Eye,
+  EyeOff,
+  Sun,
+  Moon,
+  HandCoins,
+  Handshake,
+  Menu,
+  X,
+  Scale,
+  Utensils,
+  UtensilsCrossed,
+  Pill,
+  Users,
+  FileText,
+  Banknote,
+  Check,
+  CheckCheck,
+  CheckCircle2,
+  MessageSquare,
+  Crown,
+  Camera,
+  Cloud,
+  Info,
+  Leaf,
+  Gamepad2,
+  Palmtree,
+  Droplet,
+  ShoppingCart,
+  ThumbsUp,
+  Reply,
+  Paperclip,
+  Send,
+  Smile,
+  FileSpreadsheet,
+  Image as LucideImage,
+  AlertCircle,
+  AlertTriangle,
+  ChevronDown,
+  ChevronUp,
+  ChevronRight,
+  ChevronLeft,
+  Phone,
+  Video,
+  Target,
+  Megaphone,
+  Laptop,
+  Tag,
+  Layers,
+  RotateCcw,
+  Share2,
+  Folder,
+  Filter,
+  Copy,
+  QrCode,
+  ScanLine,
+  ScanText,
+  Building2,
+  Globe,
+  Mail,
+  Smartphone,
+  Award,
+  Flame,
+  Star,
+  Bookmark,
+  ExternalLink,
+  SlidersHorizontal,
+  type LucideIcon,
+} from 'lucide-react-native';
 
 export type IconName =
   | 'grid' | 'arrows' | 'wallet' | 'chart' | 'spark' | 'bank' | 'settings'
   | 'search' | 'plus' | 'receipt' | 'bell' | 'calendar' | 'refresh' | 'download'
-  | 'trend' | 'income' | 'expense' | 'coffee' | 'bolt' | 'more' | 'arrow' | 'shield' | 'clock' | 'user' | 'logout' | 'key' | 'lock'
-  | 'edit' | 'delete' | 'shopping-bag' | 'car' | 'home' | 'heart' | 'zap' | 'book' | 'film' | 'map' | 'piggy-bank' | 'coin-stack' | 'credit-card' | 'help-circle' | 'briefcase' | 'gift' | 'trending-up' | 'store' | 'plus-circle' | 'eye'
+  | 'trend' | 'income' | 'expense' | 'coffee' | 'bolt' | 'more' | 'arrow' | 'shield' | 'clock' | 'user' | 'user-plus' | 'logout' | 'key' | 'lock'
+  | 'edit' | 'delete' | 'shopping-bag' | 'car' | 'home' | 'heart' | 'zap' | 'book' | 'film' | 'map' | 'piggy-bank' | 'coin-stack' | 'credit-card' | 'help-circle' | 'briefcase' | 'gift' | 'trending-up' | 'store' | 'plus-circle' | 'eye' | 'eye-off'
   | 'sun' | 'moon' | 'borrowing' | 'lending' | 'hand-coins' | 'menu' | 'close' | 'scale'
   | 'burger' | 'pill' | 'users' | 'group' | 'file-text' | 'utensils' | 'banknote' | 'check' | 'message-square'
-  | 'crown' | 'camera' | 'cloud' | 'info' | 'leaf' | 'gamepad' | 'palmtree' | 'droplet' | 'shopping-cart' | 'thumbs-up' | 'reply' | 'trash' | 'paperclip' | 'send' | 'smile' | 'file-excel' | 'checks' | 'image' | 'alert-circle' | 'seen-eye' | 'chevron-down' | 'chevron-up' | 'chevron-right' | 'chevron-left' | 'more-horizontal' | 'phone' | 'video' | 'target';
+  | 'crown' | 'camera' | 'cloud' | 'info' | 'leaf' | 'gamepad' | 'palmtree' | 'droplet' | 'shopping-cart' | 'thumbs-up' | 'reply' | 'trash' | 'paperclip' | 'send' | 'smile' | 'file-excel' | 'checks' | 'image' | 'alert-circle' | 'seen-eye' | 'chevron-down' | 'chevron-up' | 'chevron-right' | 'chevron-left' | 'more-horizontal' | 'phone' | 'video' | 'target'
+  | 'arrow-up' | 'arrow-down' | 'arrow-left' | 'arrow-right' | 'megaphone' | 'laptop' | 'tag' | 'layers' | 'rotate-ccw' | 'share-2'
+  | 'analytics' | 'savings' | 'folder' | 'filter' | 'copy' | 'qr-code' | 'scan' | 'check-circle' | 'x' | 'landmark' | 'building'
+  | (string & {});
+
+const LUCIDE_ICON_MAP: Record<string, LucideIcon> = {
+  // Core navigation & actions
+  grid: LayoutGrid,
+  'layout-grid': LayoutGrid,
+  arrows: ArrowLeftRight,
+  'arrow-left-right': ArrowLeftRight,
+  wallet: Wallet,
+  chart: LineChart,
+  'line-chart': LineChart,
+  analytics: BarChart3,
+  'bar-chart': BarChart3,
+  'bar-chart-3': BarChart3,
+  'pie-chart': PieChart,
+  spark: Sparkles,
+  sparkles: Sparkles,
+  bank: Landmark,
+  landmark: Landmark,
+  building: Building2,
+  settings: Settings,
+  search: Search,
+  plus: Plus,
+  receipt: Receipt,
+  bell: Bell,
+  calendar: Calendar,
+  refresh: RefreshCw,
+  'refresh-cw': RefreshCw,
+  download: Download,
+  trend: TrendingUp,
+  'trending-up': TrendingUp,
+  'trending-down': TrendingDown,
+  income: ArrowUp,
+  expense: ArrowDown,
+  'arrow-up': ArrowUp,
+  'arrow-down': ArrowDown,
+  'arrow-left': ArrowLeft,
+  'arrow-right': ArrowRight,
+  'arrow-up-right': ArrowUpRight,
+  'arrow-down-left': ArrowDownLeft,
+  arrow: ArrowRight,
+  coffee: Coffee,
+  bolt: Zap,
+  zap: Zap,
+  more: MoreHorizontal,
+  'more-horizontal': MoreHorizontal,
+  'more-vertical': MoreVertical,
+  shield: ShieldCheck,
+  'shield-check': ShieldCheck,
+  clock: Clock,
+  user: User,
+  'user-plus': UserPlus,
+  logout: LogOut,
+  'log-out': LogOut,
+  key: Key,
+  lock: Lock,
+  edit: Pencil,
+  pencil: Pencil,
+  delete: Trash2,
+  trash: Trash2,
+  'trash-2': Trash2,
+  'shopping-bag': ShoppingBag,
+  'shopping-cart': ShoppingCart,
+  car: Car,
+  home: Home,
+  heart: Heart,
+  book: BookOpen,
+  'book-open': BookOpen,
+  film: Film,
+  map: Map,
+  'piggy-bank': PiggyBank,
+  savings: PiggyBank,
+  'coin-stack': Coins,
+  coins: Coins,
+  'credit-card': CreditCard,
+  'help-circle': CircleHelp,
+  'circle-help': CircleHelp,
+  briefcase: Briefcase,
+  gift: Gift,
+  store: Store,
+  'plus-circle': PlusCircle,
+  eye: Eye,
+  'seen-eye': Eye,
+  'eye-off': EyeOff,
+  sun: Sun,
+  moon: Moon,
+  borrowing: HandCoins,
+  'hand-coins': HandCoins,
+  lending: Handshake,
+  handshake: Handshake,
+  menu: Menu,
+  close: X,
+  x: X,
+  scale: Scale,
+  burger: UtensilsCrossed,
+  utensils: Utensils,
+  pill: Pill,
+  users: Users,
+  group: Users,
+  'file-text': FileText,
+  banknote: Banknote,
+  check: Check,
+  checks: CheckCheck,
+  'check-check': CheckCheck,
+  'check-circle': CheckCircle2,
+  'message-square': MessageSquare,
+  crown: Crown,
+  camera: Camera,
+  cloud: Cloud,
+  info: Info,
+  leaf: Leaf,
+  gamepad: Gamepad2,
+  'gamepad-2': Gamepad2,
+  palmtree: Palmtree,
+  droplet: Droplet,
+  'thumbs-up': ThumbsUp,
+  reply: Reply,
+  paperclip: Paperclip,
+  send: Send,
+  smile: Smile,
+  'file-excel': FileSpreadsheet,
+  'file-spreadsheet': FileSpreadsheet,
+  image: LucideImage,
+  'alert-circle': AlertCircle,
+  'alert-triangle': AlertTriangle,
+  'chevron-down': ChevronDown,
+  'chevron-up': ChevronUp,
+  'chevron-right': ChevronRight,
+  'chevron-left': ChevronLeft,
+  phone: Phone,
+  video: Video,
+  target: Target,
+  megaphone: Megaphone,
+  laptop: Laptop,
+  tag: Tag,
+  layers: Layers,
+  'rotate-ccw': RotateCcw,
+  'share-2': Share2,
+  folder: Folder,
+  filter: Filter,
+  copy: Copy,
+  'qr-code': QrCode,
+  scan: ScanText,
+  'scan-text': ScanText,
+  'scan-line': ScanLine,
+  ocr: ScanText,
+  globe: Globe,
+  mail: Mail,
+  smartphone: Smartphone,
+  award: Award,
+  flame: Flame,
+  star: Star,
+  bookmark: Bookmark,
+  'external-link': ExternalLink,
+  sliders: SlidersHorizontal,
+};
 
 export function FinanceIcon({
   name,
   size = 18,
   color = '#00A86B',
+  strokeWidth = 2,
 }: {
   name: IconName;
   size?: number;
   color?: string;
+  strokeWidth?: number;
 }) {
-  const renderShape = () => {
-    switch (name) {
-      case 'grid':
-        return (
-          <>
-            <Rect x="3" y="3" width="7" height="7" rx="1.5" />
-            <Rect x="14" y="3" width="7" height="7" rx="1.5" />
-            <Rect x="3" y="14" width="7" height="7" rx="1.5" />
-            <Rect x="14" y="14" width="7" height="7" rx="1.5" />
-          </>
-        );
-      case 'arrows':
-        return (
-          <>
-            <Path d="M4 8h13m0 0l-3.5-3.5M17 8l-3.5 3.5" />
-            <Path d="M20 16H7m0 0l3.5-3.5M7 16l3.5 3.5" />
-          </>
-        );
-      case 'wallet':
-        return (
-          <>
-            <Rect x="3" y="5" width="18" height="15" rx="2.5" />
-            <Path d="M3 9h18M16 14h2" />
-            <Path d="M6 5V4a1 1 0 0 1 1-1h12" />
-          </>
-        );
-      case 'chart':
-        return (
-          <>
-            <Path d="M3 3v18h18" />
-            <Path d="m7 14 4-4 4 3 6-7" />
-          </>
-        );
-      case 'bank':
-        return <Path d="m3 9 9-6 9 6M5 10v8m4-8v8m6-8v8m4-8v8M3 21h18M2 18h20" />;
-      case 'plus':
-        return <Path d="M12 5v14M5 12h14" />;
-      case 'receipt':
-        return (
-          <>
-            <Path d="M5 3h14v18l-3-2-4 2-4-2-3 2V3Z" />
-            <Path d="M9 8h6m-6 4h6" />
-          </>
-        );
-      case 'bell':
-        return <Path d="M18 9a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9m-8 12h4" />;
-      case 'calendar':
-        return (
-          <>
-            <Rect x="3" y="5" width="18" height="16" rx="2" />
-            <Path d="M16 3v4M8 3v4M3 10h18" />
-          </>
-        );
-      case 'refresh':
-        return (
-          <>
-            <Path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.19" />
-          </>
-        );
-      case 'scale':
-        return (
-          <G strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round">
-            {/* Đỉnh tròn & Cọc trụ giữa */}
-            <Circle cx="12" cy="5" r="1.5" />
-            <Line x1="12" y1="6.5" x2="12" y2="19" />
-            <Path d="M9 19h6" />
-            {/* Đòn cân cong mềm mại */}
-            <Path d="M4.5 9c2.5-1.5 5-2 7.5-2s5 .5 7.5 2" />
-            {/* Đĩa cân trái */}
-            <Line x1="4.5" y1="9" x2="2.5" y2="13.5" />
-            <Line x1="4.5" y1="9" x2="6.5" y2="13.5" />
-            <Path d="M1.5 13.5h6c0 2-1.3 3.5-3 3.5s-3-1.5-3-3.5Z" />
-            {/* Đĩa cân phải */}
-            <Line x1="19.5" y1="9" x2="17.5" y2="13.5" />
-            <Line x1="19.5" y1="9" x2="21.5" y2="13.5" />
-            <Path d="M16.5 13.5h6c0 2-1.3 3.5-3 3.5s-3-1.5-3-3.5Z" />
-          </G>
-        );
-      case 'borrowing':
-        return (
-          <G strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
-            {/* Bàn tay ngửa nét đơn thanh lịch theo chuẩn UI Finora */}
-            <Path d="M2 14.5h3.5l3.2 3.2c.6.6 1.5.6 2.1 0l1.2-1.2c.6-.6.6-1.5 0-2.1L8.5 11H5" />
-            <Path d="M2 14.5v4.5c0 1.1.9 2 2 2h8.5c1 0 1.9-.6 2.3-1.5l2.2-4.5c.3-.6.1-1.4-.5-1.7l-2.5-1.3" />
-            {/* 3 cánh hoa / đồng xu tiền lượn rơi xuống */}
-            <Path d="M11 5.5c0-1.5 1.5-2.5 2.5-2.5s2.5 1 2.5 2.5c0 1.8-2.5 3-2.5 3S11 7.3 11 5.5Z" />
-            <Path d="M16 6.5c0-1.2 1.2-2 2-2s2 .8 2 2c0 1.5-2 2.5-2 2.5S16 8 16 6.5Z" />
-            <Path d="M8.5 7c0-1 1-1.8 1.8-1.8s1.8.8 1.8 1.8c0 1.3-1.8 2.2-1.8 2.2S8.5 8.3 8.5 7Z" />
-          </G>
-        );
-      case 'lending':
-        return (
-          <G strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
-            {/* Bàn tay nâng hứng mầm cây xanh */}
-            <Path d="M2 14.5h3.5l3.2 3.2c.6.6 1.5.6 2.1 0l1.2-1.2c.6-.6.6-1.5 0-2.1L8.5 11H5" />
-            <Path d="M2 14.5v4.5c0 1.1.9 2 2 2h8.5c1 0 1.9-.6 2.3-1.5l2.2-4.5c.3-.6.1-1.4-.5-1.7l-2.5-1.3" />
-            {/* Mầm lá cây chồi biếc tài chính */}
-            <Path d="M12.5 8.5c0-3.5 3-5 5.5-5 0 2.5-1.5 5.5-5.5 5Z" />
-            <Path d="M18 3.5c-2.5 0-4.5 1.8-4.5 4.5 0 .5.1.7.1.7" />
-          </G>
-        );
-      case 'hand-coins':
-        return (
-          <>
-            <Path d="M11 15h2a2 2 0 1 0 0-4h-3c-.6 0-1.1.2-1.4.6L3 17" />
-            <Path d="m7 15 4 4" />
-            <Circle cx="18" cy="8" r="3" />
-            <Path d="M2 13v6a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2" />
-          </>
-        );
-      case 'banknote':
-        return (
-          <>
-            <Rect width="20" height="12" x="2" y="6" rx="2" />
-            <Circle cx="12" cy="12" r="2" />
-            <Path d="M6 12h.01M18 12h.01" />
-          </>
-        );
-      case 'income':
-        return <Path d="M12 19V5m-6 6 6-6 6 6" />;
-      case 'expense':
-        return <Path d="M12 5v14m6-6-6 6-6-6" />;
-      case 'coffee':
-        return (
-          <>
-            <Path d="M5 8h12v9a4 4 0 0 1-4 4H9a4 4 0 0 1-4-4V8Zm12 2h2a2 2 0 1 1 0 4h-2M8 3v2m4-2v2" />
-          </>
-        );
-      case 'bolt':
-        return <Path d="m13 2-3 9h7L9 22l2-9H4l9-11Z" />;
-      case 'droplet':
-        return <Path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z" />;
-      case 'shopping-cart':
-        return (
-          <>
-            <Circle cx="8" cy="21" r="1" />
-            <Circle cx="19" cy="21" r="1" />
-            <Path d="M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12" />
-          </>
-        );
-      case 'shopping-bag':
-        return (
-          <>
-            <Path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z" />
-            <Line x1="3" y1="6" x2="21" y2="6" />
-            <Path d="M16 10a4 4 0 0 1-8 0" />
-          </>
-        );
-      case 'car':
-        return (
-          <>
-            <Path d="M19 17h2c.6 0 1-.4 1-1v-3c0-.9-.7-1.7-1.5-1.9C18.7 10.6 16 10 16 10s-1.3-1.4-2.2-2.3c-.5-.4-1.1-.7-1.8-.7H5c-.6 0-1.1.4-1.4.9l-1.4 2.9A3.7 3.7 0 0 0 2 12v4c0 .6.4 1 1 1h2" />
-            <Circle cx="7" cy="17" r="2" />
-            <Path d="M9 17h6" />
-            <Circle cx="17" cy="17" r="2" />
-          </>
-        );
-      case 'home':
-        return (
-          <>
-            <Path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
-            <Polyline points="9 22 9 12 15 12 15 22" />
-          </>
-        );
-      case 'heart':
-        return (
-          <Path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z" />
-        );
-      case 'book':
-        return (
-          <>
-            <Path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1-2.5-2.5Z" />
-            <Path d="M6 2v20" />
-          </>
-        );
-      case 'film':
-        return (
-          <>
-            <Rect width="20" height="20" x="2" y="2" rx="2.18" ry="2.18" />
-            <Line x1="7" x2="7" y1="2" y2="22" />
-            <Line x1="17" x2="17" y1="2" y2="22" />
-            <Line x1="2" x2="22" y1="12" y2="12" />
-          </>
-        );
-      case 'piggy-bank':
-        return (
-          <>
-            <Path d="M19 5c-1.5 0-2.8 1.4-3 2-3.5-1.5-11-.3-11 5 0 1.8 0 3 2 4.5V20h4v-2h3v2h4v-4c1-.5 1.7-1 2-2h2v-4h-2c0-1-.5-1.5-1-2V5z" />
-            <Path d="M16 9h.01" />
-          </>
-        );
-      case 'coin-stack':
-        return (
-          <G strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
-            {/* Chồng 3 đồng xu vàng xếp tầng tròn trịa */}
-            <Path d="M7 6c0 1.66 2.69 3 6 3s6-1.34 6-3-2.69-3-6-3-6 1.34-6 3Z" />
-            <Path d="M7 6v3.5c0 1.66 2.69 3 6 3s6-1.34 6-3V6" />
-            <Path d="M7 9.5v3.5c0 1.66 2.69 3 6 3s6-1.34 6-3V9.5" />
-            <Path d="M7 13v3.5c0 1.66 2.69 3 6 3s6-1.34 6-3V13" />
-            {/* Cột xu nhỏ phía trước bên trái */}
-            <Path d="M3 14c0 1.1 1.79 2 4 2s4-.9 4-2-1.79-2-4-2-4 .9-4 2Z" />
-            <Path d="M3 14v3c0 1.1 1.79 2 4 2s4-.9 4-2v-3" />
-            <Path d="M3 17v3c0 1.1 1.79 2 4 2s4-.9 4-2v-3" />
-          </G>
-        );
-      case 'credit-card':
-        return (
-          <>
-            <Rect width="20" height="14" x="2" y="5" rx="2" />
-            <Line x1="2" x2="22" y1="10" y2="10" />
-          </>
-        );
-      case 'briefcase':
-        return (
-          <>
-            <Rect width="20" height="14" x="2" y="7" rx="3" />
-            <Path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2" />
-            <Circle cx="12" cy="14" r="1.5" />
-          </>
-        );
-      case 'gift':
-        return (
-          <>
-            <Polyline points="20 12 20 22 4 22 4 12" />
-            <Rect width="20" height="5" x="2" y="7" rx="1" />
-            <Line x1="12" x2="12" y1="22" y2="7" />
-          </>
-        );
-      case 'trending-up':
-      case 'trend':
-        return (
-          <>
-            <Polyline points="22 7 13.5 15.5 8.5 10.5 2 17" />
-            <Polyline points="16 7 22 7 22 13" />
-          </>
-        );
-      case 'store':
-        return (
-          <>
-            <Path d="m2 7 4.41-4.41A2 2 0 0 1 7.83 2h8.34a2 2 0 0 1 1.42.59L22 7" />
-            <Path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8" />
-            <Path d="M2 7h20" />
-          </>
-        );
-      case 'utensils':
-      case 'burger':
-        return (
-          <>
-            <Path d="M18 2v20M21 15V2a5 5 0 0 0-5 5v6c0 1.1.9 2 2 2h3Zm0 0v7" />
-            <Path d="M4 2v6a3 3 0 0 0 6 0V2M7 2v20" />
-          </>
-        );
-      case 'users':
-      case 'group':
-        return (
-          <>
-            <Path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
-            <Circle cx="9" cy="7" r="4" />
-            <Path d="M22 21v-2a4 4 0 0 0-3-3.87" />
-          </>
-        );
-      case 'edit':
-        return (
-          <>
-            <Path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
-            <Path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
-          </>
-        );
-      case 'more':
-        return (
-          <>
-            <Circle cx="12" cy="12" r="1.5" />
-            <Circle cx="19" cy="12" r="1.5" />
-            <Circle cx="5" cy="12" r="1.5" />
-          </>
-        );
-      case 'delete':
-        return (
-          <>
-            <Path d="M3 6h18m-2 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-            <Line x1="10" y1="11" x2="10" y2="17" />
-            <Line x1="14" y1="11" x2="14" y2="17" />
-          </>
-        );
-      case 'clock':
-        return (
-          <>
-            <Circle cx="12" cy="12" r="9" />
-            <Polyline points="12 7 12 12 15 14" />
-          </>
-        );
-      case 'spark':
-        return (
-          <>
-            <Path d="M12 2l2.4 6.6L21 11l-6.6 2.4L12 20l-2.4-6.6L3 11l6.6-2.4L12 2z" />
-          </>
-        );
-      case 'check':
-        return <Polyline points="20 6 9 17 4 12" />;
-      case 'message-square':
-        return <Path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />;
-      case 'search':
-        return (
-          <>
-            <Circle cx="11" cy="11" r="8" />
-            <Line x1="21" y1="21" x2="16.65" y2="16.65" />
-          </>
-        );
-      case 'user':
-        return (
-          <>
-            <Path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
-            <Circle cx="12" cy="7" r="4" />
-          </>
-        );
-      case 'settings':
-        return (
-          <>
-            <Circle cx="12" cy="12" r="3" />
-            <Path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
-          </>
-        );
-      case 'gamepad':
-        return (
-          <>
-            <Line x1="6" y1="12" x2="10" y2="12" />
-            <Line x1="8" y1="10" x2="8" y2="14" />
-            <Line x1="15" y1="13" x2="15.01" y2="13" />
-            <Line x1="18" y1="11" x2="18.01" y2="11" />
-            <Rect x="2" y="6" width="20" height="12" rx="6" />
-          </>
-        );
-      case 'palmtree':
-        return (
-          <>
-            <Path d="M13 8c.5-2 2.5-4 5-4 0 3-1.5 5.5-3.5 6.5" />
-            <Path d="M13 7.5c-.5-2-2.5-3.5-5-3.5 0 3 1.5 5 3.5 6" />
-            <Path d="M13 10V22" />
-            <Path d="M12 22s-3-2-3-4c0-2 1-3.5 3-4" />
-            <Path d="M14 14c2 .5 3 2 3 4 0 2-3 4-3 4" />
-          </>
-        );
-      case 'crown':
-        return (
-          <Path d="m2 4 3 12h14l3-12-6 7-4-7-4 7-6-7zm3 16h14v2H5z" />
-        );
-      case 'camera':
-        return (
-          <>
-            <Path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
-            <Circle cx="12" cy="13" r="4" />
-          </>
-        );
-      case 'cloud':
-        return (
-          <Path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z" />
-        );
-      case 'help-circle':
-        return (
-          <>
-            <Circle cx="12" cy="12" r="10" />
-            <Path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
-            <Line x1="12" y1="17" x2="12.01" y2="17" />
-          </>
-        );
-      case 'info':
-        return (
-          <>
-            <Circle cx="12" cy="12" r="10" />
-            <Line x1="12" y1="16" x2="12" y2="12" />
-            <Line x1="12" y1="8" x2="12.01" y2="8" />
-          </>
-        );
-      case 'leaf':
-        return (
-          <Path d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19 2c1 2 2 4.18 2 8 0 5.5-4.78 10-10 10Z M2 21c0-3 1.85-5.36 5.08-6" />
-        );
-      case 'shield':
-        return (
-          <Path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-        );
-      case 'logout':
-        return (
-          <>
-            <Path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
-            <Polyline points="16 17 21 12 16 7" />
-            <Line x1="21" y1="12" x2="9" y2="12" />
-          </>
-        );
-      case 'thumbs-up':
-        return (
-          <>
-            <Path d="M7 11v9" />
-            <Path d="M14 6c0-2-1-3-2.5-3-1.5 0-2 1.5-2 3v3H5a2 2 0 0 0-2 2v7a2 2 0 0 0 2 2h11a3 3 0 0 0 3-2.5l1.5-7.5A2 2 0 0 0 18.5 9H14V6z" />
-          </>
-        );
-      case 'reply':
-        return (
-          <>
-            <Polyline points="9 17 4 12 9 7" />
-            <Path d="M20 18v-2a4 4 0 0 0-4-4H4" />
-          </>
-        );
-      case 'download':
-        return (
-          <>
-            <Path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-            <Polyline points="7 10 12 15 17 10" />
-            <Line x1="12" y1="15" x2="12" y2="3" />
-          </>
-        );
-      case 'trash':
-        return (
-          <>
-            <Polyline points="3 6 5 6 21 6" />
-            <Path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-          </>
-        );
-      case 'paperclip':
-        return (
-          <Path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l8.57-8.57A4 4 0 1 1 18 8.84l-8.59 8.57a2 2 0 0 1-2.83-2.83l7.9-7.9" />
-        );
-      case 'send':
-        return (
-          <>
-            <Line x1="22" y1="2" x2="11" y2="13" />
-            <Polygon points="22 2 15 22 11 13 2 9 22 2" />
-          </>
-        );
-      case 'smile':
-        return (
-          <>
-            <Circle cx="12" cy="12" r="10" />
-            <Path d="M8 14s1.5 2 4 2 4-2 4-2" />
-            <Line x1="9" y1="9" x2="9.01" y2="9" />
-            <Line x1="15" y1="9" x2="15.01" y2="9" />
-          </>
-        );
-      case 'file-excel':
-        return (
-          <>
-            <Path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-            <Polyline points="14 2 14 8 20 8" />
-            <Path d="M8 13l4 4m0-4l-4 4" />
-          </>
-        );
-      case 'checks':
-        return (
-          <>
-            <Polyline points="18 6 9 15 5 11" />
-            <Polyline points="22 10 13 19 11 17" />
-          </>
-        );
-      case 'close':
-        return (
-          <>
-            <Line x1="18" y1="6" x2="6" y2="18" />
-            <Line x1="6" y1="6" x2="18" y2="18" />
-          </>
-        );
-      case 'image':
-        return (
-          <>
-            <Rect x="3" y="3" width="18" height="18" rx="2" />
-            <Circle cx="8.5" cy="8.5" r="1.5" />
-            <Polyline points="21 15 16 10 5 21" />
-          </>
-        );
-      case 'alert-circle':
-        return (
-          <>
-            <Circle cx="12" cy="12" r="10" />
-            <Line x1="12" y1="8" x2="12" y2="12" />
-            <Line x1="12" y1="16" x2="12.01" y2="16" />
-          </>
-        );
-      case 'seen-eye':
-      case 'eye':
-        return (
-          <>
-            <Path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z" />
-            <Circle cx="12" cy="12" r="3" />
-          </>
-        );
-      case 'chevron-down':
-        return (
-          <Polyline points="6 9 12 15 18 9" />
-        );
-      case 'chevron-up':
-        return (
-          <Polyline points="18 15 12 9 6 15" />
-        );
-      case 'chevron-left':
-        return (
-          <Polyline points="15 18 9 12 15 6" />
-        );
-      case 'chevron-right':
-        return (
-          <Polyline points="9 18 15 12 9 6" />
-        );
-      case 'more-horizontal':
-        return (
-          <>
-            <Circle cx="12" cy="12" r="1.8" fill={color} />
-            <Circle cx="19" cy="12" r="1.8" fill={color} />
-            <Circle cx="5" cy="12" r="1.8" fill={color} />
-          </>
-        );
-      case 'phone':
-        return (
-          <Path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" />
-        );
-      case 'video':
-        return (
-          <>
-            <Polygon points="23 7 16 12 23 17 23 7" />
-            <Rect x="1" y="5" width="15" height="14" rx="2" ry="2" />
-          </>
-        );
-      case 'target':
-        return (
-          <>
-            <Circle cx="12" cy="12" r="10" />
-            <Circle cx="12" cy="12" r="6" />
-            <Circle cx="12" cy="12" r="2" />
-          </>
-        );
-      default:
-        return <Circle cx="12" cy="12" r="8" />;
-    }
-  };
+  const normalizedKey = String(name || 'grid').trim().toLowerCase();
+  const IconComponent = LUCIDE_ICON_MAP[normalizedKey] || LayoutGrid;
 
   return (
-    <Svg
-      width={size}
-      height={size}
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke={color}
-      strokeWidth={1.9}
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      {renderShape()}
-    </Svg>
+    <IconComponent
+      size={size}
+      color={color}
+      strokeWidth={strokeWidth}
+    />
   );
 }
 
 /**
- * Hàm phân giải tên Icon đồng bộ 100% chuẩn web
+ * Hàm phân giải tên Icon đồng bộ 100% chuẩn web (Lucide Icons)
  */
 export function resolveCategoryIconName(
   iconOrEmoji?: string,
-  fallbackKind: 'INCOME' | 'EXPENSE' = 'EXPENSE',
+  fallbackKind: 'INCOME' | 'EXPENSE' | (string & {}) = 'EXPENSE',
   categoryName?: string
 ): IconName {
+  if (!iconOrEmoji && !categoryName) {
+    return fallbackKind === 'INCOME' ? 'income' : 'expense';
+  }
+
   const str = `${iconOrEmoji || ''} ${categoryName || ''}`.toLowerCase();
 
-  // 1. Ăn uống / Nhà hàng / Cafe / Ẩm thực
+  // 1. Trả nợ / Vay nợ / Thẻ tín dụng
   if (
-    str.includes('☕') ||
+    str.includes('trả nợ') ||
+    str.includes('thanh toán nợ') ||
+    str.includes('trả vay') ||
+    str.includes('tiền nợ') ||
+    str.includes('khoản nợ') ||
+    str.includes('nợ') ||
+    str.includes('thẻ tín dụng') ||
+    str.includes('thẻ ngân hàng') ||
+    str.includes('credit-card') ||
+    str.includes('visa') ||
+    str.includes('mastercard') ||
+    iconOrEmoji === 'credit-card' ||
+    iconOrEmoji === 'borrowing' ||
+    iconOrEmoji === 'hand-coins'
+  ) {
+    return 'credit-card';
+  }
+  if (str.includes('thu nợ') || str.includes('cho vay') || str.includes('đòi nợ') || iconOrEmoji === 'lending') {
+    return 'lending';
+  }
+
+  // 2. Ăn uống / Nhà hàng / Cafe / Ẩm thực
+  if (
+    str.includes('🍔') ||
+    str.includes('🍕') ||
+    str.includes('🍜') ||
+    str.includes('ăn uống') ||
+    str.includes('ẩm thực') ||
+    str.includes('nhà hàng') ||
     str.includes('cà phê') ||
     str.includes('cafe') ||
     str.includes('coffee') ||
     str.includes('đồ uống') ||
-    str.includes('trà sữa')
-  ) {
-    return 'coffee';
-  }
-
-  if (
-    str.includes('🍜') ||
-    str.includes('🍔') ||
-    str.includes('🍕') ||
-    str.includes('ăn uống') ||
-    str.includes('ẩm thực') ||
-    str.includes('nhà hàng') ||
     str.includes('cơm') ||
     str.includes('quán ăn') ||
     str.includes('đi chợ') ||
-    str.includes('thực phẩm')
+    str.includes('thực phẩm') ||
+    str.includes('burger') ||
+    iconOrEmoji === 'utensils' ||
+    iconOrEmoji === 'coffee' ||
+    iconOrEmoji === 'burger'
   ) {
     return 'utensils';
   }
 
-  // 2. Đi lại / Xe cộ
+  // 3. Đi lại / Di chuyển / Xe cộ
   if (
     str.includes('🚗') ||
     str.includes('di chuyển') ||
@@ -622,24 +382,28 @@ export function resolveCategoryIconName(
     str.includes('ô tô') ||
     str.includes('xe máy') ||
     str.includes('xe cộ') ||
-    str.includes('giao thông')
+    str.includes('giao thông') ||
+    iconOrEmoji === 'car' ||
+    /\bcar\b/i.test(iconOrEmoji || '')
   ) {
     return 'car';
   }
 
-  // 3. Sức khỏe / Y tế
+  // 4. Sức khỏe / Y tế / Khám bệnh
   if (
     str.includes('💊') ||
     str.includes('sức khỏe') ||
     str.includes('y tế') ||
     str.includes('thuốc') ||
     str.includes('bệnh viện') ||
-    str.includes('khám')
+    str.includes('khám') ||
+    iconOrEmoji === 'heart' ||
+    iconOrEmoji === 'pill'
   ) {
     return 'heart';
   }
 
-  // 4. Mua sắm / Đồ dùng
+  // 5. Mua sắm / Shopping / Tạp hóa / Tiêu dùng
   if (
     str.includes('🛍️') ||
     str.includes('🛒') ||
@@ -647,74 +411,145 @@ export function resolveCategoryIconName(
     str.includes('shopping') ||
     str.includes('siêu thị') ||
     str.includes('tạp hóa') ||
-    str.includes('đi chợ') ||
-    str.includes('đồ dùng')
+    iconOrEmoji === 'shopping-bag' ||
+    iconOrEmoji === 'shopping-cart'
   ) {
-    return 'shopping-cart';
+    return 'shopping-bag';
   }
 
-  // 5. Học tập
+  // 6. Giáo dục / Học tập / Sách vở
   if (
     str.includes('📚') ||
     str.includes('học tập') ||
     str.includes('giáo dục') ||
     str.includes('học phí') ||
     str.includes('sách') ||
-    str.includes('khóa học')
+    str.includes('khóa học') ||
+    iconOrEmoji === 'book'
   ) {
     return 'book';
   }
 
-  // 6. Điện nước / Hóa đơn
-  if (str.includes('⚡') || str.includes('tiền điện') || str.includes('điện')) {
-    return 'bolt';
-  }
-  if (str.includes('💧') || str.includes('tiền nước') || str.includes('nước')) {
-    return 'droplet';
-  }
+  // 7. Hóa đơn / Điện nước / Tiện ích / Chi phí khác
   if (
+    str.includes('⚡') ||
+    str.includes('tiền điện') ||
     str.includes('điện nước') ||
     str.includes('tiện ích') ||
+    str.includes('📄') ||
+    str.includes('🧾') ||
     str.includes('hóa đơn') ||
     str.includes('thuế') ||
-    str.includes('chi phí khác')
+    str.includes('chi phí khác') ||
+    iconOrEmoji === 'receipt' ||
+    iconOrEmoji === 'file-text' ||
+    iconOrEmoji === 'zap'
   ) {
     return 'receipt';
   }
 
-  // 7. Nhà ở
-  if (str.includes('🏠') || str.includes('nhà ở') || str.includes('tiền nhà') || str.includes('thuê nhà')) {
+  // 8. Nhà ở / Tiền phòng / Thuê nhà
+  if (
+    str.includes('🏠') ||
+    str.includes('nhà ở') ||
+    str.includes('tiền nhà') ||
+    str.includes('thuê nhà') ||
+    str.includes('sinh hoạt') ||
+    iconOrEmoji === 'home'
+  ) {
     return 'home';
   }
 
-  // 8. Gia đình
-  if (str.includes('gia đình') || str.includes('con cái') || str.includes('bố mẹ')) {
+  // 9. Gia đình & Con cái
+  if (
+    str.includes('👨‍👩‍👧') ||
+    str.includes('👪') ||
+    str.includes('gia đình') ||
+    str.includes('con cái') ||
+    str.includes('bố mẹ') ||
+    iconOrEmoji === 'users'
+  ) {
     return 'users';
   }
 
-  // 9. Lương / Thu nhập chính
-  if (str.includes('lương') || str.includes('thù lao') || str.includes('thu nhập chính')) {
-    return 'briefcase';
+  // 10. Giải trí / Phim ảnh
+  if (
+    str.includes('🎬') ||
+    str.includes('phim') ||
+    str.includes('giải trí') ||
+    str.includes('game') ||
+    iconOrEmoji === 'film'
+  ) {
+    return 'film';
   }
 
-  // 10. Thưởng / Quà tặng
-  if (str.includes('🎁') || str.includes('quà') || str.includes('thưởng')) {
-    return 'gift';
+  // 11. Du lịch / Nghỉ dưỡng
+  if (
+    str.includes('✈️') ||
+    str.includes('du lịch') ||
+    str.includes('nghỉ dưỡng') ||
+    str.includes('vé máy bay') ||
+    iconOrEmoji === 'map'
+  ) {
+    return 'map';
   }
 
-  // 11. Đầu tư / Chứng khoán
-  if (str.includes('đầu tư') || str.includes('chứng khoán') || str.includes('cổ phiếu')) {
+  // 12. Tiết kiệm / Heo đất
+  if (str.includes('tiết kiệm') || str.includes('heo đất') || iconOrEmoji === 'piggy-bank') {
+    return 'piggy-bank';
+  }
+
+  // 13. Đầu tư / Chứng khoán
+  if (
+    str.includes('đầu tư') ||
+    str.includes('chứng khoán') ||
+    str.includes('cổ phiếu') ||
+    iconOrEmoji === 'trending-up' ||
+    iconOrEmoji === 'trend'
+  ) {
     return 'trending-up';
   }
 
-  // 12. Kinh doanh
-  if (str.includes('kinh doanh') || str.includes('bán hàng')) {
+  // 14. Bảo hiểm
+  if (str.includes('bảo hiểm') || iconOrEmoji === 'shield') {
+    return 'shield';
+  }
+
+  // 15. Quà tặng / Thưởng
+  if (
+    str.includes('🎁') ||
+    str.includes('quà') ||
+    str.includes('thưởng') ||
+    iconOrEmoji === 'gift'
+  ) {
+    return 'gift';
+  }
+
+  // 16. Lương / Thu nhập chính
+  if (str.includes('lương') || str.includes('thù lao') || iconOrEmoji === 'briefcase') {
+    return 'briefcase';
+  }
+
+  // 17. Kinh doanh
+  if (str.includes('kinh doanh') || iconOrEmoji === 'store') {
     return 'store';
+  }
+
+  // 18. Cho đi / Từ thiện / Giúp đỡ
+  if (
+    str.includes('cho đi') ||
+    str.includes('từ thiện') ||
+    str.includes('quyên góp') ||
+    str.includes('giúp đỡ')
+  ) {
+    return 'heart';
+  }
+
+  if (iconOrEmoji && LUCIDE_ICON_MAP[iconOrEmoji.trim().toLowerCase()]) {
+    return iconOrEmoji.trim().toLowerCase() as IconName;
   }
 
   return fallbackKind === 'INCOME' ? 'income' : 'expense';
 }
 
 export default FinanceIcon;
-
-

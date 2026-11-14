@@ -21,8 +21,9 @@ export function RecentTransactions({ transactions, onViewAll }: Props) {
             {transactions.length} hoạt động tài chính mới nhất
           </Text>
         </View>
-        <Pressable onPress={onViewAll} hitSlop={10} style={({ pressed }) => pressed && styles.pressed}>
-          <Text style={styles.viewAllText}>Xem tất cả ›</Text>
+        <Pressable onPress={onViewAll} hitSlop={10} style={({ pressed }) => [{ flexDirection: 'row', alignItems: 'center', gap: 2 }, pressed && styles.pressed]}>
+          <Text style={styles.viewAllText}>Xem tất cả</Text>
+          <FinanceIcon name="chevron-right" size={14} color={themeTokens.colors.primary} />
         </Pressable>
       </View>
 

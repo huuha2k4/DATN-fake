@@ -169,4 +169,6 @@ public interface ScheduleOccurrenceRepository extends JpaRepository<ScheduleOccu
             @Param("scheduleId") Long scheduleId,
             @Param("status") OccurrenceStatus status
     );
+
+    Optional<ScheduleOccurrence> findByTransactionId(UUID transactionId);
 }

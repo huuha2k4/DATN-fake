@@ -83,6 +83,8 @@ public class GoalResponse {
         private UUID id;
         private BigDecimal amount;
         private String note;
+        private UUID sourceAccountId;
+        private String sourceAccountName;
         private LocalDateTime contributedAt;
     }
     

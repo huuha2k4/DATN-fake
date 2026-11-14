@@ -242,19 +242,24 @@ public class OcrService {
 
         TransactionResponse txResponse = transactionService.createTransaction(userId, txReq);
 
-        // Link receipt to the new transaction
+        // Link receipt to the new transaction and update user-confirmed fields
         receipt.setTransactionId(txResponse.getId());
+        receipt.setKind("paid");
+        if (req.getDescription() != null && !req.getDescription().isBlank()) {
+            receipt.setMerchantName(req.getDescription().trim());
+        }
+        receipt.setTotalAmount(amount.longValue());
         receiptRepository.save(receipt);
 
         return txResponse;
     }
 
     /**
-     * List receipts for a user with pagination.
+     * List receipts for a user with pagination (only receipts that have created a transaction and deducted money).
      */
     public Page<OcrReceiptResponse> getReceipts(UUID userId, Pageable pageable) {
         return receiptRepository
-                .findByUserIdOrderByCreatedAtDesc(userId, pageable)
+                .findByUserIdAndTransactionIdIsNotNullOrderByCreatedAtDesc(userId, pageable)
                 .map(this::toResponse);
     }
 

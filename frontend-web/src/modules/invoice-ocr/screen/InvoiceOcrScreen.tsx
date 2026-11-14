@@ -128,7 +128,7 @@ export function InvoiceOcrScreen({ onCancel, onNotify }: Props) {
         setSelectedAccountId(accs[0].id);
       }
       setCategories(cats);
-      const list = receiptsResp.receipts || [];
+      const list = (receiptsResp.receipts || []).filter((r) => Boolean(r.transactionId || r.kind === 'paid'));
       setRecentReceipts(list);
     } catch {
       onNotify('Không thể nạp dữ liệu tài khoản và danh mục');
@@ -144,7 +144,7 @@ export function InvoiceOcrScreen({ onCancel, onNotify }: Props) {
   const reloadReceipts = async () => {
     try {
       const resp = await ocrApi.getReceipts();
-      setRecentReceipts(resp.receipts || []);
+      setRecentReceipts((resp.receipts || []).filter((r) => Boolean(r.transactionId || r.kind === 'paid')));
     } catch {
       // Ignore background reload errors
     }
@@ -197,8 +197,7 @@ export function InvoiceOcrScreen({ onCancel, onNotify }: Props) {
         setSelectedCategoryId(categories[0].id);
       }
 
-      onNotify(`Quét thành công: ${result.merchantName || file.name}`);
-      reloadReceipts();
+      onNotify(`Quét thành công: ${result.merchantName || file.name}. Vui lòng xác nhận để tạo giao dịch.`);
     } catch (err: any) {
       const msg = err?.response?.data?.message || err?.message || 'Không thể quét hóa đơn. Vui lòng thử lại.';
       onNotify(msg);
@@ -323,24 +322,21 @@ export function InvoiceOcrScreen({ onCancel, onNotify }: Props) {
     onNotify(`Đã nạp hóa đơn: ${r.merchantName || 'Hóa đơn'}`);
   };
 
-  // Filter receipts list
+  // Filter receipts list (only confirmed/paid receipts are kept in recentReceipts)
   const filteredReceipts = useMemo(() => {
     return recentReceipts.filter((r) => {
+      const isPaid = Boolean(r.transactionId || r.kind === 'paid');
+      if (!isPaid) return false;
+
       const matchesSearch =
         !historySearch.trim() ||
         `${r.merchantName || ''} ${r.aiCategoryName || ''} ${r.totalAmount || ''}`
           .toLowerCase()
           .includes(historySearch.toLowerCase());
 
-      const isPaid = Boolean(r.transactionId || r.kind === 'paid');
-      const matchesTab =
-        historyTab === 'ALL' ||
-        (historyTab === 'PAID' && isPaid) ||
-        (historyTab === 'DRAFT' && !isPaid);
-
-      return matchesSearch && matchesTab;
+      return matchesSearch;
     });
-  }, [recentReceipts, historySearch, historyTab]);
+  }, [recentReceipts, historySearch]);
 
   return (
     <main className="ocr-workspace-page mx-auto flex h-[calc(100vh-68px)] max-h-[calc(100vh-68px)] w-full flex-1 flex-col bg-[#f6f8f6] dark:bg-[#07131e] p-2 sm:p-3 lg:p-4 pb-6 sm:pb-6 text-[#14251f] dark:text-slate-100 overflow-hidden">
@@ -890,23 +886,9 @@ export function InvoiceOcrScreen({ onCancel, onNotify }: Props) {
                   <button
                     type="button"
                     onClick={() => setHistoryTab('ALL')}
-                    className={`ocr-filter-pill ${historyTab === 'ALL' ? 'is-active' : ''}`}
+                    className="ocr-filter-pill is-active"
                   >
-                    Tất cả
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setHistoryTab('PAID')}
-                    className={`ocr-filter-pill ${historyTab === 'PAID' ? 'is-active' : ''}`}
-                  >
-                    Đã lưu
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setHistoryTab('DRAFT')}
-                    className={`ocr-filter-pill ${historyTab === 'DRAFT' ? 'is-active' : ''}`}
-                  >
-                    Chưa lưu
+                    Đã tạo giao dịch ({recentReceipts.length})
                   </button>
                 </div>
               </div>

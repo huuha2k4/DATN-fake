@@ -57,6 +57,16 @@ public class TransactionService {
     private final com.finance.finance.modules.budget.repository.BudgetItemRepository budgetItemRepository;
     private final com.finance.finance.modules.notification.service.NotificationService notificationService;
     private final ChildWalletRepository childWalletRepository;
+    private final com.finance.finance.modules.ocr.repository.ReceiptRepository receiptRepository;
+    private final com.finance.finance.modules.goal.repository.GoalContributionRepository goalContributionRepository;
+    private final com.finance.finance.modules.goal.repository.GoalRepository goalRepository;
+    private final com.finance.finance.modules.debt.repository.DebtPaymentRepository debtPaymentRepository;
+    private final com.finance.finance.modules.debt.repository.DebtRepository debtRepository;
+    private final com.finance.finance.modules.group.repository.GroupExpenseRepository groupExpenseRepository;
+    private final com.finance.finance.modules.group.repository.GroupFundContributionRepository groupFundContributionRepository;
+    private final com.finance.finance.modules.group.repository.GroupFundRepository groupFundRepository;
+    private final com.finance.finance.modules.group.repository.GroupSettlementRepository groupSettlementRepository;
+    private final com.finance.finance.modules.schedule.repository.ScheduleOccurrenceRepository scheduleOccurrenceRepository;
     
     /**
      * Create a new transaction
@@ -131,6 +141,7 @@ public class TransactionService {
         }
         
         TransactionResponse.CategoryDto catDto = mapToCategoryDto(category);
+        // Merchant and tags are optional - implement fetch logic when merchant/tag modules are fully integrated
         return transactionMapper.toResponse(
                 saved,
                 account.getName(),
@@ -138,7 +149,9 @@ public class TransactionService {
                 toAccount != null ? toAccount.getName() : null,
                 catDto,
                 balanceBefore,
-                balanceAfter
+                balanceAfter,
+                null, // merchant
+                null  // tags
         );
     }
     
@@ -164,7 +177,9 @@ public class TransactionService {
                 toAccount != null ? toAccount.getName() : null,
                 mapToCategoryDto(category),
                 null,
-                null
+                null,
+                null, // merchant
+                null  // tags
         );
     }
     
@@ -233,7 +248,9 @@ public class TransactionService {
                             toAcc != null ? toAcc.getName() : null,
                             mapToCategoryDto(cat),
                             null,
-                            null
+                            null,
+                            null, // merchant
+                            null  // tags
                     );
                 })
                 .toList();
@@ -269,19 +286,40 @@ public class TransactionService {
         Transaction transaction = transactionRepository.findByIdAndUserId(transactionId, userId)
                 .orElseThrow(() -> new TransactionNotFoundException("Transaction not found: " + transactionId));
         
-        // Check version for optimistic locking
-        if (!transaction.getVersion().equals(request.getVersion())) {
+        // Check version for optimistic locking if provided
+        if (request.getVersion() != null && !transaction.getVersion().equals(request.getVersion())) {
             throw new VersionConflictException("Transaction has been modified by another process", 
                     request.getVersion(), transaction.getVersion());
         }
+
+        // 1. Revert old balance impact before applying updated values
+        revertAccountBalancesForTransaction(userId, transaction);
         
-        // Update fields
+        // 2. Update fields
         updateTransactionFields(transaction, request);
+
+        // 3. Apply new balance impact
+        applyAccountBalancesForTransaction(userId, transaction);
         
         try {
             // Save with optimistic locking
             Transaction updated = transactionRepository.save(transaction);
             log.info("Transaction updated successfully: {}", updated.getId());
+
+            // Sync OCR receipt if linked
+            syncLinkedReceiptOnUpdate(userId, updated);
+            
+            // Sync Goal if this transaction was linked to a goal contribution or withdrawal
+            syncLinkedGoalOnUpdate(updated);
+
+            // Sync Debt Payment if this transaction was linked to a debt repayment or collection
+            syncLinkedDebtOnUpdate(updated);
+
+            // Sync Group entities (expense, fund, settlement)
+            syncLinkedGroupOnUpdate(updated);
+
+            // Sync Schedule occurrence if linked
+            syncLinkedScheduleOnUpdate(updated);
             
             Account account = updated.getAccountId() != null ? 
                     accountRepository.findById(updated.getAccountId()).orElse(null) : null;
@@ -297,7 +335,9 @@ public class TransactionService {
                     toAccount != null ? toAccount.getName() : null,
                     mapToCategoryDto(category),
                     null,
-                    null
+                    null,
+                    null, // merchant
+                    null  // tags
             );
         } catch (ObjectOptimisticLockingFailureException e) {
             throw new VersionConflictException("Transaction has been modified by another process", 
@@ -327,34 +367,439 @@ public class TransactionService {
         transactionRepository.save(transaction);
         
         // Revert account balance changes
-        if (transaction.getAccountId() != null) {
-            accountRepository.findByIdAndUserId(transaction.getAccountId(), userId).ifPresent(account -> {
-                if (transaction.getType() == TransactionType.EXPENSE) {
-                    account.setBalance(account.getBalance().add(transaction.getAmount()));
-                    accountRepository.save(account);
-                } else if (transaction.getType() == TransactionType.INCOME) {
-                    account.setBalance(account.getBalance().subtract(transaction.getAmount()));
-                    accountRepository.save(account);
-                } else if (transaction.getType() == TransactionType.TRANSFER) {
-                    BigDecimal revertAmount = transaction.getAmount();
-                    if (transaction.getFeeAmount() != null) {
-                        revertAmount = revertAmount.add(transaction.getFeeAmount());
-                    }
-                    account.setBalance(account.getBalance().add(revertAmount));
-                    accountRepository.save(account);
+        revertAccountBalancesForTransaction(userId, transaction);
 
-                    if (transaction.getToAccountId() != null) {
-                        accountRepository.findByIdAndUserId(transaction.getToAccountId(), userId).ifPresent(toAcc -> {
-                            BigDecimal toAmount = transaction.getToAmount() != null ? transaction.getToAmount() : transaction.getAmount();
-                            toAcc.setBalance(toAcc.getBalance().subtract(toAmount));
-                            accountRepository.save(toAcc);
-                        });
-                    }
-                }
-            });
-        }
+        // Unlink OCR receipt if linked so it no longer appears as a paid receipt in OCR history
+        unlinkReceiptOnDelete(userId, transaction);
+        
+        // Sync Goal if this transaction was linked to a goal contribution or withdrawal
+        syncLinkedGoalOnDelete(transaction);
+
+        // Sync Debt Payment if linked
+        syncLinkedDebtOnDelete(transaction);
+
+        // Sync Group entities on transaction delete
+        syncLinkedGroupOnDelete(transaction);
+
+        // Sync Schedule occurrence on transaction delete
+        syncLinkedScheduleOnDelete(transaction);
         
         log.info("Transaction deleted and balance reverted successfully: {}", transactionId);
+    }
+
+    private void revertAccountBalancesForTransaction(UUID userId, Transaction transaction) {
+        if (transaction.getAccountId() == null) return;
+        accountRepository.findByIdAndUserId(transaction.getAccountId(), userId).ifPresent(account -> {
+            if (transaction.getType() == TransactionType.EXPENSE) {
+                account.setBalance(account.getBalance().add(transaction.getAmount()));
+                accountRepository.save(account);
+            } else if (transaction.getType() == TransactionType.INCOME) {
+                account.setBalance(account.getBalance().subtract(transaction.getAmount()));
+                accountRepository.save(account);
+            } else if (transaction.getType() == TransactionType.TRANSFER) {
+                BigDecimal revertAmount = transaction.getAmount();
+                if (transaction.getFeeAmount() != null) {
+                    revertAmount = revertAmount.add(transaction.getFeeAmount());
+                }
+                account.setBalance(account.getBalance().add(revertAmount));
+                accountRepository.save(account);
+
+                if (transaction.getToAccountId() != null) {
+                    accountRepository.findByIdAndUserId(transaction.getToAccountId(), userId).ifPresent(toAcc -> {
+                        BigDecimal toAmount = transaction.getToAmount() != null ? transaction.getToAmount() : transaction.getAmount();
+                        toAcc.setBalance(toAcc.getBalance().subtract(toAmount));
+                        accountRepository.save(toAcc);
+                    });
+                }
+            }
+        });
+    }
+
+    private void applyAccountBalancesForTransaction(UUID userId, Transaction transaction) {
+        if (transaction.getAccountId() == null) return;
+        accountRepository.findByIdAndUserId(transaction.getAccountId(), userId).ifPresent(account -> {
+            if (transaction.getType() == TransactionType.EXPENSE) {
+                account.setBalance(account.getBalance().subtract(transaction.getAmount()));
+                accountRepository.save(account);
+            } else if (transaction.getType() == TransactionType.INCOME) {
+                account.setBalance(account.getBalance().add(transaction.getAmount()));
+                accountRepository.save(account);
+            } else if (transaction.getType() == TransactionType.TRANSFER) {
+                BigDecimal deductAmount = transaction.getAmount();
+                if (transaction.getFeeAmount() != null) {
+                    deductAmount = deductAmount.add(transaction.getFeeAmount());
+                }
+                account.setBalance(account.getBalance().subtract(deductAmount));
+                accountRepository.save(account);
+
+                if (transaction.getToAccountId() != null) {
+                    accountRepository.findByIdAndUserId(transaction.getToAccountId(), userId).ifPresent(toAcc -> {
+                        BigDecimal toAmount = transaction.getToAmount() != null ? transaction.getToAmount() : transaction.getAmount();
+                        toAcc.setBalance(toAcc.getBalance().add(toAmount));
+                        accountRepository.save(toAcc);
+                    });
+                }
+            }
+        });
+    }
+
+    private void syncLinkedReceiptOnUpdate(UUID userId, Transaction tx) {
+        try {
+            if (tx.getReceiptId() != null) {
+                receiptRepository.findByIdAndUserId(tx.getReceiptId(), userId).ifPresent(r -> {
+                    if (tx.getDescriptionRaw() != null && !tx.getDescriptionRaw().isBlank()) {
+                        r.setMerchantName(tx.getDescriptionRaw().trim());
+                    }
+                    if (tx.getAmount() != null) {
+                        r.setTotalAmount(tx.getAmount().longValue());
+                    }
+                    if (tx.getOccurredDate() != null) {
+                        r.setTransactionDate(tx.getOccurredDate());
+                    }
+                    receiptRepository.save(r);
+                });
+            } else {
+                receiptRepository.findByTransactionId(tx.getId()).ifPresent(r -> {
+                    if (tx.getDescriptionRaw() != null && !tx.getDescriptionRaw().isBlank()) {
+                        r.setMerchantName(tx.getDescriptionRaw().trim());
+                    }
+                    if (tx.getAmount() != null) {
+                        r.setTotalAmount(tx.getAmount().longValue());
+                    }
+                    if (tx.getOccurredDate() != null) {
+                        r.setTransactionDate(tx.getOccurredDate());
+                    }
+                    receiptRepository.save(r);
+                });
+            }
+        } catch (Exception ignored) {
+        }
+    }
+
+    private void unlinkReceiptOnDelete(UUID userId, Transaction tx) {
+        try {
+            if (tx.getReceiptId() != null) {
+                receiptRepository.findByIdAndUserId(tx.getReceiptId(), userId).ifPresent(r -> {
+                    r.setTransactionId(null);
+                    r.setKind("draft");
+                    receiptRepository.save(r);
+                });
+            }
+            receiptRepository.findByTransactionId(tx.getId()).ifPresent(r -> {
+                r.setTransactionId(null);
+                r.setKind("draft");
+                receiptRepository.save(r);
+            });
+        } catch (Exception ignored) {
+        }
+    }
+
+    private void syncLinkedGoalOnUpdate(Transaction tx) {
+        try {
+            var contribOpt = goalContributionRepository.findByTransactionId(tx.getId());
+            if (contribOpt.isEmpty()) {
+                // Fallback cho các giao dịch rút/nạp tiền từ mục tiêu được tạo trước khi có cột transaction_id:
+                // Tìm kiếm theo description hoặc note chứa tên mục tiêu
+                String desc = tx.getDescriptionRaw() != null ? tx.getDescriptionRaw() : "";
+                String note = tx.getNote() != null ? tx.getNote() : "";
+                var allUserContribs = goalContributionRepository.findByUserId(tx.getUserId());
+                for (var c : allUserContribs) {
+                    if (c.getGoal() != null && (desc.contains(c.getGoal().getName()) || note.contains(c.getGoal().getName()))) {
+                        c.setTransactionId(tx.getId());
+                        goalContributionRepository.save(c);
+                        contribOpt = java.util.Optional.of(c);
+                        break;
+                    }
+                }
+            }
+
+            contribOpt.ifPresent(contrib -> {
+                com.finance.finance.modules.goal.entity.Goal goal = contrib.getGoal();
+                if (goal == null) return;
+
+                // Hoàn lại lượng tiền cũ của contribution này khỏi goal
+                BigDecimal oldSignedAmount = contrib.getAmount(); // có thể âm nếu là rút tiền
+                BigDecimal currentGoalAmount = goal.getCurrentAmount() != null ? goal.getCurrentAmount() : BigDecimal.ZERO;
+                BigDecimal baseAmountWithoutThis = currentGoalAmount.subtract(oldSignedAmount);
+
+                // Tính toán lượng tiền mới theo loại giao dịch
+                // Nếu giao dịch là INCOME (rút tiền từ mục tiêu về ví) -> contribution amount là số âm (-amount)
+                // Nếu giao dịch là EXPENSE (đóng góp vào mục tiêu) -> contribution amount là số dương (+amount)
+                BigDecimal newSignedAmount = tx.getType() == TransactionType.INCOME 
+                        ? tx.getAmount().negate() 
+                        : tx.getAmount();
+
+                contrib.setAmount(newSignedAmount);
+                if (tx.getNote() != null && !tx.getNote().isBlank()) {
+                    contrib.setNote(tx.getNote());
+                } else if (tx.getDescriptionRaw() != null && !tx.getDescriptionRaw().isBlank()) {
+                    contrib.setNote(tx.getDescriptionRaw());
+                }
+                if (tx.getAccountId() != null) {
+                    contrib.setSourceAccountId(tx.getAccountId());
+                }
+                goalContributionRepository.save(contrib);
+
+                BigDecimal newGoalAmount = baseAmountWithoutThis.add(newSignedAmount);
+                if (newGoalAmount.compareTo(BigDecimal.ZERO) < 0) {
+                    newGoalAmount = BigDecimal.ZERO;
+                }
+                goal.setCurrentAmount(newGoalAmount);
+
+                // Cập nhật lại status mục tiêu
+                if (goal.getTargetAmount() != null && goal.getTargetAmount().compareTo(BigDecimal.ZERO) > 0) {
+                    if (newGoalAmount.compareTo(goal.getTargetAmount()) >= 0) {
+                        goal.setStatus(com.finance.finance.common.enums.GoalStatus.ACHIEVED);
+                    } else if (goal.getStatus() == com.finance.finance.common.enums.GoalStatus.ACHIEVED) {
+                        goal.setStatus(com.finance.finance.common.enums.GoalStatus.IN_PROGRESS);
+                        goal.setCompletedAt(null);
+                    }
+                }
+                goalRepository.save(goal);
+                log.info("Synced Goal {} currentAmount to {} after Transaction {} update", goal.getId(), newGoalAmount, tx.getId());
+            });
+        } catch (Exception ex) {
+            log.error("Failed to sync linked goal on transaction update", ex);
+        }
+    }
+
+    private void syncLinkedGoalOnDelete(Transaction tx) {
+        try {
+            var contribOpt = goalContributionRepository.findByTransactionId(tx.getId());
+            if (contribOpt.isEmpty()) {
+                String desc = tx.getDescriptionRaw() != null ? tx.getDescriptionRaw() : "";
+                String note = tx.getNote() != null ? tx.getNote() : "";
+                var allUserContribs = goalContributionRepository.findByUserId(tx.getUserId());
+                for (var c : allUserContribs) {
+                    if (c.getGoal() != null && (desc.contains(c.getGoal().getName()) || note.contains(c.getGoal().getName()))) {
+                        contribOpt = java.util.Optional.of(c);
+                        break;
+                    }
+                }
+            }
+
+            contribOpt.ifPresent(contrib -> {
+                com.finance.finance.modules.goal.entity.Goal goal = contrib.getGoal();
+                if (goal != null) {
+                    BigDecimal signedAmount = contrib.getAmount();
+                    BigDecimal currentGoalAmount = goal.getCurrentAmount() != null ? goal.getCurrentAmount() : BigDecimal.ZERO;
+                    BigDecimal newGoalAmount = currentGoalAmount.subtract(signedAmount);
+                    if (newGoalAmount.compareTo(BigDecimal.ZERO) < 0) {
+                        newGoalAmount = BigDecimal.ZERO;
+                    }
+                    goal.setCurrentAmount(newGoalAmount);
+
+                    if (goal.getTargetAmount() != null && goal.getTargetAmount().compareTo(BigDecimal.ZERO) > 0) {
+                        if (newGoalAmount.compareTo(goal.getTargetAmount()) >= 0) {
+                            goal.setStatus(com.finance.finance.common.enums.GoalStatus.ACHIEVED);
+                        } else if (goal.getStatus() == com.finance.finance.common.enums.GoalStatus.ACHIEVED) {
+                            goal.setStatus(com.finance.finance.common.enums.GoalStatus.IN_PROGRESS);
+                            goal.setCompletedAt(null);
+                        }
+                    }
+                    goalRepository.save(goal);
+                    log.info("Reverted Goal {} currentAmount to {} after Transaction {} delete", goal.getId(), newGoalAmount, tx.getId());
+                }
+                goalContributionRepository.delete(contrib);
+            });
+        } catch (Exception ex) {
+            log.error("Failed to sync linked goal on transaction delete", ex);
+        }
+    }
+
+    private void syncLinkedDebtOnUpdate(Transaction tx) {
+        try {
+            debtPaymentRepository.findByTransactionId(tx.getId()).ifPresent(payment -> {
+                com.finance.finance.modules.debt.entity.Debt debt = payment.getDebt();
+                if (debt == null) return;
+
+                BigDecimal oldPaymentAmount = payment.getAmount() != null ? payment.getAmount() : BigDecimal.ZERO;
+                BigDecimal oldPrincipal = payment.getPrincipalPaid() != null ? payment.getPrincipalPaid() : oldPaymentAmount;
+                BigDecimal oldInterest = payment.getInterestPaid() != null ? payment.getInterestPaid() : BigDecimal.ZERO;
+
+                BigDecimal newAmount = tx.getAmount() != null ? tx.getAmount() : BigDecimal.ZERO;
+                // Nếu khoản cũ toàn bộ là gốc hoặc có tỷ lệ, điều chỉnh gốc theo số tiền mới
+                BigDecimal newPrincipal = newAmount;
+                BigDecimal newInterest = BigDecimal.ZERO;
+                if (oldPaymentAmount.compareTo(BigDecimal.ZERO) > 0 && oldInterest.compareTo(BigDecimal.ZERO) > 0) {
+                    newInterest = oldInterest;
+                    newPrincipal = newAmount.subtract(newInterest);
+                    if (newPrincipal.compareTo(BigDecimal.ZERO) < 0) {
+                        newPrincipal = BigDecimal.ZERO;
+                        newInterest = newAmount;
+                    }
+                }
+
+                payment.setAmount(newAmount);
+                payment.setPrincipalPaid(newPrincipal);
+                payment.setInterestPaid(newInterest);
+                if (tx.getOccurredDate() != null) {
+                    payment.setPaymentDate(tx.getOccurredDate());
+                }
+                if (tx.getAccountId() != null) {
+                    payment.setAccountId(tx.getAccountId());
+                }
+                if (tx.getNote() != null && !tx.getNote().isBlank()) {
+                    payment.setNote(tx.getNote());
+                }
+                debtPaymentRepository.save(payment);
+
+                // Cập nhật lại paidAmount và interestPaid trong debt
+                BigDecimal curPaid = debt.getPaidAmount() != null ? debt.getPaidAmount() : BigDecimal.ZERO;
+                BigDecimal curInterest = debt.getInterestPaid() != null ? debt.getInterestPaid() : BigDecimal.ZERO;
+
+                BigDecimal updatedPaid = curPaid.subtract(oldPaymentAmount).add(newAmount);
+                BigDecimal updatedInterest = curInterest.subtract(oldInterest).add(newInterest);
+
+                debt.setPaidAmount(updatedPaid.compareTo(BigDecimal.ZERO) < 0 ? BigDecimal.ZERO : updatedPaid);
+                debt.setInterestPaid(updatedInterest.compareTo(BigDecimal.ZERO) < 0 ? BigDecimal.ZERO : updatedInterest);
+                debt.updateStatus();
+                debtRepository.save(debt);
+                log.info("Synced Debt {} after Transaction {} update", debt.getId(), tx.getId());
+            });
+        } catch (Exception ex) {
+            log.error("Failed to sync linked debt on transaction update", ex);
+        }
+    }
+
+    private void syncLinkedDebtOnDelete(Transaction tx) {
+        try {
+            debtPaymentRepository.findByTransactionId(tx.getId()).ifPresent(payment -> {
+                com.finance.finance.modules.debt.entity.Debt debt = payment.getDebt();
+                if (debt != null) {
+                    BigDecimal oldPaymentAmount = payment.getAmount() != null ? payment.getAmount() : BigDecimal.ZERO;
+                    BigDecimal oldInterest = payment.getInterestPaid() != null ? payment.getInterestPaid() : BigDecimal.ZERO;
+
+                    BigDecimal curPaid = debt.getPaidAmount() != null ? debt.getPaidAmount() : BigDecimal.ZERO;
+                    BigDecimal curInterest = debt.getInterestPaid() != null ? debt.getInterestPaid() : BigDecimal.ZERO;
+
+                    BigDecimal updatedPaid = curPaid.subtract(oldPaymentAmount);
+                    BigDecimal updatedInterest = curInterest.subtract(oldInterest);
+
+                    debt.setPaidAmount(updatedPaid.compareTo(BigDecimal.ZERO) < 0 ? BigDecimal.ZERO : updatedPaid);
+                    debt.setInterestPaid(updatedInterest.compareTo(BigDecimal.ZERO) < 0 ? BigDecimal.ZERO : updatedInterest);
+                    debt.updateStatus();
+                    debtRepository.save(debt);
+                    log.info("Reverted Debt {} after Transaction {} delete", debt.getId(), tx.getId());
+                }
+                debtPaymentRepository.delete(payment);
+            });
+        } catch (Exception ex) {
+            log.error("Failed to sync linked debt on transaction delete", ex);
+        }
+    }
+
+    private void syncLinkedGroupOnUpdate(Transaction tx) {
+        try {
+            // 1. Group expense
+            groupExpenseRepository.findByPersonalTransactionId(tx.getId()).ifPresent(expense -> {
+                if (tx.getAmount() != null) {
+                    expense.setAmount(tx.getAmount());
+                }
+                if (tx.getDescriptionRaw() != null && !tx.getDescriptionRaw().isBlank()) {
+                    expense.setDescription(tx.getDescriptionRaw());
+                }
+                if (tx.getOccurredDate() != null) {
+                    expense.setExpenseDate(tx.getOccurredDate());
+                }
+                if (tx.getAccountId() != null) {
+                    expense.setSourceAccountId(tx.getAccountId());
+                }
+                groupExpenseRepository.save(expense);
+                log.info("Synced GroupExpense {} after Transaction {} update", expense.getId(), tx.getId());
+            });
+
+            // 2. Group fund contribution
+            groupFundContributionRepository.findByPersonalTransactionId(tx.getId()).ifPresent(contrib -> {
+                BigDecimal oldAmount = contrib.getAmount() != null ? contrib.getAmount() : BigDecimal.ZERO;
+                BigDecimal newAmount = tx.getAmount() != null ? tx.getAmount() : BigDecimal.ZERO;
+                contrib.setAmount(newAmount);
+                if (tx.getOccurredDate() != null) {
+                    contrib.setContributedAt(tx.getOccurredDate());
+                }
+                groupFundContributionRepository.save(contrib);
+
+                if (contrib.getFundId() != null) {
+                    groupFundRepository.findById(contrib.getFundId()).ifPresent(fund -> {
+                        BigDecimal curBalance = fund.getBalance() != null ? fund.getBalance() : BigDecimal.ZERO;
+                        BigDecimal newBalance = curBalance.subtract(oldAmount).add(newAmount);
+                        fund.setBalance(newBalance.compareTo(BigDecimal.ZERO) < 0 ? BigDecimal.ZERO : newBalance);
+                        groupFundRepository.save(fund);
+                    });
+                }
+                log.info("Synced GroupFundContribution {} after Transaction {} update", contrib.getId(), tx.getId());
+            });
+
+            // 3. Group settlement
+            groupSettlementRepository.findByOutgoingTransactionIdOrIncomingTransactionId(tx.getId(), tx.getId()).ifPresent(st -> {
+                if (tx.getAmount() != null) {
+                    st.setAmount(tx.getAmount());
+                    groupSettlementRepository.save(st);
+                }
+                log.info("Synced GroupSettlement {} after Transaction {} update", st.getId(), tx.getId());
+            });
+        } catch (Exception ex) {
+            log.error("Failed to sync linked group on transaction update", ex);
+        }
+    }
+
+    private void syncLinkedGroupOnDelete(Transaction tx) {
+        try {
+            groupExpenseRepository.findByPersonalTransactionId(tx.getId()).ifPresent(expense -> {
+                expense.setPersonalTransactionId(null);
+                groupExpenseRepository.save(expense);
+            });
+
+            groupFundContributionRepository.findByPersonalTransactionId(tx.getId()).ifPresent(contrib -> {
+                BigDecimal amount = contrib.getAmount() != null ? contrib.getAmount() : BigDecimal.ZERO;
+                if (contrib.getFundId() != null) {
+                    groupFundRepository.findById(contrib.getFundId()).ifPresent(fund -> {
+                        BigDecimal curBalance = fund.getBalance() != null ? fund.getBalance() : BigDecimal.ZERO;
+                        BigDecimal newBalance = curBalance.subtract(amount);
+                        fund.setBalance(newBalance.compareTo(BigDecimal.ZERO) < 0 ? BigDecimal.ZERO : newBalance);
+                        groupFundRepository.save(fund);
+                    });
+                }
+                groupFundContributionRepository.delete(contrib);
+            });
+
+            groupSettlementRepository.findByOutgoingTransactionIdOrIncomingTransactionId(tx.getId(), tx.getId()).ifPresent(st -> {
+                if (tx.getId().equals(st.getOutgoingTransactionId())) {
+                    st.setOutgoingTransactionId(null);
+                }
+                if (tx.getId().equals(st.getIncomingTransactionId())) {
+                    st.setIncomingTransactionId(null);
+                }
+                groupSettlementRepository.save(st);
+            });
+        } catch (Exception ex) {
+            log.error("Failed to sync linked group on transaction delete", ex);
+        }
+    }
+
+    private void syncLinkedScheduleOnUpdate(Transaction tx) {
+        try {
+            scheduleOccurrenceRepository.findByTransactionId(tx.getId()).ifPresent(occ -> {
+                if (tx.getOccurredDate() != null) {
+                    occ.setActualExecutionDate(tx.getOccurredDate());
+                    scheduleOccurrenceRepository.save(occ);
+                }
+            });
+        } catch (Exception ex) {
+            log.error("Failed to sync linked schedule on transaction update", ex);
+        }
+    }
+
+    private void syncLinkedScheduleOnDelete(Transaction tx) {
+        try {
+            scheduleOccurrenceRepository.findByTransactionId(tx.getId()).ifPresent(occ -> {
+                occ.setTransactionId(null);
+                occ.setStatus(com.finance.finance.common.enums.OccurrenceStatus.PENDING);
+                scheduleOccurrenceRepository.save(occ);
+            });
+        } catch (Exception ex) {
+            log.error("Failed to sync linked schedule on transaction delete", ex);
+        }
     }
     
     /**
@@ -700,9 +1145,18 @@ public class TransactionService {
     }
     
     private void updateTransactionFields(Transaction transaction, UpdateTransactionRequest request) {
+        if (request.getAccountId() != null) {
+            transaction.setAccountId(request.getAccountId());
+        }
+        if (request.getToAccountId() != null) {
+            transaction.setToAccountId(request.getToAccountId());
+        }
         if (request.getAmount() != null) {
             transaction.setAmount(request.getAmount());
             transaction.setBaseAmount(request.getAmount().multiply(transaction.getExchangeRate()));
+            if (transaction.getType() == TransactionType.TRANSFER) {
+                transaction.setToAmount(request.getAmount());
+            }
         }
         if (request.getDescription() != null) {
             transaction.setDescriptionRaw(request.getDescription());
@@ -714,6 +1168,9 @@ public class TransactionService {
                     request.getTransactionTime() : transaction.getOccurredAt().atZone(ZoneId.systemDefault()).toLocalTime();
             
             LocalDateTime dateTime = LocalDateTime.of(request.getTransactionDate(), time);
+            transaction.setOccurredAt(dateTime.atZone(ZoneId.systemDefault()).toInstant());
+        } else if (request.getTransactionTime() != null && transaction.getOccurredDate() != null) {
+            LocalDateTime dateTime = LocalDateTime.of(transaction.getOccurredDate(), request.getTransactionTime());
             transaction.setOccurredAt(dateTime.atZone(ZoneId.systemDefault()).toInstant());
         }
         if (request.getCategoryId() != null) {
@@ -929,7 +1386,9 @@ public class TransactionService {
                 toAccount != null ? toAccount.getName() : null,
                 mapToCategoryDto(category),
                 null,
-                null
+                null,
+                null, // merchant
+                null  // tags
         );
     }
 }

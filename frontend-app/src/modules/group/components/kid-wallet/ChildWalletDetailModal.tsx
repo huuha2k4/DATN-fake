@@ -18,6 +18,7 @@ import { FinanceIcon, resolveCategoryIconName } from '../../../core/components/F
 import { userProfileApi } from '../../../profile/api/userProfileApi';
 import { ChildWalletResponse, groupApi } from '../../api/groupApi';
 import { AccountItem } from '../../../add-transaction/api/transactionApi';
+import { AccountBadge } from '../../../accounts/components/AccountBadge';
 import {
   OFFICIAL_KID_AVATARS,
   resolveKidAvatarSource,
@@ -32,6 +33,7 @@ export interface ChildWalletDetailModalProps {
   isOwnerOrAdmin: boolean;
   accounts: AccountItem[];
   fundBalance?: number;
+  initialTab?: 'REQUESTS' | 'SPENDS' | 'CHORES' | 'DEPOSIT' | 'SETTINGS';
   onClose: () => void;
   onRefreshWallet: () => void;
 }
@@ -49,6 +51,7 @@ export const ChildWalletDetailModal: React.FC<ChildWalletDetailModalProps> = ({
   isOwnerOrAdmin,
   accounts,
   fundBalance = 0,
+  initialTab,
   onClose,
   onRefreshWallet,
 }) => {
@@ -63,7 +66,13 @@ export const ChildWalletDetailModal: React.FC<ChildWalletDetailModalProps> = ({
   // 3. CHORES: Nhiệm vụ việc nhà kiếm tiền thưởng - Chỉ cho tài khoản riêng của bé
   // 4. DEPOSIT: Nạp tiền vào ví
   // 5. SETTINGS: Cài đặt ví (Sửa thông tin hoặc Xóa ví)
-  const [activeTab, setActiveTab] = useState<'REQUESTS' | 'SPENDS' | 'CHORES' | 'DEPOSIT' | 'SETTINGS'>('SPENDS');
+  const [activeTab, setActiveTab] = useState<'REQUESTS' | 'SPENDS' | 'CHORES' | 'DEPOSIT' | 'SETTINGS'>(initialTab || 'SPENDS');
+
+  useEffect(() => {
+    if (visible && initialTab) {
+      setActiveTab(initialTab);
+    }
+  }, [visible, initialTab]);
 
   // Form Cài đặt ví (Chỉnh sửa hạn mức, tên, allowance, avatar)
   const [editName, setEditName] = useState('');
@@ -917,9 +926,7 @@ export const ChildWalletDetailModal: React.FC<ChildWalletDetailModalProps> = ({
                               style={styles.dropdownSelectorCard}
                             >
                               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 }}>
-                                <View style={[styles.selectIconWrap, { backgroundColor: '#E0F2FE' }]}>
-                                  <FinanceIcon name="wallet" size={18} color="#0284C7" />
-                                </View>
+                                <AccountBadge account={selAcc} size={28} />
                                 <View style={{ flex: 1 }}>
                                   <Text style={styles.dropdownSelectorTitle} numberOfLines={1}>
                                     {selAcc?.name || 'Chọn ví thanh toán'}
@@ -947,10 +954,8 @@ export const ChildWalletDetailModal: React.FC<ChildWalletDetailModalProps> = ({
                                       }}
                                       style={[styles.inlinePickerRow, isSelected && styles.inlinePickerRowActive]}
                                     >
-                                      <View style={[styles.selectIconWrap, { backgroundColor: '#E0F2FE' }]}>
-                                        <FinanceIcon name="wallet" size={16} color="#0284C7" />
-                                      </View>
-                                      <View style={{ flex: 1 }}>
+                                      <AccountBadge account={acc} size={30} />
+                                      <View style={{ flex: 1, marginLeft: 10 }}>
                                         <Text style={[styles.inlinePickerItemTitle, isSelected && styles.inlinePickerItemTitleActive]}>
                                           {acc.name}
                                         </Text>

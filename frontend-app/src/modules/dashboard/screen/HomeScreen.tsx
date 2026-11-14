@@ -4,10 +4,12 @@ import {
   RefreshControl,
   ScrollView,
   StyleSheet,
+  useWindowDimensions,
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { fetchDashboardData, type DashboardSummary, type DashboardTransaction } from '../api/dashboardApi';
+import { budgetApi } from '../../budget/api';
 import { themeTokens } from '../themeTokens';
 
 // Import các sub-components đã tách mô-đun
@@ -18,6 +20,7 @@ import { QuickActionsGrid } from '../components/QuickActionsGrid';
 import { FinAIBanner } from '../components/FinAIBanner';
 import { BalanceForecastBanner } from '../components/BalanceForecastBanner';
 import { RecentTransactions } from '../components/RecentTransactions';
+import { GreenWaveBackground } from '../components/GreenWaveBackground';
 
 type Props = {
   onViewTransactions: () => void;
@@ -53,15 +56,28 @@ export function HomeScreen({
   onProfile,
 }: Props) {
   const insets = useSafeAreaInsets();
+  const { width: screenWidth } = useWindowDimensions();
   const [showBalance, setShowBalance] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [dashboardData, setDashboardData] = useState<DashboardSummary | null>(null);
+  const [budgetOverview, setBudgetOverview] = useState<{ totalBudgeted: number; totalSpent: number; overallPercentage: number } | null>(null);
 
   const loadData = useCallback(async (isRefresh = false) => {
     if (isRefresh) setRefreshing(true);
     try {
-      const res = await fetchDashboardData();
+      const now = new Date();
+      const [res, bRes] = await Promise.all([
+        fetchDashboardData(),
+        budgetApi.getMonthlyBudgetOverview(now.getFullYear(), now.getMonth() + 1),
+      ]);
       setDashboardData(res);
+      if (bRes) {
+        setBudgetOverview({
+          totalBudgeted: bRes.totalBudgeted,
+          totalSpent: bRes.totalSpent,
+          overallPercentage: bRes.overallPercentage,
+        });
+      }
     } catch {
       // Fallback
     } finally {
@@ -78,14 +94,15 @@ export function HomeScreen({
   const daysInMonth = new Date(now.getFullYear(), currentMonth, 0).getDate();
   const daysRemaining = Math.max(1, daysInMonth - now.getDate());
 
-  // Dữ liệu từ API Backend thực tế
+  // Dữ liệu từ API Backend thực tế (Ưu tiên dữ liệu ngân sách chuẩn từ budgetApi)
   const totalBalance = dashboardData?.totalBalance ?? 125680000;
   const monthlyIncome = dashboardData?.monthlyIncome ?? 32500000;
   const monthlyExpense = dashboardData?.monthlyExpense ?? 24860000;
   const growthRate = dashboardData?.balanceGrowthRate ?? 8.24;
-  const budgetTotal = dashboardData?.budgetTotal ?? 38000000;
-  const budgetSpent = dashboardData?.budgetSpent ?? monthlyExpense;
-  const budgetPercent = dashboardData?.budgetPercent ?? Math.min(100, Math.round((budgetSpent / budgetTotal) * 100));
+
+  const budgetTotal = budgetOverview?.totalBudgeted ?? (dashboardData?.budgetTotal ?? 5000000);
+  const budgetSpent = budgetOverview?.totalSpent ?? (dashboardData?.budgetSpent ?? 3200000);
+  const budgetPercent = budgetOverview?.overallPercentage ?? (dashboardData?.budgetPercent ?? Math.min(100, Math.round((budgetSpent / budgetTotal) * 100)));
 
   const recentList: DashboardTransaction[] = dashboardData?.recentTransactions && dashboardData.recentTransactions.length > 0
     ? dashboardData.recentTransactions
@@ -143,12 +160,17 @@ export function HomeScreen({
         />
       }
     >
-      {/* ── 1. HEADER XANH VÒM CẢNH (PHỦ TRÀN LÊN STATUS BAR THEO ĐÚNG ẢNH MẪU) ── */}
-      <View style={[styles.headerHeroContainer, { paddingTop: insets.top + 6 }]}>
-        <View style={styles.headerGlowWave1} />
-        <View style={styles.headerGlowWave2} />
+      {/* ── 1. HEADER XANH GRADIENT + SÓNG SVG & THẺ TỔNG TÀI SẢN TRẮNG NỔI ── */}
+      <View style={[styles.headerHeroContainer, { paddingTop: Math.max(insets.top, 10) + 8 }]}>
+        {/* Nền Gradient Xanh Emerald & Các lớp sóng SVG uốn lượn mềm mại tan mờ dần xuống dưới */}
+        <GreenWaveBackground
+          variant="header"
+          width={screenWidth}
+          height={420}
+          style={styles.headerWaveBackdrop}
+        />
 
-        {/* 1.1 Header Top Bar: Logo FinAI, Chuông thông báo, Avatar */}
+        {/* 1.1 Header Top Bar: Avatar, Lời chào, Tên người dùng & Nút Cài đặt */}
         <HomeHeader
           onNotifications={
             onNotifications ? onNotifications : () => Alert.alert('Thông báo', 'Bạn có 2 thông báo mới.')
@@ -156,7 +178,7 @@ export function HomeScreen({
           onProfile={onProfile}
         />
 
-        {/* 1.2 Thẻ Tổng Tài Sản Nền Xanh Đậm Nổi Bật */}
+        {/* 1.2 Thẻ Tổng Tài Sản Nền Trắng Bo Góc 26px + Ví 3D Bên Phải */}
         <AssetSummaryCard
           totalBalance={totalBalance}
           monthlyIncome={monthlyIncome}
@@ -174,6 +196,7 @@ export function HomeScreen({
         budgetSpent={budgetSpent}
         budgetTotal={budgetTotal}
         budgetPercent={budgetPercent}
+        onPress={onViewBudget}
       />
 
       {/* ── 3. GRID 8 NÚT TIỆN ÍCH CHÍNH (4 CỘT X 2 HÀNG) ── */}
@@ -214,32 +237,15 @@ const styles = StyleSheet.create({
   },
   headerHeroContainer: {
     width: '100%',
-    backgroundColor: themeTokens.colors.primaryDark,
-    borderBottomLeftRadius: themeTokens.radius.header,
-    borderBottomRightRadius: themeTokens.radius.header,
     paddingHorizontal: themeTokens.spacing.lg,
-    paddingBottom: 22,
+    paddingBottom: 6,
     position: 'relative',
-    overflow: 'hidden',
   },
-  headerGlowWave1: {
+  headerWaveBackdrop: {
     position: 'absolute',
-    top: -50,
-    right: -50,
-    width: 260,
-    height: 260,
-    borderRadius: 130,
-    backgroundColor: '#056149',
-    opacity: 0.65,
-  },
-  headerGlowWave2: {
-    position: 'absolute',
-    top: -20,
-    right: -20,
-    width: 170,
-    height: 170,
-    borderRadius: 85,
-    backgroundColor: '#097E5F',
-    opacity: 0.5,
+    top: -100,
+    left: 0,
+    right: 0,
+    height: 420,
   },
 });

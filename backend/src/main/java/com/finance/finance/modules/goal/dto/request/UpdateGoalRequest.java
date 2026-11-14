@@ -21,14 +21,14 @@ public class UpdateGoalRequest {
     @Size(min = 1, max = 200, message = "Tên mục tiêu phải từ 1-200 ký tự")
     private String name;
     
-    @DecimalMin(value = "0.0", inclusive = false, message = "Số tiền mục tiêu phải > 0")
+    @DecimalMin(value = "0.0", message = "Số tiền mục tiêu phải >= 0")
     private BigDecimal targetAmount;
     
     private LocalDate targetDate;
     
     private GoalPriority priority;
     
-    @Size(max = 10, message = "Icon tối đa 10 ký tự")
+    @Size(max = 50, message = "Icon tối đa 50 ký tự")
     private String icon;
     
     @Pattern(regexp = "^#[0-9A-Fa-f]{6}$", message = "Mã màu phải theo định dạng hex (#RRGGBB)")

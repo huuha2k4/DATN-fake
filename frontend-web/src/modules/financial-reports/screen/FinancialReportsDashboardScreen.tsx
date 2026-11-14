@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { jsPDF } from 'jspdf';
 import html2canvas from 'html2canvas';
 import ExcelJS from 'exceljs';
@@ -11,6 +12,7 @@ type Props = { onNotify: (message: string) => void };
 
 const TABS = ['Thu - Chi', 'Danh mục', 'So sánh'];
 const PRESET_PERIODS = [
+  { label: 'Tuần trước', value: 'last_week' },
   { label: 'Tháng này', value: 'this_month' },
   { label: 'Tháng trước', value: 'last_month' },
   { label: '3 tháng qua', value: '3_months' },
@@ -78,8 +80,9 @@ function getCategoryIcon(name: string): IconName {
 }
 
 export function FinancialReportsDashboardScreen({ onNotify }: Props) {
+  const [searchParams] = useSearchParams();
   const [activeTab, setActiveTab] = useState('Thu - Chi');
-  const [selectedPeriod, setSelectedPeriod] = useState('this_month');
+
   // Helper format ngày theo giờ địa phương YYYY-MM-DD chuẩn xác không bị lệch timezone UTC
   const formatLocalDate = (d: Date): string => {
     const year = d.getFullYear();
@@ -88,7 +91,36 @@ export function FinancialReportsDashboardScreen({ onNotify }: Props) {
     return `${year}-${month}-${day}`;
   };
 
+  const getLastWeekRange = () => {
+    const now = new Date();
+    const currentDay = now.getDay();
+    const diffToMonday = currentDay === 0 ? -6 : 1 - currentDay;
+    const mondayThisWeek = new Date(now);
+    mondayThisWeek.setDate(now.getDate() + diffToMonday);
+    const mondayLastWeek = new Date(mondayThisWeek);
+    mondayLastWeek.setDate(mondayThisWeek.getDate() - 7);
+    const sundayLastWeek = new Date(mondayLastWeek);
+    sundayLastWeek.setDate(mondayLastWeek.getDate() + 6);
+    return {
+      fromDate: formatLocalDate(mondayLastWeek),
+      toDate: formatLocalDate(sundayLastWeek),
+    };
+  };
+
+  const [selectedPeriod, setSelectedPeriod] = useState(() => {
+    const paramPeriod = searchParams.get('period');
+    return paramPeriod === 'last_week' ? 'last_week' : 'this_month';
+  });
+
   const [dateRange, setDateRange] = useState<{ fromDate: string; toDate: string }>(() => {
+    const paramFrom = searchParams.get('from');
+    const paramTo = searchParams.get('to');
+    if (paramFrom && paramTo) {
+      return { fromDate: paramFrom, toDate: paramTo };
+    }
+    if (searchParams.get('period') === 'last_week') {
+      return getLastWeekRange();
+    }
     const now = new Date();
     const firstDay = new Date(now.getFullYear(), now.getMonth(), 1);
     const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0);
@@ -98,6 +130,20 @@ export function FinancialReportsDashboardScreen({ onNotify }: Props) {
       toDate: `${lastDay.getFullYear()}-${pad(lastDay.getMonth() + 1)}-${pad(lastDay.getDate())}`,
     };
   });
+
+  useEffect(() => {
+    const paramPeriod = searchParams.get('period');
+    const paramFrom = searchParams.get('from');
+    const paramTo = searchParams.get('to');
+    if (paramPeriod === 'last_week') {
+      setSelectedPeriod('last_week');
+      if (paramFrom && paramTo) {
+        setDateRange({ fromDate: paramFrom, toDate: paramTo });
+      } else {
+        setDateRange(getLastWeekRange());
+      }
+    }
+  }, [searchParams]);
 
   const [loading, setLoading] = useState(false);
   const [summaryData, setSummaryData] = useState<TransactionSummaryResponse | null>(null);
@@ -119,7 +165,11 @@ export function FinancialReportsDashboardScreen({ onNotify }: Props) {
     let from = '';
     let to = '';
 
-    if (val === 'this_month') {
+    if (val === 'last_week') {
+      const lw = getLastWeekRange();
+      from = lw.fromDate;
+      to = lw.toDate;
+    } else if (val === 'this_month') {
       const first = new Date(now.getFullYear(), now.getMonth(), 1);
       const last = new Date(now.getFullYear(), now.getMonth() + 1, 0);
       from = formatLocalDate(first);
@@ -165,7 +215,7 @@ export function FinancialReportsDashboardScreen({ onNotify }: Props) {
 
   // Xác định xem khoảng thời gian hiện tại có phải là 1 tháng (chu kỳ ngắn) hay nhiều tháng
   const isSingleMonthPeriod = useMemo(() => {
-    if (selectedPeriod === 'this_month' || selectedPeriod === 'last_month') return true;
+    if (selectedPeriod === 'last_week' || selectedPeriod === 'this_month' || selectedPeriod === 'last_month') return true;
     if (!dateRange.fromDate || !dateRange.toDate) return true;
     const start = new Date(dateRange.fromDate);
     const end = new Date(dateRange.toDate);
@@ -176,6 +226,20 @@ export function FinancialReportsDashboardScreen({ onNotify }: Props) {
   // Nhãn hiển thị kỳ báo cáo động theo khoảng thời gian được chọn
   const { currentPeriodLabel, periodShortLabel, currentReportYear } = useMemo(() => {
     const year = dateRange.toDate ? dateRange.toDate.split('-')[0] : new Date().getFullYear().toString();
+
+    if (selectedPeriod === 'last_week') {
+      if (dateRange.fromDate && dateRange.toDate) {
+        const fParts = dateRange.fromDate.split('-');
+        const tParts = dateRange.toDate.split('-');
+        const rangeText = `${fParts[2]}/${fParts[1]} - ${tParts[2]}/${tParts[1]}`;
+        return {
+          currentPeriodLabel: `Tuần trước (${rangeText})`,
+          periodShortLabel: rangeText,
+          currentReportYear: year,
+        };
+      }
+      return { currentPeriodLabel: 'Tuần trước', periodShortLabel: 'Tuần trước', currentReportYear: year };
+    }
 
     if (selectedPeriod === 'this_month') {
       if (dateRange.toDate) {

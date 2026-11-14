@@ -195,6 +195,20 @@ public class UserService {
         userRepository.save(user);
         log.info("Password changed successfully for user: {}", identifier);
     }
+
+    @Transactional
+    public UserResponse updateSecuritySettings(String identifier, Boolean twoFactorEnabled, Boolean loginAlertEnabled) {
+        User user = findUserByIdOrIdentifier(identifier);
+        if (twoFactorEnabled != null) {
+            user.setMfaEnabled(twoFactorEnabled);
+        }
+        if (loginAlertEnabled != null) {
+            user.setLoginAlertEnabled(loginAlertEnabled);
+        }
+        User saved = userRepository.save(user);
+        log.info("Security settings updated for user {}: 2FA={}, alert={}", identifier, saved.isMfaEnabled(), saved.isLoginAlertEnabled());
+        return userMapper.toResponse(saved);
+    }
     
     private void deleteOldAvatar(String avatarUrl) {
         try {

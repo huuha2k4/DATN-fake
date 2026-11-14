@@ -196,4 +196,15 @@ public interface DebtRepository extends JpaRepository<Debt, UUID> {
            "AND d.dueDate IS NOT NULL AND d.dueDate < :currentDate " +
            "AND d.deletedAt IS NULL")
     List<Debt> findDebtsToUpdateToOverdue(@Param("currentDate") LocalDate currentDate);
+
+    /**
+     * Tìm tất cả debts ACTIVE đang có dueDate hoặc nextPaymentDate trong khoảng ngày
+     */
+    @Query("SELECT d FROM Debt d WHERE d.status = 'ACTIVE' AND d.deletedAt IS NULL " +
+           "AND ((d.dueDate IS NOT NULL AND d.dueDate BETWEEN :fromDate AND :toDate) OR " +
+           "     (d.nextPaymentDate IS NOT NULL AND d.nextPaymentDate BETWEEN :fromDate AND :toDate))")
+    List<Debt> findAllActiveDebtsDueBetween(
+            @Param("fromDate") LocalDate fromDate,
+            @Param("toDate") LocalDate toDate
+    );
 }

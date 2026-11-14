@@ -141,6 +141,14 @@ public class TokenService {
     }
     
     /**
+     * Lấy danh sách các phiên đăng nhập (thiết bị) đang hoạt động của người dùng
+     */
+    @Transactional(readOnly = true)
+    public java.util.List<RefreshToken> getActiveSessions(UUID userId) {
+        return refreshTokenRepository.findByUserIdAndRevokedFalse(userId);
+    }
+
+    /**
      * Generate a cryptographically secure random token
      */
     private String generateSecureToken() {

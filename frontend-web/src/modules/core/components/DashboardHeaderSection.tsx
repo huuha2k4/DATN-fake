@@ -21,7 +21,7 @@ const routeTitles: Record<string, { title: string; subtitle?: string }> = {
   '/child-wallet': { title: 'Ví của em', subtitle: 'Số dư, yêu cầu xin tiền và nhiệm vụ nhận thưởng' },
   '/transactions': { title: 'Quản lý Thu & Chi', subtitle: 'Chi tiết các giao dịch phát sinh và dòng tiền' },
   '/budget': { title: 'Quản lý Ngân sách Chi tiêu', subtitle: 'Hạn mức chi tiêu định kỳ và theo dõi tiến độ chi dùng' },
-  '/goals': { title: 'Mục tiêu Tài chính & Tích lũy', subtitle: 'Tiến độ mục tiêu tiết kiệm và quỹ tài chính tương lai' },
+  '/goals': { title: 'Mục tiêu & Tiết kiệm', subtitle: 'Tiến độ mục tiêu tích lũy và các quỹ tiết kiệm của bạn' },
   '/schedules': { title: 'Lịch tài chính', subtitle: 'Lịch giao dịch định kỳ, hóa đơn và nhắc nhở thanh toán' },
   '/reminders': { title: 'Lịch tài chính', subtitle: 'Lịch giao dịch định kỳ, hóa đơn và nhắc nhở thanh toán' },
   '/debts': { title: 'Quản lý Công nợ', subtitle: 'Theo dõi các khoản đi vay, cho vay và tiến độ trả nợ' },
@@ -49,7 +49,7 @@ export function DashboardHeaderSection({ onNotify, onOpenProfile, onOpenChangePa
   const isDark = theme === 'dark';
 
   return (
-    <header className="topbar sticky top-0 z-10 flex min-h-16 items-center justify-between gap-3 !pl-3.5 !pr-6 backdrop-blur">
+    <header className="topbar sticky top-0 z-30 flex min-h-16 items-center justify-between gap-3 !pl-3.5 !pr-6 backdrop-blur">
       {/* Left: Nút thu vào / đẩy ra cột sidebar và tiêu đề trang */}
       <div className="flex items-center gap-2 py-2">
         {/* Nút đóng/mở trên Mobile */}
@@ -73,23 +73,7 @@ export function DashboardHeaderSection({ onNotify, onOpenProfile, onOpenChangePa
             title={isSidebarCollapsed ? 'Mở rộng thanh điều hướng' : 'Thu gọn thanh điều hướng'}
             aria-label={isSidebarCollapsed ? 'Mở rộng thanh điều hướng' : 'Thu gọn thanh điều hướng'}
           >
-            {isSidebarCollapsed ? (
-              /* Icon mở ra khi đang thu gọn: 3 vạch với tam giác chỉ sang phải */
-              <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M3.5 4.5H16.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-                <path d="M5.5 10H16.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-                <path d="M3.5 15.5H16.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-                <path d="M2.5 8L5 10L2.5 12" fill="currentColor" />
-              </svg>
-            ) : (
-              /* Icon thu vào như ảnh mẫu: 3 vạch ngang không viền, vạch giữa thụt lùi kèm mũi tên tam giác đen chỉ sang trái */
-              <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M3.5 4.5H16.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-                <path d="M8 10H16.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-                <path d="M3.5 15.5H16.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-                <path d="M6.5 8L3.5 10L6.5 12V8Z" fill="currentColor" />
-              </svg>
-            )}
+            <FinanceIcon name={isSidebarCollapsed ? 'panel-left-open' : 'panel-left-close'} size={20} />
           </button>
         )}
 
