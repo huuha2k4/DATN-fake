@@ -1,5 +1,5 @@
 import sys
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
 from typing import Dict, Any, List, Optional
 import numpy as np
 import pandas as pd
@@ -9,19 +9,29 @@ from database import SessionLocal, Transaction, Category, resolve_user_id
 if sys.stdout.encoding != 'utf-8':
     sys.stdout.reconfigure(encoding='utf-8')
 
+VN_TZ = timezone(timedelta(hours=7))
+
+def to_vn_datetime(dt: Optional[datetime]) -> datetime:
+    if dt is None:
+        return datetime.now(VN_TZ)
+    if dt.tzinfo is not None:
+        return dt.astimezone(VN_TZ)
+    return dt + timedelta(hours=7)
+
 def extract_features(transactions: List[Transaction], category_means: Dict[str, float]) -> np.ndarray:
     """
     Trích xuất vector đặc trưng đa chiều từ mỗi giao dịch:
     1. amount: Số tiền
-    2. hour: Giờ giao dịch trong ngày (0 - 23)
+    2. hour: Giờ giao dịch trong ngày (0 - 23) theo múi giờ Việt Nam
     3. day_of_week: Thứ trong tuần (0 - 6)
     4. ratio_to_cat_mean: Tỷ lệ số tiền so với mức chi tiêu trung bình của danh mục đó
     5. is_night: Cờ đánh dấu giao dịch ban đêm (0h - 5h sáng)
     """
     features = []
     for t in transactions:
-        hour = t.occurred_at.hour
-        dow = t.occurred_at.weekday()
+        dt = to_vn_datetime(t.occurred_at)
+        hour = dt.hour
+        dow = dt.weekday()
         cat_mean = category_means.get(str(t.category_id), 100000.0)
         ratio = t.amount / max(cat_mean, 1.0)
         is_night = 1.0 if (0 <= hour <= 5) else 0.0
@@ -49,7 +59,11 @@ class AnomalyDetector:
             user_id = resolve_user_id(user_id, db)
             txs = (
                 db.query(Transaction)
-                .filter(Transaction.user_id == user_id, Transaction.type == "EXPENSE")
+                .filter(
+                    Transaction.user_id == user_id,
+                    Transaction.type == "EXPENSE",
+                    Transaction.deleted_at.is_(None)
+                )
                 .all()
             )
             if len(txs) < 10:
@@ -102,7 +116,7 @@ class AnomalyDetector:
         if not self.is_fitted:
             self.fit_user()
 
-        dt = occurred_at or datetime.now()
+        dt = to_vn_datetime(occurred_at)
         hour = dt.hour
         dow = dt.weekday()
         cat_mean = self.category_means.get(str(category_id) if category_id else "", 100000.0)
@@ -164,27 +178,33 @@ class AnomalyDetector:
         try:
             txs = (
                 db.query(Transaction)
-                .filter(Transaction.user_id == user_id, Transaction.type == "EXPENSE")
+                .filter(
+                    Transaction.user_id == user_id,
+                    Transaction.type == "EXPENSE",
+                    Transaction.deleted_at.is_(None)
+                )
                 .order_by(Transaction.occurred_at.desc())
                 .all()
             )
 
             anomalies = []
             for t in txs:
+                local_dt = to_vn_datetime(t.occurred_at)
+                tx_desc = t.description_raw or t.note
                 res = self.inspect_transaction(
                     amount=t.amount,
                     category_id=t.category_id,
-                    occurred_at=t.occurred_at,
-                    note=t.note
+                    occurred_at=local_dt,
+                    note=tx_desc
                 )
                 if res["is_anomaly"] and res["severity"] in ("MEDIUM", "HIGH", "CRITICAL"):
                     cat_name = t.category.name if t.category else "Chung"
                     anomalies.append({
                         "transaction_id": t.id,
-                        "date": t.occurred_at.strftime("%d/%m/%Y %H:%M"),
+                        "date": local_dt.strftime("%d/%m/%Y %H:%M"),
                         "amount": t.amount,
                         "category": cat_name,
-                        "note": t.note,
+                        "note": tx_desc,
                         "severity": res["severity"],
                         "explanation": res["explanation"]
                     })

@@ -370,7 +370,7 @@ export function SpendingAnalysisScreen({ onNotify }: Props) {
                           {a.severity}
                         </span>
                         <strong className="text-xs text-[#26372e] dark:text-[#f8fafc]">
-                          {a.category || 'Chi tiêu'}: {formatVND(a.amount)}
+                          {a.category || 'Chi tiêu'}{a.note ? ` (${a.note})` : ''}: {formatVND(a.amount)}
                         </strong>
                         {a.date && <span className="text-[10px] text-[#829087] dark:text-[#8fa7b7]">({a.date})</span>}
                       </div>
