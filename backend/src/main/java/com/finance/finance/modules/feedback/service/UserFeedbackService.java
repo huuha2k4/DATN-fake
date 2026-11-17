@@ -1,7 +1,7 @@
 package com.finance.finance.modules.feedback.service;
 
-import com.finance.finance.modules.admin.entity.Feedback;
-import com.finance.finance.modules.admin.repository.FeedbackRepository;
+import com.finance.finance.modules.feedback.entity.Feedback;
+import com.finance.finance.modules.feedback.repository.FeedbackRepository;
 import com.finance.finance.modules.feedback.dto.request.SendFeedbackRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;

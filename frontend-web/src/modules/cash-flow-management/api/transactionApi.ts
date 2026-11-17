@@ -104,6 +104,18 @@ export interface CategoryItem {
   displayOrder?: number;
 }
 
+export interface UpdateTransactionPayload {
+  amount?: number;
+  description?: string;
+  note?: string;
+  transactionDate?: string;
+  transactionTime?: string;
+  categoryId?: string;
+  accountId?: string;
+  toAccountId?: string;
+  version?: number;
+}
+
 export const transactionApi = {
   // Lấy danh sách giao dịch thực tế
   getTransactions: async (params?: TransactionFilterParams): Promise<TransactionListResponse> => {
@@ -114,6 +126,12 @@ export const transactionApi = {
   // Tạo giao dịch mới
   createTransaction: async (payload: CreateTransactionPayload): Promise<TransactionItem> => {
     const res = await api.post<TransactionItem>('/transactions', payload);
+    return res.data;
+  },
+
+  // Cập nhật giao dịch
+  updateTransaction: async (id: string, payload: UpdateTransactionPayload): Promise<TransactionItem> => {
+    const res = await api.put<TransactionItem>(`/transactions/${id}`, payload);
     return res.data;
   },
 

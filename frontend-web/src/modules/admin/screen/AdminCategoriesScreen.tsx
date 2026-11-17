@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { adminApi } from '../api/adminApi';
 import { FinanceIcon, resolveCategoryIconName } from '../../core/components/FinanceIcon';
+import { ConfirmDeleteModal } from '../../core/components/ConfirmDeleteModal';
 
 interface SystemCategoryItem {
   id: string;
@@ -24,6 +25,8 @@ export const AdminCategoriesScreen: React.FC = () => {
   // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingCategory, setEditingCategory] = useState<SystemCategoryItem | null>(null);
+  const [categoryToDelete, setCategoryToDelete] = useState<SystemCategoryItem | null>(null);
+  const [isDeletingCat, setIsDeletingCat] = useState(false);
   const [formName, setFormName] = useState('');
   const [formCode, setFormCode] = useState('');
   const [formKind, setFormKind] = useState<'INCOME' | 'EXPENSE'>('EXPENSE');
@@ -107,15 +110,21 @@ export const AdminCategoriesScreen: React.FC = () => {
     }
   };
 
-  const handleDeleteCategory = async (cat: SystemCategoryItem) => {
-    if (!window.confirm(`Bạn có chắc chắn muốn xóa danh mục mặc định "${cat.name}" khỏi hệ thống?`)) {
-      return;
-    }
+  const handleDeleteCategory = (cat: SystemCategoryItem) => {
+    setCategoryToDelete(cat);
+  };
+
+  const confirmDeleteCategory = async () => {
+    if (!categoryToDelete) return;
+    setIsDeletingCat(true);
     try {
-      await adminApi.deleteSystemCategory(cat.id);
+      await adminApi.deleteSystemCategory(categoryToDelete.id);
+      setCategoryToDelete(null);
       loadCategories();
     } catch (err: any) {
       alert(err?.response?.data?.message || 'Không thể xóa danh mục');
+    } finally {
+      setIsDeletingCat(false);
     }
   };
 
@@ -422,6 +431,19 @@ export const AdminCategoriesScreen: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* CONFIRM DELETE SYSTEM CATEGORY MODAL */}
+      <ConfirmDeleteModal
+        isOpen={Boolean(categoryToDelete)}
+        title="Xóa danh mục mặc định?"
+        subtitle="Danh mục hệ thống sẽ bị xóa khỏi dữ liệu dùng chung"
+        itemName={categoryToDelete?.name}
+        itemTypeLabel="Danh mục"
+        message={categoryToDelete ? `Bạn có chắc chắn muốn xóa danh mục mặc định "${categoryToDelete.name}" khỏi hệ thống?` : ''}
+        isDeleting={isDeletingCat}
+        onConfirm={confirmDeleteCategory}
+        onClose={() => setCategoryToDelete(null)}
+      />
     </div>
   );
 };

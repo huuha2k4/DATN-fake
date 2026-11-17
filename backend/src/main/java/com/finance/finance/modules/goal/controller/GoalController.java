@@ -1,5 +1,6 @@
 package com.finance.finance.modules.goal.controller;
 
+import com.finance.finance.common.annotation.Idempotent;
 import com.finance.finance.modules.goal.dto.request.CompleteGoalRequest;
 import com.finance.finance.modules.goal.dto.request.ContributeRequest;
 import com.finance.finance.modules.goal.dto.request.CreateGoalRequest;
@@ -37,11 +38,14 @@ public class GoalController {
     /**
      * 1. Tạo mục tiêu mới
      * POST /api/goals
+     * Idempotent: Prevent duplicate goal creation
      */
+    @Idempotent(resourceType = "goal")
     @PostMapping
     public ResponseEntity<GoalResponse> createGoal(
             @Valid @RequestBody CreateGoalRequest request,
-            @AuthenticationPrincipal User user
+            @AuthenticationPrincipal User user,
+            @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey
     ) {
         GoalResponse response = goalService.createGoal(user.getId(), request);
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
@@ -103,14 +107,34 @@ public class GoalController {
     /**
      * 6. Đóng góp vào mục tiêu
      * POST /api/goals/{id}/contribute
+     * Idempotent: Prevent duplicate contributions
      */
+    @Idempotent(resourceType = "goal_contribution")
     @PostMapping("/{id}/contribute")
     public ResponseEntity<ContributeResponse> contribute(
             @PathVariable java.util.UUID id,
             @Valid @RequestBody ContributeRequest request,
-            @AuthenticationPrincipal User user
+            @AuthenticationPrincipal User user,
+            @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey
     ) {
         ContributeResponse response = goalService.contribute(user.getId(), id, request);
+        return ResponseEntity.ok(response);
+    }
+
+    /**
+     * Rút tiền từ mục tiêu / khoản tiết kiệm
+     * POST /api/v1/goals/{id}/withdraw
+     * Idempotent: Prevent duplicate withdrawal
+     */
+    @Idempotent(resourceType = "goal_withdrawal")
+    @PostMapping("/{id}/withdraw")
+    public ResponseEntity<ContributeResponse> withdraw(
+            @PathVariable java.util.UUID id,
+            @Valid @RequestBody com.finance.finance.modules.goal.dto.request.WithdrawGoalRequest request,
+            @AuthenticationPrincipal User user,
+            @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey
+    ) {
+        ContributeResponse response = goalService.withdraw(user.getId(), id, request);
         return ResponseEntity.ok(response);
     }
 

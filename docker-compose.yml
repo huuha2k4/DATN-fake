@@ -69,6 +69,8 @@ services:
       LOCAL_MODEL_NAME: ${LOCAL_MODEL_NAME:-qwen2.5:1.5b}
       OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://localhost:11434}
       TZ: Asia/Ho_Chi_Minh
+    ports:
+      - "8000:8000"
     expose:
       - "8000"
     volumes:

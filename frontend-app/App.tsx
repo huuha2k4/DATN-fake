@@ -1,6 +1,7 @@
 import { StatusBar } from 'expo-status-bar';
-import React from 'react';
-import { SafeAreaView, StyleSheet, View } from 'react-native';
+import React, { useState } from 'react';
+import { StyleSheet, View } from 'react-native';
+import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { BottomNav, TabKey } from './src/components/BottomNav';
 import { AddTransactionScreen } from './src/modules/add-transaction/screen/AddTransactionScreen';
 import { AccountsScreen } from './src/modules/accounts/screen/AccountsScreen';
@@ -9,6 +10,10 @@ import { BudgetScreen } from './src/modules/budget/screen/BudgetScreen';
 import { HomeScreen } from './src/modules/dashboard/screen/HomeScreen';
 import { GoalsScreen } from './src/modules/goals/screen/GoalsScreen';
 import { SplashScreen } from './src/modules/onboarding/screen/SplashScreen';
+import { LoginScreen } from './src/modules/auth/screen/LoginScreen';
+import { RegisterScreen } from './src/modules/auth/screen/RegisterScreen';
+import { ForgotPasswordScreen } from './src/modules/auth/screen/ForgotPasswordScreen';
+import { authApi, authStorage } from './src/modules/auth/api/authApi';
 import { ScanInvoiceScreen } from './src/modules/scan-invoice/screen/ScanInvoiceScreen';
 import { SpendingAnalysisScreen } from './src/modules/spending-analysis/screen/SpendingAnalysisScreen';
 import { PeriodicReportsScreen } from './src/modules/periodic-reports/screen/PeriodicReportsScreen';
@@ -17,74 +22,250 @@ import { NotificationsScreen } from './src/modules/notifications/screen/Notifica
 import { ProfileScreen } from './src/modules/profile/screen/ProfileScreen';
 import { RemindersScreen } from './src/modules/reminders/screen/RemindersScreen';
 import { TransactionsScreen } from './src/modules/transactions/screen/TransactionsScreen';
+import { GroupScreen } from './src/modules/group/screen/GroupScreen';
+import { DebtScreen } from './src/modules/debts';
+import { ChildWalletScreen } from './src/modules/child-wallet/screen/ChildWalletScreen';
+import { ChildChoresScreen } from './src/modules/child-wallet/screen/ChildChoresScreen';
+import { ChildMoneyRequestsScreen } from './src/modules/child-wallet/screen/ChildMoneyRequestsScreen';
 import { colors } from './src/theme';
+import { ThemeProvider, useAppTheme } from './src/context/ThemeContext';
 
 export default function App() {
+  return (
+    <SafeAreaProvider>
+      <ThemeProvider>
+        <AppContent />
+      </ThemeProvider>
+    </SafeAreaProvider>
+  );
+}
+
+function AppContent() {
   const [hasStarted, setHasStarted] = React.useState(false);
+  const [showLogin, setShowLogin] = React.useState(false);
+  const [showRegister, setShowRegister] = React.useState(false);
+  const [showForgotPassword, setShowForgotPassword] = React.useState(false);
   const [activeTab, setActiveTab] = React.useState<TabKey>('home');
   const [showAddTransaction, setShowAddTransaction] = React.useState(false);
+  const [showChildWallet, setShowChildWallet] = React.useState(false);
+  const [showChildChores, setShowChildChores] = React.useState(false);
+  const [showChildRequests, setShowChildRequests] = React.useState(false);
   const [showScanInvoice, setShowScanInvoice] = React.useState(false);
+  const [scanInvoiceInitialStep, setScanInvoiceInitialStep] = React.useState<'HOME' | 'CAMERA'>('HOME');
   const [showReminders, setShowReminders] = React.useState(false);
   const [showAiAssistant, setShowAiAssistant] = React.useState(false);
   const [showAccounts, setShowAccounts] = React.useState(false);
+  const [showDebts, setShowDebts] = React.useState(false);
   const [showSpendingAnalysis, setShowSpendingAnalysis] = React.useState(false);
   const [showPeriodicReports, setShowPeriodicReports] = React.useState(false);
+  const [periodicReportsInitialParams, setPeriodicReportsInitialParams] = React.useState<{
+    presetId?: 'THIS_WEEK' | 'LAST_WEEK' | 'THIS_MONTH' | 'LAST_MONTH' | 'THIS_QUARTER' | 'THIS_YEAR';
+    fromDate?: string;
+    toDate?: string;
+  } | null>(null);
   const [showBalanceForecast, setShowBalanceForecast] = React.useState(false);
   const [showNotifications, setShowNotifications] = React.useState(false);
   const [showProfile, setShowProfile] = React.useState(false);
+  const [isProfileSubPageOpen, setIsProfileSubPageOpen] = React.useState(false);
+  const [isGroupDetailOpen, setIsGroupDetailOpen] = React.useState(false);
+  const [groupNavTarget, setGroupNavTarget] = React.useState<{
+    groupId?: string;
+    groupName?: string;
+    tab?: 'OVERVIEW' | 'EXPENSES' | 'CHAT' | 'BALANCES' | 'MEMBERS' | 'KIDS' | 'SETTINGS';
+    kidWalletId?: string;
+    kidSubTab?: 'REQUESTS' | 'SPENDS' | 'CHORES' | 'DEPOSIT' | 'SETTINGS';
+  } | null>(null);
+
+  // Tự động nạp phiên đăng nhập bền vững (duy trì phiên, tự thu hồi nếu sau 3 ngày không vào)
+  React.useEffect(() => {
+    // Đăng ký bộ xử lý khi phiên hết hạn hoàn toàn -> Tự động đưa về màn hình Đăng nhập
+    authStorage.setOnSessionExpired(() => {
+      setHasStarted(false);
+      setShowLogin(true);
+    });
+
+    authStorage.loadPersistedSession().then((session) => {
+      if (session && session.user && session.tokens) {
+        setHasStarted(true);
+      }
+    });
+  }, []);
+
+  if (showRegister) {
+    return (
+      <RegisterScreen
+        onBack={() => setShowRegister(false)}
+        onSuccess={() => {
+          setShowRegister(false);
+          setHasStarted(true);
+        }}
+        onSwitchToLogin={() => {
+          setShowRegister(false);
+          setShowLogin(true);
+        }}
+      />
+    );
+  }
+
+  if (showLogin) {
+    return (
+      <LoginScreen
+        onBack={() => setShowLogin(false)}
+        onSuccess={() => {
+          setShowLogin(false);
+          setHasStarted(true);
+        }}
+        onSwitchToRegister={() => {
+          setShowLogin(false);
+          setShowRegister(true);
+        }}
+      />
+    );
+  }
 
   if (!hasStarted) {
-    return <SafeAreaView style={styles.container}>
-      <SplashScreen onStart={() => setHasStarted(true)} />
-      <StatusBar style="dark" />
-    </SafeAreaView>;
+    return (
+      <View style={{ flex: 1, backgroundColor: "#FAFCFB" }}>
+        <SplashScreen
+          onStart={() => setShowRegister(true)}
+          onLogin={() => setShowLogin(true)}
+        />
+        <StatusBar style="dark" />
+      </View>
+    );
+  }
+
+  if (showChildWallet) {
+    return (
+      <View style={{ flex: 1, backgroundColor: '#F8FAFC' }}>
+        <StatusBar style="dark" />
+        <ChildWalletScreen
+          onBack={() => setShowChildWallet(false)}
+          onAddTransaction={() => {
+            setShowChildWallet(false);
+            setShowAddTransaction(true);
+          }}
+          onViewChores={() => {
+            setShowChildWallet(false);
+            setShowChildChores(true);
+          }}
+          onViewRequests={() => {
+            setShowChildWallet(false);
+            setShowChildRequests(true);
+          }}
+          onViewAllTransactions={() => {
+            setShowChildWallet(false);
+            setActiveTab('transactions');
+          }}
+        />
+      </View>
+    );
+  }
+
+  if (showChildChores) {
+    return (
+      <View style={{ flex: 1, backgroundColor: '#F8FAFC' }}>
+        <StatusBar style="dark" />
+        <ChildChoresScreen onBack={() => setShowChildChores(false)} />
+      </View>
+    );
+  }
+
+  if (showChildRequests) {
+    return (
+      <View style={{ flex: 1, backgroundColor: '#F8FAFC' }}>
+        <StatusBar style="dark" />
+        <ChildMoneyRequestsScreen onBack={() => setShowChildRequests(false)} />
+      </View>
+    );
   }
 
   if (showAddTransaction) {
-    return <SafeAreaView style={styles.container}>
-      <AddTransactionScreen
-        onBack={() => setShowAddTransaction(false)}
-        onSaved={() => {
-          setShowAddTransaction(false);
-          setActiveTab('transactions');
-        }}
-      />
-      <StatusBar style="dark" />
-    </SafeAreaView>;
+    return (
+      <View style={{ flex: 1, backgroundColor: '#F6F8FA' }}>
+        <StatusBar style="dark" />
+        <AddTransactionScreen
+          onBack={() => setShowAddTransaction(false)}
+          onSaved={() => {
+            setShowAddTransaction(false);
+            setActiveTab('transactions');
+          }}
+          onOpenInvoiceScanner={() => {
+            setShowAddTransaction(false);
+            setScanInvoiceInitialStep('HOME');
+            setShowScanInvoice(true);
+          }}
+        />
+      </View>
+    );
   }
 
   if (showScanInvoice) {
-    return <SafeAreaView style={styles.container}>
-      <ScanInvoiceScreen
-        onBack={() => setShowScanInvoice(false)}
-        onAddTransaction={() => {
-          setShowScanInvoice(false);
-          setShowAddTransaction(true);
-        }}
-      />
-      <StatusBar style="dark" />
-    </SafeAreaView>;
+    return (
+      <View style={{ flex: 1, backgroundColor: '#F8FAFC' }}>
+        <ScanInvoiceScreen
+          initialStep={scanInvoiceInitialStep}
+          onBack={() => setShowScanInvoice(false)}
+          onAddTransaction={() => {
+            setShowScanInvoice(false);
+            setShowAddTransaction(true);
+          }}
+          onTransactionCreated={() => {
+            setShowScanInvoice(false);
+            setActiveTab('transactions');
+          }}
+        />
+        <StatusBar style="dark" />
+      </View>
+    );
   }
 
   if (showReminders) {
-    return <SafeAreaView style={styles.container}>
-      <RemindersScreen onBack={() => setShowReminders(false)} />
-      <StatusBar style="dark" />
-    </SafeAreaView>;
+    return (
+      <View style={{ flex: 1, backgroundColor: '#FAFCFB' }}>
+        <RemindersScreen
+          onBack={() => setShowReminders(false)}
+          onNavigateToDebts={() => {
+            setShowReminders(false);
+            setShowDebts(true);
+          }}
+        />
+        <StatusBar style="dark" />
+      </View>
+    );
   }
 
   if (showAiAssistant) {
-    return <SafeAreaView style={styles.container}>
-      <AiAssistantScreen onBack={() => setShowAiAssistant(false)} />
-      <StatusBar style="dark" />
-    </SafeAreaView>;
+    return (
+      <View style={{ flex: 1, backgroundColor: '#FAFCFB' }}>
+        <StatusBar style="dark" />
+        <AiAssistantScreen onBack={() => setShowAiAssistant(false)} />
+      </View>
+    );
   }
 
   if (showAccounts) {
-    return <SafeAreaView style={styles.container}>
-      <AccountsScreen onBack={() => setShowAccounts(false)} />
-      <StatusBar style="dark" />
-    </SafeAreaView>;
+    return (
+      <View style={{ flex: 1, backgroundColor: '#F6F8FA' }}>
+        <StatusBar style="dark" />
+        <AccountsScreen
+          onBack={() => setShowAccounts(false)}
+          onAddTransaction={() => {
+            setShowAccounts(false);
+            setShowAddTransaction(true);
+          }}
+        />
+      </View>
+    );
+  }
+
+  if (showDebts) {
+    return (
+      <View style={{ flex: 1, backgroundColor: '#FFFFFF' }}>
+        <DebtScreen onBack={() => setShowDebts(false)} />
+        <StatusBar style="dark" />
+      </View>
+    );
   }
 
   if (showSpendingAnalysis) {
@@ -95,10 +276,20 @@ export default function App() {
   }
 
   if (showPeriodicReports) {
-    return <SafeAreaView style={styles.container}>
-      <PeriodicReportsScreen onBack={() => setShowPeriodicReports(false)} />
-      <StatusBar style="dark" />
-    </SafeAreaView>;
+    return (
+      <View style={{ flex: 1, backgroundColor: '#FFFFFF' }}>
+        <PeriodicReportsScreen
+          onBack={() => {
+            setShowPeriodicReports(false);
+            setPeriodicReportsInitialParams(null);
+          }}
+          initialPresetId={periodicReportsInitialParams?.presetId}
+          initialFromDate={periodicReportsInitialParams?.fromDate}
+          initialToDate={periodicReportsInitialParams?.toDate}
+        />
+        <StatusBar style="dark" />
+      </View>
+    );
   }
 
   if (showBalanceForecast) {
@@ -109,79 +300,208 @@ export default function App() {
   }
 
   if (showNotifications) {
-    return <SafeAreaView style={styles.container}>
-      <View style={styles.content}><NotificationsScreen /></View>
-      <BottomNav
-        activeTab={activeTab}
-        onChange={(tab) => {
-          setShowNotifications(false);
-          setActiveTab(tab);
-        }}
-        onScanInvoice={() => {
-          setShowNotifications(false);
-          setShowScanInvoice(true);
-        }}
-        onNotifications={() => setShowNotifications(true)}
-        onProfile={() => {
-          setShowNotifications(false);
-          setShowProfile(true);
-        }}
-        isNotificationsActive
-      />
-      <StatusBar style="dark" />
-    </SafeAreaView>;
+    return (
+      <View style={{ flex: 1, backgroundColor: '#FFFFFF' }}>
+        <NotificationsScreen
+          onBack={() => setShowNotifications(false)}
+          onNavigate={(target) => {
+            setShowNotifications(false);
+            if (target.tab) {
+              setActiveTab(target.tab);
+            }
+            if (target.groupTarget) {
+              setGroupNavTarget(target.groupTarget);
+            } else {
+              setGroupNavTarget(null);
+            }
+            if (target.action === 'reminders') {
+              setShowReminders(true);
+            } else if (target.action === 'periodic-reports') {
+              setPeriodicReportsInitialParams(target.params || { presetId: 'LAST_WEEK' });
+              setShowPeriodicReports(true);
+            } else if (target.action === 'spending-analysis') {
+              setShowSpendingAnalysis(true);
+            } else if (target.action === 'balance-forecast') {
+              setShowBalanceForecast(true);
+            } else if (target.action === 'debts') {
+              setShowDebts(true);
+            } else if (target.action === 'add-transaction') {
+              setShowAddTransaction(true);
+            } else if (target.action === 'security') {
+              setShowProfile(true);
+            }
+          }}
+        />
+        <StatusBar style="dark" />
+      </View>
+    );
   }
 
   if (showProfile) {
-    return <SafeAreaView style={styles.container}>
-      <View style={styles.content}><ProfileScreen /></View>
-      <BottomNav
-        activeTab={activeTab}
-        onChange={(tab) => {
-          setShowProfile(false);
-          setActiveTab(tab);
-        }}
-        onScanInvoice={() => {
-          setShowProfile(false);
-          setShowScanInvoice(true);
-        }}
-        onNotifications={() => {
-          setShowProfile(false);
-          setShowNotifications(true);
-        }}
-        onProfile={() => setShowProfile(true)}
-        isProfileActive
-      />
-      <StatusBar style="dark" />
-    </SafeAreaView>;
+    return (
+      <View style={{ flex: 1, backgroundColor: '#FFFFFF' }}>
+        <View style={styles.content}>
+          <ProfileScreen
+            onLogout={async () => {
+              try {
+                await authApi.logout();
+              } catch (e) {
+                // Đảm bảo luôn xóa auth cache cục bộ
+                authStorage.clear();
+              }
+              // Reset toàn bộ navigation state về màn hình Đăng nhập
+              setShowProfile(false);
+              setShowNotifications(false);
+              setShowAddTransaction(false);
+              setShowScanInvoice(false);
+              setShowReminders(false);
+              setShowAiAssistant(false);
+              setShowAccounts(false);
+              setShowSpendingAnalysis(false);
+              setShowPeriodicReports(false);
+              setShowBalanceForecast(false);
+              setShowRegister(false);
+              setShowForgotPassword(false);
+              setActiveTab('home');
+              setHasStarted(false);
+              setShowLogin(true);
+            }}
+            onNotifications={() => {
+              setShowProfile(false);
+              setShowNotifications(true);
+            }}
+            onOpenAiAssistant={() => {
+              setShowProfile(false);
+              setShowAiAssistant(true);
+            }}
+            onSubPageChange={setIsProfileSubPageOpen}
+          />
+        </View>
+        {!isProfileSubPageOpen && (
+          <BottomNav
+            activeTab={activeTab}
+            onChange={(tab) => {
+              setShowProfile(false);
+              setGroupNavTarget(null);
+              setActiveTab(tab);
+            }}
+            onScanInvoice={() => {
+              setShowProfile(false);
+              setScanInvoiceInitialStep('CAMERA');
+              setShowScanInvoice(true);
+            }}
+            onProfile={() => setShowProfile(true)}
+            isProfileActive
+          />
+        )}
+        <StatusBar style="dark" />
+      </View>
+    );
   }
 
   const screen = {
-    home: <HomeScreen
-      onViewTransactions={() => setActiveTab('transactions')}
-      onAddTransaction={() => setShowAddTransaction(true)}
-      onScanInvoice={() => setShowScanInvoice(true)}
-      onViewGoals={() => setActiveTab('goals')}
-      onViewReminders={() => setShowReminders(true)}
-      onViewAiAssistant={() => setShowAiAssistant(true)}
-      onViewAccounts={() => setShowAccounts(true)}
-      onViewSpendingAnalysis={() => setShowSpendingAnalysis(true)}
-      onViewPeriodicReports={() => setShowPeriodicReports(true)}
-      onViewBalanceForecast={() => setShowBalanceForecast(true)}
-    />,
-    transactions: <TransactionsScreen onBack={() => setActiveTab('home')} onAddTransaction={() => setShowAddTransaction(true)} />,
-    budget: <BudgetScreen />,
+    home: (
+      <HomeScreen
+        onViewTransactions={() => setActiveTab('transactions')}
+        onAddTransaction={() => setShowAddTransaction(true)}
+        onScanInvoice={() => setShowScanInvoice(true)}
+        onViewGoals={() => setActiveTab('goals')}
+        onViewBudget={() => setActiveTab('budget')}
+        onViewDebts={() => setShowDebts(true)}
+        onViewReminders={() => setShowReminders(true)}
+        onViewAiAssistant={() => setShowAiAssistant(true)}
+        onViewAccounts={() => setShowAccounts(true)}
+        onViewSpendingAnalysis={() => setShowSpendingAnalysis(true)}
+        onViewPeriodicReports={() => setShowPeriodicReports(true)}
+        onViewBalanceForecast={() => setShowBalanceForecast(true)}
+        onViewChildWallet={() => setShowChildWallet(true)}
+        onViewChildChores={() => setShowChildChores(true)}
+        onViewChildRequests={() => setShowChildRequests(true)}
+        onViewGroupFamily={() => {
+          const user = authStorage.getUser();
+          if (user?.childAccount && user.childWalletGroupId) {
+            setGroupNavTarget({
+              groupId: user.childWalletGroupId,
+              tab: 'CHAT',
+            });
+          }
+          setActiveTab('group');
+        }}
+        onNotifications={() => setShowNotifications(true)}
+        onProfile={() => setShowProfile(true)}
+      />
+    ),
+    transactions: (
+      <TransactionsScreen
+        onBack={() => setActiveTab('home')}
+        onAddTransaction={() => setShowAddTransaction(true)}
+      />
+    ),
+    group: (
+      <GroupScreen
+        onGroupDetailChange={(isOpen) => {
+          setIsGroupDetailOpen(isOpen);
+        }}
+        onConsumeInitialNav={() => {
+          setGroupNavTarget(null);
+        }}
+        initialGroupId={groupNavTarget?.groupId}
+        initialGroupName={groupNavTarget?.groupName}
+        initialTab={groupNavTarget?.tab}
+        initialKidWalletId={groupNavTarget?.kidWalletId}
+        initialKidSubTab={groupNavTarget?.kidSubTab}
+      />
+    ),
+    budget: (
+      <BudgetScreen
+        onBack={() => setActiveTab('home')}
+        onNavigateToReports={() => setShowPeriodicReports(true)}
+        onNavigateToSettings={() => setShowProfile(true)}
+      />
+    ),
     goals: <GoalsScreen onBack={() => setActiveTab('home')} />,
   }[activeTab];
 
-  return <SafeAreaView style={styles.container}>
-    <View style={styles.content}>{screen}</View>
-    <BottomNav activeTab={activeTab} onChange={setActiveTab} onScanInvoice={() => setShowScanInvoice(true)} onNotifications={() => setShowNotifications(true)} onProfile={() => setShowProfile(true)} />
-    <StatusBar style="dark" />
-  </SafeAreaView>;
+  const { isDark, colors: themeColors } = useAppTheme();
+
+  const isDarkStatusBar = isDark ? false : ((activeTab === 'group') || activeTab === 'budget' || activeTab === 'goals');
+
+  const user = authStorage.getUser();
+  const isChildAccount = Boolean(user?.childAccount && user?.childWalletGroupId);
+
+  return (
+    <View style={[styles.container, { backgroundColor: themeColors.background }]}>
+      <View style={styles.content}>{screen}</View>
+      {/* Ẩn thanh 5 nút điều hướng đáy khi đang ở ngân sách, mục tiêu hoặc mở chi tiết nhóm (đối với tài khoản bé thì luôn giữ 5 nút dưới cùng) */}
+      {(isChildAccount || (!(activeTab === 'group' && isGroupDetailOpen) && activeTab !== 'budget' && activeTab !== 'goals')) && (
+        <BottomNav
+          activeTab={activeTab}
+          onChange={(tab) => {
+            const curUser = authStorage.getUser();
+            if (tab === 'group' && curUser?.childAccount && curUser.childWalletGroupId) {
+              setGroupNavTarget({
+                groupId: curUser.childWalletGroupId,
+                tab: 'CHAT',
+              });
+            } else {
+              setGroupNavTarget(null);
+            }
+            setActiveTab(tab);
+          }}
+          onScanInvoice={() => {
+            setScanInvoiceInitialStep('CAMERA');
+            setShowScanInvoice(true);
+          }}
+          onProfile={() => setShowProfile(true)}
+        />
+      )}
+      <StatusBar style={isDarkStatusBar ? 'dark' : 'light'} />
+    </View>
+  );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.paper },
   content: { flex: 1 },
 });
+

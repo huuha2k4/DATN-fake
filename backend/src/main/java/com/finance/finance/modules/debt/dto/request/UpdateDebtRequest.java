@@ -51,6 +51,15 @@ public class UpdateDebtRequest {
     @Size(max = 255, message = "Debtor email must not exceed 255 characters")
     private String debtorEmail;
 
+    // ==================== Amount & Date Info ====================
+
+    @JsonProperty("principal_amount")
+    @DecimalMin(value = "0", message = "Principal amount must be positive")
+    private BigDecimal principalAmount;
+
+    @JsonProperty("start_date")
+    private LocalDate startDate;
+
     // ==================== Interest Info ====================
 
     @JsonProperty("interest_rate")

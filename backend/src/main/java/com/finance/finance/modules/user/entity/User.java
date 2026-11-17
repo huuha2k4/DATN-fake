@@ -57,6 +57,10 @@ public class User implements UserDetails {
     @Column(name = "mfa_enabled", nullable = false)
     @Builder.Default
     private boolean mfaEnabled = false;
+
+    @Column(name = "login_alert_enabled", nullable = false)
+    @Builder.Default
+    private boolean loginAlertEnabled = true;
     
     @Column(name = "mfa_secret")
     private String mfaSecret;

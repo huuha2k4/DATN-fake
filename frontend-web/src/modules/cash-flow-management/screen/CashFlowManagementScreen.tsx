@@ -85,6 +85,67 @@ export function CashFlowManagementScreen({ onNotify, onAddTransaction }: Props) 
   const [selectedTxDetail, setSelectedTxDetail] = useState<TransactionItem | null>(null);
   const [viewingReceiptImage, setViewingReceiptImage] = useState<string | null>(null);
 
+  // Edit transaction state inside Detail modal
+  const [isEditingTx, setIsEditingTx] = useState(false);
+  const [editAmount, setEditAmount] = useState('');
+  const [editDescription, setEditDescription] = useState('');
+  const [editNote, setEditNote] = useState('');
+  const [editDate, setEditDate] = useState('');
+  const [editTime, setEditTime] = useState('');
+  const [editCategoryId, setEditCategoryId] = useState('');
+  const [editAccountId, setEditAccountId] = useState('');
+  const [isSavingEdit, setIsSavingEdit] = useState(false);
+
+  const handleStartEditTx = (tx: TransactionItem) => {
+    setEditAmount(String(tx.amount || ''));
+    setEditDescription(tx.description || '');
+    setEditNote(tx.note || '');
+    setEditDate(tx.transactionDate || new Date().toISOString().slice(0, 10));
+    setEditTime(tx.transactionTime ? tx.transactionTime.slice(0, 5) : '12:00');
+    setEditCategoryId(tx.category?.id || '');
+    setEditAccountId(tx.accountId || '');
+    setIsEditingTx(true);
+  };
+
+  const handleSaveEditTx = async () => {
+    if (!selectedTxDetail) return;
+    const numericAmount = parseFloat(editAmount.replace(/\D/g, ''));
+    if (isNaN(numericAmount) || numericAmount <= 0) {
+      onNotify('Vui lòng nhập số tiền hợp lệ lớn hơn 0.');
+      return;
+    }
+
+    setIsSavingEdit(true);
+    try {
+      const updated = await transactionApi.updateTransaction(selectedTxDetail.id, {
+        amount: numericAmount,
+        description: editDescription.trim() || 'Giao dịch',
+        note: editNote.trim(),
+        transactionDate: editDate,
+        transactionTime: editTime ? `${editTime.slice(0, 5)}:00` : undefined,
+        categoryId:
+          selectedTxDetail.transactionType !== 'TRANSFER' && editCategoryId
+            ? editCategoryId
+            : undefined,
+        accountId: editAccountId || selectedTxDetail.accountId,
+        version: selectedTxDetail.version,
+      });
+
+      setSelectedTxDetail({
+        ...selectedTxDetail,
+        ...updated,
+      });
+      setIsEditingTx(false);
+      onNotify('Đã cập nhật thông tin giao dịch và số dư ví thành công.');
+      await Promise.all([loadTransactions(), loadMetadata()]);
+    } catch (err: any) {
+      const msg = err?.response?.data?.message || err?.message || 'Không thể cập nhật giao dịch.';
+      onNotify(msg);
+    } finally {
+      setIsSavingEdit(false);
+    }
+  };
+
   // Load Categories & Accounts
   const loadMetadata = async () => {
     if (isChildAccount) {
@@ -93,7 +154,17 @@ export function CashFlowManagementScreen({ onNotify, onAddTransaction }: Props) 
         groupApi.getChildWallet(currentUser!.childWalletGroupId!, currentUser!.childWalletId!).catch(() => null),
       ]);
       setCategories(cats);
-      if (wallet) setAccounts([{ id: wallet.id, name: `Ví của ${wallet.childName}`, balance: wallet.balance, currencyCode: wallet.currency, accountType: 'CASH', isActive: true } as AccountItem]);
+      const childWalletName = wallet?.childName ? `Ví của ${wallet.childName}` : 'Ví của em';
+      const childWalletId = wallet?.id || currentUser!.childWalletId!;
+      setAccounts([{
+        id: childWalletId,
+        name: childWalletName,
+        balance: wallet?.balance || 0,
+        currencyCode: wallet?.currency || 'VND',
+        accountType: 'CASH',
+        isActive: true,
+      } as AccountItem]);
+      setSelectedAccount(childWalletId);
       return;
     }
     try {
@@ -301,25 +372,38 @@ export function CashFlowManagementScreen({ onNotify, onAddTransaction }: Props) 
       }
 
       // Xác định tiêu đề báo cáo linh hoạt theo bộ lọc
-      let baseTitle = 'BÁO CÁO THU CHI';
-      let filePrefix = 'Bao_cao_thu_chi';
+      let baseTitle = 'BÁO CÁO LỊCH SỬ THU & CHI CHI TIẾT';
+      let filePrefix = 'Bao_cao_lich_su_thu_chi';
       if (activeTab === 'INCOME') {
-        baseTitle = 'BÁO CÁO KHOẢN THU';
+        baseTitle = 'BÁO CÁO KHOẢN THU CHI TIẾT';
         filePrefix = 'Bao_cao_khoan_thu';
       } else if (activeTab === 'EXPENSE') {
-        baseTitle = 'BÁO CÁO KHOẢN CHI';
+        baseTitle = 'BÁO CÁO KHOẢN CHI CHI TIẾT';
         filePrefix = 'Bao_cao_khoan_chi';
       } else if (activeTab === 'TRANSFER') {
-        baseTitle = 'BÁO CÁO CHUYỂN VÍ';
+        baseTitle = 'BÁO CÁO CHUYỂN VÍ CHI TIẾT';
         filePrefix = 'Bao_cao_chuyen_vi';
       }
 
       let monthLabel = '';
       if (selectedMonth !== 'ALL') {
         const parts = selectedMonth.split('-');
-        monthLabel = ` - THÁNG ${parts[1]}/${parts[0]}`;
+        monthLabel = `Tháng ${parts[1]}/${parts[0]}`;
+      } else {
+        monthLabel = 'Tất cả các tháng';
       }
-      const title = `${baseTitle}${monthLabel}`;
+
+      const activeWalletName = selectedAccount !== 'ALL'
+        ? accounts.find((a) => a.id === selectedAccount)?.name || 'Ví đã chọn'
+        : 'Tất cả ví';
+
+      const tabLabel = activeTab === 'INCOME'
+        ? 'Tiền thu'
+        : activeTab === 'EXPENSE'
+        ? 'Tiền chi'
+        : activeTab === 'TRANSFER'
+        ? 'Chuyển khoản'
+        : 'Tất cả';
 
       // Tính toán tổng thu, tổng chi và thặng dư riêng biệt
       const totalIncome = exportList
@@ -337,50 +421,46 @@ export function CashFlowManagementScreen({ onNotify, onAddTransaction }: Props) 
       const netBalance = totalIncome - totalExpense;
       const exportTime = new Date().toLocaleString('vi-VN');
 
-      // Xây dựng phần tfoot chi tiết theo bộ lọc
+      // Xây dựng phần tfoot chi tiết theo bộ lọc với màu sắc trực quan nổi bật
       let footerRows = '';
       if (activeTab === 'INCOME') {
         footerRows = `
         <tr class="total-row" style="background-color: #f0fdf4;">
-          <td colspan="4" style="border: 1px solid #cbd5e1; background-color: #f8fafc;"></td>
-          <td style="text-align: right; padding-right: 8px; font-weight: bold; border: 1px solid #94a3b8; color: #166534; height: 30px; white-space: nowrap; background-color: #f0fdf4;">TỔNG KHOẢN THU:</td>
-          <td class="td-amount" style="border: 1px solid #94a3b8; font-size: 11pt; color: #16a34a; font-weight: bold; background-color: #f0fdf4;">+${totalIncome}</td>
+          <td colspan="6" style="text-align: right; padding-right: 14px; font-weight: bold; border: 1px solid #86efac; color: #166534; height: 38px; white-space: nowrap; background-color: #f0fdf4; font-size: 11pt;">TỔNG KHOẢN THU:</td>
+          <td class="td-amount" style="border: 1px solid #86efac; font-size: 12pt; color: #16a34a; font-weight: bold; background-color: #f0fdf4;">+${totalIncome}</td>
         </tr>`;
       } else if (activeTab === 'EXPENSE') {
         footerRows = `
         <tr class="total-row" style="background-color: #fef2f2;">
-          <td colspan="4" style="border: 1px solid #cbd5e1; background-color: #f8fafc;"></td>
-          <td style="text-align: right; padding-right: 8px; font-weight: bold; border: 1px solid #94a3b8; color: #991b1b; height: 30px; white-space: nowrap; background-color: #fef2f2;">TỔNG KHOẢN CHI:</td>
-          <td class="td-amount" style="border: 1px solid #94a3b8; font-size: 11pt; color: #dc2626; font-weight: bold; background-color: #fef2f2;">-${totalExpense}</td>
+          <td colspan="6" style="text-align: right; padding-right: 14px; font-weight: bold; border: 1px solid #fca5a5; color: #991b1b; height: 38px; white-space: nowrap; background-color: #fef2f2; font-size: 11pt;">TỔNG KHOẢN CHI:</td>
+          <td class="td-amount" style="border: 1px solid #fca5a5; font-size: 12pt; color: #dc2626; font-weight: bold; background-color: #fef2f2;">-${totalExpense}</td>
         </tr>`;
       } else if (activeTab === 'TRANSFER') {
         footerRows = `
         <tr class="total-row" style="background-color: #f0f9ff;">
-          <td colspan="4" style="border: 1px solid #cbd5e1; background-color: #f8fafc;"></td>
-          <td style="text-align: right; padding-right: 8px; font-weight: bold; border: 1px solid #94a3b8; color: #075985; height: 30px; white-space: nowrap; background-color: #f0f9ff;">TỔNG TIỀN CHUYỂN VÍ:</td>
-          <td class="td-amount" style="border: 1px solid #94a3b8; font-size: 11pt; color: #0284c7; font-weight: bold; background-color: #f0f9ff;">${totalTransfer}</td>
+          <td colspan="6" style="text-align: right; padding-right: 14px; font-weight: bold; border: 1px solid #7dd3fc; color: #075985; height: 38px; white-space: nowrap; background-color: #f0f9ff; font-size: 11pt;">TỔNG TIỀN CHUYỂN VÍ:</td>
+          <td class="td-amount" style="border: 1px solid #7dd3fc; font-size: 12pt; color: #0284c7; font-weight: bold; background-color: #f0f9ff;">${totalTransfer}</td>
         </tr>`;
       } else {
-        // Cả thu và chi: Cột 1-4 để trống có viền, cột 5 là Nhãn, cột 6 là Số tiền
+        // Cả thu và chi: Hàng tổng thu xanh nhạt, tổng chi hồng nhạt, thặng dư xanh đậm
         footerRows = `
-        <tr class="total-row" style="background-color: #f8fafc;">
-          <td colspan="4" style="border: 1px solid #cbd5e1; background-color: #f8fafc;"></td>
-          <td style="text-align: right; padding-right: 8px; font-weight: bold; border: 1px solid #cbd5e1; color: #166534; height: 30px; white-space: nowrap; background-color: #f0fdf4;">TỔNG THU:</td>
-          <td class="td-amount" style="border: 1px solid #cbd5e1; font-size: 11pt; color: #16a34a; font-weight: bold; background-color: #f0fdf4;">+${totalIncome}</td>
+        <tr class="total-row" style="background-color: #f0fdf4;">
+          <td colspan="6" style="text-align: right; padding-right: 14px; font-weight: bold; border: 1px solid #86efac; color: #166534; height: 38px; white-space: nowrap; background-color: #f0fdf4; font-size: 11pt;">TỔNG THU:</td>
+          <td class="td-amount" style="border: 1px solid #86efac; font-size: 12pt; color: #16a34a; font-weight: bold; background-color: #f0fdf4;">+${totalIncome}</td>
         </tr>
-        <tr class="total-row" style="background-color: #f8fafc;">
-          <td colspan="4" style="border: 1px solid #cbd5e1; background-color: #f8fafc;"></td>
-          <td style="text-align: right; padding-right: 8px; font-weight: bold; border: 1px solid #cbd5e1; color: #991b1b; height: 30px; white-space: nowrap; background-color: #fef2f2;">TỔNG CHI:</td>
-          <td class="td-amount" style="border: 1px solid #cbd5e1; font-size: 11pt; color: #dc2626; font-weight: bold; background-color: #fef2f2;">-${totalExpense}</td>
+        <tr class="total-row" style="background-color: #fef2f2;">
+          <td colspan="6" style="text-align: right; padding-right: 14px; font-weight: bold; border: 1px solid #fca5a5; color: #991b1b; height: 38px; white-space: nowrap; background-color: #fef2f2; font-size: 11pt;">TỔNG CHI:</td>
+          <td class="td-amount" style="border: 1px solid #fca5a5; font-size: 12pt; color: #dc2626; font-weight: bold; background-color: #fef2f2;">-${totalExpense}</td>
         </tr>
         <tr class="total-row" style="background-color: #f1f5f9;">
-          <td colspan="4" style="border: 1px solid #94a3b8; background-color: #f1f5f9;"></td>
-          <td style="text-align: right; padding-right: 8px; font-weight: bold; border: 1px solid #94a3b8; color: #1e3a8a; height: 32px; white-space: nowrap; background-color: #e2e8f0;">THẶNG DƯ RÒNG (THU - CHI):</td>
-          <td class="td-amount" style="border: 1px solid #94a3b8; font-size: 11pt; color: ${netBalance >= 0 ? '#16a34a' : '#dc2626'}; font-weight: bold; background-color: #e2e8f0;">${netBalance >= 0 ? '+' : ''}${netBalance}</td>
+          <td colspan="6" style="text-align: right; padding-right: 14px; font-weight: bold; border: 1px solid #94a3b8; color: #1e3a8a; height: 40px; white-space: nowrap; background-color: #e2e8f0; font-size: 11pt;">THẶNG DƯ RÒNG (THU - CHI):</td>
+          <td class="td-amount" style="border: 1px solid #94a3b8; font-size: 12.5pt; color: ${netBalance >= 0 ? '#16a34a' : '#dc2626'}; font-weight: bold; background-color: #e2e8f0;">${netBalance >= 0 ? '+' : ''}${netBalance}</td>
         </tr>`;
       }
 
-      // Tạo nội dung bảng HTML Excel với header màu xanh dương sang trọng, border rõ nét và độ rộng tối ưu
+      const subInfo = `Kỳ: ${monthLabel}  |  Ví: ${activeWalletName}  |  Phân loại: ${tabLabel}  |  Xuất lúc: ${exportTime}`;
+
+      // Tạo nội dung bảng HTML Excel với header chuẩn nhận diện Finora và màu mè đẹp mắt
       const excelHtml = `
 <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
 <head>
@@ -398,36 +478,49 @@ export function CashFlowManagementScreen({ onNotify, onAddTransaction }: Props) 
   </xml>
   <![endif]-->
   <style>
-    body { font-family: 'Segoe UI', Arial, sans-serif; font-size: 11pt; }
-    .title { font-size: 18pt; font-weight: bold; color: #1e3a8a; text-align: center; height: 40px; vertical-align: middle; }
-    .subtitle { font-size: 10pt; color: #475569; text-align: center; height: 25px; }
-    .th-blue { background-color: #1d4ed8; color: #ffffff; font-weight: bold; text-align: center; border: 1px solid #1e40af; height: 35px; vertical-align: middle; font-size: 11pt; }
-    .td-stt { text-align: center; border: 1px solid #cbd5e1; height: 28px; vertical-align: middle; }
-    .td-text { text-align: left; border: 1px solid #cbd5e1; height: 28px; vertical-align: middle; padding-left: 8px; }
-    .td-center { text-align: center; border: 1px solid #cbd5e1; height: 28px; vertical-align: middle; }
-    .td-amount { text-align: right; border: 1px solid #cbd5e1; height: 28px; vertical-align: middle; padding-right: 8px; font-weight: bold; mso-number-format:"\\#,##0"; }
-    .total-row { background-color: #f8fafc; font-weight: bold; height: 30px; vertical-align: middle; }
+    body { font-family: 'Segoe UI', Arial, sans-serif; font-size: 11pt; color: #1E293B; }
+    .brand-title { font-size: 11pt; font-weight: bold; color: #08503C; text-align: center; height: 32px; vertical-align: middle; background-color: #FFFFFF; border: 2px solid #08503C; letter-spacing: 0.5px; }
+    .main-title { font-size: 16pt; font-weight: bold; color: #FFFFFF; text-align: center; height: 48px; vertical-align: middle; background-color: #08503C; letter-spacing: 1px; }
+    .sub-title { font-size: 9.5pt; font-style: italic; color: #334155; text-align: center; height: 30px; vertical-align: middle; background-color: #E6F4EA; border-bottom: 1px solid #A7F3D0; }
+    .th-blue { background-color: #1d4ed8; color: #ffffff; font-weight: bold; text-align: center; border: 1px solid #1e40af; height: 40px; vertical-align: middle; font-size: 11pt; }
+    .td-stt { text-align: center; border: 1px solid #e2e8f0; height: 36px; vertical-align: middle; color: #64748B; }
+    .td-text { text-align: left; border: 1px solid #e2e8f0; height: 36px; vertical-align: middle; padding-left: 12px; padding-right: 8px; color: #0F172A; }
+    .td-cat { text-align: left; border: 1px solid #e2e8f0; height: 36px; vertical-align: middle; padding-left: 10px; padding-right: 8px; color: #0369A1; font-weight: 600; }
+    .td-wallet { text-align: left; border: 1px solid #e2e8f0; height: 36px; vertical-align: middle; padding-left: 10px; padding-right: 8px; color: #334155; }
+    .td-center { text-align: center; border: 1px solid #e2e8f0; height: 36px; vertical-align: middle; }
+    .td-date { text-align: center; border: 1px solid #e2e8f0; height: 36px; vertical-align: middle; color: #047857; font-weight: 600; mso-number-format: "\\@"; }
+    .td-type { text-align: center; border: 1px solid #e2e8f0; height: 36px; vertical-align: middle; font-weight: 600; }
+    .td-amount { text-align: right; border: 1px solid #e2e8f0; height: 36px; vertical-align: middle; padding-right: 12px; font-weight: bold; mso-number-format:"\\#,##0"; }
+    .row-even { background-color: #FFFFFF; }
+    .row-odd { background-color: #F8FAFC; }
+    .total-row { font-weight: bold; height: 38px; vertical-align: middle; }
   </style>
 </head>
 <body>
   <table>
-    <!-- Hàng 1 & 2: Tiêu đề Báo cáo -->
+    <!-- Hàng 1: Brand Title FINORA chuẩn theo ảnh đính kèm -->
     <tr>
-      <td colspan="6" class="title">${title}</td>
+      <td colspan="7" class="brand-title">FINORA · NỀN TẢNG QUẢN LÝ TÀI CHÍNH CÁ NHÂN</td>
     </tr>
+    <!-- Hàng 2: Main Title Nền Xanh Đậm Emerald chuẩn ảnh -->
     <tr>
-      <td colspan="6" class="subtitle">Ứng dụng quản lý tài chính Finora | Ngày xuất: ${exportTime}</td>
+      <td colspan="7" class="main-title">${baseTitle}</td>
     </tr>
-    <tr><td colspan="6" style="height: 14px;"></td></tr>
+    <!-- Hàng 3: Subtitle Kỳ | Ví | Phân loại | Xuất lúc -->
+    <tr>
+      <td colspan="7" class="sub-title">${subInfo}</td>
+    </tr>
+    <tr><td colspan="7" style="height: 14px;"></td></tr>
 
-    <!-- Hàng Tiêu đề Cột: Bôi màu xanh dương (#1d4ed8) nổi bật theo yêu cầu -->
+    <!-- Hàng Tiêu đề Cột: 7 Cột Độc Lập - Giao Dịch & Hạng Mục Tách Rời, Thời Gian (Giờ trước Ngày sau) -->
     <thead>
       <tr>
         <th class="th-blue" style="width: 50px;">STT</th>
-        <th class="th-blue" style="width: 280px;">GIAO DỊCH &amp; HẠNG MỤC</th>
-        <th class="th-blue" style="width: 220px;">TÀI KHOẢN / NGUỒN TIỀN</th>
-        <th class="th-blue" style="width: 150px;">THỜI GIAN</th>
-        <th class="th-blue" style="width: 140px;">PHÂN LOẠI</th>
+        <th class="th-blue" style="width: 250px;">GIAO DỊCH</th>
+        <th class="th-blue" style="width: 170px;">HẠNG MỤC</th>
+        <th class="th-blue" style="width: 210px;">TÀI KHOẢN / VÍ</th>
+        <th class="th-blue" style="width: 160px;">THỜI GIAN</th>
+        <th class="th-blue" style="width: 130px;">PHÂN LOẠI</th>
         <th class="th-blue" style="width: 180px;">SỐ TIỀN (VND)</th>
       </tr>
     </thead>
@@ -440,19 +533,22 @@ export function CashFlowManagementScreen({ onNotify, onAddTransaction }: Props) 
             : 'Chuyển ví';
         const formattedAmount = tx.amount || 0;
         const desc = tx.description || (tx.transactionType === 'INCOME' ? 'Khoản thu' : tx.transactionType === 'TRANSFER' ? 'Chuyển ví' : 'Khoản chi');
-        const catName = tx.category?.name ? ` (${tx.category.name})` : '';
+        const catName = tx.category?.name || 'Khác';
         const accInfo = tx.accountName ? (tx.transactionType === 'TRANSFER' && tx.toAccountName ? `${tx.accountName} → ${tx.toAccountName}` : `${tx.accountName} - ${getAccountTypeLabel(tx.accountId)}`) : 'Tài khoản chính';
         const dt = formatTxDateTime(tx.transactionDate, tx.transactionTime);
-        const timeDisplay = dt.time ? `${dt.date} ${dt.time}` : dt.date;
+        const timeDisplay = dt.time ? `${dt.time}  ${dt.date}` : dt.date;
+        const amtColor = tx.transactionType === 'INCOME' ? '#16a34a' : tx.transactionType === 'EXPENSE' ? '#dc2626' : '#0284c7';
+        const rowBgClass = index % 2 === 0 ? 'row-even' : 'row-odd';
 
         return `
-        <tr>
+        <tr class="${rowBgClass}">
           <td class="td-stt">${index + 1}</td>
-          <td class="td-text">${desc}${catName}</td>
-          <td class="td-text">${accInfo}</td>
-          <td class="td-center">${timeDisplay}</td>
-          <td class="td-center">${typeLabel}</td>
-          <td class="td-amount" style="color: ${tx.transactionType === 'INCOME' ? '#16a34a' : tx.transactionType === 'EXPENSE' ? '#dc2626' : '#0284c7'};">${formattedAmount}</td>
+          <td class="td-text" style="font-weight: 500;">${desc}</td>
+          <td class="td-cat">${catName}</td>
+          <td class="td-wallet">${accInfo}</td>
+          <td class="td-date" style="mso-number-format: '\\@';">${timeDisplay}</td>
+          <td class="td-type" style="color: ${amtColor};">${typeLabel}</td>
+          <td class="td-amount" style="color: ${amtColor};">${formattedAmount}</td>
         </tr>
         `;
       }).join('')}
@@ -601,11 +697,7 @@ export function CashFlowManagementScreen({ onNotify, onAddTransaction }: Props) 
     if (nameLower.includes('momo') || nameLower.includes('shopee') || nameLower.includes('zalo') || type === 'E_WALLET') {
       return (
         <span className="grid size-7.5 shrink-0 place-items-center rounded-lg bg-[#eff6ff] text-[#2563eb] border border-[#dbeafe] shadow-2xs">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <rect x="3" y="4" width="18" height="16" rx="3" />
-            <rect x="7" y="8" width="5" height="4" rx="1" fill="#2563eb" fillOpacity="0.2" />
-            <circle cx="15.5" cy="14" r="1.5" fill="currentColor" />
-          </svg>
+          <FinanceIcon name="wallet" size={15} />
         </span>
       );
     }
@@ -614,12 +706,7 @@ export function CashFlowManagementScreen({ onNotify, onAddTransaction }: Props) 
     if (nameLower.includes('tiền mặt') || type === 'CASH') {
       return (
         <span className="grid size-7.5 shrink-0 place-items-center rounded-lg bg-[#ecfdf5] text-[#059669] border border-[#a7f3d0] shadow-2xs">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <rect x="2" y="6" width="20" height="12" rx="2" />
-            <circle cx="12" cy="12" r="3" />
-            <line x1="6" y1="12" x2="6.01" y2="12" />
-            <line x1="18" y1="12" x2="18.01" y2="12" />
-          </svg>
+          <FinanceIcon name="banknote" size={15} />
         </span>
       );
     }
@@ -627,11 +714,7 @@ export function CashFlowManagementScreen({ onNotify, onAddTransaction }: Props) 
     // Mặc định hoặc thẻ ngân hàng (Techcombank, Vietcombank, MB, v.v.)
     return (
       <span className="grid size-7.5 shrink-0 place-items-center rounded-lg bg-[#f0f9ff] text-[#0284c7] border border-[#e0f2fe] shadow-2xs">
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <rect x="2" y="5" width="20" height="14" rx="2.5" />
-          <line x1="2" y1="10" x2="22" y2="10" />
-          <rect x="5" y="14" width="3.5" height="2" rx="0.5" fill="#0284c7" fillOpacity="0.3" />
-        </svg>
+        <FinanceIcon name="credit-card" size={15} />
       </span>
     );
   };
@@ -695,21 +778,21 @@ export function CashFlowManagementScreen({ onNotify, onAddTransaction }: Props) 
           className="cashflow-metric-card is-income"
           style={{ '--card-accent': '#10b981' } as React.CSSProperties}
         >
-          <div className="flex items-start justify-between">
-            <div className="flex items-center gap-3">
-              <span className="grid size-11 place-items-center rounded-2xl bg-emerald-50 text-emerald-700 shadow-sm border border-emerald-100">
-                <FinanceIcon name="income" size={20} />
+          <div>
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-semibold text-[#718579]">TỔNG THU NHẬP</span>
+              <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-700 border border-emerald-200 shrink-0">
+                Dòng tiền vào
               </span>
-              <div>
-                <span className="text-xs font-semibold text-[#718579]">TỔNG THU NHẬP</span>
-                <h3 className="text-xl font-black text-emerald-700 sm:text-2xl mt-0.5">
-                  +{formatVND(summary.totalIncome)}
-                </h3>
-              </div>
             </div>
-            <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-[10px] font-bold text-emerald-700 border border-emerald-200">
-              Dòng tiền vào
-            </span>
+            <div className="mt-2 flex items-center gap-3">
+              <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-emerald-50 text-emerald-700 shadow-xs border border-emerald-100">
+                <FinanceIcon name="income" size={18} />
+              </span>
+              <h3 className="text-xl font-black text-emerald-700 sm:text-2xl truncate">
+                +{formatVND(summary.totalIncome)}
+              </h3>
+            </div>
           </div>
           <div className="mt-4 flex items-center justify-between border-t border-[#f0f4f1] pt-3 text-[11px] text-[#718579]">
             <span>Đã ghi nhận trong kỳ</span>
@@ -722,21 +805,21 @@ export function CashFlowManagementScreen({ onNotify, onAddTransaction }: Props) 
           className="cashflow-metric-card is-expense"
           style={{ '--card-accent': '#f43f5e' } as React.CSSProperties}
         >
-          <div className="flex items-start justify-between">
-            <div className="flex items-center gap-3">
-              <span className="grid size-11 place-items-center rounded-2xl bg-rose-50 text-rose-600 shadow-sm border border-rose-100">
-                <FinanceIcon name="expense" size={20} />
+          <div>
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-semibold text-[#718579]">TỔNG CHI TIÊU</span>
+              <span className="rounded-full bg-rose-50 px-2 py-0.5 text-[10px] font-bold text-rose-700 border border-rose-200 shrink-0">
+                Dòng tiền ra
               </span>
-              <div>
-                <span className="text-xs font-semibold text-[#718579]">TỔNG CHI TIÊU</span>
-                <h3 className="text-xl font-black text-rose-600 sm:text-2xl mt-0.5">
-                  -{formatVND(summary.totalExpense)}
-                </h3>
-              </div>
             </div>
-            <span className="rounded-full bg-rose-50 px-2.5 py-1 text-[10px] font-bold text-rose-700 border border-rose-200">
-              Dòng tiền ra
-            </span>
+            <div className="mt-2 flex items-center gap-3">
+              <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-rose-50 text-rose-600 shadow-xs border border-rose-100">
+                <FinanceIcon name="expense" size={18} />
+              </span>
+              <h3 className="text-xl font-black text-rose-600 sm:text-2xl truncate">
+                -{formatVND(summary.totalExpense)}
+              </h3>
+            </div>
           </div>
           <div className="mt-4 flex items-center justify-between border-t border-[#f0f4f1] pt-3 text-[11px] text-[#718579]">
             <span>Tỷ lệ chi / thu</span>
@@ -748,18 +831,18 @@ export function CashFlowManagementScreen({ onNotify, onAddTransaction }: Props) 
 
         {/* Thặng dư ròng */}
         <div className="cashflow-metric-hero sm:col-span-2 lg:col-span-1">
-          <div className="flex items-start justify-between">
-            <div>
+          <div>
+            <div className="flex items-center justify-between">
               <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-200">
                 THẶNG DƯ RÒNG (NET CASHFLOW)
               </span>
-              <h3 className="text-2xl font-black text-white sm:text-3xl mt-1 drop-shadow-sm">
-                {summary.netCashFlow >= 0 ? `+${formatVND(summary.netCashFlow)}` : `-${formatVND(Math.abs(summary.netCashFlow))}`}
-              </h3>
+              <span className="rounded-full bg-white/20 px-2 py-0.5 text-[10px] font-bold text-white backdrop-blur-md border border-white/20 shrink-0">
+                {summary.netCashFlow >= 0 ? 'Thặng dư tích lũy' : 'Thâm hụt dòng tiền'}
+              </span>
             </div>
-            <span className="rounded-full bg-white/20 px-2.5 py-1 text-[10px] font-bold text-white backdrop-blur-md border border-white/20">
-              {summary.netCashFlow >= 0 ? 'Thặng dư tích lũy' : 'Thâm hụt dòng tiền'}
-            </span>
+            <h3 className="text-2xl font-black text-white sm:text-3xl mt-2 drop-shadow-sm truncate">
+              {summary.netCashFlow >= 0 ? `+${formatVND(summary.netCashFlow)}` : `-${formatVND(Math.abs(summary.netCashFlow))}`}
+            </h3>
           </div>
           <div className="mt-4 flex items-center justify-between border-t border-white/15 pt-3 text-[11px] text-emerald-100">
             <span>Trạng thái tài chính:</span>
@@ -852,7 +935,7 @@ export function CashFlowManagementScreen({ onNotify, onAddTransaction }: Props) 
                     title="Xóa tìm kiếm"
                     className="flex size-6 items-center justify-center rounded-lg text-[#8a9e93] hover:bg-slate-200/60 hover:text-slate-700 transition"
                   >
-                    ✕
+                    <FinanceIcon name="close" size={14} />
                   </button>
                 )}
                 <button
@@ -893,19 +976,11 @@ export function CashFlowManagementScreen({ onNotify, onAddTransaction }: Props) 
                           : availableCategories.find((c) => c.id === selectedCategory)?.name || 'Tất cả'}
                       </span>
                     </div>
-                    <svg
-                      width="8"
-                      height="8"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2.5"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
+                    <FinanceIcon
+                      name="chevron-down"
+                      size={12}
                       className={`text-[#8a9e93] shrink-0 transition-transform ${isCategoryDropdownOpen ? 'rotate-180 text-[#07543f]' : ''}`}
-                    >
-                      <polyline points="6 9 12 15 18 9" />
-                    </svg>
+                    />
                   </button>
 
                   {/* Menu thả xuống */}
@@ -971,41 +1046,42 @@ export function CashFlowManagementScreen({ onNotify, onAddTransaction }: Props) 
               <div className="relative w-full" ref={accountDropdownRef}>
                 <button
                   type="button"
+                  disabled={isChildAccount}
                   onClick={() => {
+                    if (isChildAccount) return;
                     setIsAccountDropdownOpen((prev) => !prev);
                     setIsCategoryDropdownOpen(false);
                     setIsMonthDropdownOpen(false);
                   }}
-                  className={`flex h-7.5 w-full items-center justify-between rounded-xl border px-2.5 text-[10.5px] font-semibold transition ${isAccountDropdownOpen || selectedAccount !== 'ALL'
+                  className={`flex h-7.5 w-full items-center justify-between rounded-xl border px-2.5 text-[10.5px] font-semibold transition ${
+                    isChildAccount
+                      ? 'border-[#d5ded8] bg-[#f0f5f2] text-[#07543f] cursor-default'
+                      : isAccountDropdownOpen || selectedAccount !== 'ALL'
                       ? 'border-[#07543f] bg-[#eef7f2] text-[#07543f]'
                       : 'border-[#d5ded8] bg-[#f8faf8] text-[#475569] hover:bg-[#f1f5f9] hover:border-[#b0c2b7]'
-                    }`}
+                  }`}
                 >
                   <div className="flex items-center gap-1.5 truncate">
                     <FinanceIcon name="credit-card" size={11} className="text-[#07543f] shrink-0" />
                     <span className="truncate">
-                      Nguồn tiền: {selectedAccount === 'ALL'
+                      Nguồn tiền: {isChildAccount
+                        ? (accounts[0]?.name || 'Ví của bé')
+                        : selectedAccount === 'ALL'
                         ? 'Tất cả'
                         : accounts.find((a) => a.id === selectedAccount)?.name || 'Tất cả'}
                     </span>
                   </div>
-                  <svg
-                    width="8"
-                    height="8"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2.5"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    className={`text-[#8a9e93] shrink-0 transition-transform ${isAccountDropdownOpen ? 'rotate-180 text-[#07543f]' : ''}`}
-                  >
-                    <polyline points="6 9 12 15 18 9" />
-                  </svg>
+                  {!isChildAccount && (
+                    <FinanceIcon
+                      name="chevron-down"
+                      size={12}
+                      className={`text-[#8a9e93] shrink-0 transition-transform ${isAccountDropdownOpen ? 'rotate-180 text-[#07543f]' : ''}`}
+                    />
+                  )}
                 </button>
 
                 {/* Menu thả xuống */}
-                {isAccountDropdownOpen && (
+                {!isChildAccount && isAccountDropdownOpen && (
                   <div className="absolute left-0 top-full mt-1 z-40 w-full min-w-[190px] max-h-52 overflow-y-auto rounded-xl border border-[#d5ded8] bg-white p-1 shadow-xl animate-fadeIn">
                     <button
                       type="button"
@@ -1081,19 +1157,11 @@ export function CashFlowManagementScreen({ onNotify, onAddTransaction }: Props) 
                         : availableMonths.find((m) => m.key === selectedMonth)?.label || selectedMonth}
                     </span>
                   </div>
-                  <svg
-                    width="8"
-                    height="8"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2.5"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
+                  <FinanceIcon
+                    name="chevron-down"
+                    size={12}
                     className={`text-[#8a9e93] shrink-0 transition-transform ${isMonthDropdownOpen ? 'rotate-180 text-[#07543f]' : ''}`}
-                  >
-                    <polyline points="6 9 12 15 18 9" />
-                  </svg>
+                  />
                 </button>
 
                 {/* Menu thả xuống */}
@@ -1379,9 +1447,9 @@ export function CashFlowManagementScreen({ onNotify, onAddTransaction }: Props) 
                     type="button"
                     disabled={currentPage <= 1}
                     onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                    className="h-8 rounded-lg border border-[#d5ded8] bg-white px-2.5 text-xs font-semibold text-[#495b50] hover:bg-[#f1f5f2] disabled:opacity-40"
+                    className="inline-flex h-8 items-center gap-1 rounded-lg border border-[#d5ded8] bg-white px-2.5 text-xs font-semibold text-[#495b50] hover:bg-[#f1f5f2] disabled:opacity-40"
                   >
-                    ‹ Trước
+                    <FinanceIcon name="chevron-left" size={14} /> Trước
                   </button>
                   <span className="px-2 font-bold text-[#14261e]">
                     Trang {currentPage} / {totalPages}
@@ -1390,9 +1458,9 @@ export function CashFlowManagementScreen({ onNotify, onAddTransaction }: Props) 
                     type="button"
                     disabled={currentPage >= totalPages}
                     onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-                    className="h-8 rounded-lg border border-[#d5ded8] bg-white px-2.5 text-xs font-semibold text-[#495b50] hover:bg-[#f1f5f2] disabled:opacity-40"
+                    className="inline-flex h-8 items-center gap-1 rounded-lg border border-[#d5ded8] bg-white px-2.5 text-xs font-semibold text-[#495b50] hover:bg-[#f1f5f2] disabled:opacity-40"
                   >
-                    Sau ›
+                    Sau <FinanceIcon name="chevron-right" size={14} />
                   </button>
                 </div>
               )}
@@ -1427,7 +1495,7 @@ export function CashFlowManagementScreen({ onNotify, onAddTransaction }: Props) 
                 onClick={() => setIsCategoryModalOpen(false)}
                 className="grid size-8 place-items-center rounded-xl text-gray-400 hover:bg-gray-100 hover:text-gray-700 transition"
               >
-                ✕
+                <FinanceIcon name="close" size={18} />
               </button>
             </div>
 
@@ -1638,68 +1706,381 @@ export function CashFlowManagementScreen({ onNotify, onAddTransaction }: Props) 
         </div>
       )}
 
-      {/* 7. Custom Transaction Detail Modal (Xem chi tiết giao dịch - Hỗ trợ 2 cột khi có hóa đơn) */}
-      {selectedTxDetail && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/65 p-3 sm:p-4 backdrop-blur-md animate-fadeIn"
-          onClick={() => setSelectedTxDetail(null)}
-        >
-          <div
-            className={`w-full ${selectedTxDetail.receiptUrl ? 'max-w-4xl lg:max-w-5xl' : 'max-w-lg'
-              } rounded-3xl bg-white dark:bg-[#0c1a24] p-5 sm:p-6 shadow-2xl border border-[#e2eae4] dark:border-white/10 max-h-[92vh] flex flex-col overflow-hidden transition-all`}
-            onClick={(e) => e.stopPropagation()}
-          >
-            {/* Modal Body: 2 Columns if receiptUrl exists, 1 Column if not */}
-            {selectedTxDetail.receiptUrl ? (
-              <div className="grid grid-cols-1 md:grid-cols-12 gap-5 sm:gap-6 min-h-0 flex-1 overflow-hidden">
-                {/* CỘT TRÁI: ẢNH HÓA ĐƠN GỐC TO RÕ (Tương tự OCR Scanner) */}
-                <div className="md:col-span-6 lg:col-span-6 flex flex-col min-h-0 rounded-2xl border border-[#d8e3dc] dark:border-white/10 bg-[#f8faf9] dark:bg-[#07131e] overflow-hidden">
-                  {/* Thanh công cụ xem ảnh */}
-                  <div className="flex items-center justify-between px-3.5 py-2.5 border-b border-[#edf3ef] dark:border-white/10 bg-white dark:bg-[#0f2231] shrink-0">
-                    <div className="flex items-center gap-2">
-                      <span className="grid size-6 place-items-center rounded-lg bg-emerald-100/80 dark:bg-emerald-950 text-[#07543f] dark:text-emerald-300">
-                        <FinanceIcon name="receipt" size={13} />
-                      </span>
-                      <span className="text-xs font-bold text-gray-800 dark:text-white uppercase tracking-wider">
-                        Hóa đơn đính kèm
-                      </span>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => setViewingReceiptImage(selectedTxDetail.receiptUrl!)}
-                      className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-xs font-bold text-[#07543f] dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/60 hover:bg-emerald-100 dark:hover:bg-emerald-900/60 transition cursor-pointer border border-emerald-200/60 dark:border-emerald-800/60"
-                      title="Xem ảnh phóng to toàn màn hình"
-                    >
-                      <FinanceIcon name="eye" size={13} />
-                      <span>Phóng to</span>
-                    </button>
-                  </div>
+      {/* 7. Custom Transaction Detail Modal (Xem & Chỉnh sửa chi tiết giao dịch - Hỗ trợ 2 cột khi có hóa đơn) */}
+      {selectedTxDetail && (() => {
+        const editCategories = categories.filter((c) => c.kind === selectedTxDetail.transactionType);
+        const renderDetailOrEditBody = (isTwoCol: boolean) => (
+          <>
+            {/* Số tiền nổi bật */}
+            <div className={`${isTwoCol ? 'my-4 p-3.5' : 'my-5 p-4'} rounded-2xl bg-[#fafcfa] dark:bg-[#0f2231] border border-[#e5eee8] dark:border-white/10 text-center shrink-0`}>
+              <span className="text-[11px] font-bold uppercase tracking-wider text-[#718579] dark:text-slate-400">Số tiền giao dịch</span>
+              {isEditingTx ? (
+                <div className="mt-2 flex items-center justify-center">
+                  <input
+                    type="text"
+                    value={editAmount ? Number(editAmount.replace(/\D/g, '') || 0).toLocaleString('vi-VN') : ''}
+                    onChange={(e) => setEditAmount(e.target.value.replace(/\D/g, ''))}
+                    placeholder="Nhập số tiền..."
+                    className="w-56 text-center text-2xl font-black rounded-xl border border-emerald-500 bg-white dark:bg-[#0c1a24] px-3 py-1.5 text-[#14261e] dark:text-white focus:outline-none"
+                  />
+                </div>
+              ) : (
+                <div
+                  className={`mt-1 ${isTwoCol ? 'text-2xl sm:text-3xl' : 'text-3xl'} font-black tracking-tight ${
+                    selectedTxDetail.transactionType === 'INCOME'
+                      ? 'text-emerald-700 dark:text-emerald-400'
+                      : selectedTxDetail.transactionType === 'TRANSFER'
+                        ? 'text-sky-600 dark:text-sky-400'
+                        : 'text-rose-600 dark:text-rose-400'
+                  }`}
+                >
+                  {selectedTxDetail.transactionType === 'INCOME' ? '+' : selectedTxDetail.transactionType === 'TRANSFER' ? '' : '-'}
+                  {formatVND(selectedTxDetail.amount)}
+                </div>
+              )}
+              <div className="mt-2 flex items-center justify-center gap-2">
+                <span className="inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-bold bg-white dark:bg-[#0c1a24] border border-[#dce6e0] dark:border-white/10 text-[#14261e] dark:text-slate-200">
+                  {selectedTxDetail.transactionType === 'INCOME'
+                    ? 'Thu nhập'
+                    : selectedTxDetail.transactionType === 'TRANSFER'
+                      ? 'Chuyển ví'
+                      : 'Chi tiêu'}
+                </span>
+                <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100/70 dark:bg-emerald-950/80 px-2.5 py-0.5 text-[11px] font-bold text-emerald-800 dark:text-emerald-300 border border-emerald-200/60 dark:border-emerald-800/60">
+                  ✓ Đã ghi sổ
+                </span>
+              </div>
+            </div>
 
-                  {/* Vùng hiển thị ảnh lớn */}
-                  <div
-                    className="relative flex-1 p-3 flex items-center justify-center min-h-[320px] md:min-h-[440px] max-h-[68vh] overflow-hidden cursor-pointer group select-none"
-                    onClick={() => setViewingReceiptImage(selectedTxDetail.receiptUrl!)}
-                    title="Bấm để xem ảnh kích thước đầy đủ"
-                  >
-                    <img
-                      src={selectedTxDetail.receiptUrl}
-                      alt="Hóa đơn giao dịch"
-                      className="max-h-[64vh] w-full object-contain rounded-xl transition-transform duration-200 group-hover:scale-[1.015]"
-                    />
-                    <div className="absolute inset-0 m-3 rounded-xl bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white text-xs font-bold gap-2 backdrop-blur-xs">
-                      <FinanceIcon name="eye" size={16} />
-                      <span>Bấm để phóng to toàn màn hình</span>
+            {isEditingTx ? (
+              <div className="flex flex-col gap-3 text-xs flex-1">
+                <div>
+                  <label className="block text-[11px] font-bold text-[#718579] dark:text-slate-400 mb-1">Mô tả / Nội dung giao dịch</label>
+                  <input
+                    type="text"
+                    value={editDescription}
+                    onChange={(e) => setEditDescription(e.target.value)}
+                    className="w-full h-9 rounded-xl border border-[#dce6e0] dark:border-white/15 bg-white dark:bg-[#0f2231] px-3 text-xs font-semibold text-[#14261e] dark:text-white"
+                  />
+                </div>
+
+                {selectedTxDetail.transactionType !== 'TRANSFER' && (
+                  <div>
+                    <label className="block text-[11px] font-bold text-[#718579] dark:text-slate-400 mb-1">Hạng mục</label>
+                    <select
+                      value={editCategoryId}
+                      onChange={(e) => setEditCategoryId(e.target.value)}
+                      className="w-full h-9 rounded-xl border border-[#dce6e0] dark:border-white/15 bg-white dark:bg-[#0f2231] px-3 text-xs font-semibold text-[#14261e] dark:text-white"
+                    >
+                      {editCategories.map((c) => (
+                        <option key={c.id} value={c.id}>{c.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+
+                <div>
+                  <label className="block text-[11px] font-bold text-[#718579] dark:text-slate-400 mb-1">Tài khoản / Ví</label>
+                  {isChildAccount ? (
+                    <div className="w-full h-9 rounded-xl border border-[#dce6e0] dark:border-white/15 bg-[#f0f5f2] dark:bg-slate-800/80 px-3 flex items-center text-xs font-bold text-[#07543f] dark:text-emerald-400">
+                      {accounts[0]?.name || 'Ví của bé'}
                     </div>
+                  ) : (
+                    <select
+                      value={editAccountId}
+                      onChange={(e) => setEditAccountId(e.target.value)}
+                      className="w-full h-9 rounded-xl border border-[#dce6e0] dark:border-white/15 bg-white dark:bg-[#0f2231] px-3 text-xs font-semibold text-[#14261e] dark:text-white"
+                    >
+                      {accounts.map((acc) => (
+                        <option key={acc.id} value={acc.id}>{acc.name} ({formatVND(acc.balance)})</option>
+                      ))}
+                    </select>
+                  )}
+                </div>
+
+                <div className="grid grid-cols-2 gap-2.5">
+                  <div>
+                    <label className="block text-[11px] font-bold text-[#718579] dark:text-slate-400 mb-1">Giờ</label>
+                    <input
+                      type="time"
+                      value={editTime}
+                      onChange={(e) => setEditTime(e.target.value)}
+                      className="w-full h-9 rounded-xl border border-[#dce6e0] dark:border-white/15 bg-white dark:bg-[#0f2231] px-3 text-xs font-semibold text-[#14261e] dark:text-white"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-bold text-[#718579] dark:text-slate-400 mb-1">Ngày</label>
+                    <input
+                      type="date"
+                      value={editDate}
+                      onChange={(e) => setEditDate(e.target.value)}
+                      className="w-full h-9 rounded-xl border border-[#dce6e0] dark:border-white/15 bg-white dark:bg-[#0f2231] px-3 text-xs font-semibold text-[#14261e] dark:text-white"
+                    />
                   </div>
                 </div>
 
-                {/* CỘT PHẢI: CHI TIẾT THÔNG TIN GIAO DỊCH */}
-                <div className="md:col-span-6 lg:col-span-6 flex flex-col min-h-0 overflow-y-auto pr-0.5">
+                <div>
+                  <label className="block text-[11px] font-bold text-[#718579] dark:text-slate-400 mb-1">Ghi chú bổ sung</label>
+                  <textarea
+                    rows={2}
+                    value={editNote}
+                    onChange={(e) => setEditNote(e.target.value)}
+                    placeholder="Ghi chú thêm (không bắt buộc)..."
+                    className="w-full rounded-xl border border-[#dce6e0] dark:border-white/15 bg-white dark:bg-[#0f2231] p-2.5 text-xs font-medium text-[#14261e] dark:text-white"
+                  />
+                </div>
+              </div>
+            ) : (
+              /* Bảng thông tin chi tiết */
+              <div className="divide-y divide-[#edf2ee] dark:divide-white/10 text-xs flex-1">
+                {/* Mô tả / Tiêu đề */}
+                <div className="py-2.5 flex items-center justify-between">
+                  <span className="text-[#718579] dark:text-slate-400 font-medium">Mô tả / Đối tác:</span>
+                  <span className="font-bold text-[#14261e] dark:text-white text-right max-w-[260px] break-words">
+                    {selectedTxDetail.description || 'Giao dịch thông thường'}
+                  </span>
+                </div>
+
+                {/* Hạng mục */}
+                <div className="py-2.5 flex items-center justify-between">
+                  <span className="text-[#718579] dark:text-slate-400 font-medium">Hạng mục:</span>
+                  <span className="font-semibold text-[#14261e] dark:text-white flex items-center gap-1.5">
+                    {selectedTxDetail.category ? (
+                      <>
+                        <span className="size-2 rounded-full" style={{ backgroundColor: selectedTxDetail.category.color || '#07543f' }} />
+                        <span>{selectedTxDetail.category.name}</span>
+                      </>
+                    ) : (
+                      <span>Chung / Không phân loại</span>
+                    )}
+                  </span>
+                </div>
+
+                {/* Tài khoản nguồn */}
+                <div className="py-2.5 flex items-center justify-between">
+                  <span className="text-[#718579] dark:text-slate-400 font-medium">Tài khoản / Ví trích tiền:</span>
+                  <div className="text-right">
+                    <p className="font-bold text-[#14261e] dark:text-white">{selectedTxDetail.accountName}</p>
+                    <p className="text-[11px] text-[#718579] dark:text-slate-400 font-medium">{getAccountTypeLabel(selectedTxDetail.accountId)}</p>
+                  </div>
+                </div>
+
+                {/* Tài khoản đích nếu là Chuyển ví */}
+                {selectedTxDetail.transactionType === 'TRANSFER' && selectedTxDetail.toAccountName && (
+                  <div className="py-2.5 flex items-center justify-between bg-sky-50/50 dark:bg-sky-950/40 px-2 rounded-lg">
+                    <span className="text-sky-800 dark:text-sky-300 font-medium">Tài khoản đích nhận:</span>
+                    <div className="text-right">
+                      <p className="font-bold text-sky-900 dark:text-sky-200">{selectedTxDetail.toAccountName}</p>
+                      <p className="text-[11px] text-sky-700 dark:text-sky-400">{getAccountTypeLabel(selectedTxDetail.toAccountId)}</p>
+                    </div>
+                  </div>
+                )}
+
+                {/* Thời gian giao dịch */}
+                <div className="py-2.5 flex items-center justify-between">
+                  <span className="text-[#718579] dark:text-slate-400 font-medium">Thời gian thực hiện:</span>
+                  <span className="font-bold text-[#14261e] dark:text-white">
+                    {selectedTxDetail.transactionTime ? `${selectedTxDetail.transactionTime.slice(0, 5)} • ` : ''}
+                    {formatTxDateTime(selectedTxDetail.transactionDate, selectedTxDetail.transactionTime).date}
+                  </span>
+                </div>
+
+                {/* Ghi chú nếu có */}
+                {selectedTxDetail.note && (
+                  <div className="py-2.5 flex flex-col gap-1">
+                    <span className="text-[#718579] dark:text-slate-400 font-medium">Ghi chú bổ sung:</span>
+                    <p className="p-2.5 rounded-xl bg-[#fafafa] dark:bg-[#142b3d] border border-[#f0f0f0] dark:border-white/10 text-[#334155] dark:text-slate-200 whitespace-pre-wrap">
+                      {selectedTxDetail.note}
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Nút tác vụ dưới cùng */}
+            <div className="mt-5 flex items-center justify-between pt-4 border-t border-[#edf2ee] dark:border-white/10 shrink-0">
+              {isEditingTx ? (
+                <div className="flex w-full items-center justify-end gap-2.5">
+                  <button
+                    type="button"
+                    onClick={() => setIsEditingTx(false)}
+                    disabled={isSavingEdit}
+                    className="h-10 rounded-xl px-5 text-xs font-bold text-gray-700 dark:text-slate-300 bg-gray-100 hover:bg-gray-200 dark:bg-slate-800 dark:hover:bg-slate-700 transition cursor-pointer"
+                  >
+                    Hủy
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleSaveEditTx}
+                    disabled={isSavingEdit}
+                    className="inline-flex h-10 items-center justify-center gap-1.5 rounded-xl bg-[#006747] hover:bg-[#005238] px-6 text-xs font-bold text-white transition shadow-sm cursor-pointer disabled:opacity-60"
+                  >
+                    <FinanceIcon name="check" size={15} />
+                    <span>{isSavingEdit ? 'Đang lưu...' : 'Lưu thay đổi'}</span>
+                  </button>
+                </div>
+              ) : (
+                <div className="grid grid-cols-3 w-full gap-2.5">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const tx = selectedTxDetail;
+                      setIsEditingTx(false);
+                      setSelectedTxDetail(null);
+                      setTransactionToDelete(tx);
+                    }}
+                    className="inline-flex h-10 items-center justify-center gap-1.5 rounded-xl text-xs font-bold text-rose-600 dark:text-rose-400 bg-rose-50/80 dark:bg-rose-950/50 border border-rose-200/70 dark:border-rose-900/50 hover:bg-rose-100/80 transition cursor-pointer shadow-xs"
+                  >
+                    <FinanceIcon name="delete" size={14} color="#e11d48" />
+                    <span>Xóa giao dịch</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleStartEditTx(selectedTxDetail)}
+                    className="inline-flex h-10 items-center justify-center gap-1.5 rounded-xl text-xs font-bold text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200/80 dark:border-emerald-800/60 hover:bg-emerald-100/80 transition cursor-pointer shadow-xs"
+                  >
+                    <FinanceIcon name="edit" size={14} color="#059669" />
+                    <span>Sửa giao dịch</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsEditingTx(false);
+                      setSelectedTxDetail(null);
+                    }}
+                    className="inline-flex h-10 items-center justify-center rounded-xl bg-gray-100 dark:bg-slate-800 hover:bg-gray-200 dark:hover:bg-slate-700 text-xs font-bold text-gray-700 dark:text-gray-200 transition cursor-pointer border border-transparent"
+                  >
+                    Đóng
+                  </button>
+                </div>
+              )}
+            </div>
+          </>
+        );
+
+        return (
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/65 p-3 sm:p-4 backdrop-blur-md animate-fadeIn"
+            onClick={() => {
+              setIsEditingTx(false);
+              setSelectedTxDetail(null);
+            }}
+          >
+            <div
+              className={`w-full ${selectedTxDetail.receiptUrl ? 'max-w-4xl lg:max-w-5xl' : 'max-w-lg'
+                } rounded-3xl bg-white dark:bg-[#0c1a24] shadow-2xl border border-[#e2eae4] dark:border-white/10 max-h-[92vh] flex flex-col overflow-hidden transition-all`}
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Modal Body: 2 Columns if receiptUrl exists, 1 Column if not */}
+              {selectedTxDetail.receiptUrl ? (
+                <div className="grid grid-cols-1 md:grid-cols-12 gap-5 sm:gap-6 min-h-0 flex-1 overflow-hidden">
+                  {/* CỘT TRÁI: ẢNH HÓA ĐƠN GỐC TO RÕ (Tương tự OCR Scanner) */}
+                  <div className="md:col-span-6 lg:col-span-6 flex flex-col min-h-0 rounded-2xl border border-[#d8e3dc] dark:border-white/10 bg-[#f8faf9] dark:bg-[#07131e] overflow-hidden">
+                    {/* Thanh công cụ xem ảnh */}
+                    <div className="flex items-center justify-between px-3.5 py-2.5 border-b border-[#edf3ef] dark:border-white/10 bg-white dark:bg-[#0f2231] shrink-0">
+                      <div className="flex items-center gap-2">
+                        <span className="grid size-6 place-items-center rounded-lg bg-emerald-100/80 dark:bg-emerald-950 text-[#07543f] dark:text-emerald-300">
+                          <FinanceIcon name="receipt" size={13} />
+                        </span>
+                        <span className="text-xs font-bold text-gray-800 dark:text-white uppercase tracking-wider">
+                          Hóa đơn đính kèm
+                        </span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setViewingReceiptImage(selectedTxDetail.receiptUrl!)}
+                        className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-xs font-bold text-[#07543f] dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/60 hover:bg-emerald-100 dark:hover:bg-emerald-900/60 transition cursor-pointer border border-emerald-200/60 dark:border-emerald-800/60"
+                        title="Xem ảnh phóng to toàn màn hình"
+                      >
+                        <FinanceIcon name="eye" size={13} />
+                        <span>Phóng to</span>
+                      </button>
+                    </div>
+
+                    {/* Vùng hiển thị ảnh lớn */}
+                    <div
+                      className="relative flex-1 p-3 flex items-center justify-center min-h-[320px] md:min-h-[440px] max-h-[68vh] overflow-hidden cursor-pointer group select-none"
+                      onClick={() => setViewingReceiptImage(selectedTxDetail.receiptUrl!)}
+                      title="Bấm để xem ảnh kích thước đầy đủ"
+                    >
+                      <img
+                        src={selectedTxDetail.receiptUrl}
+                        alt="Hóa đơn giao dịch"
+                        className="max-h-[64vh] w-full object-contain rounded-xl transition-transform duration-200 group-hover:scale-[1.015]"
+                      />
+                      <div className="absolute inset-0 m-3 rounded-xl bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white text-xs font-bold gap-2 backdrop-blur-xs">
+                        <FinanceIcon name="eye" size={16} />
+                        <span>Bấm để phóng to toàn màn hình</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* CỘT PHẢI: CHI TIẾT THÔNG TIN GIAO DỊCH */}
+                  <div className="md:col-span-6 lg:col-span-6 flex flex-col min-h-0 overflow-y-auto pr-0.5">
+                    {/* Header */}
+                    <div className="flex items-center justify-between border-b border-[#edf2ee] dark:border-white/10 pb-3.5 shrink-0">
+                      <div className="flex items-center gap-3">
+                        <span
+                          className="grid size-11 shrink-0 place-items-center rounded-2xl shadow-xs"
+                          style={{
+                            backgroundColor: selectedTxDetail.category?.color
+                              ? `${selectedTxDetail.category.color}20`
+                              : selectedTxDetail.transactionType === 'INCOME'
+                                ? '#dcfce7'
+                                : selectedTxDetail.transactionType === 'TRANSFER'
+                                  ? '#e0f2fe'
+                                  : '#fee2e2',
+                            color: selectedTxDetail.category?.color
+                              ? selectedTxDetail.category.color
+                              : selectedTxDetail.transactionType === 'INCOME'
+                                ? '#15803d'
+                                : selectedTxDetail.transactionType === 'TRANSFER'
+                                  ? '#0369a1'
+                                  : '#dc2626'
+                          }}
+                        >
+                          {selectedTxDetail.category ? (
+                            renderCategoryIcon(selectedTxDetail.category.icon, selectedTxDetail.transactionType, 20, selectedTxDetail.category.name)
+                          ) : (
+                            <FinanceIcon
+                              name={selectedTxDetail.transactionType === 'INCOME' ? 'income' : selectedTxDetail.transactionType === 'TRANSFER' ? 'arrows' : 'expense'}
+                              size={20}
+                            />
+                          )}
+                        </span>
+                        <div>
+                          <h3 className="text-base font-bold text-[#14261e] dark:text-white leading-tight">
+                            {isEditingTx ? 'Chỉnh sửa giao dịch' : 'Chi tiết giao dịch'}
+                          </h3>
+                          <p className="text-xs text-[#718579] dark:text-slate-400 mt-0.5">
+                            Mã GD: <span className="font-mono text-[#475569] dark:text-slate-300">{selectedTxDetail.id.slice(0, 13)}...</span>
+                          </p>
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsEditingTx(false);
+                          setSelectedTxDetail(null);
+                        }}
+                        className="grid size-8 place-items-center rounded-xl text-gray-400 hover:bg-gray-100 hover:text-gray-700 dark:hover:bg-slate-800 dark:hover:text-slate-200 transition cursor-pointer"
+                        title="Đóng"
+                      >
+                        <FinanceIcon name="close" size={15} />
+                      </button>
+                    </div>
+
+                    {renderDetailOrEditBody(true)}
+                  </div>
+                </div>
+              ) : (
+                /* DẠNG 1 CỘT GỌN GÀNG KHI KHÔNG CÓ HÓA ĐƠN ĐÍNH KÈM */
+                <div className="flex flex-col min-h-0">
                   {/* Header */}
-                  <div className="flex items-center justify-between border-b border-[#edf2ee] dark:border-white/10 pb-3.5 shrink-0">
+                  <div className="flex items-center justify-between border-b border-[#edf2ee] dark:border-white/10 p-5 sm:p-6 pb-4 shrink-0">
                     <div className="flex items-center gap-3">
                       <span
-                        className="grid size-11 shrink-0 place-items-center rounded-2xl shadow-xs"
+                        className="grid size-12 shrink-0 place-items-center rounded-2xl shadow-xs"
                         style={{
                           backgroundColor: selectedTxDetail.category?.color
                             ? `${selectedTxDetail.category.color}20`
@@ -1718,320 +2099,44 @@ export function CashFlowManagementScreen({ onNotify, onAddTransaction }: Props) 
                         }}
                       >
                         {selectedTxDetail.category ? (
-                          renderCategoryIcon(selectedTxDetail.category.icon, selectedTxDetail.transactionType, 20, selectedTxDetail.category.name)
+                          renderCategoryIcon(selectedTxDetail.category.icon, selectedTxDetail.transactionType, 22, selectedTxDetail.category.name)
                         ) : (
                           <FinanceIcon
                             name={selectedTxDetail.transactionType === 'INCOME' ? 'income' : selectedTxDetail.transactionType === 'TRANSFER' ? 'arrows' : 'expense'}
-                            size={20}
+                            size={22}
                           />
                         )}
                       </span>
                       <div>
-                        <h3 className="text-base font-bold text-[#14261e] dark:text-white leading-tight">Chi tiết giao dịch</h3>
-                        <p className="text-xs text-[#718579] dark:text-slate-400 mt-0.5">
+                        <h3 className="text-base font-bold text-[#14261e] dark:text-white">
+                          {isEditingTx ? 'Chỉnh sửa giao dịch' : 'Chi tiết giao dịch'}
+                        </h3>
+                        <p className="text-xs text-[#718579] dark:text-slate-400">
                           Mã GD: <span className="font-mono text-[#475569] dark:text-slate-300">{selectedTxDetail.id.slice(0, 13)}...</span>
                         </p>
                       </div>
                     </div>
                     <button
                       type="button"
-                      onClick={() => setSelectedTxDetail(null)}
+                      onClick={() => {
+                        setIsEditingTx(false);
+                        setSelectedTxDetail(null);
+                      }}
                       className="grid size-8 place-items-center rounded-xl text-gray-400 hover:bg-gray-100 hover:text-gray-700 dark:hover:bg-slate-800 dark:hover:text-slate-200 transition cursor-pointer"
-                      title="Đóng"
                     >
                       <FinanceIcon name="close" size={15} />
                     </button>
                   </div>
 
-                  {/* Số tiền nổi bật */}
-                  <div className="my-4 rounded-2xl bg-[#fafcfa] dark:bg-[#0f2231] border border-[#e5eee8] dark:border-white/10 p-3.5 text-center shrink-0">
-                    <span className="text-[11px] font-bold uppercase tracking-wider text-[#718579] dark:text-slate-400">Số tiền giao dịch</span>
-                    <div
-                      className={`mt-1 text-2xl sm:text-3xl font-black tracking-tight ${selectedTxDetail.transactionType === 'INCOME'
-                          ? 'text-emerald-700 dark:text-emerald-400'
-                          : selectedTxDetail.transactionType === 'TRANSFER'
-                            ? 'text-sky-600 dark:text-sky-400'
-                            : 'text-rose-600 dark:text-rose-400'
-                        }`}
-                    >
-                      {selectedTxDetail.transactionType === 'INCOME' ? '+' : selectedTxDetail.transactionType === 'TRANSFER' ? '' : '-'}
-                      {formatVND(selectedTxDetail.amount)}
-                    </div>
-                    <div className="mt-2 flex items-center justify-center gap-2">
-                      <span className="inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-bold bg-white dark:bg-[#0c1a24] border border-[#dce6e0] dark:border-white/10 text-[#14261e] dark:text-slate-200">
-                        {selectedTxDetail.transactionType === 'INCOME'
-                          ? 'Thu nhập'
-                          : selectedTxDetail.transactionType === 'TRANSFER'
-                            ? 'Chuyển ví'
-                            : 'Chi tiêu'}
-                      </span>
-                      <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100/70 dark:bg-emerald-950/80 px-2.5 py-0.5 text-[11px] font-bold text-emerald-800 dark:text-emerald-300 border border-emerald-200/60 dark:border-emerald-800/60">
-                        ✓ Đã ghi sổ
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Bảng thông tin chi tiết */}
-                  <div className="divide-y divide-[#edf2ee] dark:divide-white/10 text-xs flex-1">
-                    {/* Mô tả / Tiêu đề */}
-                    <div className="py-2.5 flex items-center justify-between">
-                      <span className="text-[#718579] dark:text-slate-400 font-medium">Mô tả / Đối tác:</span>
-                      <span className="font-bold text-[#14261e] dark:text-white text-right max-w-[240px] break-words">
-                        {selectedTxDetail.description || 'Giao dịch thông thường'}
-                      </span>
-                    </div>
-
-                    {/* Hạng mục */}
-                    <div className="py-2.5 flex items-center justify-between">
-                      <span className="text-[#718579] dark:text-slate-400 font-medium">Hạng mục:</span>
-                      <span className="font-semibold text-[#14261e] dark:text-white flex items-center gap-1.5">
-                        {selectedTxDetail.category ? (
-                          <>
-                            <span className="size-2 rounded-full" style={{ backgroundColor: selectedTxDetail.category.color || '#07543f' }} />
-                            <span>{selectedTxDetail.category.name}</span>
-                          </>
-                        ) : (
-                          <span>Chung / Không phân loại</span>
-                        )}
-                      </span>
-                    </div>
-
-                    {/* Tài khoản nguồn */}
-                    <div className="py-2.5 flex items-center justify-between">
-                      <span className="text-[#718579] dark:text-slate-400 font-medium">Tài khoản / Ví trích tiền:</span>
-                      <div className="text-right">
-                        <p className="font-bold text-[#14261e] dark:text-white">{selectedTxDetail.accountName}</p>
-                        <p className="text-[11px] text-[#718579] dark:text-slate-400 font-medium">{getAccountTypeLabel(selectedTxDetail.accountId)}</p>
-                      </div>
-                    </div>
-
-                    {/* Tài khoản đích nếu là Chuyển ví */}
-                    {selectedTxDetail.transactionType === 'TRANSFER' && selectedTxDetail.toAccountName && (
-                      <div className="py-2.5 flex items-center justify-between bg-sky-50/50 dark:bg-sky-950/40 px-2 rounded-lg">
-                        <span className="text-sky-800 dark:text-sky-300 font-medium">Tài khoản đích nhận:</span>
-                        <div className="text-right">
-                          <p className="font-bold text-sky-900 dark:text-sky-200">{selectedTxDetail.toAccountName}</p>
-                          <p className="text-[11px] text-sky-700 dark:text-sky-400">{getAccountTypeLabel(selectedTxDetail.toAccountId)}</p>
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Thời gian giao dịch */}
-                    <div className="py-2.5 flex items-center justify-between">
-                      <span className="text-[#718579] dark:text-slate-400 font-medium">Thời gian thực hiện:</span>
-                      <span className="font-bold text-[#14261e] dark:text-white">
-                        {formatTxDateTime(selectedTxDetail.transactionDate, selectedTxDetail.transactionTime).date}
-                        {selectedTxDetail.transactionTime ? ` • ${selectedTxDetail.transactionTime}` : ''}
-                      </span>
-                    </div>
-
-                    {/* Ghi chú nếu có */}
-                    {selectedTxDetail.note && (
-                      <div className="py-2.5 flex flex-col gap-1">
-                        <span className="text-[#718579] dark:text-slate-400 font-medium">Ghi chú bổ sung:</span>
-                        <p className="p-2.5 rounded-xl bg-[#fafafa] dark:bg-[#142b3d] border border-[#f0f0f0] dark:border-white/10 text-[#334155] dark:text-slate-200 whitespace-pre-wrap">
-                          {selectedTxDetail.note}
-                        </p>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Nút tác vụ dưới cùng */}
-                  <div className="mt-4 flex items-center justify-between pt-3 border-t border-[#edf2ee] dark:border-white/10 shrink-0">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const tx = selectedTxDetail;
-                        setSelectedTxDetail(null);
-                        setTransactionToDelete(tx);
-                      }}
-                      className="inline-flex h-9 items-center gap-1.5 rounded-xl px-3 text-xs font-semibold text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition cursor-pointer"
-                    >
-                      <FinanceIcon name="delete" size={14} />
-                      <span>Xóa giao dịch</span>
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => setSelectedTxDetail(null)}
-                      className="h-9 rounded-xl bg-[#07543f] hover:bg-[#0b6c52] px-5 text-xs font-bold text-white transition shadow-xs cursor-pointer"
-                    >
-                      Đóng
-                    </button>
+                  <div className="overflow-y-auto px-5 sm:px-6 pb-5 sm:pb-6">
+                    {renderDetailOrEditBody(false)}
                   </div>
                 </div>
-              </div>
-            ) : (
-              /* DẠNG 1 CỘT GỌN GÀNG KHI KHÔNG CÓ HÓA ĐƠN ĐÍNH KÈM */
-              <div className="flex flex-col overflow-y-auto">
-                {/* Header */}
-                <div className="flex items-center justify-between border-b border-[#edf2ee] dark:border-white/10 pb-4">
-                  <div className="flex items-center gap-3">
-                    <span
-                      className="grid size-12 shrink-0 place-items-center rounded-2xl shadow-xs"
-                      style={{
-                        backgroundColor: selectedTxDetail.category?.color
-                          ? `${selectedTxDetail.category.color}20`
-                          : selectedTxDetail.transactionType === 'INCOME'
-                            ? '#dcfce7'
-                            : selectedTxDetail.transactionType === 'TRANSFER'
-                              ? '#e0f2fe'
-                              : '#fee2e2',
-                        color: selectedTxDetail.category?.color
-                          ? selectedTxDetail.category.color
-                          : selectedTxDetail.transactionType === 'INCOME'
-                            ? '#15803d'
-                            : selectedTxDetail.transactionType === 'TRANSFER'
-                              ? '#0369a1'
-                              : '#dc2626'
-                      }}
-                    >
-                      {selectedTxDetail.category ? (
-                        renderCategoryIcon(selectedTxDetail.category.icon, selectedTxDetail.transactionType, 22, selectedTxDetail.category.name)
-                      ) : (
-                        <FinanceIcon
-                          name={selectedTxDetail.transactionType === 'INCOME' ? 'income' : selectedTxDetail.transactionType === 'TRANSFER' ? 'arrows' : 'expense'}
-                          size={22}
-                        />
-                      )}
-                    </span>
-                    <div>
-                      <h3 className="text-base font-bold text-[#14261e] dark:text-white">Chi tiết giao dịch</h3>
-                      <p className="text-xs text-[#718579] dark:text-slate-400">
-                        Mã GD: <span className="font-mono text-[#475569] dark:text-slate-300">{selectedTxDetail.id.slice(0, 13)}...</span>
-                      </p>
-                    </div>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setSelectedTxDetail(null)}
-                    className="grid size-8 place-items-center rounded-xl text-gray-400 hover:bg-gray-100 hover:text-gray-700 dark:hover:bg-slate-800 dark:hover:text-slate-200 transition cursor-pointer"
-                  >
-                    <FinanceIcon name="close" size={15} />
-                  </button>
-                </div>
-
-                {/* Số tiền nổi bật */}
-                <div className="my-5 rounded-2xl bg-[#fafcfa] dark:bg-[#0f2231] border border-[#e5eee8] dark:border-white/10 p-4 text-center">
-                  <span className="text-[11px] font-bold uppercase tracking-wider text-[#718579] dark:text-slate-400">Số tiền giao dịch</span>
-                  <div
-                    className={`mt-1 text-3xl font-black tracking-tight ${selectedTxDetail.transactionType === 'INCOME'
-                        ? 'text-emerald-700 dark:text-emerald-400'
-                        : selectedTxDetail.transactionType === 'TRANSFER'
-                          ? 'text-sky-600 dark:text-sky-400'
-                          : 'text-rose-600 dark:text-rose-400'
-                      }`}
-                  >
-                    {selectedTxDetail.transactionType === 'INCOME' ? '+' : selectedTxDetail.transactionType === 'TRANSFER' ? '' : '-'}
-                    {formatVND(selectedTxDetail.amount)}
-                  </div>
-                  <div className="mt-2 flex items-center justify-center gap-2">
-                    <span className="inline-flex items-center gap-1 rounded-full px-3 py-0.5 text-xs font-bold bg-white dark:bg-[#0c1a24] border border-[#dce6e0] dark:border-white/10 text-[#14261e] dark:text-slate-200">
-                      {selectedTxDetail.transactionType === 'INCOME'
-                        ? 'Thu nhập'
-                        : selectedTxDetail.transactionType === 'TRANSFER'
-                          ? 'Chuyển ví'
-                          : 'Chi tiêu'}
-                    </span>
-                    <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100/70 dark:bg-emerald-950/80 px-2.5 py-0.5 text-[11px] font-bold text-emerald-800 dark:text-emerald-300 border border-emerald-200/60 dark:border-emerald-800/60">
-                      ✓ Đã ghi sổ
-                    </span>
-                  </div>
-                </div>
-
-                {/* Bảng thông tin chi tiết */}
-                <div className="divide-y divide-[#edf2ee] dark:divide-white/10 text-xs">
-                  {/* Mô tả / Tiêu đề */}
-                  <div className="py-2.5 flex items-center justify-between">
-                    <span className="text-[#718579] dark:text-slate-400 font-medium">Mô tả / Đối tác:</span>
-                    <span className="font-bold text-[#14261e] dark:text-white text-right max-w-[260px] break-words">
-                      {selectedTxDetail.description || 'Giao dịch thông thường'}
-                    </span>
-                  </div>
-
-                  {/* Hạng mục */}
-                  <div className="py-2.5 flex items-center justify-between">
-                    <span className="text-[#718579] dark:text-slate-400 font-medium">Hạng mục:</span>
-                    <span className="font-semibold text-[#14261e] dark:text-white flex items-center gap-1.5">
-                      {selectedTxDetail.category ? (
-                        <>
-                          <span className="size-2 rounded-full" style={{ backgroundColor: selectedTxDetail.category.color || '#07543f' }} />
-                          <span>{selectedTxDetail.category.name}</span>
-                        </>
-                      ) : (
-                        <span>Chung / Không phân loại</span>
-                      )}
-                    </span>
-                  </div>
-
-                  {/* Tài khoản nguồn */}
-                  <div className="py-2.5 flex items-center justify-between">
-                    <span className="text-[#718579] dark:text-slate-400 font-medium">Tài khoản / Ví trích tiền:</span>
-                    <div className="text-right">
-                      <p className="font-bold text-[#14261e] dark:text-white">{selectedTxDetail.accountName}</p>
-                      <p className="text-[11px] text-[#718579] dark:text-slate-400 font-medium">{getAccountTypeLabel(selectedTxDetail.accountId)}</p>
-                    </div>
-                  </div>
-
-                  {/* Tài khoản đích nếu là Chuyển ví */}
-                  {selectedTxDetail.transactionType === 'TRANSFER' && selectedTxDetail.toAccountName && (
-                    <div className="py-2.5 flex items-center justify-between bg-sky-50/50 dark:bg-sky-950/40 px-2 rounded-lg">
-                      <span className="text-sky-800 dark:text-sky-300 font-medium">Tài khoản đích nhận:</span>
-                      <div className="text-right">
-                        <p className="font-bold text-sky-900 dark:text-sky-200">{selectedTxDetail.toAccountName}</p>
-                        <p className="text-[11px] text-sky-700 dark:text-sky-400">{getAccountTypeLabel(selectedTxDetail.toAccountId)}</p>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Thời gian giao dịch */}
-                  <div className="py-2.5 flex items-center justify-between">
-                    <span className="text-[#718579] dark:text-slate-400 font-medium">Thời gian thực hiện:</span>
-                    <span className="font-bold text-[#14261e] dark:text-white">
-                      {formatTxDateTime(selectedTxDetail.transactionDate, selectedTxDetail.transactionTime).date}
-                      {selectedTxDetail.transactionTime ? ` • ${selectedTxDetail.transactionTime}` : ''}
-                    </span>
-                  </div>
-
-                  {/* Ghi chú nếu có */}
-                  {selectedTxDetail.note && (
-                    <div className="py-2.5 flex flex-col gap-1">
-                      <span className="text-[#718579] dark:text-slate-400 font-medium">Ghi chú bổ sung:</span>
-                      <p className="p-2.5 rounded-xl bg-[#fafafa] dark:bg-[#142b3d] border border-[#f0f0f0] dark:border-white/10 text-[#334155] dark:text-slate-200 whitespace-pre-wrap">
-                        {selectedTxDetail.note}
-                      </p>
-                    </div>
-                  )}
-                </div>
-
-                {/* Nút tác vụ dưới cùng */}
-                <div className="mt-6 flex items-center justify-between pt-3 border-t border-[#edf2ee] dark:border-white/10">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const tx = selectedTxDetail;
-                      setSelectedTxDetail(null);
-                      setTransactionToDelete(tx);
-                    }}
-                    className="inline-flex h-9 items-center gap-1.5 rounded-xl px-3.5 text-xs font-semibold text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition cursor-pointer"
-                  >
-                    <FinanceIcon name="delete" size={14} />
-                    <span>Xóa giao dịch</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => setSelectedTxDetail(null)}
-                    className="h-9 rounded-xl bg-[#07543f] hover:bg-[#0b6c52] px-5 text-xs font-bold text-white transition shadow-xs cursor-pointer"
-                  >
-                    Đóng
-                  </button>
-                </div>
-              </div>
-            )}
+              )}
+            </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
       {/* Fullscreen Lightbox Modal for Receipt Image */}
       {viewingReceiptImage && (
         <div

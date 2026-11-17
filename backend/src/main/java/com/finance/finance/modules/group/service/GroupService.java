@@ -1,5 +1,6 @@
 package com.finance.finance.modules.group.service;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.finance.finance.common.enums.ActivityType;
 import com.finance.finance.common.enums.GroupStatus;
 import com.finance.finance.common.enums.GroupType;
@@ -42,6 +43,7 @@ public class GroupService {
     private final com.finance.finance.modules.notification.service.NotificationService notificationService;
     private final GroupFundRepository groupFundRepository;
     private final com.finance.finance.common.service.EmailService emailService;
+    private final com.fasterxml.jackson.databind.ObjectMapper objectMapper;
 
     // ==================== Groups Management ====================
 
@@ -185,6 +187,26 @@ public class GroupService {
         groupRepository.save(group);
     }
 
+    @Transactional
+    public void leaveGroup(UUID groupId, UUID currentUserId) {
+        GroupMember member = groupMemberRepository.findByGroupIdAndUserId(groupId, currentUserId)
+                .orElseThrow(() -> new ResourceNotFoundException("Bạn không phải là thành viên của nhóm"));
+
+        if (member.getRole() == MemberRole.OWNER) {
+            throw new IllegalStateException("Trưởng nhóm không thể rời nhóm. Hãy chuyển quyền trưởng nhóm hoặc giải tán nhóm.");
+        }
+
+        BigDecimal balance = calculateMemberBalance(groupId, currentUserId);
+        if (balance != null && balance.abs().compareTo(BigDecimal.ZERO) > 0) {
+            throw new IllegalStateException("Bạn còn số dư chưa quyết toán trong nhóm, vui lòng thanh toán trước khi rời nhóm.");
+        }
+
+        groupMemberRepository.delete(member);
+
+        logActivity(groupId, currentUserId, ActivityType.MEMBER_LEFT,
+                "Thành viên tự rời nhóm", Map.of("userId", currentUserId.toString()));
+    }
+
     // ==================== Members Management ====================
 
     @Transactional
@@ -192,6 +214,15 @@ public class GroupService {
         validateAdminOrOwner(groupId, currentUserId);
 
         Group group = findGroupOrThrow(groupId);
+
+        // Validation for COUPLE group: maximum 2 members
+        if (group.getGroupType() == GroupType.COUPLE) {
+            long memberCount = groupMemberRepository.countByGroupId(groupId);
+            long pendingCount = invitationRepository.countByGroupIdAndStatus(groupId, com.finance.finance.modules.group.entity.GroupInvitation.InvitationStatus.PENDING);
+            if (memberCount + pendingCount >= 2) {
+                throw new IllegalArgumentException("Nhóm cặp đôi chỉ có thể có tối đa 2 thành viên");
+            }
+        }
 
         // Check if user is already a member
         if (groupMemberRepository.existsByGroupIdAndUserId(groupId, request.getUserId())) {
@@ -229,7 +260,7 @@ public class GroupService {
                     com.finance.finance.common.enums.NotificationPriority.HIGH,
                     "Lời mời tham gia nhóm " + group.getName(),
                     inviterName + " đã mời bạn tham gia nhóm \"" + group.getName() + "\". Hãy vào mục Nhóm để xác nhận hoặc từ chối.",
-                    "/groups",
+                    "/groups?groupId=" + group.getId() + "&tab=MEMBERS",
                     "Xem lời mời"
             );
         } catch (Exception e) {
@@ -284,6 +315,16 @@ public class GroupService {
             throw new IllegalStateException("Lời mời này không còn ở trạng thái chờ phản hồi");
         }
 
+        Group group = findGroupOrThrow(invitation.getGroupId());
+        if (group.getGroupType() == GroupType.COUPLE) {
+            long memberCount = groupMemberRepository.countByGroupId(invitation.getGroupId());
+            if (memberCount >= 2) {
+                invitation.setStatus(com.finance.finance.modules.group.entity.GroupInvitation.InvitationStatus.REJECTED);
+                invitationRepository.save(invitation);
+                throw new IllegalStateException("Nhóm cặp đôi đã đủ tối đa 2 thành viên");
+            }
+        }
+
         invitation.setStatus(com.finance.finance.modules.group.entity.GroupInvitation.InvitationStatus.ACCEPTED);
         invitationRepository.save(invitation);
 
@@ -301,7 +342,6 @@ public class GroupService {
                     "Accepted group invitation", Map.of("userId", currentUserId.toString()));
 
             // Notify inviter
-            Group group = findGroupOrThrow(invitation.getGroupId());
             String memberName = userRepository.findById(currentUserId)
                     .map(u -> u.getFullName() != null ? u.getFullName() : u.getUsername())
                     .orElse("Thành viên");
@@ -532,13 +572,36 @@ public class GroupService {
     }
 
     private String serializeSettings(Object settings) {
-        // TODO: Implement settings serialization if needed
-        return null;
+        if (settings == null) {
+            return null;
+        }
+        try {
+            return objectMapper.writeValueAsString(settings);
+        } catch (Exception e) {
+            log.warn("Failed to serialize settings: {}", e.getMessage());
+            return null;
+        }
     }
 
     private String serializeMetadata(Map<String, Object> metadata) {
-        // TODO: Implement metadata serialization if needed
-        return null;
+        if (metadata == null || metadata.isEmpty()) {
+            return null;
+        }
+        try {
+            return objectMapper.writeValueAsString(metadata);
+        } catch (Exception e) {
+            log.warn("Failed to serialize metadata: {}", e.getMessage());
+            return null;
+        }
+    }
+
+    @Transactional
+    public void toggleGroupNotification(UUID groupId, UUID currentUserId, boolean enabled) {
+        log.info("toggleGroupNotification - groupId: {}, userId: {}, enabled: {}", groupId, currentUserId, enabled);
+        GroupMember member = groupMemberRepository.findByGroupIdAndUserId(groupId, currentUserId)
+                .orElseThrow(() -> new ResourceNotFoundException("Thành viên không thuộc nhóm này"));
+        member.setNotificationEnabled(enabled);
+        groupMemberRepository.save(member);
     }
 
     private GroupResponse buildGroupResponse(Group group) {
@@ -592,6 +655,7 @@ public class GroupService {
                 .unreadMessageCount((int) unreadCount)
                 .myRole(member != null ? member.getRole().name() : null)
                 .myBalance(myBalance)
+                .notificationEnabled(member != null ? Boolean.TRUE.equals(member.getNotificationEnabled()) : true)
                 .lastActivityAt(group.getUpdatedAt())
                 .createdAt(group.getCreatedAt())
                 .updatedAt(group.getUpdatedAt())
@@ -625,6 +689,7 @@ public class GroupService {
                 .settings((CreateGroupRequest.GroupSettingsDto) deserializeSettings(group.getSettings()))
                 .myRole(groupResponse.getMyRole())
                 .myBalance(groupResponse.getMyBalance())
+                .notificationEnabled(groupResponse.getNotificationEnabled())
                 .myPermissions(permissions)
                 .createdAt(groupResponse.getCreatedAt())
                 .updatedAt(groupResponse.getUpdatedAt())
@@ -660,8 +725,15 @@ public class GroupService {
     }
 
     private Object deserializeSettings(String settingsJson) {
-        // TODO: Implement settings deserialization if needed
-        return null;
+        if (settingsJson == null || settingsJson.isBlank()) {
+            return null;
+        }
+        try {
+            return objectMapper.readValue(settingsJson, CreateGroupRequest.GroupSettingsDto.class);
+        } catch (Exception e) {
+            log.warn("Failed to deserialize settings: {}", e.getMessage());
+            return null;
+        }
     }
 
     private List<String> getPermissions(MemberRole role) {

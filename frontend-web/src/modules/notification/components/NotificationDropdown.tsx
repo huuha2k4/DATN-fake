@@ -27,7 +27,7 @@ function getNotificationVisual(type: NotificationType): VisualConfig {
     case 'BUDGET_ALERT':
     case 'BUDGET_EXCEEDED':
       return {
-        icon: 'bolt',
+        icon: 'alert-triangle',
         bgClass: 'bg-rose-50 dark:bg-rose-950/50 border border-rose-200 dark:border-rose-900/60',
         colorClass: 'text-rose-600 dark:text-rose-400',
       };
@@ -35,35 +35,45 @@ function getNotificationVisual(type: NotificationType): VisualConfig {
     case 'GOAL_ACHIEVED':
     case 'GOAL_REMINDER':
       return {
-        icon: 'spark',
+        icon: 'target',
         bgClass: 'bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-200 dark:border-emerald-900/60',
         colorClass: 'text-emerald-600 dark:text-emerald-400',
       };
     case 'DEBT_REMINDER':
     case 'DEBT_OVERDUE':
       return {
-        icon: 'credit-card',
+        icon: 'handshake',
         bgClass: 'bg-pink-50 dark:bg-pink-950/50 border border-pink-200 dark:border-pink-900/60',
         colorClass: 'text-pink-600 dark:text-pink-400',
       };
     case 'TRANSACTION':
+      return {
+        icon: 'receipt',
+        bgClass: 'bg-sky-50 dark:bg-sky-950/50 border border-sky-200 dark:border-sky-900/60',
+        colorClass: 'text-sky-600 dark:text-sky-400',
+      };
     case 'RECURRING_DUE':
     case 'RECURRING_FAILED':
       return {
-        icon: 'wallet',
-        bgClass: 'bg-sky-50 dark:bg-sky-950/50 border border-sky-200 dark:border-sky-900/60',
-        colorClass: 'text-sky-600 dark:text-sky-400',
+        icon: 'clock',
+        bgClass: 'bg-amber-50 dark:bg-amber-950/50 border border-amber-200 dark:border-amber-900/60',
+        colorClass: 'text-amber-600 dark:text-amber-400',
       };
     case 'ANOMALY_DETECTED':
     case 'INSIGHT_GENERATED':
     case 'WEEKLY_SUMMARY':
     case 'MONTHLY_REPORT':
       return {
-        icon: 'trend',
+        icon: 'analytics',
         bgClass: 'bg-teal-50 dark:bg-teal-950/50 border border-teal-200 dark:border-teal-900/60',
         colorClass: 'text-teal-600 dark:text-teal-400',
       };
     case 'GROUP_INVITATION':
+      return {
+        icon: 'user-plus',
+        bgClass: 'bg-sky-50 dark:bg-sky-950/50 border border-sky-200 dark:border-sky-900/60',
+        colorClass: 'text-sky-600 dark:text-sky-400',
+      };
     case 'GROUP_EXPENSE':
       return {
         icon: 'group',
@@ -72,24 +82,34 @@ function getNotificationVisual(type: NotificationType): VisualConfig {
       };
     case 'GROUP_COMMENT':
       return {
-        icon: 'bell',
+        icon: 'message-square',
         bgClass: 'bg-indigo-50 dark:bg-indigo-950/50 border border-indigo-200 dark:border-indigo-900/60',
         colorClass: 'text-indigo-600 dark:text-indigo-400',
       };
     case 'CHILD_MONEY_REQUEST':
-    case 'CHILD_CHORE_COMPLETED':
-    case 'CHILD_MONEY_RECEIVED':
     case 'CHILD_REQUEST_RESPONDED':
-    case 'CHILD_CHORE_ASSIGNED':
       return {
-        icon: 'spark',
+        icon: 'hand-coins',
         bgClass: 'bg-amber-50 dark:bg-amber-950/50 border border-amber-200 dark:border-amber-900/60',
         colorClass: 'text-amber-600 dark:text-amber-400',
+      };
+    case 'CHILD_CHORE_COMPLETED':
+    case 'CHILD_CHORE_ASSIGNED':
+      return {
+        icon: 'award',
+        bgClass: 'bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-200 dark:border-emerald-900/60',
+        colorClass: 'text-emerald-600 dark:text-emerald-400',
+      };
+    case 'CHILD_MONEY_RECEIVED':
+      return {
+        icon: 'gift',
+        bgClass: 'bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-200 dark:border-emerald-900/60',
+        colorClass: 'text-emerald-600 dark:text-emerald-400',
       };
     case 'SYSTEM':
     default:
       return {
-        icon: 'bell',
+        icon: 'megaphone',
         bgClass: 'bg-gray-100 dark:bg-slate-800 border border-gray-200 dark:border-slate-700',
         colorClass: 'text-gray-700 dark:text-slate-300',
       };

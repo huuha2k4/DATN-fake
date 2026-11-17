@@ -14,6 +14,7 @@ import { accountApi, type AccountItem } from '../../account-management/api/accou
 import { scheduleApi } from '../../financial-reminders/api/scheduleApi';
 import { formatDate } from '../../core/utils/dateUtils';
 import { DatePicker } from '../../core/components/DatePicker';
+import { ConfirmDeleteModal } from '../../core/components/ConfirmDeleteModal';
 import './DebtManagementScreen.css';
 
 type Props = { onNotify: (message: string) => void };
@@ -79,6 +80,21 @@ export function DebtManagementScreen({ onNotify }: Props) {
   const [paymentAccountId, setPaymentAccountId] = useState('');
   const [paymentNote, setPaymentNote] = useState('');
   const [isSubmittingPayment, setIsSubmittingPayment] = useState(false);
+
+  // Modal Chỉnh sửa khoản nợ (đồng bộ với bản App)
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [editCounterpartyName, setEditCounterpartyName] = useState('');
+  const [editPartnerPhone, setEditPartnerPhone] = useState('');
+  const [editPrincipal, setEditPrincipal] = useState('');
+  const [editStartDate, setEditStartDate] = useState('');
+  const [editDueDate, setEditDueDate] = useState('');
+  const [editAccountId, setEditAccountId] = useState('');
+  const [editNote, setEditNote] = useState('');
+  const [isSubmittingEdit, setIsSubmittingEdit] = useState(false);
+
+  // Modal Xác nhận xóa khoản nợ (Custom Confirmation Modal)
+  const [debtToDelete, setDebtToDelete] = useState<{ id: number; name: string } | null>(null);
+  const [isDeletingDebt, setIsDeletingDebt] = useState(false);
 
   // Hàm format ngày Date sang string YYYY-MM-DD theo local time (tránh lệch timezone UTC)
   const formatLocalDate = (d: Date) => {
@@ -241,107 +257,7 @@ export function DebtManagementScreen({ onNotify }: Props) {
         reminder_days_before: formNotifyDaysBefore,
       });
 
-      // 2. Nếu người dùng chọn gắn với Lịch tài chính tự động
-      if (syncToCalendar) {
-        try {
-          const scheduleName = formType === 'BORROWING' 
-            ? `Trả nợ: ${formPartnerName.trim()}` 
-            : `Thu nợ: ${formPartnerName.trim()}`;
-
-          const isAutoDebit = !!selectedAccountId; // Có chọn tài khoản -> Lịch trừ/cộng tự động
-          const notifyMinutes = formNotifyDaysBefore * 24 * 60; // Số phút báo trước
-
-          if (paymentPlanType === 'INSTALLMENT') {
-            const countNum = Math.max(1, Number(formInstallmentCount) || 1);
-            const payAmount = periodicAmountNum || Math.ceil(principalNum / countNum);
-            
-            // Xây dựng Recurrence Rule (RFC5545) chuẩn kèm COUNT để giới hạn đúng số kỳ
-            let rrule = `FREQ=${formFrequency}`;
-            if (formFrequency === 'MONTHLY') {
-              rrule += `;BYMONTHDAY=${formDayOfMonth}`;
-            } else if (formFrequency === 'WEEKLY') {
-              const weekDays = ['SU', 'MO', 'TU', 'WE', 'TH', 'FR', 'SA'];
-              rrule += `;BYDAY=${weekDays[formDayOfWeek]}`;
-            }
-            // Giới hạn đúng số kỳ được tạo
-            rrule += `;COUNT=${countNum}`;
-
-            // Tự động tính ngày kỳ trả nợ cuối cùng (end_date)
-            // Ví dụ: bắt đầu ngày 24/11/2026, 2 kỳ hàng tháng -> kỳ 1: 24/11/2026, kỳ 2: 24/12/2026 -> kết thúc 24/12/2026
-            let calculatedEndDate: string | null = null;
-            if (countNum > 1 && firstPayDate) {
-              const [fYear, fMonth, fDay] = firstPayDate.split('-').map(Number);
-              if (formFrequency === 'MONTHLY') {
-                const endMonth = fMonth - 1 + (countNum - 1);
-                const eDate = new Date(fYear, endMonth, fDay);
-                calculatedEndDate = formatLocalDate(eDate);
-              } else if (formFrequency === 'WEEKLY') {
-                const eDate = new Date(fYear, fMonth - 1, fDay + (countNum - 1) * 7);
-                calculatedEndDate = formatLocalDate(eDate);
-              } else if (formFrequency === 'QUARTERLY') {
-                const endMonth = fMonth - 1 + (countNum - 1) * 3;
-                const eDate = new Date(fYear, endMonth, fDay);
-                calculatedEndDate = formatLocalDate(eDate);
-              }
-            }
-
-            // Backend yêu cầu: nếu có end_date thì end_date PHẢI strictly sau start_date (isAfter)
-            const finalEndDate = formDueDate && formDueDate > firstPayDate 
-              ? formDueDate 
-              : (calculatedEndDate && calculatedEndDate > firstPayDate ? calculatedEndDate : null);
-
-            await scheduleApi.createSchedule({
-              schedule_type: isAutoDebit ? 'TRANSACTION' : 'REMINDER',
-              name: scheduleName,
-              recurrence_rule: rrule,
-              start_date: firstPayDate,
-              end_date: finalEndDate,
-              auto_execute: isAutoDebit,
-              transaction_template: isAutoDebit ? {
-                transaction_type: formType === 'BORROWING' ? 'EXPENSE' : 'INCOME',
-                account_id: selectedAccountId,
-                amount: payAmount,
-                currency_code: 'VND',
-                description: `Tự động ${formType === 'BORROWING' ? 'trả nợ' : 'thu nợ'}: ${formPartnerName.trim()}`,
-              } : undefined,
-              reminder_message: `Kỳ trả nợ ${formPartnerName.trim()}: ${formatCurrency(payAmount)}. Tổng nợ: ${formatCurrency(principalNum)}`,
-              notification_enabled: true,
-              notification_time_before_minutes: notifyMinutes,
-            });
-          } else {
-            // Trả 1 lần vào ngày hẹn
-            const targetPayDate = formDueDate || formStartDate || new Date().toISOString().split('T')[0];
-            await scheduleApi.createSchedule({
-              schedule_type: isAutoDebit ? 'TRANSACTION' : 'REMINDER',
-              name: scheduleName,
-              recurrence_rule: 'FREQ=DAILY;COUNT=1',
-              start_date: targetPayDate,
-              end_date: null, // Không truyền end_date bằng start_date vì backend yêu cầu endDate.isAfter(startDate)
-              auto_execute: isAutoDebit,
-              transaction_template: isAutoDebit ? {
-                transaction_type: formType === 'BORROWING' ? 'EXPENSE' : 'INCOME',
-                account_id: selectedAccountId,
-                amount: principalNum,
-                currency_code: 'VND',
-                description: `Thanh toán khoản ${formType === 'BORROWING' ? 'nợ' : 'cho vay'}: ${formPartnerName.trim()}`,
-              } : undefined,
-              reminder_message: `Hạn thanh toán khoản ${formType === 'BORROWING' ? 'nợ' : 'cho vay'}: ${formatCurrency(principalNum)} cho ${formPartnerName.trim()}`,
-              notification_enabled: true,
-              notification_time_before_minutes: notifyMinutes,
-            });
-          }
-        } catch (schedErr: any) {
-          console.error('Lỗi khi đồng bộ lên Lịch tài chính:', schedErr);
-          const schedMsg = schedErr?.response?.data?.message || 'Không thể tạo lịch nhắc nhở';
-          onNotify(`Đã lưu khoản nợ nhưng chưa đồng bộ được vào Lịch: ${schedMsg}`);
-          setIsCreateModalOpen(false);
-          resetCreateForm();
-          loadDebts();
-          return;
-        }
-      }
-
-      onNotify('Tạo khoản nợ mới thành công' + (syncToCalendar ? ' và đã đồng bộ lên Lịch tài chính!' : '!'));
+      onNotify('Tạo khoản nợ mới thành công!');
       setIsCreateModalOpen(false);
       resetCreateForm();
       loadDebts();
@@ -371,17 +287,85 @@ export function DebtManagementScreen({ onNotify }: Props) {
     setSelectedAccountId('');
   };
 
-  // Xóa khoản nợ
-  const handleDeleteDebt = async (id: number) => {
-    if (!window.confirm('Bạn có chắc chắn muốn xóa khoản nợ này không?')) return;
+  // Mở modal sửa khoản nợ
+  const handleOpenEditModal = () => {
+    if (!selectedDebtDetail) return;
+    const isBorrow = selectedDebtDetail.debt_type === 'BORROWING';
+    setEditCounterpartyName((isBorrow ? selectedDebtDetail.creditor_name : selectedDebtDetail.debtor_name) || '');
+    setEditPartnerPhone((isBorrow ? selectedDebtDetail.creditor_phone : selectedDebtDetail.debtor_phone) || '');
+    setEditPrincipal(selectedDebtDetail.principal_amount ? String(selectedDebtDetail.principal_amount) : '');
+    setEditStartDate(selectedDebtDetail.start_date ? selectedDebtDetail.start_date.split('T')[0] : '');
+    setEditDueDate(selectedDebtDetail.due_date ? selectedDebtDetail.due_date.split('T')[0] : '');
+    setEditAccountId('');
+    setEditNote(selectedDebtDetail.note || selectedDebtDetail.description || '');
+    setIsEditModalOpen(true);
+  };
+
+  // Lưu chỉnh sửa khoản nợ
+  const handleSaveEditDebt = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedDebtDetail) return;
+    if (!editCounterpartyName.trim()) {
+      onNotify('Vui lòng nhập tên người nợ / người cho vay');
+      return;
+    }
+    const principalNum = parseFloat(editPrincipal.replace(/\D/g, ''));
+    if (!principalNum || principalNum <= 0) {
+      onNotify('Vui lòng nhập tổng số tiền nợ hợp lệ');
+      return;
+    }
+
+    setIsSubmittingEdit(true);
     try {
-      await debtApi.deleteDebt(id);
-      onNotify('Đã xóa khoản nợ thành công');
+      const isBorrow = selectedDebtDetail.debt_type === 'BORROWING';
+      const payload: any = {
+        principal_amount: principalNum,
+        start_date: editStartDate || undefined,
+        due_date: editDueDate || undefined,
+        account_id: editAccountId || undefined,
+        note: editNote.trim() || undefined,
+        description: editNote.trim() || undefined,
+      };
+      if (isBorrow) {
+        payload.creditor_name = editCounterpartyName.trim();
+        payload.creditor_phone = editPartnerPhone.trim() || undefined;
+      } else {
+        payload.debtor_name = editCounterpartyName.trim();
+        payload.debtor_phone = editPartnerPhone.trim() || undefined;
+      }
+
+      await debtApi.updateDebt(selectedDebtDetail.id, payload);
+      onNotify('Cập nhật khoản nợ thành công!');
+      setIsEditModalOpen(false);
+      handleOpenDetail(selectedDebtDetail.id);
+      loadDebts();
+    } catch (err: any) {
+      onNotify(err.response?.data?.message || 'Có lỗi xảy ra khi cập nhật khoản nợ');
+    } finally {
+      setIsSubmittingEdit(false);
+    }
+  };
+
+  // Mở popup xác nhận xóa
+  const handleRequestDeleteDebt = (id: number, name: string) => {
+    setDebtToDelete({ id, name });
+  };
+
+  // Thực hiện xóa khoản nợ khi bấm xác nhận
+  const confirmDeleteDebt = async () => {
+    if (!debtToDelete) return;
+    setIsDeletingDebt(true);
+    try {
+      await debtApi.deleteDebt(debtToDelete.id);
+      onNotify(`Đã xóa khoản nợ "${debtToDelete.name}" thành công!`);
+      setDebtToDelete(null);
       setSelectedDebtDetail(null);
       setDebtSchedule(null);
       loadDebts();
     } catch {
       onNotify('Không thể xóa khoản nợ này');
+    } finally {
+      setIsDeletingDebt(false);
     }
   };
 
@@ -539,7 +523,7 @@ export function DebtManagementScreen({ onNotify }: Props) {
                   <div className="flex items-start justify-between gap-2 pb-3 border-b border-gray-100">
                     <div className="flex items-center gap-2.5 min-w-0">
                       <span className={`debt-type-badge-icon ${isBorrowing ? 'borrowing' : 'lending'}`}>
-                        <FinanceIcon name={isBorrowing ? 'expense' : 'income'} size={15} />
+                        <FinanceIcon name={isBorrowing ? 'borrowing' : 'lending'} size={15} />
                       </span>
                       <div className="min-w-0">
                         <span className={`debt-type-label ${isBorrowing ? 'borrowing' : 'lending'}`}>
@@ -1037,11 +1021,6 @@ export function DebtManagementScreen({ onNotify }: Props) {
                 <div className="p-3 bg-white rounded-xl border border-gray-100">
                   <span className="text-gray-500">Hạn thanh toán:</span>
                   <p className="font-bold text-[#14261e]">{formatDate(selectedDebtDetail.due_date, 'Không thời hạn')}</p>
-                  {selectedDebtDetail.next_payment_date ? (
-                    <span className="text-[11px] text-gray-500">
-                      Kỳ tới: {formatDate(selectedDebtDetail.next_payment_date)}
-                    </span>
-                  ) : null}
                 </div>
               </div>
 
@@ -1096,14 +1075,29 @@ export function DebtManagementScreen({ onNotify }: Props) {
                 </div>
               ) : null}
 
-              {/* Nút hành động Trả nợ & Xóa */}
-              <div className="flex items-center justify-between gap-3 pt-2">
+              {/* Nút hành động: Sửa khoản nợ, Trả nợ & Xóa - Chia đều 3 cột bằng nhau */}
+              <div className="grid grid-cols-3 gap-2.5 pt-2">
                 <button
                   type="button"
-                  onClick={() => handleDeleteDebt(selectedDebtDetail.id)}
-                  className="h-9 px-3 rounded-xl border border-rose-200 text-rose-600 text-xs font-bold hover:bg-rose-50"
+                  onClick={() => {
+                    const debtName = selectedDebtDetail.debt_type === 'BORROWING'
+                      ? (selectedDebtDetail.creditor_name || 'Khoản đi vay')
+                      : (selectedDebtDetail.debtor_name || 'Khoản cho vay');
+                    handleRequestDeleteDebt(selectedDebtDetail.id, debtName);
+                  }}
+                  className="h-10 w-full rounded-xl border border-rose-200 bg-rose-50/50 text-rose-600 text-xs font-bold hover:bg-rose-100 transition cursor-pointer flex items-center justify-center gap-1.5 shadow-xs"
                 >
-                  Xóa khoản nợ
+                  <FinanceIcon name="trash" size={14} />
+                  <span>Xóa nợ</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleOpenEditModal}
+                  className="h-10 w-full rounded-xl border border-blue-200 bg-blue-50 text-blue-700 text-xs font-bold hover:bg-blue-100 transition cursor-pointer flex items-center justify-center gap-1.5 shadow-xs"
+                >
+                  <FinanceIcon name="edit" size={14} />
+                  <span>Sửa khoản nợ</span>
                 </button>
 
                 {!(selectedDebtDetail.status === 'PAID_OFF' || selectedDebtDetail.status === 'PAID' || selectedDebtDetail.remaining_amount <= 0) ? (
@@ -1117,14 +1111,15 @@ export function DebtManagementScreen({ onNotify }: Props) {
                       setPaymentAmount(String(defaultAmt || ''));
                       setIsPaymentModalOpen(true);
                     }}
-                    className="h-10 px-6 rounded-xl bg-[#07543f] text-white text-xs font-bold hover:bg-[#0b6c52] shadow-sm transition"
+                    className="h-10 w-full rounded-xl bg-[#07543f] text-white text-xs font-bold hover:bg-[#0b6c52] shadow-sm transition cursor-pointer flex items-center justify-center gap-1.5"
                   >
-                    {selectedDebtDetail.debt_type === 'BORROWING' ? 'Trả nợ' : 'Thu nợ'}
+                    <FinanceIcon name="wallet" size={15} />
+                    <span>{selectedDebtDetail.debt_type === 'BORROWING' ? 'Trả nợ' : 'Thu nợ'}</span>
                   </button>
                 ) : (
-                  <span className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-emerald-50 text-emerald-800 text-xs font-bold border border-emerald-200">
-                    <span>✓ Đã thanh toán 100%</span>
-                  </span>
+                  <div className="h-10 w-full flex items-center justify-center gap-1.5 rounded-xl bg-emerald-50 text-emerald-800 text-xs font-bold border border-emerald-200 shadow-xs">
+                    <span>✓ Đã trả hết</span>
+                  </div>
                 )}
               </div>
 
@@ -1260,6 +1255,161 @@ export function DebtManagementScreen({ onNotify }: Props) {
           </div>
         </div>
       )}
+
+      {/* MODAL SỬA KHOẢN NỢ (ĐỒNG BỘ HOÀN TOÀN VỚI BẢN APP) */}
+      {isEditModalOpen && selectedDebtDetail && (
+        <div className="modal-backdrop">
+          <div className="modal-box max-w-lg max-h-[90vh] overflow-y-auto custom-scrollbar">
+            <div className="flex items-center justify-between pb-3 border-b border-gray-100">
+              <div className="flex items-center gap-2">
+                <span className="grid size-8 place-items-center rounded-xl bg-blue-50 text-blue-600 border border-blue-200">
+                  <FinanceIcon name="edit" size={16} />
+                </span>
+                <div>
+                  <h3 className="text-sm font-bold text-[#14261e]">Sửa khoản nợ</h3>
+                  <p className="text-[11px] text-[#718579]">
+                    {selectedDebtDetail.debt_type === 'BORROWING' ? 'Chỉnh sửa thông tin khoản đi vay' : 'Chỉnh sửa thông tin khoản cho vay'}
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsEditModalOpen(false)}
+                className="text-gray-400 hover:text-gray-700 text-lg font-bold p-1 leading-none cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveEditDebt} className="mt-4 space-y-3.5">
+              <div>
+                <label className="mb-1 block text-xs font-bold uppercase tracking-wider text-gray-700">
+                  {selectedDebtDetail.debt_type === 'BORROWING' ? 'Tên khoản vay / Người cho vay *' : 'Tên khoản vay / Người vay *'}
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder="Ví dụ: Vay mua xe, Trả góp laptop, Vay anh Long..."
+                  value={editCounterpartyName}
+                  onChange={(e) => setEditCounterpartyName(e.target.value)}
+                  className="h-10 w-full rounded-xl border border-gray-200 px-3 text-xs font-medium text-[#14261e] outline-none focus:border-[#07543f]"
+                />
+              </div>
+
+              <div>
+                <label className="mb-1 block text-xs font-bold uppercase tracking-wider text-gray-700">
+                  Số điện thoại liên hệ
+                </label>
+                <input
+                  type="tel"
+                  placeholder="0987654321..."
+                  value={editPartnerPhone}
+                  onChange={(e) => setEditPartnerPhone(e.target.value)}
+                  className="h-10 w-full rounded-xl border border-gray-200 px-3 text-xs outline-none focus:border-[#07543f]"
+                />
+              </div>
+
+              <div>
+                <label className="mb-1 block text-xs font-bold uppercase tracking-wider text-gray-700">
+                  Tổng số tiền nợ (VNĐ) *
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder="Nhập tổng số tiền..."
+                  value={editPrincipal ? Number(editPrincipal).toLocaleString('vi-VN') : ''}
+                  onChange={(e) => setEditPrincipal(e.target.value.replace(/\D/g, ''))}
+                  className="h-10 w-full rounded-xl border border-gray-200 px-3 text-xs font-bold text-[#07543f] outline-none focus:border-[#07543f]"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="mb-1 block text-xs font-bold uppercase tracking-wider text-gray-700">
+                    Ngày bắt đầu
+                  </label>
+                  <DatePicker
+                    value={editStartDate}
+                    onChange={(val) => setEditStartDate(val)}
+                    className="h-10 w-full rounded-xl border border-gray-200 bg-white px-3 text-xs outline-none focus:border-[#07543f]"
+                  />
+                </div>
+                <div>
+                  <label className="mb-1 block text-xs font-bold uppercase tracking-wider text-gray-700">
+                    Hạn thanh toán
+                  </label>
+                  <DatePicker
+                    value={editDueDate}
+                    onChange={(val) => setEditDueDate(val)}
+                    className="h-10 w-full rounded-xl border border-gray-200 bg-white px-3 text-xs outline-none focus:border-[#07543f]"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="mb-1 block text-xs font-bold uppercase tracking-wider text-gray-700">
+                  Tài khoản / Ví liên kết
+                </label>
+                <select
+                  value={editAccountId}
+                  onChange={(e) => setEditAccountId(e.target.value)}
+                  className="h-10 w-full rounded-xl border border-gray-200 px-3 text-xs outline-none focus:border-[#07543f]"
+                >
+                  <option value="">Không gắn tài khoản (Chỉ gửi nhắc nợ)</option>
+                  {accounts.map((acc) => (
+                    <option key={acc.id} value={acc.id}>
+                      {acc.name} (Số dư: {formatCurrency(acc.balance)})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="mb-1 block text-xs font-bold uppercase tracking-wider text-gray-700">
+                  Ghi chú / Thỏa thuận
+                </label>
+                <input
+                  type="text"
+                  placeholder="Ví dụ: Vay mua đồ, thỏa thuận trả trước..."
+                  value={editNote}
+                  onChange={(e) => setEditNote(e.target.value)}
+                  className="h-10 w-full rounded-xl border border-gray-200 px-3 text-xs outline-none focus:border-[#07543f]"
+                />
+              </div>
+
+              <div className="flex justify-end gap-2.5 pt-3 border-t border-gray-100">
+                <button
+                  type="button"
+                  onClick={() => setIsEditModalOpen(false)}
+                  className="h-10 rounded-xl bg-gray-100 px-4 text-xs font-bold text-gray-700 hover:bg-gray-200 transition cursor-pointer"
+                >
+                  Hủy
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSubmittingEdit}
+                  className="h-10 rounded-xl bg-[#07543f] px-5 text-xs font-bold text-white hover:bg-[#0b6c52] disabled:opacity-50 transition cursor-pointer shadow-sm"
+                >
+                  {isSubmittingEdit ? 'Đang lưu...' : 'Lưu thay đổi'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* POPUP XÁC NHẬN XÓA KHOẢN NỢ TỰ TẠO (CUSTOM MODAL ĐẸP MẮT) */}
+      <ConfirmDeleteModal
+        isOpen={Boolean(debtToDelete)}
+        title="Xác nhận xóa khoản nợ?"
+        subtitle="Hành động này không thể hoàn tác"
+        itemName={debtToDelete?.name}
+        itemTypeLabel="Khoản nợ"
+        message={debtToDelete ? `Bạn có chắc chắn muốn xóa vĩnh viễn khoản nợ "${debtToDelete.name}" khỏi sổ theo dõi không?` : ''}
+        isDeleting={isDeletingDebt}
+        onConfirm={confirmDeleteDebt}
+        onClose={() => setDebtToDelete(null)}
+      />
     </div>
   );
 }

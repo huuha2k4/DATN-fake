@@ -80,4 +80,15 @@ public interface NotificationRepository extends JpaRepository<Notification, UUID
      */
     @Query("SELECT COUNT(n) > 0 FROM Notification n WHERE n.id = :id AND n.userId = :userId AND n.deletedAt IS NULL")
     boolean existsByIdAndUserId(@Param("id") UUID id, @Param("userId") UUID userId);
+
+    /**
+     * Kiểm tra xem thông báo nợ với actionUrl và ngày tạo hôm nay đã tồn tại chưa (tránh spam)
+     */
+    @Query("SELECT COUNT(n) > 0 FROM Notification n WHERE n.userId = :userId " +
+           "AND n.actionUrl = :actionUrl AND n.createdAt >= :since AND n.deletedAt IS NULL")
+    boolean existsByUserIdAndActionUrlAndCreatedAtAfter(
+            @Param("userId") UUID userId,
+            @Param("actionUrl") String actionUrl,
+            @Param("since") java.time.LocalDateTime since
+    );
 }

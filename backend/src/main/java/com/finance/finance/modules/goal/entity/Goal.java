@@ -68,7 +68,7 @@ public class Goal {
     @Builder.Default
     private GoalPriority priority = GoalPriority.MEDIUM;
     
-    @Column(name = "icon", length = 10)
+    @Column(name = "icon", length = 50)
     private String icon;
     
     @Column(name = "color", length = 7)

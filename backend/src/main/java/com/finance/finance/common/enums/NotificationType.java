@@ -85,6 +85,11 @@ public enum NotificationType {
     GROUP_EXPENSE,
 
     /**
+     * Nộp tiền vào quỹ nhóm
+     */
+    GROUP_FUND_DEPOSIT,
+
+    /**
      * Bình luận mới trong nhóm
      */
     GROUP_COMMENT,

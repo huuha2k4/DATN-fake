@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react'
-import { FinanceIcon, type IconName } from '../../core/components/FinanceIcon'
+import { FinanceIcon, resolveCategoryIconName } from '../../core/components/FinanceIcon'
 import {
   getBalanceForecast,
-  getCategoryForecast,
+  getTopCategoryForecasts,
   getGoalsForecast,
   type BalanceForecastResponse,
   type CategoryForecastResponse,
@@ -21,26 +21,31 @@ export function FinancialForecastScreen({ onNotify }: Props) {
 
   // AI Real Forecast State (100% từ mô hình AI thật)
   const [balanceForecast, setBalanceForecast] = useState<BalanceForecastResponse | null>(null)
-  const [foodForecast, setFoodForecast] = useState<CategoryForecastResponse | null>(null)
+  const [categoryForecasts, setCategoryForecasts] = useState<CategoryForecastResponse[]>([])
   const [goalsForecast, setGoalsForecast] = useState<GoalForecastResponse | null>(null)
 
-  const loadForecast = async () => {
+  const loadForecast = async (showFeedback = false) => {
     setIsLoading(true)
     try {
-      const [balRes, foodRes, goalRes] = await Promise.allSettled([
+      const [balRes, categoriesRes, goalRes] = await Promise.allSettled([
         getBalanceForecast(30),
-        getCategoryForecast('Ăn uống'),
+        getTopCategoryForecasts(3),
         getGoalsForecast(),
       ])
 
       if (balRes.status === 'fulfilled') {
         setBalanceForecast(balRes.value)
       }
-      if (foodRes.status === 'fulfilled') {
-        setFoodForecast(foodRes.value)
+      if (categoriesRes.status === 'fulfilled' && categoriesRes.value.status === 'success') {
+        setCategoryForecasts(categoriesRes.value.forecasts)
+      } else {
+        setCategoryForecasts([])
       }
       if (goalRes.status === 'fulfilled') {
         setGoalsForecast(goalRes.value)
+      }
+      if (showFeedback) {
+        onNotify('Đã cập nhật dự báo từ dữ liệu tài chính mới nhất.')
       }
     } catch (err) {
       console.error('Lỗi khi tải dự báo tài chính:', err)
@@ -118,6 +123,15 @@ export function FinancialForecastScreen({ onNotify }: Props) {
               {balanceForecast?.summary || 'Dự báo biến động số dư theo xu hướng chi tiêu thực tế hàng ngày.'}
             </p>
           </div>
+          <button
+            type="button"
+            onClick={() => loadForecast(true)}
+            disabled={isLoading}
+            className="inline-flex h-9 shrink-0 items-center justify-center gap-1.5 rounded-lg bg-[#07543f] px-3 text-[11px] font-semibold text-white transition hover:bg-[#064a36] disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            <FinanceIcon name="refresh" size={14} className={isLoading ? 'animate-spin' : ''} />
+            {isLoading ? 'Đang tính...' : 'Cập nhật dự báo'}
+          </button>
         </header>
 
         {chartPoints.length > 0 ? (() => {
@@ -326,7 +340,7 @@ export function FinancialForecastScreen({ onNotify }: Props) {
       </section>
 
       {/* DỰ BÁO CHI TIÊU DANH MỤC THỰC TẾ (ĂN UỐNG) */}
-      {foodForecast && (
+      {categoryForecasts.length > 0 && (
         <section>
           <header className="mb-3">
             <h2 className="text-base font-semibold text-[#26372e] dark:text-[#f8fafc]">Dự báo chi tiêu Danh mục Thực tế</h2>
@@ -335,45 +349,53 @@ export function FinancialForecastScreen({ onNotify }: Props) {
             </p>
           </header>
           <div className="grid gap-3.5 md:grid-cols-2 xl:grid-cols-3">
-            <article className="flex flex-col justify-between rounded-2xl border border-[#e2e8f0] dark:border-[#1e3c54] bg-white dark:bg-[#102334] p-5 shadow-sm dark:shadow-[0_8px_20px_rgba(0,0,0,0.35)]">
+            {categoryForecasts.map((categoryForecast) => (
+            <article key={categoryForecast.category_name} className="flex flex-col justify-between rounded-2xl border border-[#e2e8f0] dark:border-[#1e3c54] bg-white dark:bg-[#102334] p-5 shadow-sm dark:shadow-[0_8px_20px_rgba(0,0,0,0.35)]">
               <div>
                 <header className="flex items-start justify-between gap-2">
                   <div className="flex items-center gap-2.5">
-                    <span className="grid size-9 place-items-center rounded-lg bg-[#fff0e9] dark:bg-[#341816] text-[#b45148]">
-                      <FinanceIcon name="coffee" size={16} />
+                    <span
+                      className="grid size-9 place-items-center rounded-lg"
+                      style={{
+                        backgroundColor: `${categoryForecast.category_color || '#b45148'}20`,
+                        color: categoryForecast.category_color || '#b45148',
+                      }}
+                    >
+                      <FinanceIcon name={resolveCategoryIconName(categoryForecast.category_icon || undefined, 'EXPENSE', categoryForecast.category_name)} size={16} />
                     </span>
                     <div>
-                      <h3 className="text-xs font-semibold text-[#34463b] dark:text-[#e2eaf0]">{foodForecast.category_name}</h3>
+                      <h3 className="text-xs font-semibold text-[#34463b] dark:text-[#e2eaf0]">{categoryForecast.category_name}</h3>
                       <p className="mt-0.5 text-[9px] text-[#718078] dark:text-[#8fa7b7]">
-                        Hạn mức: {foodForecast.budget_limit ? formatVND(foodForecast.budget_limit) : 'Chưa đặt hạn mức'}
+                        Hạn mức: {categoryForecast.budget_limit ? formatVND(categoryForecast.budget_limit) : 'Chưa đặt hạn mức'}
                       </p>
                     </div>
                   </div>
-                  <span className={`shrink-0 rounded-full px-2 py-0.5 text-[8px] font-semibold ${foodForecast.risk_level?.includes('VƯỢT') ? 'bg-[#fff0e9] text-[#b45148]' : 'bg-[#e3f4e9] text-[#087557]'}`}>
-                    {foodForecast.risk_level || 'AN TOÀN'}
+                  <span className={`shrink-0 rounded-full px-2 py-0.5 text-[8px] font-semibold ${categoryForecast.risk_level?.includes('VƯỢT') ? 'bg-[#fff0e9] text-[#b45148]' : 'bg-[#e3f4e9] text-[#087557]'}`}>
+                    {categoryForecast.risk_level || 'AN TOÀN'}
                   </span>
                 </header>
 
                 <div className="mt-4 grid gap-2 text-[11px]">
                   <div className="flex justify-between">
                     <span className="text-[#718078] dark:text-[#8fa7b7]">Đã chi trong tháng:</span>
-                    <strong className="text-[#26372e] dark:text-[#f8fafc]">{formatVND(foodForecast.current_spent || 0)}</strong>
+                    <strong className="text-[#26372e] dark:text-[#f8fafc]">{formatVND(categoryForecast.current_spent || 0)}</strong>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-[#718078] dark:text-[#8fa7b7]">Dự báo tổng chi cả tháng:</span>
-                    <strong className="text-[#b45148]">{formatVND(foodForecast.projected_total_month || 0)}</strong>
+                    <strong style={{ color: categoryForecast.category_color || '#b45148' }}>{formatVND(categoryForecast.projected_total_month || 0)}</strong>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-[#718078] dark:text-[#8fa7b7]">Tốc độ chi trung bình:</span>
-                    <span className="text-[#59675f] dark:text-[#cbd5e1]">{formatVND(foodForecast.daily_rate || 0)}/ngày</span>
+                    <span className="text-[#59675f] dark:text-[#cbd5e1]">{formatVND(categoryForecast.daily_rate || 0)}/ngày</span>
                   </div>
                 </div>
 
                 <p className="mt-3 rounded-lg bg-[#f8faf9] dark:bg-[#122838] p-2.5 text-[10px] leading-4 text-[#59675f] dark:text-[#cbd5e1]">
-                  💡 {foodForecast.summary}
+                  💡 {categoryForecast.summary}
                 </p>
               </div>
             </article>
+            ))}
           </div>
         </section>
       )}

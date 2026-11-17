@@ -148,15 +148,13 @@ public class ChildManagementService {
             wallet.setBalance(wallet.getBalance().subtract(request.getAmount()));
             wallet.setUpdatedAt(LocalDateTime.now());
             walletRepository.save(wallet);
-
-            // TODO: Create actual transaction
         }
 
         spendRequest = spendRequestRepository.save(spendRequest);
         return buildSpendRequestResponse(spendRequest);
     }
 
-    /** A transaction entered by the child: deduct immediately from the child's own wallet. */
+    /** A transaction entered by the child: deduct or deposit immediately into the child's own wallet. */
     @Transactional
     public SpendRequestResponse createDirectChildSpend(UUID groupId, UUID walletId, CreateSpendRequestRequest request, UUID currentUserId) {
         ChildWallet wallet = walletRepository.findById(walletId)
@@ -169,10 +167,25 @@ public class ChildManagementService {
         if (!isOwnerChild && !isGroupParent) {
             throw new ResourceNotFoundException("You do not have permission to manage this child wallet");
         }
-        if (wallet.getBalance().compareTo(request.getAmount()) < 0) {
-            throw new IllegalStateException("Số dư ví không đủ để chi tiêu");
+
+        final boolean isIncome = request.getDescription() != null && (
+                request.getDescription().startsWith("[INCOME_DEPOSIT] ")
+                || request.getDescription().startsWith("[INCOME_GIFT] ")
+                || request.getDescription().startsWith("[INCOME_CHORE] ")
+                || request.getDescription().startsWith(MONEY_REQUEST_PREFIX)
+        );
+
+        if (isIncome) {
+            // Khoản thu (ông bà/người thân cho, tiền lì xì, thu nhập của bé) -> Cộng vào số dư ví của bé
+            wallet.setBalance(wallet.getBalance().add(request.getAmount()));
+        } else {
+            // Khoản chi -> Trừ khỏi số dư ví của bé
+            if (wallet.getBalance().compareTo(request.getAmount()) < 0) {
+                throw new IllegalStateException("Số dư ví không đủ để chi tiêu");
+            }
+            wallet.setBalance(wallet.getBalance().subtract(request.getAmount()));
         }
-        wallet.setBalance(wallet.getBalance().subtract(request.getAmount()));
+
         wallet.setUpdatedAt(LocalDateTime.now());
         walletRepository.save(wallet);
         ChildSpendRequest transaction = ChildSpendRequest.builder()
@@ -299,8 +312,6 @@ public class ChildManagementService {
         spendRequest.setRespondedAt(LocalDateTime.now());
         spendRequest.setUpdatedAt(LocalDateTime.now());
 
-        // TODO: Create actual transaction with transactionId from request
-
         spendRequest = spendRequestRepository.save(spendRequest);
 
         if (wallet.getUserId() != null) {
@@ -311,7 +322,7 @@ public class ChildManagementService {
                         NotificationPriority.HIGH,
                         "Yêu cầu xin tiền đã được duyệt! 🎉",
                         "Yêu cầu xin " + String.format("%,d", spendRequest.getAmount().longValue()) + "đ của bạn đã được duyệt và cộng vào ví.",
-                        "/child-wallet",
+                        "/groups?groupId=" + groupId + "&tab=CHILD_WALLETS&walletId=" + walletId + "&modal=SPEND_REQUESTS",
                         "Xem ví của em"
                 );
             } catch (Exception e) {
@@ -357,7 +368,7 @@ public class ChildManagementService {
                         NotificationPriority.NORMAL,
                         "Yêu cầu xin tiền chưa được duyệt",
                         "Yêu cầu xin " + String.format("%,d", spendRequest.getAmount().longValue()) + "đ của bạn chưa được chấp thuận." + reason,
-                        "/child-wallet",
+                        "/groups?groupId=" + groupId + "&tab=CHILD_WALLETS&walletId=" + walletId + "&modal=SPEND_REQUESTS",
                         "Xem ví của em"
                 );
             } catch (Exception e) {
@@ -415,6 +426,8 @@ public class ChildManagementService {
                 .frequency(request.getFrequency())
                 .difficulty(request.getDifficulty())
                 .dueDate(request.getDueDate())
+                .estimatedMinutes(request.getEstimatedMinutes())
+                .icon(request.getIcon())
                 .status(ChoreStatus.ASSIGNED)
                 .createdAt(LocalDateTime.now())
                 .updatedAt(LocalDateTime.now())
@@ -433,7 +446,7 @@ public class ChildManagementService {
                         NotificationPriority.NORMAL,
                         "Bạn có nhiệm vụ mới! 🎯",
                         "Bạn vừa được giao nhiệm vụ: " + chore.getTitle() + "." + rewardStr,
-                        "/child-wallet",
+                        "/groups?groupId=" + groupId + "&tab=CHILD_WALLETS&walletId=" + walletId + "&modal=CHORES",
                         "Xem nhiệm vụ"
                 );
             } catch (Exception e) {
@@ -637,7 +650,7 @@ public class ChildManagementService {
                         NotificationPriority.HIGH,
                         "Nhiệm vụ đã được duyệt! 🎉",
                         "Nhiệm vụ " + chore.getTitle() + " đã được duyệt! Bạn được thưởng " + String.format("%,d", reward.longValue()) + "đ vào ví.",
-                        "/child-wallet",
+                        "/groups?groupId=" + groupId + "&tab=CHILD_WALLETS&walletId=" + walletId + "&modal=CHORES",
                         "Xem ví của em"
                 );
             } catch (Exception e) {
@@ -689,7 +702,7 @@ public class ChildManagementService {
                         NotificationPriority.NORMAL,
                         title,
                         message,
-                        "/child-wallet",
+                        "/groups?groupId=" + groupId + "&tab=CHILD_WALLETS&walletId=" + walletId + "&modal=CHORES",
                         "Xem nhiệm vụ"
                 );
             } catch (Exception e) {
@@ -734,6 +747,7 @@ public class ChildManagementService {
         final boolean isIncomeKind = request.getDescription() != null && (
                 request.getDescription().startsWith(MONEY_REQUEST_PREFIX)
                 || request.getDescription().startsWith("[INCOME_DEPOSIT] ")
+                || request.getDescription().startsWith("[INCOME_GIFT] ")
                 || request.getDescription().startsWith("[INCOME_CHORE] "));
 
         SpendRequestResponse.CategorySummary category = categoryRepository.findById(request.getCategoryId())
@@ -795,6 +809,8 @@ public class ChildManagementService {
                 .frequency(chore.getFrequency().name())
                 .difficulty(chore.getDifficulty() != null ? chore.getDifficulty().name() : null)
                 .dueDate(chore.getDueDate())
+                .estimatedMinutes(chore.getEstimatedMinutes())
+                .icon(chore.getIcon())
                 .status(chore.getStatus().name())
                 .completedAt(chore.getCompletedAt())
                 .proofImageKey(chore.getProofImageKey())

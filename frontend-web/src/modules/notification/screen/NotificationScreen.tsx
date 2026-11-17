@@ -18,7 +18,7 @@ function getNotificationVisual(type: NotificationType): { icon: IconName; bg: st
     case 'BUDGET_ALERT':
     case 'BUDGET_EXCEEDED':
       return {
-        icon: 'bolt',
+        icon: 'alert-triangle',
         bg: 'bg-rose-50 dark:bg-rose-950/50 text-rose-600 dark:text-rose-400 border-rose-100 dark:border-rose-900/60',
         color: '#dc2626',
         label: 'Ngân sách',
@@ -27,7 +27,7 @@ function getNotificationVisual(type: NotificationType): { icon: IconName; bg: st
     case 'GOAL_ACHIEVED':
     case 'GOAL_REMINDER':
       return {
-        icon: 'spark',
+        icon: 'target',
         bg: 'bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400 border-emerald-100 dark:border-emerald-900/60',
         color: '#059669',
         label: 'Mục tiêu',
@@ -35,31 +35,43 @@ function getNotificationVisual(type: NotificationType): { icon: IconName; bg: st
     case 'DEBT_REMINDER':
     case 'DEBT_OVERDUE':
       return {
-        icon: 'credit-card',
+        icon: 'handshake',
         bg: 'bg-pink-50 dark:bg-pink-950/50 text-pink-600 dark:text-pink-400 border-pink-100 dark:border-pink-900/60',
         color: '#e11d48',
         label: 'Công nợ',
       };
     case 'TRANSACTION':
-    case 'RECURRING_DUE':
-    case 'RECURRING_FAILED':
       return {
-        icon: 'wallet',
+        icon: 'receipt',
         bg: 'bg-sky-50 dark:bg-sky-950/50 text-sky-600 dark:text-sky-400 border-sky-100 dark:border-sky-900/60',
         color: '#2563eb',
         label: 'Giao dịch',
+      };
+    case 'RECURRING_DUE':
+    case 'RECURRING_FAILED':
+      return {
+        icon: 'clock',
+        bg: 'bg-amber-50 dark:bg-amber-950/50 text-amber-600 dark:text-amber-400 border-amber-100 dark:border-amber-900/60',
+        color: '#d97706',
+        label: 'Thanh toán định kỳ',
       };
     case 'ANOMALY_DETECTED':
     case 'INSIGHT_GENERATED':
     case 'WEEKLY_SUMMARY':
     case 'MONTHLY_REPORT':
       return {
-        icon: 'trend',
+        icon: 'analytics',
         bg: 'bg-teal-50 dark:bg-teal-950/50 text-teal-600 dark:text-teal-400 border-teal-100 dark:border-teal-900/60',
         color: '#16a34a',
         label: 'Báo cáo & Phân tích',
       };
     case 'GROUP_INVITATION':
+      return {
+        icon: 'user-plus',
+        bg: 'bg-sky-50 dark:bg-sky-950/50 text-sky-600 dark:text-sky-400 border-sky-100 dark:border-sky-900/60',
+        color: '#0284c7',
+        label: 'Lời mời nhóm',
+      };
     case 'GROUP_EXPENSE':
       return {
         icon: 'group',
@@ -69,42 +81,42 @@ function getNotificationVisual(type: NotificationType): { icon: IconName; bg: st
       };
     case 'GROUP_COMMENT':
       return {
-        icon: 'bell',
+        icon: 'message-square',
         bg: 'bg-indigo-50 dark:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400 border-indigo-100 dark:border-indigo-900/60',
         color: '#6366f1',
         label: 'Bình luận nhóm',
       };
     case 'CHILD_MONEY_REQUEST':
       return {
-        icon: 'wallet',
+        icon: 'hand-coins',
         bg: 'bg-amber-50 dark:bg-amber-950/50 text-amber-600 dark:text-amber-400 border-amber-100 dark:border-amber-900/60',
         color: '#d97706',
         label: 'Yêu cầu của con',
       };
     case 'CHILD_CHORE_COMPLETED':
       return {
-        icon: 'spark',
-        bg: 'bg-amber-50 dark:bg-amber-950/50 text-amber-600 dark:text-amber-400 border-amber-100 dark:border-amber-900/60',
-        color: '#d97706',
+        icon: 'award',
+        bg: 'bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400 border-emerald-100 dark:border-emerald-900/60',
+        color: '#059669',
         label: 'Nhiệm vụ của con',
       };
     case 'CHILD_MONEY_RECEIVED':
       return {
-        icon: 'wallet',
+        icon: 'gift',
         bg: 'bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400 border-emerald-100 dark:border-emerald-900/60',
         color: '#059669',
         label: 'Cộng tiền vào ví',
       };
     case 'CHILD_REQUEST_RESPONDED':
       return {
-        icon: 'spark',
+        icon: 'hand-coins',
         bg: 'bg-amber-50 dark:bg-amber-950/50 text-amber-600 dark:text-amber-400 border-amber-100 dark:border-amber-900/60',
         color: '#d97706',
         label: 'Phản hồi yêu cầu',
       };
     case 'CHILD_CHORE_ASSIGNED':
       return {
-        icon: 'spark',
+        icon: 'award',
         bg: 'bg-indigo-50 dark:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400 border-indigo-100 dark:border-indigo-900/60',
         color: '#6366f1',
         label: 'Nhiệm vụ mới',
@@ -112,7 +124,7 @@ function getNotificationVisual(type: NotificationType): { icon: IconName; bg: st
     case 'SYSTEM':
     default:
       return {
-        icon: 'bell',
+        icon: 'megaphone',
         bg: 'bg-gray-100 dark:bg-slate-800 text-gray-700 dark:text-slate-300 border-gray-200 dark:border-slate-700',
         color: '#4b5563',
         label: 'Hệ thống',

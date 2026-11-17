@@ -45,6 +45,7 @@ public class DebtService {
     private final AccountRepository accountRepository;
     private final CategoryRepository categoryRepository;
     private final com.finance.finance.modules.notification.service.NotificationService notificationService;
+    private final com.finance.finance.modules.notification.repository.NotificationRepository notificationRepository;
 
     // ==================== CREATE DEBT ====================
 
@@ -183,6 +184,10 @@ public class DebtService {
         if (request.getPaymentAmount() != null) debt.setPaymentAmount(request.getPaymentAmount());
         if (request.getNextPaymentDate() != null) debt.setNextPaymentDate(request.getNextPaymentDate());
         if (request.getDueDate() != null) debt.setDueDate(request.getDueDate());
+        if (request.getStartDate() != null) debt.setStartDate(request.getStartDate());
+        if (request.getPrincipalAmount() != null) {
+            debt.setPrincipalAmount(request.getPrincipalAmount());
+        }
         if (request.getAccountId() != null) debt.setAccountId(request.getAccountId());
         if (request.getCategoryId() != null) debt.setCategoryId(request.getCategoryId());
         if (request.getReminderEnabled() != null) debt.setReminderEnabled(request.getReminderEnabled());
@@ -636,6 +641,7 @@ public class DebtService {
                 .remaining(debt.getRemainingAmount())
                 .percentagePaid(debt.getPercentagePaid())
                 .status(debt.getStatus())
+                .startDate(debt.getStartDate())
                 .dueDate(debt.getDueDate())
                 .nextPaymentDate(debt.getNextPaymentDate())
                 .nextPaymentAmount(debt.getPaymentAmount())
@@ -646,9 +652,12 @@ public class DebtService {
         // Map account info (if available)
         DebtDetailResponse.AccountInfo accountInfo = null;
         if (debt.getAccountId() != null) {
+            String accName = accountRepository.findById(debt.getAccountId())
+                    .map(com.finance.finance.modules.account.entity.Account::getName)
+                    .orElse("Tài khoản");
             accountInfo = DebtDetailResponse.AccountInfo.builder()
                     .id(debt.getAccountId())
-                    .name("Account") // Would need accounts module integration
+                    .name(accName)
                     .build();
         }
 
@@ -663,15 +672,26 @@ public class DebtService {
 
         // Map payment history
         List<DebtDetailResponse.PaymentHistoryItem> paymentHistory = debt.getPayments().stream()
-                .map(payment -> DebtDetailResponse.PaymentHistoryItem.builder()
-                        .id(payment.getId())
-                        .amount(payment.getAmount())
-                        .principalPaid(payment.getPrincipalPaid())
-                        .interestPaid(payment.getInterestPaid())
-                        .paymentDate(payment.getPaymentDate())
-                        .paymentMethod(payment.getPaymentMethod())
-                        .note(payment.getNote())
-                        .build())
+                .map(payment -> {
+                    String pmAccName = null;
+                    if (payment.getAccountId() != null) {
+                        pmAccName = accountRepository.findById(payment.getAccountId())
+                                .map(com.finance.finance.modules.account.entity.Account::getName)
+                                .orElse(null);
+                    }
+                    return DebtDetailResponse.PaymentHistoryItem.builder()
+                            .id(payment.getId())
+                            .amount(payment.getAmount())
+                            .principalPaid(payment.getPrincipalPaid())
+                            .interestPaid(payment.getInterestPaid())
+                            .paymentDate(payment.getPaymentDate())
+                            .paymentMethod(payment.getPaymentMethod())
+                            .accountId(payment.getAccountId())
+                            .accountName(pmAccName)
+                            .createdAt(payment.getCreatedAt())
+                            .note(payment.getNote())
+                            .build();
+                })
                 .collect(Collectors.toList());
 
         return DebtDetailResponse.builder()
@@ -712,5 +732,94 @@ public class DebtService {
                 .createdAt(debt.getCreatedAt())
                 .updatedAt(debt.getUpdatedAt())
                 .build();
+    }
+
+    /**
+     * Tự động quét và gửi thông báo nhắc nhở các khoản vay nợ & cho vay:
+     * - Trước 3 ngày
+     * - Trước 2 ngày
+     * - Trước 1 ngày
+     * - Vào đúng ngày hẹn trả / thu nợ
+     */
+    @Transactional
+    public void scanAndSendDebtReminders(LocalDate today) {
+        log.info("[DebtReminder] Bắt đầu quét các khoản nợ cần nhắc nhở vào ngày {}", today);
+        LocalDate maxDate = today.plusDays(3);
+        List<Debt> upcomingDebts = debtRepository.findAllActiveDebtsDueBetween(today, maxDate);
+
+        java.text.NumberFormat nf = java.text.NumberFormat.getInstance(new java.util.Locale("vi", "VN"));
+        java.time.LocalDateTime startOfToday = today.atStartOfDay();
+
+        for (Debt debt : upcomingDebts) {
+            LocalDate targetDate = debt.getDueDate() != null ? debt.getDueDate() : debt.getNextPaymentDate();
+            if (targetDate == null) continue;
+
+            long daysUntil = ChronoUnit.DAYS.between(today, targetDate);
+            if (daysUntil < 0 || daysUntil > 3) continue;
+
+            // Kiểm tra xem hôm nay đã gửi thông báo cho khoản nợ này chưa để tránh spam
+            String actionUrl = "/debts/" + debt.getId();
+            boolean alreadySentToday = notificationRepository.existsByUserIdAndActionUrlAndCreatedAtAfter(
+                    debt.getUser().getId(),
+                    actionUrl,
+                    startOfToday
+            );
+            if (alreadySentToday) {
+                continue;
+            }
+
+            boolean isLend = debt.getDebtType() == DebtType.LENDING;
+            String counterparty = isLend
+                    ? (debt.getDebtorName() != null ? debt.getDebtorName() : "Người vay")
+                    : (debt.getCreditorName() != null ? debt.getCreditorName() : "Chủ nợ");
+
+            BigDecimal amountToPay = debt.getRemainingAmount() != null && debt.getRemainingAmount().compareTo(BigDecimal.ZERO) > 0
+                    ? debt.getRemainingAmount()
+                    : debt.getPrincipalAmount();
+
+            String amountFormatted = nf.format(amountToPay != null ? amountToPay : BigDecimal.ZERO) + " đ";
+            String dateFormatted = String.format("%02d/%02d/%d", targetDate.getDayOfMonth(), targetDate.getMonthValue(), targetDate.getYear());
+
+            String title;
+            String body;
+
+            if (daysUntil == 0) {
+                // Hôm nay đến hạn
+                if (isLend) {
+                    title = "Hôm nay đến hạn thu nợ: " + counterparty + " 💰";
+                    body = String.format("Khoản tiền %s từ %s đã đến hạn thu hôm nay (%s). Hãy liên hệ để đối soát và cập nhật thanh toán.",
+                            amountFormatted, counterparty, dateFormatted);
+                } else {
+                    title = "Hôm nay đến hạn trả nợ: " + counterparty + " ⏰";
+                    body = String.format("Khoản nợ %s cho %s đã đến hạn trả hôm nay (%s). Vui lòng thanh toán đúng hạn để duy trì uy tín tài chính.",
+                            amountFormatted, counterparty, dateFormatted);
+                }
+            } else {
+                // Còn 1, 2, 3 ngày
+                String daysText = daysUntil == 1 ? "1 ngày nữa (ngày mai)" : daysUntil + " ngày nữa";
+                if (isLend) {
+                    title = String.format("Sắp đến hạn thu nợ từ %s (%s) 📅", counterparty, daysText);
+                    body = String.format("Khoản cho vay %s từ %s sẽ đến hạn thu sau %s (%s).",
+                            amountFormatted, counterparty, daysText, dateFormatted);
+                } else {
+                    title = String.format("Sắp đến hạn trả nợ cho %s (%s) ⚠️", counterparty, daysText);
+                    body = String.format("Khoản nợ %s cho %s sẽ đến hạn thanh toán sau %s (%s). Hãy chuẩn bị tài chính nhé.",
+                            amountFormatted, counterparty, daysText, dateFormatted);
+                }
+            }
+
+            notificationService.createNotification(
+                    debt.getUser().getId(),
+                    com.finance.finance.common.enums.NotificationType.DEBT_REMINDER,
+                    daysUntil <= 1 ? com.finance.finance.common.enums.NotificationPriority.HIGH : com.finance.finance.common.enums.NotificationPriority.NORMAL,
+                    title,
+                    body,
+                    actionUrl,
+                    "Chi tiết khoản nợ"
+            );
+
+            log.info("[DebtReminder] Đã gửi thông báo nhắc nợ (còn {} ngày) cho user {} - debt {}",
+                    daysUntil, debt.getUser().getId(), debt.getId());
+        }
     }
 }

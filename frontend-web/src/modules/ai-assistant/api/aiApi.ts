@@ -142,6 +142,8 @@ export interface BalanceForecastResponse {
 export interface CategoryForecastResponse {
   status: string;
   category_name: string;
+  category_icon?: string | null;
+  category_color?: string | null;
   days_passed: number;
   days_remaining: number;
   current_spent: number;
@@ -150,6 +152,11 @@ export interface CategoryForecastResponse {
   budget_limit?: number | null;
   risk_level: string;
   summary: string;
+}
+
+export interface TopCategoryForecastsResponse {
+  status: string;
+  forecasts: CategoryForecastResponse[];
 }
 
 function getCurrentUserId(userId?: string): string {
@@ -252,16 +259,30 @@ export async function getAiRecommendations(userId?: string): Promise<Recommendat
  */
 export async function getBalanceForecast(days: number = 30, userId?: string): Promise<BalanceForecastResponse> {
   const currentUserId = getCurrentUserId(userId);
-  const response = await axios.get<BalanceForecastResponse>(`/api/forecast/balance?user_id=${currentUserId}&days=${days}`);
+  const response = await axios.get<BalanceForecastResponse>(`/api/forecast/balance?user_id=${currentUserId}&days=${days}&refresh=${Date.now()}`, {
+    headers: { 'Cache-Control': 'no-cache' },
+  });
   return response.data;
 }
 
 /**
  * Lấy dự báo chi tiêu cho một danh mục đến cuối tháng (AI 3)
  */
-export async function getCategoryForecast(category: string = 'Ăn uống', userId?: string): Promise<CategoryForecastResponse> {
+export async function getCategoryForecast(category?: string, userId?: string): Promise<CategoryForecastResponse> {
   const currentUserId = getCurrentUserId(userId);
-  const response = await axios.get<CategoryForecastResponse>(`/api/forecast/category?user_id=${currentUserId}&category=${encodeURIComponent(category)}`);
+  const categoryQuery = category ? `&category=${encodeURIComponent(category)}` : '';
+  const response = await axios.get<CategoryForecastResponse>(`/api/forecast/category?user_id=${currentUserId}${categoryQuery}&refresh=${Date.now()}`, {
+    headers: { 'Cache-Control': 'no-cache' },
+  });
+  return response.data;
+}
+
+export async function getTopCategoryForecasts(limit: number = 3, userId?: string): Promise<TopCategoryForecastsResponse> {
+  const currentUserId = getCurrentUserId(userId);
+  const response = await axios.get<TopCategoryForecastsResponse>(
+    `/api/forecast/categories?user_id=${currentUserId}&limit=${limit}&refresh=${Date.now()}`,
+    { headers: { 'Cache-Control': 'no-cache' } },
+  );
   return response.data;
 }
 
@@ -289,6 +310,8 @@ export interface GoalForecastResponse {
  */
 export async function getGoalsForecast(userId?: string): Promise<GoalForecastResponse> {
   const currentUserId = getCurrentUserId(userId);
-  const response = await axios.get<GoalForecastResponse>(`/api/forecast/goals?user_id=${currentUserId}`);
+  const response = await axios.get<GoalForecastResponse>(`/api/forecast/goals?user_id=${currentUserId}&refresh=${Date.now()}`, {
+    headers: { 'Cache-Control': 'no-cache' },
+  });
   return response.data;
 }

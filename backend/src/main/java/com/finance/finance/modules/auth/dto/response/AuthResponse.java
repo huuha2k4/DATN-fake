@@ -18,4 +18,6 @@ public class AuthResponse {
     private Long expiresIn;
     private UserResponse user;
     private String message;  // Optional message for register response
+    private Boolean requires2fa;
+    private String tempToken;
 }

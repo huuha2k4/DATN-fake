@@ -34,12 +34,13 @@ public class WebConfig implements WebMvcConfigurer {
 
     @Override
     public void addResourceHandlers(ResourceHandlerRegistry registry) {
-        // Serve uploaded files
+        // Serve uploaded files with cache header for high performance
         String uploadPath = Paths.get("uploads").toAbsolutePath().toUri().toString();
         if (!uploadPath.endsWith("/")) {
             uploadPath += "/";
         }
         registry.addResourceHandler("/uploads/**")
-                .addResourceLocations(uploadPath);
+                .addResourceLocations(uploadPath)
+                .setCachePeriod(86400 * 30); // Cache 30 days
     }
 }

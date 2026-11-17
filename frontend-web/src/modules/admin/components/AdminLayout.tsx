@@ -222,23 +222,7 @@ export const AdminLayout: React.FC = () => {
               title={isSidebarCollapsed ? 'Mở rộng thanh điều hướng' : 'Thu gọn thanh điều hướng'}
               aria-label={isSidebarCollapsed ? 'Mở rộng thanh điều hướng' : 'Thu gọn thanh điều hướng'}
             >
-              {isSidebarCollapsed ? (
-                /* Icon mở ra khi đang thu gọn: 3 vạch với tam giác chỉ sang phải */
-                <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <path d="M3.5 4.5H16.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-                  <path d="M5.5 10H16.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-                  <path d="M3.5 15.5H16.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-                  <path d="M2.5 8L5 10L2.5 12" fill="currentColor" />
-                </svg>
-              ) : (
-                /* Icon thu vào: 3 vạch ngang kèm tam giác chỉ sang trái */
-                <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <path d="M3.5 4.5H16.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-                  <path d="M8 10H16.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-                  <path d="M3.5 15.5H16.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-                  <path d="M6.5 8L3.5 10L6.5 12V8Z" fill="currentColor" />
-                </svg>
-              )}
+              <FinanceIcon name={isSidebarCollapsed ? 'panel-left-open' : 'panel-left-close'} size={20} />
             </button>
 
             <div className="flex flex-col justify-center">

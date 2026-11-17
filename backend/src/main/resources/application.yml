@@ -126,7 +126,7 @@ app:
   
   jwt:
     secret: ${JWT_SECRET:your-256-bit-secret-key-change-this-in-production-environment-must-be-at-least-256-bits}
-    access-token-expiration: 900000        # 15 minutes (in ms)
+    access-token-expiration: 86400000       # 24 hours (in ms) để trải nghiệm app và dev mượt mà không bị hết hạn liên tục
     refresh-token-expiration: 2592000000   # 30 days (in ms)
     issuer: finance-app
   

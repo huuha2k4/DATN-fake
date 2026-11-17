@@ -104,6 +104,28 @@ export interface GroupBalanceResponse {
   isFullySettled: boolean;
 }
 
+export interface GroupMonthlyCategoryStat {
+  categoryId: string;
+  categoryName: string;
+  categoryIcon?: string;
+  categoryColor?: string;
+  totalAmount: number;
+  percentage: number;
+  count: number;
+}
+
+export interface GroupMonthlyStatisticsResponse {
+  year: number;
+  month: number;
+  totalIncome: number;
+  totalExpense: number;
+  remaining: number;
+  fundBalance: number;
+  transactionCount: number;
+  trendPercentage?: number | null;
+  categoryStats: GroupMonthlyCategoryStat[];
+}
+
 export interface GroupFundResponse {
   id: string;
   groupId: string;
@@ -230,6 +252,7 @@ export interface CreateChildWalletRequest {
 
 export interface UpdateChildWalletRequest {
   childName?: string;
+  avatarKey?: string;
   dateOfBirth?: string;
   weeklyAllowance?: number;
   allowanceSource?: 'PERSONAL_ACCOUNT' | 'GROUP_FUND';
@@ -350,6 +373,7 @@ export interface ChildChoreItem {
   frequency?: 'ONCE' | 'DAILY' | 'WEEKLY' | 'MONTHLY';
   difficulty?: 'EASY' | 'MEDIUM' | 'HARD';
   dueDate?: string;
+  icon?: string;
   status: 'ASSIGNED' | 'IN_PROGRESS' | 'SUBMITTED' | 'APPROVED' | 'REJECTED' | 'FAILED';
   approvedByUserId?: string;
   approvedByUserName?: string;
@@ -367,6 +391,7 @@ export interface CreateChoreRequest {
   frequency?: 'ONCE' | 'DAILY' | 'WEEKLY' | 'MONTHLY';
   dueDate?: string;
   difficulty?: 'EASY' | 'MEDIUM' | 'HARD';
+  icon?: string;
 }
 
 export const groupApi = {
@@ -405,6 +430,19 @@ export const groupApi = {
 
   async deleteGroup(groupId: string): Promise<void> {
     await api.delete(`/groups/${groupId}`);
+  },
+
+  async toggleNotification(groupId: string, enabled: boolean): Promise<boolean> {
+    try {
+      await api.put(`/groups/${groupId}/notifications?enabled=${enabled}`);
+      return true;
+    } catch {
+      return false;
+    }
+  },
+
+  async leaveGroup(groupId: string): Promise<void> {
+    await api.post(`/groups/${groupId}/leave`);
   },
 
   // 2. Thành viên
@@ -511,6 +549,16 @@ export const groupApi = {
   async getBalances(groupId: string): Promise<GroupBalanceResponse | null> {
     try {
       const res = await api.get(`/groups/${groupId}/balances`);
+      return res.data?.data || res.data || null;
+    } catch {
+      return null;
+    }
+  },
+
+  async getFundMonthlyStatistics(groupId: string, year?: number, month?: number): Promise<GroupMonthlyStatisticsResponse | null> {
+    try {
+      const query = year && month ? `?year=${year}&month=${month}` : '';
+      const res = await api.get(`/groups/${groupId}/fund/monthly-statistics${query}`);
       return res.data?.data || res.data || null;
     } catch {
       return null;

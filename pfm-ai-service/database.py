@@ -67,6 +67,8 @@ class Category(Base):
     id = Column(String, primary_key=True)
     name = Column(String(100), nullable=False)
     kind = Column(String(20), nullable=False, default="EXPENSE") # EXPENSE, INCOME
+    icon = Column(String(50), nullable=True)
+    color = Column(String(7), nullable=True)
     is_essential = Column(Boolean, default=False)
 
     transactions = relationship("Transaction", back_populates="category")
@@ -173,6 +175,36 @@ class AIChatSession(Base):
     updated_at = Column(DateTime(timezone=True), default=datetime.utcnow)
 
     messages = relationship("AIChatMessage", back_populates="session", cascade="all, delete-orphan", order_by="AIChatMessage.created_at")
+
+class ChildWallet(Base):
+    __tablename__ = "child_wallets"
+    __table_args__ = {"schema": "core"} if is_postgres else {}
+    id = Column(String, primary_key=True)
+    group_id = Column(String, nullable=False)
+    user_id = Column(String, nullable=True, index=True)
+    child_name = Column(String(150), nullable=False)
+    balance = Column("balance", Float, nullable=False, default=0.0)
+    currency = Column(String(3), default="VND")
+    weekly_allowance = Column(Float, nullable=True, default=0.0)
+
+class GroupMember(Base):
+    __tablename__ = "group_members"
+    __table_args__ = {"schema": "core"} if is_postgres else {}
+    group_id = Column(String, primary_key=True)
+    user_id = Column(String, primary_key=True, index=True)
+    role = Column(String(20), default="MEMBER")
+
+class ChildSpendRequest(Base):
+    __tablename__ = "child_spend_requests"
+    __table_args__ = {"schema": "core"} if is_postgres else {}
+    id = Column(String, primary_key=True)
+    wallet_id = Column(String, ForeignKey("core.child_wallets.id" if is_postgres else "child_wallets.id"), nullable=False)
+    amount = Column(Float, nullable=False)
+    category_id = Column(String, nullable=True)
+    description = Column(String(300), nullable=False)
+    notes = Column(Text, nullable=True)
+    status = Column(String(20), nullable=False, default="PENDING")
+    created_at = Column(DateTime(timezone=True), default=datetime.utcnow)
 
 class AIChatMessage(Base):
     __tablename__ = "ai_chat_messages"

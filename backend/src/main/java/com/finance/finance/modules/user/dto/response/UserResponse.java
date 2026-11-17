@@ -23,6 +23,7 @@ public class UserResponse {
     private Boolean emailVerified;
     private String phone;
     private Boolean mfaEnabled;
+    private Boolean loginAlertEnabled;
     private UserStatus userStatus;
     private SystemRole systemRole;
     private SubscriptionTier subscriptionTier;

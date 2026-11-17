@@ -1,6 +1,6 @@
 package com.finance.finance.modules.feedback.controller;
 
-import com.finance.finance.modules.admin.entity.Feedback;
+import com.finance.finance.modules.feedback.entity.Feedback;
 import com.finance.finance.modules.feedback.dto.request.SendFeedbackRequest;
 import com.finance.finance.modules.feedback.service.UserFeedbackService;
 import com.finance.finance.modules.user.entity.User;

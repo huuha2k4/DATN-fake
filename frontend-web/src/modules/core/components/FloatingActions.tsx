@@ -40,7 +40,7 @@ export function FloatingActions({
       <aside ref={dockRef} className={`floating-actions-dock ${isOpen ? 'is-open' : ''}`} aria-label="Thao tác nhanh">
         {/* 3 Nút thao tác nhanh phụ (Chỉ hiển thị khi bấm mở) */}
         <div className={`fab-menu-items ${isOpen ? 'active' : ''}`}>
-          {!isChildAccount && <button
+          <button
             type="button"
             className="fab-item fab-scanner"
             onClick={() => {
@@ -50,23 +50,23 @@ export function FloatingActions({
             title="Quét hóa đơn (OCR)"
             aria-label="Quét hóa đơn"
           >
-            <span className="fab-tooltip">Quét hóa đơn</span>
-            <FinanceIcon name="receipt" size={17} />
-          </button>}
+            <span className="fab-tooltip">Quét hóa đơn (OCR)</span>
+            <FinanceIcon name="scan" size={17} />
+          </button>
 
-          {!isChildAccount && <button
+          <button
             type="button"
             className="fab-item fab-ai"
             onClick={() => {
               setIsMiniChatOpen((prev) => !prev);
               setIsOpen(false);
             }}
-            title="Trợ lý Finora (Chat nhanh)"
+            title={isChildAccount ? 'Trợ lý Finora AI (Hỏi đáp tài chính cho bé)' : 'Trợ lý Finora (Chat nhanh)'}
             aria-label="Trợ lý Finora"
           >
-            <span className="fab-tooltip">Trợ lý AI (Chat nhanh)</span>
+            <span className="fab-tooltip">{isChildAccount ? 'Hỏi trợ lý Finora AI 🤖' : 'Trợ lý AI (Chat nhanh)'}</span>
             <FinanceIcon name="spark" size={17} />
-          </button>}
+          </button>
 
           <button
             type="button"
@@ -92,7 +92,7 @@ export function FloatingActions({
           aria-label={isOpen ? 'Đóng menu' : 'Mở menu thao tác nhanh'}
         >
           <span className="fab-trigger-icon">
-            {isOpen ? '✕' : <FinanceIcon name="plus" size={20} />}
+            {isOpen ? <FinanceIcon name="close" size={20} /> : <FinanceIcon name="plus" size={20} />}
           </span>
         </button>
       </aside>

@@ -1,7 +1,8 @@
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { isAxiosError } from 'axios';
 import { FinanceIcon, resolveCategoryIconName, type IconName } from '../../core/components/FinanceIcon';
+import { ConfirmDeleteModal } from '../../core/components/ConfirmDeleteModal';
 import {
   groupApi,
   type GroupResponse,
@@ -10,6 +11,7 @@ import {
   type GroupBalanceResponse,
   type GroupFundResponse,
   type GroupFundContributionResponse,
+  type GroupMonthlyStatisticsResponse,
   type GroupCommentResponse,
   type SettlementResponse,
   type ChildWalletResponse,
@@ -23,6 +25,7 @@ import {
 import { getStoredUser } from '../../auth/api/authApi';
 import { userApi } from '../../user/api/userApi';
 import { accountApi, type AccountItem } from '../../account-management/api/accountApi';
+import { CHORE_ICONS, resolveChoreIconUrl } from '../../child-wallet/components/choreIcons';
 import './GroupManagementScreen.css';
 
 interface GroupManagementScreenProps {
@@ -112,7 +115,22 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
   const [loading, setLoading] = useState(true);
 
   // Group Details Sub-tabs
-  const [activeTab, setActiveTab] = useState<'OVERVIEW' | 'EXPENSES' | 'CHAT' | 'BALANCES' | 'MEMBERS' | 'CHILD_WALLETS'>('OVERVIEW');
+  const [activeTab, setActiveTab] = useState<'OVERVIEW' | 'EXPENSES' | 'CHAT' | 'BALANCES' | 'MEMBERS' | 'CHILD_WALLETS' | 'SETTINGS'>('OVERVIEW');
+
+  // Group Settings Tab States
+  const [settingsGroupName, setSettingsGroupName] = useState('');
+  const [settingsGroupDesc, setSettingsGroupDesc] = useState('');
+  const [settingsGroupType, setSettingsGroupType] = useState<GroupType>('FAMILY');
+  const [groupNotificationEnabled, setGroupNotificationEnabled] = useState(true);
+  const [isSavingSettings, setIsSavingSettings] = useState(false);
+
+  useEffect(() => {
+    if (selectedGroup) {
+      setSettingsGroupName(selectedGroup.name || '');
+      setSettingsGroupDesc(selectedGroup.description || '');
+      setSettingsGroupType(selectedGroup.groupType || 'FAMILY');
+    }
+  }, [selectedGroup]);
 
   // Tab Data
   const [members, setMembers] = useState<GroupMemberResponse[]>([]);
@@ -235,6 +253,8 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
   const [isChildWalletModalOpen, setIsChildWalletModalOpen] = useState(false);
   const [childWalletMode, setChildWalletMode] = useState<'MODE_1' | 'MODE_2'>('MODE_2'); // MODE_1 = Thành viên hiện có, MODE_2 = Tạo tài khoản mới cho bé
   const [childWalletName, setChildWalletName] = useState('');
+  const [childWalletAvatarKey, setChildWalletAvatarKey] = useState<string>('kid_boy');
+  const [isUploadingCreateAvatar, setIsUploadingCreateAvatar] = useState(false);
   const [childWalletBirth, setChildWalletBirth] = useState('');
   const [childWalletAllowance, setChildWalletAllowance] = useState('');
   const [childWalletAllowanceSource, setChildWalletAllowanceSource] = useState<'PERSONAL_ACCOUNT' | 'GROUP_FUND'>('PERSONAL_ACCOUNT');
@@ -248,6 +268,8 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
   // Modal Edit Child Wallet State
   const [editingChildWallet, setEditingChildWallet] = useState<ChildWalletResponse | null>(null);
   const [editChildName, setEditChildName] = useState('');
+  const [editChildAvatarKey, setEditChildAvatarKey] = useState<string>('kid_boy');
+  const [isUploadingEditAvatar, setIsUploadingEditAvatar] = useState(false);
   const [editChildBirth, setEditChildBirth] = useState('');
   const [editChildAllowance, setEditChildAllowance] = useState('');
   const [editChildAllowanceSource, setEditChildAllowanceSource] = useState<'PERSONAL_ACCOUNT' | 'GROUP_FUND'>('PERSONAL_ACCOUNT');
@@ -283,6 +305,7 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
   const [choreFrequency, setChoreFrequency] = useState<'ONCE' | 'DAILY' | 'WEEKLY'>('ONCE');
   const [choreDifficulty, setChoreDifficulty] = useState<'EASY' | 'MEDIUM' | 'HARD'>('EASY');
   const [choreDueDate, setChoreDueDate] = useState('');
+  const [choreSelectedIcon, setChoreSelectedIcon] = useState<string | null>(null);
   const [isSubmittingChore, setIsSubmittingChore] = useState(false);
   const [rejectingChoreId, setRejectingChoreId] = useState<string | null>(null);
   const [rejectActionType, setRejectActionType] = useState<'RETRY' | 'FAILED'>('RETRY');
@@ -359,6 +382,111 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
 
   // Group Invitations (Pending invitations sent to current user)
   const [pendingInvitations, setPendingInvitations] = useState<GroupInvitationResponse[]>([]);
+
+  // Generic Confirm Delete Modal State
+  const [confirmDeleteState, setConfirmDeleteState] = useState<{
+    isOpen: boolean;
+    title: string;
+    subtitle?: string;
+    itemName?: string;
+    itemTypeLabel?: string;
+    message?: string;
+    onConfirm: () => Promise<void>;
+  } | null>(null);
+  const [isProcessingDelete, setIsProcessingDelete] = useState(false);
+
+  // Tab Chi tiêu đồng bộ như bản App: Ưu tiên mặc định tháng hiện tại (hoặc tháng trước nếu có)
+  const [txTypeFilter, setTxTypeFilter] = useState<'ALL' | 'INCOME' | 'EXPENSE'>('ALL');
+  const [selectedMonth, setSelectedMonth] = useState<string>(() => {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  });
+  const [txCurrentPage, setTxCurrentPage] = useState(1);
+  const [monthlyStats, setMonthlyStats] = useState<GroupMonthlyStatisticsResponse | null>(null);
+  const [viewingExpense, setViewingExpense] = useState<GroupExpenseResponse | null>(null);
+  const [viewingContribution, setViewingContribution] = useState<GroupFundContributionResponse | null>(null);
+  const [commentLikes, setCommentLikes] = useState<Record<string, { count: number; liked: boolean }>>({});
+
+  // Danh sách kỳ báo cáo: "Tất cả thời gian" ở trên cùng + 12 tháng gần nhất (đồng bộ bản App)
+  const availableMonths = useMemo(() => {
+    const list: { key: string; label: string }[] = [
+      { key: 'ALL', label: 'Tất cả thời gian' },
+    ];
+    const now = new Date();
+    for (let i = 0; i < 12; i++) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const y = d.getFullYear();
+      const m = String(d.getMonth() + 1).padStart(2, '0');
+      list.push({
+        key: `${y}-${m}`,
+        label: `Tháng ${m}/${y}`,
+      });
+    }
+    return list;
+  }, []);
+
+  // Tính toán dữ liệu danh mục chi tiêu cho Biểu đồ Donut (đồng bộ với bản App)
+  const categoryChartData = useMemo(() => {
+    const totalExp = expenses.reduce((sum, e) => sum + (e.amount || 0), 0);
+    const catMap: Record<string, { name: string; amount: number; color: string; icon?: string }> = {};
+    const defaultColors = ['#10b981', '#3b82f6', '#f59e0b', '#ec4899', '#8b5cf6', '#06b6d4', '#ef4444', '#64748b'];
+
+    expenses.forEach((e) => {
+      const catName = e.category?.name || 'Chi tiêu khác';
+      const catColor = e.category?.color || defaultColors[Object.keys(catMap).length % defaultColors.length];
+      const catIcon = e.category?.icon;
+      if (!catMap[catName]) {
+        catMap[catName] = { name: catName, amount: 0, color: catColor, icon: catIcon };
+      }
+      catMap[catName].amount += (e.amount || 0);
+    });
+
+    const list = Object.values(catMap).map((item) => ({
+      name: item.name,
+      amount: item.amount,
+      color: item.color,
+      icon: item.icon,
+      percentage: totalExp > 0 ? (item.amount / totalExp) * 100 : 0,
+    })).sort((a, b) => b.amount - a.amount);
+
+    return {
+      totalExp,
+      categories: list,
+    };
+  }, [expenses]);
+
+  const selectedMonthLabel = availableMonths.find((m) => m.key === selectedMonth)?.label || 'Tháng này';
+
+  // Nạp thống kê quỹ nhóm theo tháng
+  const loadMonthlyFundStats = async (groupId: string, monthKey: string) => {
+    try {
+      if (monthKey && monthKey !== 'ALL') {
+        const [yearStr, monthStr] = monthKey.split('-');
+        const stats = await groupApi.getFundMonthlyStatistics(
+          groupId,
+          parseInt(yearStr, 10),
+          parseInt(monthStr, 10)
+        );
+        setMonthlyStats(stats);
+      } else {
+        const now = new Date();
+        const stats = await groupApi.getFundMonthlyStatistics(
+          groupId,
+          now.getFullYear(),
+          now.getMonth() + 1
+        );
+        setMonthlyStats(stats);
+      }
+    } catch {
+      // ignore
+    }
+  };
+
+  useEffect(() => {
+    if (selectedGroup) {
+      loadMonthlyFundStats(selectedGroup.id, selectedMonth);
+    }
+  }, [selectedGroup?.id, selectedMonth]);
 
   const loadPendingInvitations = async () => {
     try {
@@ -544,6 +672,8 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
 
   useEffect(() => {
     if (selectedGroup) {
+      // Khi chuyển sang nhóm khác, luôn tự động đặt lại tab về Tổng quan (OVERVIEW)
+      setActiveTab('OVERVIEW');
       loadGroupDetails(selectedGroup);
     }
   }, [selectedGroup?.id]);
@@ -552,13 +682,23 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
   useEffect(() => {
     const queryTab = searchParams.get('tab');
     if (queryTab && ['OVERVIEW', 'EXPENSES', 'CHAT', 'BALANCES', 'MEMBERS', 'CHILD_WALLETS'].includes(queryTab)) {
-      setActiveTab(queryTab as any);
+      if (
+        queryTab === 'BALANCES' &&
+        selectedGroup &&
+        (selectedGroup.groupType === 'FAMILY' || selectedGroup.groupType === 'COUPLE')
+      ) {
+        setActiveTab('OVERVIEW');
+      } else {
+        setActiveTab(queryTab as any);
+      }
     }
 
     const queryWalletId = searchParams.get('walletId');
     const queryModal = searchParams.get('modal');
-    if (queryWalletId && childWallets.length > 0) {
-      const targetWallet = childWallets.find((w) => w.id === queryWalletId);
+    if ((queryWalletId || queryModal) && childWallets.length > 0) {
+      const targetWallet = queryWalletId
+        ? childWallets.find((w) => w.id === queryWalletId) || childWallets[0]
+        : childWallets[0];
       if (targetWallet) {
         if (queryModal === 'SPEND_REQUESTS') {
           handleOpenSpendRequests(targetWallet);
@@ -567,7 +707,7 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
         }
       }
     }
-  }, [searchParams, childWallets]);
+  }, [searchParams, childWallets, selectedGroup?.groupType]);
 
   // Real-time polling for messages and typing status when viewing CHAT tab
   useEffect(() => {
@@ -700,15 +840,27 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
     } catch { onNotify('Không thể cập nhật nhóm'); }
   };
 
-  const handleDeleteGroup = async () => {
-    if (!selectedGroup || !window.confirm(`Xóa nhóm "${selectedGroup.name}"?`)) return;
-    try {
-      await groupApi.deleteGroup(selectedGroup.id);
-      localStorage.removeItem(LAST_SELECTED_GROUP_KEY);
-      setSelectedGroup(null);
-      await loadGroups();
-      onNotify('Đã xóa nhóm');
-    } catch { onNotify('Không thể xóa nhóm. Hãy bảo đảm nhóm đã cân bằng.'); }
+  const handleDeleteGroup = () => {
+    if (!selectedGroup) return;
+    setConfirmDeleteState({
+      isOpen: true,
+      title: 'Xác nhận xóa nhóm?',
+      subtitle: 'Toàn bộ dữ liệu nhóm sẽ bị xóa vĩnh viễn',
+      itemName: selectedGroup.name,
+      itemTypeLabel: 'Tên nhóm',
+      message: `Bạn có chắc chắn muốn xóa nhóm "${selectedGroup.name}" không? Hãy đảm bảo tất cả các khoản chi tiêu và nợ trong nhóm đã được thanh toán cân bằng.`,
+      onConfirm: async () => {
+        try {
+          await groupApi.deleteGroup(selectedGroup.id);
+          localStorage.removeItem(LAST_SELECTED_GROUP_KEY);
+          setSelectedGroup(null);
+          await loadGroups();
+          onNotify('Đã xóa nhóm thành công');
+        } catch {
+          onNotify('Không thể xóa nhóm. Hãy bảo đảm nhóm đã cân bằng.');
+        }
+      },
+    });
   };
 
   // Handle Create Expense
@@ -917,12 +1069,60 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
     } catch { onNotify('Không thể sửa bình luận'); }
   };
 
-  const handleDeleteComment = async (targetId: string, commentId: string) => {
-    if (!selectedGroup || !window.confirm('Xóa bình luận này?')) return;
-    try {
-      await groupApi.deleteComment(selectedGroup.id, commentId);
-      setCommentsByTarget((previous) => ({ ...previous, [targetId]: (previous[targetId] || []).filter((item) => item.id !== commentId && item.parentCommentId !== commentId) }));
-    } catch { onNotify('Không thể xóa bình luận'); }
+  const handleDeleteComment = (targetId: string, commentId: string) => {
+    if (!selectedGroup) return;
+    setConfirmDeleteState({
+      isOpen: true,
+      title: 'Xóa bình luận?',
+      subtitle: 'Bình luận này sẽ bị xóa khỏi thảo luận',
+      itemTypeLabel: 'Thảo luận nhóm',
+      message: 'Bạn có chắc chắn muốn xóa bình luận này không?',
+      onConfirm: async () => {
+        try {
+          await groupApi.deleteComment(selectedGroup.id, commentId);
+          setCommentsByTarget((previous) => ({
+            ...previous,
+            [targetId]: (previous[targetId] || []).filter((item) => item.id !== commentId && item.parentCommentId !== commentId),
+          }));
+        } catch {
+          onNotify('Không thể xóa bình luận');
+        }
+      },
+    });
+  };
+
+  const handleToggleLikeComment = (commentId: string) => {
+    setCommentLikes((prev) => {
+      const current = prev[commentId] || { count: 0, liked: false };
+      const nextLiked = !current.liked;
+      const nextCount = nextLiked ? current.count + 1 : Math.max(0, current.count - 1);
+      return {
+        ...prev,
+        [commentId]: { count: nextCount, liked: nextLiked },
+      };
+    });
+  };
+
+  const handleDeleteExpense = (exp: GroupExpenseResponse) => {
+    if (!selectedGroup) return;
+    setConfirmDeleteState({
+      isOpen: true,
+      title: 'Xóa khoản chi?',
+      subtitle: 'Khoản chi sẽ bị hủy và hoàn lại số dư',
+      itemName: exp.description,
+      itemTypeLabel: 'Khoản chi',
+      message: `Bạn có chắc chắn muốn xóa khoản chi "${exp.description}" (${exp.amount.toLocaleString('vi-VN')} đ) không?`,
+      onConfirm: async () => {
+        try {
+          await groupApi.deleteExpense(selectedGroup.id, exp.id);
+          onNotify('Đã xóa khoản chi thành công');
+          setViewingExpense(null);
+          loadGroupDetails(selectedGroup);
+        } catch {
+          onNotify('Không thể xóa khoản chi. Chỉ người tạo hoặc Quản trị viên mới có quyền.');
+        }
+      },
+    });
   };
 
   const handleSendTransactionToChat = async (label: string, amount: number, ledgerType?: 'EXPENSE' | 'FUND_CONTRIBUTION', ledgerId?: string, detail?: string) => {
@@ -998,6 +1198,7 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
 
       await groupApi.createChildWallet(selectedGroup.id, {
         childName: childWalletName.trim(),
+        avatarKey: childWalletAvatarKey || undefined,
         username: childWalletMode === 'MODE_2' ? childUsername.trim() : undefined,
         password: childWalletMode === 'MODE_2' ? childPassword.trim() : undefined,
         dateOfBirth,
@@ -1027,10 +1228,62 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
     }
   };
 
+  // Helper format & resolve ảnh avatar cho bé (đồng bộ bản Mobile App)
+  const getKidAvatarSrc = (avatarKey?: string | null, isGirlHint?: boolean) => {
+    if (!avatarKey) {
+      return isGirlHint ? '/kid_avatar_girl.png' : '/kid_avatar_boy.png';
+    }
+    if (avatarKey === 'kid_girl' || avatarKey.includes('girl')) {
+      return '/kid_avatar_girl.png';
+    }
+    if (avatarKey === 'kid_boy' || avatarKey.includes('boy')) {
+      return '/kid_avatar_boy.png';
+    }
+    return userApi.getAvatarUrl(avatarKey);
+  };
+
+  // Upload file avatar cho bé từ máy tính (Modal Tạo ví & Modal Sửa ví)
+  const handleUploadChildAvatar = async (file: File, isEdit: boolean) => {
+    if (!selectedGroup) return;
+    if (!file.type.startsWith('image/')) {
+      onNotify('Vui lòng chọn tệp hình ảnh hợp lệ (PNG, JPG, WEBP)');
+      return;
+    }
+
+    try {
+      if (isEdit) {
+        setIsUploadingEditAvatar(true);
+      } else {
+        setIsUploadingCreateAvatar(true);
+      }
+
+      const uploaded = await groupApi.uploadMessageAttachment(selectedGroup.id, file);
+      if (uploaded && uploaded.fileKey) {
+        if (isEdit) {
+          setEditChildAvatarKey(uploaded.fileKey);
+        } else {
+          setChildWalletAvatarKey(uploaded.fileKey);
+        }
+        onNotify('Đã tải ảnh đại diện lên thành công!');
+      } else {
+        onNotify('Không thể tải ảnh đại diện lên máy chủ');
+      }
+    } catch {
+      onNotify('Lỗi khi tải ảnh đại diện lên');
+    } finally {
+      if (isEdit) {
+        setIsUploadingEditAvatar(false);
+      } else {
+        setIsUploadingCreateAvatar(false);
+      }
+    }
+  };
+
   // Open Edit Child Wallet Modal
   const handleOpenEditChildWallet = (wallet: ChildWalletResponse) => {
     setEditingChildWallet(wallet);
     setEditChildName(wallet.childName || '');
+    setEditChildAvatarKey(wallet.avatarKey || (wallet.childName?.toLowerCase().includes('gái') || wallet.childName?.toLowerCase().includes('hân') ? 'kid_girl' : 'kid_boy'));
     setEditChildBirth(wallet.dateOfBirth || '');
     setEditChildAllowance(wallet.weeklyAllowance ? String(wallet.weeklyAllowance) : '');
     setEditChildAllowanceSource(wallet.allowanceSource || 'PERSONAL_ACCOUNT');
@@ -1052,6 +1305,7 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
 
       await groupApi.updateChildWallet(selectedGroup.id, editingChildWallet.id, {
         childName: editChildName.trim(),
+        avatarKey: editChildAvatarKey || undefined,
         dateOfBirth: editChildBirth || undefined,
         weeklyAllowance: allowance,
         allowanceSource: allowance > 0 ? editChildAllowanceSource : undefined,
@@ -1230,18 +1484,25 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
   };
 
   // Handle Delete Child Wallet
-  const handleDeleteChildWallet = async (wallet: ChildWalletResponse) => {
+  const handleDeleteChildWallet = (wallet: ChildWalletResponse) => {
     if (!selectedGroup) return;
-    if (!window.confirm(`Bạn có chắc chắn muốn xóa ví của bé "${wallet.childName}" không?`)) {
-      return;
-    }
-    try {
-      await groupApi.deleteChildWallet(selectedGroup.id, wallet.id);
-      onNotify(`Đã xóa ví của bé ${wallet.childName}`);
-      loadGroupDetails(selectedGroup);
-    } catch {
-      onNotify('Xóa ví thất bại');
-    }
+    setConfirmDeleteState({
+      isOpen: true,
+      title: 'Xóa ví trẻ em?',
+      subtitle: 'Toàn bộ số dư và lịch sử ví của bé sẽ bị xóa',
+      itemName: wallet.childName,
+      itemTypeLabel: 'Ví của bé',
+      message: `Bạn có chắc chắn muốn xóa ví của bé "${wallet.childName}" không?`,
+      onConfirm: async () => {
+        try {
+          await groupApi.deleteChildWallet(selectedGroup.id, wallet.id);
+          onNotify(`Đã xóa ví của bé ${wallet.childName}`);
+          loadGroupDetails(selectedGroup);
+        } catch {
+          onNotify('Xóa ví thất bại');
+        }
+      },
+    });
   };
 
   // Chores Management Handlers
@@ -1280,6 +1541,7 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
         frequency: choreFrequency,
         difficulty: choreDifficulty,
         dueDate: choreDueDate || undefined,
+        icon: choreSelectedIcon || undefined,
       });
       onNotify(`Đã giao nhiệm vụ "${choreTitle}" cho bé thành công!`);
       setIsCreateChoreModalOpen(false);
@@ -1287,6 +1549,7 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
       setChoreDescription('');
       setChoreReward('');
       setChoreDueDate('');
+      setChoreSelectedIcon(null);
       handleOpenChores(selectedWalletForChores);
     } catch (err: any) {
       const msg = err.response?.data?.message || 'Giao nhiệm vụ thất bại';
@@ -1348,22 +1611,90 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
     }
   };
 
-  const handleDeleteChore = async (chore: ChildChoreItem) => {
+  const handleDeleteChore = (chore: ChildChoreItem) => {
     if (!selectedGroup || !selectedWalletForChores) return;
-    if (!window.confirm(`Xóa nhiệm vụ "${chore.title}"?`)) return;
-    try {
-      await groupApi.deleteChore(selectedGroup.id, selectedWalletForChores.id, chore.id);
-      onNotify(`Đã xóa nhiệm vụ "${chore.title}"`);
-      handleOpenChores(selectedWalletForChores);
-    } catch {
-      onNotify('Xóa nhiệm vụ thất bại');
-    }
+    setConfirmDeleteState({
+      isOpen: true,
+      title: 'Xóa nhiệm vụ?',
+      subtitle: 'Nhiệm vụ này sẽ bị gỡ khỏi danh sách của bé',
+      itemName: chore.title,
+      itemTypeLabel: 'Nhiệm vụ',
+      message: `Bạn có chắc chắn muốn xóa nhiệm vụ "${chore.title}" không?`,
+      onConfirm: async () => {
+        try {
+          await groupApi.deleteChore(selectedGroup.id, selectedWalletForChores.id, chore.id);
+          onNotify(`Đã xóa nhiệm vụ "${chore.title}"`);
+          handleOpenChores(selectedWalletForChores);
+        } catch {
+          onNotify('Xóa nhiệm vụ thất bại');
+        }
+      },
+    });
   };
 
   // Member Edit State
   const [editingMember, setEditingMember] = useState<GroupMemberResponse | null>(null);
   const [editMemberRole, setEditMemberRole] = useState<'MEMBER' | 'ADMIN'>('MEMBER');
   const [isSubmittingEditMember, setIsSubmittingEditMember] = useState(false);
+
+  // Group Settings Handlers
+  const handleUpdateGroupSettings = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedGroup) return;
+    if (!settingsGroupName.trim()) {
+      onNotify('Tên nhóm không được để trống');
+      return;
+    }
+    try {
+      setIsSavingSettings(true);
+      const updated = await groupApi.updateGroup(selectedGroup.id, {
+        name: settingsGroupName.trim(),
+        description: settingsGroupDesc.trim() || undefined,
+        groupType: settingsGroupType,
+      });
+      setSelectedGroup(updated);
+      setGroups((prev) => prev.map((g) => (g.id === updated.id ? updated : g)));
+      onNotify('Đã lưu cài đặt nhóm thành công!');
+    } catch {
+      onNotify('Lưu cài đặt nhóm thất bại');
+    } finally {
+      setIsSavingSettings(false);
+    }
+  };
+
+  const handleToggleGroupNotification = async (enabled: boolean) => {
+    if (!selectedGroup) return;
+    try {
+      await groupApi.toggleNotification(selectedGroup.id, enabled);
+      setGroupNotificationEnabled(enabled);
+      onNotify(enabled ? 'Đã bật nhận thông báo từ nhóm' : 'Đã tắt nhận thông báo từ nhóm');
+    } catch {
+      onNotify('Không thể thay đổi cài đặt thông báo');
+    }
+  };
+
+  const handleLeaveGroup = () => {
+    if (!selectedGroup) return;
+    setConfirmDeleteState({
+      isOpen: true,
+      title: 'Rời khỏi nhóm?',
+      subtitle: 'Bạn sẽ không thể xem hay tham gia hoạt động của nhóm nữa',
+      itemName: selectedGroup.name,
+      itemTypeLabel: 'Nhóm',
+      message: `Bạn có chắc chắn muốn rời nhóm "${selectedGroup.name}" không? Hãy đảm bảo các khoản chi tiêu và nợ nần đã được thanh toán hết.`,
+      onConfirm: async () => {
+        try {
+          await groupApi.leaveGroup(selectedGroup.id);
+          localStorage.removeItem(LAST_SELECTED_GROUP_KEY);
+          setSelectedGroup(null);
+          await loadGroups();
+          onNotify(`Bạn đã rời nhóm "${selectedGroup.name}"`);
+        } catch (err: any) {
+          onNotify(err?.response?.data?.message || 'Không thể rời nhóm. Vui lòng kiểm tra lại số dư / nợ.');
+        }
+      },
+    });
+  };
 
   // Handle Edit Member
   const handleUpdateMemberRole = async (e: React.FormEvent) => {
@@ -1385,19 +1716,26 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
   };
 
   // Handle Remove Member
-  const handleRemoveMember = async (mem: GroupMemberResponse) => {
+  const handleRemoveMember = (mem: GroupMemberResponse) => {
     if (!selectedGroup) return;
     const name = mem.user?.fullName || mem.nickname || 'thành viên';
-    if (!window.confirm(`Bạn có chắc chắn muốn xóa "${name}" khỏi nhóm không?`)) {
-      return;
-    }
-    try {
-      await groupApi.removeMember(selectedGroup.id, mem.userId);
-      onNotify(`Đã xóa ${name} khỏi nhóm`);
-      loadGroupDetails(selectedGroup);
-    } catch {
-      onNotify('Xóa thành viên thất bại');
-    }
+    setConfirmDeleteState({
+      isOpen: true,
+      title: 'Xóa thành viên?',
+      subtitle: 'Thành viên sẽ không còn quyền truy cập nhóm',
+      itemName: name,
+      itemTypeLabel: 'Thành viên',
+      message: `Bạn có chắc chắn muốn xóa "${name}" khỏi nhóm không?`,
+      onConfirm: async () => {
+        try {
+          await groupApi.removeMember(selectedGroup.id, mem.userId);
+          onNotify(`Đã xóa ${name} khỏi nhóm`);
+          loadGroupDetails(selectedGroup);
+        } catch {
+          onNotify('Xóa thành viên thất bại');
+        }
+      },
+    });
   };
 
   // Role Permissions
@@ -1648,16 +1986,6 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
                     </>
                   )}
 
-                  {(isLeader || myMemberInfo?.role === 'OWNER') && (
-                    <div className="relative">
-                      <button type="button" onClick={() => setIsGroupActionMenuOpen((open) => !open)} className="h-9 w-9 rounded-xl border border-gray-200 text-lg font-bold text-gray-600 hover:bg-gray-50" aria-label="Tùy chọn nhóm">…</button>
-                      {isGroupActionMenuOpen && <div className="absolute right-0 top-11 z-20 w-44 rounded-xl border border-gray-100 bg-white p-1.5 shadow-lg">
-                        {isLeader && <button type="button" onClick={() => { setEditGroupName(selectedGroup.name); setEditGroupDesc(selectedGroup.description || ''); setIsEditGroupModalOpen(true); setIsGroupActionMenuOpen(false); }} className="flex w-full items-center gap-2 whitespace-nowrap rounded-lg px-2.5 py-2 text-left text-xs font-semibold text-gray-700 hover:bg-gray-50"><FinanceIcon name="edit" size={13} />Sửa nhóm</button>}
-                        {myMemberInfo?.role === 'OWNER' && <button type="button" onClick={() => { setIsGroupActionMenuOpen(false); handleDeleteGroup(); }} className="flex w-full items-center gap-2 whitespace-nowrap rounded-lg px-2.5 py-2 text-left text-xs font-semibold text-rose-600 hover:bg-rose-50"><FinanceIcon name="delete" size={13} />Xóa nhóm</button>}
-                      </div>}
-                    </div>
-                  )}
-
                 </div>
               </div>
 
@@ -1687,7 +2015,7 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
                       }`}
                     >
                       <FinanceIcon name="receipt" size={15} />
-                      <span>Thu & chi ({expenses.length + fundContributions.length})</span>
+                      <span>Thu & chi</span>
                     </button>
                   </>
                 )}
@@ -1718,7 +2046,7 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
                   }`}
                 >
                   <FinanceIcon name="users" size={15} />
-                  <span>Thành viên ({members.length})</span>
+                  <span>Thành viên</span>
                 </button>
                 {!isChildAccount && selectedGroup.groupType === 'FAMILY' && (
                   <button
@@ -1731,7 +2059,7 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
                     }`}
                   >
                     <FinanceIcon name="wallet" size={15} />
-                    <span>Ví trẻ em ({childWallets.length})</span>
+                    <span>Ví trẻ em</span>
                   </button>
                 )}
                 {!isChildAccount && selectedGroup.groupType !== 'FAMILY' && selectedGroup.groupType !== 'COUPLE' && (
@@ -1749,6 +2077,20 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
                       <span>Cân đối & bù trừ</span>
                     </button>
                   </>
+                )}
+                {!isChildAccount && (
+                  <button
+                    type="button"
+                    onClick={() => setActiveTab('SETTINGS')}
+                    className={`pb-3 text-xs font-bold transition border-b-2 flex items-center gap-1.5 whitespace-nowrap ${
+                      activeTab === 'SETTINGS'
+                        ? 'border-[#07543f] text-[#07543f] dark:text-emerald-400'
+                        : 'border-transparent text-gray-500 hover:text-gray-900 dark:text-slate-400 dark:hover:text-slate-200'
+                    }`}
+                  >
+                    <FinanceIcon name="settings" size={15} />
+                    <span>Cài đặt</span>
+                  </button>
                 )}
               </div>
 
@@ -1828,81 +2170,114 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
                         )}
                       </div>
 
-                      {/* Overview Sub-sections: Thành viên gia đình & Khoản chi gần đây */}
+                      {/* Overview Sub-sections: Chi tiêu theo danh mục & Khoản thu chi gần đây */}
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        {/* Box 1: Danh sách thành viên trong nhóm / gia đình */}
-                        <div className="rounded-2xl border border-[#edf3ee] dark:border-slate-800 p-4 bg-white dark:bg-slate-850 flex flex-col gap-3 shadow-2xs">
-                          <div className="flex items-center justify-between">
-                            <h4 className="text-xs font-bold text-[#14261e] dark:text-slate-100 uppercase tracking-wider m-0 flex items-center gap-1.5">
-                              <FinanceIcon name="users" size={14} />
-                              <span>Thành viên ({members.length})</span>
-                            </h4>
-                            {isLeader && (
+                        {/* Box 1: Chi tiêu theo danh mục (Đồng bộ bản App: Biểu đồ tròn Donut phía trên, danh sách danh mục phía dưới) */}
+                        <div className="rounded-2xl border border-[#edf3ee] dark:border-slate-800 p-4 bg-white dark:bg-slate-850 flex flex-col justify-between shadow-2xs">
+                          <div>
+                            <div className="flex items-center justify-between pb-2 border-b border-gray-100 dark:border-slate-800">
+                              <h4 className="text-xs font-bold text-[#14261e] dark:text-slate-100 uppercase tracking-wider m-0 flex items-center gap-1.5">
+                                <FinanceIcon name="pie-chart" size={14} />
+                                <span>Chi tiêu theo danh mục</span>
+                              </h4>
                               <button
                                 type="button"
-                                onClick={() => setActiveTab('MEMBERS')}
-                                className="text-xs font-bold text-[#07543f] dark:text-emerald-400 hover:underline"
+                                onClick={() => setActiveTab('EXPENSES')}
+                                className="text-xs font-bold text-[#07543f] dark:text-emerald-400 hover:underline cursor-pointer"
                               >
-                                Quản lý
+                                Chi tiết
                               </button>
-                            )}
-                          </div>
+                            </div>
 
-                          <div className="flex flex-col gap-2">
-                            {members.slice(0, 5).map((mem) => {
-                              const isOwner = mem.role === 'OWNER';
-                              const isMe = currentUser?.id === mem.userId;
-                              const memberAvatar = isMe ? (currentUser?.avatarUrl || mem.user?.avatarUrl || mem.user?.avatarKey) : (mem.user?.avatarUrl || mem.user?.avatarKey);
-                              const resolvedMemberAvatar = memberAvatar ? userApi.getAvatarUrl(memberAvatar) : null;
+                            {categoryChartData.totalExp === 0 ? (
+                              <div className="py-12 text-center text-xs text-[#718579] dark:text-slate-400">
+                                Chưa có khoản chi tiêu nào trong nhóm
+                              </div>
+                            ) : (
+                              <div className="flex flex-col gap-3 pt-3">
+                                {/* Phía trên: Biểu đồ tròn Donut SVG */}
+                                <div className="flex justify-center items-center py-1">
+                                  <div className="relative size-36 grid place-items-center">
+                                    <svg width={144} height={144} viewBox="0 0 144 144" className="size-full">
+                                      {(() => {
+                                        const radius = 54;
+                                        const strokeWidth = 14;
+                                        const circumference = 2 * Math.PI * radius;
+                                        let accumulatedPct = 0;
 
-                              return (
-                                <div
-                                  key={mem.userId || mem.id}
-                                  className="flex min-h-[72px] items-center justify-between gap-4 p-3.5 rounded-xl bg-[#f7faf8] dark:bg-slate-800 border border-[#eef4f0] dark:border-slate-700/60"
-                                >
-                                  <div className="flex items-center gap-2.5 min-w-0">
-                                    <div className="size-8 rounded-full bg-emerald-100 dark:bg-slate-700 text-[#07543f] dark:text-emerald-300 font-bold text-xs overflow-hidden grid place-items-center shrink-0 border border-black/5">
-                                      {resolvedMemberAvatar ? (
-                                        <img
-                                          src={resolvedMemberAvatar}
-                                          alt={mem.user?.fullName || 'Avatar'}
-                                          className="size-full object-cover"
-                                          onError={(e) => {
-                                            (e.target as HTMLElement).style.display = 'none';
-                                          }}
-                                        />
-                                      ) : (
-                                        mem.user?.fullName?.charAt(0) || 'U'
-                                      )}
-                                    </div>
-                                    <div className="min-w-0">
-                                      <p className="text-xs font-bold text-[#14261e] dark:text-slate-200 truncate m-0">
-                                        {mem.user?.fullName || mem.nickname || 'Thành viên'}
-                                        {isMe && <span className="text-[10px] text-emerald-600 font-bold ml-1">(Bạn)</span>}
-                                      </p>
-                                      <span className="text-[10px] text-[#718579] dark:text-slate-400 truncate block">
-                                        {mem.user?.email}
+                                        return categoryChartData.categories.map((cat, idx) => {
+                                          const strokeDashoffset = circumference * (1 - cat.percentage / 100);
+                                          const rotation = (accumulatedPct / 100) * 360 - 90;
+                                          accumulatedPct += cat.percentage;
+
+                                          return (
+                                            <circle
+                                              key={idx}
+                                              cx="72"
+                                              cy="72"
+                                              r={radius}
+                                              stroke={cat.color || '#10b981'}
+                                              strokeWidth={strokeWidth}
+                                              strokeDasharray={`${circumference} ${circumference}`}
+                                              strokeDashoffset={strokeDashoffset}
+                                              fill="transparent"
+                                              transform={`rotate(${rotation} 72 72)`}
+                                              strokeLinecap={categoryChartData.categories.length === 1 ? 'butt' : 'round'}
+                                              className="transition-all duration-500"
+                                            />
+                                          );
+                                        });
+                                      })()}
+                                    </svg>
+
+                                    {/* Tâm biểu đồ tròn: Tổng chi */}
+                                    <div className="absolute inset-0 flex flex-col items-center justify-center text-center pointer-events-none px-2">
+                                      <span className="text-[10px] font-semibold text-[#64748b] dark:text-slate-400 uppercase tracking-tight">
+                                        Tổng chi
+                                      </span>
+                                      <strong className="text-sm font-extrabold text-[#0f172a] dark:text-slate-100 truncate max-w-[105px] block mt-0.5">
+                                        {categoryChartData.totalExp.toLocaleString('vi-VN')}
+                                      </strong>
+                                      <span className="text-[9px] font-bold text-[#94a3b8] dark:text-slate-400">
+                                        VNĐ
                                       </span>
                                     </div>
                                   </div>
-                                  <span
-                                    className={`rounded-md px-2 py-0.5 text-[10px] font-bold ${
-                                      isOwner
-                                        ? 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300'
-                                        : mem.role === 'ADMIN'
-                                        ? 'bg-purple-100 text-purple-800 dark:bg-purple-950 dark:text-purple-300'
-                                        : 'bg-gray-100 dark:bg-slate-700 text-gray-700 dark:text-slate-300'
-                                    }`}
-                                  >
-                                    {isOwner ? 'Trưởng nhóm' : mem.role === 'ADMIN' ? 'Quản trị' : 'Thành viên'}
-                                  </span>
                                 </div>
-                              );
-                            })}
+
+                                {/* Phía dưới: Danh sách tên danh mục */}
+                                <div className="flex flex-col gap-1.5 pt-2 border-t border-gray-100 dark:border-slate-800">
+                                  {categoryChartData.categories.slice(0, 4).map((cat, idx) => (
+                                    <div
+                                      key={idx}
+                                      className="flex items-center justify-between text-xs py-1 px-2 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-800/60 transition"
+                                    >
+                                      <div className="flex items-center gap-2 min-w-0">
+                                        <span
+                                          className="size-2.5 rounded-full shrink-0"
+                                          style={{ backgroundColor: cat.color || '#10b981' }}
+                                        />
+                                        <span className="font-semibold text-gray-800 dark:text-slate-200 truncate" title={cat.name}>
+                                          {cat.name}
+                                        </span>
+                                      </div>
+                                      <div className="flex items-center gap-2.5 shrink-0 pl-2">
+                                        <strong className="text-gray-900 dark:text-slate-100 font-bold">
+                                          {cat.amount.toLocaleString('vi-VN')} đ
+                                        </strong>
+                                        <span className="text-[11px] font-bold text-[#07543f] dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 px-1.5 py-0.5 rounded">
+                                          {Math.round(cat.percentage)}%
+                                        </span>
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
                           </div>
                         </div>
 
-                        {/* Box 2: Khoản chi gần nhất */}
+                        {/* Box 2: Khoản thu chi gần nhất (Chỉ hiển thị 4 giao dịch) */}
                         <div className="rounded-2xl border border-[#edf3ee] dark:border-slate-800 p-4 bg-white dark:bg-slate-850 flex flex-col gap-3 shadow-2xs">
                           <div className="flex items-center justify-between">
                             <h4 className="text-xs font-bold text-[#14261e] dark:text-slate-100 uppercase tracking-wider m-0 flex items-center gap-1.5">
@@ -1912,9 +2287,9 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
                             <button
                               type="button"
                               onClick={() => setActiveTab('EXPENSES')}
-                              className="text-xs font-bold text-[#07543f] dark:text-emerald-400 hover:underline"
+                              className="text-xs font-bold text-[#07543f] dark:text-emerald-400 hover:underline cursor-pointer"
                             >
-                              Xem tất cả ({recentLedgerItems.length})
+                              Xem tất cả
                             </button>
                           </div>
 
@@ -1924,7 +2299,7 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
                             </p>
                           ) : (
                             <div className="flex flex-col gap-2">
-                              {recentLedgerItems.slice(0, 5).map((item) => (
+                              {recentLedgerItems.slice(0, 4).map((item) => (
                                 <div
                                   key={item.id}
                                   className="flex items-center justify-between p-2.5 rounded-xl bg-[#f7faf8] dark:bg-slate-800 border border-[#eef4f0] dark:border-slate-700/60"
@@ -2289,11 +2664,7 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
                                                 }`}
                                                 title="Tùy chọn tin nhắn"
                                               >
-                                                <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor">
-                                                  <circle cx="12" cy="5" r="2.2" />
-                                                  <circle cx="12" cy="12" r="2.2" />
-                                                  <circle cx="12" cy="19" r="2.2" />
-                                                </svg>
+                                                <FinanceIcon name="more-vertical" size={15} />
                                               </button>
 
                                               {/* Popover Actions Menu - No icons as requested */}
@@ -2357,12 +2728,7 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
                                                 }`}
                                                 title="Bày tỏ cảm xúc"
                                               >
-                                                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                                  <circle cx="12" cy="12" r="10" />
-                                                  <path d="M8 14s1.5 2 4 2 4-2 4-2" />
-                                                  <line x1="9" y1="9" x2="9.01" y2="9" strokeWidth="2.5" />
-                                                  <line x1="15" y1="9" x2="15.01" y2="9" strokeWidth="2.5" />
-                                                </svg>
+                                                <FinanceIcon name="smile" size={15} />
                                               </button>
 
                                               {/* Emoji Reaction Selector Bar (exact 6 emojis in order: Heart, Laugh, Surprised, Sad, Angry, Thumbs-up) */}
@@ -2500,14 +2866,7 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
                           className="absolute right-4 bottom-20 z-20 size-9 rounded-full bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 shadow-lg text-[#07543f] dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-slate-750 transition flex items-center justify-center animate-bounce group"
                           title="Cuộn xuống tin nhắn mới nhất"
                         >
-                          <svg
-                            className="size-4 transform rotate-90 transition group-hover:translate-y-0.5"
-                            fill="none"
-                            stroke="currentColor"
-                            viewBox="0 0 24 24"
-                          >
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M9 5l7 7-7 7" />
-                          </svg>
+                          <FinanceIcon name="chevron-down" size={16} className="transition group-hover:translate-y-0.5" />
                         </button>
                       )}
 
@@ -2725,84 +3084,469 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
                     );
                   })()}
 
-                  {/* Tab 1: Chi tiêu chung */}
-                  {activeTab === 'EXPENSES' && (
-                <div className="flex flex-col gap-3">
-                  {expenses.length === 0 && fundContributions.length === 0 ? (
-                    <div className="p-8 text-center text-xs text-[#718579] dark:text-slate-400 rounded-2xl bg-[#fafcfa] dark:bg-[#0b1c2a] border border-dashed border-[#d8e3dc] dark:border-[#1b3a50]">
-                      Chưa có khoản thu hoặc chi nào trong nhóm này.
-                    </div>
-                  ) : (
-                    <>
-                    {[
-                      ...fundContributions.map((fc) => ({
-                        itemType: 'FUND_CONTRIBUTION' as const,
-                        id: fc.id,
-                        date: fc.createdAt || fc.contributedAt,
-                        data: fc,
-                      })),
-                      ...expenses.map((exp) => ({
-                        itemType: 'EXPENSE' as const,
-                        id: exp.id,
-                        date: exp.createdAt || exp.expenseDate,
-                        data: exp,
-                      })),
-                    ]
-                      .sort((a, b) => new Date(b.date || 0).getTime() - new Date(a.date || 0).getTime())
-                      .map((item) => {
-                        if (item.itemType === 'FUND_CONTRIBUTION') {
-                          const contribution = item.data as GroupFundContributionResponse;
-                          return (
-                            <div key={`income-${contribution.id}`} className={`group-ledger-item rounded-2xl border border-emerald-100 bg-emerald-50/40 p-4 transition ${expandedComments[contribution.id] ? 'comments-open' : ''}`}>
-                              <div onClick={() => setExpandedComments((previous) => ({ ...previous, [contribution.id]: !previous[contribution.id] }))} className="flex cursor-pointer items-center justify-between">
-                              <div className="flex items-center gap-3.5"><div className="size-10 rounded-xl bg-emerald-50 text-emerald-700 border border-emerald-200/60 dark:bg-emerald-950/40 dark:text-emerald-400 dark:border-emerald-800/50 grid place-items-center shrink-0"><FinanceIcon name="wallet" size={18} /></div><div><h4 className="text-sm font-bold text-[#14261e] dark:text-slate-100 m-0">Nộp quỹ chung</h4><p className="text-xs text-[#718579] dark:text-slate-400 mt-0.5 m-0">{memberName(contribution.contributorUserId, contribution.contributorName)} · {formatGroupDateTime(contribution.createdAt || contribution.contributedAt)}</p>{contribution.note && <p className="text-[10px] text-[#718579] dark:text-slate-400 mt-1 m-0">{contribution.note}</p>}</div></div>
-                              <div className="text-right"><strong className="block text-sm font-bold text-emerald-600">+{contribution.amount.toLocaleString('vi-VN')} đ</strong><button type="button" onClick={(e) => { e.stopPropagation(); handleSendTransactionToChat('Nộp quỹ chung', contribution.amount, 'FUND_CONTRIBUTION', contribution.id, `Danh mục: Nộp quỹ chung\nNguồn: Ví cá nhân · Thực hiện bởi: ${memberName(contribution.contributorUserId, contribution.contributorName)}\nThời gian: ${formatGroupDateTime(contribution.createdAt || contribution.contributedAt)}`); }} className="mt-1 rounded-md border border-sky-200 bg-sky-50 px-1.5 py-0.5 text-[8px] font-semibold text-sky-700 hover:bg-sky-100">Gửi vào nhóm</button></div></div>
-                              <div className="mt-3 border-t border-emerald-100 pt-3 space-y-2">{(commentsByTarget[contribution.id] || []).map((comment) => { const member = members.find((m) => m.userId === comment.userId); const parent = (commentsByTarget[contribution.id] || []).find((m) => m.id === comment.parentCommentId); const name = memberName(comment.userId, comment.user?.fullName); const avatar = member?.user?.avatarUrl || member?.user?.avatarKey; const mine = comment.userId === currentUser?.id; return <div key={comment.id} className={`flex items-start gap-2 ${parent ? 'ml-9' : ''}`}><div className="grid size-7 shrink-0 place-items-center overflow-hidden rounded-full bg-emerald-100 text-[10px] font-bold text-emerald-700">{avatar ? <img src={userApi.getAvatarUrl(avatar)} alt="" className="size-full object-cover" /> : name.charAt(0)}</div><div><div className="rounded-xl bg-white px-3 py-2 text-xs"><div className="flex min-w-48 justify-between gap-5"><strong>{name}</strong><span className="text-[10px] text-[#718579]">{new Date(comment.createdAt).toLocaleString('vi-VN', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit', year: 'numeric' })}</span></div><p className="m-0 mt-0.5 text-[#52665b]">{parent && <strong className="text-emerald-700">@{memberName(parent.userId, parent.user?.fullName)} </strong>}{comment.content}</p></div><div className="mt-1 flex items-center gap-2 pl-1"><button type="button" onClick={() => { setReplyingTo((previous) => ({ ...previous, [contribution.id]: comment.id })); setInlineCommentText((previous) => ({ ...previous, [contribution.id]: `@${name} ` })); }} className="comment-action font-bold text-emerald-700">Trả lời</button>{mine && <><button type="button" onClick={() => handleEditComment(contribution.id, comment)} className="comment-action text-[#718579]">Sửa</button><button type="button" onClick={() => handleDeleteComment(contribution.id, comment.id)} className="comment-action text-rose-600">Xóa</button></>}</div></div></div>; })}<div className="flex gap-2"><input value={inlineCommentText[contribution.id] || ''} onChange={(e) => setInlineCommentText((previous) => ({ ...previous, [contribution.id]: e.target.value }))} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleInlineComment(contribution.id, 'FUND_CONTRIBUTION'); } }} placeholder={replyingTo[contribution.id] ? 'Viết trả lời...' : 'Viết bình luận...'} className="h-8 flex-1 rounded-lg border border-emerald-100 bg-white px-2 text-xs" /><button type="button" onClick={() => handleInlineComment(contribution.id, 'FUND_CONTRIBUTION')} className="text-xs font-bold text-emerald-700">Gửi</button></div></div>
-                            </div>
-                          );
+                  {/* Tab 1: Chi tiêu chung chuẩn thiết kế như bản App */}
+                  {activeTab === 'EXPENSES' && (() => {
+                    const isAllMonths = selectedMonth === 'ALL';
+                    let currentYear = new Date().getFullYear();
+                    let currentMonth = new Date().getMonth() + 1;
+                    if (!isAllMonths) {
+                      const [yStr, mStr] = selectedMonth.split('-');
+                      currentYear = parseInt(yStr, 10);
+                      currentMonth = parseInt(mStr, 10);
+                    }
+
+                    // 1. Lọc nộp quỹ
+                    const monthContributions = fundContributions.filter((c) => {
+                      if (!c.contributedAt) return false;
+                      if (isAllMonths) return true;
+                      const d = new Date(c.contributedAt);
+                      return d.getFullYear() === currentYear && (d.getMonth() + 1) === currentMonth;
+                    });
+
+                    // 2. Lọc chi tiêu
+                    const monthExpenses = expenses.filter((exp) => {
+                      if (isAllMonths) return true;
+                      if (!exp.expenseDate) return true;
+                      const d = new Date(exp.expenseDate);
+                      return d.getFullYear() === currentYear && (d.getMonth() + 1) === currentMonth;
+                    });
+
+                    // Tổng thu, chi
+                    const calculatedIncome = monthContributions.reduce((sum, c) => sum + (c.amount || 0), 0);
+                    const calculatedExpense = monthExpenses.reduce((sum, e) => sum + (e.amount || 0), 0);
+                    const totalIncome = isAllMonths ? calculatedIncome : (monthlyStats?.totalIncome ?? calculatedIncome);
+                    const totalExpense = isAllMonths ? calculatedExpense : (monthlyStats?.totalExpense ?? calculatedExpense);
+
+                    // Danh sách thống nhất
+                    type WebUnifiedTx = {
+                      id: string;
+                      type: 'INCOME' | 'EXPENSE';
+                      title: string;
+                      subtitle: string;
+                      amount: number;
+                      dateStr: string;
+                      timeStr: string;
+                      rawDate: Date;
+                      categoryName?: string;
+                      categoryIcon?: string;
+                      commentCount: number;
+                      originalExpense?: GroupExpenseResponse;
+                      originalContribution?: GroupFundContributionResponse;
+                    };
+
+                    const parseTxDate = (dateVal?: string, timeVal?: string) => {
+                      if (timeVal) {
+                        const dt = new Date(timeVal);
+                        if (!isNaN(dt.getTime())) {
+                          const pad = (n: number) => (n < 10 ? `0${n}` : `${n}`);
+                          return {
+                            rawDate: dt,
+                            dateStr: `${pad(dt.getDate())}/${pad(dt.getMonth() + 1)}/${dt.getFullYear()}`,
+                            timeStr: `${pad(dt.getHours())}:${pad(dt.getMinutes())}`,
+                          };
                         }
+                      }
+                      if (dateVal) {
+                        const parts = dateVal.split('-');
+                        if (parts.length === 3) {
+                          const y = parseInt(parts[0], 10);
+                          const m = parseInt(parts[1], 10) - 1;
+                          const d = parseInt(parts[2], 10);
+                          const local = new Date(y, m, d, 12, 0, 0);
+                          const pad = (n: number) => (n < 10 ? `0${n}` : `${n}`);
+                          return {
+                            rawDate: local,
+                            dateStr: `${pad(d)}/${pad(m + 1)}/${y}`,
+                            timeStr: 'Hôm nay',
+                          };
+                        }
+                      }
+                      const now = new Date();
+                      const pad = (n: number) => (n < 10 ? `0${n}` : `${n}`);
+                      return {
+                        rawDate: now,
+                        dateStr: `${pad(now.getDate())}/${pad(now.getMonth() + 1)}/${now.getFullYear()}`,
+                        timeStr: `${pad(now.getHours())}:${pad(now.getMinutes())}`,
+                      };
+                    };
 
-                        const exp = item.data as GroupExpenseResponse;
-                        return (
-                          <div
-                            key={exp.id}
-                            className={`group-ledger-item rounded-2xl border border-[#edf3ee] bg-[#ffffff] p-4 transition hover:bg-[#f6f9f7] ${expandedComments[exp.id] ? 'comments-open' : ''}`}
-                          >
-                            <div onClick={() => setExpandedComments((previous) => ({ ...previous, [exp.id]: !previous[exp.id] }))} className="flex cursor-pointer items-center justify-between">
-                            <div className="flex items-center gap-3.5">
-                              <div className="size-10 rounded-xl bg-rose-50 text-rose-600 border border-rose-200/60 dark:bg-[#201317] dark:text-[#ff758f] dark:border-rose-900/40 grid place-items-center shrink-0">
-                                <FinanceIcon name={resolveCategoryIconName(exp.category?.icon, 'EXPENSE', exp.category?.name)} size={18} />
-                              </div>
-                              <div>
-                                <h4 className="text-sm font-bold text-[#14261e] dark:text-slate-100 m-0">
-                                  {exp.description === 'Khoản chi nhóm' ? (exp.category?.name || exp.description) : exp.description}
-                                </h4>
-                                <p className="text-xs text-[#718579] dark:text-slate-400 mt-0.5 m-0">
-                                  {exp.paymentSource === 'GROUP_FUND'
-                                    ? <>Nguồn: Quỹ chung · Thực hiện bởi: {memberName(exp.paidByUserId, exp.payer?.fullName)}</>
-                                    : <>Chi bởi: {memberName(exp.paidByUserId, exp.payer?.fullName)}</>
-                                  } · {formatGroupDateTime(exp.createdAt || exp.expenseDate)}
-                                </p>
-                              </div>
+                    const unifiedList: WebUnifiedTx[] = [
+                      ...monthContributions.map((c) => {
+                        const { rawDate, dateStr, timeStr } = parseTxDate(c.contributedAt, c.createdAt);
+                        return {
+                          id: `fund-${c.id}`,
+                          type: 'INCOME' as const,
+                          title: c.note || 'Nộp quỹ chung',
+                          subtitle: `Bởi ${memberName(c.contributorUserId, c.contributorName)}`,
+                          amount: c.amount || 0,
+                          dateStr,
+                          timeStr,
+                          rawDate,
+                          categoryName: 'Đóng quỹ',
+                          categoryIcon: 'wallet',
+                          commentCount: (commentsByTarget[c.id] || []).length,
+                          originalContribution: c,
+                        };
+                      }),
+                      ...monthExpenses.map((e) => {
+                        const { rawDate, dateStr, timeStr } = parseTxDate(e.expenseDate, e.createdAt);
+                        return {
+                          id: e.id,
+                          type: 'EXPENSE' as const,
+                          title: e.description === 'Khoản chi nhóm' ? (e.category?.name || e.description) : e.description,
+                          subtitle: `Bởi ${memberName(e.paidByUserId, e.payer?.fullName)}`,
+                          amount: e.amount || 0,
+                          dateStr,
+                          timeStr,
+                          rawDate,
+                          categoryName: e.category?.name || 'Chi tiêu',
+                          categoryIcon: e.category?.icon,
+                          commentCount: (commentsByTarget[e.id] || []).length,
+                          originalExpense: e,
+                        };
+                      }),
+                    ];
+
+                    unifiedList.sort((a, b) => b.rawDate.getTime() - a.rawDate.getTime());
+
+                    const todayStr = new Date().toISOString().split('T')[0];
+                    const yesterday = new Date();
+                    yesterday.setDate(yesterday.getDate() - 1);
+                    const yesterdayStr = yesterday.toISOString().split('T')[0];
+
+                    const displayedList = unifiedList.filter((tx) => {
+                      if (txTypeFilter === 'INCOME') return tx.type === 'INCOME';
+                      if (txTypeFilter === 'EXPENSE') return tx.type === 'EXPENSE';
+                      return true;
+                    });
+
+                    // Phân trang: Mỗi trang chỉ hiển thị 5 giao dịch
+                    const PAGE_SIZE = 5;
+                    const totalPages = Math.max(1, Math.ceil(displayedList.length / PAGE_SIZE));
+                    const safePage = Math.min(Math.max(1, txCurrentPage), totalPages);
+                    const startIndex = (safePage - 1) * PAGE_SIZE;
+                    const paginatedList = displayedList.slice(startIndex, startIndex + PAGE_SIZE);
+
+                    const groupedByDate: Record<string, WebUnifiedTx[]> = {};
+                    displayedList.forEach((tx) => {
+                      let label = tx.dateStr;
+                      if (tx.dateStr === todayStr) label = 'Hôm nay';
+                      else if (tx.dateStr === yesterdayStr) label = 'Hôm qua';
+                      else {
+                        const [y, m, d] = tx.dateStr.split('-');
+                        label = `${d}/${m}/${y}`;
+                      }
+                      if (!groupedByDate[label]) groupedByDate[label] = [];
+                      groupedByDate[label].push(tx);
+                    });
+
+                    return (
+                      <div className="flex flex-col gap-4">
+                        {/* 1. HAI THẺ TỔNG HỢP: TỔNG THU & TỔNG CHI ĐƯỢC ĐƯA LÊN TRÊN */}
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                          {/* Tổng thu */}
+                          <div className="flex items-center gap-3.5 rounded-2xl border border-emerald-100 dark:border-emerald-900/40 bg-[#E6F4EA]/70 dark:bg-emerald-950/40 p-3.5 shadow-2xs">
+                            <div className="grid size-10 shrink-0 place-items-center rounded-xl bg-white dark:bg-emerald-900/70 text-[#137333] dark:text-emerald-300 shadow-2xs">
+                              <FinanceIcon name="income" size={18} />
+                            </div>
+                            <div>
+                              <p className="text-[11px] font-semibold text-[#137333]/80 dark:text-emerald-300/80 m-0">Tổng thu</p>
+                              <strong className="text-base font-bold text-[#137333] dark:text-emerald-400">
+                                +{totalIncome.toLocaleString('vi-VN')} đ
+                              </strong>
+                            </div>
+                          </div>
+
+                          {/* Tổng chi */}
+                          <div className="flex items-center gap-3.5 rounded-2xl border border-rose-100 dark:border-rose-900/40 bg-[#FCE8E6]/70 dark:bg-rose-950/40 p-3.5 shadow-2xs">
+                            <div className="grid size-10 shrink-0 place-items-center rounded-xl bg-white dark:bg-rose-900/70 text-[#C5221F] dark:text-rose-300 shadow-2xs">
+                              <FinanceIcon name="expense" size={18} />
+                            </div>
+                            <div>
+                              <p className="text-[11px] font-semibold text-[#C5221F]/80 dark:text-rose-300/80 m-0">Tổng chi</p>
+                              <strong className="text-base font-bold text-[#C5221F] dark:text-rose-400">
+                                -{totalExpense.toLocaleString('vi-VN')} đ
+                              </strong>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* 2. THANH CHỌN BỘ LỌC (TẤT CẢ | THU | CHI) & CHỌN THÁNG (ĐƯA XUỐNG DƯỚI 2 THẺ SỐ) */}
+                        <div className="flex flex-wrap items-center justify-between gap-3">
+                          {/* Segmented Filter */}
+                          <div className="inline-flex rounded-xl bg-gray-100 dark:bg-slate-800 p-1 border border-gray-200/70 dark:border-slate-700">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setTxTypeFilter('ALL');
+                                setTxCurrentPage(1);
+                              }}
+                              className={`px-4 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${
+                                txTypeFilter === 'ALL'
+                                  ? 'bg-white dark:bg-slate-700 text-[#07543f] dark:text-emerald-400 shadow-2xs'
+                                  : 'text-gray-500 hover:text-gray-800 dark:text-slate-400'
+                              }`}
+                            >
+                              Tất cả
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setTxTypeFilter('INCOME');
+                                setTxCurrentPage(1);
+                              }}
+                              className={`px-4 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${
+                                txTypeFilter === 'INCOME'
+                                  ? 'bg-white dark:bg-slate-700 text-emerald-600 dark:text-emerald-400 shadow-2xs'
+                                  : 'text-gray-500 hover:text-gray-800 dark:text-slate-400'
+                              }`}
+                            >
+                              Thu quỹ
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setTxTypeFilter('EXPENSE');
+                                setTxCurrentPage(1);
+                              }}
+                              className={`px-4 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${
+                                txTypeFilter === 'EXPENSE'
+                                  ? 'bg-white dark:bg-slate-700 text-rose-600 dark:text-rose-400 shadow-2xs'
+                                  : 'text-gray-500 hover:text-gray-800 dark:text-slate-400'
+                              }`}
+                            >
+                              Khoản chi
+                            </button>
+                          </div>
+
+                          {/* Bộ chọn tháng dropdown chuẩn như bản App */}
+                          <div className="relative">
+                            <select
+                              value={selectedMonth}
+                              onChange={(e) => {
+                                setSelectedMonth(e.target.value);
+                                setTxCurrentPage(1);
+                              }}
+                              className="h-9 px-3.5 rounded-xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-bold text-[#14261e] dark:text-slate-200 shadow-2xs outline-none focus:border-[#07543f] cursor-pointer"
+                            >
+                              {availableMonths.map((m) => (
+                                <option key={m.key} value={m.key}>
+                                  {m.label}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                        </div>
+
+                        {/* 3. BẢNG LỊCH SỬ GIAO DỊCH (MỖI TRANG 5 GIAO DỊCH, KHÔNG BỊ DÀI QUÁ) */}
+                        {displayedList.length === 0 ? (
+                          <div className="flex flex-col items-center justify-center p-12 text-center rounded-2xl bg-white dark:bg-slate-900 border border-dashed border-[#d8e3dc] dark:border-slate-800">
+                            <div className="grid size-14 place-items-center rounded-2xl bg-[#e3f4e9] text-[#07543f] dark:bg-emerald-950 dark:text-emerald-400">
+                              <FinanceIcon name="receipt" size={28} />
+                            </div>
+                            <h3 className="mt-4 text-base font-bold text-[#14261e] dark:text-slate-100">
+                              Không có giao dịch nào trong {selectedMonthLabel}
+                            </h3>
+                            <p className="mt-1 text-xs text-[#718579] dark:text-slate-400 max-w-sm">
+                              Chưa có khoản thu quỹ hay chi tiêu nhóm nào phù hợp với bộ lọc hiện tại.
+                            </p>
+                          </div>
+                        ) : (
+                          <div className="overflow-hidden rounded-2xl border border-[#e2e8f0] dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm w-full">
+                            <div className="overflow-x-auto w-full">
+                              <table className="w-full table-fixed text-left">
+                                <thead className="bg-[#f8fafc] dark:bg-slate-800/80 text-[11px] font-bold tracking-wider text-[#64748b] dark:text-slate-400 border-b border-[#e2e8f0] dark:border-slate-800">
+                                  <tr>
+                                    <th className="w-[28%] px-3.5 py-3">GIAO DỊCH &amp; HẠNG MỤC</th>
+                                    <th className="w-[18%] px-3 py-2.5 leading-snug">
+                                      <div>NGƯỜI THỰC HIỆN</div>
+                                      <div className="text-[10px] font-semibold text-gray-400 dark:text-slate-500">NGUỒN TIỀN</div>
+                                    </th>
+                                    <th className="w-[14%] px-2.5 py-3">THỜI GIAN</th>
+                                    <th className="w-[14%] px-2 py-3 text-center">PHÂN LOẠI</th>
+                                    <th className="w-[16%] px-3 py-3 text-right">SỐ TIỀN</th>
+                                    <th className="w-[10%] px-2 py-3 text-center">THẢO LUẬN</th>
+                                  </tr>
+                                </thead>
+                                <tbody className="divide-y divide-[#f1f5f9] dark:divide-slate-800/70 text-xs">
+                                  {paginatedList.map((tx) => {
+                                    const isIncome = tx.type === 'INCOME';
+                                    const iconBg = isIncome ? '#dcfce7' : '#fee2e2';
+                                    const iconColor = isIncome ? '#15803d' : '#dc2626';
+
+                                    return (
+                                      <tr
+                                        key={tx.id}
+                                        onClick={() => {
+                                          if (tx.type === 'EXPENSE' && tx.originalExpense) {
+                                            setViewingExpense(tx.originalExpense);
+                                          } else if (tx.originalContribution) {
+                                            setViewingContribution(tx.originalContribution);
+                                          }
+                                        }}
+                                        className="transition-colors hover:bg-[#f6faf7] dark:hover:bg-slate-800/60 cursor-pointer group"
+                                      >
+                                        {/* 1. GIAO DỊCH & HẠNG MỤC */}
+                                        <td className="px-3.5 py-3">
+                                          <div className="flex items-center gap-2.5 min-w-0">
+                                            <span
+                                              className={`grid size-9 shrink-0 place-items-center rounded-xl shadow-xs transition-transform group-hover:scale-105 border border-transparent ${
+                                                isIncome
+                                                  ? 'bg-[#dcfce7] text-[#15803d] dark:bg-emerald-950/70 dark:border-emerald-800/60 dark:text-emerald-400'
+                                                  : 'bg-[#fee2e2] text-[#dc2626] dark:bg-rose-950/70 dark:border-rose-800/60 dark:text-rose-400'
+                                              }`}
+                                            >
+                                              <FinanceIcon
+                                                name={resolveCategoryIconName(tx.categoryIcon, isIncome ? 'INCOME' : 'EXPENSE', tx.title)}
+                                                size={16}
+                                              />
+                                            </span>
+                                            <div className="min-w-0 flex-1">
+                                              <p className="truncate font-bold text-[#0f172a] dark:text-slate-100 text-[12.5px] group-hover:text-[#07543f] dark:group-hover:text-emerald-400 transition-colors m-0" title={tx.title}>
+                                                {tx.title}
+                                              </p>
+                                              <p className="text-[11px] text-[#64748b] dark:text-slate-400 truncate mt-0.5 m-0">
+                                                {tx.categoryName || (isIncome ? 'Đóng quỹ' : 'Chi tiêu nhóm')}
+                                              </p>
+                                            </div>
+                                          </div>
+                                        </td>
+
+                                        {/* 2. NGƯỜI THỰC HIỆN / NGUỒN TIỀN (Khoản nạp quỹ thì không cần ghi nguồn) */}
+                                        <td className="px-3 py-3">
+                                          <div className="min-w-0">
+                                            <p className="font-bold text-[#0f172a] dark:text-slate-100 text-[12px] truncate m-0" title={tx.subtitle.replace(/^Bởi\s*/, '')}>
+                                              {tx.subtitle.replace(/^Bởi\s*/, '')}
+                                            </p>
+                                            {tx.originalExpense && (
+                                              <p className="text-[10px] text-[#718579] dark:text-slate-400 font-medium truncate mt-0.5 m-0">
+                                                {tx.originalExpense.paymentSource === 'GROUP_FUND' ? 'Nguồn: Quỹ nhóm' : 'Nguồn: Ví cá nhân'}
+                                              </p>
+                                            )}
+                                          </div>
+                                        </td>
+
+                                        {/* 3. THỜI GIAN (Định dạng DD/MM/YYYY) */}
+                                        <td className="px-2.5 py-3 whitespace-nowrap">
+                                          <p className="font-bold text-[#0f172a] dark:text-slate-100 text-[11.5px] leading-tight m-0">
+                                            {tx.dateStr}
+                                          </p>
+                                          <p className="text-[10px] text-[#64748b] dark:text-slate-400 mt-0.5 leading-tight m-0">
+                                            {tx.timeStr}
+                                          </p>
+                                        </td>
+
+                                        {/* 4. PHÂN LOẠI BADGE */}
+                                        <td className="px-2 py-3 text-center whitespace-nowrap">
+                                          {isIncome ? (
+                                            <span className="inline-flex items-center justify-center gap-0.5 rounded-full bg-[#dcfce7] dark:bg-emerald-950/70 px-2.5 py-0.5 text-[10.5px] font-bold text-[#15803d] dark:text-emerald-400 border border-emerald-200/60 dark:border-emerald-800/60 shadow-2xs">
+                                              <span>↓</span>
+                                              <span>Thu quỹ</span>
+                                            </span>
+                                          ) : (
+                                            <span className="inline-flex items-center justify-center gap-0.5 rounded-full bg-[#fee2e2] dark:bg-rose-950/70 px-2.5 py-0.5 text-[10.5px] font-bold text-[#dc2626] dark:text-rose-400 border border-rose-200/60 dark:border-rose-800/60 shadow-2xs">
+                                              <span>↑</span>
+                                              <span>Khoản chi</span>
+                                            </span>
+                                          )}
+                                        </td>
+
+                                        {/* 5. SỐ TIỀN */}
+                                        <td className="px-3 py-3 text-right font-black text-xs whitespace-nowrap">
+                                          <span
+                                            className={`text-[13px] font-extrabold tracking-tight ${
+                                              isIncome ? 'text-[#16a34a] dark:text-emerald-400' : 'text-[#dc2626] dark:text-rose-400'
+                                            }`}
+                                          >
+                                            {isIncome ? '+' : '-'}{tx.amount.toLocaleString('vi-VN')} đ
+                                          </span>
+                                        </td>
+
+                                        {/* 6. BÌNH LUẬN / THẢO LUẬN */}
+                                        <td className="px-2 py-3 text-center whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
+                                          <button
+                                            type="button"
+                                            onClick={() => {
+                                              if (tx.type === 'EXPENSE' && tx.originalExpense) {
+                                                setViewingExpense(tx.originalExpense);
+                                              } else if (tx.originalContribution) {
+                                                setViewingContribution(tx.originalContribution);
+                                              }
+                                            }}
+                                            className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold transition cursor-pointer ${
+                                              tx.commentCount > 0
+                                                ? 'bg-emerald-50 text-[#07543f] hover:bg-emerald-100 border border-emerald-200/80 dark:bg-emerald-950/60 dark:text-emerald-300 dark:border-emerald-800'
+                                                : 'bg-gray-100/80 text-gray-500 hover:bg-gray-200/80 hover:text-gray-800 dark:bg-slate-800 dark:text-slate-400 dark:hover:bg-slate-700'
+                                            }`}
+                                            title="Xem và gửi bình luận"
+                                          >
+                                            <FinanceIcon name="message" size={13} />
+                                            <span>{tx.commentCount}</span>
+                                          </button>
+                                        </td>
+                                      </tr>
+                                    );
+                                  })}
+                                </tbody>
+                              </table>
                             </div>
 
-                            <div className="text-right">
-                              <strong className="text-sm font-bold text-rose-600 block">
-                                -{exp.amount.toLocaleString('vi-VN')} đ
-                              </strong>
-                              <span className="text-[10px] text-gray-400 block">
-                                Chia: {exp.splitMethod === 'EQUAL' ? 'Đều nhau' : exp.splitMethod}
+                            {/* Footer Phân trang ngang - Mỗi trang chỉ 5 giao dịch */}
+                            <div className="flex flex-col sm:flex-row items-center justify-between gap-3 border-t border-[#e2e8f0] dark:border-slate-800 bg-[#f8fafc] dark:bg-slate-800/80 px-4 py-3 text-xs text-[#64748b] dark:text-slate-400">
+                              <span>
+                                Hiển thị <strong className="text-[#0f172a] dark:text-slate-100">{paginatedList.length}</strong> trên tổng số{' '}
+                                <strong className="text-[#0f172a] dark:text-slate-100">{displayedList.length}</strong> giao dịch ({selectedMonthLabel})
                               </span>
-                              <button type="button" onClick={(e) => { e.stopPropagation(); handleSendTransactionToChat(exp.description === 'Khoản chi nhóm' ? (exp.category?.name || exp.description) : exp.description, exp.amount, 'EXPENSE', exp.id, `Danh mục: ${exp.category?.name || 'Chi tiêu'}\n${exp.paymentSource === 'GROUP_FUND' ? `Nguồn: Quỹ chung · Thực hiện bởi: ${memberName(exp.paidByUserId, exp.payer?.fullName)}` : `Nguồn: Ví cá nhân · Chi bởi: ${memberName(exp.paidByUserId, exp.payer?.fullName)}`}\nThời gian: ${formatGroupDateTime(exp.createdAt || exp.expenseDate)}`); }} className="mt-1 rounded-md border border-sky-200 bg-sky-50 px-1.5 py-0.5 text-[8px] font-semibold text-sky-700 hover:bg-sky-100">Gửi vào nhóm</button>
-                            </div></div>
-                            <div className="mt-3 border-t border-[#edf3ee] pt-3 space-y-2">{(commentsByTarget[exp.id] || []).map((comment) => { const member = members.find((m) => m.userId === comment.userId); const parent = (commentsByTarget[exp.id] || []).find((m) => m.id === comment.parentCommentId); const name = memberName(comment.userId, comment.user?.fullName); const avatar = member?.user?.avatarUrl || member?.user?.avatarKey; const mine = comment.userId === currentUser?.id; return <div key={comment.id} className={`flex items-start gap-2 ${parent ? 'ml-9' : ''}`}><div className="grid size-7 shrink-0 place-items-center overflow-hidden rounded-full bg-emerald-100 text-[10px] font-bold text-emerald-700">{avatar ? <img src={userApi.getAvatarUrl(avatar)} alt="" className="size-full object-cover" /> : name.charAt(0)}</div><div><div className="rounded-xl bg-[#f7faf8] px-3 py-2 text-xs"><div className="flex min-w-48 justify-between gap-5"><strong>{name}</strong><span className="text-[10px] text-[#718579]">{new Date(comment.createdAt).toLocaleString('vi-VN', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit', year: 'numeric' })}</span></div><p className="m-0 mt-0.5 text-[#52665b]">{parent && <strong className="text-[#07543f]">@{memberName(parent.userId, parent.user?.fullName)} </strong>}{comment.content}</p></div><div className="mt-1 flex items-center gap-2 pl-1"><button type="button" onClick={() => { setReplyingTo((previous) => ({ ...previous, [exp.id]: comment.id })); setInlineCommentText((previous) => ({ ...previous, [exp.id]: `@${name} ` })); }} className="comment-action font-bold text-[#07543f]">Trả lời</button>{mine && <><button type="button" onClick={() => handleEditComment(exp.id, comment)} className="comment-action text-[#718579]">Sửa</button><button type="button" onClick={() => handleDeleteComment(exp.id, comment.id)} className="comment-action text-rose-600">Xóa</button></>}</div></div></div>; })}<div className="flex gap-2"><input value={inlineCommentText[exp.id] || ''} onChange={(e) => setInlineCommentText((previous) => ({ ...previous, [exp.id]: e.target.value }))} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleInlineComment(exp.id, 'GROUP_EXPENSE'); } }} placeholder={replyingTo[exp.id] ? 'Viết trả lời...' : 'Viết bình luận...'} className="h-8 flex-1 rounded-lg border border-gray-200 px-2 text-xs" /><button type="button" onClick={() => handleInlineComment(exp.id, 'GROUP_EXPENSE')} className="text-xs font-bold text-[#07543f]">Gửi</button></div></div>
+
+                              {totalPages > 1 && (
+                                <div className="flex items-center gap-1.5">
+                                  {/* Nút Trước */}
+                                  <button
+                                    type="button"
+                                    disabled={safePage <= 1}
+                                    onClick={() => setTxCurrentPage((p) => Math.max(1, p - 1))}
+                                    className="inline-flex h-8 items-center gap-1 rounded-lg border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 text-xs font-semibold text-[#14261e] dark:text-slate-300 hover:bg-gray-100 dark:hover:bg-slate-700 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition shadow-2xs"
+                                  >
+                                    <FinanceIcon name="chevron-left" size={14} />
+                                    <span>Trước</span>
+                                  </button>
+
+                                  {/* Các số trang bấm ngang */}
+                                  <div className="flex items-center gap-1">
+                                    {Array.from({ length: totalPages }, (_, i) => i + 1).map((pageNum) => (
+                                      <button
+                                        key={pageNum}
+                                        type="button"
+                                        onClick={() => setTxCurrentPage(pageNum)}
+                                        className={`size-8 rounded-lg text-xs font-bold transition cursor-pointer ${
+                                          safePage === pageNum
+                                            ? 'bg-[#07543f] text-white shadow-2xs'
+                                            : 'bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 text-gray-700 dark:text-slate-300 hover:bg-gray-100 dark:hover:bg-slate-700'
+                                        }`}
+                                      >
+                                        {pageNum}
+                                      </button>
+                                    ))}
+                                  </div>
+
+                                  {/* Nút Sau */}
+                                  <button
+                                    type="button"
+                                    disabled={safePage >= totalPages}
+                                    onClick={() => setTxCurrentPage((p) => Math.min(totalPages, p + 1))}
+                                    className="inline-flex h-8 items-center gap-1 rounded-lg border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 text-xs font-semibold text-[#14261e] dark:text-slate-300 hover:bg-gray-100 dark:hover:bg-slate-700 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition shadow-2xs"
+                                  >
+                                    <span>Sau</span>
+                                    <FinanceIcon name="chevron-right" size={14} />
+                                  </button>
+                                </div>
+                              )}
+                            </div>
                           </div>
-                        );
-                      })}
-                    </>
-                  )}
-                </div>
-              )}
+                        )}
+                      </div>
+                    );
+                  })()}
 
               {/* Tab 2: Cân bằng công nợ chéo */}
               {activeTab === 'BALANCES' && (
@@ -3065,176 +3809,408 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
               {/* Tab 5: Ví trẻ em (Family Group) */}
               {activeTab === 'CHILD_WALLETS' && (
                 <div className="flex flex-col gap-4">
-                  {/* Action Header */}
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <h4 className="text-sm font-bold text-[#14261e] dark:text-slate-100 m-0">
-                        Quản lý ví trẻ em ({childWallets.length})
-                      </h4>
-                      <p className="text-xs text-[#718579] dark:text-slate-400 m-0 mt-0.5">
-                        Theo dõi tài chính con trẻ, cấp tiền tiêu vặt và hướng dẫn tiết kiệm
-                      </p>
-                    </div>
-                    {!isChildAccount && (
-                      <button
-                        type="button"
-                        onClick={() => setIsChildWalletModalOpen(true)}
-                        className="h-8 px-3.5 rounded-xl bg-[#07543f] hover:bg-[#064232] text-xs font-bold text-white transition flex items-center gap-1.5 shadow-2xs"
-                      >
-                        <FinanceIcon name="plus" size={14} />
-                        <span>Thêm ví cho bé</span>
-                      </button>
-                    )}
-                  </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    {childWallets.length === 0 ? (
-                      <div className="col-span-2 p-8 text-center text-xs text-[#718579] dark:text-slate-400 rounded-2xl bg-[#fafcfa] dark:bg-[#0b1c2a] border border-dashed border-[#d8e3dc] dark:border-[#1b3a50] flex flex-col items-center gap-2">
-                        <div className="size-10 rounded-full bg-emerald-50 dark:bg-emerald-950/60 text-[#07543f] dark:text-emerald-400 grid place-items-center">
-                          <FinanceIcon name="wallet" size={20} />
-                        </div>
-                        <p className="font-bold text-[#14261e] dark:text-slate-200 m-0">
-                          Chưa có ví trẻ em nào trong gia đình này
+                  {/* Card Danh sách ví trẻ em */}
+                  <div className="rounded-3xl bg-white dark:bg-slate-900 border border-[#e2ece5] dark:border-slate-800 p-5 shadow-2xs">
+                    <div className="flex items-center justify-between pb-4 border-b border-[#edf3ee] dark:border-slate-800 mb-4">
+                      <div>
+                        <h4 className="text-sm font-bold text-[#14261e] dark:text-slate-100 m-0">
+                          Danh sách ví trẻ em ({childWallets.length})
+                        </h4>
+                        <p className="text-xs text-[#718579] dark:text-slate-400 m-0 mt-0.5">
+                          Quản lý tài khoản tiền tiêu vặt và nhiệm vụ cho từng bé
                         </p>
-                        <p className="m-0 text-gray-500">
-                          Tạo ví để cấp tiền tiêu vặt cho con và phân công việc nhà nhận thưởng.
-                        </p>
-                        {!isChildAccount && (
-                          <button
-                            type="button"
-                            onClick={() => setIsChildWalletModalOpen(true)}
-                            className="mt-2 h-8 px-4 rounded-xl bg-[#07543f] text-xs font-bold text-white hover:bg-[#064232] transition"
-                          >
-                            + Tạo ví cho bé
-                          </button>
-                        )}
                       </div>
-                    ) : (
-                      childWallets.map((cw) => (
-                        <div
-                          key={cw.id}
-                          className="p-5 rounded-2xl border border-emerald-100 dark:border-emerald-800/40 bg-gradient-to-br from-emerald-50/50 to-white dark:from-[#0a1926] dark:to-[#0f2334] flex flex-col gap-3 shadow-2xs"
+                      {!isChildAccount && (
+                        <button
+                          type="button"
+                          onClick={() => setIsChildWalletModalOpen(true)}
+                          className="h-8 px-3.5 rounded-xl bg-[#07543f] hover:bg-[#064232] text-xs font-bold text-white transition flex items-center gap-1.5 shadow-2xs cursor-pointer"
                         >
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-2.5">
-                              <div className="size-10 rounded-xl bg-emerald-100 dark:bg-emerald-950 text-[#07543f] dark:text-emerald-300 font-bold text-sm grid place-items-center">
-                                👶
-                              </div>
-                              <div>
-                                <h4 className="text-sm font-bold text-[#14261e] dark:text-slate-100 m-0">
-                                  {cw.childName}
-                                </h4>
-                                <span className="text-[11px] text-[#718579]">{cw.age ? `${cw.age} tuổi` : 'Ví trẻ em'}</span>
-                              </div>
-                            </div>
+                          <FinanceIcon name="plus" size={14} />
+                          <span>Thêm ví</span>
+                        </button>
+                      )}
+                    </div>
 
-                            {!isChildAccount && isLeader && (
-                              <div className="flex items-center gap-1">
-                                <button
-                                  type="button"
-                                  onClick={() => handleOpenEditChildWallet(cw)}
-                                  title="Sửa ví"
-                                  className="size-7 rounded-lg text-emerald-700 dark:text-emerald-300 hover:bg-emerald-100 dark:hover:bg-emerald-950/60 grid place-items-center transition cursor-pointer"
-                                >
-                                  <FinanceIcon name="edit" size={13} />
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => handleDeleteChildWallet(cw)}
-                                  title="Xóa ví"
-                                  className="size-7 rounded-lg text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/40 grid place-items-center transition cursor-pointer"
-                                >
-                                  <FinanceIcon name="delete" size={13} />
-                                </button>
-                              </div>
-                            )}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                      {childWallets.length === 0 ? (
+                        <div className="col-span-2 p-8 text-center text-xs text-[#718579] dark:text-slate-400 rounded-2xl bg-[#fafcfa] dark:bg-[#0b1c2a] border border-dashed border-[#d8e3dc] dark:border-[#1b3a50] flex flex-col items-center gap-2">
+                          <div className="size-12 rounded-full bg-emerald-50 dark:bg-emerald-950/60 text-[#07543f] dark:text-emerald-400 grid place-items-center">
+                            <span className="text-2xl">👛</span>
                           </div>
-
-                          <div>
-                            <span className="text-[11px] text-[#718579] block">Số dư hiện tại</span>
-                            <strong className="text-2xl font-bold text-[#07543f] dark:text-emerald-400 mt-0.5 block">
-                              {(cw.balance || 0).toLocaleString('vi-VN')} đ
-                            </strong>
-                          </div>
-
-                          <div className="flex flex-col gap-1 border-t border-[#edf3ee] dark:border-slate-800 pt-3 text-xs text-[#718579]">
-                            <div className="flex items-center justify-between">
-                              <span>Tiền tiêu vặt tuần:</span>
-                              <span className="font-bold text-[#14261e] dark:text-slate-200">
-                                {(cw.weeklyAllowance || 0).toLocaleString('vi-VN')} đ
-                              </span>
-                            </div>
-                            {Number(cw.weeklyAllowance || 0) > 0 && (
-                              <div className="flex items-center justify-between text-[11px] text-[#718579]">
-                                <span>Nguồn trích:</span>
-                                <span className="font-semibold text-emerald-700 dark:text-emerald-400">
-                                  {cw.allowanceSource === 'GROUP_FUND'
-                                    ? 'Quỹ chung nhóm'
-                                    : personalAccounts.find((a) => a.id === cw.allowanceAccountId)?.name
-                                    ? `Ví ${personalAccounts.find((a) => a.id === cw.allowanceAccountId)?.name}`
-                                    : 'Ví cá nhân'}
-                                </span>
-                              </div>
-                            )}
-                          </div>
-
-                          {/* Action Buttons */}
-                          <div className={`grid ${!isChildAccount ? 'grid-cols-3' : 'grid-cols-2'} gap-2 mt-2`}>
-                            {!isChildAccount && (
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setDepositTargetWallet(cw);
-                                  setDepositAmount('');
-                                  setDepositNote('');
-                                }}
-                                className="h-9 px-2 rounded-xl bg-[#07543f] text-xs font-bold text-white hover:bg-[#064232] transition flex items-center justify-center gap-1.5 shadow-2xs whitespace-nowrap cursor-pointer"
-                              >
-                                <FinanceIcon name="plus" size={13} />
-                                <span>Nạp tiền</span>
-                              </button>
-                            )}
-
+                          <p className="font-bold text-sm text-[#14261e] dark:text-slate-200 m-0">
+                            Chưa có ví trẻ em nào
+                          </p>
+                          <p className="m-0 text-gray-500 max-w-sm">
+                            Bấm "+ Thêm ví" ở góc trên để tạo tài khoản ví cho bé yêu của bạn.
+                          </p>
+                          {!isChildAccount && (
                             <button
                               type="button"
-                              onClick={() => handleOpenSpendRequests(cw)}
-                              className="h-9 px-2 rounded-xl border border-emerald-300 dark:border-emerald-800/80 bg-white dark:bg-[#071622] text-xs font-bold text-[#07543f] dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-[#0c2436] transition flex items-center justify-center gap-1.5 shadow-2xs whitespace-nowrap cursor-pointer"
+                              onClick={() => setIsChildWalletModalOpen(true)}
+                              className="mt-2 h-8 px-4 rounded-xl bg-[#07543f] text-xs font-bold text-white hover:bg-[#064232] transition cursor-pointer"
                             >
-                              <FinanceIcon name="receipt" size={13} />
-                              <span>{isChildAccount ? 'Khoản tiền' : 'Lịch sử'}</span>
+                              + Thêm ví cho bé
                             </button>
-
-                            {/* Nếu ví do bố mẹ tự theo dõi (không có tài khoản đăng nhập riêng của bé) -> Hiển thị "Thêm chi tiêu" để bố mẹ ghi khoản chi trực tiếp.
-                                Nếu ví có tài khoản riêng của bé (bé tự đăng nhập làm nhiệm vụ) -> Hiển thị "Nhiệm vụ" */}
-                            {!cw.userId && !cw.childUsername ? (
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setSelectedWalletForRequests(cw);
-                                  setRequestAmount('');
-                                  setRequestDescription('');
-                                  setSelectedSpendCategory('');
-                                  setIsSpendRequestModalOpen(true);
-                                }}
-                                className="h-9 px-2 rounded-xl border border-rose-300 dark:border-rose-800/80 bg-rose-50 dark:bg-rose-950/30 text-xs font-bold text-rose-700 dark:text-rose-300 hover:bg-rose-100 dark:hover:bg-rose-900/40 transition flex items-center justify-center gap-1.5 shadow-2xs whitespace-nowrap cursor-pointer"
-                              >
-                                <FinanceIcon name="expense" size={13} />
-                                <span>Thêm chi tiêu</span>
-                              </button>
-                            ) : (
-                              <button
-                                type="button"
-                                onClick={() => handleOpenChores(cw)}
-                                className="h-9 px-2 rounded-xl border border-amber-300 dark:border-amber-700/60 bg-amber-50 dark:bg-amber-950/30 text-xs font-bold text-amber-700 dark:text-amber-300 hover:bg-amber-100 dark:hover:bg-amber-900/40 transition flex items-center justify-center gap-1.5 shadow-2xs whitespace-nowrap cursor-pointer"
-                              >
-                                <span>⭐</span>
-                                <span>{isChildAccount ? 'Nhiệm vụ' : 'Nhiệm vụ'}</span>
-                              </button>
-                            )}
-                          </div>
+                          )}
                         </div>
-                      ))
-                    )}
+                      ) : (
+                        childWallets.map((cw, idx) => {
+                          const isGirl = cw.avatarKey === 'kid_girl' || cw.avatarKey?.includes('girl') || idx % 2 === 1;
+                          const avatarSrc = getKidAvatarSrc(cw.avatarKey, isGirl);
+
+                          return (
+                            <div
+                              key={cw.id}
+                              className="p-4 rounded-2xl border border-gray-100 dark:border-slate-800 bg-[#f8faf9] dark:bg-slate-850 hover:bg-emerald-50/30 dark:hover:bg-slate-800 transition flex flex-col gap-3 shadow-2xs"
+                            >
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-3">
+                                  <div
+                                    className={`size-11 rounded-full overflow-hidden border-2 flex items-center justify-center shrink-0 ${
+                                      isGirl ? 'bg-pink-50 border-pink-200' : 'bg-blue-50 border-blue-200'
+                                    }`}
+                                  >
+                                    <img
+                                      src={avatarSrc}
+                                      alt={cw.childName}
+                                      className="size-full object-cover"
+                                    />
+                                  </div>
+                                  <div>
+                                    <div className="flex items-center gap-1.5">
+                                      <h4 className="text-sm font-bold text-[#14261e] dark:text-slate-100 m-0">
+                                        {cw.childName}
+                                      </h4>
+                                      {!cw.userId && !cw.childUsername && (
+                                        <span className="px-1.5 py-0.5 rounded text-[9.5px] font-bold bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300">
+                                          Bố mẹ quản
+                                        </span>
+                                      )}
+                                    </div>
+                                    <span className="text-[11px] text-[#718579] dark:text-slate-400">
+                                      {cw.age ? `${cw.age} tuổi` : 'Bé yêu'}
+                                    </span>
+                                  </div>
+                                </div>
+
+                                {!isChildAccount && isLeader && (
+                                  <div className="flex items-center gap-1">
+                                    <button
+                                      type="button"
+                                      onClick={() => handleOpenEditChildWallet(cw)}
+                                      title="Sửa ví"
+                                      className="size-7 rounded-lg text-emerald-700 dark:text-emerald-300 hover:bg-emerald-100 dark:hover:bg-emerald-950/60 grid place-items-center transition cursor-pointer"
+                                    >
+                                      <FinanceIcon name="edit" size={13} />
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => handleDeleteChildWallet(cw)}
+                                      title="Xóa ví"
+                                      className="size-7 rounded-lg text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/40 grid place-items-center transition cursor-pointer"
+                                    >
+                                      <FinanceIcon name="delete" size={13} />
+                                    </button>
+                                  </div>
+                                )}
+                              </div>
+
+                              <div className="p-3 rounded-xl bg-white dark:bg-slate-900 border border-gray-100 dark:border-slate-800 flex items-center justify-between">
+                                <div>
+                                  <span className="text-[11px] text-[#718579] block">Số dư hiện tại</span>
+                                  <strong className="text-lg font-bold text-[#07543f] dark:text-emerald-400 block">
+                                    {(cw.balance || 0).toLocaleString('vi-VN')} đ
+                                  </strong>
+                                </div>
+                                {Number(cw.weeklyAllowance || 0) > 0 && (
+                                  <div className="text-right">
+                                    <span className="text-[11px] text-[#718579] block">Tiêu vặt tuần</span>
+                                    <strong className="text-xs font-bold text-gray-700 dark:text-slate-300 block">
+                                      {(cw.weeklyAllowance || 0).toLocaleString('vi-VN')} đ
+                                    </strong>
+                                  </div>
+                                )}
+                              </div>
+
+                              {/* Action Buttons */}
+                              <div className={`grid ${!isChildAccount ? 'grid-cols-3' : 'grid-cols-2'} gap-2`}>
+                                {!isChildAccount && (
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setDepositTargetWallet(cw);
+                                      setDepositAmount('');
+                                      setDepositNote('');
+                                    }}
+                                    className="h-8 px-2 rounded-xl bg-[#07543f] text-xs font-bold text-white hover:bg-[#064232] transition flex items-center justify-center gap-1 shadow-2xs whitespace-nowrap cursor-pointer"
+                                  >
+                                    <FinanceIcon name="plus" size={12} />
+                                    <span>Nạp tiền</span>
+                                  </button>
+                                )}
+
+                                <button
+                                  type="button"
+                                  onClick={() => handleOpenSpendRequests(cw)}
+                                  className="h-8 px-2 rounded-xl border border-emerald-300 dark:border-emerald-800/80 bg-white dark:bg-[#071622] text-xs font-bold text-[#07543f] dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-[#0c2436] transition flex items-center justify-center gap-1 shadow-2xs whitespace-nowrap cursor-pointer"
+                                >
+                                  <FinanceIcon name="receipt" size={12} />
+                                  <span>{isChildAccount ? 'Khoản tiền' : 'Lịch sử'}</span>
+                                </button>
+
+                                {!cw.userId && !cw.childUsername ? (
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setSelectedWalletForRequests(cw);
+                                      setRequestAmount('');
+                                      setRequestDescription('');
+                                      setSelectedSpendCategory('');
+                                      setIsSpendRequestModalOpen(true);
+                                    }}
+                                    className="h-8 px-2 rounded-xl border border-rose-300 dark:border-rose-800/80 bg-rose-50 dark:bg-rose-950/30 text-xs font-bold text-rose-700 dark:text-rose-300 hover:bg-rose-100 dark:hover:bg-rose-900/40 transition flex items-center justify-center gap-1 shadow-2xs whitespace-nowrap cursor-pointer"
+                                  >
+                                    <FinanceIcon name="expense" size={12} />
+                                    <span>Chi tiêu</span>
+                                  </button>
+                                ) : (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleOpenChores(cw)}
+                                    className="h-8 px-2 rounded-xl border border-amber-300 dark:border-amber-700/60 bg-amber-50 dark:bg-amber-950/30 text-xs font-bold text-amber-700 dark:text-amber-300 hover:bg-amber-100 dark:hover:bg-amber-900/40 transition flex items-center justify-center gap-1 shadow-2xs whitespace-nowrap cursor-pointer"
+                                  >
+                                    <span>⭐</span>
+                                    <span>Nhiệm vụ</span>
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Tab 6: Cài đặt nhóm (Settings) */}
+              {activeTab === 'SETTINGS' && (
+                <div className="flex flex-col gap-6">
+                  {/* Card 1: Thông tin nhóm */}
+                  <div className="rounded-3xl bg-white dark:bg-slate-900 border border-[#e2ece5] dark:border-slate-800 p-6 shadow-2xs">
+                    <div className="flex items-center gap-3 mb-5">
+                      <div className="size-10 rounded-2xl bg-emerald-50 dark:bg-emerald-950/50 text-[#07543f] dark:text-emerald-400 grid place-items-center">
+                        <FinanceIcon name="settings" size={20} />
+                      </div>
+                      <div>
+                        <h3 className="text-sm font-bold text-[#14261e] dark:text-slate-100 m-0">
+                          Thông tin nhóm
+                        </h3>
+                        <p className="text-xs text-[#718579] dark:text-slate-400 m-0">
+                          {isLeader ? 'Quản lý và cập nhật thông tin nhóm' : 'Xem thông tin cơ bản của nhóm'}
+                        </p>
+                      </div>
+                    </div>
+
+                    <form onSubmit={handleUpdateGroupSettings} className="space-y-4 max-w-2xl">
+                      <div>
+                        <label className="text-xs font-bold text-gray-700 dark:text-slate-300 block mb-1.5">
+                          Tên nhóm <span className="text-red-500">*</span>
+                        </label>
+                        <input
+                          type="text"
+                          value={settingsGroupName}
+                          onChange={(e) => setSettingsGroupName(e.target.value)}
+                          disabled={!isLeader || isSavingSettings}
+                          placeholder="Nhập tên nhóm..."
+                          className="w-full h-11 px-3.5 text-xs rounded-xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100 focus:outline-hidden focus:border-[#07543f] disabled:bg-gray-100 dark:disabled:bg-slate-800/50 disabled:cursor-not-allowed"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="text-xs font-bold text-gray-700 dark:text-slate-300 block mb-1.5">
+                          Mô tả nhóm
+                        </label>
+                        <textarea
+                          rows={3}
+                          value={settingsGroupDesc}
+                          onChange={(e) => setSettingsGroupDesc(e.target.value)}
+                          disabled={!isLeader || isSavingSettings}
+                          placeholder="Mô tả mục tiêu hoạt động của nhóm..."
+                          className="w-full p-3 text-xs rounded-xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100 focus:outline-hidden focus:border-[#07543f] disabled:bg-gray-100 dark:disabled:bg-slate-800/50 disabled:cursor-not-allowed"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="text-xs font-bold text-gray-700 dark:text-slate-300 block mb-1.5">
+                          Loại hình nhóm
+                        </label>
+                        <select
+                          value={settingsGroupType}
+                          onChange={(e) => setSettingsGroupType(e.target.value as GroupType)}
+                          disabled={!isLeader || isSavingSettings}
+                          className="w-full h-11 px-3 text-xs rounded-xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100 focus:outline-hidden focus:border-[#07543f] disabled:bg-gray-100 dark:disabled:bg-slate-800/50 disabled:cursor-not-allowed"
+                        >
+                          <option value="FAMILY">Gia đình (hỗ trợ ví trẻ em & nhiệm vụ)</option>
+                          <option value="ROOMMATE">Bạn cùng phòng</option>
+                          <option value="TRAVEL">Du lịch / Dã ngoại</option>
+                          <option value="PROJECT">Dự án / Quỹ chung</option>
+                          <option value="COUPLE">Cặp đôi</option>
+                          <option value="OTHER">Khác</option>
+                        </select>
+                      </div>
+
+                      {isLeader && (
+                        <div className="pt-2">
+                          <button
+                            type="submit"
+                            disabled={isSavingSettings}
+                            className="px-5 h-10 rounded-xl bg-[#07543f] hover:bg-[#07543f]/90 text-white font-bold text-xs transition flex items-center gap-2 cursor-pointer shadow-xs disabled:opacity-50"
+                          >
+                            <FinanceIcon name="check" size={14} />
+                            <span>{isSavingSettings ? 'Đang lưu...' : 'Lưu thay đổi'}</span>
+                          </button>
+                        </div>
+                      )}
+                    </form>
+                  </div>
+
+                  {/* Card 2: Thông báo & Trải nghiệm */}
+                  <div className="rounded-3xl bg-white dark:bg-slate-900 border border-[#e2ece5] dark:border-slate-800 p-6 shadow-2xs">
+                    <div className="flex items-center gap-3 mb-5">
+                      <div className="size-10 rounded-2xl bg-blue-50 dark:bg-blue-950/50 text-blue-600 dark:text-blue-400 grid place-items-center">
+                        <FinanceIcon name="bell" size={20} />
+                      </div>
+                      <div>
+                        <h3 className="text-sm font-bold text-[#14261e] dark:text-slate-100 m-0">
+                          Thông báo & Trải nghiệm
+                        </h3>
+                        <p className="text-xs text-[#718579] dark:text-slate-400 m-0">
+                          Tùy chỉnh thông báo và tính năng trong nhóm của bạn
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="space-y-4 max-w-2xl divide-y divide-gray-100 dark:divide-slate-800">
+                      <div className="flex items-center justify-between py-2">
+                        <div>
+                          <p className="text-xs font-bold text-gray-800 dark:text-slate-200 m-0">
+                            Nhận thông báo nhóm
+                          </p>
+                          <p className="text-[11px] text-gray-500 dark:text-slate-400 m-0">
+                            Nhận thông báo khi có khoản thu chi mới, tin nhắn hoặc thay đổi trong nhóm
+                          </p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => handleToggleGroupNotification(!groupNotificationEnabled)}
+                          className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-hidden ${
+                            groupNotificationEnabled ? 'bg-[#07543f]' : 'bg-gray-300 dark:bg-slate-700'
+                          }`}
+                        >
+                          <span
+                            className={`pointer-events-none inline-block size-5 transform rounded-full bg-white shadow-sm ring-0 transition duration-200 ease-in-out ${
+                              groupNotificationEnabled ? 'translate-x-5' : 'translate-x-0'
+                            }`}
+                          />
+                        </button>
+                      </div>
+
+                      <div className="flex items-center justify-between pt-4">
+                        <div>
+                          <p className="text-xs font-bold text-gray-800 dark:text-slate-200 m-0">
+                            Quỹ chung của nhóm
+                          </p>
+                          <p className="text-[11px] text-gray-500 dark:text-slate-400 m-0">
+                            Số dư quỹ hiện tại:{' '}
+                            <strong className="text-emerald-600 dark:text-emerald-400">
+                              {(groupFund?.balance || 0).toLocaleString('vi-VN')} đ
+                            </strong>
+                          </p>
+                        </div>
+                        <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300">
+                          Đang hoạt động
+                        </span>
+                      </div>
+
+                      <div className="flex items-center justify-between pt-4">
+                        <div>
+                          <p className="text-xs font-bold text-gray-800 dark:text-slate-200 m-0">
+                            Phòng trò chuyện nhóm
+                          </p>
+                          <p className="text-[11px] text-gray-500 dark:text-slate-400 m-0">
+                            Kênh trao đổi nội bộ thời gian thực cho tất cả thành viên
+                          </p>
+                        </div>
+                        <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300">
+                          Bật
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Card 3: Vùng nguy hiểm (Danger Zone) */}
+                  <div className="rounded-3xl bg-white dark:bg-slate-900 border border-red-200 dark:border-red-900/60 p-6 shadow-2xs">
+                    <div className="flex items-center gap-3 mb-5">
+                      <div className="size-10 rounded-2xl bg-red-50 dark:bg-red-950/50 text-red-600 dark:text-red-400 grid place-items-center">
+                        <FinanceIcon name="alert-triangle" size={20} />
+                      </div>
+                      <div>
+                        <h3 className="text-sm font-bold text-red-600 dark:text-red-400 m-0">
+                          Vùng nguy hiểm
+                        </h3>
+                        <p className="text-xs text-[#718579] dark:text-slate-400 m-0">
+                          Các thao tác không thể hoàn tác với nhóm
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="space-y-4 max-w-2xl divide-y divide-gray-100 dark:divide-slate-800">
+                      {/* Rời nhóm (nếu không phải Owner) */}
+                      {myRole !== 'OWNER' && selectedGroup.ownerId !== currentUser?.id && (
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 py-2">
+                          <div>
+                            <p className="text-xs font-bold text-gray-800 dark:text-slate-200 m-0">
+                              Rời khỏi nhóm
+                            </p>
+                            <p className="text-[11px] text-gray-500 dark:text-slate-400 m-0">
+                              Bạn sẽ không còn là thành viên và mất quyền truy cập dữ liệu nhóm
+                            </p>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={handleLeaveGroup}
+                            className="px-4 h-9 rounded-xl border border-red-300 dark:border-red-800/80 bg-red-50 dark:bg-red-950/30 text-xs font-bold text-red-700 dark:text-red-300 hover:bg-red-100 dark:hover:bg-red-900/50 transition flex items-center justify-center gap-1.5 cursor-pointer shrink-0"
+                          >
+                            <FinanceIcon name="log-out" size={14} />
+                            <span>Rời nhóm</span>
+                          </button>
+                        </div>
+                      )}
+
+                      {/* Xóa nhóm (nếu là Owner) */}
+                      {(myRole === 'OWNER' || selectedGroup.ownerId === currentUser?.id) && (
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-4">
+                          <div>
+                            <p className="text-xs font-bold text-red-600 dark:text-red-400 m-0">
+                              Giải tán nhóm
+                            </p>
+                            <p className="text-[11px] text-gray-500 dark:text-slate-400 m-0">
+                              Xóa vĩnh viễn toàn bộ dữ liệu giao dịch, tin nhắn và ví của nhóm
+                            </p>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={handleDeleteGroup}
+                            className="px-4 h-9 rounded-xl bg-red-600 hover:bg-red-700 text-xs font-bold text-white transition flex items-center justify-center gap-1.5 cursor-pointer shrink-0 shadow-xs"
+                          >
+                            <FinanceIcon name="trash" size={14} />
+                            <span>Xóa nhóm</span>
+                          </button>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
               )}
@@ -3515,7 +4491,7 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
                       value={memberSearchQuery}
                       onChange={(e) => setMemberSearchQuery(e.target.value)}
                       placeholder="VD: user@example.com..."
-                      className="w-full h-11 pl-9 pr-3 rounded-xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-medium focus:border-[#07543f] focus:outline-none"
+                      className="w-full h-11 pl-9 pr-3 rounded-xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-medium focus:border-[#07543f] focus:outline-hidden"
                       autoFocus
                     />
                     <div className="absolute left-3 top-3 text-gray-400">
@@ -3792,6 +4768,69 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
             </div>
 
             <form onSubmit={handleCreateChildWallet} className="flex flex-col gap-3.5">
+              {/* Chọn Avatar cho bé - Thiết kế tinh gọn (1 hàng) */}
+              <div className="p-3 rounded-2xl bg-gray-50/80 dark:bg-slate-800/60 border border-gray-200/80 dark:border-slate-700/80">
+                <div className="flex items-center gap-3">
+                  {/* Avatar Preview */}
+                  <div className="relative size-12 rounded-full overflow-hidden border-2 border-emerald-500 shadow-xs shrink-0 flex items-center justify-center bg-gray-100">
+                    <img
+                      src={getKidAvatarSrc(childWalletAvatarKey)}
+                      alt="Avatar"
+                      className="size-full object-cover"
+                    />
+                    {isUploadingCreateAvatar && (
+                      <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
+                        <div className="size-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      </div>
+                    )}
+                  </div>
+
+                  {/* 2 mẫu nhanh + nút tải ảnh trên cùng 1 hàng */}
+                  <div className="flex-1 flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setChildWalletAvatarKey('kid_boy')}
+                      className={`flex-1 h-9 px-2 rounded-xl border flex items-center justify-center gap-1.5 transition cursor-pointer text-xs font-bold ${
+                        childWalletAvatarKey === 'kid_boy'
+                          ? 'border-[#07543f] bg-emerald-100/70 text-[#07543f] dark:bg-emerald-950/60 dark:text-emerald-300'
+                          : 'border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-gray-700 dark:text-slate-300 hover:bg-gray-50'
+                      }`}
+                    >
+                      <img src="/kid_avatar_boy.png" alt="Bé trai" className="size-5 rounded-full object-cover" />
+                      <span>Bé trai</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setChildWalletAvatarKey('kid_girl')}
+                      className={`flex-1 h-9 px-2 rounded-xl border flex items-center justify-center gap-1.5 transition cursor-pointer text-xs font-bold ${
+                        childWalletAvatarKey === 'kid_girl'
+                          ? 'border-[#07543f] bg-emerald-100/70 text-[#07543f] dark:bg-emerald-950/60 dark:text-emerald-300'
+                          : 'border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-gray-700 dark:text-slate-300 hover:bg-gray-50'
+                      }`}
+                    >
+                      <img src="/kid_avatar_girl.png" alt="Bé gái" className="size-5 rounded-full object-cover" />
+                      <span>Bé gái</span>
+                    </button>
+
+                    <label className="h-9 px-2.5 rounded-xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-gray-50 text-gray-700 dark:text-slate-300 text-xs font-semibold flex items-center gap-1.5 transition cursor-pointer shrink-0" title="Tải ảnh từ máy">
+                      <FinanceIcon name="camera" size={13} className="text-emerald-600" />
+                      <span>{isUploadingCreateAvatar ? '...' : 'Tải ảnh'}</span>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        disabled={isUploadingCreateAvatar}
+                        className="hidden"
+                        onChange={(e) => {
+                          const f = e.target.files?.[0];
+                          if (f) handleUploadChildAvatar(f, false);
+                        }}
+                      />
+                    </label>
+                  </div>
+                </div>
+              </div>
+
               <div>
                 <label className="text-xs font-semibold text-[#14261e] dark:text-slate-300 block mb-1">
                   Tên của bé *
@@ -4021,6 +5060,69 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
             </div>
 
             <form onSubmit={handleUpdateChildWallet} className="flex flex-col gap-3.5 mt-4">
+              {/* Chọn Avatar cho bé - Thiết kế tinh gọn (1 hàng) */}
+              <div className="p-3 rounded-2xl bg-gray-50/80 dark:bg-slate-800/60 border border-gray-200/80 dark:border-slate-700/80">
+                <div className="flex items-center gap-3">
+                  {/* Avatar Preview */}
+                  <div className="relative size-12 rounded-full overflow-hidden border-2 border-emerald-500 shadow-xs shrink-0 flex items-center justify-center bg-gray-100">
+                    <img
+                      src={getKidAvatarSrc(editChildAvatarKey)}
+                      alt="Avatar"
+                      className="size-full object-cover"
+                    />
+                    {isUploadingEditAvatar && (
+                      <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
+                        <div className="size-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      </div>
+                    )}
+                  </div>
+
+                  {/* 2 mẫu nhanh + nút tải ảnh trên cùng 1 hàng */}
+                  <div className="flex-1 flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setEditChildAvatarKey('kid_boy')}
+                      className={`flex-1 h-9 px-2 rounded-xl border flex items-center justify-center gap-1.5 transition cursor-pointer text-xs font-bold ${
+                        editChildAvatarKey === 'kid_boy'
+                          ? 'border-[#07543f] bg-emerald-100/70 text-[#07543f] dark:bg-emerald-950/60 dark:text-emerald-300'
+                          : 'border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-gray-700 dark:text-slate-300 hover:bg-gray-50'
+                      }`}
+                    >
+                      <img src="/kid_avatar_boy.png" alt="Bé trai" className="size-5 rounded-full object-cover" />
+                      <span>Bé trai</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setEditChildAvatarKey('kid_girl')}
+                      className={`flex-1 h-9 px-2 rounded-xl border flex items-center justify-center gap-1.5 transition cursor-pointer text-xs font-bold ${
+                        editChildAvatarKey === 'kid_girl'
+                          ? 'border-[#07543f] bg-emerald-100/70 text-[#07543f] dark:bg-emerald-950/60 dark:text-emerald-300'
+                          : 'border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-gray-700 dark:text-slate-300 hover:bg-gray-50'
+                      }`}
+                    >
+                      <img src="/kid_avatar_girl.png" alt="Bé gái" className="size-5 rounded-full object-cover" />
+                      <span>Bé gái</span>
+                    </button>
+
+                    <label className="h-9 px-2.5 rounded-xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-gray-50 text-gray-700 dark:text-slate-300 text-xs font-semibold flex items-center gap-1.5 transition cursor-pointer shrink-0" title="Tải ảnh từ máy">
+                      <FinanceIcon name="camera" size={13} className="text-emerald-600" />
+                      <span>{isUploadingEditAvatar ? '...' : 'Tải ảnh'}</span>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        disabled={isUploadingEditAvatar}
+                        className="hidden"
+                        onChange={(e) => {
+                          const f = e.target.files?.[0];
+                          if (f) handleUploadChildAvatar(f, true);
+                        }}
+                      />
+                    </label>
+                  </div>
+                </div>
+              </div>
+
               <div>
                 <label className="text-xs font-semibold text-[#14261e] dark:text-slate-300 block mb-1">
                   Tên của bé *
@@ -4399,15 +5501,17 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
                 return displayedList.map((req) => {
                   const isDeposit = req.description?.startsWith('[INCOME_DEPOSIT] ');
                   const isChoreReward = req.description?.startsWith('[INCOME_CHORE] ');
-                  const isIncome = isDeposit || isChoreReward;
+                  const isGiftIncome = req.description?.startsWith('[INCOME_GIFT] ');
+                  const isIncome = isDeposit || isChoreReward || isGiftIncome;
 
                   const cleanDesc = req.description
                     ?.replace(/^\[MONEY_REQUEST\]\s*/, '')
                     ?.replace(/^\[INCOME_DEPOSIT\]\s*/, '')
-                    ?.replace(/^\[INCOME_CHORE\]\s*/, '') || '';
+                    ?.replace(/^\[INCOME_CHORE\]\s*/, '')
+                    ?.replace(/^\[INCOME_GIFT\]\s*/, '') || '';
 
                   // Icon đại diện
-                  const iconKind = isDeposit ? 'wallet' : isChoreReward ? 'plus' : resolveCategoryIconName(undefined, 'EXPENSE', cleanDesc);
+                  const iconKind = isDeposit ? 'wallet' : isChoreReward ? 'plus' : isGiftIncome ? 'gift' : resolveCategoryIconName(undefined, 'EXPENSE', cleanDesc);
                   const iconBg = isIncome
                     ? 'bg-emerald-50 text-emerald-600 border border-emerald-200/50 dark:bg-emerald-950/40 dark:text-emerald-400 dark:border-emerald-800/40'
                     : 'bg-rose-50 text-rose-500 border border-rose-200/50 dark:bg-[#1f151c] dark:text-[#ff758f] dark:border-rose-900/40';
@@ -4419,7 +5523,7 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
                     >
                       <div className="flex items-center gap-3 min-w-0 flex-1">
                         <div className={`size-10 rounded-2xl grid place-items-center shrink-0 ${iconBg}`}>
-                          {isChoreReward ? '⭐' : isDeposit ? '💰' : <FinanceIcon name={iconKind} size={18} />}
+                          {isChoreReward ? '⭐' : isDeposit ? '💰' : isGiftIncome ? '🎁' : <FinanceIcon name={iconKind} size={18} />}
                         </div>
 
                         <div className="min-w-0 flex-1">
@@ -4447,11 +5551,11 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
                                     : 'bg-rose-50 text-rose-600 border-rose-200 dark:bg-[#1f151c] dark:text-[#ff758f] dark:border-rose-900/40'
                                 }`}
                               >
-                                {isDeposit ? 'Nạp tiền vào ví' : isChoreReward ? 'Thưởng nhiệm vụ' : 'Đã chi tiêu'}
+                                {isDeposit ? 'Nạp tiền vào ví' : isChoreReward ? 'Thưởng nhiệm vụ' : isGiftIncome ? 'Tiền người thân cho' : 'Đã chi tiêu'}
                               </span>
                             )}
                             {/* Chỉ hiển thị người duyệt / người từ chối cho các yêu cầu xin tiền hoặc nạp tiền/thưởng nhiệm vụ được phê duyệt, không hiển thị cho các khoản chi tiêu thông thường của bé */}
-                            {!isDeposit && !isChoreReward && !isRequestsTab ? null : (
+                            {!isDeposit && !isChoreReward && !isGiftIncome && !isRequestsTab ? null : (
                               <>
                                 {req.status === 'APPROVED' && req.respondedByUserName && (
                                   <span className="text-[10px] text-emerald-700 dark:text-emerald-400 font-semibold bg-emerald-50 dark:bg-emerald-950/40 px-2 py-0.5 rounded-full border border-emerald-200 dark:border-emerald-800/40 whitespace-nowrap">
@@ -4729,16 +5833,22 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
                   )}
                 </div>
               ) : (
-                walletChores.map((chore) => (
+                walletChores.map((chore) => {
+                  const iconUrl = resolveChoreIconUrl(chore.icon, chore.id || chore.title);
+                  return (
                   <div
                     key={chore.id}
                     className="p-3.5 rounded-2xl bg-[#fafcfa] dark:bg-slate-800/80 border border-[#edf3ee] dark:border-slate-700/60 flex items-center justify-between gap-3 shadow-2xs"
                   >
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2">
-                        <strong className="text-sm font-bold text-[#14261e] dark:text-slate-100">
-                          {chore.title}
-                        </strong>
+                    <div className="flex items-center gap-3 min-w-0 flex-1">
+                      <span className="size-11 shrink-0 grid place-items-center rounded-xl bg-white dark:bg-slate-700 border border-gray-200 dark:border-slate-600 p-1 shadow-2xs overflow-hidden">
+                        <img src={iconUrl} alt="chore icon" className="size-full object-contain" />
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2">
+                          <strong className="text-sm font-bold text-[#14261e] dark:text-slate-100">
+                            {chore.title}
+                          </strong>
                         <span
                           className={`rounded-md px-2 py-0.5 text-[10px] font-bold ${
                             chore.status === 'APPROVED'
@@ -4784,8 +5894,9 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
                         )}
                       </div>
                     </div>
+                  </div>
 
-                    {/* Actions for chores */}
+                  {/* Actions for chores */}
                     {!isChildAccount && (
                       <div className="flex items-center gap-1.5 shrink-0">
                         {chore.status === 'SUBMITTED' && (
@@ -4842,7 +5953,8 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
                       </div>
                     )}
                   </div>
-                ))
+                  );
+                })
               )}
             </div>
 
@@ -4965,6 +6077,50 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
                     <option value="MEDIUM">Vừa ⭐⭐</option>
                     <option value="HARD">Khó ⭐⭐⭐</option>
                   </select>
+                </div>
+              </div>
+
+              {/* Chọn Biểu tượng nhiệm vụ */}
+              <div>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="text-xs font-semibold text-[#14261e] dark:text-slate-300 block">
+                    Biểu tượng nhiệm vụ
+                  </label>
+                  <span className="text-[11px] text-gray-400 dark:text-slate-400">
+                    {choreSelectedIcon ? 'Đã chọn biểu tượng' : 'Tự động chọn ngẫu nhiên'}
+                  </span>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setChoreSelectedIcon(null)}
+                    className={`h-11 px-3 rounded-xl border text-xs font-semibold flex items-center gap-1.5 transition cursor-pointer ${
+                      choreSelectedIcon === null
+                        ? 'border-amber-500 bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 ring-2 ring-amber-500/20'
+                        : 'border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-gray-600 dark:text-slate-400 hover:border-gray-300'
+                    }`}
+                  >
+                    <span>🎲</span>
+                    <span>Ngẫu nhiên</span>
+                  </button>
+                  {CHORE_ICONS.map((ic) => {
+                    const isSelected = choreSelectedIcon === ic.key;
+                    return (
+                      <button
+                        key={ic.key}
+                        type="button"
+                        onClick={() => setChoreSelectedIcon(ic.key)}
+                        title={ic.name}
+                        className={`size-11 rounded-xl border p-1.5 flex items-center justify-center transition cursor-pointer overflow-hidden ${
+                          isSelected
+                            ? 'border-amber-500 bg-amber-50 dark:bg-amber-950/40 ring-2 ring-amber-500/20'
+                            : 'border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:border-gray-300'
+                        }`}
+                      >
+                        <img src={ic.url} alt={ic.name} className="size-full object-contain" />
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
 
@@ -5361,6 +6517,608 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
           </form>
         </div>
       )}
+
+      {/* ── MODAL CHI TIẾT GIAO DỊCH CHUẨN DESIGN 3 CARD NHƯ BẢN APP ── */}
+      {viewingExpense && (() => {
+        const exp = viewingExpense;
+        const catName = exp.category?.name || 'Chi tiêu';
+        const payerName = exp.payer?.fullName || (exp.paidByUserId === currentUser?.id ? 'Bạn' : null) || members.find((m) => m.userId === exp.paidByUserId)?.user?.fullName || 'Thành viên';
+        const rawComments = commentsByTarget[exp.id] || [];
+        const comments = [...rawComments].sort((a, b) => {
+          const tA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+          const tB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+          return tA - tB;
+        });
+
+        // Phân chia chi phí thực tế từ splits
+        const splitsList = exp.splits && exp.splits.length > 0
+          ? exp.splits.map((s) => ({
+              userId: s.userId,
+              name: s.userId === currentUser?.id ? 'Bạn' : (s.userName || members.find((m) => m.userId === s.userId)?.user?.fullName || 'Thành viên'),
+              amount: s.amount,
+            }))
+          : members.map((m) => ({
+              userId: m.userId,
+              name: m.userId === currentUser?.id ? 'Bạn' : (m.user?.fullName || m.nickname || 'Thành viên'),
+              amount: Math.round(exp.amount / Math.max(1, members.length)),
+            }));
+
+        const isMine = exp.paidByUserId === currentUser?.id;
+        const canDelete = isMine || myMemberInfo?.role === 'OWNER' || myMemberInfo?.role === 'ADMIN';
+
+        return (
+          <div
+            className="fixed inset-0 z-[120] flex items-center justify-center bg-black/50 p-4 backdrop-blur-xs animate-in fade-in duration-200"
+            onClick={() => setViewingExpense(null)}
+          >
+            <div
+              className="relative flex flex-col w-full max-w-xl h-[88vh] max-h-[760px] rounded-3xl bg-white dark:bg-slate-900 border border-emerald-100 dark:border-slate-800 shadow-2xl overflow-hidden"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Header Modal - Cố định */}
+              <div className="shrink-0 flex items-center justify-between border-b border-gray-100 dark:border-slate-800 px-5 py-3">
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setViewingExpense(null)}
+                    className="grid size-7.5 place-items-center rounded-xl bg-gray-100 dark:bg-slate-800 text-gray-600 dark:text-slate-300 hover:bg-gray-200 transition cursor-pointer"
+                  >
+                    <FinanceIcon name="chevron-left" size={15} />
+                  </button>
+                  <h3 className="text-sm font-bold text-[#14261e] dark:text-slate-100 m-0">Chi tiết giao dịch</h3>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      handleSendTransactionToChat(
+                        exp.description === 'Khoản chi nhóm' ? (exp.category?.name || exp.description) : exp.description,
+                        exp.amount,
+                        'EXPENSE',
+                        exp.id,
+                        `Danh mục: ${exp.category?.name || 'Chi tiêu'}\n${
+                          exp.paymentSource === 'GROUP_FUND'
+                            ? `Nguồn: Quỹ chung · Thực hiện bởi: ${memberName(exp.paidByUserId, exp.payer?.fullName)}`
+                            : `Nguồn: Ví cá nhân · Chi bởi: ${memberName(exp.paidByUserId, exp.payer?.fullName)}`
+                        }\nThời gian: ${formatGroupDateTime(exp.createdAt || exp.expenseDate)}`
+                      );
+                      setViewingExpense(null);
+                    }}
+                    className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border border-sky-200 bg-sky-50 dark:bg-sky-950/40 text-sky-700 dark:text-sky-300 text-xs font-semibold hover:bg-sky-100 transition cursor-pointer"
+                  >
+                    <FinanceIcon name="send" size={12} />
+                    <span>Gửi vào nhóm</span>
+                  </button>
+                  {canDelete && (
+                    <button
+                      type="button"
+                      onClick={() => handleDeleteExpense(exp)}
+                      className="grid size-7.5 place-items-center rounded-xl bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 hover:bg-rose-100 transition cursor-pointer"
+                      title="Xóa khoản chi"
+                    >
+                      <FinanceIcon name="delete" size={14} />
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => setViewingExpense(null)}
+                    className="grid size-7.5 place-items-center rounded-xl text-gray-400 hover:text-gray-600 transition cursor-pointer text-sm"
+                  >
+                    ✕
+                  </button>
+                </div>
+              </div>
+
+              {/* PHẦN TRÊN: THÔNG TIN GIAO DỊCH (Cố định, thu nhỏ gọn, không trượt) */}
+              <div className="shrink-0 px-5 pt-3 pb-2.5 space-y-2 border-b border-gray-100 dark:border-slate-800 bg-[#fbfdfc] dark:bg-slate-850/60">
+                <div className="rounded-xl border border-gray-100 dark:border-slate-800 bg-white dark:bg-slate-800 p-3 shadow-2xs">
+                  <div className="flex items-center gap-3">
+                    <div className="grid size-10 shrink-0 place-items-center rounded-xl bg-[#FCE8E6] text-[#C5221F] dark:bg-rose-950/60 dark:text-rose-400 shadow-2xs">
+                      <FinanceIcon
+                        name={resolveCategoryIconName(exp.category?.icon, 'EXPENSE', exp.description)}
+                        size={20}
+                      />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <h4 className="text-sm font-bold text-[#14261e] dark:text-slate-100 truncate m-0" title={exp.description}>{exp.description}</h4>
+                      <strong className="text-base font-extrabold text-[#C5221F] dark:text-rose-400 mt-0.5 block">
+                        -{exp.amount.toLocaleString('vi-VN')} đ
+                      </strong>
+                    </div>
+                  </div>
+
+                  <div className="my-2 h-px bg-gray-100 dark:bg-slate-700/60" />
+
+                  <div className="grid grid-cols-2 gap-2 text-xs">
+                    <div className="flex items-center justify-between rounded-lg bg-gray-50 dark:bg-slate-800/80 px-2.5 py-1.5 border border-gray-100 dark:border-slate-700/50">
+                      <span className="text-gray-500 dark:text-slate-400 text-[11px] font-medium">Danh mục</span>
+                      <span className="font-bold text-[#07543f] dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 px-2 py-0.5 rounded text-[11px]">
+                        {catName}
+                      </span>
+                    </div>
+
+                    <div className="flex items-center justify-between rounded-lg bg-gray-50 dark:bg-slate-800/80 px-2.5 py-1.5 border border-gray-100 dark:border-slate-700/50">
+                      <span className="text-gray-500 dark:text-slate-400 text-[11px] font-medium">Thời gian</span>
+                      <strong className="text-gray-700 dark:text-slate-200 text-[11px]">
+                        {exp.expenseDate ? new Date(exp.expenseDate).toLocaleDateString('vi-VN') : 'Hôm nay'}
+                      </strong>
+                    </div>
+
+                    <div className="flex items-center justify-between rounded-lg bg-gray-50 dark:bg-slate-800/80 px-2.5 py-1.5 border border-gray-100 dark:border-slate-700/50">
+                      <span className="text-gray-500 dark:text-slate-400 text-[11px] font-medium">Người tạo</span>
+                      <strong className="text-gray-700 dark:text-slate-200 text-[11px] truncate max-w-[130px]" title={payerName}>{payerName}</strong>
+                    </div>
+
+                    <div className="flex items-center justify-between rounded-lg bg-gray-50 dark:bg-slate-800/80 px-2.5 py-1.5 border border-gray-100 dark:border-slate-700/50">
+                      <span className="text-gray-500 dark:text-slate-400 text-[11px] font-medium">Nguồn tiền</span>
+                      <span
+                        className={`font-bold px-2 py-0.5 rounded text-[11px] ${
+                          exp.paymentSource === 'GROUP_FUND'
+                            ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300'
+                            : 'bg-gray-100 text-gray-700 dark:bg-slate-700 dark:text-slate-200'
+                        }`}
+                      >
+                        {exp.paymentSource === 'GROUP_FUND' ? 'Quỹ nhóm' : 'Ví cá nhân'}
+                      </span>
+                    </div>
+                  </div>
+
+                  {exp.notes && (
+                    <div className="mt-2 rounded-lg bg-amber-50 dark:bg-amber-950/30 border border-amber-200/60 px-2.5 py-1.5 text-[11px] text-amber-800 dark:text-amber-300">
+                      <span className="font-bold mr-1">Ghi chú:</span>{exp.notes}
+                    </div>
+                  )}
+                </div>
+
+                {/* Phân chia chi phí nếu có (thu gọn) */}
+                {selectedGroup?.groupType !== 'FAMILY' && selectedGroup?.groupType !== 'COUPLE' && (
+                  <div className="rounded-xl border border-gray-100 dark:border-slate-800 bg-white dark:bg-slate-800 p-2.5 shadow-2xs">
+                    <div className="flex items-center justify-between mb-1.5">
+                      <span className="text-xs font-bold text-[#14261e] dark:text-slate-100">Phân chia chi phí</span>
+                      <span className="text-[10px] font-bold text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 px-2 py-0.5 rounded-full">
+                        Chia đều
+                      </span>
+                    </div>
+                    <div className="max-h-20 overflow-y-auto divide-y divide-gray-50 dark:divide-slate-700/50">
+                      {splitsList.map((s, idx) => (
+                        <div key={s.userId || idx} className="flex items-center justify-between py-1 text-[11px]">
+                          <span className="text-gray-700 dark:text-slate-200">{s.name}</span>
+                          <strong className="text-gray-900 dark:text-slate-100">{s.amount.toLocaleString('vi-VN')} đ</strong>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* PHẦN DƯỚI: BÌNH LUẬN - VÙNG TRƯỢT ĐỘC LẬP (flex-1 min-h-0) */}
+              <div className="flex-1 min-h-0 flex flex-col p-4 bg-white dark:bg-slate-900">
+                <div className="shrink-0 flex items-center justify-between pb-2">
+                  <h4 className="text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-slate-400 m-0">
+                    Bình luận ({comments.length})
+                  </h4>
+                </div>
+
+                {/* Danh sách bình luận: cuộn độc lập */}
+                <div className="flex-1 min-h-0 overflow-y-auto space-y-3 pr-1.5">
+                  {comments.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center h-full py-8 text-center text-gray-400 dark:text-slate-500">
+                      <FinanceIcon name="message-square" size={24} className="opacity-40 mb-1" />
+                      <p className="text-xs italic m-0">Chưa có bình luận nào. Hãy là người đầu tiên bình luận!</p>
+                    </div>
+                  ) : (
+                    comments.map((c) => {
+                      const isMe = c.userId === currentUser?.id;
+                      const memberInfo = members.find((m) => m.userId === c.userId);
+                      const authorName = isMe ? 'Bạn' : (c.user?.fullName || memberInfo?.user?.fullName || memberInfo?.nickname || 'Thành viên');
+                      const rawAvatar = isMe ? currentUser?.avatarUrl : (c.user?.avatarUrl || memberInfo?.user?.avatarUrl || memberInfo?.user?.avatarKey);
+                      const avatarSrc = rawAvatar ? userApi.getAvatarUrl(rawAvatar) : null;
+                      const parent = c.parentCommentId ? comments.find((p) => p.id === c.parentCommentId) : null;
+                      const likeInfo = commentLikes[c.id] || { count: 0, liked: false };
+
+                      return (
+                        <div
+                          key={c.id}
+                          className={`flex items-start gap-2.5 ${parent ? 'ml-7' : ''}`}
+                        >
+                          <div className="size-8 rounded-full overflow-hidden bg-emerald-100 dark:bg-slate-800 border border-emerald-200/60 dark:border-slate-700 grid place-items-center text-emerald-800 dark:text-emerald-400 font-bold text-xs shrink-0 shadow-2xs">
+                            {avatarSrc ? (
+                              <img src={avatarSrc} alt={authorName} className="size-full object-cover" />
+                            ) : (
+                              authorName.charAt(0).toUpperCase()
+                            )}
+                          </div>
+                          <div className="flex-1">
+                            <div className="rounded-2xl bg-gray-50 dark:bg-slate-800/80 border border-gray-100 dark:border-slate-700/60 p-3 text-xs shadow-2xs">
+                              <div className="flex items-center justify-between gap-2 mb-1">
+                                <strong className="text-gray-900 dark:text-slate-100 font-bold">{authorName}</strong>
+                                <span className="text-[10px] text-gray-400">
+                                  {new Date(c.createdAt).toLocaleString('vi-VN', {
+                                    hour: '2-digit',
+                                    minute: '2-digit',
+                                    day: '2-digit',
+                                    month: '2-digit',
+                                  })}
+                                </span>
+                              </div>
+                              <p className="text-gray-700 dark:text-slate-300 m-0 leading-relaxed">
+                                {parent && (
+                                  <strong className="text-[#07543f] dark:text-emerald-400 mr-1">
+                                    @{parent.user?.fullName || 'Thành viên'}
+                                  </strong>
+                                )}
+                                {c.content}
+                              </p>
+                            </div>
+
+                            <div className="mt-1.5 flex items-center gap-3.5 pl-2 text-[11.5px]">
+                              <button
+                                type="button"
+                                onClick={() => handleToggleLikeComment(c.id)}
+                                className={`inline-flex items-center gap-1.5 font-bold transition cursor-pointer ${
+                                  likeInfo.liked
+                                    ? 'text-rose-600 hover:text-rose-700'
+                                    : 'text-gray-500 hover:text-gray-700 dark:text-slate-400 dark:hover:text-slate-200'
+                                }`}
+                              >
+                                <span className={likeInfo.liked ? 'text-rose-600 fill-rose-600 animate-in zoom-in-75 duration-150' : 'text-gray-500'}>
+                                  <FinanceIcon
+                                    name="heart"
+                                    size={13}
+                                    className={likeInfo.liked ? 'fill-rose-600 text-rose-600' : ''}
+                                  />
+                                </span>
+                                <span>{likeInfo.liked ? 'Đã thích' : 'Thích'}{likeInfo.count > 0 ? ` (${likeInfo.count})` : ''}</span>
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setReplyingTo((prev) => ({ ...prev, [exp.id]: c.id }));
+                                  setInlineCommentText((prev) => ({ ...prev, [exp.id]: `@${authorName} ` }));
+                                }}
+                                className="font-semibold text-[#07543f] dark:text-emerald-400 hover:underline cursor-pointer"
+                              >
+                                Trả lời
+                              </button>
+                              {isMe && (
+                                <>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleEditComment(exp.id, c)}
+                                    className="text-gray-400 hover:text-gray-600 cursor-pointer"
+                                  >
+                                    Sửa
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleDeleteComment(exp.id, c.id)}
+                                    className="text-rose-500 hover:text-rose-700 cursor-pointer"
+                                  >
+                                    Xóa
+                                  </button>
+                                </>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+
+                {/* Thanh nhập bình luận cố định ở đáy */}
+                <div className="shrink-0 flex items-center gap-2 pt-2.5 mt-2 border-t border-gray-100 dark:border-slate-800">
+                  <input
+                    type="text"
+                    value={inlineCommentText[exp.id] || ''}
+                    onChange={(e) =>
+                      setInlineCommentText((prev) => ({ ...prev, [exp.id]: e.target.value }))
+                    }
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        handleInlineComment(exp.id, 'GROUP_EXPENSE');
+                      }
+                    }}
+                    placeholder={replyingTo[exp.id] ? 'Viết câu trả lời...' : 'Viết bình luận cho khoản chi này...'}
+                    className="flex-1 h-9 px-3.5 rounded-xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs text-gray-800 dark:text-slate-100 placeholder:text-gray-400 outline-none focus:border-[#07543f]"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => handleInlineComment(exp.id, 'GROUP_EXPENSE')}
+                    className="h-9 px-4 rounded-xl bg-[#07543f] text-white text-xs font-bold hover:bg-[#064232] transition cursor-pointer shadow-2xs"
+                  >
+                    Gửi
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* ── MODAL CHI TIẾT NỘP QUỸ CHUNG (KÈM BÌNH LUẬN) ── */}
+      {viewingContribution && (() => {
+        const c = viewingContribution;
+        const rawComments = commentsByTarget[c.id] || [];
+        const comments = [...rawComments].sort((a, b) => {
+          const tA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+          const tB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+          return tA - tB;
+        });
+
+        const contributor = memberName(c.contributorUserId, c.contributorName);
+        const dtStr = c.createdAt || c.contributedAt ? formatGroupDateTime(c.createdAt || c.contributedAt) : 'Vừa xong';
+
+        return (
+          <div
+            className="fixed inset-0 z-[120] flex items-center justify-center bg-black/50 p-4 backdrop-blur-xs animate-in fade-in duration-200"
+            onClick={() => setViewingContribution(null)}
+          >
+            <div
+              className="relative flex flex-col w-full max-w-xl h-[88vh] max-h-[760px] rounded-3xl bg-white dark:bg-slate-900 border border-emerald-100 dark:border-slate-800 shadow-2xl overflow-hidden"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Header Modal - Cố định */}
+              <div className="shrink-0 flex items-center justify-between border-b border-gray-100 dark:border-slate-800 px-5 py-3">
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setViewingContribution(null)}
+                    className="grid size-7.5 place-items-center rounded-xl bg-gray-100 dark:bg-slate-800 text-gray-600 dark:text-slate-300 hover:bg-gray-200 transition cursor-pointer"
+                  >
+                    <FinanceIcon name="chevron-left" size={15} />
+                  </button>
+                  <h3 className="text-sm font-bold text-[#14261e] dark:text-slate-100 m-0">Chi tiết nộp quỹ</h3>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      handleSendTransactionToChat(
+                        'Nộp quỹ chung',
+                        c.amount,
+                        'FUND_CONTRIBUTION',
+                        c.id,
+                        `Danh mục: Nộp quỹ chung\nThực hiện bởi: ${contributor}\nThời gian: ${dtStr}`
+                      );
+                      setViewingContribution(null);
+                    }}
+                    className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border border-sky-200 bg-sky-50 dark:bg-sky-950/40 text-sky-700 dark:text-sky-300 text-xs font-semibold hover:bg-sky-100 transition cursor-pointer"
+                  >
+                    <FinanceIcon name="send" size={12} />
+                    <span>Gửi vào nhóm</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setViewingContribution(null)}
+                    className="grid size-7.5 place-items-center rounded-xl text-gray-400 hover:text-gray-600 transition cursor-pointer text-sm"
+                  >
+                    ✕
+                  </button>
+                </div>
+              </div>
+
+              {/* PHẦN TRÊN: THÔNG TIN NỘP QUỸ (Cố định, thu nhỏ gọn, không trượt) */}
+              <div className="shrink-0 px-5 pt-3 pb-2.5 space-y-2 border-b border-gray-100 dark:border-slate-800 bg-[#fbfdfc] dark:bg-slate-850/60">
+                <div className="rounded-xl border border-emerald-100 dark:border-slate-800 bg-white dark:bg-slate-800 p-3 shadow-2xs">
+                  <div className="flex items-center gap-3">
+                    <div className="grid size-10 shrink-0 place-items-center rounded-xl bg-[#E6F4EA] text-[#137333] dark:bg-emerald-950/60 dark:text-emerald-400 shadow-2xs">
+                      <FinanceIcon name="wallet" size={20} />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <h4 className="text-sm font-bold text-[#14261e] dark:text-slate-100 truncate m-0">Nộp quỹ chung</h4>
+                      <strong className="text-base font-extrabold text-[#137333] dark:text-emerald-400 mt-0.5 block">
+                        +{c.amount.toLocaleString('vi-VN')} đ
+                      </strong>
+                    </div>
+                  </div>
+
+                  <div className="my-2 h-px bg-gray-100 dark:bg-slate-700/60" />
+
+                  <div className="grid grid-cols-2 gap-2 text-xs">
+                    <div className="flex items-center justify-between rounded-lg bg-gray-50 dark:bg-slate-800/80 px-2.5 py-1.5 border border-gray-100 dark:border-slate-700/50">
+                      <span className="text-gray-500 dark:text-slate-400 text-[11px] font-medium">Hạng mục</span>
+                      <span className="font-bold text-[#07543f] dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 px-2 py-0.5 rounded text-[11px]">
+                        Đóng quỹ
+                      </span>
+                    </div>
+
+                    <div className="flex items-center justify-between rounded-lg bg-gray-50 dark:bg-slate-800/80 px-2.5 py-1.5 border border-gray-100 dark:border-slate-700/50">
+                      <span className="text-gray-500 dark:text-slate-400 text-[11px] font-medium">Thời gian</span>
+                      <strong className="text-gray-700 dark:text-slate-200 text-[11px]">{dtStr}</strong>
+                    </div>
+
+                    <div className="flex items-center justify-between rounded-lg bg-gray-50 dark:bg-slate-800/80 px-2.5 py-1.5 border border-gray-100 dark:border-slate-700/50">
+                      <span className="text-gray-500 dark:text-slate-400 text-[11px] font-medium">Người nộp</span>
+                      <strong className="text-gray-700 dark:text-slate-200 text-[11px] truncate max-w-[130px]" title={contributor}>{contributor}</strong>
+                    </div>
+
+                    <div className="flex items-center justify-between rounded-lg bg-gray-50 dark:bg-slate-800/80 px-2.5 py-1.5 border border-gray-100 dark:border-slate-700/50">
+                      <span className="text-gray-500 dark:text-slate-400 text-[11px] font-medium">Trạng thái</span>
+                      <span className="font-bold text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 px-2 py-0.5 rounded text-[11px]">
+                        Đã cộng vào quỹ
+                      </span>
+                    </div>
+                  </div>
+
+                  {c.note && (
+                    <div className="mt-2 rounded-lg bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200/60 px-2.5 py-1.5 text-[11px] text-emerald-900 dark:text-emerald-300">
+                      <span className="font-bold mr-1">Ghi chú:</span>{c.note}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* PHẦN DƯỚI: BÌNH LUẬN - VÙNG TRƯỢT ĐỘC LẬP (flex-1 min-h-0) */}
+              <div className="flex-1 min-h-0 flex flex-col p-4 bg-white dark:bg-slate-900">
+                <div className="shrink-0 flex items-center justify-between pb-2">
+                  <h4 className="text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-slate-400 m-0">
+                    Bình luận ({comments.length})
+                  </h4>
+                </div>
+
+                {/* Danh sách bình luận: cuộn độc lập */}
+                <div className="flex-1 min-h-0 overflow-y-auto space-y-3 pr-1.5">
+                  {comments.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center h-full py-8 text-center text-gray-400 dark:text-slate-500">
+                      <FinanceIcon name="message-square" size={24} className="opacity-40 mb-1" />
+                      <p className="text-xs italic m-0">Chưa có bình luận nào cho lần nộp quỹ này. Hãy để lại bình luận đầu tiên!</p>
+                    </div>
+                  ) : (
+                    comments.map((comment) => {
+                      const isMe = comment.userId === currentUser?.id;
+                      const memberInfo = members.find((m) => m.userId === comment.userId);
+                      const authorName = isMe ? 'Bạn' : (comment.user?.fullName || memberInfo?.user?.fullName || memberInfo?.nickname || 'Thành viên');
+                      const rawAvatar = isMe ? currentUser?.avatarUrl : (comment.user?.avatarUrl || memberInfo?.user?.avatarUrl || memberInfo?.user?.avatarKey);
+                      const avatarSrc = rawAvatar ? userApi.getAvatarUrl(rawAvatar) : null;
+                      const parent = comment.parentCommentId ? comments.find((p) => p.id === comment.parentCommentId) : null;
+                      const likeInfo = commentLikes[comment.id] || { count: 0, liked: false };
+
+                      return (
+                        <div
+                          key={comment.id}
+                          className={`flex items-start gap-2.5 ${parent ? 'ml-7' : ''}`}
+                        >
+                          <div className="size-8 rounded-full overflow-hidden bg-emerald-100 dark:bg-slate-800 border border-emerald-200/60 dark:border-slate-700 grid place-items-center text-emerald-800 dark:text-emerald-400 font-bold text-xs shrink-0 shadow-2xs">
+                            {avatarSrc ? (
+                              <img src={avatarSrc} alt={authorName} className="size-full object-cover" />
+                            ) : (
+                              authorName.charAt(0).toUpperCase()
+                            )}
+                          </div>
+                          <div className="flex-1">
+                            <div className="rounded-2xl bg-gray-50 dark:bg-slate-800/80 border border-gray-100 dark:border-slate-700/60 p-3 text-xs shadow-2xs">
+                              <div className="flex items-center justify-between gap-2 mb-1">
+                                <strong className="text-gray-900 dark:text-slate-100 font-bold">{authorName}</strong>
+                                <span className="text-[10px] text-gray-400">
+                                  {new Date(comment.createdAt).toLocaleString('vi-VN', {
+                                    hour: '2-digit',
+                                    minute: '2-digit',
+                                    day: '2-digit',
+                                    month: '2-digit',
+                                  })}
+                                </span>
+                              </div>
+                              <p className="text-gray-700 dark:text-slate-300 m-0 leading-relaxed">
+                                {parent && (
+                                  <strong className="text-[#07543f] dark:text-emerald-400 mr-1">
+                                    @{parent.user?.fullName || 'Thành viên'}
+                                  </strong>
+                                )}
+                                {comment.content}
+                              </p>
+                            </div>
+
+                            <div className="mt-1.5 flex items-center gap-3.5 pl-2 text-[11.5px]">
+                              <button
+                                type="button"
+                                onClick={() => handleToggleLikeComment(comment.id)}
+                                className={`inline-flex items-center gap-1.5 font-bold transition cursor-pointer ${
+                                  likeInfo.liked
+                                    ? 'text-rose-600 hover:text-rose-700'
+                                    : 'text-gray-500 hover:text-gray-700 dark:text-slate-400 dark:hover:text-slate-200'
+                                }`}
+                              >
+                                <span className={likeInfo.liked ? 'text-rose-600 fill-rose-600 animate-in zoom-in-75 duration-150' : 'text-gray-500'}>
+                                  <FinanceIcon
+                                    name="heart"
+                                    size={13}
+                                    className={likeInfo.liked ? 'fill-rose-600 text-rose-600' : ''}
+                                  />
+                                </span>
+                                <span>{likeInfo.liked ? 'Đã thích' : 'Thích'}{likeInfo.count > 0 ? ` (${likeInfo.count})` : ''}</span>
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setReplyingTo((prev) => ({ ...prev, [c.id]: comment.id }));
+                                  setInlineCommentText((prev) => ({ ...prev, [c.id]: `@${authorName} ` }));
+                                }}
+                                className="font-semibold text-[#07543f] dark:text-emerald-400 hover:underline cursor-pointer"
+                              >
+                                Trả lời
+                              </button>
+                              {isMe && (
+                                <>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleEditComment(c.id, comment)}
+                                    className="text-gray-400 hover:text-gray-600 cursor-pointer"
+                                  >
+                                    Sửa
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleDeleteComment(c.id, comment.id)}
+                                    className="text-rose-500 hover:text-rose-700 cursor-pointer"
+                                  >
+                                    Xóa
+                                  </button>
+                                </>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+
+                {/* Thanh nhập bình luận trong Modal nộp quỹ */}
+                <div className="shrink-0 flex items-center gap-2 pt-2.5 mt-2 border-t border-gray-100 dark:border-slate-800">
+                  <input
+                    type="text"
+                    value={inlineCommentText[c.id] || ''}
+                    onChange={(e) =>
+                      setInlineCommentText((prev) => ({ ...prev, [c.id]: e.target.value }))
+                    }
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        handleInlineComment(c.id, 'FUND_CONTRIBUTION');
+                      }
+                    }}
+                    placeholder={replyingTo[c.id] ? 'Viết câu trả lời...' : 'Viết bình luận cho khoản nộp quỹ này...'}
+                    className="flex-1 h-9 px-3.5 rounded-xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs text-gray-800 dark:text-slate-100 placeholder:text-gray-400 outline-none focus:border-[#07543f]"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => handleInlineComment(c.id, 'FUND_CONTRIBUTION')}
+                    className="h-9 px-4 rounded-xl bg-[#07543f] text-white text-xs font-bold hover:bg-[#064232] transition cursor-pointer shadow-2xs"
+                  >
+                    Gửi
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* CUSTOM CONFIRM DELETE MODAL FOR GROUPS */}
+      <ConfirmDeleteModal
+        isOpen={Boolean(confirmDeleteState?.isOpen)}
+        title={confirmDeleteState?.title}
+        subtitle={confirmDeleteState?.subtitle}
+        itemName={confirmDeleteState?.itemName}
+        itemTypeLabel={confirmDeleteState?.itemTypeLabel}
+        message={confirmDeleteState?.message}
+        isDeleting={isProcessingDelete}
+        onConfirm={async () => {
+          if (!confirmDeleteState) return;
+          setIsProcessingDelete(true);
+          try {
+            await confirmDeleteState.onConfirm();
+            setConfirmDeleteState(null);
+          } finally {
+            setIsProcessingDelete(false);
+          }
+        }}
+        onClose={() => setConfirmDeleteState(null)}
+      />
     </main>
   );
 }

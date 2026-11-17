@@ -1,5 +1,6 @@
 package com.finance.finance.modules.group.controller;
 
+import com.finance.finance.common.annotation.Idempotent;
 import com.finance.finance.common.enums.ActivityType;
 import com.finance.finance.common.enums.ChoreStatus;
 import com.finance.finance.common.enums.CommentableType;
@@ -10,9 +11,11 @@ import com.finance.finance.modules.group.service.*;
 import com.finance.finance.modules.user.entity.User;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.core.io.Resource;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.format.annotation.DateTimeFormat;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -46,10 +49,12 @@ public class GroupController {
     // 1. GROUPS & MEMBERS MANAGEMENT (12 endpoints)
     // ============================================================
 
+    @Idempotent(resourceType = "group")
     @PostMapping
     public ResponseEntity<GroupResponse> createGroup(
             @Valid @RequestBody CreateGroupRequest request,
-            @AuthenticationPrincipal User currentUser) {
+            @AuthenticationPrincipal User currentUser,
+            @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey) {
         GroupResponse response = groupService.createGroup(request, currentUser.getId());
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
@@ -80,6 +85,18 @@ public class GroupController {
     public ResponseEntity<List<com.finance.finance.modules.group.dto.response.GroupFundContributionResponse>> getFundContributions(
             @PathVariable UUID groupId, @AuthenticationPrincipal User currentUser) {
         return ResponseEntity.ok(groupFundService.getContributions(groupId, currentUser.getId()));
+    }
+
+    @GetMapping("/{groupId}/fund/monthly-statistics")
+    public ResponseEntity<com.finance.finance.modules.group.dto.response.GroupMonthlyStatisticsResponse> getMonthlyStatistics(
+            @PathVariable UUID groupId,
+            @RequestParam(required = false) Integer year,
+            @RequestParam(required = false) Integer month,
+            @AuthenticationPrincipal User currentUser) {
+        java.time.LocalDate now = java.time.LocalDate.now();
+        int targetYear = (year != null && year > 2000) ? year : now.getYear();
+        int targetMonth = (month != null && month >= 1 && month <= 12) ? month : now.getMonthValue();
+        return ResponseEntity.ok(groupFundService.getMonthlyStatistics(groupId, targetYear, targetMonth, currentUser.getId()));
     }
 
     @GetMapping("/{groupId}")
@@ -120,6 +137,27 @@ public class GroupController {
             @PathVariable UUID groupId,
             @AuthenticationPrincipal User currentUser) {
         groupService.deleteGroup(groupId, currentUser.getId());
+        return ResponseEntity.noContent().build();
+    }
+
+    @PutMapping("/{groupId}/notifications")
+    public ResponseEntity<Map<String, Object>> toggleGroupNotification(
+            @PathVariable UUID groupId,
+            @RequestParam boolean enabled,
+            @AuthenticationPrincipal User currentUser) {
+        groupService.toggleGroupNotification(groupId, currentUser.getId(), enabled);
+        return ResponseEntity.ok(Map.of(
+                "success", true,
+                "message", enabled ? "Đã bật thông báo nhóm" : "Đã tắt thông báo nhóm",
+                "notificationEnabled", enabled
+        ));
+    }
+
+    @PostMapping("/{groupId}/leave")
+    public ResponseEntity<Void> leaveGroup(
+            @PathVariable UUID groupId,
+            @AuthenticationPrincipal User currentUser) {
+        groupService.leaveGroup(groupId, currentUser.getId());
         return ResponseEntity.noContent().build();
     }
 
@@ -208,11 +246,13 @@ public class GroupController {
     // 2. EXPENSES & BALANCES (6 endpoints)
     // ============================================================
 
+    @Idempotent(resourceType = "group_expense")
     @PostMapping("/{groupId}/expenses")
     public ResponseEntity<ExpenseResponse> createExpense(
             @PathVariable UUID groupId,
             @Valid @RequestBody CreateExpenseRequest request,
-            @AuthenticationPrincipal User currentUser) {
+            @AuthenticationPrincipal User currentUser,
+            @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey) {
         ExpenseResponse response = expenseService.createExpense(groupId, request, currentUser.getId());
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
@@ -384,6 +424,23 @@ public class GroupController {
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
         }
+    }
+
+    @GetMapping("/messages/attachments/download")
+    @PreAuthorize("permitAll()")
+    public ResponseEntity<Resource> downloadMessageAttachment(@RequestParam("filename") String filename) {
+        Resource resource = messageService.getAttachmentResource(filename);
+        if (resource == null) {
+            return ResponseEntity.notFound().build();
+        }
+        String downloadName = resource.getFilename();
+        if (downloadName == null) {
+            downloadName = "finora_attachment.jpg";
+        }
+        return ResponseEntity.ok()
+                .contentType(MediaType.APPLICATION_OCTET_STREAM)
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + downloadName + "\"")
+                .body(resource);
     }
 
     @GetMapping("/{groupId}/messages")

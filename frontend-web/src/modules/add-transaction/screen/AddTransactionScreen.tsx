@@ -27,6 +27,14 @@ const presets = [
   { label: '+500k', value: 500_000 },
 ]
 
+// Kid Income Categories
+const KID_INCOME_CATEGORIES: CategoryItem[] = [
+  { id: 'kid_gift', name: 'Người thân cho / Quà tặng', icon: 'gift', color: '#ec4899', kind: 'INCOME' },
+  { id: 'kid_lixi', name: 'Tiền lì xì Tết', icon: 'coins', color: '#ef4444', kind: 'INCOME' },
+  { id: 'kid_award', name: 'Thưởng học tập & thành tích', icon: 'spark', color: '#f59e0b', kind: 'INCOME' },
+  { id: 'kid_other', name: 'Thu nhập khác của bé', icon: 'wallet', color: '#10b981', kind: 'INCOME' },
+]
+
 export function AddTransactionScreen({ onCancel, onNotify, onOpenInvoiceScanner }: Props) {
   const currentUser = getStoredUser()
   const isChildAccount = Boolean(currentUser?.childAccount && currentUser.childWalletId && currentUser.childWalletGroupId)
@@ -124,14 +132,17 @@ export function AddTransactionScreen({ onCancel, onNotify, onOpenInvoiceScanner 
         setRecentTransactions(ledger.filter((item) => item.status === 'APPROVED').map((item) => {
           const isDeposit = item.description?.startsWith('[INCOME_DEPOSIT] ');
           const isChoreReward = item.description?.startsWith('[INCOME_CHORE] ');
+          const isGiftIncome = item.description?.startsWith('[INCOME_GIFT] ');
           const isMoneyReq = item.description?.startsWith('[MONEY_REQUEST] ');
-          const income = isDeposit || isChoreReward || isMoneyReq;
+          const income = isDeposit || isChoreReward || isGiftIncome || isMoneyReq;
 
           let displayDesc = item.description || 'Giao dịch';
           if (isDeposit) {
             displayDesc = `Bố/mẹ nạp ví: ${item.description.replace('[INCOME_DEPOSIT] ', '')}`;
           } else if (isChoreReward) {
             displayDesc = `Thưởng nhiệm vụ: ${item.description.replace('[INCOME_CHORE] ', '')}`;
+          } else if (isGiftIncome) {
+            displayDesc = item.description.replace('[INCOME_GIFT] ', '');
           } else if (isMoneyReq) {
             displayDesc = `Bố/mẹ cấp tiền: ${item.description.replace('[MONEY_REQUEST] ', '')}`;
           }
@@ -178,7 +189,10 @@ export function AddTransactionScreen({ onCancel, onNotify, onOpenInvoiceScanner 
   }, [])
 
   useEffect(() => {
-    if (isChildAccount) setType('EXPENSE')
+    // Tài khoản trẻ em có thể ghi cả Tiền chi (EXPENSE) lẫn Tiền thu (INCOME), mặc định bắt đầu bằng Tiền chi
+    if (isChildAccount && type === 'TRANSFER') {
+      setType('EXPENSE')
+    }
   }, [isChildAccount])
 
   useEffect(() => {
@@ -195,13 +209,18 @@ export function AddTransactionScreen({ onCancel, onNotify, onOpenInvoiceScanner 
     return index === self.findIndex((c) => getCategoryCanonicalKey(c.kind, c.name) === key)
   })
 
+  // Categories available for current mode & role
+  const availableCategories = isChildAccount && type === 'INCOME'
+    ? KID_INCOME_CATEGORIES
+    : uniqueCategories
+
   // Auto pick default category based on transaction type
   useEffect(() => {
     if (type === 'TRANSFER') {
       setSelectedCategoryId('')
       return
     }
-    const filtered = uniqueCategories.filter((c) => c.kind === type)
+    const filtered = availableCategories.filter((c) => c.kind === type)
     if (filtered.length > 0) {
       const exists = filtered.some((c) => c.id === selectedCategoryId)
       if (!exists) {
@@ -210,14 +229,14 @@ export function AddTransactionScreen({ onCancel, onNotify, onOpenInvoiceScanner 
     } else {
       setSelectedCategoryId('')
     }
-  }, [type, uniqueCategories])
+  }, [type, availableCategories, selectedCategoryId])
 
-  const filteredCategories = uniqueCategories.filter((c) => c.kind === type)
+  const filteredCategories = availableCategories.filter((c) => c.kind === type)
   const selectedAccountObj = accounts.find((a) => a.id === selectedAccountId)
   const selectedGroupFund = groups.find((group) => group.id === selectedGroupFundId)
   const selectedGroupFundBalance = selectedGroupFundId ? (groupFunds[selectedGroupFundId]?.balance || 0) : 0
   const toAccountObj = accounts.find((a) => a.id === toAccountId)
-  const selectedCategoryObj = uniqueCategories.find((c) => c.id === selectedCategoryId)
+  const selectedCategoryObj = (isChildAccount && type === 'INCOME' ? KID_INCOME_CATEGORIES : uniqueCategories).find((c) => c.id === selectedCategoryId)
 
   const formatAmount = (val: number) => new Intl.NumberFormat('vi-VN').format(val)
 
@@ -251,8 +270,8 @@ export function AddTransactionScreen({ onCancel, onNotify, onOpenInvoiceScanner 
       setError('Vui lòng chọn tài khoản thanh toán.')
       return
     }
-    if (isChildAccount && type !== 'EXPENSE') {
-      setError('Ví trẻ em chỉ có thể gửi yêu cầu chi tiêu.')
+    if (isChildAccount && type === 'TRANSFER') {
+      setError('Ví trẻ em không hỗ trợ tính năng chuyển ví.')
       return
     }
     if (selectedGroupFundId && type !== 'EXPENSE') {
@@ -278,10 +297,13 @@ export function AddTransactionScreen({ onCancel, onNotify, onOpenInvoiceScanner 
       setError('')
 
       if (isChildAccount && childWallet && currentUser?.childWalletGroupId) {
+        const prefix = type === 'INCOME' ? '[INCOME_GIFT] ' : ''
+        const descText = description.trim() || selectedCategoryObj?.name || (type === 'INCOME' ? 'Tiền người thân cho / quà tặng' : 'Chi tiêu của em')
+        const resolvedCategoryId = selectedCategoryId.startsWith('kid_') ? undefined : selectedCategoryId
         await groupApi.createChildTransaction(currentUser.childWalletGroupId, childWallet.id, {
           amount: numericAmount,
-          categoryId: selectedCategoryId,
-          description: description.trim() || selectedCategoryObj?.name || 'Yêu cầu chi tiêu',
+          categoryId: resolvedCategoryId,
+          description: prefix + descText,
         })
       } else if (selectedGroupFundId && selectedGroupFund) {
         // API members only returns current group members; it does not expose an ACTIVE status field.
@@ -325,7 +347,7 @@ export function AddTransactionScreen({ onCancel, onNotify, onOpenInvoiceScanner 
       }
 
       const typeLabel = isChildAccount
-        ? 'Đã ghi khoản chi từ ví của em'
+        ? (type === 'INCOME' ? 'Đã ghi nhận tiền thu vào ví của em' : 'Đã ghi nhận khoản chi từ ví của em')
         : selectedGroupFund ? `Khoản chi từ quỹ ${selectedGroupFund.name}` : type === 'EXPENSE' ? 'Khoản chi' : type === 'INCOME' ? 'Khoản thu' : 'Chuyển khoản'
       onNotify(`Thành công! ${typeLabel} ${formatAmount(numericAmount)} ₫`)
 
@@ -340,14 +362,17 @@ export function AddTransactionScreen({ onCancel, onNotify, onOpenInvoiceScanner 
         setRecentTransactions(ledger.filter((item) => item.status === 'APPROVED').map((item) => {
           const isDeposit = item.description?.startsWith('[INCOME_DEPOSIT] ');
           const isChoreReward = item.description?.startsWith('[INCOME_CHORE] ');
+          const isGiftIncome = item.description?.startsWith('[INCOME_GIFT] ');
           const isMoneyReq = item.description?.startsWith('[MONEY_REQUEST] ');
-          const income = isDeposit || isChoreReward || isMoneyReq;
+          const income = isDeposit || isChoreReward || isGiftIncome || isMoneyReq;
 
           let displayDesc = item.description || 'Giao dịch';
           if (isDeposit) {
             displayDesc = `Bố/mẹ nạp ví: ${item.description.replace('[INCOME_DEPOSIT] ', '')}`;
           } else if (isChoreReward) {
             displayDesc = `Thưởng nhiệm vụ: ${item.description.replace('[INCOME_CHORE] ', '')}`;
+          } else if (isGiftIncome) {
+            displayDesc = item.description.replace('[INCOME_GIFT] ', '');
           } else if (isMoneyReq) {
             displayDesc = `Bố/mẹ cấp tiền: ${item.description.replace('[MONEY_REQUEST] ', '')}`;
           }
@@ -419,68 +444,89 @@ export function AddTransactionScreen({ onCancel, onNotify, onOpenInvoiceScanner 
         {/* LEFT COLUMN: Main Form Container (chiếm tỷ lệ rộng 58% - 66%) */}
         <div className="lg:col-span-7 xl:col-span-7 2xl:col-span-8 flex flex-col h-full justify-between rounded-2xl border border-[#e2ece5] dark:border-white/10 bg-white dark:bg-[#0c1a24] shadow-md overflow-hidden min-h-0">
           {/* HERO BANNER: Type Toggle & Big Amount Display */}
-          <div className={`relative px-6 py-4 text-white transition-colors duration-300 shrink-0 ${type === 'EXPENSE'
-              ? 'bg-gradient-to-br from-[#1c2c24] via-[#163a2b] to-[#124230]'
-              : type === 'INCOME'
-                ? 'bg-gradient-to-br from-[#0c382b] via-[#094d3a] to-[#07543f]'
-                : 'bg-gradient-to-br from-[#1e293b] via-[#1a384f] to-[#0d4a63]'
+          <div className={`relative px-6 py-4 text-white transition-all duration-300 shrink-0 overflow-hidden ${
+              type === 'EXPENSE'
+                ? 'bg-gradient-to-br from-[#dc2626] via-[#b91c1c] to-[#991b1b]'
+                : type === 'INCOME'
+                  ? 'bg-gradient-to-br from-[#059669] via-[#047857] to-[#065f46]'
+                  : 'bg-gradient-to-br from-[#0284c7] via-[#0369a1] to-[#075985]'
             }`}>
+            {/* Ảnh nền sóng 3D theo loại giao dịch giống hệt Mobile App */}
+            <img
+              src={
+                type === 'EXPENSE'
+                  ? '/bg-expense-wave.jpg'
+                  : type === 'INCOME'
+                    ? '/bg-income-wave.jpg'
+                    : '/bg-transfer-wave.jpg'
+              }
+              alt="Background wave"
+              className="absolute inset-0 size-full object-cover opacity-35 mix-blend-overlay pointer-events-none"
+            />
+
             {/* Top Bar: 3-Way Toggle on the Left, OCR Scanner on the Right */}
-            <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="relative z-10 flex flex-wrap items-center justify-between gap-3">
               {/* Segmented 3-Way Pill Switch on Left */}
-              <div className="flex h-9 w-full sm:w-auto max-w-sm items-center rounded-xl bg-white/10 p-0.5 backdrop-blur-md border border-white/15 shadow-inner">
+              <div className="flex h-9 w-full sm:w-auto max-w-sm items-center rounded-xl bg-black/20 p-0.5 backdrop-blur-md border border-white/20 shadow-inner">
                 <button
                   type="button"
                   onClick={() => setType('EXPENSE')}
-                  className={`h-full flex-1 rounded-lg px-3 text-xs font-bold transition flex items-center justify-center gap-1.5 whitespace-nowrap ${type === 'EXPENSE'
-                      ? 'bg-white text-rose-700 shadow-md'
-                      : 'text-white/80 hover:text-white'
-                    }`}
+                  className={`h-full flex-1 rounded-lg px-3 text-xs font-bold transition flex items-center justify-center gap-1.5 whitespace-nowrap ${
+                    type === 'EXPENSE'
+                      ? 'bg-white text-rose-600 shadow-md'
+                      : 'text-white/85 hover:text-white hover:bg-white/10'
+                  }`}
                 >
-                  <FinanceIcon name="expense" size={13} />
+                  <FinanceIcon name="expense" size={13} color={type === 'EXPENSE' ? '#e11d48' : 'currentColor'} />
                   <span>Tiền chi</span>
                 </button>
 
-                {!isChildAccount && <button
+                <button
                   type="button"
                   onClick={() => setType('INCOME')}
-                  className={`h-full flex-1 rounded-lg px-3 text-xs font-bold transition flex items-center justify-center gap-1.5 whitespace-nowrap ${type === 'INCOME'
-                      ? 'bg-white text-emerald-800 shadow-md'
-                      : 'text-white/80 hover:text-white'
-                    }`}
+                  className={`h-full flex-1 rounded-lg px-3 text-xs font-bold transition flex items-center justify-center gap-1.5 whitespace-nowrap ${
+                    type === 'INCOME'
+                      ? 'bg-white text-emerald-700 shadow-md'
+                      : 'text-white/85 hover:text-white hover:bg-white/10'
+                  }`}
                 >
-                  <FinanceIcon name="income" size={13} />
+                  <FinanceIcon name="income" size={13} color={type === 'INCOME' ? '#047857' : 'currentColor'} />
                   <span>Tiền thu</span>
-                </button>}
+                </button>
 
-                {!isChildAccount && <button
-                  type="button"
-                  onClick={() => setType('TRANSFER')}
-                  className={`h-full flex-1 rounded-lg px-3.5 text-xs font-bold transition flex items-center justify-center gap-1.5 whitespace-nowrap ${type === 'TRANSFER'
-                      ? 'bg-white text-sky-800 shadow-md'
-                      : 'text-white/80 hover:text-white'
+                {!isChildAccount && (
+                  <button
+                    type="button"
+                    onClick={() => setType('TRANSFER')}
+                    className={`h-full flex-1 rounded-lg px-3.5 text-xs font-bold transition flex items-center justify-center gap-1.5 whitespace-nowrap ${
+                      type === 'TRANSFER'
+                        ? 'bg-white text-sky-700 shadow-md'
+                        : 'text-white/85 hover:text-white hover:bg-white/10'
                     }`}
-                >
-                  <FinanceIcon name="arrows" size={13} />
-                  <span>Chuyển ví</span>
-                </button>}
+                  >
+                    <FinanceIcon name="arrows" size={13} color={type === 'TRANSFER' ? '#0284c7' : 'currentColor'} />
+                    <span>Chuyển ví</span>
+                  </button>
+                )}
               </div>
 
               {/* OCR Scanner Button on Right */}
-              {!isChildAccount && <button
-                type="button"
-                onClick={onOpenInvoiceScanner}
-                className="inline-flex h-9 items-center gap-2 rounded-xl bg-white/15 px-3.5 text-xs font-semibold text-white backdrop-blur-md border border-white/20 hover:bg-white/25 active:scale-95 transition shadow-sm"
-                title="Tự động nhận diện số tiền, ngày và thông tin từ hóa đơn"
-              >
-                <FinanceIcon name="receipt" size={14} />
-                <span>Quét hóa đơn OCR</span>
-              </button>}
+              {!isChildAccount && (
+                <button
+                  type="button"
+                  onClick={onOpenInvoiceScanner}
+                  className="inline-flex h-9 items-center gap-2 rounded-xl bg-white/20 hover:bg-white/30 px-3.5 text-xs font-bold text-white backdrop-blur-md border border-white/25 active:scale-95 transition shadow-sm cursor-pointer"
+                  title="Tự động nhận diện số tiền, ngày và thông tin từ hóa đơn"
+                >
+                  <FinanceIcon name="scan" size={16} strokeWidth={2.2} />
+                  <span>Quét hóa đơn OCR</span>
+                </button>
+              )}
             </div>
 
-            {/* Large Hero Amount Input */}
-            <div className="mt-3.5 flex flex-col items-center justify-center">
-              <span className="text-xs font-bold uppercase tracking-wider text-emerald-200">
+            {/* Large Hero Amount Input ở chính giữa */}
+            <div className="relative z-10 mt-3.5 flex flex-col items-center justify-center">
+              <span className="text-xs font-bold uppercase tracking-wider text-white/90">
                 {type === 'EXPENSE' ? 'Số tiền muốn chi' : type === 'INCOME' ? 'Số tiền nhận được' : 'Số tiền muốn chuyển'}
               </span>
               <div className="mt-1.5 flex items-center justify-center">
@@ -497,18 +543,20 @@ export function AddTransactionScreen({ onCancel, onNotify, onOpenInvoiceScanner 
                     }}
                     style={{
                       width: `${Math.max(1, (amount ? Number(amount).toLocaleString('vi-VN') : '0').length)}ch`,
-                      fontSize: 'clamp(28px, 3.2vw, 38px)',
+                      fontSize: 'clamp(34px, 3.8vw, 46px)',
+                      fontWeight: 900,
                       lineHeight: '1.1',
                       outline: 'none',
                       border: 'none',
                       boxShadow: 'none',
+                      textShadow: '0 2px 4px rgba(0,0,0,0.15)',
                     }}
-                    className="bg-transparent text-center font-black text-white outline-none border-none ring-0 tracking-tight placeholder:text-white/20"
+                    className="bg-transparent text-center font-black text-white outline-none border-none ring-0 tracking-tight placeholder:text-white/30 drop-shadow-md"
                     autoFocus
                   />
                   <span
-                    style={{ fontSize: 'clamp(20px, 2.4vw, 28px)' }}
-                    className="absolute left-full ml-1.5 font-extrabold text-emerald-300 select-none self-center leading-none"
+                    style={{ fontSize: 'clamp(22px, 2.6vw, 30px)', fontWeight: 900, textShadow: '0 2px 4px rgba(0,0,0,0.15)' }}
+                    className="absolute left-full ml-1.5 font-black text-white select-none self-center leading-none"
                   >
                     ₫
                   </span>
@@ -516,13 +564,13 @@ export function AddTransactionScreen({ onCancel, onNotify, onOpenInvoiceScanner 
               </div>
 
               {/* Quick Increment Presets */}
-              <div className="mt-2.5 flex flex-wrap items-center justify-center gap-2">
+              <div className="mt-3 flex flex-wrap items-center justify-center gap-2">
                 {presets.map((preset) => (
                   <button
                     key={preset.value}
                     type="button"
                     onClick={() => setAmount(String((Number(amount) || 0) + preset.value))}
-                    className="rounded-full border border-white/20 bg-white/10 px-3 py-1 text-xs font-semibold text-white backdrop-blur-sm hover:bg-white/20 hover:scale-105 active:scale-95 transition"
+                    className="rounded-full border border-white/25 bg-white/20 px-3 py-1 text-xs font-bold text-white backdrop-blur-md hover:bg-white/35 hover:scale-105 active:scale-95 transition shadow-2xs cursor-pointer"
                   >
                     {preset.label}
                   </button>
@@ -531,7 +579,7 @@ export function AddTransactionScreen({ onCancel, onNotify, onOpenInvoiceScanner 
                   <button
                     type="button"
                     onClick={() => setAmount('')}
-                    className="rounded-full border border-rose-300/40 bg-rose-500/25 px-3 py-1 text-xs font-semibold text-rose-200 backdrop-blur-sm hover:bg-rose-500/40 transition"
+                    className="rounded-full border border-white/30 bg-black/25 px-3 py-1 text-xs font-bold text-white hover:bg-black/40 transition cursor-pointer"
                   >
                     Xóa
                   </button>
@@ -547,49 +595,54 @@ export function AddTransactionScreen({ onCancel, onNotify, onOpenInvoiceScanner 
               <div className="grid gap-4 sm:grid-cols-2">
                 {/* Account / Wallet Dropdown Picker */}
                 <div className="relative" ref={accountPickerRef}>
-                  <label className="mb-1.5 flex items-center justify-between text-xs font-bold text-[#14261e]">
+                  <label className="mb-1.5 flex items-center justify-between text-xs font-bold text-[#14261e] dark:text-slate-200">
                     <span>{type === 'TRANSFER' ? 'Từ tài khoản (Nguồn)' : 'Nguồn tiền thanh toán'}</span>
                     {(selectedAccountObj || selectedGroupFund) && (
-                      <span className="text-[11px] font-medium text-[#718579]">
-                        Số dư: <strong className="text-[#07543f]">{formatAmount(selectedSourceBalance)} ₫</strong>
+                      <span className="text-[11px] font-medium text-[#718579] dark:text-slate-400">
+                        Số dư: <strong className="text-[#07543f] dark:text-emerald-400">{formatAmount(selectedSourceBalance)} ₫</strong>
                       </span>
                     )}
                   </label>
 
                   <button
                     type="button"
+                    disabled={isChildAccount}
                     onClick={() => {
+                      if (isChildAccount) return
                       setIsAccountPickerOpen((prev) => !prev)
                       setIsCategoryPickerOpen(false)
                       setIsToAccountPickerOpen(false)
                     }}
-                    className={`flex h-11 w-full items-center justify-between rounded-xl border bg-[#f9fbf9] px-3.5 text-left transition ${isAccountPickerOpen
-                        ? 'border-[#07543f] bg-white ring-2 ring-[#07543f]/20'
-                        : 'border-[#d5ded8] hover:border-[#b0c2b7]'
-                      }`}
+                    className={`flex h-11 w-full items-center justify-between rounded-xl border bg-[#f9fbf9] dark:bg-slate-800/80 px-3.5 text-left transition ${
+                      isChildAccount
+                        ? 'border-[#d5ded8] bg-[#f0f5f2] dark:bg-slate-800 cursor-default'
+                        : isAccountPickerOpen
+                        ? 'border-[#07543f] bg-white ring-2 ring-[#07543f]/20 dark:border-emerald-500 dark:bg-slate-800 dark:ring-emerald-500/20'
+                        : 'border-[#d5ded8] hover:border-[#b0c2b7] dark:border-slate-700 dark:hover:border-slate-600'
+                    }`}
                   >
                     <div className="flex items-center gap-3 min-w-0">
-                      <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-emerald-50 text-[#07543f] border border-emerald-100">
+                      <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-emerald-50 text-[#07543f] border border-emerald-100 dark:bg-emerald-950/60 dark:text-emerald-400 dark:border-emerald-800/40">
                         <FinanceIcon name="wallet" size={16} />
                       </span>
                       <div className="min-w-0">
-                        <p className="truncate text-xs font-bold text-[#14261e]">
-                          {selectedGroupFund ? `Quỹ chung · ${selectedGroupFund.name}` : selectedAccountObj?.name || 'Chọn nguồn tiền'}
+                        <p className="truncate text-xs font-bold text-[#14261e] dark:text-slate-100">
+                          {selectedGroupFund ? `Quỹ chung · ${selectedGroupFund.name}` : selectedAccountObj?.name || (isChildAccount ? 'Ví của bé' : 'Chọn nguồn tiền')}
                         </p>
-                        <p className="text-[11px] text-[#718579] truncate">
+                        <p className="text-[11px] text-[#718579] dark:text-slate-400 truncate">
                           {selectedGroupFund ? `Số dư quỹ: ${formatAmount(selectedGroupFundBalance)} ₫ · Ghi trong nhóm` : `${selectedAccountObj?.currencyCode || 'VND'} · Số dư: ${formatAmount(selectedAccountObj?.balance || 0)} ₫`}
                         </p>
                       </div>
                     </div>
 
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className={`text-gray-400 transition-transform ${isAccountPickerOpen ? 'rotate-180' : ''}`}>
-                      <polyline points="6 9 12 15 18 9" />
-                    </svg>
+                    {!isChildAccount && (
+                      <FinanceIcon name="chevron-down" size={14} className={`text-gray-400 dark:text-slate-400 transition-transform ${isAccountPickerOpen ? 'rotate-180' : ''}`} />
+                    )}
                   </button>
 
                   {/* Account Dropdown Menu */}
-                  {isAccountPickerOpen && (
-                    <div className="absolute left-0 right-0 top-full mt-1.5 z-40 max-h-56 overflow-y-auto rounded-2xl border border-[#d5ded8] bg-white p-1.5 shadow-2xl animate-fadeIn">
+                  {!isChildAccount && isAccountPickerOpen && (
+                    <div className="absolute left-0 right-0 top-full mt-1.5 z-40 max-h-56 overflow-y-auto rounded-2xl border border-[#d5ded8] dark:border-slate-700 bg-white dark:bg-[#0c1a24] p-1.5 shadow-2xl animate-fadeIn">
                       {accounts.map((acc) => {
                         const isSelected = selectedAccountId === acc.id
                         return (
@@ -601,29 +654,29 @@ export function AddTransactionScreen({ onCancel, onNotify, onOpenInvoiceScanner 
                               setSelectedGroupFundId('')
                               setIsAccountPickerOpen(false)
                             }}
-                            className={`flex w-full items-center justify-between rounded-xl px-3 py-2 text-left transition ${isSelected ? 'bg-emerald-50 text-[#07543f]' : 'hover:bg-[#f3f7f4] text-[#14261e]'
+                            className={`flex w-full items-center justify-between rounded-xl px-3 py-2 text-left transition ${isSelected ? 'bg-emerald-50 text-[#07543f] dark:bg-emerald-950/60 dark:text-emerald-300' : 'hover:bg-[#f3f7f4] text-[#14261e] dark:text-slate-200 dark:hover:bg-slate-800 dark:hover:text-white'
                               }`}
                           >
                             <div className="flex items-center gap-2.5 truncate">
-                              <span className="grid size-7 place-items-center rounded-lg bg-gray-100 text-gray-700 shrink-0">
+                              <span className="grid size-7 place-items-center rounded-lg bg-gray-100 dark:bg-slate-800 text-gray-700 dark:text-slate-300 shrink-0">
                                 <FinanceIcon name="wallet" size={14} />
                               </span>
                               <div className="truncate">
                                 <p className="truncate text-xs font-bold">{acc.name}</p>
-                                <p className="text-[10px] text-gray-500">{formatAmount(acc.balance)} ₫</p>
+                                <p className="text-[10px] text-gray-500 dark:text-slate-400">{formatAmount(acc.balance)} ₫</p>
                               </div>
                             </div>
-                            {isSelected && <span className="font-bold text-[#07543f] ml-2">✓</span>}
+                            {isSelected && <span className="font-bold text-[#07543f] dark:text-emerald-400 ml-2">✓</span>}
                           </button>
                         )
                       })}
                       {type === 'EXPENSE' && groups.length > 0 && <div>
-                        <p className="px-3 pt-3 pb-1 text-[10px] font-bold uppercase tracking-wide text-[#718579]">Quỹ chung của nhóm</p>
+                        <p className="px-3 pt-3 pb-1 text-[10px] font-bold uppercase tracking-wide text-[#718579] dark:text-slate-400">Quỹ chung của nhóm</p>
                         {groups.map((group) => {
                           const isSelected = selectedGroupFundId === group.id
                           return (
-                            <button key={group.id} type="button" onClick={() => { setSelectedGroupFundId(group.id); setSelectedAccountId(''); setIsAccountPickerOpen(false) }} className={isSelected ? 'flex w-full items-center justify-between rounded-xl bg-emerald-50 px-3 py-2 text-left text-[#07543f]' : 'flex w-full items-center justify-between rounded-xl px-3 py-2 text-left text-[#14261e] hover:bg-[#f3f7f4]'}>
-                              <div className="flex items-center gap-2.5 truncate"><span className="grid size-7 place-items-center rounded-lg bg-emerald-50 text-[#07543f] shrink-0"><FinanceIcon name="users" size={14} /></span><div className="truncate"><p className="truncate text-xs font-bold">Quỹ · {group.name}</p><p className="text-[10px] text-gray-500">Số dư quỹ: {formatAmount(groupFunds[group.id]?.balance || 0)} ₫</p></div></div>{isSelected && <span className="font-bold text-[#07543f] ml-2">✓</span>}
+                            <button key={group.id} type="button" onClick={() => { setSelectedGroupFundId(group.id); setSelectedAccountId(''); setIsAccountPickerOpen(false) }} className={isSelected ? 'flex w-full items-center justify-between rounded-xl bg-emerald-50 px-3 py-2 text-left text-[#07543f] dark:bg-emerald-950/60 dark:text-emerald-300' : 'flex w-full items-center justify-between rounded-xl px-3 py-2 text-left text-[#14261e] dark:text-slate-200 hover:bg-[#f3f7f4] dark:hover:bg-slate-800 dark:hover:text-white'}>
+                              <div className="flex items-center gap-2.5 truncate"><span className="grid size-7 place-items-center rounded-lg bg-emerald-50 text-[#07543f] dark:bg-emerald-950/60 dark:text-emerald-400 shrink-0"><FinanceIcon name="users" size={14} /></span><div className="truncate"><p className="truncate text-xs font-bold">Quỹ · {group.name}</p><p className="text-[10px] text-gray-500 dark:text-slate-400">Số dư quỹ: {formatAmount(groupFunds[group.id]?.balance || 0)} ₫</p></div></div>{isSelected && <span className="font-bold text-[#07543f] dark:text-emerald-400 ml-2">✓</span>}
                             </button>
                           )
                         })}
@@ -635,11 +688,11 @@ export function AddTransactionScreen({ onCancel, onNotify, onOpenInvoiceScanner 
                 {/* If TRANSFER: Destination Account. If EXPENSE/INCOME: Category Picker */}
                 {type === 'TRANSFER' ? (
                   <div className="relative" ref={toAccountPickerRef}>
-                    <label className="mb-1.5 flex items-center justify-between text-xs font-bold text-[#14261e]">
+                    <label className="mb-1.5 flex items-center justify-between text-xs font-bold text-[#14261e] dark:text-slate-200">
                       <span>Đến tài khoản (Đích)</span>
                       {toAccountObj && (
-                        <span className="text-[11px] font-medium text-[#718579]">
-                          Số dư: <strong className="text-[#07543f]">{formatAmount(toAccountObj.balance)} ₫</strong>
+                        <span className="text-[11px] font-medium text-[#718579] dark:text-slate-400">
+                          Số dư: <strong className="text-[#07543f] dark:text-emerald-400">{formatAmount(toAccountObj.balance)} ₫</strong>
                         </span>
                       )}
                     </label>
@@ -651,33 +704,31 @@ export function AddTransactionScreen({ onCancel, onNotify, onOpenInvoiceScanner 
                         setIsAccountPickerOpen(false)
                         setIsCategoryPickerOpen(false)
                       }}
-                      className={`flex h-11 w-full items-center justify-between rounded-xl border bg-[#f9fbf9] px-3.5 text-left transition ${isToAccountPickerOpen
-                          ? 'border-[#07543f] bg-white ring-2 ring-[#07543f]/20'
-                          : 'border-[#d5ded8] hover:border-[#b0c2b7]'
+                      className={`flex h-11 w-full items-center justify-between rounded-xl border bg-[#f9fbf9] dark:bg-slate-800/80 px-3.5 text-left transition ${isToAccountPickerOpen
+                          ? 'border-[#07543f] bg-white ring-2 ring-[#07543f]/20 dark:border-sky-500 dark:bg-slate-800 dark:ring-sky-500/20'
+                          : 'border-[#d5ded8] hover:border-[#b0c2b7] dark:border-slate-700 dark:hover:border-slate-600'
                         }`}
                     >
                       <div className="flex items-center gap-3 min-w-0">
-                        <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-sky-50 text-sky-700 border border-sky-100">
+                        <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-sky-50 text-sky-700 border border-sky-100 dark:bg-sky-950/60 dark:text-sky-400 dark:border-sky-800/40">
                           <FinanceIcon name="arrows" size={16} />
                         </span>
                         <div className="min-w-0">
-                          <p className="truncate text-xs font-bold text-[#14261e]">
+                          <p className="truncate text-xs font-bold text-[#14261e] dark:text-slate-100">
                             {toAccountObj?.name || 'Chọn ví nhận'}
                           </p>
-                          <p className="text-[11px] text-[#718579] truncate">
+                          <p className="text-[11px] text-[#718579] dark:text-slate-400 truncate">
                             Số dư hiện tại: {formatAmount(toAccountObj?.balance || 0)} ₫
                           </p>
                         </div>
                       </div>
 
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className={`text-gray-400 transition-transform ${isToAccountPickerOpen ? 'rotate-180' : ''}`}>
-                        <polyline points="6 9 12 15 18 9" />
-                      </svg>
+                      <FinanceIcon name="chevron-down" size={14} className={`text-gray-400 dark:text-slate-400 transition-transform ${isToAccountPickerOpen ? 'rotate-180' : ''}`} />
                     </button>
 
                     {/* To Account Dropdown */}
                     {isToAccountPickerOpen && (
-                      <div className="absolute left-0 right-0 top-full mt-1.5 z-40 max-h-56 overflow-y-auto rounded-2xl border border-[#d5ded8] bg-white p-1.5 shadow-2xl animate-fadeIn">
+                      <div className="absolute left-0 right-0 top-full mt-1.5 z-40 max-h-56 overflow-y-auto rounded-2xl border border-[#d5ded8] dark:border-slate-700 bg-white dark:bg-[#0c1a24] p-1.5 shadow-2xl animate-fadeIn">
                         {accounts.filter((a) => a.id !== selectedAccountId).map((acc) => {
                           const isSelected = toAccountId === acc.id
                           return (
@@ -688,19 +739,19 @@ export function AddTransactionScreen({ onCancel, onNotify, onOpenInvoiceScanner 
                                 setToAccountId(acc.id)
                                 setIsToAccountPickerOpen(false)
                               }}
-                              className={`flex w-full items-center justify-between rounded-xl px-3 py-2 text-left transition ${isSelected ? 'bg-sky-50 text-sky-800' : 'hover:bg-[#f3f7f4] text-[#14261e]'
+                              className={`flex w-full items-center justify-between rounded-xl px-3 py-2 text-left transition ${isSelected ? 'bg-sky-50 text-sky-800 dark:bg-sky-950/60 dark:text-sky-300' : 'hover:bg-[#f3f7f4] text-[#14261e] dark:text-slate-200 dark:hover:bg-slate-800 dark:hover:text-white'
                                 }`}
                             >
                               <div className="flex items-center gap-2.5 truncate">
-                                <span className="grid size-7 place-items-center rounded-lg bg-sky-50 text-sky-700 shrink-0">
+                                <span className="grid size-7 place-items-center rounded-lg bg-sky-50 text-sky-700 dark:bg-sky-950/60 dark:text-sky-400 shrink-0">
                                   <FinanceIcon name="wallet" size={14} />
                                 </span>
                                 <div className="truncate">
                                   <p className="truncate text-xs font-bold">{acc.name}</p>
-                                  <p className="text-[10px] text-gray-500">{formatAmount(acc.balance)} ₫</p>
+                                  <p className="text-[10px] text-gray-500 dark:text-slate-400">{formatAmount(acc.balance)} ₫</p>
                                 </div>
                               </div>
-                              {isSelected && <span className="font-bold text-sky-700 ml-2">✓</span>}
+                              {isSelected && <span className="font-bold text-sky-700 dark:text-sky-400 ml-2">✓</span>}
                             </button>
                           )
                         })}
@@ -710,9 +761,9 @@ export function AddTransactionScreen({ onCancel, onNotify, onOpenInvoiceScanner 
                 ) : (
                   /* Category Picker */
                   <div className="relative" ref={categoryPickerRef}>
-                    <label className="mb-1.5 flex items-center justify-between text-xs font-bold text-[#14261e]">
+                    <label className="mb-1.5 flex items-center justify-between text-xs font-bold text-[#14261e] dark:text-slate-200">
                       <span>Phân loại danh mục</span>
-                      <span className="text-[11px] text-[#718579]">{filteredCategories.length} danh mục</span>
+                      <span className="text-[11px] text-[#718579] dark:text-slate-400">{filteredCategories.length} danh mục</span>
                     </label>
 
                     <button
@@ -722,9 +773,9 @@ export function AddTransactionScreen({ onCancel, onNotify, onOpenInvoiceScanner 
                         setIsAccountPickerOpen(false)
                         setIsToAccountPickerOpen(false)
                       }}
-                      className={`flex h-11 w-full items-center justify-between rounded-xl border bg-[#f9fbf9] px-3.5 text-left transition ${isCategoryPickerOpen
-                          ? 'border-[#07543f] bg-white ring-2 ring-[#07543f]/20'
-                          : 'border-[#d5ded8] hover:border-[#b0c2b7]'
+                      className={`flex h-11 w-full items-center justify-between rounded-xl border bg-[#f9fbf9] dark:bg-slate-800/80 px-3.5 text-left transition ${isCategoryPickerOpen
+                          ? 'border-[#07543f] bg-white ring-2 ring-[#07543f]/20 dark:border-emerald-500 dark:bg-slate-800 dark:ring-emerald-500/20'
+                          : 'border-[#d5ded8] hover:border-[#b0c2b7] dark:border-slate-700 dark:hover:border-slate-600'
                         }`}
                     >
                       <div className="flex items-center gap-3 min-w-0">
@@ -738,23 +789,21 @@ export function AddTransactionScreen({ onCancel, onNotify, onOpenInvoiceScanner 
                           {renderCategoryIcon(selectedCategoryObj?.icon, type, 16, selectedCategoryObj?.name)}
                         </span>
                         <div className="min-w-0">
-                          <p className="truncate text-xs font-bold text-[#14261e]">
+                          <p className="truncate text-xs font-bold text-[#14261e] dark:text-slate-100">
                             {selectedCategoryObj?.name || 'Chọn danh mục'}
                           </p>
-                          <p className="text-[11px] text-[#718579] truncate">
+                          <p className="text-[11px] text-[#718579] dark:text-slate-400 truncate">
                             {type === 'EXPENSE' ? 'Danh mục chi tiêu' : 'Danh mục thu nhập'}
                           </p>
                         </div>
                       </div>
 
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className={`text-gray-400 transition-transform ${isCategoryPickerOpen ? 'rotate-180' : ''}`}>
-                        <polyline points="6 9 12 15 18 9" />
-                      </svg>
+                      <FinanceIcon name="chevron-down" size={14} className={`text-gray-400 dark:text-slate-400 transition-transform ${isCategoryPickerOpen ? 'rotate-180' : ''}`} />
                     </button>
 
                     {/* Category Dropdown Grid */}
                     {isCategoryPickerOpen && (
-                      <div className="absolute left-0 right-0 top-full mt-1.5 z-40 max-h-64 overflow-y-auto rounded-2xl border border-[#d5ded8] bg-white p-2 shadow-2xl animate-fadeIn">
+                      <div className="absolute left-0 right-0 top-full mt-1.5 z-40 max-h-64 overflow-y-auto rounded-2xl border border-[#d5ded8] dark:border-slate-700 bg-white dark:bg-[#0c1a24] p-2 shadow-2xl animate-fadeIn">
                         <div className="grid grid-cols-2 gap-1.5">
                           {filteredCategories.map((cat) => {
                             const isSelected = selectedCategoryId === cat.id
@@ -767,8 +816,8 @@ export function AddTransactionScreen({ onCancel, onNotify, onOpenInvoiceScanner 
                                   setIsCategoryPickerOpen(false)
                                 }}
                                 className={`flex items-center gap-2 rounded-xl p-2 text-left transition border ${isSelected
-                                    ? 'border-[#07543f] bg-emerald-50 text-[#07543f] font-bold'
-                                    : 'border-transparent hover:bg-[#f3f7f4] text-[#14261e]'
+                                    ? 'border-[#07543f] bg-emerald-50 text-[#07543f] dark:border-emerald-600 dark:bg-emerald-950/60 dark:text-emerald-400 font-bold'
+                                    : 'border-transparent hover:bg-[#f3f7f4] text-[#14261e] dark:text-slate-200 dark:hover:bg-slate-800 dark:hover:text-white'
                                   }`}
                               >
                                 <span
@@ -871,7 +920,7 @@ export function AddTransactionScreen({ onCancel, onNotify, onOpenInvoiceScanner 
 
               {/* Row 3: Description Note */}
               <div>
-                <label className="mb-1.5 block text-xs font-bold text-[#14261e]">
+                <label className="mb-1.5 block text-xs font-bold text-[#14261e] dark:text-slate-200">
                   Ghi chú / Diễn giải
                 </label>
                 <input
@@ -879,20 +928,20 @@ export function AddTransactionScreen({ onCancel, onNotify, onOpenInvoiceScanner 
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
                   placeholder="Ví dụ: Ăn trưa bún bò, Đổ xăng xe máy, Tiền thưởng dự án..."
-                  className="h-10 w-full rounded-xl border border-[#d5ded8] bg-[#f9fbf9] px-3.5 text-xs text-[#14261e] outline-none placeholder:text-gray-400 focus:border-[#07543f] focus:bg-white focus:ring-1 focus:ring-[#07543f] transition"
+                  className="h-10 w-full rounded-xl border border-[#d5ded8] dark:border-slate-700 bg-[#f9fbf9] dark:bg-slate-800/80 px-3.5 text-xs text-[#14261e] dark:text-slate-100 outline-none placeholder:text-gray-400 dark:placeholder:text-slate-500 focus:border-[#07543f] focus:bg-white dark:focus:bg-slate-800 focus:ring-1 focus:ring-[#07543f] transition"
                 />
               </div>
 
               {/* Row 4: Recurring Monthly Switch & Receipt Attachment */}
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 rounded-xl border border-[#e2ece5] bg-[#f8faf8] px-3.5 py-2">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 rounded-xl border border-[#e2ece5] dark:border-white/10 bg-[#f8faf8] dark:bg-white/5 px-3.5 py-2">
                 <div className="flex items-center gap-3 text-xs">
-                  <span className="text-[#718579]">Lặp lại giao dịch hàng tháng:</span>
+                  <span className="text-[#718579] dark:text-slate-400">Lặp lại giao dịch hàng tháng:</span>
                   <button
                     type="button"
                     role="switch"
                     aria-checked={recurring}
                     onClick={() => setRecurring(!recurring)}
-                    className={`relative inline-flex h-5 w-10 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${recurring ? 'bg-[#07543f]' : 'bg-[#cbd7cf]'
+                    className={`relative inline-flex h-5 w-10 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${recurring ? 'bg-[#07543f] dark:bg-emerald-600' : 'bg-[#cbd7cf] dark:bg-slate-700'
                       }`}
                   >
                     <span
@@ -912,8 +961,8 @@ export function AddTransactionScreen({ onCancel, onNotify, onOpenInvoiceScanner 
                     className="hidden"
                   />
                   {fileName ? (
-                    <div className="inline-flex items-center gap-2 rounded-xl border border-emerald-300 bg-emerald-50/80 px-3 py-1.5 text-xs font-semibold text-[#07543f] shadow-2xs">
-                      <FinanceIcon name="receipt" size={14} className="text-[#07543f]" />
+                    <div className="inline-flex items-center gap-2 rounded-xl border border-emerald-300 dark:border-emerald-700 bg-emerald-50/80 dark:bg-emerald-950/60 px-3 py-1.5 text-xs font-semibold text-[#07543f] dark:text-emerald-300 shadow-2xs">
+                      <FinanceIcon name="receipt" size={14} className="text-[#07543f] dark:text-emerald-400" />
                       <span className="max-w-[170px] truncate" title={fileName}>{fileName}</span>
                       <button
                         type="button"
@@ -932,7 +981,7 @@ export function AddTransactionScreen({ onCancel, onNotify, onOpenInvoiceScanner 
                     <button
                       type="button"
                       onClick={() => fileRef.current?.click()}
-                      className="inline-flex items-center gap-1.5 rounded-xl border border-[#cbe0d3] bg-white px-3.5 py-1.5 text-xs font-bold text-[#07543f] shadow-2xs hover:bg-[#eaf4ee] hover:border-[#07543f] active:scale-95 transition"
+                      className="inline-flex items-center gap-1.5 rounded-xl border border-[#cbe0d3] dark:border-slate-700 bg-white dark:bg-slate-800 px-3.5 py-1.5 text-xs font-bold text-[#07543f] dark:text-emerald-400 shadow-2xs hover:bg-[#eaf4ee] dark:hover:bg-slate-700 hover:border-[#07543f] active:scale-95 transition"
                     >
                       <FinanceIcon name="receipt" size={14} />
                       <span>+ Đính kèm ảnh hóa đơn</span>
@@ -982,47 +1031,47 @@ export function AddTransactionScreen({ onCancel, onNotify, onOpenInvoiceScanner 
         {/* RIGHT COLUMN: 2 Cards (chiếm tỷ lệ cân đối 33% - 42%) */}
         <div className="lg:col-span-5 xl:col-span-5 2xl:col-span-4 flex flex-col h-full gap-4 min-h-0">
           {/* Card 1: Số tiền còn lại / Dự tính số dư */}
-          <div className="flex flex-col justify-between rounded-2xl border border-[#e2ece5] bg-white p-5 shadow-sm shrink-0">
-            <div className="flex items-center justify-between pb-3 border-b border-[#edf2ee]">
+          <div className="flex flex-col justify-between rounded-2xl border border-[#e2ece5] bg-white p-5 shadow-sm dark:border-white/5 dark:bg-[#0c1a24] shrink-0">
+            <div className="flex items-center justify-between pb-3 border-b border-[#edf2ee] dark:border-white/5">
               <div className="flex items-center gap-2.5">
-                <span className="grid size-8 place-items-center rounded-xl bg-[#e3f4e9] text-[#07543f] font-bold">
+                <span className="grid size-8 place-items-center rounded-xl bg-[#e3f4e9] text-[#07543f] dark:bg-emerald-950/60 dark:text-emerald-400 font-bold">
                   <FinanceIcon name="trend" size={16} />
                 </span>
                 <div>
-                  <h3 className="text-sm font-bold text-[#14261e]">Dự tính số dư sau khi lưu</h3>
-                  <p className="text-[11px] text-[#718579]">{selectedGroupFund ? `Quỹ chung: ${selectedGroupFund.name}` : `Tài khoản: ${selectedAccountObj?.name || 'Chưa chọn'}`}</p>
+                  <h3 className="text-sm font-bold text-[#14261e] dark:text-slate-100">Dự tính số dư sau khi lưu</h3>
+                  <p className="text-[11px] text-[#718579] dark:text-slate-400">{selectedGroupFund ? `Quỹ chung: ${selectedGroupFund.name}` : `Tài khoản: ${selectedAccountObj?.name || 'Chưa chọn'}`}</p>
                 </div>
               </div>
             </div>
 
             <div className="mt-3.5 flex flex-col gap-2.5">
               <div className="flex items-center justify-between text-xs">
-                <span className="text-[#718579]">Số dư hiện tại:</span>
-                <strong className="text-[#14261e] font-bold">
+                <span className="text-[#718579] dark:text-slate-400">Số dư hiện tại:</span>
+                <strong className="text-[#14261e] dark:text-slate-100 font-bold">
                   {formatAmount(selectedSourceBalance)} ₫
                 </strong>
               </div>
 
               <div className="flex items-center justify-between text-xs">
-                <span className="text-[#718579]">
+                <span className="text-[#718579] dark:text-slate-400">
                   {type === 'INCOME' ? 'Số tiền nhận:' : type === 'TRANSFER' ? 'Số tiền chuyển đi:' : 'Số tiền muốn chi:'}
                 </span>
-                <strong className={type === 'INCOME' ? 'text-emerald-600 font-bold' : 'text-rose-600 font-bold'}>
+                <strong className={type === 'INCOME' ? 'text-emerald-600 dark:text-emerald-400 font-bold' : 'text-rose-600 dark:text-rose-400 font-bold'}>
                   {type === 'INCOME' ? '+' : '-'}{formatAmount(numericAmount)} ₫
                 </strong>
               </div>
 
-              <div className="my-1 border-t border-dashed border-[#d5ded8]" />
+              <div className="my-1 border-t border-dashed border-[#d5ded8] dark:border-slate-800" />
 
               <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-[#14261e]">Số dư còn lại dự kiến:</span>
-                <span className={`text-base font-black ${projectedBalance < 0 ? 'text-rose-600' : 'text-[#07543f]'}`}>
+                <span className="text-xs font-bold text-[#14261e] dark:text-slate-100">Số dư còn lại dự kiến:</span>
+                <span className={`text-base font-black ${projectedBalance < 0 ? 'text-rose-600 dark:text-rose-400' : 'text-[#07543f] dark:text-emerald-400'}`}>
                   {formatAmount(Math.max(0, projectedBalance))} ₫
                 </span>
               </div>
 
               {projectedBalance < 0 && (
-                <div className="rounded-xl bg-amber-50 p-2.5 text-[11px] font-semibold text-amber-800 border border-amber-200">
+                <div className="rounded-xl bg-amber-50 dark:bg-amber-950/40 p-2.5 text-[11px] font-semibold text-amber-800 dark:text-amber-300 border border-amber-200 dark:border-amber-800/60">
                   ⚠️ Cảnh báo: Số tiền trong {selectedGroupFund ? `quỹ chung “${selectedGroupFund.name}”` : 'ví'} không đủ ({formatAmount(Math.abs(projectedBalance))} ₫).
                 </div>
               )}
