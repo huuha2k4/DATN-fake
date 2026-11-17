@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useTransition } from 'react';
 import { adminApi, type AdminUserItem } from '../api/adminApi';
 import { FinanceIcon } from '../../core/components/FinanceIcon';
+import { ConfirmDeleteModal } from '../../core/components/ConfirmDeleteModal';
 
 export const AdminUserManagementScreen: React.FC = () => {
   const [users, setUsers] = useState<AdminUserItem[]>([]);
@@ -22,6 +23,10 @@ export const AdminUserManagementScreen: React.FC = () => {
   const [editVerified, setEditVerified] = useState<boolean>(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [notice, setNotice] = useState('');
+
+  // Modal Khóa/Mở khóa người dùng
+  const [userToToggleBlock, setUserToToggleBlock] = useState<AdminUserItem | null>(null);
+  const [isTogglingBlock, setIsTogglingBlock] = useState(false);
 
   const [, startTransition] = useTransition();
 
@@ -87,19 +92,22 @@ export const AdminUserManagementScreen: React.FC = () => {
     }
   };
 
-  const handleToggleBlock = async (user: AdminUserItem) => {
-    const isBlocking = user.userStatus === 'ACTIVE';
-    const confirmMsg = isBlocking
-      ? `Bạn có chắc muốn KHÓA tài khoản "${user.fullName || user.username}" không?`
-      : `MỞ KHÓA cho tài khoản "${user.fullName || user.username}"?`;
-    if (!window.confirm(confirmMsg)) return;
+  const handleToggleBlock = (user: AdminUserItem) => {
+    setUserToToggleBlock(user);
+  };
 
+  const confirmToggleBlockUser = async () => {
+    if (!userToToggleBlock) return;
+    setIsTogglingBlock(true);
     try {
-      const updated = await adminApi.toggleBlockUser(user.id);
+      const updated = await adminApi.toggleBlockUser(userToToggleBlock.id);
       setNotice(`Đã ${updated.userStatus === 'LOCKED' ? 'khóa' : 'mở khóa'} tài khoản thành công!`);
+      setUserToToggleBlock(null);
       loadUsers();
     } catch (err: any) {
       alert(err?.response?.data?.message || 'Thao tác khóa/mở khóa thất bại');
+    } finally {
+      setIsTogglingBlock(false);
     }
   };
 
@@ -502,6 +510,27 @@ export const AdminUserManagementScreen: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* CONFIRM TOGGLE BLOCK USER MODAL */}
+      <ConfirmDeleteModal
+        isOpen={Boolean(userToToggleBlock)}
+        title={userToToggleBlock?.userStatus === 'ACTIVE' ? 'Khóa tài khoản người dùng?' : 'Mở khóa tài khoản?'}
+        subtitle={userToToggleBlock?.userStatus === 'ACTIVE' ? 'Người dùng sẽ bị chặn truy cập hệ thống' : 'Người dùng có thể đăng nhập bình thường'}
+        itemName={userToToggleBlock?.fullName || userToToggleBlock?.username}
+        itemTypeLabel="Tài khoản"
+        message={
+          userToToggleBlock
+            ? userToToggleBlock.userStatus === 'ACTIVE'
+              ? `Bạn có chắc chắn muốn KHÓA tài khoản "${userToToggleBlock.fullName || userToToggleBlock.username}" không?`
+              : `Bạn có muốn MỞ KHÓA tài khoản "${userToToggleBlock.fullName || userToToggleBlock.username}" không?`
+            : ''
+        }
+        confirmText={userToToggleBlock?.userStatus === 'ACTIVE' ? 'Khóa tài khoản' : 'Mở khóa'}
+        iconName={userToToggleBlock?.userStatus === 'ACTIVE' ? 'shield' : 'check'}
+        isDeleting={isTogglingBlock}
+        onConfirm={confirmToggleBlockUser}
+        onClose={() => setUserToToggleBlock(null)}
+      />
     </div>
   );
 };

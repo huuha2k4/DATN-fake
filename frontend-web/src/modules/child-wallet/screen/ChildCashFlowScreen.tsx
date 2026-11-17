@@ -27,8 +27,9 @@ export function ChildCashFlowScreen({ onNotify, onAddTransaction }: Props) {
         history.map((item) => {
           const isDeposit = item.description?.startsWith('[INCOME_DEPOSIT] ');
           const isChoreReward = item.description?.startsWith('[INCOME_CHORE] ');
+          const isGiftIncome = item.description?.startsWith('[INCOME_GIFT] ');
           const isMoneyReq = item.description?.startsWith('[MONEY_REQUEST] ');
-          const income = isDeposit || isChoreReward || isMoneyReq;
+          const income = isDeposit || isChoreReward || isGiftIncome || isMoneyReq;
 
           let displayTitle = item.description;
           let subText = 'Khoản chi · Ví của em';
@@ -39,6 +40,9 @@ export function ChildCashFlowScreen({ onNotify, onAddTransaction }: Props) {
           } else if (isChoreReward) {
             displayTitle = `Thưởng nhiệm vụ: ${item.description.replace('[INCOME_CHORE] ', '')}`;
             subText = 'Khoản thu · Thưởng làm việc nhà';
+          } else if (isGiftIncome) {
+            displayTitle = item.description.replace('[INCOME_GIFT] ', '');
+            subText = 'Khoản thu · Tiền người thân cho / Lì xì';
           } else if (isMoneyReq) {
             displayTitle = `Bố/mẹ cấp tiền: ${item.description.replace('[MONEY_REQUEST] ', '')}`;
             subText = 'Khoản thu · Bố/mẹ đã cấp';

@@ -15,6 +15,7 @@ _FINANCE_TERMS = (
     "tien", "tai khoan", "so du", "chi tieu", "chi bao nhieu", "ngan sach", "giao dich",
     "thu nhap", "luong", "tiet kiem", "no", "vay", "the tin dung",
     "dau tu", "bao hiem", "lai suat", "ty gia", "quy khan cap", "thue",
+    "vi cua con", "vi cua be", "vi cua em", "xin tien", "tieu vat", "nap vi", "con tieu", "be tieu",
     "financial", "finance", "money", "account", "balance", "expense",
     "spending", "budget", "transaction", "income", "salary", "saving",
     "debt", "loan", "credit card", "investment", "insurance", "interest",

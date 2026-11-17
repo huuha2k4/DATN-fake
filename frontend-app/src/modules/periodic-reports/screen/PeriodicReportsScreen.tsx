@@ -15,6 +15,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Circle } from 'react-native-svg';
 import { FinanceIcon } from '../../core/components/FinanceIcon';
+import { authStorage } from '../../auth/api/authApi';
 import {
   periodicReportsApi,
   getFallbackReportData,
@@ -39,6 +40,8 @@ export function PeriodicReportsScreen({
   initialToDate,
 }: PeriodicReportsScreenProps) {
   const insets = useSafeAreaInsets();
+  const user = authStorage.getUser();
+  const isChildAccount = Boolean(user?.childAccount && user?.childWalletGroupId);
   const [activeTab, setActiveTab] = useState<TabType>('INCOME_EXPENSE');
 
   // Helper tính khoảng thời gian động dựa trên ngày hiện tại
@@ -189,6 +192,13 @@ export function PeriodicReportsScreen({
   };
 
   const selectedAccountInfo = useMemo(() => {
+    if (isChildAccount) {
+      return {
+        label: user?.childWalletName || 'Ví của em',
+        icon: 'wallet' as const,
+        color: '#059669',
+      };
+    }
     if (selectedAccountId === 'ALL') {
       return {
         label: 'Tất cả ví',
@@ -291,7 +301,7 @@ export function PeriodicReportsScreen({
         <Pressable onPress={onBack} style={styles.headerIconBtn} hitSlop={12}>
           <FinanceIcon name="chevron-left" size={22} color="#047857" />
         </Pressable>
-        <Text style={styles.headerTitle}>Báo cáo tài chính</Text>
+        <Text style={styles.headerTitle}>{isChildAccount ? 'Báo cáo của em' : 'Báo cáo tài chính'}</Text>
         <Pressable
           style={styles.headerIconBtn}
           hitSlop={12}
@@ -360,17 +370,26 @@ export function PeriodicReportsScreen({
           <FinanceIcon name="chevron-down" size={14} color="#94A3B8" />
         </Pressable>
 
-        {/* Bộ chọn ví */}
-        <Pressable
-          style={[styles.filterPill, { flex: 0.85 }]}
-          onPress={() => setAccountPickerVisible(true)}
-        >
-          <FinanceIcon name={selectedAccountInfo.icon} size={15} color={selectedAccountInfo.color} />
-          <Text style={styles.filterPillText} numberOfLines={1}>
-            {selectedAccountLabel}
-          </Text>
-          <FinanceIcon name="chevron-down" size={14} color="#94A3B8" />
-        </Pressable>
+        {/* Bộ chọn ví (Tài khoản bé: cố định Ví của em, không cho chọn ví khác) */}
+        {isChildAccount ? (
+          <View style={[styles.filterPill, { flex: 0.85, opacity: 0.95 }]}>
+            <FinanceIcon name="wallet" size={15} color="#059669" />
+            <Text style={styles.filterPillText} numberOfLines={1}>
+              {user?.childWalletName || 'Ví của em'}
+            </Text>
+          </View>
+        ) : (
+          <Pressable
+            style={[styles.filterPill, { flex: 0.85 }]}
+            onPress={() => setAccountPickerVisible(true)}
+          >
+            <FinanceIcon name={selectedAccountInfo.icon} size={15} color={selectedAccountInfo.color} />
+            <Text style={styles.filterPillText} numberOfLines={1}>
+              {selectedAccountLabel}
+            </Text>
+            <FinanceIcon name="chevron-down" size={14} color="#94A3B8" />
+          </Pressable>
+        )}
       </View>
 
       {/* ── 4. NỘI DUNG THEO TỪNG TAB ── */}

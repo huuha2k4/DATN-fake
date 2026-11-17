@@ -154,7 +154,17 @@ export function CashFlowManagementScreen({ onNotify, onAddTransaction }: Props) 
         groupApi.getChildWallet(currentUser!.childWalletGroupId!, currentUser!.childWalletId!).catch(() => null),
       ]);
       setCategories(cats);
-      if (wallet) setAccounts([{ id: wallet.id, name: `Ví của ${wallet.childName}`, balance: wallet.balance, currencyCode: wallet.currency, accountType: 'CASH', isActive: true } as AccountItem]);
+      const childWalletName = wallet?.childName ? `Ví của ${wallet.childName}` : 'Ví của em';
+      const childWalletId = wallet?.id || currentUser!.childWalletId!;
+      setAccounts([{
+        id: childWalletId,
+        name: childWalletName,
+        balance: wallet?.balance || 0,
+        currencyCode: wallet?.currency || 'VND',
+        accountType: 'CASH',
+        isActive: true,
+      } as AccountItem]);
+      setSelectedAccount(childWalletId);
       return;
     }
     try {
@@ -768,21 +778,21 @@ export function CashFlowManagementScreen({ onNotify, onAddTransaction }: Props) 
           className="cashflow-metric-card is-income"
           style={{ '--card-accent': '#10b981' } as React.CSSProperties}
         >
-          <div className="flex items-start justify-between">
-            <div className="flex items-center gap-3">
-              <span className="grid size-11 place-items-center rounded-2xl bg-emerald-50 text-emerald-700 shadow-sm border border-emerald-100">
-                <FinanceIcon name="income" size={20} />
+          <div>
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-semibold text-[#718579]">TỔNG THU NHẬP</span>
+              <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-700 border border-emerald-200 shrink-0">
+                Dòng tiền vào
               </span>
-              <div>
-                <span className="text-xs font-semibold text-[#718579]">TỔNG THU NHẬP</span>
-                <h3 className="text-xl font-black text-emerald-700 sm:text-2xl mt-0.5">
-                  +{formatVND(summary.totalIncome)}
-                </h3>
-              </div>
             </div>
-            <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-[10px] font-bold text-emerald-700 border border-emerald-200">
-              Dòng tiền vào
-            </span>
+            <div className="mt-2 flex items-center gap-3">
+              <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-emerald-50 text-emerald-700 shadow-xs border border-emerald-100">
+                <FinanceIcon name="income" size={18} />
+              </span>
+              <h3 className="text-xl font-black text-emerald-700 sm:text-2xl truncate">
+                +{formatVND(summary.totalIncome)}
+              </h3>
+            </div>
           </div>
           <div className="mt-4 flex items-center justify-between border-t border-[#f0f4f1] pt-3 text-[11px] text-[#718579]">
             <span>Đã ghi nhận trong kỳ</span>
@@ -795,21 +805,21 @@ export function CashFlowManagementScreen({ onNotify, onAddTransaction }: Props) 
           className="cashflow-metric-card is-expense"
           style={{ '--card-accent': '#f43f5e' } as React.CSSProperties}
         >
-          <div className="flex items-start justify-between">
-            <div className="flex items-center gap-3">
-              <span className="grid size-11 place-items-center rounded-2xl bg-rose-50 text-rose-600 shadow-sm border border-rose-100">
-                <FinanceIcon name="expense" size={20} />
+          <div>
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-semibold text-[#718579]">TỔNG CHI TIÊU</span>
+              <span className="rounded-full bg-rose-50 px-2 py-0.5 text-[10px] font-bold text-rose-700 border border-rose-200 shrink-0">
+                Dòng tiền ra
               </span>
-              <div>
-                <span className="text-xs font-semibold text-[#718579]">TỔNG CHI TIÊU</span>
-                <h3 className="text-xl font-black text-rose-600 sm:text-2xl mt-0.5">
-                  -{formatVND(summary.totalExpense)}
-                </h3>
-              </div>
             </div>
-            <span className="rounded-full bg-rose-50 px-2.5 py-1 text-[10px] font-bold text-rose-700 border border-rose-200">
-              Dòng tiền ra
-            </span>
+            <div className="mt-2 flex items-center gap-3">
+              <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-rose-50 text-rose-600 shadow-xs border border-rose-100">
+                <FinanceIcon name="expense" size={18} />
+              </span>
+              <h3 className="text-xl font-black text-rose-600 sm:text-2xl truncate">
+                -{formatVND(summary.totalExpense)}
+              </h3>
+            </div>
           </div>
           <div className="mt-4 flex items-center justify-between border-t border-[#f0f4f1] pt-3 text-[11px] text-[#718579]">
             <span>Tỷ lệ chi / thu</span>
@@ -821,18 +831,18 @@ export function CashFlowManagementScreen({ onNotify, onAddTransaction }: Props) 
 
         {/* Thặng dư ròng */}
         <div className="cashflow-metric-hero sm:col-span-2 lg:col-span-1">
-          <div className="flex items-start justify-between">
-            <div>
+          <div>
+            <div className="flex items-center justify-between">
               <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-200">
                 THẶNG DƯ RÒNG (NET CASHFLOW)
               </span>
-              <h3 className="text-2xl font-black text-white sm:text-3xl mt-1 drop-shadow-sm">
-                {summary.netCashFlow >= 0 ? `+${formatVND(summary.netCashFlow)}` : `-${formatVND(Math.abs(summary.netCashFlow))}`}
-              </h3>
+              <span className="rounded-full bg-white/20 px-2 py-0.5 text-[10px] font-bold text-white backdrop-blur-md border border-white/20 shrink-0">
+                {summary.netCashFlow >= 0 ? 'Thặng dư tích lũy' : 'Thâm hụt dòng tiền'}
+              </span>
             </div>
-            <span className="rounded-full bg-white/20 px-2.5 py-1 text-[10px] font-bold text-white backdrop-blur-md border border-white/20">
-              {summary.netCashFlow >= 0 ? 'Thặng dư tích lũy' : 'Thâm hụt dòng tiền'}
-            </span>
+            <h3 className="text-2xl font-black text-white sm:text-3xl mt-2 drop-shadow-sm truncate">
+              {summary.netCashFlow >= 0 ? `+${formatVND(summary.netCashFlow)}` : `-${formatVND(Math.abs(summary.netCashFlow))}`}
+            </h3>
           </div>
           <div className="mt-4 flex items-center justify-between border-t border-white/15 pt-3 text-[11px] text-emerald-100">
             <span>Trạng thái tài chính:</span>
@@ -1036,33 +1046,42 @@ export function CashFlowManagementScreen({ onNotify, onAddTransaction }: Props) 
               <div className="relative w-full" ref={accountDropdownRef}>
                 <button
                   type="button"
+                  disabled={isChildAccount}
                   onClick={() => {
+                    if (isChildAccount) return;
                     setIsAccountDropdownOpen((prev) => !prev);
                     setIsCategoryDropdownOpen(false);
                     setIsMonthDropdownOpen(false);
                   }}
-                  className={`flex h-7.5 w-full items-center justify-between rounded-xl border px-2.5 text-[10.5px] font-semibold transition ${isAccountDropdownOpen || selectedAccount !== 'ALL'
+                  className={`flex h-7.5 w-full items-center justify-between rounded-xl border px-2.5 text-[10.5px] font-semibold transition ${
+                    isChildAccount
+                      ? 'border-[#d5ded8] bg-[#f0f5f2] text-[#07543f] cursor-default'
+                      : isAccountDropdownOpen || selectedAccount !== 'ALL'
                       ? 'border-[#07543f] bg-[#eef7f2] text-[#07543f]'
                       : 'border-[#d5ded8] bg-[#f8faf8] text-[#475569] hover:bg-[#f1f5f9] hover:border-[#b0c2b7]'
-                    }`}
+                  }`}
                 >
                   <div className="flex items-center gap-1.5 truncate">
                     <FinanceIcon name="credit-card" size={11} className="text-[#07543f] shrink-0" />
                     <span className="truncate">
-                      Nguồn tiền: {selectedAccount === 'ALL'
+                      Nguồn tiền: {isChildAccount
+                        ? (accounts[0]?.name || 'Ví của bé')
+                        : selectedAccount === 'ALL'
                         ? 'Tất cả'
                         : accounts.find((a) => a.id === selectedAccount)?.name || 'Tất cả'}
                     </span>
                   </div>
-                  <FinanceIcon
-                    name="chevron-down"
-                    size={12}
-                    className={`text-[#8a9e93] shrink-0 transition-transform ${isAccountDropdownOpen ? 'rotate-180 text-[#07543f]' : ''}`}
-                  />
+                  {!isChildAccount && (
+                    <FinanceIcon
+                      name="chevron-down"
+                      size={12}
+                      className={`text-[#8a9e93] shrink-0 transition-transform ${isAccountDropdownOpen ? 'rotate-180 text-[#07543f]' : ''}`}
+                    />
+                  )}
                 </button>
 
                 {/* Menu thả xuống */}
-                {isAccountDropdownOpen && (
+                {!isChildAccount && isAccountDropdownOpen && (
                   <div className="absolute left-0 top-full mt-1 z-40 w-full min-w-[190px] max-h-52 overflow-y-auto rounded-xl border border-[#d5ded8] bg-white p-1 shadow-xl animate-fadeIn">
                     <button
                       type="button"
@@ -1762,15 +1781,21 @@ export function CashFlowManagementScreen({ onNotify, onAddTransaction }: Props) 
 
                 <div>
                   <label className="block text-[11px] font-bold text-[#718579] dark:text-slate-400 mb-1">Tài khoản / Ví</label>
-                  <select
-                    value={editAccountId}
-                    onChange={(e) => setEditAccountId(e.target.value)}
-                    className="w-full h-9 rounded-xl border border-[#dce6e0] dark:border-white/15 bg-white dark:bg-[#0f2231] px-3 text-xs font-semibold text-[#14261e] dark:text-white"
-                  >
-                    {accounts.map((acc) => (
-                      <option key={acc.id} value={acc.id}>{acc.name} ({formatVND(acc.balance)})</option>
-                    ))}
-                  </select>
+                  {isChildAccount ? (
+                    <div className="w-full h-9 rounded-xl border border-[#dce6e0] dark:border-white/15 bg-[#f0f5f2] dark:bg-slate-800/80 px-3 flex items-center text-xs font-bold text-[#07543f] dark:text-emerald-400">
+                      {accounts[0]?.name || 'Ví của bé'}
+                    </div>
+                  ) : (
+                    <select
+                      value={editAccountId}
+                      onChange={(e) => setEditAccountId(e.target.value)}
+                      className="w-full h-9 rounded-xl border border-[#dce6e0] dark:border-white/15 bg-white dark:bg-[#0f2231] px-3 text-xs font-semibold text-[#14261e] dark:text-white"
+                    >
+                      {accounts.map((acc) => (
+                        <option key={acc.id} value={acc.id}>{acc.name} ({formatVND(acc.balance)})</option>
+                      ))}
+                    </select>
+                  )}
                 </div>
 
                 <div className="grid grid-cols-2 gap-2.5">
@@ -1855,8 +1880,8 @@ export function CashFlowManagementScreen({ onNotify, onAddTransaction }: Props) 
                 <div className="py-2.5 flex items-center justify-between">
                   <span className="text-[#718579] dark:text-slate-400 font-medium">Thời gian thực hiện:</span>
                   <span className="font-bold text-[#14261e] dark:text-white">
+                    {selectedTxDetail.transactionTime ? `${selectedTxDetail.transactionTime.slice(0, 5)} • ` : ''}
                     {formatTxDateTime(selectedTxDetail.transactionDate, selectedTxDetail.transactionTime).date}
-                    {selectedTxDetail.transactionTime ? ` • ${selectedTxDetail.transactionTime.slice(0, 5)}` : ''}
                   </span>
                 </div>
 
@@ -1873,14 +1898,14 @@ export function CashFlowManagementScreen({ onNotify, onAddTransaction }: Props) 
             )}
 
             {/* Nút tác vụ dưới cùng */}
-            <div className="mt-4 flex items-center justify-between pt-3 border-t border-[#edf2ee] dark:border-white/10 shrink-0">
+            <div className="mt-5 flex items-center justify-between pt-4 border-t border-[#edf2ee] dark:border-white/10 shrink-0">
               {isEditingTx ? (
-                <>
+                <div className="flex w-full items-center justify-end gap-2.5">
                   <button
                     type="button"
                     onClick={() => setIsEditingTx(false)}
                     disabled={isSavingEdit}
-                    className="h-9 rounded-xl px-4 text-xs font-bold text-gray-600 dark:text-slate-300 bg-gray-100 dark:bg-slate-800 hover:bg-gray-200 transition cursor-pointer"
+                    className="h-10 rounded-xl px-5 text-xs font-bold text-gray-700 dark:text-slate-300 bg-gray-100 hover:bg-gray-200 dark:bg-slate-800 dark:hover:bg-slate-700 transition cursor-pointer"
                   >
                     Hủy
                   </button>
@@ -1888,48 +1913,46 @@ export function CashFlowManagementScreen({ onNotify, onAddTransaction }: Props) 
                     type="button"
                     onClick={handleSaveEditTx}
                     disabled={isSavingEdit}
-                    className="h-9 rounded-xl bg-[#07543f] hover:bg-[#0b6c52] px-5 text-xs font-bold text-white transition shadow-xs cursor-pointer disabled:opacity-60"
+                    className="inline-flex h-10 items-center justify-center gap-1.5 rounded-xl bg-[#006747] hover:bg-[#005238] px-6 text-xs font-bold text-white transition shadow-sm cursor-pointer disabled:opacity-60"
                   >
-                    {isSavingEdit ? 'Đang lưu...' : 'Lưu thay đổi'}
+                    <FinanceIcon name="check" size={15} />
+                    <span>{isSavingEdit ? 'Đang lưu...' : 'Lưu thay đổi'}</span>
                   </button>
-                </>
+                </div>
               ) : (
-                <>
-                  <div className="flex items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={() => handleStartEditTx(selectedTxDetail)}
-                      className="inline-flex h-9 items-center gap-1.5 rounded-xl px-3.5 text-xs font-bold text-[#07543f] dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-200/70 dark:border-emerald-800/60 hover:bg-emerald-100 transition cursor-pointer"
-                    >
-                      <FinanceIcon name="edit" size={14} />
-                      <span>Sửa giao dịch</span>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const tx = selectedTxDetail;
-                        setIsEditingTx(false);
-                        setSelectedTxDetail(null);
-                        setTransactionToDelete(tx);
-                      }}
-                      className="inline-flex h-9 items-center gap-1.5 rounded-xl px-3 text-xs font-semibold text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition cursor-pointer"
-                    >
-                      <FinanceIcon name="delete" size={14} />
-                      <span>Xóa giao dịch</span>
-                    </button>
-                  </div>
-
+                <div className="grid grid-cols-3 w-full gap-2.5">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const tx = selectedTxDetail;
+                      setIsEditingTx(false);
+                      setSelectedTxDetail(null);
+                      setTransactionToDelete(tx);
+                    }}
+                    className="inline-flex h-10 items-center justify-center gap-1.5 rounded-xl text-xs font-bold text-rose-600 dark:text-rose-400 bg-rose-50/80 dark:bg-rose-950/50 border border-rose-200/70 dark:border-rose-900/50 hover:bg-rose-100/80 transition cursor-pointer shadow-xs"
+                  >
+                    <FinanceIcon name="delete" size={14} color="#e11d48" />
+                    <span>Xóa giao dịch</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleStartEditTx(selectedTxDetail)}
+                    className="inline-flex h-10 items-center justify-center gap-1.5 rounded-xl text-xs font-bold text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200/80 dark:border-emerald-800/60 hover:bg-emerald-100/80 transition cursor-pointer shadow-xs"
+                  >
+                    <FinanceIcon name="edit" size={14} color="#059669" />
+                    <span>Sửa giao dịch</span>
+                  </button>
                   <button
                     type="button"
                     onClick={() => {
                       setIsEditingTx(false);
                       setSelectedTxDetail(null);
                     }}
-                    className="h-9 rounded-xl bg-[#07543f] hover:bg-[#0b6c52] px-5 text-xs font-bold text-white transition shadow-xs cursor-pointer"
+                    className="inline-flex h-10 items-center justify-center rounded-xl bg-gray-100 dark:bg-slate-800 hover:bg-gray-200 dark:hover:bg-slate-700 text-xs font-bold text-gray-700 dark:text-gray-200 transition cursor-pointer border border-transparent"
                   >
                     Đóng
                   </button>
-                </>
+                </div>
               )}
             </div>
           </>
@@ -1945,7 +1968,7 @@ export function CashFlowManagementScreen({ onNotify, onAddTransaction }: Props) 
           >
             <div
               className={`w-full ${selectedTxDetail.receiptUrl ? 'max-w-4xl lg:max-w-5xl' : 'max-w-lg'
-                } rounded-3xl bg-white dark:bg-[#0c1a24] p-5 sm:p-6 shadow-2xl border border-[#e2eae4] dark:border-white/10 max-h-[92vh] flex flex-col overflow-hidden transition-all`}
+                } rounded-3xl bg-white dark:bg-[#0c1a24] shadow-2xl border border-[#e2eae4] dark:border-white/10 max-h-[92vh] flex flex-col overflow-hidden transition-all`}
               onClick={(e) => e.stopPropagation()}
             >
               {/* Modal Body: 2 Columns if receiptUrl exists, 1 Column if not */}
@@ -2052,9 +2075,9 @@ export function CashFlowManagementScreen({ onNotify, onAddTransaction }: Props) 
                 </div>
               ) : (
                 /* DẠNG 1 CỘT GỌN GÀNG KHI KHÔNG CÓ HÓA ĐƠN ĐÍNH KÈM */
-                <div className="flex flex-col overflow-y-auto">
+                <div className="flex flex-col min-h-0">
                   {/* Header */}
-                  <div className="flex items-center justify-between border-b border-[#edf2ee] dark:border-white/10 pb-4">
+                  <div className="flex items-center justify-between border-b border-[#edf2ee] dark:border-white/10 p-5 sm:p-6 pb-4 shrink-0">
                     <div className="flex items-center gap-3">
                       <span
                         className="grid size-12 shrink-0 place-items-center rounded-2xl shadow-xs"
@@ -2105,7 +2128,9 @@ export function CashFlowManagementScreen({ onNotify, onAddTransaction }: Props) 
                     </button>
                   </div>
 
-                  {renderDetailOrEditBody(false)}
+                  <div className="overflow-y-auto px-5 sm:px-6 pb-5 sm:pb-6">
+                    {renderDetailOrEditBody(false)}
+                  </div>
                 </div>
               )}
             </div>

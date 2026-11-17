@@ -216,6 +216,7 @@ export function GroupScreen({
 } = {}) {
   const insets = useSafeAreaInsets();
   const currentUser = authStorage.getUser();
+  const isChildAccount = Boolean(currentUser?.childAccount && currentUser.childWalletGroupId);
 
   // State danh sách nhóm
   const [groups, setGroups] = useState<GroupResponse[]>([]);
@@ -245,10 +246,25 @@ export function GroupScreen({
   useEffect(() => {
     onGroupDetailChange?.(selectedGroup !== null);
   }, [selectedGroup, onGroupDetailChange]);
-  const [detailTab, setDetailTab] = useState<'OVERVIEW' | 'EXPENSES' | 'CHAT' | 'BALANCES' | 'MEMBERS' | 'KIDS' | 'SETTINGS'>(initialTab || 'OVERVIEW');
+  const [detailTab, setDetailTab] = useState<'OVERVIEW' | 'EXPENSES' | 'CHAT' | 'BALANCES' | 'MEMBERS' | 'KIDS' | 'SETTINGS'>(
+    isChildAccount ? 'CHAT' : (initialTab || 'OVERVIEW')
+  );
 
-  // Tự động mở đúng nhóm và tab nếu được truyền initialGroupId / initialGroupName / initialTab (VD: từ Thông báo)
+  // Tự động mở đúng nhóm và tab nếu được truyền initialGroupId / initialGroupName / initialTab (VD: từ Thông báo hoặc tài khoản bé)
   useEffect(() => {
+    // Nếu là tài khoản trẻ em: luôn tự động mở thẳng nhóm gia đình của bé
+    if (isChildAccount && currentUser?.childWalletGroupId) {
+      if (groups.length === 0) return;
+      const childGroup = groups.find((g) => String(g.id).toLowerCase() === String(currentUser.childWalletGroupId).toLowerCase()) || groups[0];
+      if (childGroup && (!selectedGroup || String(selectedGroup.id) !== String(childGroup.id))) {
+        setSelectedGroup(childGroup);
+        setGroupNotificationEnabled(childGroup.notificationEnabled !== false);
+        setDetailTab('CHAT');
+        loadGroupDetailData(childGroup.id);
+      }
+      return;
+    }
+
     if (!initialGroupId && !initialGroupName && !initialTab) {
       consumedNavRef.current = null;
       return;
@@ -328,6 +344,7 @@ export function GroupScreen({
   const [createChildWalletModalVisible, setCreateChildWalletModalVisible] = useState(false);
   const [depositFundModalVisible, setDepositFundModalVisible] = useState(false);
   const [viewingExpense, setViewingExpense] = useState<GroupExpenseResponse | null>(null);
+  const [viewingContribution, setViewingContribution] = useState<GroupFundContributionResponse | null>(null);
   const [txTypeFilter, setTxTypeFilter] = useState<'ALL' | 'INCOME' | 'EXPENSE'>('ALL');
 
   // Dữ liệu trong chi tiết nhóm
@@ -580,6 +597,27 @@ export function GroupScreen({
 
   const selectedMonthLabel = availableMonths.find((m) => m.key === selectedMonth)?.label || 'Tháng này';
 
+  // Hàm lấy tên người chi/tạo chuẩn xác
+  const getPayerDisplayName = (exp: GroupExpenseResponse) => {
+    if (exp.payer?.fullName) return exp.payer.fullName;
+    if (exp.paidByUserId === currentUser?.id) return 'Bạn';
+    const foundMember = members.find((m) => m.userId === exp.paidByUserId);
+    if (foundMember) {
+      return foundMember.nickname || foundMember.user?.fullName || foundMember.user?.email?.split('@')[0] || 'Thành viên';
+    }
+    return 'Thành viên';
+  };
+
+  const getContributorDisplayName = (c: GroupFundContributionResponse) => {
+    if (c.contributorName) return c.contributorName;
+    if (c.contributorUserId === currentUser?.id) return 'Bạn';
+    const foundMember = members.find((m) => m.userId === c.contributorUserId);
+    if (foundMember) {
+      return foundMember.nickname || foundMember.user?.fullName || 'Thành viên';
+    }
+    return 'Thành viên';
+  };
+
   // Nạp thống kê quỹ nhóm theo tháng
   const loadMonthlyFundStats = async (groupId: string, monthKey: string) => {
     setLoadingMonthlyStats(true);
@@ -614,6 +652,27 @@ export function GroupScreen({
       loadMonthlyFundStats(selectedGroup.id, selectedMonth);
     }
   }, [selectedGroup?.id, selectedMonth]);
+
+  // Luôn chủ động nạp comments mới nhất khi mở xem chi tiết giao dịch hoặc nộp quỹ
+  useEffect(() => {
+    if (selectedGroup && viewingExpense) {
+      groupApi.getComments(selectedGroup.id, 'GROUP_EXPENSE', viewingExpense.id).then((cmts) => {
+        if (cmts) {
+          setCommentsByTarget((prev) => ({ ...prev, [viewingExpense.id]: cmts }));
+        }
+      }).catch(() => {});
+    }
+  }, [selectedGroup?.id, viewingExpense?.id]);
+
+  useEffect(() => {
+    if (selectedGroup && viewingContribution) {
+      groupApi.getComments(selectedGroup.id, 'FUND_CONTRIBUTION', viewingContribution.id).then((cmts) => {
+        if (cmts) {
+          setCommentsByTarget((prev) => ({ ...prev, [viewingContribution.id]: cmts }));
+        }
+      }).catch(() => {});
+    }
+  }, [selectedGroup?.id, viewingContribution?.id]);
 
   // Nạp dữ liệu chi tiết nhóm khi mở
   const loadGroupDetailData = async (groupId: string) => {
@@ -694,12 +753,20 @@ export function GroupScreen({
         if (!expCategoryId) setExpCategoryId(fallbackCats[0].id);
       });
 
-      // Nạp comment cho các khoản chi
-      if (expList && expList.length > 0) {
+      // Nạp comment cho các khoản chi và các khoản nộp quỹ
+      const allCommentTargets: { id: string; type: 'GROUP_EXPENSE' | 'FUND_CONTRIBUTION' }[] = [
+        ...(expList || []).map((exp) => ({ id: exp.id, type: 'GROUP_EXPENSE' as const })),
+        ...(contributions || []).map((fc) => ({ id: fc.id, type: 'FUND_CONTRIBUTION' as const })),
+      ];
+      if (allCommentTargets.length > 0) {
         const commentResults = await Promise.all(
-          expList.map(async (exp) => {
-            const cmts = await groupApi.getComments(groupId, 'GROUP_EXPENSE', exp.id);
-            return [exp.id, cmts] as const;
+          allCommentTargets.map(async (t) => {
+            try {
+              const cmts = await groupApi.getComments(groupId, t.type, t.id);
+              return [t.id, cmts || []] as const;
+            } catch {
+              return [t.id, []] as const;
+            }
           })
         );
         setCommentsByTarget(Object.fromEntries(commentResults));
@@ -923,26 +990,26 @@ export function GroupScreen({
     }
   };
 
-  // Gửi comment vào một khoản chi (hỗ trợ trả lời theo luồng)
-  const handleSendComment = async (expenseId: string) => {
+  // Gửi comment vào một khoản chi hoặc nộp quỹ (hỗ trợ trả lời theo luồng)
+  const handleSendComment = async (targetId: string, commentableType: 'GROUP_EXPENSE' | 'FUND_CONTRIBUTION' = 'GROUP_EXPENSE') => {
     if (!selectedGroup) return;
-    const text = (inlineCommentText[expenseId] || '').trim();
+    const text = (inlineCommentText[targetId] || '').trim();
     if (!text) return;
-    const parentId = replyingToCommentId[expenseId] || undefined;
+    const parentId = replyingToCommentId[targetId] || undefined;
 
     try {
       const created = await groupApi.createComment(selectedGroup.id, {
-        commentableType: 'GROUP_EXPENSE',
-        commentableId: expenseId,
+        commentableType,
+        commentableId: targetId,
         content: text,
         parentCommentId: parentId,
       });
       setCommentsByTarget((prev) => ({
         ...prev,
-        [expenseId]: [...(prev[expenseId] || []), created],
+        [targetId]: [...(prev[targetId] || []), created],
       }));
-      setInlineCommentText((prev) => ({ ...prev, [expenseId]: '' }));
-      setReplyingToCommentId((prev) => ({ ...prev, [expenseId]: null }));
+      setInlineCommentText((prev) => ({ ...prev, [targetId]: '' }));
+      setReplyingToCommentId((prev) => ({ ...prev, [targetId]: null }));
       setTimeout(() => {
         detailTxScrollViewRef.current?.scrollToEnd({ animated: true });
       }, 150);
@@ -1320,18 +1387,20 @@ export function GroupScreen({
         <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
         {/* Header Trang Chi tiết full màn hình - Phong cách sáng & icons tương tác chuẩn mẫu */}
         <View style={[styles.detailScreenHeaderModern, { paddingTop: Math.max(insets.top, 14) + 6 }]}>
-          <Pressable
-            onPress={() => {
-              setSelectedGroup(null);
-              setDetailTab('OVERVIEW');
-            }}
-            hitSlop={12}
-            style={({ pressed }) => [styles.detailModernBackBtn, pressed && styles.pressed]}
-          >
-            <FinanceIcon name="chevron-left" size={22} color="#0F172A" />
-          </Pressable>
+          {!isChildAccount && (
+            <Pressable
+              onPress={() => {
+                setSelectedGroup(null);
+                setDetailTab('OVERVIEW');
+              }}
+              hitSlop={12}
+              style={({ pressed }) => [styles.detailModernBackBtn, pressed && styles.pressed]}
+            >
+              <FinanceIcon name="chevron-left" size={22} color="#0F172A" />
+            </Pressable>
+          )}
 
-          <View style={styles.detailModernHeaderCenter}>
+          <View style={[styles.detailModernHeaderCenter, isChildAccount && { marginLeft: 16 }]}>
             <Image
               source={groupIconSource}
               style={styles.detailGroupHeaderIcon}
@@ -1350,16 +1419,18 @@ export function GroupScreen({
             </View>
           </View>
 
-          {/* Cụm Action Buttons: Cài đặt nhóm */}
-          <View style={styles.detailHeaderActionsRow}>
-            <Pressable
-              onPress={() => setDetailTab('SETTINGS')}
-              style={styles.detailActionCircleBtn}
-              hitSlop={6}
-            >
-              <FinanceIcon name="settings" size={17} color="#059669" />
-            </Pressable>
-          </View>
+          {/* Cụm Action Buttons: Cài đặt nhóm (Ẩn với tài khoản bé) */}
+          {!isChildAccount && (
+            <View style={styles.detailHeaderActionsRow}>
+              <Pressable
+                onPress={() => setDetailTab('SETTINGS')}
+                style={styles.detailActionCircleBtn}
+                hitSlop={6}
+              >
+                <FinanceIcon name="settings" size={17} color="#059669" />
+              </Pressable>
+            </View>
+          )}
         </View>
 
         {/* Thanh Tabs Trượt Ngang (Tab Bar gạch chân xanh chuẩn ảnh mẫu) */}
@@ -1369,15 +1440,21 @@ export function GroupScreen({
             showsHorizontalScrollIndicator={false}
             contentContainerStyle={styles.detailTabsScrollContent}
           >
-            {[
-              { key: 'OVERVIEW', label: 'Tổng quan', icon: 'chart' },
-              { key: 'EXPENSES', label: 'Thu & Chi', icon: 'receipt' },
-              { key: 'CHAT', label: 'Trò chuyện', icon: 'message-square' },
-              ...(hasBalancesTab ? [{ key: 'BALANCES', label: 'Cân đối nợ', icon: 'scale' }] : []),
-              { key: 'MEMBERS', label: 'Thành viên', icon: 'users' },
-              ...(isFamily ? [{ key: 'KIDS', label: 'Ví trẻ em', icon: 'wallet' }] : []),
-              { key: 'SETTINGS', label: 'Cài đặt', icon: 'settings' },
-            ].map((tab) => {
+            {(isChildAccount
+              ? [
+                  { key: 'CHAT', label: 'Trò chuyện', icon: 'message-square' },
+                  { key: 'MEMBERS', label: 'Thành viên', icon: 'users' },
+                ]
+              : [
+                  { key: 'OVERVIEW', label: 'Tổng quan', icon: 'chart' },
+                  { key: 'EXPENSES', label: 'Thu & Chi', icon: 'receipt' },
+                  { key: 'CHAT', label: 'Trò chuyện', icon: 'message-square' },
+                  ...(hasBalancesTab ? [{ key: 'BALANCES', label: 'Cân đối nợ', icon: 'scale' }] : []),
+                  { key: 'MEMBERS', label: 'Thành viên', icon: 'users' },
+                  ...(isFamily ? [{ key: 'KIDS', label: 'Ví trẻ em', icon: 'wallet' }] : []),
+                  { key: 'SETTINGS', label: 'Cài đặt', icon: 'settings' },
+                ]
+            ).map((tab) => {
               const isSelected = detailTab === tab.key;
               // Tính số lượng tin nhắn chưa đọc đối với tab Trò chuyện
               const unreadChatCount = tab.key === 'CHAT' && currentUser?.id
@@ -2527,6 +2604,7 @@ export function GroupScreen({
                       iconName: any;
                       categoryColor: string;
                       originalExpense?: GroupExpenseResponse;
+                      originalContribution?: GroupFundContributionResponse;
                     };
 
                     const formatDisplayDate = (dStr?: string, cStr?: string) => {
@@ -2563,8 +2641,9 @@ export function GroupScreen({
                           dateText: formatDisplayDate(c.contributedAt, c.createdAt),
                           amount: c.amount || 0,
                           rawDate: d,
-                          iconName: 'income' as any,
+                          iconName: 'wallet' as any,
                           categoryColor: '#059669',
+                          originalContribution: c,
                         };
                       }),
                       ...expenses.map((exp) => {
@@ -2614,6 +2693,8 @@ export function GroupScreen({
                                 onPress={() => {
                                   if (item.originalExpense) {
                                     setViewingExpense(item.originalExpense);
+                                  } else if (item.originalContribution) {
+                                    setViewingContribution(item.originalContribution);
                                   } else {
                                     setDetailTab('EXPENSES');
                                   }
@@ -2709,6 +2790,7 @@ export function GroupScreen({
                 categoryName?: string;
                 commentCount: number;
                 originalExpense?: GroupExpenseResponse;
+                originalContribution?: GroupFundContributionResponse;
               };
 
               // Hàm lấy tên người chi/tạo chuẩn xác
@@ -2782,9 +2864,10 @@ export function GroupScreen({
                     dateStr,
                     timeStr,
                     rawDate,
-                    categoryName: 'Thu quỹ',
+                    categoryName: 'Đóng quỹ',
                     commentCount: (commentsByTarget[c.id] || []).length,
                     originalExpense: undefined,
+                    originalContribution: c,
                   };
                 }),
                 ...monthExpenses.map((e) => {
@@ -2835,10 +2918,10 @@ export function GroupScreen({
                 groupedByDate[label].push(tx);
               });
 
-              // Hàm trả về icon và màu chuẩn: Xanh lá cho thêm tiền (Thu), Đỏ cho chi tiền (Chi)
+              // Hàm trả về icon và màu chuẩn: Xanh lá ví/thu quỹ (như bản Web), Đỏ cho chi tiền (Chi)
               const getTxIconMeta = (tx: UnifiedTx) => {
                 if (tx.type === 'INCOME') {
-                  return { icon: 'income' as any, bg: '#E6F4EA', color: '#137333' };
+                  return { icon: 'wallet' as any, bg: '#E8F8F0', color: '#059669' };
                 }
                 const iconName = resolveCategoryIconName(undefined, 'EXPENSE', `${tx.title} ${tx.categoryName || ''}`);
                 return { icon: iconName as any, bg: '#FCE8E6', color: '#C5221F' };
@@ -2977,6 +3060,8 @@ export function GroupScreen({
                                 onPress={() => {
                                   if (tx.type === 'EXPENSE' && tx.originalExpense) {
                                     setViewingExpense(tx.originalExpense);
+                                  } else if (tx.type === 'INCOME' && tx.originalContribution) {
+                                    setViewingContribution(tx.originalContribution);
                                   }
                                 }}
                                 style={[
@@ -3068,6 +3153,7 @@ export function GroupScreen({
                 members={members}
                 selectedGroup={selectedGroup}
                 currentUser={currentUser}
+                isChildAccount={isChildAccount}
                 sentPendingInvitations={sentPendingInvitations}
                 onCancelInvitation={handleCancelInvitation}
                 onInvitePress={() => {
@@ -3912,20 +3998,18 @@ export function GroupScreen({
                                         hitSlop={6}
                                       >
                                         <FinanceIcon
-                                          name="thumbs-up"
-                                          size={16}
-                                          color={likeInfo.liked ? '#16A34A' : '#64748B'}
+                                          name="heart"
+                                          size={14}
+                                          color={likeInfo.liked ? '#E11D48' : '#64748B'}
                                         />
-                                        {likeInfo.count > 0 && (
-                                          <Text
-                                            style={[
-                                              styles.commentLikeCountText,
-                                              likeInfo.liked && styles.commentLikeCountTextActive,
-                                            ]}
-                                          >
-                                            {likeInfo.count}
-                                          </Text>
-                                        )}
+                                        <Text
+                                          style={[
+                                            styles.commentLikeCountText,
+                                            likeInfo.liked && styles.commentLikeCountTextActive,
+                                          ]}
+                                        >
+                                          {likeInfo.liked ? 'Đã thích' : 'Thích'}{likeInfo.count > 0 ? ` (${likeInfo.count})` : ''}
+                                        </Text>
                                       </Pressable>
 
                                       <Pressable
@@ -4121,6 +4205,272 @@ export function GroupScreen({
                       style={[styles.submitActionBtn, { marginTop: 12 }]}
                     >
                       <Text style={styles.submitActionBtnText}>Lưu chỉnh sửa</Text>
+                    </Pressable>
+                  </View>
+                </View>
+              )}
+            </View>
+          </KeyboardAvoidingView>
+        </View>
+      </Modal>
+
+      {/* ── MODAL CHI TIẾT NỘP QUỸ (KÈM BÌNH LUẬN TRÊN BẢN APP) ── */}
+      <Modal visible={!!viewingContribution} transparent animationType="slide">
+        <View style={styles.detailTxModalOverlay}>
+          <KeyboardAvoidingView
+            style={{ flex: 1 }}
+            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          >
+            <View style={[styles.detailTxModalContainer, { paddingTop: Math.max(insets.top, 14) + 8 }]}>
+              {/* Header Modal */}
+              <View style={styles.detailTxHeaderRow}>
+                <Pressable onPress={() => setViewingContribution(null)} hitSlop={12} style={styles.detailTxBackBtn}>
+                  <FinanceIcon name="chevron-left" size={22} color="#0F172A" />
+                </Pressable>
+                <Text style={styles.detailTxHeaderTitle}>Chi tiết nộp quỹ</Text>
+                <View style={{ width: 36 }} />
+              </View>
+
+              {viewingContribution && (() => {
+                const c = viewingContribution;
+                const contributor = getContributorDisplayName(c);
+                const rawComments = commentsByTarget[c.id] || [];
+                const comments = [...rawComments].sort((a, b) => {
+                  const tA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+                  const tB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+                  return tA - tB;
+                });
+                const dtStr = c.createdAt || c.contributedAt
+                  ? formatMessengerDateDivider(c.createdAt || c.contributedAt)
+                  : 'Vừa xong';
+
+                return (
+                  <ScrollView
+                    ref={detailTxScrollViewRef}
+                    style={{ flex: 1 }}
+                    contentContainerStyle={{
+                      padding: 18,
+                      paddingBottom: keyboardHeight > 0 ? keyboardHeight + 80 : Math.max(insets.bottom, 16) + 80,
+                      gap: 18,
+                    }}
+                    showsVerticalScrollIndicator={false}
+                    keyboardShouldPersistTaps="handled"
+                  >
+                    {/* CARD 1: THÔNG TIN NỘP QUỸ */}
+                    <View style={styles.txDetailMainCard}>
+                      <View style={styles.txDetailTopRow}>
+                        <View style={[styles.unifiedTxIconCircle, { backgroundColor: '#E6F4EA' }]}>
+                          <FinanceIcon name="income" size={20} color="#137333" />
+                        </View>
+                        <Text style={styles.txDetailMainTitle}>{c.note || 'Nộp quỹ chung'}</Text>
+                        <Text style={[styles.txDetailMainAmount, { color: '#059669' }]}>+{formatVND(c.amount)} đ</Text>
+                      </View>
+
+                      <View style={styles.txDetailDivider} />
+
+                      <View style={styles.txDetailInfoTable}>
+                        <View style={styles.txDetailInfoRow}>
+                          <View style={styles.txDetailInfoLabelRow}>
+                            <FinanceIcon name="grid" size={15} color="#64748B" />
+                            <Text style={styles.txDetailInfoLabel}>Hạng mục</Text>
+                          </View>
+                          <View style={styles.txDetailCategoryPill}>
+                            <Text style={styles.txDetailCategoryPillText}>Đóng quỹ</Text>
+                          </View>
+                        </View>
+
+                        <View style={styles.txDetailInfoRow}>
+                          <View style={styles.txDetailInfoLabelRow}>
+                            <FinanceIcon name="calendar" size={15} color="#64748B" />
+                            <Text style={styles.txDetailInfoLabel}>Thời gian</Text>
+                          </View>
+                          <Text style={styles.txDetailInfoValue}>{dtStr}</Text>
+                        </View>
+
+                        <View style={styles.txDetailInfoRow}>
+                          <View style={styles.txDetailInfoLabelRow}>
+                            <FinanceIcon name="user" size={15} color="#64748B" />
+                            <Text style={styles.txDetailInfoLabel}>Người nộp</Text>
+                          </View>
+                          <View style={styles.txDetailPayerRow}>
+                            <View style={styles.txDetailSmallAvatar}>
+                              <Text style={styles.txDetailSmallAvatarText}>
+                                {contributor.slice(0, 1).toUpperCase()}
+                              </Text>
+                            </View>
+                            <Text style={styles.txDetailPayerName}>{contributor}</Text>
+                          </View>
+                        </View>
+
+                        {c.note ? (
+                          <View style={styles.txDetailNotesBox}>
+                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+                              <FinanceIcon name="edit" size={14} color="#64748B" />
+                              <Text style={styles.txDetailNotesLabel}>Ghi chú</Text>
+                            </View>
+                            <Text style={styles.txDetailNotesText}>{c.note}</Text>
+                          </View>
+                        ) : null}
+                      </View>
+                    </View>
+
+                    {/* CARD 2: BÌNH LUẬN NỘP QUỸ */}
+                    <View style={styles.txCommentSection}>
+                      <Text style={styles.txCommentSectionTitle}>Bình luận ({comments.length})</Text>
+
+                      <View style={{ gap: 10 }}>
+                        {comments.length === 0 ? (
+                          <Text style={{ fontSize: 12, color: '#94A3B8', fontStyle: 'italic', paddingVertical: 8 }}>
+                            Chưa có bình luận nào cho lần nộp quỹ này.
+                          </Text>
+                        ) : (
+                          comments.map((comment) => {
+                            const isMe = comment.userId === currentUser?.id;
+                            const memberInfo = members.find((m) => m.userId === comment.userId);
+                            const authorDisplayName = isMe
+                              ? 'Bạn'
+                              : (comment.user?.fullName || memberInfo?.user?.fullName || memberInfo?.nickname || comment.user?.username || 'Thành viên');
+                            const actualAuthorName = comment.user?.fullName || memberInfo?.user?.fullName || memberInfo?.nickname || comment.user?.username || 'Thành viên';
+                            const rawAvatar = comment.user?.avatarUrl || comment.user?.avatarKey || memberInfo?.user?.avatarUrl || (isMe ? currentUser?.avatarUrl : null);
+                            const avatarUri = rawAvatar ? userProfileApi.formatAvatarUrl(rawAvatar) : null;
+                            const parent = comment.parentCommentId ? comments.find((p) => p.id === comment.parentCommentId) : null;
+                            const parentActualName = parent?.user?.fullName || 'Thành viên';
+
+                            const timeStr = comment.createdAt
+                              ? formatMessengerDateDivider(comment.createdAt)
+                              : 'Vừa xong';
+
+                            const likeInfo = commentLikes[comment.id] || { count: 0, liked: false };
+
+                            return (
+                              <View key={comment.id} style={[styles.commentMockCard, parent ? { marginLeft: 28 } : null]}>
+                                <View style={styles.commentMockHeader}>
+                                  <View style={styles.commentMockAvatar}>
+                                    {avatarUri ? (
+                                      <Image source={{ uri: avatarUri }} style={styles.commentMockAvatarImg} />
+                                    ) : (
+                                      <Text style={styles.commentMockAvatarText}>
+                                        {actualAuthorName.slice(0, 1).toUpperCase()}
+                                      </Text>
+                                    )}
+                                  </View>
+
+                                  <View style={{ flex: 1 }}>
+                                    <View style={styles.commentAuthorRow}>
+                                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap', flex: 1 }}>
+                                        <Text style={styles.commentMockAuthor}>{authorDisplayName}</Text>
+                                        <Text style={styles.commentMockTimeDot}>•</Text>
+                                        <Text style={styles.commentMockTimeText}>{timeStr}</Text>
+                                      </View>
+
+                                      <Pressable
+                                        onPress={(e) => {
+                                          const targetEl = e.currentTarget as any;
+                                          if (targetEl && targetEl.measureInWindow) {
+                                            targetEl.measureInWindow((x: number, y: number, width: number, height: number) => {
+                                              setCommentActionMenuTarget({ targetId: c.id, comment, anchor: { x, y, width, height } });
+                                            });
+                                          } else {
+                                            setCommentActionMenuTarget({ targetId: c.id, comment });
+                                          }
+                                        }}
+                                        hitSlop={8}
+                                        style={styles.commentMoreOptionBtn}
+                                      >
+                                        <Text style={styles.commentMoreOptionIcon}>⋮</Text>
+                                      </Pressable>
+                                    </View>
+
+                                    <Text style={styles.commentMockContent}>
+                                      {parent && (
+                                        <Text style={{ color: '#059669', fontWeight: '700' }}>
+                                          @{parentActualName}{' '}
+                                        </Text>
+                                      )}
+                                      {comment.content}
+                                    </Text>
+
+                                    <View style={styles.commentActionFooterRow}>
+                                      <Pressable
+                                        onPress={() => handleToggleLikeComment(comment.id)}
+                                        style={[
+                                          styles.commentLikeBtn,
+                                          likeInfo.liked && styles.commentLikeBtnActive,
+                                        ]}
+                                        hitSlop={6}
+                                      >
+                                        <FinanceIcon
+                                          name="heart"
+                                          size={14}
+                                          color={likeInfo.liked ? '#E11D48' : '#64748B'}
+                                        />
+                                        <Text
+                                          style={[
+                                            styles.commentLikeCountText,
+                                            likeInfo.liked && styles.commentLikeCountTextActive,
+                                          ]}
+                                        >
+                                          {likeInfo.liked ? 'Đã thích' : 'Thích'}{likeInfo.count > 0 ? ` (${likeInfo.count})` : ''}
+                                        </Text>
+                                      </Pressable>
+
+                                      <Pressable
+                                        onPress={() => {
+                                          setReplyingToCommentId((prev) => ({ ...prev, [c.id]: comment.id }));
+                                          setInlineCommentText((prev) => ({ ...prev, [c.id]: '' }));
+                                          setTimeout(() => {
+                                            detailTxScrollViewRef.current?.scrollToEnd({ animated: true });
+                                          }, 200);
+                                        }}
+                                        style={styles.commentReplyBtn}
+                                        hitSlop={6}
+                                      >
+                                        <Text style={styles.commentReplyBtnText}>Trả lời</Text>
+                                      </Pressable>
+                                    </View>
+                                  </View>
+                                </View>
+                              </View>
+                            );
+                          })
+                        )}
+                      </View>
+                    </View>
+                  </ScrollView>
+                );
+              })()}
+
+              {/* Khung chat bình luận nộp quỹ */}
+              {viewingContribution && (
+                <View
+                  style={[
+                    styles.detailTxBottomInputBar,
+                    {
+                      bottom: keyboardHeight,
+                      paddingBottom: keyboardHeight > 0 ? 10 : Math.max(insets.bottom, 12),
+                    },
+                  ]}
+                >
+                  <View style={styles.detailTxInputWrapper}>
+                    <TextInput
+                      style={styles.detailTxTextInput}
+                      placeholder={replyingToCommentId[viewingContribution.id] ? 'Viết câu trả lời...' : 'Viết bình luận nộp quỹ...'}
+                      placeholderTextColor="#94A3B8"
+                      value={inlineCommentText[viewingContribution.id] || ''}
+                      onChangeText={(val) =>
+                        setInlineCommentText((prev) => ({ ...prev, [viewingContribution.id]: val }))
+                      }
+                      onFocus={() => {
+                        setTimeout(() => {
+                          detailTxScrollViewRef.current?.scrollToEnd({ animated: true });
+                        }, 250);
+                      }}
+                    />
+                    <Pressable
+                      onPress={() => handleSendComment(viewingContribution.id, 'FUND_CONTRIBUTION')}
+                      style={styles.detailTxSendBtn}
+                    >
+                      <FinanceIcon name="send" size={16} color="#FFFFFF" />
                     </Pressable>
                   </View>
                 </View>
@@ -6096,7 +6446,7 @@ const styles = StyleSheet.create({
     color: '#64748B',
   },
   commentLikeCountTextActive: {
-    color: '#16A34A',
+    color: '#E11D48',
     fontWeight: '800',
   },
   commentReplyBtn: {

@@ -8,6 +8,7 @@ type Props = {
   onNotify: (message: string) => void; 
   onOpenProfile: () => void;
   onOpenChangePassword: () => void;
+  onOpenFeedback?: () => void;
   onLogout: () => void;
   walletCount?: number | null;
   onToggleSidebar?: () => void;
@@ -40,7 +41,7 @@ const routeTitles: Record<string, { title: string; subtitle?: string }> = {
   '/privacy': { title: 'Chính sách Bảo mật & Quyền riêng tư', subtitle: 'Cam kết an toàn thông tin dữ liệu tài chính theo tiêu chuẩn quốc tế' },
 }
 
-export function DashboardHeaderSection({ onNotify, onOpenProfile, onOpenChangePassword, onLogout, walletCount, onToggleSidebar, isSidebarCollapsed }: Props) {
+export function DashboardHeaderSection({ onNotify, onOpenProfile, onOpenChangePassword, onOpenFeedback, onLogout, walletCount, onToggleSidebar, isSidebarCollapsed }: Props) {
   const location = useLocation();
   const { theme, toggleTheme } = useTheme();
   const currentInfo = routeTitles[location.pathname] || { title: 'Hệ thống tài chính Finora', subtitle: '' };
@@ -114,6 +115,7 @@ export function DashboardHeaderSection({ onNotify, onOpenProfile, onOpenChangePa
         <UserAvatar 
           onOpenProfile={onOpenProfile} 
           onOpenChangePassword={onOpenChangePassword} 
+          onOpenFeedback={onOpenFeedback}
           onLogout={onLogout}
           onNotify={onNotify}
         />

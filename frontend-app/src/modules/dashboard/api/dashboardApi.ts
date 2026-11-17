@@ -199,9 +199,18 @@ export async function fetchDashboardData(): Promise<DashboardSummary> {
     });
   }
 
-  // 3. Tính % tăng trưởng so với tháng trước
+  // 3. Tính % tăng trưởng số dư khả dụng so với tháng trước kề nó
+  // Chuẩn tài chính kế toán:
+  // Số dư đầu kỳ (cuối tháng trước) = Số dư hiện tại - Dòng tiền ròng tháng này (monthlyIncome - monthlyExpense)
+  // % Tăng trưởng = (Dòng tiền ròng tháng này / Số dư đầu kỳ) * 100
   let balanceGrowthRate: number | null = null;
-  if (prevTxRes.status === 'fulfilled' && prevTxRes.value) {
+  const currentNetCashFlow = monthlyIncome - monthlyExpense;
+  const prevMonthEstimatedBalance = totalBalance - currentNetCashFlow;
+
+  if (prevMonthEstimatedBalance > 0) {
+    const rate = (currentNetCashFlow / prevMonthEstimatedBalance) * 100;
+    balanceGrowthRate = Math.round(rate * 10) / 10;
+  } else if (prevTxRes.status === 'fulfilled' && prevTxRes.value) {
     const pData = prevTxRes.value;
     let prevNet = 0;
     if (pData.summary && typeof pData.summary.netCashFlow === 'number') {
@@ -212,10 +221,13 @@ export async function fetchDashboardData(): Promise<DashboardSummary> {
       prevNet = pInc - pExp;
     }
 
-    const currentNet = monthlyIncome - monthlyExpense;
     if (prevNet > 0) {
-      balanceGrowthRate = Math.round(((currentNet - prevNet) / prevNet) * 1000) / 10;
+      balanceGrowthRate = Math.round(((currentNetCashFlow - prevNet) / prevNet) * 1000) / 10;
+    } else if (totalBalance > 0) {
+      balanceGrowthRate = 100;
     }
+  } else if (totalBalance > 0 && currentNetCashFlow > 0) {
+    balanceGrowthRate = 100;
   }
 
   // 4. Ngân sách tháng

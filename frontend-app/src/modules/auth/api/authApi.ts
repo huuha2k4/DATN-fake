@@ -50,6 +50,10 @@ export interface User {
   phone: string | null;
   avatarUrl: string | null;
   subscriptionTier: string;
+  childAccount?: boolean;
+  childWalletId?: string;
+  childWalletGroupId?: string;
+  childWalletName?: string;
 }
 
 export interface AuthTokens {

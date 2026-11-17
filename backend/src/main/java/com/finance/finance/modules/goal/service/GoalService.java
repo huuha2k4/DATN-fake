@@ -17,6 +17,10 @@ import com.finance.finance.modules.category.entity.Category;
 import com.finance.finance.modules.category.repository.CategoryRepository;
 import com.finance.finance.modules.transaction.dto.request.CreateTransactionRequest;
 import com.finance.finance.modules.transaction.service.TransactionService;
+import com.finance.finance.modules.group.entity.ChildWallet;
+import com.finance.finance.modules.group.entity.ChildSpendRequest;
+import com.finance.finance.modules.group.repository.ChildWalletRepository;
+import com.finance.finance.modules.group.repository.ChildSpendRequestRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -42,6 +46,8 @@ public class GoalService {
     private final AccountRepository accountRepository;
     private final CategoryRepository categoryRepository;
     private final com.finance.finance.modules.notification.service.NotificationService notificationService;
+    private final ChildWalletRepository childWalletRepository;
+    private final ChildSpendRequestRepository childSpendRequestRepository;
 
     @Transactional
     public GoalResponse createGoal(UUID userId, CreateGoalRequest request) {
@@ -270,7 +276,44 @@ public class GoalService {
         // Create EXPENSE transaction with "Savings/Investment" category
         // This will deduct money from the account and record it in transaction history
         UUID transactionId = null;
-        if (request.getSourceAccountId() != null) {
+        Optional<ChildWallet> childWalletOpt = childWalletRepository.findByUserId(userId);
+
+        if (childWalletOpt.isPresent()) {
+            ChildWallet childWallet = childWalletOpt.get();
+            if (childWallet.getBalance().compareTo(request.getAmount()) < 0) {
+                throw new IllegalArgumentException(String.format("Số dư Ví của em (%,.0f đ) không đủ để nộp %,.0f đ vào mục tiêu",
+                        childWallet.getBalance().doubleValue(), request.getAmount().doubleValue()));
+            }
+
+            // Trừ số dư ví của bé
+            childWallet.setBalance(childWallet.getBalance().subtract(request.getAmount()));
+            childWallet.setUpdatedAt(LocalDateTime.now());
+            childWalletRepository.save(childWallet);
+
+            // Ghi nhận hoạt động vào lịch sử giao dịch của ví bé
+            UUID savingsCategoryId = categoryRepository.findByCode("SAVINGS_INVESTMENT")
+                    .map(Category::getId)
+                    .orElseGet(() -> categoryRepository.findByUserIdOrSystemAndKind(userId, com.finance.finance.common.enums.CategoryKind.EXPENSE)
+                            .stream()
+                            .findFirst()
+                            .map(Category::getId)
+                            .orElse(null));
+
+            String noteText = request.getNote() != null && !request.getNote().isBlank() ? request.getNote().trim() : ("Nộp tiền vào mục tiêu " + goal.getName());
+            ChildSpendRequest spendRequest = ChildSpendRequest.builder()
+                    .walletId(childWallet.getId())
+                    .amount(request.getAmount())
+                    .categoryId(savingsCategoryId != null ? savingsCategoryId : UUID.randomUUID())
+                    .description("Nộp tiền vào quỹ/mục tiêu: " + goal.getName())
+                    .notes(noteText)
+                    .status(com.finance.finance.common.enums.SpendRequestStatus.APPROVED)
+                    .respondedByUserId(userId)
+                    .respondedAt(LocalDateTime.now())
+                    .createdAt(LocalDateTime.now())
+                    .updatedAt(LocalDateTime.now())
+                    .build();
+            childSpendRequestRepository.save(spendRequest);
+        } else if (request.getSourceAccountId() != null) {
             // Get account to retrieve currency code
             Account account = accountRepository.findByIdAndUserId(request.getSourceAccountId(), userId)
                     .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy tài khoản"));
@@ -302,7 +345,7 @@ public class GoalService {
                 .goal(goal)
                 .amount(request.getAmount())
                 .note(request.getNote())
-                .sourceAccountId(request.getSourceAccountId())
+                .sourceAccountId(childWalletOpt.isPresent() ? childWalletOpt.get().getId() : request.getSourceAccountId())
                 .transactionId(transactionId)
                 .build();
 
@@ -391,10 +434,42 @@ public class GoalService {
 
         // Tạo giao dịch INCOME vào tài khoản đích nếu có
         UUID transactionId = null;
-        if (request.getTargetAccountId() != null) {
+        Optional<ChildWallet> childWalletOpt = childWalletRepository.findByUserId(userId);
+
+        if (childWalletOpt.isPresent()) {
+            ChildWallet childWallet = childWalletOpt.get();
+            // Cộng lại tiền vào ví của bé
+            childWallet.setBalance(childWallet.getBalance().add(withdrawAmount));
+            childWallet.setUpdatedAt(LocalDateTime.now());
+            childWalletRepository.save(childWallet);
+
+            // Ghi nhận lịch sử rút tiền về ví của bé (Thu nhập vào ví bé)
+            UUID incomeCategoryId = categoryRepository.findByCode("SAVINGS_WITHDRAWAL")
+                    .map(Category::getId)
+                    .orElseGet(() -> categoryRepository.findByUserIdOrSystemAndKind(userId, com.finance.finance.common.enums.CategoryKind.INCOME)
+                            .stream()
+                            .findFirst()
+                            .map(Category::getId)
+                            .orElse(null));
+
+            String noteText = request.getNote() != null && !request.getNote().isBlank() ? request.getNote().trim() : ("Rút tiền từ quỹ " + goal.getName());
+            ChildSpendRequest depositRecord = ChildSpendRequest.builder()
+                    .walletId(childWallet.getId())
+                    .amount(withdrawAmount)
+                    .categoryId(incomeCategoryId != null ? incomeCategoryId : UUID.randomUUID())
+                    .description("[INCOME_DEPOSIT] Rút tiền từ quỹ/mục tiêu: " + goal.getName())
+                    .notes(noteText)
+                    .status(com.finance.finance.common.enums.SpendRequestStatus.APPROVED)
+                    .respondedByUserId(userId)
+                    .respondedAt(LocalDateTime.now())
+                    .createdAt(LocalDateTime.now())
+                    .updatedAt(LocalDateTime.now())
+                    .build();
+            childSpendRequestRepository.save(depositRecord);
+        } else if (request.getTargetAccountId() != null) {
             Account account = accountRepository.findByIdAndUserId(request.getTargetAccountId(), userId)
                     .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy tài khoản nhận tiền"));
-
+            
             UUID incomeCategoryId = categoryRepository.findByCode("SAVINGS_WITHDRAWAL")
                     .map(Category::getId)
                     .or(() -> categoryRepository.findByCode("INVESTMENT_INCOME").map(Category::getId))
@@ -404,7 +479,7 @@ public class GoalService {
                             .findFirst()
                             .map(Category::getId)
                             .orElseThrow(() -> new IllegalStateException("Không tìm thấy danh mục thu nhập hợp lệ")));
-
+            
             CreateTransactionRequest transactionRequest = CreateTransactionRequest.builder()
                     .accountId(request.getTargetAccountId())
                     .categoryId(incomeCategoryId)
@@ -415,7 +490,7 @@ public class GoalService {
                     .description("Rút tiền từ: " + goal.getName())
                     .note(request.getNote())
                     .build();
-
+            
             transactionId = transactionService.createTransaction(userId, transactionRequest).getId();
         }
 
@@ -424,7 +499,7 @@ public class GoalService {
                 .goal(goal)
                 .amount(withdrawAmount.negate())
                 .note(request.getNote() != null && !request.getNote().isBlank() ? request.getNote() : "Rút tiền từ quỹ " + goal.getName())
-                .sourceAccountId(request.getTargetAccountId())
+                .sourceAccountId(childWalletOpt.isPresent() ? childWalletOpt.get().getId() : request.getTargetAccountId())
                 .transactionId(transactionId)
                 .build();
 
@@ -688,6 +763,9 @@ public class GoalService {
         if (contribution.getSourceAccountId() != null) {
             accountName = accountRepository.findById(contribution.getSourceAccountId())
                     .map(Account::getName)
+                    .or(() -> childWalletRepository.findById(contribution.getSourceAccountId())
+                            .map(ChildWallet::getChildName)
+                            .map(name -> "Ví của " + name))
                     .orElse(null);
         }
         return GoalResponse.ContributionInfo.builder()

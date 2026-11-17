@@ -312,6 +312,10 @@ export const goalsApi = {
           }
 
           // History contributions
+          const user = authStorage.getUser();
+          const isChildAccount = Boolean(user?.childAccount && user?.childWalletGroupId);
+          const childDefaultWalletName = user?.childWalletName || 'Ví của em';
+
           let historyList: ContributionHistoryItem[] = fallbackGoalDetail.history;
           if (Array.isArray(g.contributions) && g.contributions.length > 0) {
             historyList = g.contributions.map((c: any, cIdx: number) => {
@@ -320,7 +324,16 @@ export const goalsApi = {
                 ? `${String(dt.getHours()).padStart(2, '0')}:${String(dt.getMinutes()).padStart(2, '0')} • ${String(dt.getDate()).padStart(2, '0')}/${String(dt.getMonth() + 1).padStart(2, '0')}/${dt.getFullYear()}`
                 : '09:00 • 01/11/2026';
               const isWithdraw = Number(c.amount || 0) < 0;
-              const accName = c.sourceAccountName || c.accountName || (c.sourceAccountId ? `Tài khoản (${String(c.sourceAccountId).substring(0, 8)})` : 'Tài khoản chính (VPBank)');
+              let accName = c.sourceAccountName || c.accountName;
+              if (!accName) {
+                if (isChildAccount) {
+                  accName = childDefaultWalletName;
+                } else if (c.sourceAccountId) {
+                  accName = `Tài khoản (${String(c.sourceAccountId).substring(0, 8)})`;
+                } else {
+                  accName = 'Tài khoản chính (VPBank)';
+                }
+              }
 
               return {
                 id: c.id || `contrib-${cIdx}`,
@@ -332,6 +345,9 @@ export const goalsApi = {
                 accountName: accName,
               };
             });
+          } else if (isChildAccount) {
+            // Khi tài khoản trẻ em chưa có đóng góp thực tế từ API, không dùng mock data người lớn (VPBank/Techcombank)
+            historyList = [];
           }
 
           const isSavingItem =

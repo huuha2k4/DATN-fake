@@ -712,14 +712,14 @@ export function AccountManagementScreen({ onNotify, onAccountsChange }: Props) {
                     <div className="flex items-center gap-2.5 min-w-0 flex-1">
                       {brandPreset ? (
                         <span 
-                          className="brand-logo-badge size-10 overflow-hidden bg-white/95 p-1 shadow-md ring-1 ring-white/20"
+                          className="brand-logo-badge size-11 overflow-hidden bg-white/95 p-0.5 shadow-md ring-1 ring-white/30"
                           title={brandPreset.name}
                         >
                           {brandPreset.logoUrl ? (
                             <img
                               src={brandPreset.logoUrl}
                               alt={brandPreset.shortName}
-                              className="size-full object-contain"
+                              className="size-full object-contain scale-110"
                               onError={(e) => {
                                 (e.target as HTMLElement).style.display = 'none';
                                 if (e.currentTarget.parentElement) {
@@ -739,8 +739,8 @@ export function AccountManagementScreen({ onNotify, onAccountsChange }: Props) {
                           )}
                         </span>
                       ) : (
-                        <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-white/15 text-white backdrop-blur-md border border-white/20 shadow-sm">
-                          <FinanceIcon name={meta.icon} size={18} />
+                        <span className="grid size-11 shrink-0 place-items-center rounded-xl bg-white/15 text-white backdrop-blur-md border border-white/20 shadow-sm">
+                          <FinanceIcon name={meta.icon} size={20} />
                         </span>
                       )}
 
@@ -789,19 +789,7 @@ export function AccountManagementScreen({ onNotify, onAccountsChange }: Props) {
                         {/* Dropdown Menu */}
                         {activeMenuId === account.id && (
                           <>
-                            <div className="absolute right-0 top-full mt-1.5 w-48 z-30 rounded-xl border border-gray-100 bg-white p-1.5 shadow-2xl animate-fadeIn text-[#14261e]">
-                              <button
-                                type="button"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setActiveMenuId(null);
-                                  handleOpenAccountDetail(account);
-                                }}
-                                className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left text-xs font-medium text-[#14261e] hover:bg-[#f0f7f3] hover:text-[#07543f] transition whitespace-nowrap"
-                              >
-                                <FinanceIcon name="eye" size={14} className="text-[#07543f] shrink-0" />
-                                <span>Xem chi tiết &amp; Lịch sử</span>
-                              </button>
+                            <div className="absolute right-0 top-full mt-1.5 w-44 z-30 rounded-xl border border-gray-100 bg-white p-1.5 shadow-2xl animate-fadeIn text-[#14261e]">
                               <button
                                 type="button"
                                 onClick={(e) => {
@@ -1641,8 +1629,8 @@ export function AccountManagementScreen({ onNotify, onAccountsChange }: Props) {
               <div className="flex items-center justify-between pb-3 border-b border-gray-100 dark:border-white/5">
                 <div className="flex items-center gap-3">
                   {brandPreset?.logoUrl ? (
-                    <span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-white dark:bg-slate-800 p-1 border border-gray-100 dark:border-slate-700 shadow-sm">
-                      <img src={brandPreset.logoUrl} alt={brandPreset.shortName} className="size-full object-contain" />
+                    <span className="flex size-12 shrink-0 items-center justify-center rounded-xl bg-white dark:bg-slate-800 p-0.5 border border-gray-100 dark:border-slate-700 shadow-sm overflow-hidden">
+                      <img src={brandPreset.logoUrl} alt={brandPreset.shortName} className="size-full object-contain scale-110" />
                     </span>
                   ) : (
                     <span className="grid size-11 shrink-0 place-items-center rounded-xl bg-[#e3f4e9] dark:bg-emerald-950/60 text-[#07543f] dark:text-emerald-400 border border-transparent dark:border-emerald-800/40">

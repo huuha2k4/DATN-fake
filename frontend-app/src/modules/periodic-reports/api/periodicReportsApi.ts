@@ -76,6 +76,20 @@ export const periodicReportsApi = {
    * Lấy danh sách ví tài khoản để lọc báo cáo
    */
   async getAccounts() {
+    const user = authStorage.getUser();
+    if (user?.childAccount && user?.childWalletGroupId && user?.childWalletId) {
+      return [
+        {
+          id: user.childWalletId,
+          name: user.childWalletName || 'Ví của em',
+          accountType: 'CASH',
+          currencyCode: 'VND',
+          balance: 0,
+          icon: 'wallet',
+          color: '#059669',
+        },
+      ];
+    }
     return transactionApi.getAccounts();
   },
 
@@ -87,6 +101,7 @@ export const periodicReportsApi = {
     toDate: string,   // YYYY-MM-DD
     accountId?: string
   ): Promise<ReportSummaryData> {
+    const user = authStorage.getUser();
     const token = authStorage.getToken();
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
@@ -96,6 +111,264 @@ export const periodicReportsApi = {
     }
 
     try {
+      // ── NẾU LÀ TÀI KHOẢN TRẺ EM: LẤY DỮ LIỆU CHUẨN TỪ SPEND-REQUESTS CỦA VÍ BÉ ──
+      if (user?.childAccount && user?.childWalletGroupId && user?.childWalletId) {
+        const res = await fetch(
+          `${API_BASE_URL}/groups/${user.childWalletGroupId}/child-wallets/${user.childWalletId}/spend-requests?size=200`,
+          { headers }
+        );
+
+        if (res.ok) {
+          const json = await res.json();
+          const rawItems: any[] = Array.isArray(json) ? json : json?.content || json?.data || [];
+          const approved = rawItems.filter((i: any) => i.status === 'APPROVED');
+
+          // Lọc theo khoảng ngày fromDate -> toDate
+          const inRange = approved.filter((item: any) => {
+            const dateStr = item.createdAt ? item.createdAt.slice(0, 10) : '';
+            if (!dateStr) return true;
+            return dateStr >= fromDate && dateStr <= toDate;
+          });
+
+          let totalIncome = 0;
+          let totalExpense = 0;
+          const dayMap = new Map<string, { income: number; expense: number }>();
+          const catMap = new Map<string, { name: string; icon: string; amount: number; count: number }>();
+
+          const topExpenseItems: any[] = [];
+
+          inRange.forEach((item: any) => {
+            const isDeposit = item.description?.startsWith('[INCOME_DEPOSIT] ');
+            const isChoreReward = item.description?.startsWith('[INCOME_CHORE] ');
+            const isGiftIncome = item.description?.startsWith('[INCOME_GIFT] ');
+            const isMoneyReq = item.description?.startsWith('[MONEY_REQUEST] ');
+            const income = isDeposit || isChoreReward || isGiftIncome || isMoneyReq;
+
+            const amt = Math.abs(Number(item.amount || 0));
+            const dateStr = item.createdAt ? item.createdAt.slice(0, 10) : new Date().toISOString().slice(0, 10);
+
+            if (income) {
+              totalIncome += amt;
+            } else {
+              totalExpense += amt;
+              topExpenseItems.push(item);
+            }
+
+            // Group theo ngày cho biểu đồ
+            const curDay = dayMap.get(dateStr) || { income: 0, expense: 0 };
+            if (income) curDay.income += amt;
+            else curDay.expense += amt;
+            dayMap.set(dateStr, curDay);
+
+            // Group danh mục (chỉ tính chi tiêu)
+            if (!income) {
+              let catName = item.category?.name || 'Ăn uống / Mua sắm';
+              let catIcon = item.category?.icon || 'utensils';
+              const curCat = catMap.get(catName) || { name: catName, icon: catIcon, amount: 0, count: 0 };
+              curCat.amount += amt;
+              curCat.count += 1;
+              catMap.set(catName, curCat);
+            }
+          });
+
+          const netCashFlow = totalIncome - totalExpense;
+          const transactionCount = inRange.length;
+
+          const curStart = new Date(fromDate);
+          const curEnd = new Date(toDate);
+          const diffTime = Math.abs(curEnd.getTime() - curStart.getTime());
+          const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
+          const pad = (n: number) => String(n).padStart(2, '0');
+          const averageDailyExpense = diffDays > 0 ? Math.round(totalExpense / diffDays) : 0;
+          const savingRate = totalIncome > 0 ? Math.max(0, Math.round((netCashFlow / totalIncome) * 100)) : 0;
+
+          // Xây dựng danh mục
+          const categories = Array.from(catMap.values())
+            .map((c, index) => {
+              const color = CATEGORY_COLOR_PALETTE[index % CATEGORY_COLOR_PALETTE.length];
+              const pct = totalExpense > 0 ? (c.amount / totalExpense) * 100 : 0;
+              return {
+                id: `child-cat-${index}`,
+                name: c.name,
+                color,
+                icon: c.icon,
+                amount: c.amount,
+                percentage: Math.round(pct * 10) / 10,
+                count: c.count,
+                avgPerTx: Math.round(c.amount / c.count),
+              };
+            })
+            .sort((a, b) => b.amount - a.amount);
+
+          // Xây dựng chuỗi xu hướng ngày
+          const dailyTrend: { date: string; fullDate: string; income: number; expense: number }[] = [];
+          const isMonthView = diffDays > 10;
+          const iter = new Date(curStart);
+          while (iter <= curEnd) {
+            const ymd = `${iter.getFullYear()}-${pad(iter.getMonth() + 1)}-${pad(iter.getDate())}`;
+            const label = isMonthView
+              ? String(iter.getDate())
+              : `${pad(iter.getDate())}/${pad(iter.getMonth() + 1)}`;
+            const flow = dayMap.get(ymd) || { income: 0, expense: 0 };
+            dailyTrend.push({
+              date: label,
+              fullDate: ymd,
+              income: flow.income,
+              expense: flow.expense,
+            });
+            iter.setDate(iter.getDate() + 1);
+          }
+
+          // Top 5 chi tiêu
+          const topTransactions = topExpenseItems
+            .sort((a, b) => Number(b.amount || 0) - Number(a.amount || 0))
+            .slice(0, 5)
+            .map((tx) => {
+              const rawDateStr = tx.createdAt ? tx.createdAt.slice(0, 10) : '';
+              let formattedDate = rawDateStr;
+              if (rawDateStr) {
+                const parts = rawDateStr.split('-');
+                if (parts.length === 3) formattedDate = `${parts[2]}/${parts[1]}/${parts[0]}`;
+              }
+              return {
+                id: tx.id,
+                title: tx.description || 'Chi tiêu',
+                sub: `${formattedDate} • ${user.childWalletName || 'Ví của em'}`,
+                date: formattedDate,
+                wallet: user.childWalletName || 'Ví của em',
+                amount: Math.abs(Number(tx.amount || 0)),
+                type: 'EXPENSE' as const,
+                icon: 'utensils',
+                categoryName: tx.category?.name || 'Chi tiêu',
+              };
+            });
+
+          // ── TÍNH TOÁN KỲ TRƯỚC ĐỂ ĐỐI CHIẾU TRÊN DANH MỤC CHO BÉ ──
+          let prevFromStr = '';
+          let prevToStr = '';
+          const isFirstDayOfMonth = curStart.getDate() === 1;
+          const lastDayOfCurMonth = new Date(curStart.getFullYear(), curStart.getMonth() + 1, 0).getDate();
+          const isFullMonth = isFirstDayOfMonth && curEnd.getDate() === lastDayOfCurMonth && curStart.getMonth() === curEnd.getMonth();
+
+          if (isFullMonth) {
+            const prevMonthStart = new Date(curStart.getFullYear(), curStart.getMonth() - 1, 1);
+            const prevMonthEnd = new Date(curStart.getFullYear(), curStart.getMonth(), 0);
+            prevFromStr = `${prevMonthStart.getFullYear()}-${pad(prevMonthStart.getMonth() + 1)}-${pad(prevMonthStart.getDate())}`;
+            prevToStr = `${prevMonthEnd.getFullYear()}-${pad(prevMonthEnd.getMonth() + 1)}-${pad(prevMonthEnd.getDate())}`;
+          } else {
+            const prevEnd = new Date(curStart);
+            prevEnd.setDate(prevEnd.getDate() - 1);
+            const prevStart = new Date(prevEnd);
+            prevStart.setDate(prevStart.getDate() - diffDays + 1);
+            prevFromStr = `${prevStart.getFullYear()}-${pad(prevStart.getMonth() + 1)}-${pad(prevStart.getDate())}`;
+            prevToStr = `${prevEnd.getFullYear()}-${pad(prevEnd.getMonth() + 1)}-${pad(prevEnd.getDate())}`;
+          }
+
+          let prevIncome = 0;
+          let prevExpense = 0;
+          const prevCatMap = new Map<string, number>();
+
+          approved.forEach((item: any) => {
+            const d = item.createdAt ? item.createdAt.slice(0, 10) : '';
+            if (d && d >= prevFromStr && d <= prevToStr) {
+              const isDep = item.description?.startsWith('[INCOME_DEPOSIT] ');
+              const isChore = item.description?.startsWith('[INCOME_CHORE] ');
+              const isGift = item.description?.startsWith('[INCOME_GIFT] ');
+              const isMon = item.description?.startsWith('[MONEY_REQUEST] ');
+              const inc = isDep || isChore || isGift || isMon;
+              const val = Math.abs(Number(item.amount || 0));
+
+              if (inc) {
+                prevIncome += val;
+              } else {
+                prevExpense += val;
+                const cName = item.category?.name || 'Ăn uống / Mua sắm';
+                prevCatMap.set(cName, (prevCatMap.get(cName) || 0) + val);
+              }
+            }
+          });
+
+          const calcChange = (curr: number, prev: number) => {
+            if (prev === 0 && curr === 0) return 0;
+            if (prev === 0) return 100;
+            if (curr === 0) return -100;
+            return Math.round(((curr - prev) / prev) * 100);
+          };
+
+          const incomeChangePercent = calcChange(totalIncome, prevIncome);
+          const expenseChangePercent = calcChange(totalExpense, prevExpense);
+
+          // Tạo danh sách đối chiếu trên từng danh mục
+          // Lấy hợp nhất các danh mục xuất hiện ở kỳ này và kỳ trước
+          const allCatNames = new Set<string>([
+            ...categories.map((c) => c.name),
+            ...Array.from(prevCatMap.keys()),
+          ]);
+
+          const categoryComparisons = Array.from(allCatNames).map((catName, idx) => {
+            const curFound = categories.find((c) => c.name === catName);
+            const curAmt = curFound ? curFound.amount : 0;
+            const prevAmt = prevCatMap.get(catName) || 0;
+            const diffAmt = curAmt - prevAmt;
+            const pct = calcChange(curAmt, prevAmt);
+            const color = curFound?.color || CATEGORY_COLOR_PALETTE[idx % CATEGORY_COLOR_PALETTE.length];
+
+            return {
+              id: curFound?.id || `prev-cat-${idx}`,
+              name: catName,
+              color,
+              prevAmount: prevAmt,
+              currentAmount: curAmt,
+              diffAmount: diffAmt,
+              percentChange: pct,
+            };
+          }).sort((a, b) => b.currentAmount - a.currentAmount);
+
+          const notes: string[] = [];
+          if (expenseChangePercent !== 0) {
+            notes.push(`Tổng chi tiêu ${expenseChangePercent > 0 ? 'tăng' : 'giảm'} ${Math.abs(expenseChangePercent)}% so với kỳ trước.`);
+          }
+          if (categoryComparisons.length > 0 && categoryComparisons[0].currentAmount > 0) {
+            notes.push(`${categoryComparisons[0].name} là khoản chi lớn nhất (${categoryComparisons[0].currentAmount.toLocaleString('vi-VN')} đ).`);
+          }
+          if (savingRate > 0) {
+            notes.push(`Tỷ lệ tích lũy của em đạt ${savingRate}%.`);
+          }
+
+          return {
+            totalIncome,
+            totalExpense,
+            netCashFlow,
+            averageDailyExpense,
+            savingRate,
+            transactionCount,
+            aiInsight: {
+              status: netCashFlow >= 0 ? 'POSITIVE' : 'WARNING',
+              text:
+                netCashFlow >= 0
+                  ? `Ví của em kỳ này thặng dư +${netCashFlow.toLocaleString('vi-VN')} đ! Em quản lý chi tiêu rất ngoan 🎉`
+                  : `Kỳ này em chi tiêu nhiều hơn số tiền nhận được. Hãy tích cực làm nhiệm vụ để tăng thêm tiền vào ví nhé!`,
+            },
+            dailyTrend,
+            topTransactions,
+            categories,
+            comparison: {
+              prevIncome,
+              prevExpense,
+              prevNet: prevIncome - prevExpense,
+              incomeChangePercent,
+              expenseChangePercent,
+              categoryComparisons,
+              notes: notes.length > 0 ? notes : [
+                `Tổng thu: +${totalIncome.toLocaleString('vi-VN')} đ`,
+                `Tổng chi: -${totalExpense.toLocaleString('vi-VN')} đ`,
+                `Số dư tăng thêm: ${netCashFlow >= 0 ? '+' : ''}${netCashFlow.toLocaleString('vi-VN')} đ`,
+              ],
+            },
+          };
+        }
+      }
+
       const accParam = accountId && accountId !== 'ALL' ? `&accountId=${accountId}` : '';
       
       // 1. Xác định groupBy phù hợp theo khoảng ngày

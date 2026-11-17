@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useMemo } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -15,6 +15,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { FinanceIcon } from '../../core/components/FinanceIcon';
+import { authStorage } from '../../auth/api/authApi';
 import {
   aiAssistantApi,
   type ChatMessage,
@@ -22,6 +23,7 @@ import {
 } from '../api/aiChatApi';
 
 const finAiAvatarImg = require('../../../assets/finai-avatar.png');
+const finAiBannerHeroImg = require('../../../assets/icons/finai_banner_hero.png');
 
 type Props = {
   onBack: () => void;
@@ -42,10 +44,10 @@ const QUICK_QUESTIONS = [
     icon: 'trend',
   },
   {
-    title: 'Kiểm tra chi bất thường',
-    desc: 'Phát hiện các khoản chi đột biến gần đây',
-    prompt: 'Kiểm tra xem gần đây tôi có khoản chi tiêu nào bất thường không?',
-    icon: 'spark',
+    title: 'Ví của con & Tiền tiêu vặt',
+    desc: 'Kiểm tra số dư, chi tiêu & xin tiền của bé',
+    prompt: 'Ví của con/bé còn bao nhiêu tiền và gần đây bé có xin tiền hay chi tiêu gì không?',
+    icon: 'wallet',
   },
   {
     title: 'Lời khuyên 50/30/20',
@@ -57,6 +59,40 @@ const QUICK_QUESTIONS = [
 
 export function AiAssistantScreen({ onBack }: Props) {
   const insets = useSafeAreaInsets();
+  const user = authStorage.getUser();
+  const isChildAccount = Boolean(user?.childAccount && user?.childWalletGroupId);
+
+  const quickQuestions = useMemo(() => {
+    if (isChildAccount) {
+      return [
+        {
+          title: 'Số dư ví của em',
+          desc: 'Hiện tại ví của em còn bao nhiêu tiền?',
+          prompt: 'Ví của em hiện tại còn bao nhiêu tiền và tuần này được bố mẹ cấp bao nhiêu?',
+          icon: 'wallet',
+        },
+        {
+          title: 'Chi tiêu tháng này',
+          desc: 'Em đã tiêu bao nhiêu tiền và vào những gì?',
+          prompt: 'Tháng này em đã chi tiêu bao nhiêu tiền và đã mua những món gì?',
+          icon: 'receipt',
+        },
+        {
+          title: 'Hoạt động gần đây',
+          desc: 'Xem các khoản nạp ví, thưởng và chi tiêu',
+          prompt: 'Liệt kê các hoạt động và giao dịch gần đây trong ví của em.',
+          icon: 'clock',
+        },
+        {
+          title: 'Lời khuyên tiết kiệm',
+          desc: 'Làm sao để tích lũy được nhiều tiền hơn?',
+          prompt: 'Cho em lời khuyên làm sao để hoàn thành nhiệm vụ và tiết kiệm tiền vào ví thật tốt nhé!',
+          icon: 'spark',
+        },
+      ];
+    }
+    return QUICK_QUESTIONS;
+  }, [isChildAccount]);
   const scrollViewRef = useRef<ScrollView>(null);
 
   const [inputQuery, setInputQuery] = useState('');
@@ -172,15 +208,15 @@ export function AiAssistantScreen({ onBack }: Props) {
       style={styles.screen}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
-      {/* ── 1. HEADER XANH RỪNG TRÀN TAI THỎ ── */}
+      {/* ── 1. HEADER NỀN TRẮNG TINH TẾ ĐỒNG BỘ MẪU ── */}
       <View style={[styles.header, { paddingTop: Math.max(insets.top, 12) + 4 }]}>
         <View style={styles.headerLeft}>
           <Pressable onPress={onBack} hitSlop={12} style={styles.backBtn}>
-            <FinanceIcon name="chevron-left" size={24} color="#FFFFFF" />
+            <FinanceIcon name="chevron-left" size={22} color="#064E3B" />
           </Pressable>
           <View style={styles.copilotBadge}>
-            <View style={styles.sparkleIconWrap}>
-              <Image source={finAiAvatarImg} style={styles.finAiAvatarImg} resizeMode="cover" />
+            <View style={styles.avatarMiniWrap}>
+              <Image source={finAiAvatarImg} style={styles.avatarMiniImg} resizeMode="cover" />
             </View>
             <View>
               <Text style={styles.headerTitle}>FinAI Copilot</Text>
@@ -195,7 +231,7 @@ export function AiAssistantScreen({ onBack }: Props) {
             style={({ pressed }) => [styles.headerBtn, pressed && styles.pressed]}
             hitSlop={8}
           >
-            <FinanceIcon name="clock" size={18} color="#FFFFFF" />
+            <FinanceIcon name="clock" size={20} color="#064E3B" />
           </Pressable>
 
           <Pressable
@@ -203,7 +239,7 @@ export function AiAssistantScreen({ onBack }: Props) {
             style={({ pressed }) => [styles.headerBtnPrimary, pressed && styles.pressed]}
             hitSlop={8}
           >
-            <FinanceIcon name="plus" size={15} color="#064E3B" />
+            <FinanceIcon name="plus" size={15} color="#FFFFFF" />
             <Text style={styles.newChatText}>Mới</Text>
           </Pressable>
         </View>
@@ -219,17 +255,38 @@ export function AiAssistantScreen({ onBack }: Props) {
         {/* Banner giới thiệu FinAI khi chưa có tin nhắn */}
         {messages.length === 0 && (
           <View style={styles.welcomeIntroBox}>
-            <View style={styles.aiLargeAvatar}>
-              <Image source={finAiAvatarImg} style={styles.finAiAvatarImgLarge} resizeMode="cover" />
+            {/* Nút cài đặt nhỏ tròn góc phải */}
+            <Pressable
+              style={styles.settingFloatBtn}
+              hitSlop={10}
+              onPress={() => Alert.alert('FinAI Settings', 'FinAI Copilot kết nối trực tiếp với dữ liệu dòng tiền và tài khoản của bạn để phân tích và tối ưu hóa ngân sách.')}
+            >
+              <FinanceIcon name="settings" size={18} color="#059669" />
+            </Pressable>
+
+            {/* Banner Robot FinAI sóng xanh lượn ngang */}
+            <View style={styles.heroBannerWrapper}>
+              <Image
+                source={finAiBannerHeroImg}
+                style={styles.heroBannerImage}
+                resizeMode="contain"
+              />
             </View>
-            <Text style={styles.welcomeMainTitle}>Xin chào! Tôi có thể giúp gì cho tài chính của bạn?</Text>
+
+            {/* Tiêu đề chào mừng */}
+            <Text style={styles.welcomeMainTitle}>
+              Xin chào! Tôi có thể giúp gì cho{' '}
+              <Text style={styles.welcomeHighlightTitle}>tài chính</Text> của bạn?
+            </Text>
+            <View style={styles.titleUnderline} />
+
             <Text style={styles.welcomeSubDesc}>
               Tôi được kết nối trực tiếp với dòng tiền, ngân sách và lịch sử giao dịch của bạn để phân tích và đưa ra tư vấn chính xác.
             </Text>
 
             {/* Grid các câu hỏi gợi ý nhanh */}
             <View style={styles.quickGrid}>
-              {QUICK_QUESTIONS.map((q, idx) => (
+              {quickQuestions.map((q, idx) => (
                 <Pressable
                   key={idx}
                   onPress={() => handleSend(q.prompt)}
@@ -416,15 +473,17 @@ export function AiAssistantScreen({ onBack }: Props) {
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
-    backgroundColor: '#F8FAFC',
+    backgroundColor: '#FAFCFB',
   },
   header: {
-    backgroundColor: '#074838',
+    backgroundColor: '#FFFFFF',
     paddingHorizontal: 16,
-    paddingBottom: 14,
+    paddingBottom: 12,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    borderBottomWidth: 1,
+    borderBottomColor: '#F1F5F9',
   },
   headerLeft: {
     flexDirection: 'row',
@@ -432,46 +491,53 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   backBtn: {
-    width: 36,
-    height: 36,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: '#F0FDF4',
+    alignItems: 'center',
     justifyContent: 'center',
-  },
-  backIcon: {
-    color: '#FFFFFF',
-    fontSize: 32,
-    lineHeight: 32,
   },
   copilotBadge: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
   },
-  sparkleIconWrap: {
-    width: 32,
-    height: 32,
-    borderRadius: 10,
-    backgroundColor: '#E8F8F0',
+  avatarMiniWrap: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#ECFDF5',
+    borderWidth: 1.5,
+    borderColor: '#A7F3D0',
     justifyContent: 'center',
     alignItems: 'center',
     overflow: 'hidden',
   },
+  avatarMiniImg: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 20,
+  },
   finAiAvatarImg: {
     width: '100%',
     height: '100%',
+    borderRadius: 16,
   },
   finAiAvatarImgLarge: {
     width: '100%',
     height: '100%',
   },
   headerTitle: {
-    color: '#FFFFFF',
+    color: '#0F172A',
     fontSize: 16,
     fontWeight: '800',
   },
   headerSubtitle: {
-    color: 'rgba(255, 255, 255, 0.75)',
-    fontSize: 10.5,
+    color: '#64748B',
+    fontSize: 11,
     fontWeight: '500',
+    marginTop: 1,
   },
   headerRightActions: {
     flexDirection: 'row',
@@ -481,22 +547,26 @@ const styles = StyleSheet.create({
   headerBtn: {
     width: 36,
     height: 36,
-    borderRadius: 12,
-    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    borderRadius: 18,
+    backgroundColor: '#F0FDF4',
     justifyContent: 'center',
     alignItems: 'center',
   },
   headerBtnPrimary: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#34D399',
+    backgroundColor: '#059669',
     paddingHorizontal: 12,
     paddingVertical: 7,
-    borderRadius: 14,
+    borderRadius: 16,
     gap: 4,
+    shadowColor: '#059669',
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 2,
   },
   newChatText: {
-    color: '#064E3B',
+    color: '#FFFFFF',
     fontSize: 12,
     fontWeight: '800',
   },
@@ -507,39 +577,66 @@ const styles = StyleSheet.create({
   },
   welcomeIntroBox: {
     alignItems: 'center',
-    paddingVertical: 18,
+    paddingVertical: 10,
     paddingHorizontal: 12,
+    position: 'relative',
   },
-  aiLargeAvatar: {
-    width: 64,
-    height: 64,
-    borderRadius: 22,
-    backgroundColor: '#E8F8F0',
-    borderWidth: 1.5,
-    borderColor: '#A7F3D0',
-    justifyContent: 'center',
+  settingFloatBtn: {
+    position: 'absolute',
+    top: 60,
+    right: 8,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: '#FFFFFF',
     alignItems: 'center',
-    marginBottom: 12,
-    shadowColor: '#059669',
-    shadowOpacity: 0.15,
-    shadowRadius: 10,
-    elevation: 3,
-    overflow: 'hidden',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    shadowColor: '#000',
+    shadowOpacity: 0.05,
+    shadowRadius: 5,
+    elevation: 2,
+    zIndex: 10,
+  },
+  heroBannerWrapper: {
+    width: '100%',
+    height: 140,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 4,
+    marginBottom: 10,
+  },
+  heroBannerImage: {
+    width: '100%',
+    height: '100%',
   },
   welcomeMainTitle: {
-    fontSize: 17,
-    fontWeight: '800',
+    fontSize: 20,
+    fontWeight: '900',
     color: '#0F172A',
     textAlign: 'center',
-    lineHeight: 24,
-    marginBottom: 6,
+    lineHeight: 28,
+    marginTop: 6,
+  },
+  welcomeHighlightTitle: {
+    color: '#059669',
+    fontWeight: '900',
+  },
+  titleUnderline: {
+    width: 60,
+    height: 3,
+    backgroundColor: '#10B981',
+    borderRadius: 2,
+    marginTop: 4,
+    marginBottom: 12,
   },
   welcomeSubDesc: {
-    fontSize: 12.5,
+    fontSize: 13,
     color: '#64748B',
     textAlign: 'center',
-    lineHeight: 18,
-    maxWidth: '90%',
+    lineHeight: 20,
+    maxWidth: '92%',
     marginBottom: 20,
   },
   quickGrid: {
@@ -599,7 +696,7 @@ const styles = StyleSheet.create({
   messageAiAvatar: {
     width: 32,
     height: 32,
-    borderRadius: 12,
+    borderRadius: 16,
     backgroundColor: '#E8F8F0',
     borderWidth: 1,
     borderColor: '#A7F3D0',
@@ -666,35 +763,36 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: '#E2E8F0',
     paddingHorizontal: 14,
-    paddingTop: 10,
+    paddingTop: 8,
   },
   composerBar: {
     flexDirection: 'row',
-    alignItems: 'flex-end',
+    alignItems: 'center',
     backgroundColor: '#F8FAFC',
-    borderRadius: 20,
+    borderRadius: 22,
     borderWidth: 1.2,
     borderColor: '#E2E8F0',
     paddingLeft: 14,
-    paddingRight: 6,
-    paddingVertical: 5,
+    paddingRight: 5,
+    paddingVertical: Platform.OS === 'ios' ? 4 : 2,
+    minHeight: 44,
     gap: 6,
   },
   composerInput: {
     flex: 1,
-    fontSize: 13.5,
+    fontSize: 14,
     color: '#0F172A',
-    maxHeight: 90,
-    paddingTop: 6,
-    paddingBottom: 6,
+    maxHeight: 100,
+    paddingTop: Platform.OS === 'ios' ? 8 : 6,
+    paddingBottom: Platform.OS === 'ios' ? 8 : 6,
+    textAlignVertical: 'center',
   },
   sendBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 34,
+    height: 34,
+    borderRadius: 17,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 2,
   },
   sendBtnActive: {
     backgroundColor: '#00A86B',

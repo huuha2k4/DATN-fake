@@ -11,9 +11,10 @@ import {
 } from '../api/scheduleApi';
 import { accountApi, type AccountItem } from '../../account-management/api/accountApi';
 import { transactionApi, type CategoryItem } from '../../cash-flow-management/api/transactionApi';
-import { debtApi, type DebtSummaryItem } from '../../debt-management/api/debtApi';
+import { debtApi, type DebtSummaryItem, type DebtDetailResponse } from '../../debt-management/api/debtApi';
 import { formatDate } from '../../core/utils/dateUtils';
 import { DatePicker } from '../../core/components/DatePicker';
+import { ConfirmDeleteModal } from '../../core/components/ConfirmDeleteModal';
 import './FinancialRemindersScreen.css';
 
 type Props = { onNotify: (message: string) => void };
@@ -174,6 +175,13 @@ export function FinancialRemindersScreen({ onNotify }: Props) {
   // Chi tiết Lịch
   const [selectedSchedule, setSelectedSchedule] = useState<ScheduleDetail | null>(null);
 
+  // Chi tiết Khoản nợ (khi bấm vào sự kiện nợ trên lịch)
+  const [selectedDebtDetail, setSelectedDebtDetail] = useState<DebtDetailResponse | null>(null);
+
+  // Modal xác nhận xóa lịch tài chính (Custom modal)
+  const [scheduleToDelete, setScheduleToDelete] = useState<{ id: number; name: string } | null>(null);
+  const [isDeletingSchedule, setIsDeletingSchedule] = useState(false);
+
   // 1. Tải danh sách lịch và khoản nợ từ Backend
   const loadSchedules = async () => {
     try {
@@ -329,7 +337,8 @@ export function FinancialRemindersScreen({ onNotify }: Props) {
               amount: String(debt.remaining || debt.principal_amount || 0),
               category: isLend ? 'Thu nợ' : 'Trả nợ',
             },
-          } as ScheduleListItem);
+            _rawDebtId: debt.id,
+          } as any);
         }
       });
 
@@ -441,7 +450,8 @@ export function FinancialRemindersScreen({ onNotify }: Props) {
           amount: String(debt.remaining || debt.principal_amount || 0),
           category: isLend ? 'Thu nợ' : 'Trả nợ',
         },
-      } as ScheduleListItem);
+        _rawDebtId: debt.id,
+      } as any);
     });
 
     return list;
@@ -601,10 +611,26 @@ export function FinancialRemindersScreen({ onNotify }: Props) {
     }
   };
 
-  // Xem chi tiết
-  const handleViewDetail = async (id: number) => {
+  // Xem chi tiết lịch hoặc khoản nợ
+  const handleViewDetail = async (item: ScheduleListItem | any) => {
+    // 1. Nếu là khoản nợ đồng bộ lên lịch
+    const rawDebtId = item._rawDebtId || (item.name && (item.name.startsWith('Trả nợ:') || item.name.startsWith('Thu nợ:')) ? item.id : null);
+    if (rawDebtId) {
+      try {
+        const debtDetail = await debtApi.getDebtById(rawDebtId);
+        if (debtDetail) {
+          setSelectedDebtDetail(debtDetail);
+          return;
+        }
+      } catch (err: any) {
+        console.warn('Lỗi xem chi tiết nợ, fallback sang schedule:', err);
+      }
+    }
+
+    // 2. Nếu là lịch tài chính thông thường
     try {
-      const detail = await scheduleApi.getScheduleById(id);
+      const scheduleId = typeof item === 'number' ? item : item.id;
+      const detail = await scheduleApi.getScheduleById(scheduleId);
       setSelectedSchedule(detail);
     } catch (err: any) {
       onNotify('Lỗi xem chi tiết: ' + (err?.response?.data?.message || err.message));
@@ -631,17 +657,26 @@ export function FinancialRemindersScreen({ onNotify }: Props) {
     }
   };
 
-  // Xóa lịch
-  const handleDeleteSchedule = async (id: number, scheduleName: string, e?: React.MouseEvent) => {
+  // Mở popup xác nhận xóa lịch
+  const handleRequestDeleteSchedule = (id: number, scheduleName: string, e?: React.MouseEvent) => {
     e?.stopPropagation();
-    if (!window.confirm(`Bạn có chắc chắn muốn xóa lịch "${scheduleName}"?`)) return;
+    setScheduleToDelete({ id, name: scheduleName });
+  };
+
+  // Xác nhận xóa lịch tài chính
+  const confirmDeleteSchedule = async () => {
+    if (!scheduleToDelete) return;
+    setIsDeletingSchedule(true);
     try {
-      await scheduleApi.deleteSchedule(id);
-      onNotify(`Đã xóa thành công "${scheduleName}"`);
+      await scheduleApi.deleteSchedule(scheduleToDelete.id);
+      onNotify(`Đã xóa thành công lịch "${scheduleToDelete.name}"`);
+      setScheduleToDelete(null);
       setSelectedSchedule(null);
       loadSchedules();
     } catch (err: any) {
       onNotify('Lỗi khi xóa: ' + (err?.response?.data?.message || err.message));
+    } finally {
+      setIsDeletingSchedule(false);
     }
   };
 
@@ -975,7 +1010,37 @@ export function FinancialRemindersScreen({ onNotify }: Props) {
                               <FinanceIcon name={getScheduleIconName(item)} size={15} />
                             </span>
                             <div>
-                              <h4 className="text-xs font-bold text-[#14251f]">{item.name}</h4>
+                              <div className="flex items-center gap-1.5 flex-wrap">
+                                <h4 className="text-xs font-bold text-[#14251f]">{item.name}</h4>
+                                {(() => {
+                                  const isCompleted = item.status === 'COMPLETED' || item.status === 'PAID' || item.status === 'PAID_OFF';
+                                  const todayStr = new Date().toISOString().split('T')[0];
+                                  const isExpired = Boolean(
+                                    isCompleted ||
+                                    (item.end_date && item.end_date < todayStr) ||
+                                    (item.next_occurrence && item.next_occurrence < todayStr)
+                                  );
+                                  if (isExpired) {
+                                    return (
+                                      <span className="rounded-full px-1.5 py-0.2 text-[8px] font-bold bg-gray-100 text-gray-500 border border-gray-200">
+                                        Đã kết thúc
+                                      </span>
+                                    );
+                                  }
+                                  if (item.status === 'PAUSED') {
+                                    return (
+                                      <span className="rounded-full px-1.5 py-0.2 text-[8px] font-bold bg-rose-100 text-rose-800 border border-rose-200">
+                                        Tạm dừng
+                                      </span>
+                                    );
+                                  }
+                                  return (
+                                    <span className="rounded-full px-1.5 py-0.2 text-[8px] font-bold bg-[#e3f4e9] text-[#006c49] border border-emerald-200">
+                                      Đang hoạt động
+                                    </span>
+                                  );
+                                })()}
+                              </div>
                               <p className="text-[10px] text-[#718078]">{item.recurrence_text || 'Định kỳ'}</p>
                               {item.transaction_template?.amount && (
                                 <p
@@ -992,7 +1057,7 @@ export function FinancialRemindersScreen({ onNotify }: Props) {
 
                           <button
                             type="button"
-                            onClick={() => handleViewDetail(item.id)}
+                            onClick={() => handleViewDetail(item)}
                             className="rounded px-2 py-1 text-[10px] font-semibold text-[#07543f] hover:bg-[#eef7f0]"
                           >
                             Chi tiết
@@ -1040,7 +1105,7 @@ export function FinancialRemindersScreen({ onNotify }: Props) {
                   return (
                     <div
                       key={item.id}
-                      onClick={() => handleViewDetail(item.id)}
+                      onClick={() => handleViewDetail(item)}
                       className={`schedule-row-card group flex w-full cursor-pointer flex-col justify-between gap-3 sm:flex-row sm:items-center ${
                         isPaused ? 'opacity-70 bg-[#fafafa]' : ''
                       }`}
@@ -1063,10 +1128,12 @@ export function FinancialRemindersScreen({ onNotify }: Props) {
                             <span className="truncate text-sm font-semibold text-[#14251f] dark:text-slate-100 group-hover:text-[#07543f] dark:group-hover:text-emerald-400">
                               {item.name}
                             </span>
-                            {/* Chỉ hiển thị tag nếu chưa qua ngày hoặc khi đang tạm dừng */}
+                            {/* Chỉ hiển thị tag nếu đã kết thúc, đang tạm dừng hoặc đang hoạt động */}
                             {(() => {
+                              const isCompleted = item.status === 'COMPLETED' || item.status === 'PAID' || item.status === 'PAID_OFF';
                               const todayStr = new Date().toISOString().split('T')[0];
                               const isExpired = Boolean(
+                                isCompleted ||
                                 (item.end_date && item.end_date < todayStr) ||
                                 (item.next_occurrence && item.next_occurrence < todayStr)
                               );
@@ -1144,10 +1211,38 @@ export function FinancialRemindersScreen({ onNotify }: Props) {
             onClick={(e) => e.stopPropagation()}
             className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl"
           >
-            <div className="border-b border-[#f1f5f2] pb-3">
-              <span className="text-[10px] font-bold uppercase text-[#07543f]">Hồ sơ lịch tài chính</span>
-              <h3 className="text-base font-bold text-[#14251f]">{selectedSchedule.name}</h3>
-            </div>
+            {(() => {
+              const todayStr = new Date().toISOString().split('T')[0];
+              const isExpired = Boolean(
+                (selectedSchedule.end_date && selectedSchedule.end_date < todayStr) ||
+                (selectedSchedule.next_occurrence && selectedSchedule.next_occurrence < todayStr)
+              );
+              const isPaused = selectedSchedule.status === 'PAUSED';
+
+              return (
+                <div className="flex items-center justify-between border-b border-[#f1f5f2] pb-3">
+                  <div>
+                    <span className="text-[10px] font-bold uppercase text-[#07543f]">Hồ sơ lịch tài chính</span>
+                    <h3 className="text-base font-bold text-[#14251f]">{selectedSchedule.name}</h3>
+                  </div>
+                  <div>
+                    {isExpired ? (
+                      <span className="rounded-full px-2.5 py-1 text-[10px] font-bold bg-gray-100 text-gray-500 border border-gray-200">
+                        Đã kết thúc
+                      </span>
+                    ) : isPaused ? (
+                      <span className="rounded-full px-2.5 py-1 text-[10px] font-bold bg-rose-100 text-rose-800 border border-rose-200">
+                        Tạm dừng
+                      </span>
+                    ) : (
+                      <span className="rounded-full px-2.5 py-1 text-[10px] font-bold bg-[#e3f4e9] text-[#006c49] border border-emerald-200">
+                        Đang hoạt động
+                      </span>
+                    )}
+                  </div>
+                </div>
+              );
+            })()}
 
             <div className="mt-4 space-y-2.5 text-xs">
               <div className="flex justify-between">
@@ -1231,8 +1326,8 @@ export function FinancialRemindersScreen({ onNotify }: Props) {
               </button>
               <button
                 type="button"
-                onClick={() => handleDeleteSchedule(selectedSchedule.id, selectedSchedule.name)}
-                className="btn-detail-delete rounded-xl border border-[#fecaca] bg-[#fef2f2] px-4 py-2.5 text-xs font-semibold text-[#dc2626] hover:bg-[#fee2e2] transition"
+                onClick={() => handleRequestDeleteSchedule(selectedSchedule.id, selectedSchedule.name)}
+                className="btn-detail-delete rounded-xl border border-[#fecaca] bg-[#fef2f2] px-4 py-2.5 text-xs font-semibold text-[#dc2626] hover:bg-[#fee2e2] transition cursor-pointer"
               >
                 Xóa
               </button>
@@ -1240,6 +1335,166 @@ export function FinancialRemindersScreen({ onNotify }: Props) {
                 type="button"
                 onClick={() => setSelectedSchedule(null)}
                 className="btn-detail-close rounded-xl border border-[#e2e8e4] bg-[#f8faf9] px-4 py-2.5 text-xs font-semibold text-[#475569] hover:bg-[#f1f5f9] transition"
+              >
+                Đóng
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL CHI TIẾT KHOẢN NỢ ĐƯỢC ĐỒNG BỘ TRÊN LỊCH */}
+      {selectedDebtDetail && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center modal-backdrop-blur p-4"
+          onClick={() => setSelectedDebtDetail(null)}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl max-h-[90vh] overflow-y-auto custom-scrollbar"
+          >
+            {/* Header đồng bộ chuẩn modal Lịch tài chính */}
+            {(() => {
+              const isPaid =
+                selectedDebtDetail.status === 'PAID' ||
+                selectedDebtDetail.status === 'PAID_OFF' ||
+                Number(selectedDebtDetail.remaining_amount || 0) <= 0;
+
+              return (
+                <div className="flex items-center justify-between border-b border-[#f1f5f2] pb-3">
+                  <div className="flex items-center gap-2.5">
+                    <span
+                      className={`grid size-9 place-items-center rounded-xl text-sm ${
+                        selectedDebtDetail.debt_type === 'BORROWING'
+                          ? 'bg-rose-50 text-rose-600 border border-rose-200'
+                          : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                      }`}
+                    >
+                      <FinanceIcon
+                        name={selectedDebtDetail.debt_type === 'BORROWING' ? 'borrowing' : 'lending'}
+                        size={18}
+                      />
+                    </span>
+                    <div>
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-[#07543f]">
+                        {selectedDebtDetail.debt_type === 'BORROWING' ? 'Khoản nợ phải trả' : 'Khoản nợ cần thu'}
+                      </span>
+                      <h3 className="text-base font-bold text-[#14251f]">
+                        {selectedDebtDetail.debt_type === 'BORROWING'
+                          ? `Trả nợ: ${selectedDebtDetail.creditor_name}`
+                          : `Thu nợ: ${selectedDebtDetail.debtor_name}`}
+                      </h3>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {isPaid ? (
+                      <span className="rounded-full px-2.5 py-1 text-[10px] font-bold bg-gray-100 text-gray-500 border border-gray-200">
+                        Đã kết thúc
+                      </span>
+                    ) : (
+                      <span className="rounded-full px-2.5 py-1 text-[10px] font-bold bg-[#e3f4e9] text-[#006c49] border border-emerald-200">
+                        Đang hoạt động
+                      </span>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => setSelectedDebtDetail(null)}
+                      className="text-gray-400 hover:text-gray-700 text-lg font-bold p-1 leading-none cursor-pointer"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                </div>
+              );
+            })()}
+
+            <div className="mt-4 space-y-2.5 text-xs">
+              <div className="flex justify-between">
+                <span className="text-[#718078]">Loại lịch:</span>
+                <span className="font-bold text-[#14251f]">
+                  {selectedDebtDetail.debt_type === 'BORROWING' ? 'Khoản đi vay' : 'Khoản cho vay'}
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-[#718078]">Chu kỳ lặp:</span>
+                <span className="font-semibold text-[#07543f]">
+                  {selectedDebtDetail.payment_frequency === 'MONTHLY'
+                    ? 'Hàng tháng'
+                    : selectedDebtDetail.payment_frequency === 'WEEKLY'
+                    ? 'Hàng tuần'
+                    : selectedDebtDetail.payment_frequency === 'QUARTERLY'
+                    ? 'Hàng quý'
+                    : 'Trả một lần'}
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-[#718078]">Hạn thanh toán:</span>
+                <strong className="text-[#07543f]">
+                  {formatDate(selectedDebtDetail.due_date, 'Không thời hạn')}
+                </strong>
+              </div>
+
+              {/* Thẻ chi tiết số tiền như bản app */}
+              <div className="rounded-xl bg-[#f8faf9] p-3.5 space-y-1.5 border border-[#e2eae4]">
+                <div className="flex justify-between">
+                  <span className="text-[#718078]">Số tiền gốc ban đầu:</span>
+                  <strong className="text-sm font-bold text-[#14261e]">
+                    {Number(selectedDebtDetail.principal_amount || 0).toLocaleString('vi-VN')} đ
+                  </strong>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-[#718078]">Đã thanh toán:</span>
+                  <strong className="font-bold text-emerald-700">
+                    {Number(selectedDebtDetail.paid_amount || 0).toLocaleString('vi-VN')} đ
+                  </strong>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-[#718078]">Còn lại cần thanh toán:</span>
+                  <strong className="font-bold text-rose-600">
+                    {Number(selectedDebtDetail.remaining_amount || 0).toLocaleString('vi-VN')} đ
+                  </strong>
+                </div>
+              </div>
+
+              {/* Ghi chú nếu có */}
+              {selectedDebtDetail.notes && (
+                <div className="rounded-xl bg-[#fffbeb] p-3 text-[#92400e]">
+                  <p className="font-bold">Ghi chú:</p>
+                  <p className="mt-1 text-xs">{selectedDebtDetail.notes}</p>
+                </div>
+              )}
+
+              {/* Hộp chỉ dẫn nếu là khoản nợ từ Quản lý nợ giống bản App */}
+              <div className="flex items-start gap-3 rounded-xl border border-sky-200 bg-sky-50/70 p-3 text-sky-900">
+                <div className="mt-0.5 grid size-7 shrink-0 place-items-center rounded-lg bg-sky-100 text-sky-600">
+                  <FinanceIcon name="info" size={16} />
+                </div>
+                <div className="flex-1 space-y-1">
+                  <p className="font-bold text-sky-900 text-xs">Khoản nợ liên kết</p>
+                  <p className="text-[11px] leading-relaxed text-sky-700">
+                    Lịch này được tự động đồng bộ từ mục Quản lý nợ. Để chỉnh sửa số tiền, hạn trả hoặc xóa khoản nợ, vui lòng vào màn hình Quản lý nợ.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Các nút hành động ở chân modal */}
+            <div className="mt-5 flex items-center justify-end gap-2 border-t border-[#f1f5f2] pt-4">
+              <button
+                type="button"
+                onClick={() => {
+                  setSelectedDebtDetail(null);
+                  window.location.href = '/debts';
+                }}
+                className="inline-flex items-center gap-1.5 rounded-xl border border-sky-300 bg-sky-50 px-4 py-2.5 text-xs font-semibold text-sky-800 hover:bg-sky-100 transition shadow-sm cursor-pointer"
+              >
+                <span>Đến Quản lý nợ</span>
+                <FinanceIcon name="arrow-right" size={13} />
+              </button>
+              <button
+                type="button"
+                onClick={() => setSelectedDebtDetail(null)}
+                className="btn-detail-close rounded-xl border border-[#e2e8e4] bg-[#f8faf9] px-5 py-2.5 text-xs font-semibold text-[#475569] hover:bg-[#f1f5f9] transition cursor-pointer"
               >
                 Đóng
               </button>
@@ -1542,6 +1797,19 @@ export function FinancialRemindersScreen({ onNotify }: Props) {
           </div>
         </div>
       )}
+
+      {/* MODAL XÁC NHẬN XÓA LỊCH TÀI CHÍNH TỰ THIẾT KẾ ĐỒNG BỘ */}
+      <ConfirmDeleteModal
+        isOpen={Boolean(scheduleToDelete)}
+        title="Xác nhận xóa lịch?"
+        subtitle="Lịch tài chính này sẽ bị xóa bỏ"
+        itemName={scheduleToDelete?.name}
+        itemTypeLabel="Tên lịch"
+        message={scheduleToDelete ? `Bạn có chắc chắn muốn xóa lịch "${scheduleToDelete.name}" khỏi danh sách nhắc hẹn định kỳ không?` : ''}
+        isDeleting={isDeletingSchedule}
+        onConfirm={confirmDeleteSchedule}
+        onClose={() => setScheduleToDelete(null)}
+      />
     </main>
   );
 }

@@ -1,9 +1,10 @@
 import React from 'react';
 import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
-import { FinanceIcon } from '../../core/components/FinanceIcon';
 import { themeTokens } from '../themeTokens';
+import { useAppTheme } from '../../../context/ThemeContext';
 
 type Props = {
+  isChildAccount?: boolean;
   onAddTransaction: () => void;
   onViewAccounts: () => void;
   onViewGoals: () => void;
@@ -12,6 +13,11 @@ type Props = {
   onViewSpendingAnalysis: () => void;
   onViewReminders: () => void;
   onViewPeriodicReports: () => void;
+  onViewChildWallet?: () => void;
+  onViewChildChores?: () => void;
+  onViewChildRequests?: () => void;
+  onViewAiAssistant?: () => void;
+  onViewGroupFamily?: () => void;
 };
 
 // Danh sách PNG Icon 3D gốc chất lượng cao
@@ -24,9 +30,16 @@ const actionIcons = {
   analytics: require('../../../assets/icons/icon_spending_analysis.png'),
   calendar: require('../../../assets/icons/icon_financial_calendar.png'),
   reports: require('../../../assets/icons/icon_periodic_reports.png'),
+  // 5 Icon 3D dành riêng cho tài khoản bé
+  kidWallet: require('../../../assets/icons/kid_icon_wallet.png'),
+  kidRequests: require('../../../assets/icons/kid_icon_requests.png'),
+  kidChores: require('../../../assets/icons/kid_icon_chores.png'),
+  kidAi: require('../../../assets/icons/kid_icon_ai.png'),
+  kidFamily: require('../../../assets/icons/kid_icon_family.png'),
 };
 
 export function QuickActionsGrid({
+  isChildAccount = false,
   onAddTransaction,
   onViewAccounts,
   onViewGoals,
@@ -35,9 +48,67 @@ export function QuickActionsGrid({
   onViewSpendingAnalysis,
   onViewReminders,
   onViewPeriodicReports,
+  onViewChildWallet,
+  onViewChildChores,
+  onViewChildRequests,
+  onViewAiAssistant,
+  onViewGroupFamily,
 }: Props) {
-  // 8 chức năng chính: 4 cột x 2 hàng
-  const actions = [
+  const { isDark, colors: themeColors } = useAppTheme();
+  // Nếu là tài khoản Trẻ em: Hiển thị đúng 8 chức năng chuẩn với bộ 5 Icon 3D mới + 3 icon gốc
+  const childActions = [
+    {
+      id: 'add',
+      title: 'Thêm giao dịch',
+      image: actionIcons.add,
+      onPress: onAddTransaction,
+    },
+    {
+      id: 'kid-wallet',
+      title: 'Ví của bé',
+      image: actionIcons.kidWallet,
+      onPress: onViewChildWallet || onViewAccounts,
+    },
+    {
+      id: 'kid-chores',
+      title: 'Nhiệm vụ nhận thưởng',
+      image: actionIcons.kidChores,
+      onPress: onViewChildChores || (() => {}),
+    },
+    {
+      id: 'kid-requests',
+      title: 'Xin tiền bố mẹ',
+      image: actionIcons.kidRequests,
+      onPress: onViewChildRequests || (() => {}),
+    },
+    {
+      id: 'goals',
+      title: 'Mục tiêu và tiết kiệm',
+      image: actionIcons.goals,
+      onPress: onViewGoals,
+    },
+    {
+      id: 'reports',
+      title: 'Báo cáo của em',
+      image: actionIcons.reports,
+      onPress: onViewPeriodicReports,
+    },
+    {
+      id: 'kid-ai',
+      title: 'AI thông minh',
+      image: actionIcons.kidAi,
+      onPress: onViewAiAssistant || (() => {}),
+    },
+    {
+      id: 'kid-family',
+      title: 'Gia đình của em',
+      image: actionIcons.kidFamily,
+      onPress: onViewGroupFamily || (() => {}),
+    },
+  ];
+
+  // Danh sách 8 chức năng chuẩn cho người lớn
+  const adultActions = [
     {
       id: 'add',
       title: 'Thêm giao dịch',
@@ -88,28 +159,41 @@ export function QuickActionsGrid({
     },
   ];
 
+  const actions = isChildAccount ? childActions : adultActions;
+
   return (
     <View style={styles.gridContainer}>
       {actions.map((item) => (
         <Pressable
           key={item.id}
           onPress={item.onPress}
-          style={({ pressed }) => [styles.actionCard, pressed && styles.pressed]}
+          style={({ pressed }) => [
+            styles.actionCard,
+            {
+              backgroundColor: themeColors.surface,
+              borderColor: isDark ? themeColors.cardBorder : themeTokens.colors.border,
+            },
+            pressed && styles.pressed,
+          ]}
         >
           {/* Cố định vùng Icon */}
           <View style={styles.iconContainer}>
-            {item.image ? (
-              <Image source={item.image} style={styles.iconImage} resizeMode="contain" />
-            ) : item.vectorIcon ? (
-              <View style={[styles.vectorIconBox, { backgroundColor: item.vectorIcon.bg }]}>
-                <FinanceIcon name={item.vectorIcon.name as any} size={28} color={item.vectorIcon.color} />
-              </View>
-            ) : null}
+            <Image
+              source={item.image}
+              style={styles.iconImage}
+              resizeMode="contain"
+            />
           </View>
 
           {/* Cố định vùng Title */}
           <View style={styles.titleContainer}>
-            <Text style={styles.actionTitleText} numberOfLines={2}>
+            <Text
+              style={[
+                styles.actionTitleText,
+                { color: themeColors.textPrimary },
+              ]}
+              numberOfLines={2}
+            >
               {item.title}
             </Text>
           </View>

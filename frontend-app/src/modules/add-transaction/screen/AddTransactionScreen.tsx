@@ -17,7 +17,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
-  ArrowLeft,
+  ChevronLeft,
   ArrowLeftRight,
   BarChart3,
   Calendar,
@@ -39,8 +39,16 @@ import {
   type TransactionType,
 } from '../api/transactionApi';
 import { findBankOrWalletPreset } from '../../accounts/constants/banksData';
+import { authStorage } from '../../auth/api/authApi';
+import { groupApi } from '../../group/api/groupApi';
 
-// 6 Bộ hình nền sóng 3D và minh họa 3D cho 3 tab: Chi tiêu, Thu nhập, Chuyển khoản
+// Danh mục thu nhập đặc thù cho bé (giống hệt bản Web)
+const KID_INCOME_CATEGORIES: CategoryItem[] = [
+  { id: 'kid_gift', name: 'Người thân cho / Quà tặng', icon: 'gift', color: '#ec4899', kind: 'INCOME' },
+  { id: 'kid_lixi', name: 'Tiền lì xì Tết', icon: 'coins', color: '#ef4444', kind: 'INCOME' },
+  { id: 'kid_award', name: 'Thưởng học tập & thành tích', icon: 'spark', color: '#f59e0b', kind: 'INCOME' },
+  { id: 'kid_other', name: 'Thu nhập khác của bé', icon: 'wallet', color: '#10b981', kind: 'INCOME' },
+];
 const BG_EXPENSE_WAVE = require('../assets/bg-expense-wave.jpg');
 const BG_INCOME_WAVE = require('../assets/bg-income-wave.jpg');
 const BG_TRANSFER_WAVE = require('../assets/bg-transfer-wave.jpg');
@@ -71,6 +79,9 @@ export function AddTransactionScreen({ onBack, onSaved, onOpenInvoiceScanner }: 
   const amountInputRef = useRef<TextInput>(null);
 
   // Tab: Chi tiêu | Thu nhập | Chuyển khoản
+  const currentUser = authStorage.getUser();
+  const isChildAccount = Boolean(currentUser?.childAccount && currentUser.childWalletId && currentUser.childWalletGroupId);
+
   const [type, setType] = useState<TransactionType>('EXPENSE');
 
   // Backend Data
@@ -109,6 +120,26 @@ export function AddTransactionScreen({ onBack, onSaved, onOpenInvoiceScanner }: 
     async function loadData() {
       try {
         setLoading(true);
+        const user = authStorage.getUser();
+        if (user?.childAccount && user?.childWalletGroupId && user?.childWalletId) {
+          // Tài khoản bé: Sử dụng trực tiếp Ví của bé làm tài khoản thanh toán duy nhất
+          const kWallet = await groupApi.getChildWallet(user.childWalletGroupId, user.childWalletId).catch(() => null);
+          const childAccount: AccountItem = {
+            id: user.childWalletId,
+            name: user.childWalletName || `Ví của ${user.fullName || 'bé'}`,
+            accountType: 'CASH',
+            currencyCode: 'VND',
+            balance: Number(kWallet?.balance || 0),
+          };
+          if (isMounted) {
+            setAccounts([childAccount]);
+            setSelectedAccountId(childAccount.id);
+            const cats = await transactionApi.getCategories();
+            setCategories(cats);
+          }
+          return;
+        }
+
         const [cats, accs] = await Promise.all([
           transactionApi.getCategories(),
           transactionApi.getAccounts(),
@@ -137,8 +168,11 @@ export function AddTransactionScreen({ onBack, onSaved, onOpenInvoiceScanner }: 
 
   const filteredCategories = useMemo(() => {
     if (type === 'TRANSFER') return [];
+    if (isChildAccount && type === 'INCOME') {
+      return KID_INCOME_CATEGORIES;
+    }
     return categories.filter((c) => c.kind === type);
-  }, [categories, type]);
+  }, [categories, type, isChildAccount]);
 
   useEffect(() => {
     if (type === 'TRANSFER') {
@@ -161,7 +195,11 @@ export function AddTransactionScreen({ onBack, onSaved, onOpenInvoiceScanner }: 
     }
   }, [type, filteredCategories]);
 
-  const selectedCategoryObj = categories.find((c) => c.id === selectedCategoryId);
+  const allAvailableCategories = useMemo(() => {
+    return [...categories, ...KID_INCOME_CATEGORIES];
+  }, [categories]);
+
+  const selectedCategoryObj = allAvailableCategories.find((c) => c.id === selectedCategoryId);
   const selectedAccountObj = accounts.find((a) => a.id === selectedAccountId);
   const toAccountObj = accounts.find((a) => a.id === toAccountId);
 
@@ -212,6 +250,32 @@ export function AddTransactionScreen({ onBack, onSaved, onOpenInvoiceScanner }: 
 
     try {
       setSubmitting(true);
+      const user = authStorage.getUser();
+
+      // Nếu là tài khoản trẻ em -> Ghi thẳng vào ví của bé qua API group child-wallet transaction
+      if (user?.childAccount && user?.childWalletGroupId && user?.childWalletId) {
+        let desc = description.trim();
+        if (type === 'INCOME') {
+          desc = `[INCOME_GIFT] ${desc || selectedCategoryObj?.name || 'Tiền người thân cho / Lì xì'}`;
+        } else {
+          // Lấy theo tên danh mục (Ăn uống, Mua sắm, v.v...) nếu bé không nhập ghi chú
+          desc = desc || selectedCategoryObj?.name || 'Ăn uống';
+        }
+
+        const res = await groupApi.createDirectChildSpend(user.childWalletGroupId, user.childWalletId, {
+          amount: numericAmount,
+          description: desc,
+          categoryId: selectedCategoryId || undefined,
+        });
+
+        Alert.alert(
+          'Thành công',
+          `Đã ghi nhận ${type === 'EXPENSE' ? 'khoản chi' : 'khoản thu'} ${formatVND(numericAmount)} ₫ vào Ví của em`,
+          [{ text: 'Xong', onPress: onSaved }]
+        );
+        return;
+      }
+
       const now = new Date();
 
       let finalDate = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
@@ -272,7 +336,7 @@ export function AddTransactionScreen({ onBack, onSaved, onOpenInvoiceScanner }: 
         cursorColor: '#22C55E',
         catIconBg: '#DCFCE7',
         catIconColor: '#15803D',
-        defaultCatName: 'Lương',
+        defaultCatName: isChildAccount ? 'Người thân cho / Quà tặng' : 'Lương',
         defaultCatIcon: 'gift',
         saveLabel: 'Lưu khoản thu',
       };
@@ -317,13 +381,14 @@ export function AddTransactionScreen({ onBack, onSaved, onOpenInvoiceScanner }: 
         resizeMode="cover"
       />
 
-      {/* ── 1. HEADER SÁNG TRẮNG GỌN GÀNG: ← Thêm giao dịch | [Quét] ── */}
+      {/* ── 1. HEADER SÁNG TRẮNG GỌN GÀNG: < Thêm giao dịch | [Quét] ── */}
       <View style={[styles.header, { paddingTop: Math.max(insets.top, 10) + 4 }]}>
-        <Pressable onPress={onBack} hitSlop={12} style={styles.backButton}>
-          <ArrowLeft size={25} color="#0F172A" strokeWidth={2.5} />
-        </Pressable>
-
-        <Text style={styles.headerTitle}>Thêm giao dịch</Text>
+        <View style={styles.headerLeftCol}>
+          <Pressable onPress={onBack} hitSlop={12} style={styles.headerIconBtn}>
+            <FinanceIcon name="chevron-left" size={22} color="#047857" />
+          </Pressable>
+          <Text style={styles.headerTitle} numberOfLines={1}>Thêm giao dịch</Text>
+        </View>
 
         {onOpenInvoiceScanner ? (
           <Pressable
@@ -377,19 +442,22 @@ export function AddTransactionScreen({ onBack, onSaved, onOpenInvoiceScanner }: 
             </Text>
           </Pressable>
 
-          <Pressable
-            onPress={() => setType('TRANSFER')}
-            style={[styles.pillBtn, type === 'TRANSFER' && styles.pillBtnTransfer]}
-          >
-            <ArrowLeftRight
-              size={18}
-              color={type === 'TRANSFER' ? '#FFFFFF' : '#475569'}
-              strokeWidth={2.4}
-            />
-            <Text style={[styles.pillText, type === 'TRANSFER' && styles.pillTextActive]}>
-              Chuyển khoản
-            </Text>
-          </Pressable>
+          {/* Ẩn tab Chuyển khoản nếu là tài khoản trẻ em (ví của bé chỉ có Thu và Chi) */}
+          {!isChildAccount && (
+            <Pressable
+              onPress={() => setType('TRANSFER')}
+              style={[styles.pillBtn, type === 'TRANSFER' && styles.pillBtnTransfer]}
+            >
+              <ArrowLeftRight
+                size={18}
+                color={type === 'TRANSFER' ? '#FFFFFF' : '#475569'}
+                strokeWidth={2.4}
+              />
+              <Text style={[styles.pillText, type === 'TRANSFER' && styles.pillTextActive]}>
+                Chuyển khoản
+              </Text>
+            </Pressable>
+          )}
         </View>
 
         {/* ── 3. THẺ HERO SỐ TIỀN GIAO DỊCH NỀN SÓNG 3D + HÌNH MINH HỌA 3D ── */}
@@ -545,8 +613,14 @@ export function AddTransactionScreen({ onBack, onSaved, onOpenInvoiceScanner }: 
           </View>
 
           <Pressable
-            onPress={() => setAccountModalVisible(true)}
-            style={({ pressed }) => [styles.accountCard, pressed && styles.pressed]}
+            onPress={() => {
+              // Bé chỉ có 1 ví duy nhất nên không cần mở modal chọn ví
+              if (!isChildAccount) {
+                setAccountModalVisible(true);
+              }
+            }}
+            disabled={isChildAccount}
+            style={({ pressed }) => [styles.accountCard, !isChildAccount && pressed && styles.pressed]}
           >
             <View style={styles.accountCardTop}>
               <View style={styles.selectCardLeft}>
@@ -578,7 +652,10 @@ export function AddTransactionScreen({ onBack, onSaved, onOpenInvoiceScanner }: 
                   </Text>
                 </View>
               </View>
-              <ChevronDown size={21} color="#334155" strokeWidth={2.4} />
+              {/* Nếu không phải tài khoản trẻ em thì mới hiện mũi tên chọn ví */}
+              {!isChildAccount && (
+                <ChevronDown size={21} color="#334155" strokeWidth={2.4} />
+              )}
             </View>
 
             {/* Dải hiển thị số dư khả dụng màu xanh mint nhạt */}
@@ -936,17 +1013,27 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
   },
-  backButton: {
+  headerLeftCol: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    flex: 1,
+    paddingRight: 8,
+  },
+  headerIconBtn: {
     width: 36,
     height: 36,
+    borderRadius: 18,
+    alignItems: 'center',
     justifyContent: 'center',
-    alignItems: 'flex-start',
+    backgroundColor: '#F0FDF4',
   },
   headerTitle: {
     color: '#0F172A',
-    fontSize: 19,
+    fontSize: 18,
     fontWeight: '800',
     letterSpacing: -0.3,
+    flexShrink: 1,
   },
   scanBtn: {
     flexDirection: 'row',

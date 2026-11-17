@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { FinanceIcon } from '../../core/components/FinanceIcon';
+import { ConfirmDeleteModal } from '../../core/components/ConfirmDeleteModal';
 import {
   goalApi,
   type GoalResponse,
@@ -7,9 +8,82 @@ import {
   type GoalPriority,
 } from '../api/goalApi';
 import { accountApi, type AccountItem } from '../../account-management/api/accountApi';
+import { getStoredUser } from '../../auth/api/authApi';
+import { groupApi } from '../../group/api/groupApi';
 import './GoalsManagementScreen.css';
 
 type Props = { onNotify: (message: string) => void };
+
+// Danh mục Mục tiêu 3D cho trẻ em (Kids)
+export const KID_GOAL_TYPES = [
+  {
+    label: 'Đồ chơi & Giải trí',
+    value: 'PURCHASE' as GoalType,
+    iconKey: 'shopping',
+    image: '/goal_cat_shopping_3d.png',
+    desc: 'Lego, gấu bông, robot, truyện tranh, game...',
+  },
+  {
+    label: 'Dụng cụ học tập & Sách',
+    value: 'EDUCATION' as GoalType,
+    iconKey: 'education',
+    image: '/goal_cat_education_3d.png',
+    desc: 'Hộp bút màu, cặp sách, sách khám phá thế giới...',
+  },
+  {
+    label: 'Chuyến đi chơi cùng gia đình',
+    value: 'VACATION' as GoalType,
+    iconKey: 'travel',
+    image: '/goal_cat_travel_3d.png',
+    desc: 'Vé công viên nước, sở thú, xem phim cuối tuần...',
+  },
+  {
+    label: 'Quà tặng bố mẹ & người thân',
+    value: 'EMERGENCY_FUND' as GoalType,
+    iconKey: 'family',
+    image: '/goal_cat_family_3d.png',
+    desc: 'Mua quà sinh nhật cho bố mẹ, anh chị em...',
+  },
+  {
+    label: 'Ước mơ khác của bé',
+    value: 'OTHER' as GoalType,
+    iconKey: 'other',
+    image: '/goal_cat_other_3d.png',
+    desc: 'Nuôi heo đất, xe đạp mới, quần áo đẹp...',
+  },
+];
+
+// Danh mục Tiết kiệm cho bé (Kids)
+export const KID_SAVING_TYPES = [
+  {
+    label: 'Nuôi heo đất tiết kiệm',
+    value: 'Nuôi heo đất tiết kiệm',
+    iconKey: 'saving_free',
+    image: '/saving_cat_free_3d.png',
+    desc: 'Bỏ ống heo tiền lì xì, tiền thưởng làm việc nhà...',
+  },
+  {
+    label: 'Tiết kiệm mua đồ yêu thích',
+    value: 'Tiết kiệm mua đồ yêu thích',
+    iconKey: 'saving_term',
+    image: '/saving_cat_term_3d.png',
+    desc: 'Tích lũy từng tuần để tự mua món đồ mình thích...',
+  },
+  {
+    label: 'Quỹ khẩn cấp của bé',
+    value: 'Quỹ khẩn cấp của bé',
+    iconKey: 'saving_emergency',
+    image: '/saving_cat_emergency_3d.png',
+    desc: 'Để dành phòng khi đi học quên đồ, việc đột xuất...',
+  },
+  {
+    label: 'Khoản tiết kiệm khác',
+    value: 'Khác',
+    iconKey: 'saving_other',
+    image: '/saving_cat_other_3d.png',
+    desc: 'Khoản tiết kiệm tự do linh hoạt của bé...',
+  },
+];
 
 // Danh mục Mục tiêu 3D chuẩn như bản App
 export const GOAL_TYPES = [
@@ -166,10 +240,15 @@ function formatGoalDateTime(dateStr?: string | null): string {
 }
 
 export function GoalsManagementScreen({ onNotify }: Props) {
+  const currentUser = getStoredUser();
+  const isChildAccount = Boolean(currentUser?.childAccount);
   const [activeTab, setActiveTab] = useState<'goals' | 'savings'>('goals');
   const [allGoals, setAllGoals] = useState<GoalResponse[]>([]);
   const [accounts, setAccounts] = useState<AccountItem[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+
+  const activeGoalTypes = isChildAccount ? KID_GOAL_TYPES : GOAL_TYPES;
+  const activeSavingTypes = isChildAccount ? KID_SAVING_TYPES : SAVING_TYPES;
 
   // Modals Tạo mới
   const [showCreateGoalModal, setShowCreateGoalModal] = useState(false);
@@ -186,7 +265,7 @@ export function GoalsManagementScreen({ onNotify }: Props) {
 
   // Form tạo Saving
   const [savingName, setSavingName] = useState('');
-  const [savingCategory, setSavingCategory] = useState(SAVING_TYPES[1].value);
+  const [savingCategory, setSavingCategory] = useState(activeSavingTypes[0].value);
   const [savingInitialAmount, setSavingInitialAmount] = useState('');
   const [savingDesc, setSavingDesc] = useState('');
   const [isSubmittingSaving, setIsSubmittingSaving] = useState(false);
@@ -288,9 +367,34 @@ export function GoalsManagementScreen({ onNotify }: Props) {
         accountApi.getAccounts().catch(() => []),
       ]);
       setAllGoals(goalRes.goals || []);
-      setAccounts(accRes || []);
-      if (accRes && accRes.length > 0 && !txAccount) {
-        setTxAccount(accRes[0].id);
+
+      // Nếu là tài khoản trẻ em và chưa có ví tài khoản người lớn, nạp thông tin ví của bé
+      let finalAccounts = accRes || [];
+      if (isChildAccount && currentUser?.childWalletGroupId && currentUser?.childWalletId) {
+        try {
+          const childWalletRes = await groupApi.getChildWallet(currentUser.childWalletGroupId, currentUser.childWalletId);
+          if (childWalletRes) {
+            const kidWalletAcc: AccountItem = {
+              id: childWalletRes.id,
+              name: `Ví của ${childWalletRes.childName || currentUser.fullName || 'bé'}`,
+              type: 'CASH',
+              currencyCode: childWalletRes.currency || 'VND',
+              balance: childWalletRes.balance || 0,
+              icon: 'wallet',
+              color: '#10b981',
+              createdAt: childWalletRes.createdAt || new Date().toISOString(),
+              updatedAt: childWalletRes.updatedAt || new Date().toISOString(),
+            };
+            finalAccounts = [kidWalletAcc, ...finalAccounts];
+          }
+        } catch {
+          // ignore
+        }
+      }
+
+      setAccounts(finalAccounts);
+      if (finalAccounts.length > 0 && !txAccount) {
+        setTxAccount(finalAccounts[0].id);
       }
     } catch {
       onNotify('Không thể tải dữ liệu mục tiêu & tiết kiệm.');
@@ -361,7 +465,7 @@ export function GoalsManagementScreen({ onNotify }: Props) {
 
     try {
       setIsSubmittingGoal(true);
-      const selectedTypeObj = GOAL_TYPES.find((t) => t.value === goalType) || GOAL_TYPES[0];
+      const selectedTypeObj = activeGoalTypes.find((t) => t.value === goalType) || activeGoalTypes[0];
       await goalApi.createGoal({
         name: goalName.trim(),
         goalType,
@@ -400,7 +504,7 @@ export function GoalsManagementScreen({ onNotify }: Props) {
 
     try {
       setIsSubmittingSaving(true);
-      const selectedTypeObj = SAVING_TYPES.find((t) => t.value === savingCategory) || SAVING_TYPES[1];
+      const selectedTypeObj = activeSavingTypes.find((t) => t.value === savingCategory) || activeSavingTypes[0];
       await goalApi.createGoal({
         name: savingName.trim(),
         goalType: 'EMERGENCY_FUND',
@@ -475,16 +579,25 @@ export function GoalsManagementScreen({ onNotify }: Props) {
 
     try {
       setIsSubmittingTx(true);
+      const targetAccountIdParam = txAccount || (accounts.length > 0 ? accounts[0].id : undefined);
       await goalApi.withdraw(selectedGoal.id, {
         amount,
         note: txNote.trim() || undefined,
-        targetAccountId: txAccount || undefined,
+        targetAccountId: targetAccountIdParam,
       });
 
       onNotify(`Đã rút ${formatVND(amount)} từ "${selectedGoal.name}" về tài khoản!`);
       setShowWithdrawModal(false);
       setTxAmount('');
       setTxNote('');
+
+      // Đồng bộ số dư nếu là ví trẻ em
+      if (isChildAccount && currentUser?.childWalletGroupId && currentUser?.childWalletId) {
+        groupApi.createChildTransaction(currentUser.childWalletGroupId, currentUser.childWalletId, {
+          amount,
+          description: `[INCOME_GIFT] Rút từ mục tiêu tiết kiệm "${selectedGoal.name}" về ví`,
+        }).catch(() => { });
+      }
 
       // Refresh lại chi tiết
       const updated = await goalApi.getGoalById(selectedGoal.id);
@@ -497,16 +610,29 @@ export function GoalsManagementScreen({ onNotify }: Props) {
     }
   };
 
-  // Xóa
-  const handleDelete = async (g: GoalResponse) => {
-    if (!window.confirm(`Bạn có chắc chắn muốn xóa "${g.name}" không?`)) return;
+  // Xóa mục tiêu
+  const [goalToDelete, setGoalToDelete] = useState<GoalResponse | null>(null);
+  const [isDeletingGoal, setIsDeletingGoal] = useState(false);
+
+  // Mở popup xác nhận xóa
+  const handleDelete = (g: GoalResponse) => {
+    setGoalToDelete(g);
+  };
+
+  // Xác nhận xóa
+  const confirmDeleteGoal = async () => {
+    if (!goalToDelete) return;
+    setIsDeletingGoal(true);
     try {
-      await goalApi.deleteGoal(g.id);
-      onNotify('Đã xóa thành công!');
+      await goalApi.deleteGoal(goalToDelete.id);
+      onNotify(`Đã xóa thành công mục tiêu "${goalToDelete.name}"!`);
+      setGoalToDelete(null);
       setSelectedGoal(null);
       loadData();
     } catch {
       onNotify('Xóa thất bại. Vui lòng thử lại sau.');
+    } finally {
+      setIsDeletingGoal(false);
     }
   };
 
@@ -528,10 +654,12 @@ export function GoalsManagementScreen({ onNotify }: Props) {
                 <span className="text-xl sm:text-2xl font-black text-[#006747] dark:text-emerald-400 tracking-tight">
                   {totalAccumulated.toLocaleString('vi-VN')} <span className="text-sm font-bold text-[#006747] dark:text-emerald-400">đ</span>
                 </span>
-                <span className="inline-flex items-center gap-1 text-[11px] font-bold text-[#00a86b] bg-[#e6f9f0] dark:bg-emerald-950/60 dark:text-emerald-300 px-2 py-0.5 rounded-full shrink-0">
-                  <FinanceIcon name="trend" size={11} color="#00a86b" />
-                  +12,4%
-                </span>
+                {totalTargetAmount > 0 ? (
+                  <span className="inline-flex items-center gap-1 text-[11px] font-bold text-[#00a86b] bg-[#e6f9f0] dark:bg-emerald-950/60 dark:text-emerald-300 px-2 py-0.5 rounded-full shrink-0" title={`Đạt ${completionPercent}% so với tổng mục tiêu ${totalTargetAmount.toLocaleString('vi-VN')} đ`}>
+                    <FinanceIcon name="trend" size={11} color="#00a86b" />
+                    {completionPercent}%
+                  </span>
+                ) : null}
               </div>
             </div>
           </div>
@@ -783,15 +911,14 @@ export function GoalsManagementScreen({ onNotify }: Props) {
               <div>
                 <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">Loại mục tiêu</label>
                 <div className="grid grid-cols-2 gap-2 max-h-44 overflow-y-auto pr-1">
-                  {GOAL_TYPES.map((t) => (
+                  {activeGoalTypes.map((t) => (
                     <div
                       key={t.value}
                       onClick={() => setGoalType(t.value)}
-                      className={`p-2.5 rounded-xl border text-left cursor-pointer flex items-center gap-2.5 transition ${
-                        goalType === t.value
+                      className={`p-2.5 rounded-xl border text-left cursor-pointer flex items-center gap-2.5 transition ${goalType === t.value
                           ? 'border-[#006747] bg-emerald-50/50 dark:bg-emerald-950/40 text-[#006747] font-bold'
                           : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 text-gray-700 dark:text-gray-300'
-                      }`}
+                        }`}
                     >
                       <img src={t.image} alt={t.label} className="size-7 object-contain shrink-0" />
                       <span className="text-xs truncate">{t.label}</span>
@@ -906,15 +1033,14 @@ export function GoalsManagementScreen({ onNotify }: Props) {
               <div>
                 <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">Phân loại quỹ</label>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                  {SAVING_TYPES.map((t) => (
+                  {activeSavingTypes.map((t) => (
                     <div
                       key={t.value}
                       onClick={() => setSavingCategory(t.value)}
-                      className={`p-2.5 rounded-xl border text-left cursor-pointer flex items-center gap-2.5 transition ${
-                        savingCategory === t.value
+                      className={`p-2.5 rounded-xl border text-left cursor-pointer flex items-center gap-2.5 transition ${savingCategory === t.value
                           ? 'border-[#006747] bg-emerald-50/50 dark:bg-emerald-950/40 text-[#006747] font-bold'
                           : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 text-gray-700 dark:text-gray-300'
-                      }`}
+                        }`}
                     >
                       <img src={t.image} alt={t.label} className="size-7 object-contain shrink-0" />
                       <span className="text-xs truncate">{t.label}</span>
@@ -1224,7 +1350,7 @@ export function GoalsManagementScreen({ onNotify }: Props) {
                   </div>
                 </div>
 
-                  {/* ── RIGHT: Lịch sử nạp & rút tiền ── */}
+                {/* ── RIGHT: Lịch sử nạp & rút tiền ── */}
                 <div className="lg:border-l lg:border-gray-100 dark:lg:border-slate-800 lg:pl-6 mt-6 lg:mt-0">
                   <div className="flex items-center gap-2 mb-4">
                     <FinanceIcon name="file-text" size={18} color="#006747" />
@@ -1267,7 +1393,7 @@ export function GoalsManagementScreen({ onNotify }: Props) {
                           try {
                             const d = new Date(ct.contributedAt);
                             if (!isNaN(d.getTime())) {
-                              dateLabel = `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')} • ${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}/${d.getFullYear()}`;
+                              dateLabel = `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')} • ${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
                             }
                           } catch { /* ignore */ }
                         }
@@ -1668,6 +1794,23 @@ export function GoalsManagementScreen({ onNotify }: Props) {
           </div>
         </div>
       )}
+
+      {/* CUSTOM CONFIRM DELETE GOAL MODAL */}
+      <ConfirmDeleteModal
+        isOpen={Boolean(goalToDelete)}
+        title="Xác nhận xóa mục tiêu?"
+        subtitle="Mục tiêu tích lũy này sẽ bị xóa bỏ"
+        itemName={goalToDelete?.name}
+        itemTypeLabel="Mục tiêu"
+        message={
+          goalToDelete
+            ? `Bạn có chắc chắn muốn xóa mục tiêu "${goalToDelete.name}" không? Toàn bộ kế hoạch và tiến trình tích lũy của mục tiêu này sẽ bị xóa.`
+            : ''
+        }
+        isDeleting={isDeletingGoal}
+        onConfirm={confirmDeleteGoal}
+        onClose={() => setGoalToDelete(null)}
+      />
     </main>
   );
 }

@@ -499,20 +499,23 @@ export function resolveCategoryIconName(iconOrEmoji?: string, fallbackKind?: str
     return 'map'
   }
 
-  // 12. Tiết kiệm / Heo đất
-  if (str.includes('tiết kiệm') || str.includes('heo đất') || iconOrEmoji === 'piggy-bank') {
-    return 'piggy-bank'
-  }
-
-  // 13. Đầu tư / Chứng khoán
+  // 12. Tiết kiệm / Đầu tư / Heo đất / Mục tiêu tích lũy
   if (
+    str.includes('tiết kiệm') ||
+    str.includes('heo đất') ||
+    str.includes('tích lũy') ||
+    str.includes('mục tiêu') ||
     str.includes('đầu tư') ||
     str.includes('chứng khoán') ||
     str.includes('cổ phiếu') ||
+    str.includes('savings') ||
+    str.includes('investment') ||
+    iconOrEmoji === 'piggy-bank' ||
+    iconOrEmoji === 'savings' ||
     iconOrEmoji === 'trending-up' ||
     iconOrEmoji === 'trend'
   ) {
-    return 'trending-up'
+    return 'piggy-bank'
   }
 
   // 14. Bảo hiểm

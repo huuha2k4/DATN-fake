@@ -1,4 +1,4 @@
-﻿import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { FinanceIcon, resolveCategoryIconName, type IconName } from '../../core/components/FinanceIcon';
 import { accountApi, type AccountItem, type AccountSummary } from '../../account-management/api/accountApi';
 import { transactionApi, type TransactionItem } from '../../cash-flow-management/api/transactionApi';
@@ -11,6 +11,14 @@ import './DashboardScreen.css';
 type Props = {
   onNotify: (message: string) => void;
   onAddTransaction: () => void;
+};
+
+// Định dạng ngày hiển thị dd/mm/yyyy
+const formatDisplayDate = (dateStr?: string | null): string => {
+  if (!dateStr) return '';
+  const [year, month, day] = dateStr.split('-');
+  if (year && month && day) return `${day}/${month}/${year}`;
+  return dateStr;
 };
 
 // Định dạng tiền tệ VND chuẩn rõ nét, đậm đà
@@ -310,9 +318,11 @@ export function DashboardScreen({ onNotify, onAddTransaction }: Props) {
     accounts.filter(a => a.accountType !== 'CREDIT_CARD').reduce((s, a) => s + (a.balance || 0), 0);
 
   // Tính tỷ lệ tăng / giảm % của Tổng số dư khả dụng so với tháng trước kề nó
-  // baseline (số dư đầu tháng / cuối tháng trước) = totalAssets - dòng tiền ròng tháng này
+  // Chuẩn tài chính kế toán:
+  // Số dư đầu kỳ (cuối tháng trước) = Số dư hiện tại - Dòng tiền ròng tích lũy tháng này (Thu - Chi)
+  // % Thay đổi = (Dòng tiền ròng tháng này / Số dư đầu kỳ) * 100
   const { balanceChangeRate, baselinePrevMonth } = useMemo(() => {
-    // Nếu có netWorthTrend30Days từ accountSummary
+    // 1. Nếu có lịch sử Net Worth từ accountSummary
     if (accountSummary?.netWorthTrend30Days && accountSummary.netWorthTrend30Days.length >= 2) {
       const history = accountSummary.netWorthTrend30Days;
       const oldestNet = Number(history[0].netWorth);
@@ -323,20 +333,20 @@ export function DashboardScreen({ onNotify, onAddTransaction }: Props) {
       }
     }
 
-    // Cách tính chuẩn tài chính: Số dư tháng trước = Số dư hiện tại - Biến động ròng tháng này
+    // 2. Tính theo số dư đầu kỳ (Số dư hiện tại - Biến động ròng tháng này)
     const prevBalance = totalAssets - monthSummary.netCashFlow;
     if (prevBalance > 0) {
-      const diff = totalAssets - prevBalance;
-      const rate = (diff / prevBalance) * 100;
+      const rate = (monthSummary.netCashFlow / prevBalance) * 100;
       return { balanceChangeRate: Math.round(rate * 10) / 10, baselinePrevMonth: prevBalance };
     }
-    // Nếu có dữ liệu dòng tiền tháng trước từ API
-    if (prevMonthBalance !== null && prevMonthBalance > 0) {
-      const rate = ((monthSummary.netCashFlow - prevMonthBalance) / prevMonthBalance) * 100;
-      return { balanceChangeRate: Math.round(rate * 10) / 10, baselinePrevMonth: prevMonthBalance };
+
+    // 3. Nếu số dư tháng trước bằng 0 hoặc chưa có biến động
+    if (totalAssets > 0 && prevBalance <= 0) {
+      return { balanceChangeRate: 100, baselinePrevMonth: 0 };
     }
+
     return { balanceChangeRate: null, baselinePrevMonth: null };
-  }, [totalAssets, monthSummary.netCashFlow, accountSummary, prevMonthBalance]);
+  }, [totalAssets, monthSummary.netCashFlow, accountSummary]);
 
   // Tổng quan luôn gọn: chỉ hiển thị 5 giao dịch mới nhất.
   const visibleTransactions = transactions.slice(0, 5);
@@ -614,7 +624,7 @@ export function DashboardScreen({ onNotify, onAddTransaction }: Props) {
                             <span className="tx-category-badge rounded px-2 py-0.5 font-semibold text-[11px]">
                               {tx.category?.name || (isIncome ? 'Thu nhập' : 'Chi tiêu')}
                             </span>
-                            <span>{tx.transactionDate}</span>
+                            <span>{formatDisplayDate(tx.transactionDate)}</span>
                           </div>
                         </div>
                       </div>

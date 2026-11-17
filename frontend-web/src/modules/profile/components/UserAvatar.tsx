@@ -7,6 +7,7 @@ import './UserAvatar.css';
 interface UserAvatarProps {
   onOpenProfile: () => void;
   onOpenChangePassword: () => void;
+  onOpenFeedback?: () => void;
   onLogout: () => void;
   isAdmin?: boolean;
   onNotify?: (msg: string) => void;
@@ -36,7 +37,7 @@ function formatCurrentDate(date: Date): string {
   return `${dayName}, Ngày ${day} Tháng ${month} Năm ${year}`;
 }
 
-export function UserAvatar({ onOpenProfile, onOpenChangePassword, onLogout, isAdmin = false, onNotify: _onNotify }: UserAvatarProps) {
+export function UserAvatar({ onOpenProfile, onOpenChangePassword, onOpenFeedback, onLogout, isAdmin = false, onNotify: _onNotify }: UserAvatarProps) {
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [currentTime, setCurrentTime] = useState(new Date());
   const [user, setUser] = useState<any>(() => getStoredUser());
@@ -193,6 +194,24 @@ export function UserAvatar({ onOpenProfile, onOpenChangePassword, onLogout, isAd
             >
               <span className="menu-item-icon"><FinanceIcon name="lock" size={17} /></span>
               <span>Đổi mật khẩu</span>
+            </button>
+
+            {/* Chức năng: Phản hồi & Trợ giúp */}
+            <button
+              type="button"
+              className="menu-item-row"
+              role="menuitem"
+              onClick={() => {
+                setDropdownOpen(false);
+                if (onOpenFeedback) {
+                  onOpenFeedback();
+                } else {
+                  window.location.href = '/feedback';
+                }
+              }}
+            >
+              <span className="menu-item-icon"><FinanceIcon name="message-square" size={17} /></span>
+              <span>Phản hồi & Trợ giúp</span>
             </button>
 
             <div className="menu-divider" />

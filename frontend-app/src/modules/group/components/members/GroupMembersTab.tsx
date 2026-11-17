@@ -7,7 +7,8 @@ import { GroupInvitationResponse, GroupMemberResponse, GroupResponse } from '../
 export interface GroupMembersTabProps {
   members: GroupMemberResponse[];
   selectedGroup: GroupResponse;
-  currentUser: { id?: string; email?: string; fullName?: string; username?: string; avatarUrl?: string } | null;
+  currentUser: { id?: string; email?: string; fullName?: string; username?: string; avatarUrl?: string; childAccount?: boolean } | null;
+  isChildAccount?: boolean;
   sentPendingInvitations?: GroupInvitationResponse[];
   onCancelInvitation?: (invitationId: string, inviteeName?: string) => void;
   onInvitePress: () => void;
@@ -24,6 +25,7 @@ export const GroupMembersTab: React.FC<GroupMembersTabProps> = ({
   members,
   selectedGroup,
   currentUser,
+  isChildAccount = false,
   sentPendingInvitations = [],
   onCancelInvitation,
   onInvitePress,
@@ -55,7 +57,7 @@ export const GroupMembersTab: React.FC<GroupMembersTabProps> = ({
           <Text style={styles.sectionTitle}>
             Thành viên nhóm ({members.length}{isCoupleGroup ? '/2' : ''})
           </Text>
-          {isCoupleMaxed ? (
+          {isChildAccount ? null : isCoupleMaxed ? (
             <View style={[styles.inviteBtn, { backgroundColor: '#F1F5F9', borderColor: '#E2E8F0' }]}>
               <FinanceIcon name="check" size={14} color="#64748B" />
               <Text style={[styles.inviteBtnText, { color: '#64748B' }]}>Đã đủ 2 người</Text>
@@ -260,64 +262,66 @@ export const GroupMembersTab: React.FC<GroupMembersTabProps> = ({
         )}
       </View>
 
-      {/* KHỐI 2: QUẢN LÝ NHÓM */}
-      <View style={styles.cardContainer}>
-        <View style={styles.sectionHeaderNoBtn}>
-          <Text style={styles.sectionTitle}>Quản lý nhóm</Text>
-        </View>
-
-        <View style={styles.manageList}>
-          {/* Cài đặt nhóm */}
-          <Pressable
-            style={({ pressed }) => [styles.manageRow, pressed && { opacity: 0.7 }]}
-            onPress={onOpenGroupSettings}
-          >
-            <View style={styles.manageRowLeft}>
-              <View style={styles.manageIconWrap}>
-                <FinanceIcon name="settings" size={18} color="#059669" />
-              </View>
-              <Text style={styles.manageRowText}>Cài đặt nhóm</Text>
-            </View>
-            <FinanceIcon name="chevron-right" size={16} color="#94A3B8" />
-          </Pressable>
-
-          <View style={styles.manageDivider} />
-
-          {/* Thông báo nhóm */}
-          <View style={styles.manageRow}>
-            <View style={styles.manageRowLeft}>
-              <View style={styles.manageIconWrap}>
-                <FinanceIcon name="bell" size={18} color="#059669" />
-              </View>
-              <Text style={styles.manageRowText}>Thông báo nhóm</Text>
-            </View>
-            <Switch
-              value={notificationEnabled}
-              onValueChange={onToggleNotification}
-              trackColor={{ false: '#E2E8F0', true: '#10B981' }}
-              thumbColor={Platform.OS === 'android' ? '#FFFFFF' : undefined}
-              ios_backgroundColor="#E2E8F0"
-              style={{ transform: [{ scaleX: 0.9 }, { scaleY: 0.9 }] }}
-            />
+      {/* KHỐI 2: QUẢN LÝ NHÓM (ẨN ĐỐI VỚI TÀI KHOẢN TRẺ EM) */}
+      {!isChildAccount && (
+        <View style={styles.cardContainer}>
+          <View style={styles.sectionHeaderNoBtn}>
+            <Text style={styles.sectionTitle}>Quản lý nhóm</Text>
           </View>
 
-          <View style={styles.manageDivider} />
-
-          {/* Phân quyền */}
-          <Pressable
-            style={({ pressed }) => [styles.manageRow, pressed && { opacity: 0.7 }]}
-            onPress={() => setPermissionsModalVisible(true)}
-          >
-            <View style={styles.manageRowLeft}>
-              <View style={styles.manageIconWrap}>
-                <FinanceIcon name="shield" size={18} color="#059669" />
+          <View style={styles.manageList}>
+            {/* Cài đặt nhóm */}
+            <Pressable
+              style={({ pressed }) => [styles.manageRow, pressed && { opacity: 0.7 }]}
+              onPress={onOpenGroupSettings}
+            >
+              <View style={styles.manageRowLeft}>
+                <View style={styles.manageIconWrap}>
+                  <FinanceIcon name="settings" size={18} color="#059669" />
+                </View>
+                <Text style={styles.manageRowText}>Cài đặt nhóm</Text>
               </View>
-              <Text style={styles.manageRowText}>Phân quyền</Text>
+              <FinanceIcon name="chevron-right" size={16} color="#94A3B8" />
+            </Pressable>
+
+            <View style={styles.manageDivider} />
+
+            {/* Thông báo nhóm */}
+            <View style={styles.manageRow}>
+              <View style={styles.manageRowLeft}>
+                <View style={styles.manageIconWrap}>
+                  <FinanceIcon name="bell" size={18} color="#059669" />
+                </View>
+                <Text style={styles.manageRowText}>Thông báo nhóm</Text>
+              </View>
+              <Switch
+                value={notificationEnabled}
+                onValueChange={onToggleNotification}
+                trackColor={{ false: '#E2E8F0', true: '#10B981' }}
+                thumbColor={Platform.OS === 'android' ? '#FFFFFF' : undefined}
+                ios_backgroundColor="#E2E8F0"
+                style={{ transform: [{ scaleX: 0.9 }, { scaleY: 0.9 }] }}
+              />
             </View>
-            <FinanceIcon name="chevron-right" size={16} color="#94A3B8" />
-          </Pressable>
+
+            <View style={styles.manageDivider} />
+
+            {/* Phân quyền */}
+            <Pressable
+              style={({ pressed }) => [styles.manageRow, pressed && { opacity: 0.7 }]}
+              onPress={() => setPermissionsModalVisible(true)}
+            >
+              <View style={styles.manageRowLeft}>
+                <View style={styles.manageIconWrap}>
+                  <FinanceIcon name="shield" size={18} color="#059669" />
+                </View>
+                <Text style={styles.manageRowText}>Phân quyền</Text>
+              </View>
+              <FinanceIcon name="chevron-right" size={16} color="#94A3B8" />
+            </Pressable>
+          </View>
         </View>
-      </View>
+      )}
 
       {/* MODAL DANH SÁCH PHÂN QUYỀN TOÀN NHÓM (KHI BẤM "PHÂN QUYỀN") */}
       <Modal

@@ -7,6 +7,8 @@ import { FinanceIcon, type IconName } from '../../core/components/FinanceIcon';
 import { reportApi, type TransactionSummaryResponse, type PeriodFlowItem } from '../api/reportApi';
 import { transactionApi, type TransactionItem } from '../../cash-flow-management/api/transactionApi';
 import { accountApi, type AccountItem } from '../../account-management/api/accountApi';
+import { getStoredUser } from '../../auth/api/authApi';
+import { groupApi } from '../../group/api/groupApi';
 
 type Props = { onNotify: (message: string) => void };
 
@@ -200,8 +202,33 @@ export function FinancialReportsDashboardScreen({ onNotify }: Props) {
 
   // Tải danh sách ví / tài khoản phục vụ bộ lọc
   useEffect(() => {
-    accountApi.getAccounts().then((res) => {
-      setAccounts(res || []);
+    const user = getStoredUser();
+    const isChild = Boolean(user?.childAccount);
+
+    accountApi.getAccounts().then(async (res) => {
+      let finalAccs = res || [];
+      if (isChild && user?.childWalletGroupId && user?.childWalletId) {
+        try {
+          const kidWallet = await groupApi.getChildWallet(user.childWalletGroupId, user.childWalletId);
+          if (kidWallet) {
+            const kidAcc: AccountItem = {
+              id: kidWallet.id,
+              name: `Ví của ${kidWallet.childName || user.fullName || 'bé'}`,
+              type: 'CASH',
+              currencyCode: kidWallet.currency || 'VND',
+              balance: kidWallet.balance || 0,
+              icon: 'wallet',
+              color: '#10b981',
+              createdAt: kidWallet.createdAt || new Date().toISOString(),
+              updatedAt: kidWallet.updatedAt || new Date().toISOString(),
+            };
+            finalAccs = [kidAcc, ...finalAccs];
+          }
+        } catch {
+          // ignore
+        }
+      }
+      setAccounts(finalAccs);
     }).catch(() => { });
 
     const handleClickOutside = (e: MouseEvent) => {
@@ -245,10 +272,10 @@ export function FinancialReportsDashboardScreen({ onNotify }: Props) {
       if (dateRange.toDate) {
         const parts = dateRange.toDate.split('-');
         const monthNum = parseInt(parts[1], 10);
-        return { 
-          currentPeriodLabel: `Tháng ${monthNum}/${parts[0]}`, 
-          periodShortLabel: `Tháng ${monthNum}`, 
-          currentReportYear: year 
+        return {
+          currentPeriodLabel: `Tháng ${monthNum}/${parts[0]}`,
+          periodShortLabel: `Tháng ${monthNum}`,
+          currentReportYear: year
         };
       }
       return { currentPeriodLabel: 'Tháng này', periodShortLabel: 'Tháng này', currentReportYear: year };
@@ -257,10 +284,10 @@ export function FinancialReportsDashboardScreen({ onNotify }: Props) {
       if (dateRange.fromDate) {
         const parts = dateRange.fromDate.split('-');
         const monthNum = parseInt(parts[1], 10);
-        return { 
-          currentPeriodLabel: `Tháng ${monthNum}/${parts[0]}`, 
-          periodShortLabel: `Tháng ${monthNum}`, 
-          currentReportYear: year 
+        return {
+          currentPeriodLabel: `Tháng ${monthNum}/${parts[0]}`,
+          periodShortLabel: `Tháng ${monthNum}`,
+          currentReportYear: year
         };
       }
       return { currentPeriodLabel: 'Tháng trước', periodShortLabel: 'Tháng trước', currentReportYear: year };
@@ -333,8 +360,113 @@ export function FinancialReportsDashboardScreen({ onNotify }: Props) {
         })
       ]);
 
-      setSummaryData(sumRes);
+      const user = getStoredUser();
+      const isChild = Boolean(user?.childAccount);
+
+      // Nếu là tài khoản trẻ em và backend transactions/summary trả về 0 do dữ liệu lưu ở child-wallets, tổng hợp trực tiếp từ sổ cái ví của bé
+      let finalSummary = sumRes;
+      let finalTopTxs = txListRes?.transactions || [];
+
+      if (isChild && user?.childWalletGroupId && user?.childWalletId) {
+        try {
+          const ledger = await groupApi.getSpendRequests(user.childWalletGroupId, user.childWalletId);
+          const approvedLedger = ledger.filter(item => item.status === 'APPROVED');
+          
+          // Lọc theo ngày dateRange nếu có
+          const filteredLedger = approvedLedger.filter(item => {
+            const itemDate = item.createdAt ? item.createdAt.slice(0, 10) : '';
+            if (dateRange.fromDate && itemDate < dateRange.fromDate) return false;
+            if (dateRange.toDate && itemDate > dateRange.toDate) return false;
+            return true;
+          });
+
+          if (filteredLedger.length > 0) {
+            let kidIncome = 0;
+            let kidExpense = 0;
+            const catMap: Record<string, { name: string; amount: number; count: number }> = {};
+
+            filteredLedger.forEach(item => {
+              const isDeposit = item.description?.startsWith('[INCOME_DEPOSIT] ');
+              const isChoreReward = item.description?.startsWith('[INCOME_CHORE] ');
+              const isGiftIncome = item.description?.startsWith('[INCOME_GIFT] ');
+              const isMoneyReq = item.description?.startsWith('[MONEY_REQUEST] ');
+              const isInc = isDeposit || isChoreReward || isGiftIncome || isMoneyReq;
+
+              if (isInc) {
+                kidIncome += item.amount;
+              } else {
+                kidExpense += item.amount;
+                const catName = item.category?.name || 'Chi tiêu của bé';
+                if (!catMap[catName]) catMap[catName] = { name: catName, amount: 0, count: 0 };
+                catMap[catName].amount += item.amount;
+                catMap[catName].count += 1;
+              }
+            });
+
+            const catList = Object.entries(catMap).map(([id, val]) => ({
+              categoryId: id,
+              categoryName: val.name,
+              totalAmount: val.amount,
+              percentage: kidExpense > 0 ? (val.amount / kidExpense) * 100 : 0,
+              transactionCount: val.count,
+              averageAmount: val.count > 0 ? val.amount / val.count : 0,
+            }));
+
+            // Tìm chi tiêu lớn nhất
+            const expenseItems = filteredLedger.filter(item => {
+              const isDeposit = item.description?.startsWith('[INCOME_DEPOSIT] ');
+              const isChoreReward = item.description?.startsWith('[INCOME_CHORE] ');
+              const isGiftIncome = item.description?.startsWith('[INCOME_GIFT] ');
+              const isMoneyReq = item.description?.startsWith('[MONEY_REQUEST] ');
+              return !(isDeposit || isChoreReward || isGiftIncome || isMoneyReq);
+            }).sort((a, b) => b.amount - a.amount);
+
+            finalSummary = {
+              period: { from: dateRange.fromDate, to: dateRange.toDate, groupBy: activeGroupBy },
+              summary: {
+                totalIncome: kidIncome,
+                totalExpense: kidExpense,
+                netCashFlow: kidIncome - kidExpense,
+                averageDailyExpense: isSingleMonthPeriod ? (kidExpense / Math.max(1, filteredLedger.length)) : 0,
+                transactionCount: filteredLedger.length,
+                largestExpense: expenseItems.length > 0 ? {
+                  amount: expenseItems[0].amount,
+                  description: expenseItems[0].description || 'Khoản chi của bé',
+                  date: expenseItems[0].createdAt?.slice(0, 10) || '',
+                } : undefined,
+                mostFrequentCategory: catList.length > 0 ? {
+                  id: catList[0].categoryId,
+                  name: catList[0].categoryName,
+                  count: catList[0].transactionCount,
+                  totalAmount: catList[0].totalAmount,
+                } : undefined,
+              },
+              byCategory: catList,
+              byPeriod: sumRes?.byPeriod || [],
+            };
+
+            // Map sang topTransactions
+            finalTopTxs = expenseItems.slice(0, 5).map(item => ({
+              id: item.id,
+              transactionType: 'EXPENSE',
+              accountId: user.childWalletId,
+              accountName: 'Ví của em',
+              amount: item.amount,
+              currencyCode: 'VND',
+              description: item.description || 'Chi tiêu',
+              transactionDate: item.createdAt?.slice(0, 10) || '',
+              createdAt: item.createdAt,
+              category: item.category,
+            })) as any;
+          }
+        } catch {
+          // ignore
+        }
+      }
+
+      setSummaryData(finalSummary);
       setPrevSummaryData(prevSumRes);
+      setTopTransactions(finalTopTxs);
 
       // Xử lý dữ liệu xu hướng flow: Điền đầy đủ tất cả các mốc (ngày hoặc tháng) trong chu kỳ
       const rawPeriods = (sumRes.byPeriod && sumRes.byPeriod.length > 0)
@@ -536,7 +668,7 @@ export function FinancialReportsDashboardScreen({ onNotify }: Props) {
       const currentAmount = currentCat?.totalAmount || 0;
       const prevAmount = prevCat?.totalAmount || 0;
       const diffAmount = currentAmount - prevAmount;
-      const pctChange = prevAmount > 0 
+      const pctChange = prevAmount > 0
         ? Math.round(((currentAmount - prevAmount) / prevAmount) * 100)
         : (currentAmount > 0 ? 100 : 0);
 
@@ -576,6 +708,17 @@ export function FinancialReportsDashboardScreen({ onNotify }: Props) {
       const originalTab = activeTab; // Lưu lại tab hiện tại người dùng đang đứng
       onNotify('Đang tổng hợp và chụp hình cả 3 phần báo cáo (Thu-Chi, Danh mục, So sánh)...');
 
+      // Kiểm tra và tạm thời chuyển giao diện sang chế độ Sáng (Light mode) để chụp ảnh sắc nét, chuẩn nền trắng
+      const htmlElement = document.documentElement;
+      const wasDarkMode = htmlElement.classList.contains('dark') || htmlElement.getAttribute('data-theme') === 'dark';
+
+      if (wasDarkMode) {
+        htmlElement.classList.remove('dark');
+        htmlElement.setAttribute('data-theme', 'light');
+        htmlElement.style.colorScheme = 'light';
+        document.body.classList.remove('dark');
+      }
+
       try {
         const pdf = new jsPDF('p', 'mm', 'a4');
         const pageWidth = 210;
@@ -604,8 +747,9 @@ export function FinancialReportsDashboardScreen({ onNotify }: Props) {
             scrollY: 0,
             windowWidth: Math.max(container.offsetWidth || 0, 1140),
             onclone: (clonedDoc) => {
-              // Ép toàn bộ bản clone sang chế độ sáng (bỏ class 'dark' trên <html> và <body>)
+              // Ép toàn bộ bản clone sang chế độ sáng
               clonedDoc.documentElement.classList.remove('dark');
+              clonedDoc.documentElement.setAttribute('data-theme', 'light');
               clonedDoc.body.classList.remove('dark');
               clonedDoc.documentElement.style.colorScheme = 'light';
               clonedDoc.body.style.backgroundColor = '#ffffff';
@@ -803,6 +947,14 @@ export function FinancialReportsDashboardScreen({ onNotify }: Props) {
         console.error('Lỗi xuất PDF:', err);
         onNotify('Có lỗi xảy ra khi tạo file PDF. Vui lòng thử lại sau.');
       } finally {
+        // Phục hồi lại nền tối nếu trước đó người dùng đang bật Dark mode
+        if (wasDarkMode) {
+          htmlElement.classList.add('dark');
+          htmlElement.setAttribute('data-theme', 'dark');
+          htmlElement.style.colorScheme = 'dark';
+          document.body.classList.add('dark');
+        }
+
         // Phục hồi lại tab ban đầu mà người dùng đang xem
         setActiveTab(originalTab);
         setIsExportingPdf(false);
@@ -1198,6 +1350,8 @@ export function FinancialReportsDashboardScreen({ onNotify }: Props) {
   }, [trendData]);
 
   const visibleTransactions = topTransactions.slice(0, 5);
+  const user = getStoredUser();
+  const isChild = Boolean(user?.childAccount);
 
   return (
     <main className="mx-auto flex min-h-[calc(100vh-64px)] w-full max-w-[1560px] flex-col gap-4 px-3 pb-24 pt-4 text-[#14251f] sm:px-6 lg:px-8 lg:pb-8 dark:text-slate-100" aria-label="Báo cáo và thống kê tài chính">
@@ -1237,7 +1391,7 @@ export function FinancialReportsDashboardScreen({ onNotify }: Props) {
             className={`reports-action-btn ${isExportingPdf ? 'opacity-60 cursor-not-allowed' : ''}`}
             title="Chụp nguyên bản giao diện và lưu thành file PDF"
           >
-            <FinanceIcon name="receipt" size={15} className="text-[#07543f] dark:text-[#34d399]" />
+            <FinanceIcon name="file-text" size={15} className="text-[#07543f] dark:text-[#34d399]" />
             <span>{isExportingPdf ? 'Đang xuất...' : 'Xuất PDF'}</span>
           </button>
         </div>
@@ -1326,8 +1480,8 @@ export function FinancialReportsDashboardScreen({ onNotify }: Props) {
                   setIsWalletDropdownOpen(false);
                 }}
                 className={`flex w-full items-center justify-between rounded-xl px-3 py-2 text-xs font-semibold text-left transition cursor-pointer ${selectedAccountId === ''
-                    ? 'bg-emerald-50 text-[#07543f] dark:bg-emerald-950/60 dark:text-emerald-300 font-bold'
-                    : 'text-[#14261e] dark:text-slate-200 hover:bg-gray-50 dark:hover:bg-[#122c40]'
+                  ? 'bg-emerald-50 text-[#07543f] dark:bg-emerald-950/60 dark:text-emerald-300 font-bold'
+                  : 'text-[#14261e] dark:text-slate-200 hover:bg-gray-50 dark:hover:bg-[#122c40]'
                   }`}
               >
                 <span>Tất cả tài khoản / ví ({accounts.length})</span>
@@ -1347,8 +1501,8 @@ export function FinancialReportsDashboardScreen({ onNotify }: Props) {
                       setIsWalletDropdownOpen(false);
                     }}
                     className={`flex w-full items-center justify-between rounded-xl px-3 py-2 text-xs text-left transition cursor-pointer ${isSelected
-                        ? 'bg-emerald-50 text-[#07543f] dark:bg-emerald-950/60 dark:text-emerald-300 font-bold'
-                        : 'text-[#14261e] dark:text-slate-200 hover:bg-gray-50 dark:hover:bg-[#122c40]'
+                      ? 'bg-emerald-50 text-[#07543f] dark:bg-emerald-950/60 dark:text-emerald-300 font-bold'
+                      : 'text-[#14261e] dark:text-slate-200 hover:bg-gray-50 dark:hover:bg-[#122c40]'
                       }`}
                   >
                     <div className="flex items-center gap-2 truncate">
@@ -1663,158 +1817,152 @@ export function FinancialReportsDashboardScreen({ onNotify }: Props) {
                   </div>
                 </div>
 
+                <footer className="mt-3 border-t border-[#edf2ee] pt-2.5 text-[11.5px] reports-tx-footer dark:border-[#1e293b]">
+                  Thống kê toàn bộ {categories.length} nhóm danh mục chi tiêu trong kỳ
+                </footer>
+              </article>
+            </div>
+          </section>
+        ) : activeTab === 'So sánh' ? (
+          /* TAB 3: SO SÁNH ĐỐI CHIẾU KỲ NÀY VỚI KỲ TRƯỚC (PERIOD-OVER-PERIOD) */
+          <section className="space-y-4">
+            {/* HÀNG 1: 3 THẺ CHÊNH LỆCH DELTA KPIS */}
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+              {/* Thu nhập */}
+              <div className="reports-card p-4">
+                <span className="text-xs font-bold text-[#5d7568] dark:text-[#94a3b8]">Biến Động Thu Nhập</span>
+                <div className="mt-2 flex items-baseline justify-between">
+                  <span className="text-xl font-black text-[#047857] dark:text-[#34d399]">
+                    {formatCurrency(summary.totalIncome)}
+                  </span>
+                  <span className={`inline-flex items-center text-xs font-extrabold px-2 py-0.5 rounded-md ${comparisonData.incomeDelta >= 0 ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300' : 'bg-rose-100 text-rose-800 dark:bg-rose-950/60 dark:text-rose-300'
+                    }`}>
+                    {comparisonData.incomeDelta >= 0 ? '↑ +' : '↓ '}{comparisonData.incomeDelta}%
+                  </span>
+                </div>
+                <small className="block mt-1 text-[11px] text-slate-500">
+                  Kỳ trước: {formatCurrency(comparisonData.prevSum.totalIncome)}
+                </small>
+              </div>
+
+              {/* Chi tiêu */}
+              <div className="reports-card p-4">
+                <span className="text-xs font-bold text-[#5d7568] dark:text-[#94a3b8]">Biến Động Chi Tiêu</span>
+                <div className="mt-2 flex items-baseline justify-between">
+                  <span className="text-xl font-black text-[#e11d48] dark:text-rose-400">
+                    {formatCurrency(summary.totalExpense)}
+                  </span>
+                  <span className={`inline-flex items-center text-xs font-extrabold px-2 py-0.5 rounded-md ${comparisonData.expenseDelta <= 0 ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300' : 'bg-rose-100 text-rose-800 dark:bg-rose-950/60 dark:text-rose-300'
+                    }`}>
+                    {comparisonData.expenseDelta > 0 ? '↑ +' : '↓ '}{comparisonData.expenseDelta}%
+                  </span>
+                </div>
+                <small className="block mt-1 text-[11px] text-slate-500">
+                  Kỳ trước: {formatCurrency(comparisonData.prevSum.totalExpense)} {comparisonData.expenseDelta <= 0 ? '(Tiết kiệm hơn)' : '(Chi tiêu nhiều hơn)'}
+                </small>
+              </div>
+
+              {/* Dòng tiền ròng */}
+              <div className="reports-card p-4">
+                <span className="text-xs font-bold text-[#5d7568] dark:text-[#94a3b8]">Dòng Tiền Ròng So Sánh</span>
+                <div className="mt-2 flex items-baseline justify-between">
+                  <span className={`text-xl font-black ${summary.netCashFlow >= 0 ? 'text-[#047857] dark:text-[#34d399]' : 'text-[#e11d48] dark:text-rose-400'}`}>
+                    {summary.netCashFlow >= 0 ? '+' : ''}{formatCurrency(summary.netCashFlow)}
+                  </span>
+                  <span className={`inline-flex items-center text-xs font-extrabold px-2 py-0.5 rounded-md ${summary.netCashFlow >= comparisonData.prevSum.netCashFlow ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300' : 'bg-rose-100 text-rose-800 dark:bg-rose-950/60 dark:text-rose-300'
+                    }`}>
+                    {summary.netCashFlow >= comparisonData.prevSum.netCashFlow ? '↑ Cải thiện' : '↓ Giảm'}
+                  </span>
+                </div>
+                <small className="block mt-1 text-[11px] text-slate-500">
+                  Kỳ trước: {comparisonData.prevSum.netCashFlow >= 0 ? '+' : ''}{formatCurrency(comparisonData.prevSum.netCashFlow)}
+                </small>
+              </div>
+            </div>
+
+            {/* HÀNG 2: BẢNG SO SÁNH ĐỐI CHIẾU CHI TIÊU TỪNG DANH MỤC */}
+            <article className="reports-card overflow-hidden">
+              <header className="mb-4 flex flex-col justify-between gap-1 sm:flex-row sm:items-center border-b border-[#edf2ee] pb-3 dark:border-[#1e293b]">
+                <div>
+                  <h2 className="reports-title-dark text-base sm:text-lg">Đối Chiếu Chi Tiêu Theo Danh Mục (Kỳ Này vs Kỳ Trước)</h2>
+                  <p className="reports-subtitle text-xs">Theo dõi mức tăng giảm chi tiêu của từng nhóm danh mục để kiểm soát ngân sách</p>
+                </div>
+                <span className="text-xs font-bold text-[#07543f] dark:text-[#34d399]">
+                  {comparisonData.comparedCategories.length} nhóm đối chiếu
+                </span>
+              </header>
+
+              <div className="w-full">
+                <table className="reports-table w-full text-xs">
+                  <thead>
+                    <tr>
+                      <th className="px-3 py-2.5 text-left text-[11px] whitespace-nowrap min-w-[130px]">Danh mục</th>
+                      <th className="px-2 py-2.5 text-right text-[11px] whitespace-nowrap">Kỳ trước</th>
+                      <th className="px-2 py-2.5 text-right text-[11px] whitespace-nowrap">Kỳ này</th>
+                      <th className="px-2 py-2.5 text-right text-[11px] whitespace-nowrap">Chênh lệch (VNĐ)</th>
+                      <th className="px-1.5 py-2.5 text-center text-[11px] whitespace-nowrap">% Biến động</th>
+                      <th className="px-2 py-2.5 text-center text-[11px] whitespace-nowrap">Đánh giá</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {comparisonData.comparedCategories.length === 0 ? (
+                      <tr>
+                        <td colSpan={6} className="py-10 text-center text-xs font-semibold text-[#64748b]">
+                          Chưa có dữ liệu giao dịch ở cả hai kỳ để đối chiếu
+                        </td>
+                      </tr>
+                    ) : (
+                      comparisonData.comparedCategories.map((item) => {
+                        const isUp = item.diffAmount > 0;
+                        const isSame = item.diffAmount === 0;
+                        return (
+                          <tr key={item.key} className="transition-colors">
+                            <td className="px-3 py-2.5 font-bold text-[#0f172a] dark:text-[#f1f5f9] whitespace-nowrap">
+                              <span className="flex items-center gap-1.5 whitespace-nowrap">
+                                <span className="size-2 rounded-full shrink-0" style={{ backgroundColor: item.color }} />
+                                <span className="reports-cat-name dark:text-[#e2e8f0] text-xs whitespace-nowrap">{item.name}</span>
+                              </span>
+                            </td>
+                            <td className="px-2 py-2.5 text-right font-medium text-slate-500 whitespace-nowrap">
+                              {formatCurrency(item.prevAmount)}
+                            </td>
+                            <td className="px-2 py-2.5 text-right font-extrabold text-[#0f172a] dark:text-white whitespace-nowrap">
+                              {formatCurrency(item.currentAmount)}
+                            </td>
+                            <td className={`px-2 py-2.5 text-right font-bold whitespace-nowrap ${isUp ? 'text-rose-600 dark:text-rose-400' : isSame ? 'text-slate-500' : 'text-emerald-600 dark:text-emerald-400'
+                              }`}>
+                              {isUp ? '+' : ''}{formatCurrency(item.diffAmount)}
+                            </td>
+                            <td className="px-1.5 py-2.5 text-center whitespace-nowrap">
+                              <span className={`inline-flex items-center rounded-md px-2 py-0.5 text-[11px] font-bold ${isUp
+                                  ? 'bg-rose-100 text-rose-700 dark:bg-rose-950/50 dark:text-rose-300'
+                                  : isSame
+                                    ? 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300'
+                                    : 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300'
+                                }`}>
+                                {isUp ? '↑ +' : isSame ? '' : '↓ '}{item.pctChange}%
+                              </span>
+                            </td>
+                            <td className="px-2 py-2.5 text-center whitespace-nowrap">
+                              <span className={`text-[11px] font-semibold ${isUp ? 'text-rose-600 dark:text-rose-400' : isSame ? 'text-slate-400' : 'text-emerald-600 dark:text-emerald-400'
+                                }`}>
+                                {isUp ? 'Tăng chi tiêu' : isSame ? 'Ổn định' : 'Tiết kiệm tốt'}
+                              </span>
+                            </td>
+                          </tr>
+                        );
+                      })
+                    )}
+                  </tbody>
+                </table>
+              </div>
+
               <footer className="mt-3 border-t border-[#edf2ee] pt-2.5 text-[11.5px] reports-tx-footer dark:border-[#1e293b]">
-                Thống kê toàn bộ {categories.length} nhóm danh mục chi tiêu trong kỳ
+                Đối chiếu trực tiếp {comparisonData.comparedCategories.length} nhóm danh mục giữa kỳ hiện tại và kỳ liền kề trước đó
               </footer>
             </article>
-          </div>
-        </section>
-      ) : activeTab === 'So sánh' ? (
-        /* TAB 3: SO SÁNH ĐỐI CHIẾU KỲ NÀY VỚI KỲ TRƯỚC (PERIOD-OVER-PERIOD) */
-        <section className="space-y-4">
-          {/* HÀNG 1: 3 THẺ CHÊNH LỆCH DELTA KPIS */}
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-            {/* Thu nhập */}
-            <div className="reports-card p-4">
-              <span className="text-xs font-bold text-[#5d7568] dark:text-[#94a3b8]">Biến Động Thu Nhập</span>
-              <div className="mt-2 flex items-baseline justify-between">
-                <span className="text-xl font-black text-[#047857] dark:text-[#34d399]">
-                  {formatCurrency(summary.totalIncome)}
-                </span>
-                <span className={`inline-flex items-center text-xs font-extrabold px-2 py-0.5 rounded-md ${
-                  comparisonData.incomeDelta >= 0 ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300' : 'bg-rose-100 text-rose-800 dark:bg-rose-950/60 dark:text-rose-300'
-                }`}>
-                  {comparisonData.incomeDelta >= 0 ? '↑ +' : '↓ '}{comparisonData.incomeDelta}%
-                </span>
-              </div>
-              <small className="block mt-1 text-[11px] text-slate-500">
-                Kỳ trước: {formatCurrency(comparisonData.prevSum.totalIncome)}
-              </small>
-            </div>
-
-            {/* Chi tiêu */}
-            <div className="reports-card p-4">
-              <span className="text-xs font-bold text-[#5d7568] dark:text-[#94a3b8]">Biến Động Chi Tiêu</span>
-              <div className="mt-2 flex items-baseline justify-between">
-                <span className="text-xl font-black text-[#e11d48] dark:text-rose-400">
-                  {formatCurrency(summary.totalExpense)}
-                </span>
-                <span className={`inline-flex items-center text-xs font-extrabold px-2 py-0.5 rounded-md ${
-                  comparisonData.expenseDelta <= 0 ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300' : 'bg-rose-100 text-rose-800 dark:bg-rose-950/60 dark:text-rose-300'
-                }`}>
-                  {comparisonData.expenseDelta > 0 ? '↑ +' : '↓ '}{comparisonData.expenseDelta}%
-                </span>
-              </div>
-              <small className="block mt-1 text-[11px] text-slate-500">
-                Kỳ trước: {formatCurrency(comparisonData.prevSum.totalExpense)} {comparisonData.expenseDelta <= 0 ? '(Tiết kiệm hơn)' : '(Chi tiêu nhiều hơn)'}
-              </small>
-            </div>
-
-            {/* Dòng tiền ròng */}
-            <div className="reports-card p-4">
-              <span className="text-xs font-bold text-[#5d7568] dark:text-[#94a3b8]">Dòng Tiền Ròng So Sánh</span>
-              <div className="mt-2 flex items-baseline justify-between">
-                <span className={`text-xl font-black ${summary.netCashFlow >= 0 ? 'text-[#047857] dark:text-[#34d399]' : 'text-[#e11d48] dark:text-rose-400'}`}>
-                  {summary.netCashFlow >= 0 ? '+' : ''}{formatCurrency(summary.netCashFlow)}
-                </span>
-                <span className={`inline-flex items-center text-xs font-extrabold px-2 py-0.5 rounded-md ${
-                  summary.netCashFlow >= comparisonData.prevSum.netCashFlow ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300' : 'bg-rose-100 text-rose-800 dark:bg-rose-950/60 dark:text-rose-300'
-                }`}>
-                  {summary.netCashFlow >= comparisonData.prevSum.netCashFlow ? '↑ Cải thiện' : '↓ Giảm'}
-                </span>
-              </div>
-              <small className="block mt-1 text-[11px] text-slate-500">
-                Kỳ trước: {comparisonData.prevSum.netCashFlow >= 0 ? '+' : ''}{formatCurrency(comparisonData.prevSum.netCashFlow)}
-              </small>
-            </div>
-          </div>
-
-          {/* HÀNG 2: BẢNG SO SÁNH ĐỐI CHIẾU CHI TIÊU TỪNG DANH MỤC */}
-          <article className="reports-card overflow-hidden">
-            <header className="mb-4 flex flex-col justify-between gap-1 sm:flex-row sm:items-center border-b border-[#edf2ee] pb-3 dark:border-[#1e293b]">
-              <div>
-                <h2 className="reports-title-dark text-base sm:text-lg">Đối Chiếu Chi Tiêu Theo Danh Mục (Kỳ Này vs Kỳ Trước)</h2>
-                <p className="reports-subtitle text-xs">Theo dõi mức tăng giảm chi tiêu của từng nhóm danh mục để kiểm soát ngân sách</p>
-              </div>
-              <span className="text-xs font-bold text-[#07543f] dark:text-[#34d399]">
-                {comparisonData.comparedCategories.length} nhóm đối chiếu
-              </span>
-            </header>
-
-            <div className="w-full">
-              <table className="reports-table w-full text-xs">
-                <thead>
-                  <tr>
-                    <th className="px-3 py-2.5 text-left text-[11px] whitespace-nowrap min-w-[130px]">Danh mục</th>
-                    <th className="px-2 py-2.5 text-right text-[11px] whitespace-nowrap">Kỳ trước</th>
-                    <th className="px-2 py-2.5 text-right text-[11px] whitespace-nowrap">Kỳ này</th>
-                    <th className="px-2 py-2.5 text-right text-[11px] whitespace-nowrap">Chênh lệch (VNĐ)</th>
-                    <th className="px-1.5 py-2.5 text-center text-[11px] whitespace-nowrap">% Biến động</th>
-                    <th className="px-2 py-2.5 text-center text-[11px] whitespace-nowrap">Đánh giá</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {comparisonData.comparedCategories.length === 0 ? (
-                    <tr>
-                      <td colSpan={6} className="py-10 text-center text-xs font-semibold text-[#64748b]">
-                        Chưa có dữ liệu giao dịch ở cả hai kỳ để đối chiếu
-                      </td>
-                    </tr>
-                  ) : (
-                    comparisonData.comparedCategories.map((item) => {
-                      const isUp = item.diffAmount > 0;
-                      const isSame = item.diffAmount === 0;
-                      return (
-                        <tr key={item.key} className="transition-colors">
-                          <td className="px-3 py-2.5 font-bold text-[#0f172a] dark:text-[#f1f5f9] whitespace-nowrap">
-                            <span className="flex items-center gap-1.5 whitespace-nowrap">
-                              <span className="size-2 rounded-full shrink-0" style={{ backgroundColor: item.color }} />
-                              <span className="reports-cat-name dark:text-[#e2e8f0] text-xs whitespace-nowrap">{item.name}</span>
-                            </span>
-                          </td>
-                          <td className="px-2 py-2.5 text-right font-medium text-slate-500 whitespace-nowrap">
-                            {formatCurrency(item.prevAmount)}
-                          </td>
-                          <td className="px-2 py-2.5 text-right font-extrabold text-[#0f172a] dark:text-white whitespace-nowrap">
-                            {formatCurrency(item.currentAmount)}
-                          </td>
-                          <td className={`px-2 py-2.5 text-right font-bold whitespace-nowrap ${
-                            isUp ? 'text-rose-600 dark:text-rose-400' : isSame ? 'text-slate-500' : 'text-emerald-600 dark:text-emerald-400'
-                          }`}>
-                            {isUp ? '+' : ''}{formatCurrency(item.diffAmount)}
-                          </td>
-                          <td className="px-1.5 py-2.5 text-center whitespace-nowrap">
-                            <span className={`inline-flex items-center rounded-md px-2 py-0.5 text-[11px] font-bold ${
-                              isUp 
-                                ? 'bg-rose-100 text-rose-700 dark:bg-rose-950/50 dark:text-rose-300' 
-                                : isSame 
-                                  ? 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300'
-                                  : 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300'
-                            }`}>
-                              {isUp ? '↑ +' : isSame ? '' : '↓ '}{item.pctChange}%
-                            </span>
-                          </td>
-                          <td className="px-2 py-2.5 text-center whitespace-nowrap">
-                            <span className={`text-[11px] font-semibold ${
-                              isUp ? 'text-rose-600 dark:text-rose-400' : isSame ? 'text-slate-400' : 'text-emerald-600 dark:text-emerald-400'
-                            }`}>
-                              {isUp ? 'Tăng chi tiêu' : isSame ? 'Ổn định' : 'Tiết kiệm tốt'}
-                            </span>
-                          </td>
-                        </tr>
-                      );
-                    })
-                  )}
-                </tbody>
-              </table>
-            </div>
-
-            <footer className="mt-3 border-t border-[#edf2ee] pt-2.5 text-[11.5px] reports-tx-footer dark:border-[#1e293b]">
-              Đối chiếu trực tiếp {comparisonData.comparedCategories.length} nhóm danh mục giữa kỳ hiện tại và kỳ liền kề trước đó
-            </footer>
-          </article>
-        </section>
-      ) : (
+          </section>
+        ) : (
 
           /* TAB 1: THU - CHI */
           <section className="space-y-4">
@@ -1992,7 +2140,7 @@ export function FinancialReportsDashboardScreen({ onNotify }: Props) {
                       </div>
                     </div>
 
-                    <div className="w-full flex-1 max-h-[170px] overflow-y-auto pr-1">
+                    <div className="w-full flex-1 max-h-[300px] overflow-y-auto pr-1">
                       {categories.length === 0 ? (
                         <p className="py-6 text-center text-xs font-semibold text-[#334155] dark:text-[#64748b]">Chưa có khoản chi trong kỳ</p>
                       ) : (

@@ -27,6 +27,7 @@ import { accountApi, type AccountItem, type AccountTypeCode } from '../../accoun
 import { findBankOrWalletPreset } from '../../accounts/constants/banksData';
 import { exportTransactionHistoryToExcel } from '../utils/exportTransactionHistoryHelper';
 import { ocrApi } from '../../scan-invoice/api';
+import { useAppTheme } from '../../../context/ThemeContext';
 
 type Props = {
   onBack: () => void;
@@ -68,6 +69,9 @@ export interface CashflowSummary {
 
 export function TransactionsScreen({ onBack, onAddTransaction }: Props) {
   const insets = useSafeAreaInsets();
+  const { isDark, colors: themeColors } = useAppTheme();
+  const currentUser = authStorage.getUser();
+  const isChildAccount = Boolean(currentUser?.childAccount && currentUser?.childWalletGroupId);
 
   // Tab lọc: Tất cả | Chi tiêu | Thu nhập | Chuyển khoản
   const [activeTab, setActiveTab] = useState<'ALL' | 'EXPENSE' | 'INCOME' | 'TRANSFER'>('ALL');
@@ -113,6 +117,23 @@ export function TransactionsScreen({ onBack, onAddTransaction }: Props) {
 
   // Tải danh sách tài khoản/ví và danh mục người dùng
   const reloadAccountsAndCategories = () => {
+    const user = authStorage.getUser();
+    if (user?.childAccount && user?.childWalletGroupId && user?.childWalletId) {
+      // Nếu là tài khoản trẻ em: ví hiển thị là ví của bé
+      const childAcc: AccountItem = {
+        id: user.childWalletId,
+        name: user.childWalletName || 'Ví của em',
+        accountType: 'CASH',
+        currencyCode: 'VND',
+        balance: 0,
+      };
+      setAccounts([childAcc]);
+      transactionApi.getCategories().then((catList) => {
+        setCategories(catList || []);
+      });
+      return;
+    }
+
     accountApi.getAccounts().then((accList) => {
       setAccounts(accList || []);
     });
@@ -359,13 +380,111 @@ export function TransactionsScreen({ onBack, onAddTransaction }: Props) {
     return list;
   }, []);
 
-  // Fetch dữ liệu giao dịch từ API thực tế Backend (/api/v1/transactions)
+  // Fetch dữ liệu giao dịch từ API thực tế Backend (/api/v1/transactions hoặc child spend-requests)
   const fetchTransactions = async (isRefresh = false) => {
     const token = authStorage.getToken();
+    const user = authStorage.getUser();
     if (isRefresh) setRefreshing(true);
     else setLoading(true);
 
     try {
+      if (user?.childAccount && user?.childWalletGroupId && user?.childWalletId) {
+        // Tài khoản trẻ em: lấy danh sách giao dịch từ spend-requests
+        const res = await fetch(`${API_BASE_URL}/groups/${user.childWalletGroupId}/child-wallets/${user.childWalletId}/spend-requests?size=100`, {
+          headers: {
+            'Content-Type': 'application/json',
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
+        });
+
+        if (res.ok) {
+          const json = await res.json();
+          const rawItems: any[] = Array.isArray(json) ? json : (json?.content || json?.data || []);
+          const approved = rawItems.filter((i: any) => i.status === 'APPROVED');
+
+          let inc = 0;
+          let exp = 0;
+          const mapped: TransactionItem[] = approved.map((item: any) => {
+            const isDeposit = item.description?.startsWith('[INCOME_DEPOSIT] ');
+            const isChoreReward = item.description?.startsWith('[INCOME_CHORE] ');
+            const isGiftIncome = item.description?.startsWith('[INCOME_GIFT] ');
+            const isMoneyReq = item.description?.startsWith('[MONEY_REQUEST] ');
+            const income = isDeposit || isChoreReward || isGiftIncome || isMoneyReq;
+
+            let displayDesc = item.description || 'Giao dịch';
+            if (isDeposit) displayDesc = `Bố/mẹ nạp ví: ${item.description.replace('[INCOME_DEPOSIT] ', '')}`;
+            else if (isChoreReward) displayDesc = `Thưởng nhiệm vụ: ${item.description.replace('[INCOME_CHORE] ', '')}`;
+            else if (isGiftIncome) displayDesc = item.description.replace('[INCOME_GIFT] ', '');
+            else if (isMoneyReq) displayDesc = `Bố/mẹ cấp tiền: ${item.description.replace('[MONEY_REQUEST] ', '')}`;
+
+            const amt = Math.abs(Number(item.amount || 0));
+            if (income) inc += amt;
+            else exp += amt;
+
+            const dateStr = item.createdAt ? item.createdAt.slice(0, 10) : new Date().toISOString().slice(0, 10);
+            const timeStr = item.createdAt ? item.createdAt.slice(11, 16) : '12:00';
+
+            let catIcon = income ? 'gift' : 'utensils';
+            let catColor = income ? '#15803D' : '#E11D48';
+            let catName = income ? 'Khoản thu' : 'Chi tiêu';
+
+            if (item.category?.name) {
+              catName = item.category.name;
+              catIcon = item.category.icon || resolveCategoryIconName(item.category.icon, income ? 'INCOME' : 'EXPENSE', item.category.name);
+              catColor = item.category.color || catColor;
+            } else if (isDeposit) {
+              catName = 'Bố mẹ nạp ví';
+              catIcon = 'wallet';
+            } else if (isChoreReward) {
+              catName = 'Thưởng việc nhà';
+              catIcon = 'award';
+            } else if (isGiftIncome) {
+              catName = 'Lì xì / Quà tặng';
+              catIcon = 'gift';
+            } else if (isMoneyReq) {
+              catName = 'Bố mẹ cấp';
+              catIcon = 'coins';
+            } else {
+              // Chi tiêu thường của bé: tự động đoán icon từ tên mô tả (vd: Ăn uống -> utensils, Mua sắm -> shopping-bag)
+              catIcon = resolveCategoryIconName(undefined, 'EXPENSE', displayDesc);
+            }
+
+            return {
+              id: item.id,
+              transactionType: income ? 'INCOME' : 'EXPENSE',
+              accountId: user.childWalletId!,
+              accountName: user.childWalletName || 'Ví của em',
+              amount: amt,
+              currencyCode: 'VND',
+              description: displayDesc,
+              transactionDate: dateStr,
+              transactionTime: timeStr,
+              category: {
+                id: item.categoryId || 'child_cat',
+                name: catName,
+                icon: catIcon,
+                color: catColor,
+              },
+            };
+          });
+
+          // Lọc theo tháng nếu đang chọn tháng cụ thể
+          let finalFiltered = mapped;
+          if (selectedMonth && selectedMonth !== 'ALL') {
+            finalFiltered = mapped.filter((t) => t.transactionDate.startsWith(selectedMonth));
+          }
+
+          setTransactions(finalFiltered);
+          setSummary({
+            totalIncome: inc,
+            totalExpense: exp,
+            netCashFlow: inc - exp,
+            transactionCount: finalFiltered.length,
+          });
+        }
+        return;
+      }
+
       const url = new URL(`${API_BASE_URL}/transactions`);
       url.searchParams.append('pageSize', '100');
 
@@ -507,23 +626,42 @@ export function TransactionsScreen({ onBack, onAddTransaction }: Props) {
   const selectedMonthLabel = availableMonths.find((m) => m.key === selectedMonth)?.label || 'Tháng này';
 
   return (
-    <View style={styles.screen}>
-      <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
+    <View style={[styles.screen, isDark && { backgroundColor: themeColors.background }]}>
+      <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} backgroundColor={isDark ? themeColors.background : '#FFFFFF'} />
       {/* ── 1. HEADER THANH LỊCH NỀN TRẮNG ĐỒNG BỘ ── */}
-      <View style={[styles.header, { paddingTop: Math.max(insets.top, 12) + 4 }]}>
+      <View
+        style={[
+          styles.header,
+          {
+            paddingTop: Math.max(insets.top, 12) + 4,
+            backgroundColor: isDark ? themeColors.surface : '#FFFFFF',
+            borderBottomColor: isDark ? themeColors.cardBorder : '#F1F5F9',
+          },
+        ]}
+      >
         <View style={styles.headerLeftGroup}>
-          <Text style={styles.headerTitle}>Quản lý Thu & Chi</Text>
+          <Text style={[styles.headerTitle, isDark && { color: themeColors.textPrimary }]}>
+            Quản lý Thu & Chi
+          </Text>
         </View>
 
         {/* Nút chọn tháng lọc nhanh đồng bộ phong cách Ngân sách */}
         <Pressable
           onPress={() => setMonthModalVisible(true)}
-          style={styles.monthBadgeBtn}
+          style={[
+            styles.monthBadgeBtn,
+            isDark && {
+              backgroundColor: 'rgba(52, 211, 153, 0.12)',
+              borderColor: 'rgba(52, 211, 153, 0.25)',
+            },
+          ]}
           hitSlop={8}
         >
-          <FinanceIcon name="calendar" size={15} color="#047857" />
-          <Text style={styles.monthBadgeText}>{selectedMonthLabel}</Text>
-          <FinanceIcon name="chevron-down" size={13} color="#047857" />
+          <FinanceIcon name="calendar" size={15} color={isDark ? '#34D399' : '#047857'} />
+          <Text style={[styles.monthBadgeText, isDark && { color: '#34D399' }]}>
+            {selectedMonthLabel}
+          </Text>
+          <FinanceIcon name="chevron-down" size={13} color={isDark ? '#34D399' : '#047857'} />
         </Pressable>
       </View>
 
@@ -542,41 +680,105 @@ export function TransactionsScreen({ onBack, onAddTransaction }: Props) {
         {/* ── 2. CARDS TỔNG KẾT DÒNG TIỀN (THU NHẬP - CHI TIÊU - SỐ DƯ RÒNG) ── */}
         <View style={styles.summaryRibbon}>
           {/* Card Thu nhập */}
-          <View style={[styles.summaryCard, styles.summaryCardIncome]}>
+          <View
+            style={[
+              styles.summaryCard,
+              styles.summaryCardIncome,
+              isDark && {
+                backgroundColor: themeColors.surface,
+                borderColor: themeColors.cardBorder,
+              },
+            ]}
+          >
             <View style={styles.summaryCardTop}>
-              <View style={[styles.summaryIconBox, { backgroundColor: '#E6F4EA' }]}>
-                <FinanceIcon name="income" size={16} color="#137333" />
+              <View
+                style={[
+                  styles.summaryIconBox,
+                  { backgroundColor: isDark ? 'rgba(52, 211, 153, 0.16)' : '#E6F4EA' },
+                ]}
+              >
+                <FinanceIcon name="income" size={16} color={isDark ? '#34D399' : '#137333'} />
               </View>
-              <Text style={styles.summaryCardBadgeText}>Dòng tiền vào</Text>
+              <Text style={[styles.summaryCardBadgeText, isDark && { color: '#34D399' }]}>
+                Dòng tiền vào
+              </Text>
             </View>
-            <Text style={styles.summaryCardLabel}>TỔNG THU</Text>
-            <Text style={styles.summaryCardValueIncome} numberOfLines={1}>
+            <Text style={[styles.summaryCardLabel, isDark && { color: themeColors.textSecondary }]}>
+              TỔNG THU
+            </Text>
+            <Text
+              style={[
+                styles.summaryCardValueIncome,
+                isDark && { color: '#34D399' },
+              ]}
+              numberOfLines={1}
+            >
               +{formatVND(displayedSummary.totalIncome)} <Text style={styles.unitSmall}>đ</Text>
             </Text>
           </View>
 
           {/* Card Chi tiêu */}
-          <View style={[styles.summaryCard, styles.summaryCardExpense]}>
+          <View
+            style={[
+              styles.summaryCard,
+              styles.summaryCardExpense,
+              isDark && {
+                backgroundColor: themeColors.surface,
+                borderColor: themeColors.cardBorder,
+              },
+            ]}
+          >
             <View style={styles.summaryCardTop}>
-              <View style={[styles.summaryIconBox, { backgroundColor: '#FCE8E6' }]}>
-                <FinanceIcon name="expense" size={16} color="#C5221F" />
+              <View
+                style={[
+                  styles.summaryIconBox,
+                  { backgroundColor: isDark ? 'rgba(239, 68, 68, 0.16)' : '#FCE8E6' },
+                ]}
+              >
+                <FinanceIcon name="expense" size={16} color={isDark ? '#F87171' : '#C5221F'} />
               </View>
-              <Text style={[styles.summaryCardBadgeText, { color: '#C5221F' }]}>Dòng tiền ra</Text>
+              <Text style={[styles.summaryCardBadgeText, { color: isDark ? '#F87171' : '#C5221F' }]}>
+                Dòng tiền ra
+              </Text>
             </View>
-            <Text style={styles.summaryCardLabel}>TỔNG CHI</Text>
-            <Text style={styles.summaryCardValueExpense} numberOfLines={1}>
+            <Text style={[styles.summaryCardLabel, isDark && { color: themeColors.textSecondary }]}>
+              TỔNG CHI
+            </Text>
+            <Text
+              style={[
+                styles.summaryCardValueExpense,
+                isDark && { color: '#F87171' },
+              ]}
+              numberOfLines={1}
+            >
               -{formatVND(displayedSummary.totalExpense)} <Text style={styles.unitSmall}>đ</Text>
             </Text>
           </View>
         </View>
 
         {/* Thẻ Thặng dư ròng */}
-        <View style={styles.netCashflowCard}>
-          <Text style={styles.netCashflowLabel}>THẶNG DƯ RÒNG (THU - CHI)</Text>
+        <View
+          style={[
+            styles.netCashflowCard,
+            isDark && {
+              backgroundColor: themeColors.surface,
+              borderColor: themeColors.cardBorder,
+            },
+          ]}
+        >
+          <Text style={[styles.netCashflowLabel, isDark && { color: themeColors.textSecondary }]}>
+            THẶNG DƯ RÒNG (THU - CHI)
+          </Text>
           <Text
             style={[
               styles.netCashflowValue,
-              displayedSummary.netCashFlow >= 0 ? styles.netPositive : styles.netNegative,
+              displayedSummary.netCashFlow >= 0
+                ? isDark
+                  ? { color: '#34D399' }
+                  : styles.netPositive
+                : isDark
+                ? { color: '#F87171' }
+                : styles.netNegative,
             ]}
           >
             {displayedSummary.netCashFlow >= 0 ? '+' : ''}
@@ -587,44 +789,62 @@ export function TransactionsScreen({ onBack, onAddTransaction }: Props) {
         {/* ── 3. HÀNG TÌM KIẾM, BỘ LỌC VÍ & NÚT XUẤT EXCEL ── */}
         <View style={styles.filterRowContainer}>
           {/* Thanh tìm kiếm */}
-          <View style={styles.searchBarBox}>
-            <FinanceIcon name="search" size={16} color="#94A3B8" />
+          <View
+            style={[
+              styles.searchBarBox,
+              isDark && {
+                backgroundColor: themeColors.surface,
+                borderColor: themeColors.cardBorder,
+              },
+            ]}
+          >
+            <FinanceIcon name="search" size={16} color={isDark ? '#64748B' : '#94A3B8'} />
             <TextInput
               value={searchQuery}
               onChangeText={setSearchQuery}
               placeholder="Tìm kiếm giao dịch..."
-              placeholderTextColor="#94A3B8"
-              style={styles.searchBarInput}
+              placeholderTextColor={isDark ? '#64748B' : '#94A3B8'}
+              style={[
+                styles.searchBarInput,
+                isDark && { color: themeColors.textPrimary },
+              ]}
             />
             {searchQuery ? (
               <Pressable onPress={() => setSearchQuery('')} hitSlop={8}>
-                <FinanceIcon name="close" size={16} color="#94A3B8" />
+                <FinanceIcon name="close" size={16} color={isDark ? '#64748B' : '#94A3B8'} />
               </Pressable>
             ) : null}
           </View>
 
           {/* Nút thả xuống chọn ví / nguồn tiền */}
-          <Pressable
-            onPress={() => setWalletModalVisible(true)}
-            style={[
-              styles.walletFilterDropdownBtn,
-              selectedAccount !== 'ALL' && styles.walletFilterDropdownBtnActive,
-            ]}
-          >
-            <View style={styles.walletFilterBtnContent}>
-              {renderWalletBadge(selectedAccount !== 'ALL' ? accountMap.get(selectedAccount) : undefined, 20)}
-              <Text
-                style={[
-                  styles.walletFilterBtnText,
-                  selectedAccount !== 'ALL' && styles.walletFilterBtnTextActive,
-                ]}
-                numberOfLines={1}
-              >
-                {selectedAccount === 'ALL' ? 'Nguồn tiền' : selectedAccountLabel}
-              </Text>
-              <Text style={styles.walletFilterDropdownChevron}>▾</Text>
-            </View>
-          </Pressable>
+          {!isChildAccount && (
+            <Pressable
+              onPress={() => setWalletModalVisible(true)}
+              style={[
+                styles.walletFilterDropdownBtn,
+                isDark && {
+                  backgroundColor: themeColors.surface,
+                  borderColor: themeColors.cardBorder,
+                },
+                selectedAccount !== 'ALL' && (isDark ? { backgroundColor: 'rgba(52, 211, 153, 0.15)', borderColor: '#10B981' } : styles.walletFilterDropdownBtnActive),
+              ]}
+            >
+              <View style={styles.walletFilterBtnContent}>
+                {renderWalletBadge(selectedAccount !== 'ALL' ? accountMap.get(selectedAccount) : undefined, 20)}
+                <Text
+                  style={[
+                    styles.walletFilterBtnText,
+                    isDark && { color: themeColors.textSecondary },
+                    selectedAccount !== 'ALL' && (isDark ? { color: '#34D399', fontWeight: '800' } : styles.walletFilterBtnTextActive),
+                  ]}
+                  numberOfLines={1}
+                >
+                  {selectedAccount === 'ALL' ? 'Nguồn tiền' : selectedAccountLabel}
+                </Text>
+                <Text style={[styles.walletFilterDropdownChevron, isDark && { color: themeColors.textMuted }]}>▾</Text>
+              </View>
+            </Pressable>
+          )}
 
           {/* Nút Xuất Excel */}
           <Pressable
@@ -645,10 +865,16 @@ export function TransactionsScreen({ onBack, onAddTransaction }: Props) {
                 summary: displayedSummary,
               });
             }}
-            style={styles.exportExcelBtn}
+            style={[
+              styles.exportExcelBtn,
+              isDark && {
+                backgroundColor: 'rgba(52, 211, 153, 0.12)',
+                borderColor: '#059669',
+              },
+            ]}
           >
-            <Text style={styles.exportExcelIcon}>⤓</Text>
-            <Text style={styles.exportExcelText}>Xuất Excel</Text>
+            <Text style={[styles.exportExcelIcon, isDark && { color: '#34D399' }]}>⤓</Text>
+            <Text style={[styles.exportExcelText, isDark && { color: '#34D399' }]}>Xuất Excel</Text>
           </Pressable>
         </View>
 
@@ -667,9 +893,22 @@ export function TransactionsScreen({ onBack, onAddTransaction }: Props) {
               <Pressable
                 key={key}
                 onPress={() => setActiveTab(key)}
-                style={[styles.tabButton, isSelected && styles.tabButtonActive]}
+                style={[
+                  styles.tabButton,
+                  isDark && {
+                    backgroundColor: themeColors.surface,
+                    borderColor: themeColors.cardBorder,
+                  },
+                  isSelected && (isDark ? { backgroundColor: '#10B981', borderColor: '#10B981' } : styles.tabButtonActive),
+                ]}
               >
-                <Text style={[styles.tabButtonText, isSelected && styles.tabButtonTextActive]}>
+                <Text
+                  style={[
+                    styles.tabButtonText,
+                    isDark && { color: themeColors.textSecondary },
+                    isSelected && (isDark ? { color: '#FFFFFF', fontWeight: '800' } : styles.tabButtonTextActive),
+                  ]}
+                >
                   {label}
                 </Text>
               </Pressable>
@@ -684,10 +923,30 @@ export function TransactionsScreen({ onBack, onAddTransaction }: Props) {
             <Text style={styles.loadingText}>Đang nạp danh sách giao dịch...</Text>
           </View>
         ) : groupedTransactions.length === 0 ? (
-          <View style={styles.emptyCard}>
+          <View
+            style={[
+              styles.emptyCard,
+              isDark && {
+                backgroundColor: themeColors.surface,
+                borderColor: themeColors.cardBorder,
+              },
+            ]}
+          >
             <Text style={styles.emptyIcon}>📋</Text>
-            <Text style={styles.emptyTitle}>Chưa có giao dịch phù hợp</Text>
-            <Text style={styles.emptySub}>
+            <Text
+              style={[
+                styles.emptyTitle,
+                isDark && { color: themeColors.textPrimary },
+              ]}
+            >
+              Chưa có giao dịch phù hợp
+            </Text>
+            <Text
+              style={[
+                styles.emptySub,
+                isDark && { color: themeColors.textSecondary },
+              ]}
+            >
               Không tìm thấy khoản thu chi nào trong {selectedMonthLabel}.
             </Text>
           </View>
@@ -696,11 +955,20 @@ export function TransactionsScreen({ onBack, onAddTransaction }: Props) {
             <View key={group.dateStr} style={styles.dateGroupContainer}>
               {/* Header ngày */}
               <View style={styles.dateGroupHeader}>
-                <Text style={styles.dateGroupTitle}>{group.displayDate}</Text>
+                <Text
+                  style={[
+                    styles.dateGroupTitle,
+                    isDark && { color: themeColors.textSecondary },
+                  ]}
+                >
+                  {group.displayDate}
+                </Text>
                 <Text
                   style={[
                     styles.dateGroupTotal,
-                    group.dayTotal >= 0 ? styles.colorIncome : styles.colorExpense,
+                    group.dayTotal >= 0
+                      ? (isDark ? { color: '#34D399' } : styles.colorIncome)
+                      : (isDark ? { color: '#F87171' } : styles.colorExpense),
                   ]}
                 >
                   {group.dayTotal >= 0 ? '+' : ''}
@@ -709,30 +977,79 @@ export function TransactionsScreen({ onBack, onAddTransaction }: Props) {
               </View>
 
               {/* Danh sách các item trong ngày */}
-              <View style={styles.dayItemsCard}>
+              <View
+                style={[
+                  styles.dayItemsCard,
+                  isDark && {
+                    backgroundColor: themeColors.surface,
+                    borderColor: themeColors.cardBorder,
+                  },
+                ]}
+              >
                 {group.items.map((tx, idx) => {
                   const isIncome = tx.transactionType === 'INCOME';
                   const isTransfer = tx.transactionType === 'TRANSFER';
-                  const iconName = resolveCategoryIconName(
-                    tx.category?.icon,
-                    tx.transactionType,
-                    tx.category?.name || tx.description
-                  );
+                  const descLower = (tx.description || '').toLowerCase();
+                  const catNameLower = (tx.category?.name || '').toLowerCase();
+                  let iconName: IconName = 'utensils';
+
+                  if (
+                    descLower.includes('tiết kiệm') ||
+                    descLower.includes('đầu tư') ||
+                    descLower.includes('mục tiêu') ||
+                    descLower.includes('quỹ') ||
+                    descLower.includes('tích lũy') ||
+                    descLower.includes('heo đất') ||
+                    catNameLower.includes('tiết kiệm') ||
+                    catNameLower.includes('đầu tư') ||
+                    catNameLower.includes('mục tiêu')
+                  ) {
+                    iconName = 'piggy-bank';
+                  } else if (descLower.includes('nạp ví') || descLower.includes('[income_deposit]')) {
+                    iconName = 'wallet';
+                  } else if (descLower.includes('cấp tiền') || descLower.includes('[money_request]') || descLower.includes('xin tiền')) {
+                    iconName = 'coins';
+                  } else if (descLower.includes('thưởng') || descLower.includes('nhiệm vụ') || descLower.includes('[income_chore]')) {
+                    iconName = 'award';
+                  } else if (descLower.includes('lì xì') || descLower.includes('quà') || descLower.includes('[income_gift]')) {
+                    iconName = 'gift';
+                  } else if (tx.category?.icon && tx.category.icon !== 'shopping' && tx.category.icon !== 'money') {
+                    iconName = resolveCategoryIconName(
+                      tx.category.icon,
+                      tx.transactionType,
+                      `${tx.category?.name || ''} ${tx.description || ''}`
+                    );
+                  } else {
+                    iconName = resolveCategoryIconName(
+                      tx.category?.icon,
+                      tx.transactionType,
+                      `${tx.category?.name || ''} ${tx.description || ''}`
+                    );
+                  }
 
                   return (
                     <View key={tx.id || idx}>
                       <Pressable
                         onPress={() => setSelectedTxDetail(tx)}
-                        style={({ pressed }) => [styles.txRow, pressed && styles.txRowPressed]}
+                        style={({ pressed }) => [
+                          styles.txRow,
+                          pressed && (isDark ? { backgroundColor: 'rgba(255,255,255,0.04)' } : styles.txRowPressed),
+                        ]}
                       >
                         {/* Icon vuông bo góc mềm mại */}
                         <View
                           style={[
                             styles.txIconBox,
                             isIncome
-                              ? styles.txIconBoxIncome
+                              ? isDark
+                                ? { backgroundColor: 'rgba(52, 211, 153, 0.16)' }
+                                : styles.txIconBoxIncome
                               : isTransfer
-                              ? styles.txIconBoxTransfer
+                              ? isDark
+                                ? { backgroundColor: 'rgba(56, 189, 248, 0.16)' }
+                                : styles.txIconBoxTransfer
+                              : isDark
+                              ? { backgroundColor: 'rgba(239, 68, 68, 0.16)' }
                               : styles.txIconBoxExpense,
                           ]}
                         >
@@ -740,14 +1057,30 @@ export function TransactionsScreen({ onBack, onAddTransaction }: Props) {
                             name={iconName}
                             size={18}
                             color={
-                              isIncome ? '#00A86B' : isTransfer ? '#0284C7' : '#E53E3E'
+                              isIncome
+                                ? isDark
+                                  ? '#34D399'
+                                  : '#00A86B'
+                                : isTransfer
+                                ? isDark
+                                  ? '#38BDF8'
+                                  : '#0284C7'
+                                : isDark
+                                ? '#F87171'
+                                : '#E53E3E'
                             }
                           />
                         </View>
 
                         {/* Nội dung diễn giải + Nguồn ví */}
                         <View style={styles.txInfoCol}>
-                          <Text style={styles.txTitle} numberOfLines={1}>
+                          <Text
+                            style={[
+                              styles.txTitle,
+                              isDark && { color: themeColors.textPrimary },
+                            ]}
+                            numberOfLines={1}
+                          >
                             {tx.description || tx.category?.name || 'Giao dịch'}
                           </Text>
                           <View style={styles.txSubRow}>
@@ -755,9 +1088,15 @@ export function TransactionsScreen({ onBack, onAddTransaction }: Props) {
                               style={[
                                 styles.txCatPill,
                                 isIncome
-                                  ? styles.txCatPillIncome
+                                  ? isDark
+                                    ? { backgroundColor: 'rgba(52, 211, 153, 0.15)' }
+                                    : styles.txCatPillIncome
                                   : isTransfer
-                                  ? styles.txCatPillTransfer
+                                  ? isDark
+                                    ? { backgroundColor: 'rgba(56, 189, 248, 0.15)' }
+                                    : styles.txCatPillTransfer
+                                  : isDark
+                                  ? { backgroundColor: 'rgba(239, 68, 68, 0.15)' }
                                   : styles.txCatPillExpense,
                               ]}
                             >
@@ -765,7 +1104,9 @@ export function TransactionsScreen({ onBack, onAddTransaction }: Props) {
                                 style={[
                                   styles.txCatPillText,
                                   isIncome
-                                    ? styles.colorIncome
+                                    ? isDark
+                                      ? { color: '#6EE7B7' }
+                                      : styles.colorIncome
                                     : isTransfer
                                     ? { color: '#0284C7' }
                                     : styles.colorExpense,
@@ -777,12 +1118,33 @@ export function TransactionsScreen({ onBack, onAddTransaction }: Props) {
                               </Text>
                             </View>
                             {tx.receiptUrl ? (
-                              <View style={styles.txReceiptBadge}>
-                                <FinanceIcon name="receipt" size={10} color="#059669" />
-                                <Text style={styles.txReceiptBadgeText}>Hóa đơn</Text>
+                              <View
+                                style={[
+                                  styles.txReceiptBadge,
+                                  isDark && {
+                                    backgroundColor: 'rgba(52, 211, 153, 0.15)',
+                                    borderColor: 'rgba(52, 211, 153, 0.3)',
+                                  },
+                                ]}
+                              >
+                                <FinanceIcon name="receipt" size={10} color={isDark ? '#34D399' : '#059669'} />
+                                <Text
+                                  style={[
+                                    styles.txReceiptBadgeText,
+                                    isDark && { color: '#34D399' },
+                                  ]}
+                                >
+                                  Hóa đơn
+                                </Text>
                               </View>
                             ) : null}
-                            <Text style={styles.txAccountName} numberOfLines={1}>
+                            <Text
+                              style={[
+                                styles.txAccountName,
+                                isDark && { color: themeColors.textMuted },
+                              ]}
+                              numberOfLines={1}
+                            >
                               {isTransfer
                                 ? `${tx.accountName} → ${tx.toAccountName || 'Ví nhận'}`
                                 : tx.accountName || 'Ví tiền mặt'}
@@ -796,9 +1158,15 @@ export function TransactionsScreen({ onBack, onAddTransaction }: Props) {
                             style={[
                               styles.txAmountText,
                               isIncome
-                                ? styles.colorIncome
+                                ? isDark
+                                  ? { color: '#34D399' }
+                                  : styles.colorIncome
                                 : isTransfer
-                                ? { color: '#0284C7' }
+                                ? isDark
+                                  ? { color: '#38BDF8' }
+                                  : { color: '#0284C7' }
+                                : isDark
+                                ? { color: '#F87171' }
                                 : styles.colorExpense,
                             ]}
                           >
@@ -806,14 +1174,26 @@ export function TransactionsScreen({ onBack, onAddTransaction }: Props) {
                             {formatVND(tx.amount)} đ
                           </Text>
                           {tx.transactionTime ? (
-                            <Text style={styles.txTimeText}>
+                            <Text
+                              style={[
+                                styles.txTimeText,
+                                isDark && { color: themeColors.textMuted },
+                              ]}
+                            >
                               {tx.transactionTime.slice(0, 5)}
                             </Text>
                           ) : null}
                         </View>
                       </Pressable>
 
-                      {idx < group.items.length - 1 && <View style={styles.itemDivider} />}
+                      {idx < group.items.length - 1 && (
+                        <View
+                          style={[
+                            styles.itemDivider,
+                            isDark && { backgroundColor: themeColors.divider },
+                          ]}
+                        />
+                      )}
                     </View>
                   );
                 })}
@@ -837,11 +1217,33 @@ export function TransactionsScreen({ onBack, onAddTransaction }: Props) {
       {/* ── MODAL CHỌN THÁNG LỌC ── */}
       <Modal visible={monthModalVisible} transparent animationType="slide">
         <View style={styles.modalOverlay}>
-          <View style={styles.modalSheet}>
-            <View style={styles.modalTopBar}>
-              <Text style={styles.modalTopTitle}>Chọn kỳ báo cáo / Tháng</Text>
+          <View
+            style={[
+              styles.modalSheet,
+              isDark && {
+                backgroundColor: themeColors.surface,
+                borderTopColor: themeColors.cardBorder,
+              },
+            ]}
+          >
+            <View
+              style={[
+                styles.modalTopBar,
+                isDark && { borderBottomColor: themeColors.cardBorder },
+              ]}
+            >
+              <Text
+                style={[
+                  styles.modalTopTitle,
+                  isDark && { color: themeColors.textPrimary },
+                ]}
+              >
+                Chọn kỳ báo cáo / Tháng
+              </Text>
               <Pressable onPress={() => setMonthModalVisible(false)} hitSlop={10}>
-                <Text style={styles.modalCloseText}>Đóng</Text>
+                <Text style={[styles.modalCloseText, isDark && { color: '#34D399' }]}>
+                  Đóng
+                </Text>
               </Pressable>
             </View>
             <ScrollView style={{ paddingHorizontal: 16 }}>
@@ -854,12 +1256,22 @@ export function TransactionsScreen({ onBack, onAddTransaction }: Props) {
                       setSelectedMonth(m.key);
                       setMonthModalVisible(false);
                     }}
-                    style={[styles.monthOptionRow, isSelected && styles.monthOptionRowActive]}
+                    style={[
+                      styles.monthOptionRow,
+                      isDark && { borderBottomColor: themeColors.divider },
+                      isSelected && (isDark ? { backgroundColor: 'rgba(52, 211, 153, 0.15)', borderRadius: 12, paddingHorizontal: 8 } : styles.monthOptionRowActive),
+                    ]}
                   >
-                    <Text style={[styles.monthOptionLabel, isSelected && styles.monthOptionLabelActive]}>
+                    <Text
+                      style={[
+                        styles.monthOptionLabel,
+                        isDark && { color: themeColors.textPrimary },
+                        isSelected && (isDark ? { color: '#34D399', fontWeight: '800' } : styles.monthOptionLabelActive),
+                      ]}
+                    >
                       {m.label}
                     </Text>
-                    {isSelected && <Text style={styles.checkmarkIcon}>✓</Text>}
+                    {isSelected && <Text style={[styles.checkmarkIcon, isDark && { color: '#34D399' }]}>✓</Text>}
                   </Pressable>
                 );
               })}
@@ -871,14 +1283,43 @@ export function TransactionsScreen({ onBack, onAddTransaction }: Props) {
       {/* ── MODAL THẢ XUỐNG CHỌN VÍ / NGUỒN TIỀN (CHUẨN BẢN WEB) ── */}
       <Modal visible={walletModalVisible} transparent animationType="slide">
         <View style={styles.modalOverlay}>
-          <View style={styles.modalSheet}>
-            <View style={styles.modalTopBar}>
+          <View
+            style={[
+              styles.modalSheet,
+              isDark && {
+                backgroundColor: themeColors.surface,
+                borderTopColor: themeColors.cardBorder,
+              },
+            ]}
+          >
+            <View
+              style={[
+                styles.modalTopBar,
+                isDark && { borderBottomColor: themeColors.cardBorder },
+              ]}
+            >
               <View>
-                <Text style={styles.modalTopTitle}>Chọn Ví / Nguồn tiền</Text>
-                <Text style={styles.modalTopSub}>Lọc các giao dịch phát sinh từ ví này</Text>
+                <Text
+                  style={[
+                    styles.modalTopTitle,
+                    isDark && { color: themeColors.textPrimary },
+                  ]}
+                >
+                  Chọn Ví / Nguồn tiền
+                </Text>
+                <Text
+                  style={[
+                    styles.modalTopSub,
+                    isDark && { color: themeColors.textMuted },
+                  ]}
+                >
+                  Lọc các giao dịch phát sinh từ ví này
+                </Text>
               </View>
               <Pressable onPress={() => setWalletModalVisible(false)} hitSlop={10}>
-                <Text style={styles.modalCloseText}>Đóng</Text>
+                <Text style={[styles.modalCloseText, isDark && { color: '#34D399' }]}>
+                  Đóng
+                </Text>
               </Pressable>
             </View>
             <ScrollView style={{ paddingHorizontal: 16, maxHeight: 420 }}>
@@ -888,22 +1329,42 @@ export function TransactionsScreen({ onBack, onAddTransaction }: Props) {
                   setSelectedAccount('ALL');
                   setWalletModalVisible(false);
                 }}
-                style={[styles.walletOptionRow, selectedAccount === 'ALL' && styles.walletOptionRowActive]}
+                style={[
+                  styles.walletOptionRow,
+                  isDark && { borderBottomColor: themeColors.divider },
+                  selectedAccount === 'ALL' && (isDark ? { backgroundColor: 'rgba(52, 211, 153, 0.15)' } : styles.walletOptionRowActive),
+                ]}
               >
                 <View style={styles.walletOptionLeft}>
-                  <View style={[styles.walletOptionIconBox, { backgroundColor: '#ECFDF5' }]}>
-                    <FinanceIcon name="wallet" size={18} color="#00A86B" />
+                  <View
+                    style={[
+                      styles.walletOptionIconBox,
+                      { backgroundColor: isDark ? 'rgba(52, 211, 153, 0.15)' : '#ECFDF5' },
+                    ]}
+                  >
+                    <FinanceIcon name="wallet" size={18} color={isDark ? '#34D399' : '#00A86B'} />
                   </View>
                   <View>
-                    <Text style={[styles.walletOptionLabel, selectedAccount === 'ALL' && styles.walletOptionLabelActive]}>
+                    <Text
+                      style={[
+                        styles.walletOptionLabel,
+                        isDark && { color: themeColors.textPrimary },
+                        selectedAccount === 'ALL' && (isDark ? { color: '#34D399', fontWeight: '800' } : styles.walletOptionLabelActive),
+                      ]}
+                    >
                       Tất cả tài khoản / Ví
                     </Text>
-                    <Text style={styles.walletOptionCountText}>
+                    <Text
+                      style={[
+                        styles.walletOptionCountText,
+                        isDark && { color: themeColors.textMuted },
+                      ]}
+                    >
                       {transactions.length} giao dịch
                     </Text>
                   </View>
                 </View>
-                {selectedAccount === 'ALL' && <Text style={styles.checkmarkIcon}>✓</Text>}
+                {selectedAccount === 'ALL' && <Text style={[styles.checkmarkIcon, isDark && { color: '#34D399' }]}>✓</Text>}
               </Pressable>
 
               {/* Danh sách các ví người dùng thực tế đang có */}
@@ -921,20 +1382,36 @@ export function TransactionsScreen({ onBack, onAddTransaction }: Props) {
                       setSelectedAccount(acc.id);
                       setWalletModalVisible(false);
                     }}
-                    style={[styles.walletOptionRow, isSelected && styles.walletOptionRowActive]}
+                    style={[
+                      styles.walletOptionRow,
+                      isDark && { borderBottomColor: themeColors.divider },
+                      isSelected && (isDark ? { backgroundColor: 'rgba(52, 211, 153, 0.15)' } : styles.walletOptionRowActive),
+                    ]}
                   >
                     <View style={styles.walletOptionLeft}>
                       {renderWalletBadge(acc, 40)}
                       <View style={{ flex: 1 }}>
-                        <Text style={[styles.walletOptionLabel, isSelected && styles.walletOptionLabelActive]} numberOfLines={1}>
+                        <Text
+                          style={[
+                            styles.walletOptionLabel,
+                            isDark && { color: themeColors.textPrimary },
+                            isSelected && (isDark ? { color: '#34D399', fontWeight: '800' } : styles.walletOptionLabelActive),
+                          ]}
+                          numberOfLines={1}
+                        >
                           {acc.name}
                         </Text>
-                        <Text style={styles.walletOptionCountText}>
+                        <Text
+                          style={[
+                            styles.walletOptionCountText,
+                            isDark && { color: themeColors.textMuted },
+                          ]}
+                        >
                           {count} giao dịch · Số dư: {formatVND(acc.balance || 0)} đ
                         </Text>
                       </View>
                     </View>
-                    {isSelected && <Text style={styles.checkmarkIcon}>✓</Text>}
+                    {isSelected && <Text style={[styles.checkmarkIcon, isDark && { color: '#34D399' }]}>✓</Text>}
                   </Pressable>
                 );
               })}
@@ -948,11 +1425,37 @@ export function TransactionsScreen({ onBack, onAddTransaction }: Props) {
         {selectedTxDetail && (() => {
           const isIncome = selectedTxDetail.transactionType === 'INCOME';
           const isTransfer = selectedTxDetail.transactionType === 'TRANSFER';
-          const iconName = resolveCategoryIconName(
-            selectedTxDetail.category?.icon,
-            selectedTxDetail.transactionType,
-            selectedTxDetail.category?.name || selectedTxDetail.description
-          );
+          const descLower = (selectedTxDetail.description || '').toLowerCase();
+          const catNameLower = (selectedTxDetail.category?.name || '').toLowerCase();
+          let iconName: IconName = 'utensils';
+
+          if (
+            descLower.includes('tiết kiệm') ||
+            descLower.includes('đầu tư') ||
+            descLower.includes('mục tiêu') ||
+            descLower.includes('quỹ') ||
+            descLower.includes('tích lũy') ||
+            descLower.includes('heo đất') ||
+            catNameLower.includes('tiết kiệm') ||
+            catNameLower.includes('đầu tư') ||
+            catNameLower.includes('mục tiêu')
+          ) {
+            iconName = 'piggy-bank';
+          } else if (descLower.includes('nạp ví') || descLower.includes('[income_deposit]')) {
+            iconName = 'wallet';
+          } else if (descLower.includes('cấp tiền') || descLower.includes('[money_request]') || descLower.includes('xin tiền')) {
+            iconName = 'coins';
+          } else if (descLower.includes('thưởng') || descLower.includes('nhiệm vụ') || descLower.includes('[income_chore]')) {
+            iconName = 'award';
+          } else if (descLower.includes('lì xì') || descLower.includes('quà') || descLower.includes('[income_gift]')) {
+            iconName = 'gift';
+          } else {
+            iconName = resolveCategoryIconName(
+              selectedTxDetail.category?.icon,
+              selectedTxDetail.transactionType,
+              selectedTxDetail.category?.name || selectedTxDetail.description
+            );
+          }
           const fromAccount = accountMap.get(isEditingTx ? editAccountId : selectedTxDetail.accountId);
           const toAccount = selectedTxDetail.toAccountId
             ? accountMap.get(isEditingTx ? editToAccountId : selectedTxDetail.toAccountId)
@@ -973,10 +1476,29 @@ export function TransactionsScreen({ onBack, onAddTransaction }: Props) {
               style={styles.modalOverlay}
               behavior={Platform.OS === 'ios' ? 'padding' : undefined}
             >
-              <View style={styles.detailSheet}>
+              <View
+                style={[
+                  styles.detailSheet,
+                  isDark && {
+                    backgroundColor: themeColors.surface,
+                    borderTopColor: themeColors.cardBorder,
+                    borderTopWidth: 1,
+                  },
+                ]}
+              >
                 {/* Header sheet */}
-                <View style={styles.detailTopBar}>
-                  <Text style={styles.detailTopTitle}>
+                <View
+                  style={[
+                    styles.detailTopBar,
+                    isDark && { borderBottomColor: themeColors.cardBorder },
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.detailTopTitle,
+                      isDark && { color: themeColors.textPrimary },
+                    ]}
+                  >
                     {isEditingTx ? 'Chỉnh sửa giao dịch' : 'Chi tiết giao dịch'}
                   </Text>
                   <Pressable
@@ -988,7 +1510,14 @@ export function TransactionsScreen({ onBack, onAddTransaction }: Props) {
                     }}
                     hitSlop={12}
                   >
-                    <Text style={styles.modalCloseText}>Đóng</Text>
+                    <Text
+                      style={[
+                        styles.modalCloseText,
+                        isDark && { color: themeColors.accentGreen },
+                      ]}
+                    >
+                      Đóng
+                    </Text>
                   </Pressable>
                 </View>
 
@@ -998,27 +1527,48 @@ export function TransactionsScreen({ onBack, onAddTransaction }: Props) {
                   keyboardShouldPersistTaps="handled"
                 >
                   {/* Card số tiền to nổi bật */}
-                  <View style={styles.detailHeroCard}>
+                  <View
+                    style={[
+                      styles.detailHeroCard,
+                      isDark && {
+                        backgroundColor: themeColors.surfaceSubtle,
+                        borderColor: themeColors.cardBorder,
+                      },
+                    ]}
+                  >
                     <View
                       style={[
                         styles.detailBigIconBox,
                         isIncome
-                          ? styles.txIconBoxIncome
+                          ? (isDark ? { backgroundColor: 'rgba(52, 211, 153, 0.18)' } : styles.txIconBoxIncome)
                           : isTransfer
-                          ? styles.txIconBoxTransfer
-                          : styles.txIconBoxExpense,
+                          ? (isDark ? { backgroundColor: 'rgba(56, 189, 248, 0.18)' } : styles.txIconBoxTransfer)
+                          : (isDark ? { backgroundColor: 'rgba(248, 113, 113, 0.18)' } : styles.txIconBoxExpense),
                       ]}
                     >
                       <FinanceIcon
                         name={iconName}
                         size={28}
-                        color={isIncome ? '#00A86B' : isTransfer ? '#0284C7' : '#E53E3E'}
+                        color={
+                          isIncome
+                            ? (isDark ? '#34D399' : '#00A86B')
+                            : isTransfer
+                            ? (isDark ? '#38BDF8' : '#0284C7')
+                            : (isDark ? '#F87171' : '#E53E3E')
+                        }
                       />
                     </View>
 
                     {isEditingTx ? (
                       <View style={styles.editHeroInputsWrap}>
-                        <Text style={styles.editFieldLabel}>SỐ TIỀN GIAO DỊCH</Text>
+                        <Text
+                          style={[
+                            styles.editFieldLabel,
+                            isDark && { color: themeColors.textSecondary },
+                          ]}
+                        >
+                          SỐ TIỀN GIAO DỊCH
+                        </Text>
                         <TextInput
                           value={editAmount}
                           onChangeText={(txt) => {
@@ -1027,27 +1577,40 @@ export function TransactionsScreen({ onBack, onAddTransaction }: Props) {
                           }}
                           keyboardType="numeric"
                           placeholder="Nhập số tiền..."
-                          placeholderTextColor="#94A3B8"
+                          placeholderTextColor={isDark ? '#64748B' : '#94A3B8'}
                           style={[
                             styles.editAmountInput,
                             isIncome
-                              ? styles.colorIncome
+                              ? (isDark ? { color: '#34D399' } : styles.colorIncome)
                               : isTransfer
-                              ? { color: '#0284C7' }
-                              : styles.colorExpense,
+                              ? { color: isDark ? '#38BDF8' : '#0284C7' }
+                              : (isDark ? { color: '#F87171' } : styles.colorExpense),
+                            isDark && {
+                              backgroundColor: themeColors.surface,
+                              borderColor: themeColors.cardBorder,
+                            },
                           ]}
                         />
                       </View>
                     ) : (
                       <>
-                        <Text style={styles.detailDescriptionText}>
+                        <Text
+                          style={[
+                            styles.detailDescriptionText,
+                            isDark && { color: themeColors.textSecondary },
+                          ]}
+                        >
                           {selectedTxDetail.description || selectedTxDetail.category?.name || 'Giao dịch'}
                         </Text>
 
                         <Text
                           style={[
                             styles.detailAmountText,
-                            isIncome ? styles.colorIncome : isTransfer ? { color: '#0284C7' } : styles.colorExpense,
+                            isIncome
+                              ? (isDark ? { color: '#34D399' } : styles.colorIncome)
+                              : isTransfer
+                              ? { color: isDark ? '#38BDF8' : '#0284C7' }
+                              : (isDark ? { color: '#F87171' } : styles.colorExpense),
                           ]}
                         >
                           {isIncome ? '+' : isTransfer ? '' : '-'}
@@ -1060,16 +1623,20 @@ export function TransactionsScreen({ onBack, onAddTransaction }: Props) {
                       style={[
                         styles.detailTypeBadge,
                         isIncome
-                          ? styles.txCatPillIncome
+                          ? (isDark ? { backgroundColor: 'rgba(52, 211, 153, 0.16)' } : styles.txCatPillIncome)
                           : isTransfer
-                          ? styles.txCatPillTransfer
-                          : styles.txCatPillExpense,
+                          ? (isDark ? { backgroundColor: 'rgba(56, 189, 248, 0.16)' } : styles.txCatPillTransfer)
+                          : (isDark ? { backgroundColor: 'rgba(239, 68, 68, 0.16)' } : styles.txCatPillExpense),
                       ]}
                     >
                       <Text
                         style={[
                           styles.detailTypeBadgeText,
-                          isIncome ? styles.colorIncome : isTransfer ? { color: '#0284C7' } : styles.colorExpense,
+                          isIncome
+                            ? (isDark ? { color: '#34D399' } : styles.colorIncome)
+                            : isTransfer
+                            ? { color: isDark ? '#38BDF8' : '#0284C7' }
+                            : (isDark ? { color: '#F87171' } : styles.colorExpense),
                         ]}
                       >
                         {isTransfer
@@ -1083,32 +1650,71 @@ export function TransactionsScreen({ onBack, onAddTransaction }: Props) {
 
                   {isEditingTx ? (
                     /* ── BIỂU MẪU CHỈNH SỬA GIAO DỊCH TRỰC TIẾP ── */
-                    <View style={styles.editFormCard}>
+                    <View
+                      style={[
+                        styles.editFormCard,
+                        isDark && {
+                          backgroundColor: themeColors.surfaceSubtle,
+                          borderColor: themeColors.cardBorder,
+                        },
+                      ]}
+                    >
                       {/* Tên / Mô tả giao dịch */}
                       <View style={styles.editFieldGroup}>
-                        <Text style={styles.editFieldLabel}>TÊN / NỘI DUNG GIAO DỊCH</Text>
+                        <Text
+                          style={[
+                            styles.editFieldLabel,
+                            isDark && { color: themeColors.textSecondary },
+                          ]}
+                        >
+                          TÊN / NỘI DUNG GIAO DỊCH
+                        </Text>
                         <TextInput
                           value={editDescription}
                           onChangeText={setEditDescription}
                           placeholder="Nhập mô tả giao dịch..."
-                          placeholderTextColor="#94A3B8"
-                          style={styles.editTextInput}
+                          placeholderTextColor={isDark ? '#64748B' : '#94A3B8'}
+                          style={[
+                            styles.editTextInput,
+                            isDark && {
+                              backgroundColor: themeColors.surface,
+                              borderColor: themeColors.cardBorder,
+                              color: themeColors.textPrimary,
+                            },
+                          ]}
                         />
                       </View>
 
                       {/* Danh mục thu / chi (Dropdown chuẩn theo phong cách Sổ nợ) */}
                       {!isTransfer && (
                         <View style={styles.editFieldGroup}>
-                          <Text style={styles.editFieldLabel}>HẠNG MỤC / DANH MỤC</Text>
+                          <Text
+                            style={[
+                              styles.editFieldLabel,
+                              isDark && { color: themeColors.textSecondary },
+                            ]}
+                          >
+                            HẠNG MỤC / DANH MỤC
+                          </Text>
                           <Pressable
                             onPress={() => setEditPickerType('CATEGORY')}
-                            style={styles.modernSelectDropdown}
+                            style={[
+                              styles.modernSelectDropdown,
+                              isDark && {
+                                backgroundColor: themeColors.surface,
+                                borderColor: themeColors.cardBorder,
+                              },
+                            ]}
                           >
                             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 }}>
                               <View
                                 style={[
                                   styles.pickerCategoryBadge,
-                                  { backgroundColor: isIncome ? '#DCFCE7' : '#FEE2E2' },
+                                  {
+                                    backgroundColor: isIncome
+                                      ? (isDark ? 'rgba(52, 211, 153, 0.2)' : '#DCFCE7')
+                                      : (isDark ? 'rgba(239, 68, 68, 0.2)' : '#FEE2E2'),
+                                  },
                                 ]}
                               >
                                 <FinanceIcon
@@ -1118,56 +1724,114 @@ export function TransactionsScreen({ onBack, onAddTransaction }: Props) {
                                     selectedEditCategory?.name
                                   )}
                                   size={15}
-                                  color={isIncome ? '#059669' : '#E11D48'}
+                                  color={
+                                    isIncome
+                                      ? (isDark ? '#34D399' : '#059669')
+                                      : (isDark ? '#F87171' : '#E11D48')
+                                  }
                                 />
                               </View>
-                              <Text style={styles.modernSelectText} numberOfLines={1}>
+                              <Text
+                                style={[
+                                  styles.modernSelectText,
+                                  isDark && { color: themeColors.textPrimary },
+                                ]}
+                                numberOfLines={1}
+                              >
                                 {selectedEditCategory?.name || (isIncome ? 'Thu nhập chung' : 'Chi tiêu chung')}
                               </Text>
                             </View>
-                            <FinanceIcon name="chevron-down" size={16} color="#047857" />
+                            <FinanceIcon
+                              name="chevron-down"
+                              size={16}
+                              color={isDark ? themeColors.accentGreen : '#047857'}
+                            />
                           </Pressable>
                         </View>
                       )}
 
                       {/* Ví / Nguồn tiền (Dropdown chuẩn theo phong cách Sổ nợ) */}
                       <View style={styles.editFieldGroup}>
-                        <Text style={styles.editFieldLabel}>
+                        <Text
+                          style={[
+                            styles.editFieldLabel,
+                            isDark && { color: themeColors.textSecondary },
+                          ]}
+                        >
                           {isTransfer ? 'VÍ CHUYỂN ĐI' : 'NGUỒN TIỀN / VÍ'}
                         </Text>
                         <Pressable
                           onPress={() => setEditPickerType('ACCOUNT')}
-                          style={styles.modernSelectDropdown}
+                          style={[
+                            styles.modernSelectDropdown,
+                            isDark && {
+                              backgroundColor: themeColors.surface,
+                              borderColor: themeColors.cardBorder,
+                            },
+                          ]}
                         >
                           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1 }}>
                             {renderWalletBadge(fromAccount, 22)}
-                            <Text style={styles.modernSelectText} numberOfLines={1}>
+                            <Text
+                              style={[
+                                styles.modernSelectText,
+                                isDark && { color: themeColors.textPrimary },
+                              ]}
+                              numberOfLines={1}
+                            >
                               {fromAccount
                                 ? `${fromAccount.name} (Số dư: ${formatVND(fromAccount.balance || 0)} đ)`
                                 : selectedTxDetail.accountName || 'Ví tiền mặt'}
                             </Text>
                           </View>
-                          <FinanceIcon name="chevron-down" size={16} color="#047857" />
+                          <FinanceIcon
+                            name="chevron-down"
+                            size={16}
+                            color={isDark ? themeColors.accentGreen : '#047857'}
+                          />
                         </Pressable>
                       </View>
 
                       {/* Ví nhận nếu là giao dịch chuyển khoản */}
                       {isTransfer && (
                         <View style={styles.editFieldGroup}>
-                          <Text style={styles.editFieldLabel}>VÍ NHẬN</Text>
+                          <Text
+                            style={[
+                              styles.editFieldLabel,
+                              isDark && { color: themeColors.textSecondary },
+                            ]}
+                          >
+                            VÍ NHẬN
+                          </Text>
                           <Pressable
                             onPress={() => setEditPickerType('TO_ACCOUNT')}
-                            style={styles.modernSelectDropdown}
+                            style={[
+                              styles.modernSelectDropdown,
+                              isDark && {
+                                backgroundColor: themeColors.surface,
+                                borderColor: themeColors.cardBorder,
+                              },
+                            ]}
                           >
                             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1 }}>
                               {renderWalletBadge(toAccount, 22)}
-                              <Text style={styles.modernSelectText} numberOfLines={1}>
+                              <Text
+                                style={[
+                                  styles.modernSelectText,
+                                  isDark && { color: themeColors.textPrimary },
+                                ]}
+                                numberOfLines={1}
+                              >
                                 {toAccount
                                   ? `${toAccount.name} (Số dư: ${formatVND(toAccount.balance || 0)} đ)`
                                   : selectedTxDetail.toAccountName || 'Ví thụ hưởng'}
                               </Text>
                             </View>
-                            <FinanceIcon name="chevron-down" size={16} color="#047857" />
+                            <FinanceIcon
+                              name="chevron-down"
+                              size={16}
+                              color={isDark ? themeColors.accentGreen : '#047857'}
+                            />
                           </Pressable>
                         </View>
                       )}
@@ -1175,49 +1839,117 @@ export function TransactionsScreen({ onBack, onAddTransaction }: Props) {
                       {/* Giờ trước - Ngày sau */}
                       <View style={styles.editRowTwoCols}>
                         <View style={[styles.editFieldGroup, { flex: 0.9 }]}>
-                          <Text style={styles.editFieldLabel}>GIỜ</Text>
+                          <Text
+                            style={[
+                              styles.editFieldLabel,
+                              isDark && { color: themeColors.textSecondary },
+                            ]}
+                          >
+                            GIỜ
+                          </Text>
                           <TextInput
                             value={editTime}
                             onChangeText={setEditTime}
                             placeholder="12:00"
-                            placeholderTextColor="#94A3B8"
-                            style={styles.editTextInput}
+                            placeholderTextColor={isDark ? '#64748B' : '#94A3B8'}
+                            style={[
+                              styles.editTextInput,
+                              isDark && {
+                                backgroundColor: themeColors.surface,
+                                borderColor: themeColors.cardBorder,
+                                color: themeColors.textPrimary,
+                              },
+                            ]}
                           />
                         </View>
                         <View style={[styles.editFieldGroup, { flex: 1.1 }]}>
-                          <Text style={styles.editFieldLabel}>NGÀY</Text>
+                          <Text
+                            style={[
+                              styles.editFieldLabel,
+                              isDark && { color: themeColors.textSecondary },
+                            ]}
+                          >
+                            NGÀY
+                          </Text>
                           <TextInput
                             value={editDate}
                             onChangeText={setEditDate}
                             placeholder="12/11/2026"
-                            placeholderTextColor="#94A3B8"
-                            style={styles.editTextInput}
+                            placeholderTextColor={isDark ? '#64748B' : '#94A3B8'}
+                            style={[
+                              styles.editTextInput,
+                              isDark && {
+                                backgroundColor: themeColors.surface,
+                                borderColor: themeColors.cardBorder,
+                                color: themeColors.textPrimary,
+                              },
+                            ]}
                           />
                         </View>
                       </View>
 
                       {/* Ghi chú */}
                       <View style={styles.editFieldGroup}>
-                        <Text style={styles.editFieldLabel}>GHI CHÚ THÊM</Text>
+                        <Text
+                          style={[
+                            styles.editFieldLabel,
+                            isDark && { color: themeColors.textSecondary },
+                          ]}
+                        >
+                          GHI CHÚ THÊM
+                        </Text>
                         <TextInput
                           value={editNote}
                           onChangeText={setEditNote}
                           placeholder="Nhập ghi chú (không bắt buộc)..."
-                          placeholderTextColor="#94A3B8"
+                          placeholderTextColor={isDark ? '#64748B' : '#94A3B8'}
                           multiline
-                          style={[styles.editTextInput, { minHeight: 64, textAlignVertical: 'top' }]}
+                          style={[
+                            styles.editTextInput,
+                            { minHeight: 64, textAlignVertical: 'top' },
+                            isDark && {
+                              backgroundColor: themeColors.surface,
+                              borderColor: themeColors.cardBorder,
+                              color: themeColors.textPrimary,
+                            },
+                          ]}
                         />
                       </View>
                     </View>
                   ) : (
                     /* ── CHẾ ĐỘ XEM THÔNG TIN CHI TIẾT ── */
-                    <View style={styles.detailInfoGroup}>
+                    <View
+                      style={[
+                        styles.detailInfoGroup,
+                        isDark && {
+                          backgroundColor: themeColors.surface,
+                          borderColor: themeColors.cardBorder,
+                        },
+                      ]}
+                    >
                       {/* Danh mục */}
                       {!isTransfer && (
-                        <View style={styles.detailInfoRow}>
-                          <Text style={styles.detailInfoLabel}>Hạng mục / Danh mục</Text>
+                        <View
+                          style={[
+                            styles.detailInfoRow,
+                            isDark && { borderBottomColor: themeColors.divider },
+                          ]}
+                        >
+                          <Text
+                            style={[
+                              styles.detailInfoLabel,
+                              isDark && { color: themeColors.textSecondary },
+                            ]}
+                          >
+                            Hạng mục / Danh mục
+                          </Text>
                           <View style={styles.detailInfoValueRow}>
-                            <Text style={styles.detailInfoValueText}>
+                            <Text
+                              style={[
+                                styles.detailInfoValueText,
+                                isDark && { color: themeColors.textPrimary },
+                              ]}
+                            >
                               {selectedTxDetail.category?.name || (isIncome ? 'Thu nhập chung' : 'Chi tiêu chung')}
                             </Text>
                           </View>
@@ -1225,13 +1957,28 @@ export function TransactionsScreen({ onBack, onAddTransaction }: Props) {
                       )}
 
                       {/* Nguồn tiền / Ví chuyển */}
-                      <View style={styles.detailInfoRow}>
-                        <Text style={styles.detailInfoLabel}>
+                      <View
+                        style={[
+                          styles.detailInfoRow,
+                          isDark && { borderBottomColor: themeColors.divider },
+                        ]}
+                      >
+                        <Text
+                          style={[
+                            styles.detailInfoLabel,
+                            isDark && { color: themeColors.textSecondary },
+                          ]}
+                        >
                           {isTransfer ? 'Ví chuyển đi' : 'Nguồn tiền / Ví'}
                         </Text>
                         <View style={styles.detailInfoValueRow}>
                           {renderWalletBadge(fromAccount, 22)}
-                          <Text style={styles.detailInfoValueText}>
+                          <Text
+                            style={[
+                              styles.detailInfoValueText,
+                              isDark && { color: themeColors.textPrimary },
+                            ]}
+                          >
                             {selectedTxDetail.accountName || fromAccount?.name || 'Ví tiền mặt'}
                           </Text>
                         </View>
@@ -1239,11 +1986,28 @@ export function TransactionsScreen({ onBack, onAddTransaction }: Props) {
 
                       {/* Ví nhận (nếu chuyển khoản) */}
                       {isTransfer && (
-                        <View style={styles.detailInfoRow}>
-                          <Text style={styles.detailInfoLabel}>Ví nhận</Text>
+                        <View
+                          style={[
+                            styles.detailInfoRow,
+                            isDark && { borderBottomColor: themeColors.divider },
+                          ]}
+                        >
+                          <Text
+                            style={[
+                              styles.detailInfoLabel,
+                              isDark && { color: themeColors.textSecondary },
+                            ]}
+                          >
+                            Ví nhận
+                          </Text>
                           <View style={styles.detailInfoValueRow}>
                             {renderWalletBadge(toAccount, 22)}
-                            <Text style={styles.detailInfoValueText}>
+                            <Text
+                              style={[
+                                styles.detailInfoValueText,
+                                isDark && { color: themeColors.textPrimary },
+                              ]}
+                            >
                               {selectedTxDetail.toAccountName || toAccount?.name || 'Ví thụ hưởng'}
                             </Text>
                           </View>
@@ -1251,9 +2015,26 @@ export function TransactionsScreen({ onBack, onAddTransaction }: Props) {
                       )}
 
                       {/* Thời gian giao dịch (Giờ trước, ngày sau: HH:mm ngày DD/MM/YYYY) */}
-                      <View style={styles.detailInfoRow}>
-                        <Text style={styles.detailInfoLabel}>Thời gian ghi nhận</Text>
-                        <Text style={styles.detailInfoValueText}>
+                      <View
+                        style={[
+                          styles.detailInfoRow,
+                          isDark && { borderBottomColor: themeColors.divider },
+                        ]}
+                      >
+                        <Text
+                          style={[
+                            styles.detailInfoLabel,
+                            isDark && { color: themeColors.textSecondary },
+                          ]}
+                        >
+                          Thời gian ghi nhận
+                        </Text>
+                        <Text
+                          style={[
+                            styles.detailInfoValueText,
+                            isDark && { color: themeColors.textPrimary },
+                          ]}
+                        >
                           {selectedTxDetail.transactionTime
                             ? `${selectedTxDetail.transactionTime.slice(0, 5)} ngày ${displayDate}`
                             : displayDate}
@@ -1262,9 +2043,26 @@ export function TransactionsScreen({ onBack, onAddTransaction }: Props) {
 
                       {/* Ghi chú */}
                       {selectedTxDetail.note || selectedTxDetail.notes ? (
-                        <View style={styles.detailInfoRow}>
-                          <Text style={styles.detailInfoLabel}>Ghi chú thêm</Text>
-                          <Text style={styles.detailInfoValueText}>
+                        <View
+                          style={[
+                            styles.detailInfoRow,
+                            isDark && { borderBottomColor: themeColors.divider },
+                          ]}
+                        >
+                          <Text
+                            style={[
+                              styles.detailInfoLabel,
+                              isDark && { color: themeColors.textSecondary },
+                            ]}
+                          >
+                            Ghi chú thêm
+                          </Text>
+                          <Text
+                            style={[
+                              styles.detailInfoValueText,
+                              isDark && { color: themeColors.textPrimary },
+                            ]}
+                          >
                             {selectedTxDetail.note || selectedTxDetail.notes}
                           </Text>
                         </View>
@@ -1272,8 +2070,20 @@ export function TransactionsScreen({ onBack, onAddTransaction }: Props) {
 
                       {/* Mã giao dịch */}
                       <View style={[styles.detailInfoRow, { borderBottomWidth: 0 }]}>
-                        <Text style={styles.detailInfoLabel}>Mã giao dịch</Text>
-                        <Text style={styles.detailCodeText}>
+                        <Text
+                          style={[
+                            styles.detailInfoLabel,
+                            isDark && { color: themeColors.textSecondary },
+                          ]}
+                        >
+                          Mã giao dịch
+                        </Text>
+                        <Text
+                          style={[
+                            styles.detailCodeText,
+                            isDark && { color: themeColors.accentGreen },
+                          ]}
+                        >
                           #{selectedTxDetail.id ? selectedTxDetail.id.slice(0, 10).toUpperCase() : 'TXN'}
                         </Text>
                       </View>
@@ -1285,24 +2095,66 @@ export function TransactionsScreen({ onBack, onAddTransaction }: Props) {
                     const resolvedReceiptUri = ocrApi.formatReceiptImageUrl(selectedTxDetail.receiptUrl);
                     if (!resolvedReceiptUri) return null;
                     return (
-                      <View style={styles.receiptContainer}>
+                      <View
+                        style={[
+                          styles.receiptContainer,
+                          isDark && {
+                            backgroundColor: themeColors.surfaceSubtle,
+                            borderColor: themeColors.cardBorder,
+                          },
+                        ]}
+                      >
                         <View style={styles.receiptHeaderRow}>
                           <View style={styles.receiptHeaderLeft}>
-                            <FinanceIcon name="receipt" size={16} color="#008B62" />
-                            <Text style={styles.receiptHeaderText}>Hóa đơn đính kèm</Text>
+                            <FinanceIcon
+                              name="receipt"
+                              size={16}
+                              color={isDark ? themeColors.accentGreen : '#008B62'}
+                            />
+                            <Text
+                              style={[
+                                styles.receiptHeaderText,
+                                isDark && { color: themeColors.textPrimary },
+                              ]}
+                            >
+                              Hóa đơn đính kèm
+                            </Text>
                           </View>
                           <Pressable
                             onPress={() => setFullReceiptUri(resolvedReceiptUri)}
-                            style={styles.receiptZoomBtn}
+                            style={[
+                              styles.receiptZoomBtn,
+                              isDark && {
+                                backgroundColor: 'rgba(52, 211, 153, 0.15)',
+                                borderColor: 'rgba(52, 211, 153, 0.3)',
+                              },
+                            ]}
                             hitSlop={8}
                           >
-                            <FinanceIcon name="eye" size={14} color="#008B62" />
-                            <Text style={styles.receiptZoomBtnText}>Xem rõ toàn màn hình</Text>
+                            <FinanceIcon
+                              name="eye"
+                              size={14}
+                              color={isDark ? themeColors.accentGreen : '#008B62'}
+                            />
+                            <Text
+                              style={[
+                                styles.receiptZoomBtnText,
+                                isDark && { color: themeColors.accentGreen },
+                              ]}
+                            >
+                              Xem rõ toàn màn hình
+                            </Text>
                           </Pressable>
                         </View>
                         <Pressable
                           onPress={() => setFullReceiptUri(resolvedReceiptUri)}
-                          style={styles.receiptImageWrapper}
+                          style={[
+                            styles.receiptImageWrapper,
+                            isDark && {
+                              backgroundColor: themeColors.surface,
+                              borderColor: themeColors.cardBorder,
+                            },
+                          ]}
                         >
                           <Image
                             source={{ uri: resolvedReceiptUri }}
@@ -1323,9 +2175,23 @@ export function TransactionsScreen({ onBack, onAddTransaction }: Props) {
                           setEditPickerType('NONE');
                         }}
                         disabled={editSubmitting}
-                        style={styles.detailSecondaryBtn}
+                        style={[
+                          styles.detailSecondaryBtn,
+                          isDark && {
+                            backgroundColor: themeColors.surfaceSubtle,
+                            borderColor: themeColors.cardBorder,
+                            borderWidth: 1,
+                          },
+                        ]}
                       >
-                        <Text style={styles.detailSecondaryBtnText}>Hủy</Text>
+                        <Text
+                          style={[
+                            styles.detailSecondaryBtnText,
+                            isDark && { color: themeColors.textSecondary },
+                          ]}
+                        >
+                          Hủy
+                        </Text>
                       </Pressable>
 
                       <Pressable
@@ -1348,16 +2214,40 @@ export function TransactionsScreen({ onBack, onAddTransaction }: Props) {
                       <Pressable
                         onPress={() => handleStartEditTx(selectedTxDetail)}
                         disabled={deleteSubmitting}
-                        style={styles.detailEditBtn}
+                        style={[
+                          styles.detailEditBtn,
+                          isDark && {
+                            backgroundColor: 'rgba(52, 211, 153, 0.15)',
+                            borderColor: themeColors.accentGreen,
+                          },
+                        ]}
                       >
-                        <FinanceIcon name="edit" size={16} color="#047857" />
-                        <Text style={styles.detailEditBtnText}>Sửa giao dịch</Text>
+                        <FinanceIcon
+                          name="edit"
+                          size={16}
+                          color={isDark ? themeColors.accentGreen : '#047857'}
+                        />
+                        <Text
+                          style={[
+                            styles.detailEditBtnText,
+                            isDark && { color: themeColors.accentGreen },
+                          ]}
+                        >
+                          Sửa giao dịch
+                        </Text>
                       </Pressable>
 
                       <Pressable
                         onPress={() => handleConfirmDeleteTx(selectedTxDetail)}
                         disabled={deleteSubmitting}
-                        style={[styles.detailDeleteBtn, deleteSubmitting && { opacity: 0.7 }]}
+                        style={[
+                          styles.detailDeleteBtn,
+                          isDark && {
+                            backgroundColor: 'rgba(239, 68, 68, 0.15)',
+                            borderColor: 'rgba(239, 68, 68, 0.3)',
+                          },
+                          deleteSubmitting && { opacity: 0.7 },
+                        ]}
                       >
                         {deleteSubmitting ? (
                           <ActivityIndicator size="small" color="#E11D48" />
@@ -1385,9 +2275,28 @@ export function TransactionsScreen({ onBack, onAddTransaction }: Props) {
                       style={StyleSheet.absoluteFillObject}
                       onPress={() => setEditPickerType('NONE')}
                     />
-                    <View style={styles.pickerModalBox}>
-                      <View style={styles.pickerModalHeader}>
-                        <Text style={styles.pickerModalTitle}>
+                    <View
+                      style={[
+                        styles.pickerModalBox,
+                        isDark && {
+                          backgroundColor: themeColors.surface,
+                          borderColor: themeColors.cardBorder,
+                          borderWidth: 1,
+                        },
+                      ]}
+                    >
+                      <View
+                        style={[
+                          styles.pickerModalHeader,
+                          isDark && { borderBottomColor: themeColors.cardBorder },
+                        ]}
+                      >
+                        <Text
+                          style={[
+                            styles.pickerModalTitle,
+                            isDark && { color: themeColors.textPrimary },
+                          ]}
+                        >
                           {editPickerType === 'CATEGORY'
                             ? 'Chọn hạng mục giao dịch'
                             : editPickerType === 'TO_ACCOUNT'
@@ -1395,7 +2304,11 @@ export function TransactionsScreen({ onBack, onAddTransaction }: Props) {
                             : 'Chọn nguồn tiền / ví'}
                         </Text>
                         <Pressable onPress={() => setEditPickerType('NONE')} hitSlop={10}>
-                          <FinanceIcon name="close" size={18} color="#64748B" />
+                          <FinanceIcon
+                            name="close"
+                            size={18}
+                            color={isDark ? themeColors.textSecondary : '#64748B'}
+                          />
                         </Pressable>
                       </View>
 
@@ -1412,7 +2325,8 @@ export function TransactionsScreen({ onBack, onAddTransaction }: Props) {
                                 }}
                                 style={[
                                   styles.pickerItemRow,
-                                  active && styles.pickerItemRowActive,
+                                  isDark && { borderBottomColor: themeColors.divider },
+                                  active && (isDark ? { backgroundColor: 'rgba(52, 211, 153, 0.16)' } : styles.pickerItemRowActive),
                                 ]}
                               >
                                 <View
@@ -1422,7 +2336,9 @@ export function TransactionsScreen({ onBack, onAddTransaction }: Props) {
                                       width: 34,
                                       height: 34,
                                       borderRadius: 17,
-                                      backgroundColor: isIncome ? '#DCFCE7' : '#FEE2E2',
+                                      backgroundColor: isIncome
+                                        ? (isDark ? 'rgba(52, 211, 153, 0.2)' : '#DCFCE7')
+                                        : (isDark ? 'rgba(239, 68, 68, 0.2)' : '#FEE2E2'),
                                     },
                                   ]}
                                 >
@@ -1433,23 +2349,39 @@ export function TransactionsScreen({ onBack, onAddTransaction }: Props) {
                                       cat.name
                                     )}
                                     size={17}
-                                    color={isIncome ? '#059669' : '#E11D48'}
+                                    color={
+                                      isIncome
+                                        ? (isDark ? '#34D399' : '#059669')
+                                        : (isDark ? '#F87171' : '#E11D48')
+                                    }
                                   />
                                 </View>
                                 <View style={{ flex: 1, marginLeft: 10 }}>
                                   <Text
                                     style={[
                                       styles.pickerItemText,
-                                      active && styles.pickerItemTextActive,
+                                      isDark && { color: themeColors.textPrimary },
+                                      active && (isDark ? { color: themeColors.accentGreen } : styles.pickerItemTextActive),
                                     ]}
                                   >
                                     {cat.name}
                                   </Text>
-                                  <Text style={styles.pickerItemSub}>
+                                  <Text
+                                    style={[
+                                      styles.pickerItemSub,
+                                      isDark && { color: themeColors.textSecondary },
+                                    ]}
+                                  >
                                     {isIncome ? 'Hạng mục thu nhập' : 'Hạng mục chi tiêu'}
                                   </Text>
                                 </View>
-                                {active && <FinanceIcon name="check" size={16} color="#0E964E" />}
+                                {active && (
+                                  <FinanceIcon
+                                    name="check"
+                                    size={16}
+                                    color={isDark ? themeColors.accentGreen : '#0E964E'}
+                                  />
+                                )}
                               </Pressable>
                             );
                           })}
@@ -1473,7 +2405,8 @@ export function TransactionsScreen({ onBack, onAddTransaction }: Props) {
                                 }}
                                 style={[
                                   styles.pickerItemRow,
-                                  active && styles.pickerItemRowActive,
+                                  isDark && { borderBottomColor: themeColors.divider },
+                                  active && (isDark ? { backgroundColor: 'rgba(52, 211, 153, 0.16)' } : styles.pickerItemRowActive),
                                 ]}
                               >
                                 {renderWalletBadge(acc, 34)}
@@ -1481,16 +2414,28 @@ export function TransactionsScreen({ onBack, onAddTransaction }: Props) {
                                   <Text
                                     style={[
                                       styles.pickerItemText,
-                                      active && styles.pickerItemTextActive,
+                                      isDark && { color: themeColors.textPrimary },
+                                      active && (isDark ? { color: themeColors.accentGreen } : styles.pickerItemTextActive),
                                     ]}
                                   >
                                     {acc.name}
                                   </Text>
-                                  <Text style={styles.pickerItemSub}>
+                                  <Text
+                                    style={[
+                                      styles.pickerItemSub,
+                                      isDark && { color: themeColors.textSecondary },
+                                    ]}
+                                  >
                                     Số dư: {formatVND(acc.balance || 0)} đ
                                   </Text>
                                 </View>
-                                {active && <FinanceIcon name="check" size={16} color="#0E964E" />}
+                                {active && (
+                                  <FinanceIcon
+                                    name="check"
+                                    size={16}
+                                    color={isDark ? themeColors.accentGreen : '#0E964E'}
+                                  />
+                                )}
                               </Pressable>
                             );
                           })}

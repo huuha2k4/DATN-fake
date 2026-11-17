@@ -15,12 +15,45 @@ import {
 } from 'react-native';
 import { FinanceIcon } from '../../core/components/FinanceIcon';
 import { goalsApi } from '../api/goalsApi';
+import { authStorage } from '../../auth/api/authApi';
 
 type Props = {
   visible: boolean;
   onClose: () => void;
   onSuccess: () => void;
 };
+
+// Danh mục Tiết kiệm 3D cho bé (Kids)
+const KID_SAVING_TYPES = [
+  {
+    label: 'Nuôi heo đất tiết kiệm',
+    value: 'Nuôi heo đất tiết kiệm',
+    iconKey: 'saving_free',
+    image: require('../../../assets/icons/saving_cat_free_3d.png'),
+    desc: 'Bỏ ống heo tiền lì xì, tiền thưởng làm việc nhà...',
+  },
+  {
+    label: 'Tiết kiệm mua đồ yêu thích',
+    value: 'Tiết kiệm mua đồ yêu thích',
+    iconKey: 'saving_term',
+    image: require('../../../assets/icons/saving_cat_term_3d.png'),
+    desc: 'Tích lũy từng tuần để tự mua món đồ mình thích...',
+  },
+  {
+    label: 'Quỹ khẩn cấp của bé',
+    value: 'Quỹ khẩn cấp của bé',
+    iconKey: 'saving_emergency',
+    image: require('../../../assets/icons/saving_cat_emergency_3d.png'),
+    desc: 'Để dành phòng khi đi học quên đồ, việc đột xuất...',
+  },
+  {
+    label: 'Khoản tiết kiệm khác',
+    value: 'Khác',
+    iconKey: 'saving_other',
+    image: require('../../../assets/icons/saving_cat_other_3d.png'),
+    desc: 'Khoản tiết kiệm tự do linh hoạt của bé...',
+  },
+];
 
 const SAVING_TYPES = [
   {
@@ -68,14 +101,18 @@ function formatCurrencyInput(val: string): string {
 }
 
 export function CreateSavingModal({ visible, onClose, onSuccess }: Props) {
+  const user = authStorage.getUser();
+  const isChildAccount = Boolean(user?.childAccount && user?.childWalletGroupId);
+  const activeSavingTypes = isChildAccount ? KID_SAVING_TYPES : SAVING_TYPES;
+
   const [name, setName] = useState('');
-  const [category, setCategory] = useState('Tiết kiệm tự do');
+  const [category, setCategory] = useState(isChildAccount ? 'Nuôi heo đất tiết kiệm' : 'Tiết kiệm tự do');
   const [currentAmount, setCurrentAmount] = useState('');
   const [description, setDescription] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showCategoryPicker, setShowCategoryPicker] = useState(false);
 
-  const selectedTypeObj = SAVING_TYPES.find((t) => t.value === category) || SAVING_TYPES[1];
+  const selectedTypeObj = activeSavingTypes.find((t) => t.value === category) || activeSavingTypes[0];
 
   const handleSubmit = async () => {
     if (!name.trim()) {
@@ -208,7 +245,7 @@ export function CreateSavingModal({ visible, onClose, onSuccess }: Props) {
                 </View>
 
                 <ScrollView style={{ maxHeight: 380 }} showsVerticalScrollIndicator={false}>
-                  {SAVING_TYPES.map((t) => {
+                  {activeSavingTypes.map((t) => {
                     const isSel = category === t.value;
                     return (
                       <Pressable

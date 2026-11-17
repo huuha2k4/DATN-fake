@@ -4,6 +4,7 @@ import { themeTokens } from '../themeTokens';
 import { formatCurrency } from '../api/mockData';
 import type { DashboardTransaction } from '../api/dashboardApi';
 import { FinanceIcon, resolveCategoryIconName } from '../../core/components/FinanceIcon';
+import { useAppTheme } from '../../../context/ThemeContext';
 
 type Props = {
   transactions: DashboardTransaction[];
@@ -11,27 +12,54 @@ type Props = {
 };
 
 export function RecentTransactions({ transactions, onViewAll }: Props) {
+  const { isDark, colors: themeColors } = useAppTheme();
+
   return (
     <View style={styles.sectionContainer}>
       {/* Header section: Tiêu đề + Xem tất cả */}
       <View style={styles.headerRow}>
         <View>
-          <Text style={styles.sectionTitle}>Giao dịch gần đây</Text>
-          <Text style={styles.sectionSubtitle}>
+          <Text style={[styles.sectionTitle, { color: themeColors.textPrimary }]}>
+            Giao dịch gần đây
+          </Text>
+          <Text style={[styles.sectionSubtitle, { color: themeColors.textSecondary }]}>
             {transactions.length} hoạt động tài chính mới nhất
           </Text>
         </View>
-        <Pressable onPress={onViewAll} hitSlop={10} style={({ pressed }) => [{ flexDirection: 'row', alignItems: 'center', gap: 2 }, pressed && styles.pressed]}>
-          <Text style={styles.viewAllText}>Xem tất cả</Text>
-          <FinanceIcon name="chevron-right" size={14} color={themeTokens.colors.primary} />
+        <Pressable
+          onPress={onViewAll}
+          hitSlop={10}
+          style={({ pressed }) => [
+            { flexDirection: 'row', alignItems: 'center', gap: 2 },
+            pressed && styles.pressed,
+          ]}
+        >
+          <Text style={[styles.viewAllText, isDark && { color: '#34D399' }]}>
+            Xem tất cả
+          </Text>
+          <FinanceIcon
+            name="chevron-right"
+            size={14}
+            color={isDark ? '#34D399' : themeTokens.colors.primary}
+          />
         </Pressable>
       </View>
 
       {/* Card danh sách giao dịch */}
-      <View style={styles.listCard}>
+      <View
+        style={[
+          styles.listCard,
+          {
+            backgroundColor: themeColors.surface,
+            borderColor: isDark ? themeColors.cardBorder : '#EDF2EE',
+          },
+        ]}
+      >
         {transactions.length === 0 ? (
           <View style={styles.emptyContainer}>
-            <Text style={styles.emptyText}>Chưa có giao dịch gần đây</Text>
+            <Text style={[styles.emptyText, { color: themeColors.textMuted }]}>
+              Chưa có giao dịch gần đây
+            </Text>
           </View>
         ) : (
           transactions.map((tx, idx) => {
@@ -49,58 +77,109 @@ export function RecentTransactions({ transactions, onViewAll }: Props) {
                   <View
                     style={[
                       styles.iconBox,
-                      isIncome ? styles.incomeIconBox : styles.expenseIconBox,
+                      isIncome
+                        ? isDark
+                          ? { backgroundColor: 'rgba(52, 211, 153, 0.16)' }
+                          : styles.incomeIconBox
+                        : isDark
+                        ? { backgroundColor: 'rgba(239, 68, 68, 0.16)' }
+                        : styles.expenseIconBox,
                     ]}
                   >
                     <FinanceIcon
                       name={iconName}
                       size={20}
-                      color={isIncome ? '#00A86B' : '#E53E3E'}
+                      color={
+                        isIncome
+                          ? isDark
+                            ? '#34D399'
+                            : '#00A86B'
+                          : isDark
+                          ? '#F87171'
+                          : '#E53E3E'
+                      }
                     />
                   </View>
 
                   {/* Thông tin tên & ngày / mô tả */}
                   <View style={styles.textDetails}>
-                    <Text style={styles.txName} numberOfLines={1}>
+                    <Text
+                      style={[
+                        styles.txName,
+                        { color: themeColors.textPrimary },
+                      ]}
+                      numberOfLines={1}
+                    >
                       {tx.name}
                     </Text>
                     <View style={styles.subInfoRow}>
                       <View
                         style={[
                           styles.categoryBadge,
-                          isIncome ? styles.categoryBadgeIncome : styles.categoryBadgeExpense,
+                          isIncome
+                            ? isDark
+                              ? { backgroundColor: 'rgba(52, 211, 153, 0.15)' }
+                              : styles.categoryBadgeIncome
+                            : isDark
+                            ? { backgroundColor: 'rgba(239, 68, 68, 0.15)' }
+                            : styles.categoryBadgeExpense,
                         ]}
                       >
                         <Text
                           style={[
                             styles.categoryBadgeText,
-                            isIncome ? styles.categoryBadgeTextIncome : styles.categoryBadgeTextExpense,
+                            isIncome
+                              ? isDark
+                                ? { color: '#6EE7B7' }
+                                : styles.categoryBadgeTextIncome
+                              : isDark
+                              ? { color: '#FCA5A5' }
+                              : styles.categoryBadgeTextExpense,
                           ]}
                         >
-                          {isIncome ? 'Thu nhập' : 'Chi tiêu'}
+                          {isIncome ? 'Thu' : 'Chi'}
                         </Text>
                       </View>
-                      <Text style={styles.txSubtitle} numberOfLines={1}>
+                      <Text
+                        style={[
+                          styles.txSubtitle,
+                          { color: themeColors.textSecondary },
+                        ]}
+                        numberOfLines={1}
+                      >
                         {tx.description}
                       </Text>
                     </View>
                   </View>
 
-                  {/* Số tiền thu (+) hoặc chi (-) */}
+                  {/* Cột số tiền */}
                   <View style={styles.amountCol}>
                     <Text
                       style={[
                         styles.txAmount,
-                        isIncome ? styles.incomeAmount : styles.expenseAmount,
+                        isIncome
+                          ? isDark
+                            ? { color: '#34D399' }
+                            : styles.incomeAmount
+                          : isDark
+                          ? { color: '#F87171' }
+                          : styles.expenseAmount,
                       ]}
                     >
-                      {isIncome ? '+' : '-'} {formatCurrency(Math.abs(tx.amount))}
+                      {isIncome ? `+${formatCurrency(tx.amount)}` : `-${formatCurrency(Math.abs(tx.amount))}`}
                     </Text>
                   </View>
                 </View>
 
-                {/* Đường kẻ phân cách mỏng nhẹ */}
-                {idx < transactions.length - 1 && <View style={styles.divider} />}
+                {/* Đường kẻ phân cách giữa các item */}
+                {idx < transactions.length - 1 && (
+                  <View
+                    style={[
+                      styles.divider,
+                      isDark && { backgroundColor: themeColors.divider },
+                    ]}
+                  />
+                )}
               </View>
             );
           })
@@ -112,9 +191,9 @@ export function RecentTransactions({ transactions, onViewAll }: Props) {
 
 const styles = StyleSheet.create({
   sectionContainer: {
-    marginTop: themeTokens.spacing.xl,
-    paddingHorizontal: themeTokens.spacing.lg,
-    marginBottom: themeTokens.spacing.xxl,
+    marginHorizontal: themeTokens.spacing.lg,
+    marginTop: themeTokens.spacing.xl + 4,
+    marginBottom: 12,
   },
   headerRow: {
     flexDirection: 'row',

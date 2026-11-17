@@ -397,7 +397,7 @@ export function SavingDetailScreen({ savingId, onBack }: Props) {
                 <View style={styles.modalInfoRow}>
                   <Text style={styles.modalInfoKey}>Tài khoản</Text>
                   <Text style={styles.modalInfoVal}>
-                    {selectedContribution.accountName || 'Tài khoản thanh toán'}
+                    {selectedContribution.accountName || 'Ví của em'}
                   </Text>
                 </View>
 

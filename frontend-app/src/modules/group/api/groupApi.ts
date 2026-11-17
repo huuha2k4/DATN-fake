@@ -743,6 +743,50 @@ export const groupApi = {
     });
   },
 
+  async getChildWallet(groupId: string, walletId: string): Promise<ChildWalletResponse> {
+    return await request<ChildWalletResponse>(`/groups/${groupId}/child-wallets/${walletId}`);
+  },
+
+  async getSpendRequests(groupId: string, walletId: string): Promise<SpendRequestItem[]> {
+    try {
+      const res = await request<any>(`/groups/${groupId}/child-wallets/${walletId}/spend-requests?size=100`);
+      if (Array.isArray(res)) return res;
+      if (res?.content && Array.isArray(res.content)) return res.content;
+      return [];
+    } catch {
+      return [];
+    }
+  },
+
+  async createChildSpendRequest(
+    groupId: string,
+    walletId: string,
+    req: { amount: number; description: string; categoryId?: string; notes?: string; imageKey?: string }
+  ): Promise<any> {
+    return await request<any>(`/groups/${groupId}/child-wallets/${walletId}/spend-requests`, {
+      method: 'POST',
+      body: JSON.stringify(req),
+    });
+  },
+
+  async completeChore(groupId: string, walletId: string, choreId: string, payload?: { completionNotes?: string }): Promise<any> {
+    return await request<any>(`/groups/${groupId}/child-wallets/${walletId}/chores/${choreId}/submit`, {
+      method: 'POST',
+      body: JSON.stringify(payload || {}),
+    });
+  },
+
+  async createChildTransaction(groupId: string, walletId: string, req: { amount: number; description: string }): Promise<any> {
+    return await request<any>(`/groups/${groupId}/child-wallets/${walletId}/deposit`, {
+      method: 'POST',
+      body: JSON.stringify({
+        amount: req.amount,
+        description: req.description,
+        source: 'PERSONAL_ACCOUNT',
+      }),
+    });
+  },
+
   // 10. Nhiệm vụ nhận thưởng của bé (Child Chores)
   async getChores(groupId: string, walletId: string): Promise<any[]> {
     try {
@@ -755,7 +799,7 @@ export const groupApi = {
     }
   },
 
-  async createChore(groupId: string, walletId: string, req: { title: string; description?: string; rewardAmount: number; frequency?: string; difficulty?: string; dueDate?: string }): Promise<any> {
+  async createChore(groupId: string, walletId: string, req: { title: string; description?: string; rewardAmount: number; frequency?: string; difficulty?: string; dueDate?: string; icon?: string }): Promise<any> {
     return await request<any>(`/groups/${groupId}/child-wallets/${walletId}/chores`, {
       method: 'POST',
       body: JSON.stringify(req),

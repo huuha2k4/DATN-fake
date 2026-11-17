@@ -2,6 +2,7 @@ import React from 'react';
 import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { ChevronRight } from 'lucide-react-native';
 import { themeTokens } from '../themeTokens';
+import { useAppTheme } from '../../../context/ThemeContext';
 
 type Props = {
   onPress: () => void;
@@ -14,16 +15,29 @@ const forecastRobotImage = require('../../../assets/icons/ai_balance_forecast_fu
 const bannerBgImage = require('../../../assets/icons/ai_forecast_banner_bg.png');
 
 export function BalanceForecastBanner({ onPress }: Props) {
+  const { isDark, colors: themeColors } = useAppTheme();
+
   return (
     <Pressable
       onPress={onPress}
-      style={({ pressed }) => [styles.bannerCard, pressed && styles.pressed]}
+      style={({ pressed }) => [
+        styles.bannerCard,
+        isDark && {
+          backgroundColor: '#0D221A',
+          borderWidth: 1,
+          borderColor: themeColors.cardBorder,
+        },
+        pressed && styles.pressed,
+      ]}
       accessibilityLabel="AI Dự đoán số dư"
     >
       {/* Ảnh nền sóng ngọc bích bo góc mượt mà */}
       <Image
         source={bannerBgImage}
-        style={styles.bgImage}
+        style={[
+          styles.bgImage,
+          isDark && { opacity: 0.28 },
+        ]}
         resizeMode="cover"
       />
 
@@ -41,16 +55,38 @@ export function BalanceForecastBanner({ onPress }: Props) {
         {/* 2. Ở giữa: Nội dung căn thẳng hàng */}
         <View style={styles.contentWrap}>
           <View style={styles.titleRow}>
-            <Text style={styles.headingTitle}>AI Dự đoán số dư</Text>
+            <Text
+              style={[
+                styles.headingTitle,
+                isDark && { color: '#6EE7B7' },
+              ]}
+            >
+              AI Dự đoán số dư
+            </Text>
           </View>
-          <Text style={styles.descriptionText} numberOfLines={2}>
+          <Text
+            style={[
+              styles.descriptionText,
+              isDark && { color: '#A7F3D0' },
+            ]}
+            numberOfLines={2}
+          >
             Dự báo số dư cuối kỳ dựa trên thu chi và thói quen của bạn.
           </Text>
         </View>
 
-        {/* 3. Bên phải: Nút tròn mũi tên xanh ngọc sắc nét trên nền trắng */}
-        <View style={styles.arrowCircle}>
-          <ChevronRight size={19} color="#007F53" strokeWidth={2.6} />
+        {/* 3. Bên phải: Nút tròn mũi tên xanh ngọc sắc nét */}
+        <View
+          style={[
+            styles.arrowCircle,
+            isDark && { backgroundColor: themeColors.surfaceSubtle },
+          ]}
+        >
+          <ChevronRight
+            size={19}
+            color={isDark ? '#34D399' : '#007F53'}
+            strokeWidth={2.6}
+          />
         </View>
       </View>
     </Pressable>
@@ -136,13 +172,6 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     shadowOffset: { width: 0, height: 2 },
     elevation: 2,
-  },
-  arrowIcon: {
-    fontSize: 22,
-    color: '#00A86B',
-    fontWeight: '900',
-    marginTop: -3,
-    marginLeft: 1,
   },
   pressed: {
     opacity: 0.88,

@@ -2,6 +2,7 @@ import React from 'react';
 import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { ChevronRight } from 'lucide-react-native';
 import { themeTokens } from '../themeTokens';
+import { useAppTheme } from '../../../context/ThemeContext';
 
 type Props = {
   onPress: () => void;
@@ -11,10 +12,19 @@ type Props = {
 const mascotImage = require('../../../assets/icons/icon_finai_assistant.png');
 
 export function FinAIBanner({ onPress }: Props) {
+  const { isDark, colors: themeColors } = useAppTheme();
+
   return (
     <Pressable
       onPress={onPress}
-      style={({ pressed }) => [styles.bannerCard, pressed && styles.pressed]}
+      style={({ pressed }) => [
+        styles.bannerCard,
+        {
+          backgroundColor: themeColors.bannerAiBg,
+          borderColor: isDark ? themeColors.bannerAiBorder : '#C2EBD6',
+        },
+        pressed && styles.pressed,
+      ]}
       accessibilityLabel="Trợ lý FinAI"
     >
       {/* Robot mascot 3D to tràn nhẹ viền card như ảnh thiết kế gốc */}
@@ -25,9 +35,22 @@ export function FinAIBanner({ onPress }: Props) {
       {/* Nội dung thông điệp */}
       <View style={styles.contentWrap}>
         <View style={styles.titleRow}>
-          <Text style={styles.headingTitle}>Trợ lý FinAI</Text>
+          <Text
+            style={[
+              styles.headingTitle,
+              { color: isDark ? '#6EE7B7' : '#073B2E' },
+            ]}
+          >
+            Trợ lý FinAI
+          </Text>
         </View>
-        <Text style={styles.descriptionText} numberOfLines={2}>
+        <Text
+          style={[
+            styles.descriptionText,
+            { color: isDark ? '#A7F3D0' : '#285848' },
+          ]}
+          numberOfLines={2}
+        >
           Phân tích chi tiêu, gợi ý tiết kiệm và xây dựng kế hoạch tài chính.
         </Text>
       </View>
@@ -101,17 +124,10 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     shadowColor: '#00A86B',
-    shadowOpacity: 0.4,
+    shadowOpacity: 0.35,
     shadowRadius: 6,
     shadowOffset: { width: 0, height: 2 },
-    elevation: 3,
-  },
-  arrowIcon: {
-    fontSize: 22,
-    color: '#FFFFFF',
-    fontWeight: '900',
-    marginTop: -3,
-    marginLeft: 1,
+    elevation: 2,
   },
   pressed: {
     opacity: 0.88,

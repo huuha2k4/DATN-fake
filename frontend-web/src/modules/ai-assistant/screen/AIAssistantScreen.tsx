@@ -28,9 +28,9 @@ const quickQuestions = [
     prompt: 'Dự báo số dư tài khoản của tôi đến cuối tháng còn lại bao nhiêu?',
   },
   {
-    title: 'Kiểm tra chi tiêu bất thường',
-    subtitle: 'Phát hiện khoản chi đột biến gần đây',
-    prompt: 'Kiểm tra xem gần đây tôi có khoản chi tiêu nào bất thường không?',
+    title: 'Ví của con & Tiêu vặt',
+    subtitle: 'Kiểm tra số dư, chi tiêu & xin tiền của bé',
+    prompt: 'Ví của con/bé còn bao nhiêu tiền và gần đây bé có xin tiền hay chi tiêu gì không?',
   },
   {
     title: 'Lời khuyên quy tắc 50/30/20',

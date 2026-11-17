@@ -25,6 +25,7 @@ import {
   BOY_AVATAR_IMAGE,
   GIRL_AVATAR_IMAGE,
 } from './kidAvatarPresets';
+import { CHORE_ICONS, resolveChoreIconSource } from '../../../child-wallet/components/choreIcons';
 
 export interface ChildWalletDetailModalProps {
   visible: boolean;
@@ -110,6 +111,7 @@ export const ChildWalletDetailModal: React.FC<ChildWalletDetailModalProps> = ({
   const [choreTitle, setChoreTitle] = useState('');
   const [choreDesc, setChoreDesc] = useState('');
   const [choreReward, setChoreReward] = useState('');
+  const [choreSelectedIcon, setChoreSelectedIcon] = useState<string | null>(null);
   const [isSubmittingChore, setIsSubmittingChore] = useState(false);
 
   // State Ghi chi tiêu cho bé (Create Direct Spend - chuẩn bản Web)
@@ -238,11 +240,13 @@ export const ChildWalletDetailModal: React.FC<ChildWalletDetailModalProps> = ({
         title: choreTitle.trim(),
         description: choreDesc.trim() || undefined,
         rewardAmount: rawVal,
+        icon: choreSelectedIcon || undefined,
       });
       Alert.alert('Thành công ⭐', `Đã giao nhiệm vụ "${choreTitle}" cho bé!`);
       setChoreTitle('');
       setChoreDesc('');
       setChoreReward('');
+      setChoreSelectedIcon(null);
       setIsCreateChoreOpen(false);
       await loadChores();
     } catch (err: any) {
@@ -804,12 +808,15 @@ export const ChildWalletDetailModal: React.FC<ChildWalletDetailModalProps> = ({
                   <View style={styles.itemList}>
                     {chores.map((chore) => {
                       const isCompleted = chore.status === 'COMPLETED' || chore.status === 'APPROVED';
+                      const iconSource = resolveChoreIconSource(chore.icon, chore.id || chore.title);
                       return (
                         <View key={chore.id} style={styles.itemCard}>
                           <View style={styles.itemRowTop}>
-                            <View style={[styles.iconCircle, { backgroundColor: '#FEF3C7' }]}>
-                              <Text style={{ fontSize: 18 }}>⭐</Text>
-                            </View>
+                            <Image
+                              source={iconSource}
+                              style={{ width: 42, height: 42, marginRight: 10 }}
+                              resizeMode="contain"
+                            />
                             <View style={{ flex: 1 }}>
                               <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
                                 <Text style={styles.choreTitleText}>{chore.title}</Text>
@@ -1359,6 +1366,57 @@ export const ChildWalletDetailModal: React.FC<ChildWalletDetailModalProps> = ({
                       setChoreReward(num ? formatVND(Number(num)) : '');
                     }}
                   />
+                </View>
+
+                {/* Chọn biểu tượng nhiệm vụ */}
+                <View>
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                    <Text style={styles.inputLabel}>Biểu tượng nhiệm vụ</Text>
+                    <Text style={{ fontSize: 11, color: '#64748B' }}>
+                      {choreSelectedIcon ? 'Đã chọn' : 'Tự động ngẫu nhiên'}
+                    </Text>
+                  </View>
+                  <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+                    <Pressable
+                      onPress={() => setChoreSelectedIcon(null)}
+                      style={{
+                        paddingHorizontal: 10,
+                        paddingVertical: 8,
+                        borderRadius: 10,
+                        borderWidth: 1.5,
+                        borderColor: choreSelectedIcon === null ? '#059669' : '#E2E8F0',
+                        backgroundColor: choreSelectedIcon === null ? '#ECFDF5' : '#F8FAFC',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                      }}
+                    >
+                      <Text style={{ fontSize: 11, fontWeight: '700', color: choreSelectedIcon === null ? '#059669' : '#64748B' }}>
+                        🎲 Ngẫu nhiên
+                      </Text>
+                    </Pressable>
+                    {CHORE_ICONS.map((ic) => {
+                      const isSelected = choreSelectedIcon === ic.key;
+                      return (
+                        <Pressable
+                          key={ic.key}
+                          onPress={() => setChoreSelectedIcon(ic.key)}
+                          style={{
+                            width: 44,
+                            height: 44,
+                            borderRadius: 10,
+                            borderWidth: 2,
+                            borderColor: isSelected ? '#059669' : '#E2E8F0',
+                            backgroundColor: isSelected ? '#ECFDF5' : '#F8FAFC',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            padding: 3,
+                          }}
+                        >
+                          <Image source={ic.source} style={{ width: 32, height: 32 }} resizeMode="contain" />
+                        </Pressable>
+                      );
+                    })}
+                  </View>
                 </View>
               </View>
 

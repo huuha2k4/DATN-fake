@@ -325,7 +325,19 @@ export function resolveCategoryIconName(
 
   const str = `${iconOrEmoji || ''} ${categoryName || ''}`.toLowerCase();
 
-  // 1. Trả nợ / Vay nợ / Thẻ tín dụng
+  // 0. Nhận diện ưu tiên các khoản đặc thù ví của bé (Nạp ví, Cấp tiền, Thưởng nhiệm vụ, Lì xì)
+  if (str.includes('nạp ví') || str.includes('nạp tiền') || iconOrEmoji === 'wallet') {
+    return 'wallet';
+  }
+  if (str.includes('cấp tiền') || str.includes('xin tiền') || iconOrEmoji === 'coins') {
+    return 'coins';
+  }
+  if (str.includes('thưởng') || str.includes('nhiệm vụ') || iconOrEmoji === 'award') {
+    return 'award';
+  }
+  if (str.includes('lì xì') || str.includes('quà') || str.includes('quà tặng') || iconOrEmoji === 'gift') {
+    return 'gift';
+  }
   if (
     str.includes('trả nợ') ||
     str.includes('thanh toán nợ') ||
@@ -494,20 +506,23 @@ export function resolveCategoryIconName(
     return 'map';
   }
 
-  // 12. Tiết kiệm / Heo đất
-  if (str.includes('tiết kiệm') || str.includes('heo đất') || iconOrEmoji === 'piggy-bank') {
-    return 'piggy-bank';
-  }
-
-  // 13. Đầu tư / Chứng khoán
+  // 12. Tiết kiệm / Đầu tư / Heo đất / Mục tiêu tích lũy
   if (
+    str.includes('tiết kiệm') ||
+    str.includes('heo đất') ||
+    str.includes('tích lũy') ||
+    str.includes('mục tiêu') ||
     str.includes('đầu tư') ||
     str.includes('chứng khoán') ||
     str.includes('cổ phiếu') ||
+    str.includes('savings') ||
+    str.includes('investment') ||
+    iconOrEmoji === 'piggy-bank' ||
+    iconOrEmoji === 'savings' ||
     iconOrEmoji === 'trending-up' ||
     iconOrEmoji === 'trend'
   ) {
-    return 'trending-up';
+    return 'piggy-bank';
   }
 
   // 14. Bảo hiểm
@@ -515,13 +530,20 @@ export function resolveCategoryIconName(
     return 'shield';
   }
 
-  // 15. Quà tặng / Thưởng
+  // 15. Quà tặng / Thưởng / Lì xì / Nạp ví cho con
   if (
     str.includes('🎁') ||
     str.includes('quà') ||
+    str.includes('lì xì') ||
     str.includes('thưởng') ||
-    iconOrEmoji === 'gift'
+    str.includes('nạp ví') ||
+    str.includes('cấp tiền') ||
+    iconOrEmoji === 'gift' ||
+    iconOrEmoji === 'award'
   ) {
+    if (str.includes('nạp ví')) return 'wallet';
+    if (str.includes('cấp tiền')) return 'coins';
+    if (str.includes('thưởng')) return 'award';
     return 'gift';
   }
 

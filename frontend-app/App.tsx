@@ -24,10 +24,20 @@ import { RemindersScreen } from './src/modules/reminders/screen/RemindersScreen'
 import { TransactionsScreen } from './src/modules/transactions/screen/TransactionsScreen';
 import { GroupScreen } from './src/modules/group/screen/GroupScreen';
 import { DebtScreen } from './src/modules/debts';
+import { ChildWalletScreen } from './src/modules/child-wallet/screen/ChildWalletScreen';
+import { ChildChoresScreen } from './src/modules/child-wallet/screen/ChildChoresScreen';
+import { ChildMoneyRequestsScreen } from './src/modules/child-wallet/screen/ChildMoneyRequestsScreen';
 import { colors } from './src/theme';
+import { ThemeProvider, useAppTheme } from './src/context/ThemeContext';
 
 export default function App() {
-  return <SafeAreaProvider><AppContent /></SafeAreaProvider>;
+  return (
+    <SafeAreaProvider>
+      <ThemeProvider>
+        <AppContent />
+      </ThemeProvider>
+    </SafeAreaProvider>
+  );
 }
 
 function AppContent() {
@@ -37,6 +47,9 @@ function AppContent() {
   const [showForgotPassword, setShowForgotPassword] = React.useState(false);
   const [activeTab, setActiveTab] = React.useState<TabKey>('home');
   const [showAddTransaction, setShowAddTransaction] = React.useState(false);
+  const [showChildWallet, setShowChildWallet] = React.useState(false);
+  const [showChildChores, setShowChildChores] = React.useState(false);
+  const [showChildRequests, setShowChildRequests] = React.useState(false);
   const [showScanInvoice, setShowScanInvoice] = React.useState(false);
   const [scanInvoiceInitialStep, setScanInvoiceInitialStep] = React.useState<'HOME' | 'CAMERA'>('HOME');
   const [showReminders, setShowReminders] = React.useState(false);
@@ -122,6 +135,51 @@ function AppContent() {
     );
   }
 
+  if (showChildWallet) {
+    return (
+      <View style={{ flex: 1, backgroundColor: '#F8FAFC' }}>
+        <StatusBar style="dark" />
+        <ChildWalletScreen
+          onBack={() => setShowChildWallet(false)}
+          onAddTransaction={() => {
+            setShowChildWallet(false);
+            setShowAddTransaction(true);
+          }}
+          onViewChores={() => {
+            setShowChildWallet(false);
+            setShowChildChores(true);
+          }}
+          onViewRequests={() => {
+            setShowChildWallet(false);
+            setShowChildRequests(true);
+          }}
+          onViewAllTransactions={() => {
+            setShowChildWallet(false);
+            setActiveTab('transactions');
+          }}
+        />
+      </View>
+    );
+  }
+
+  if (showChildChores) {
+    return (
+      <View style={{ flex: 1, backgroundColor: '#F8FAFC' }}>
+        <StatusBar style="dark" />
+        <ChildChoresScreen onBack={() => setShowChildChores(false)} />
+      </View>
+    );
+  }
+
+  if (showChildRequests) {
+    return (
+      <View style={{ flex: 1, backgroundColor: '#F8FAFC' }}>
+        <StatusBar style="dark" />
+        <ChildMoneyRequestsScreen onBack={() => setShowChildRequests(false)} />
+      </View>
+    );
+  }
+
   if (showAddTransaction) {
     return (
       <View style={{ flex: 1, backgroundColor: '#F6F8FA' }}>
@@ -179,8 +237,8 @@ function AppContent() {
 
   if (showAiAssistant) {
     return (
-      <View style={{ flex: 1, backgroundColor: '#074838' }}>
-        <StatusBar style="light" />
+      <View style={{ flex: 1, backgroundColor: '#FAFCFB' }}>
+        <StatusBar style="dark" />
         <AiAssistantScreen onBack={() => setShowAiAssistant(false)} />
       </View>
     );
@@ -356,6 +414,19 @@ function AppContent() {
         onViewSpendingAnalysis={() => setShowSpendingAnalysis(true)}
         onViewPeriodicReports={() => setShowPeriodicReports(true)}
         onViewBalanceForecast={() => setShowBalanceForecast(true)}
+        onViewChildWallet={() => setShowChildWallet(true)}
+        onViewChildChores={() => setShowChildChores(true)}
+        onViewChildRequests={() => setShowChildRequests(true)}
+        onViewGroupFamily={() => {
+          const user = authStorage.getUser();
+          if (user?.childAccount && user.childWalletGroupId) {
+            setGroupNavTarget({
+              groupId: user.childWalletGroupId,
+              tab: 'CHAT',
+            });
+          }
+          setActiveTab('group');
+        }}
         onNotifications={() => setShowNotifications(true)}
         onProfile={() => setShowProfile(true)}
       />
@@ -391,17 +462,30 @@ function AppContent() {
     goals: <GoalsScreen onBack={() => setActiveTab('home')} />,
   }[activeTab];
 
-  const isDarkStatusBar = (activeTab === 'group') || activeTab === 'budget' || activeTab === 'goals';
+  const { isDark, colors: themeColors } = useAppTheme();
+
+  const isDarkStatusBar = isDark ? false : ((activeTab === 'group') || activeTab === 'budget' || activeTab === 'goals');
+
+  const user = authStorage.getUser();
+  const isChildAccount = Boolean(user?.childAccount && user?.childWalletGroupId);
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: themeColors.background }]}>
       <View style={styles.content}>{screen}</View>
-      {/* Ẩn thanh 5 nút điều hướng đáy khi đang ở ngân sách, mục tiêu hoặc mở chi tiết nhóm */}
-      {!(activeTab === 'group' && isGroupDetailOpen) && activeTab !== 'budget' && activeTab !== 'goals' && (
+      {/* Ẩn thanh 5 nút điều hướng đáy khi đang ở ngân sách, mục tiêu hoặc mở chi tiết nhóm (đối với tài khoản bé thì luôn giữ 5 nút dưới cùng) */}
+      {(isChildAccount || (!(activeTab === 'group' && isGroupDetailOpen) && activeTab !== 'budget' && activeTab !== 'goals')) && (
         <BottomNav
           activeTab={activeTab}
           onChange={(tab) => {
-            setGroupNavTarget(null);
+            const curUser = authStorage.getUser();
+            if (tab === 'group' && curUser?.childAccount && curUser.childWalletGroupId) {
+              setGroupNavTarget({
+                groupId: curUser.childWalletGroupId,
+                tab: 'CHAT',
+              });
+            } else {
+              setGroupNavTarget(null);
+            }
             setActiveTab(tab);
           }}
           onScanInvoice={() => {

@@ -15,6 +15,8 @@ import {
 import { FinanceIcon } from '../../core/components/FinanceIcon';
 import { goalsApi } from '../api/goalsApi';
 import { accountApi, type AccountItem } from '../../accounts/api/accountApi';
+import { authStorage } from '../../auth/api/authApi';
+import { groupApi } from '../../group/api/groupApi';
 import { AccountBadge } from '../../accounts/components/AccountBadge';
 
 type Props = {
@@ -52,7 +54,31 @@ export function ContributeGoalModal({ visible, goalId, goalTitle, onClose, onSuc
     }
   }, [visible]);
 
+  const user = authStorage.getUser();
+  const isChildAccount = Boolean(user?.childAccount && user?.childWalletGroupId);
+
   const loadAccounts = async () => {
+    if (isChildAccount && user?.childWalletId && user?.childWalletGroupId) {
+      let currentBal = 0;
+      try {
+        const walletData = await groupApi.getChildWallet(user.childWalletGroupId, user.childWalletId);
+        if (walletData && walletData.balance !== undefined) {
+          currentBal = Number(walletData.balance);
+        }
+      } catch {
+        // ignore
+      }
+      const childAcc: AccountItem = {
+        id: user.childWalletId,
+        name: user.childWalletName || 'Ví của em',
+        accountType: 'CASH',
+        currencyCode: 'VND',
+        balance: currentBal,
+      };
+      setAccounts([childAcc]);
+      setSelectedAccountId(user.childWalletId);
+      return;
+    }
     try {
       const data = await accountApi.getAccounts();
       if (Array.isArray(data) && data.length > 0) {
@@ -75,23 +101,21 @@ export function ContributeGoalModal({ visible, goalId, goalTitle, onClose, onSuc
 
     setIsSubmitting(true);
     try {
-      const ok = await goalsApi.contributeGoal(goalId, {
+      const res = await goalsApi.contributeGoal(goalId, {
         amount: parsedAmount,
         note: note.trim() || undefined,
         sourceAccountId: selectedAccountId || undefined,
       });
 
-      if (ok) {
+      if (res.ok) {
         Alert.alert('Thành công', 'Đã nộp tiền vào mục tiêu!');
         onSuccess();
         onClose();
       } else {
-        Alert.alert('Thông báo', 'Đã ghi nhận khoản tiết kiệm thành công!');
-        onSuccess();
-        onClose();
+        Alert.alert('Lỗi nộp tiền', res.message || 'Không thể nộp tiền vào mục tiêu.');
       }
-    } catch {
-      Alert.alert('Lỗi', 'Có lỗi xảy ra khi nộp tiền vào mục tiêu.');
+    } catch (e: any) {
+      Alert.alert('Lỗi', e?.message || 'Có lỗi xảy ra khi nộp tiền vào mục tiêu.');
     } finally {
       setIsSubmitting(false);
     }
@@ -129,27 +153,38 @@ export function ContributeGoalModal({ visible, goalId, goalTitle, onClose, onSuc
               />
             </View>
 
-            {/* Tài khoản nguồn (Dropdown phong cách quản lý nợ) */}
+            {/* Tài khoản nguồn (Dropdown phong cách quản lý nợ - Khóa khi là ví của bé) */}
             <View style={styles.field}>
               <Text style={styles.label}>Tài khoản nguồn trích tiền *</Text>
-              <Pressable
-                onPress={() => setShowAccountPicker(true)}
-                style={styles.dropdownBtn}
-              >
-                <View style={styles.dropdownLeft}>
-                  {selectedAccountObj ? (
-                    <AccountBadge account={selectedAccountObj} size={28} />
-                  ) : (
-                    <FinanceIcon name="wallet" size={18} color="#006747" />
-                  )}
-                  <Text style={styles.dropdownText} numberOfLines={1}>
-                    {selectedAccountObj
-                      ? `${selectedAccountObj.name} (Số dư: ${formatVND(selectedAccountObj.balance)})`
-                      : 'Chọn tài khoản nguồn...'}
-                  </Text>
+              {isChildAccount ? (
+                <View style={[styles.dropdownBtn, { backgroundColor: '#F8FAFC', borderColor: '#E2E8F0' }]}>
+                  <View style={styles.dropdownLeft}>
+                    <FinanceIcon name="wallet" size={18} color="#059669" />
+                    <Text style={[styles.dropdownText, { color: '#0F172A', fontWeight: '700' }]} numberOfLines={1}>
+                      {user?.childWalletName || 'Ví của em'} {selectedAccountObj ? `(Số dư: ${formatVND(selectedAccountObj.balance)})` : ''}
+                    </Text>
+                  </View>
                 </View>
-                <FinanceIcon name="chevron-down" size={18} color="#006747" />
-              </Pressable>
+              ) : (
+                <Pressable
+                  onPress={() => setShowAccountPicker(true)}
+                  style={styles.dropdownBtn}
+                >
+                  <View style={styles.dropdownLeft}>
+                    {selectedAccountObj ? (
+                      <AccountBadge account={selectedAccountObj} size={28} />
+                    ) : (
+                      <FinanceIcon name="wallet" size={18} color="#006747" />
+                    )}
+                    <Text style={styles.dropdownText} numberOfLines={1}>
+                      {selectedAccountObj
+                        ? `${selectedAccountObj.name} (Số dư: ${formatVND(selectedAccountObj.balance)})`
+                        : 'Chọn tài khoản nguồn...'}
+                    </Text>
+                  </View>
+                  <FinanceIcon name="chevron-down" size={18} color="#006747" />
+                </Pressable>
+              )}
             </View>
 
             {/* Ghi chú */}

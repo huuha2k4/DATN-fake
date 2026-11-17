@@ -15,12 +15,52 @@ import {
 } from 'react-native';
 import { FinanceIcon } from '../../core/components/FinanceIcon';
 import { goalsApi } from '../api/goalsApi';
+import { authStorage } from '../../auth/api/authApi';
 
 type Props = {
   visible: boolean;
   onClose: () => void;
   onSuccess: () => void;
 };
+
+// Danh mục Mục tiêu 3D cho trẻ em (Kids)
+const KID_GOAL_TYPES = [
+  {
+    label: 'Đồ chơi & Giải trí',
+    value: 'PURCHASE',
+    iconKey: 'shopping',
+    image: require('../../../assets/icons/goal_cat_shopping_3d.png'),
+    desc: 'Lego, gấu bông, robot, truyện tranh, game...',
+  },
+  {
+    label: 'Dụng cụ học tập & Sách',
+    value: 'EDUCATION',
+    iconKey: 'education',
+    image: require('../../../assets/icons/goal_cat_education_3d.png'),
+    desc: 'Hộp bút màu, cặp sách, sách khám phá thế giới...',
+  },
+  {
+    label: 'Chuyến đi chơi cùng gia đình',
+    value: 'VACATION',
+    iconKey: 'travel',
+    image: require('../../../assets/icons/goal_cat_travel_3d.png'),
+    desc: 'Vé công viên nước, sở thú, xem phim cuối tuần...',
+  },
+  {
+    label: 'Quà tặng bố mẹ & người thân',
+    value: 'EMERGENCY_FUND',
+    iconKey: 'family',
+    image: require('../../../assets/icons/goal_cat_family_3d.png'),
+    desc: 'Mua quà sinh nhật cho bố mẹ, anh chị em...',
+  },
+  {
+    label: 'Ước mơ khác của bé',
+    value: 'OTHER',
+    iconKey: 'other',
+    image: require('../../../assets/icons/goal_cat_other_3d.png'),
+    desc: 'Nuôi heo đất, xe đạp mới, quần áo đẹp...',
+  },
+];
 
 const GOAL_TYPES = [
   {
@@ -108,6 +148,10 @@ function parseDDMMYYYYtoIso(val?: string): string {
 }
 
 export function CreateGoalModal({ visible, onClose, onSuccess }: Props) {
+  const user = authStorage.getUser();
+  const isChildAccount = Boolean(user?.childAccount && user?.childWalletGroupId);
+  const activeGoalTypes = isChildAccount ? KID_GOAL_TYPES : GOAL_TYPES;
+
   const [name, setName] = useState('');
   const [goalType, setGoalType] = useState('PURCHASE');
   const [targetAmount, setTargetAmount] = useState('');
@@ -117,7 +161,7 @@ export function CreateGoalModal({ visible, onClose, onSuccess }: Props) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showCategoryPicker, setShowCategoryPicker] = useState(false);
 
-  const selectedTypeObj = GOAL_TYPES.find((t) => t.value === goalType) || GOAL_TYPES[0];
+  const selectedTypeObj = activeGoalTypes.find((t) => t.value === goalType) || activeGoalTypes[0];
 
   const handleSubmit = async () => {
     if (!name.trim()) {
@@ -286,7 +330,7 @@ export function CreateGoalModal({ visible, onClose, onSuccess }: Props) {
                 </View>
 
                 <ScrollView style={{ maxHeight: 380 }} showsVerticalScrollIndicator={false}>
-                  {GOAL_TYPES.map((t) => {
+                  {activeGoalTypes.map((t) => {
                     const isSel = goalType === t.value;
                     return (
                       <Pressable

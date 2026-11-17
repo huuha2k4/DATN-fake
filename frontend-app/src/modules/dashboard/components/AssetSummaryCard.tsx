@@ -4,6 +4,7 @@ import { Eye, EyeOff, ArrowDown, ArrowUp, Layers } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import Svg, { Path } from 'react-native-svg';
 import { formatCurrency } from '../api/mockData';
+import { useAppTheme } from '../../../context/ThemeContext';
 
 type Props = {
   totalBalance: number;
@@ -12,10 +13,13 @@ type Props = {
   growthRate: number | null;
   showBalance: boolean;
   onToggleBalance: () => void;
+  customTitle?: string;
+  isChildAccount?: boolean;
 };
 
 // Sử dụng icon Ví tiền 3D + Đồng xu chữ đ + Biểu đồ cột xanh mới do người dùng cung cấp
 const walletChart3DIcon = require('../../../assets/icons/hero_asset_wallet_chart_3d.png');
+const kidHeroWalletMascot3DIcon = require('../../../assets/icons/kid_hero_wallet_mascot_3d.png');
 
 export function AssetSummaryCard({
   totalBalance,
@@ -24,23 +28,34 @@ export function AssetSummaryCard({
   growthRate,
   showBalance,
   onToggleBalance,
+  customTitle,
+  isChildAccount = false,
 }: Props) {
+  const { isDark, colors: themeColors } = useAppTheme();
   const isPositiveGrowth = growthRate === null || growthRate >= 0;
 
   return (
-    <View style={styles.card}>
-      {/* Vầng sáng xanh mint nhẹ ở góc phải trên của Card (phía sau Ví 3D & Biểu đồ) giống hệt ảnh mẫu */}
+    <View
+      style={[
+        styles.card,
+        {
+          backgroundColor: themeColors.surface,
+          borderColor: isDark ? themeColors.cardBorder : 'rgba(255, 255, 255, 0.95)',
+        },
+      ]}
+    >
+      {/* Vầng sáng xanh mint nhẹ ở góc phải trên của Card (phía sau Ví 3D & Biểu đồ) */}
       <View style={styles.cardTopRightMintAura} pointerEvents="none">
         <Svg width={180} height={145} viewBox="0 0 180 145" fill="none">
           <Path
             d="M 45,0 L 180,0 L 180,135 C 142,142 98,128 66,95 C 38,66 28,28 45,0 Z"
-            fill="#E3F7EC"
-            fillOpacity={0.75}
+            fill={isDark ? '#143828' : '#E3F7EC'}
+            fillOpacity={isDark ? 0.45 : 0.75}
           />
           <Path
             d="M 85,10 C 122,4 162,25 180,62 L 180,135 L 72,135 C 58,95 62,32 85,10 Z"
-            fill="#C7F0D8"
-            fillOpacity={0.55}
+            fill={isDark ? '#1B4D36' : '#C7F0D8'}
+            fillOpacity={isDark ? 0.35 : 0.55}
           />
         </Svg>
       </View>
@@ -50,8 +65,10 @@ export function AssetSummaryCard({
         <View style={styles.leftContent}>
           {/* Dòng tiêu đề: Icon Layers xanh + Tổng tài sản + Con mắt */}
           <View style={styles.titleRow}>
-            <Layers size={21} color="#006A46" strokeWidth={2.5} />
-            <Text style={styles.titleLabel}>Tổng tài sản</Text>
+            <Layers size={21} color={isDark ? '#34D399' : '#006A46'} strokeWidth={2.5} />
+            <Text style={[styles.titleLabel, { color: themeColors.textPrimary }]}>
+              {customTitle || 'Tổng tài sản'}
+            </Text>
             <Pressable
               onPress={onToggleBalance}
               hitSlop={12}
@@ -59,16 +76,19 @@ export function AssetSummaryCard({
               accessibilityLabel="Ẩn hiện số dư"
             >
               {showBalance ? (
-                <Eye size={19} color="#0F172A" strokeWidth={2.1} />
+                <Eye size={19} color={isDark ? '#E2E8F0' : '#0F172A'} strokeWidth={2.1} />
               ) : (
-                <EyeOff size={19} color="#64748B" strokeWidth={2.1} />
+                <EyeOff size={19} color={isDark ? '#94A3B8' : '#64748B'} strokeWidth={2.1} />
               )}
             </Pressable>
           </View>
 
-          {/* Số dư Tổng tài sản màu xanh đậm (#004D3B) nổi bật */}
+          {/* Số dư Tổng tài sản */}
           <Text
-            style={styles.balanceValueText}
+            style={[
+              styles.balanceValueText,
+              { color: isDark ? '#34D399' : '#004D3B' },
+            ]}
             numberOfLines={1}
             adjustsFontSizeToFit
             minimumFontScale={0.72}
@@ -76,8 +96,13 @@ export function AssetSummaryCard({
             {showBalance ? formatCurrency(totalBalance) : '••••••••••••'}
           </Text>
 
-          {/* Cụm huy hiệu tăng trưởng kép: Viên thuốc xanh tươi + Nền xanh mint nhạt */}
-          <View style={styles.growthCompositePill}>
+          {/* Cụm huy hiệu tăng trưởng kép: Viên thuốc xanh tươi + Nền pill */}
+          <View
+            style={[
+              styles.growthCompositePill,
+              { backgroundColor: isDark ? 'rgba(52, 211, 153, 0.12)' : '#E6F5EC' },
+            ]}
+          >
             <LinearGradient
               colors={isPositiveGrowth ? ['#00B86B', '#009255'] : ['#EF4444', '#DC2626']}
               start={{ x: 0, y: 0.5 }}
@@ -89,50 +114,105 @@ export function AssetSummaryCard({
                   ? growthRate >= 0
                     ? `↑ +${growthRate}%`
                     : `↓ ${growthRate}%`
-                  : '↑ +8.24%'}
+                  : '0%'}
               </Text>
             </LinearGradient>
-            <Text style={styles.growthSubNote}>so với tháng trước</Text>
+            <Text
+              style={[
+                styles.growthSubNote,
+                { color: isDark ? '#CBD5E1' : '#1E293B' },
+              ]}
+            >
+              so với tháng trước
+            </Text>
           </View>
         </View>
 
-        {/* Ảnh Ví tiền 3D + Đồng xu đ + Biểu đồ tăng trưởng đặt phía bên phải */}
+        {/* Ảnh Ví tiền 3D Mascot Bé Ôm Ví Cực Đáng Yêu Bên Phải */}
         <Image
-          source={walletChart3DIcon}
-          style={styles.walletImageRight}
+          source={isChildAccount ? kidHeroWalletMascot3DIcon : walletChart3DIcon}
+          style={isChildAccount ? styles.kidHeroWalletImageRight : styles.walletImageRight}
           resizeMode="contain"
         />
       </View>
 
       {/* Đường kẻ mảnh phân cách */}
-      <View style={styles.horizontalDivider} />
+      <View
+        style={[
+          styles.horizontalDivider,
+          { backgroundColor: isDark ? themeColors.divider : '#F1F5F3' },
+        ]}
+      />
 
       {/* Phần dưới: Thu nhập và Chi tiêu chia thành 2 cột rõ ràng kèm vạch ngăn giữa */}
       <View style={styles.cashFlowRow}>
         {/* Cột 1: Thu nhập */}
         <View style={styles.metricColumn}>
-          <View style={styles.incomeIconBox}>
-            <ArrowDown size={19} color="#007F53" strokeWidth={2.5} />
+          <View
+            style={[
+              styles.incomeIconBox,
+              isDark && { backgroundColor: 'rgba(52, 211, 153, 0.16)' },
+            ]}
+          >
+            <ArrowDown size={19} color={isDark ? '#34D399' : '#007F53'} strokeWidth={2.5} />
           </View>
           <View style={styles.metricTextWrap}>
-            <Text style={styles.metricLabel}>Thu nhập</Text>
-            <Text style={styles.incomeValue} numberOfLines={1} adjustsFontSizeToFit>
+            <Text
+              style={[
+                styles.metricLabel,
+                { color: isDark ? '#94A3B8' : '#1E293B' },
+              ]}
+            >
+              Thu nhập
+            </Text>
+            <Text
+              style={[
+                styles.incomeValue,
+                { color: isDark ? '#34D399' : '#005A3C' },
+              ]}
+              numberOfLines={1}
+              adjustsFontSizeToFit
+            >
               {showBalance ? `+${formatCurrency(monthlyIncome)}` : '••••••'}
             </Text>
           </View>
         </View>
 
         {/* Vạch chia dọc giữa 2 cột */}
-        <View style={styles.verticalDivider} />
+        <View
+          style={[
+            styles.verticalDivider,
+            { backgroundColor: isDark ? themeColors.divider : '#E2E8F0' },
+          ]}
+        />
 
         {/* Cột 2: Chi tiêu */}
         <View style={styles.metricColumn}>
-          <View style={styles.expenseIconBox}>
-            <ArrowUp size={19} color="#DC2626" strokeWidth={2.5} />
+          <View
+            style={[
+              styles.expenseIconBox,
+              isDark && { backgroundColor: 'rgba(239, 68, 68, 0.16)' },
+            ]}
+          >
+            <ArrowUp size={19} color={isDark ? '#F87171' : '#DC2626'} strokeWidth={2.5} />
           </View>
           <View style={styles.metricTextWrap}>
-            <Text style={styles.metricLabel}>Chi tiêu</Text>
-            <Text style={styles.expenseValue} numberOfLines={1} adjustsFontSizeToFit>
+            <Text
+              style={[
+                styles.metricLabel,
+                { color: isDark ? '#94A3B8' : '#1E293B' },
+              ]}
+            >
+              Chi tiêu
+            </Text>
+            <Text
+              style={[
+                styles.expenseValue,
+                { color: isDark ? '#F87171' : '#DC2626' },
+              ]}
+              numberOfLines={1}
+              adjustsFontSizeToFit
+            >
               {showBalance ? `-${formatCurrency(Math.abs(monthlyExpense))}` : '••••••'}
             </Text>
           </View>
@@ -234,6 +314,14 @@ const styles = StyleSheet.create({
     top: -12,
     width: 144,
     height: 132,
+    zIndex: 3,
+  },
+  kidHeroWalletImageRight: {
+    position: 'absolute',
+    right: -4,
+    top: -8,
+    width: 132,
+    height: 120,
     zIndex: 3,
   },
   horizontalDivider: {

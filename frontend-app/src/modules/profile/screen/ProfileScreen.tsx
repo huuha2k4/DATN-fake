@@ -57,22 +57,75 @@ export function ProfileScreen({
       if (data) {
         setProfile(data);
 
-        // Tính số tháng đã sử dụng thực tế từ createdAt
-        if (data.createdAt) {
-          const createdDate = new Date(data.createdAt);
+        // Tính thời gian sử dụng thực tế từ createdAt
+        const dateRaw = data.createdAt || currentUser?.createdAt;
+        if (dateRaw) {
+          const createdDate = new Date(dateRaw);
           const now = new Date();
-          const diffMonths =
-            (now.getFullYear() - createdDate.getFullYear()) * 12 +
-            (now.getMonth() - createdDate.getMonth());
-          const months = Math.max(diffMonths, 1);
-          setMonthsUsedText(`${months} tháng`);
+          const diffTime = Math.max(0, now.getTime() - createdDate.getTime());
+          const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+
+          if (diffDays < 30) {
+            setMonthsUsedText(`${Math.max(diffDays, 1)} ngày`);
+          } else {
+            const months = Math.floor(diffDays / 30);
+            setMonthsUsedText(`${months} tháng`);
+          }
         }
       }
     });
 
     // Lấy giao dịch thực tế từ API để tính toán số giao dịch & tỷ lệ tiết kiệm
     const token = authStorage.getToken();
-    if (token) {
+    const isChildAccount = Boolean(currentUser?.childAccount && currentUser?.childWalletGroupId && currentUser?.childWalletId);
+
+    if (isChildAccount && currentUser?.childWalletGroupId && currentUser?.childWalletId) {
+      // Đối với tài khoản trẻ em: lấy danh sách từ spend-requests
+      fetch(
+        `${API_BASE_URL}/groups/${currentUser.childWalletGroupId}/child-wallets/${currentUser.childWalletId}/spend-requests?size=100`,
+        {
+          headers: {
+            'Content-Type': 'application/json',
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
+        }
+      )
+        .then((res) => res.json())
+        .then((resData) => {
+          const rawItems: any[] = Array.isArray(resData) ? resData : (resData?.content || resData?.data || []);
+          const approved = rawItems.filter((i: any) => i.status === 'APPROVED');
+
+          setTotalTxCount(approved.length);
+
+          let totalIncome = 0;
+          let totalExpense = 0;
+
+          approved.forEach((item: any) => {
+            const isDeposit = item.description?.startsWith('[INCOME_DEPOSIT] ');
+            const isChoreReward = item.description?.startsWith('[INCOME_CHORE] ');
+            const isGiftIncome = item.description?.startsWith('[INCOME_GIFT] ');
+            const isMoneyReq = item.description?.startsWith('[MONEY_REQUEST] ');
+            const isIncome = isDeposit || isChoreReward || isGiftIncome || isMoneyReq;
+
+            const amt = Math.abs(Number(item.amount || 0));
+            if (isIncome) {
+              totalIncome += amt;
+            } else {
+              totalExpense += amt;
+            }
+          });
+
+          if (totalIncome > 0) {
+            const netSavings = totalIncome - totalExpense;
+            const rate = (netSavings / totalIncome) * 100;
+            setSavingRateText(`${rate > 0 ? '+' : ''}${rate.toFixed(1)}%`);
+          } else {
+            setSavingRateText('0%');
+          }
+        })
+        .catch(() => {});
+    } else if (token) {
+      // Tài khoản thông thường
       fetch(`${API_BASE_URL}/transactions?pageSize=100`, {
         headers: {
           'Content-Type': 'application/json',

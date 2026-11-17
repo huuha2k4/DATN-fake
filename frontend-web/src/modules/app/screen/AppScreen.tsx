@@ -22,6 +22,8 @@ import { ProfileScreen } from '../../profile/screen/ProfileScreen'
 import { ChangePasswordModal } from '../../profile/components/ChangePasswordModal'
 import { NotificationScreen } from '../../notification/screen/NotificationScreen'
 import { ChildWalletScreen } from '../../child-wallet/screen/ChildWalletScreen'
+import { ChildChoresScreen } from '../../child-wallet/screen/ChildChoresScreen'
+import { ChildMoneyRequestsScreen } from '../../child-wallet/screen/ChildMoneyRequestsScreen'
 import { UserFeedbackScreen } from '../../feedback/screen/UserFeedbackScreen'
 import { PricingScreen } from '../../pricing/screen/PricingScreen'
 import { PrivacyPolicyScreen } from '../../legal/screen/PrivacyPolicyScreen'
@@ -55,7 +57,21 @@ export default function AppScreen() {
   const navigate = useNavigate()
   const location = useLocation()
   const isChildAccount = Boolean(getStoredUser()?.childAccount)
-  const childAllowedRoutes = new Set(['/dashboard', '/child-wallet', '/add-transaction', '/transactions', '/groups', '/profile', '/notifications'])
+  const childAllowedRoutes = new Set([
+    '/dashboard',
+    '/child-wallet',
+    '/child-chores',
+    '/child-requests',
+    '/add-transaction',
+    '/transactions',
+    '/goals',
+    '/reports',
+    '/groups',
+    '/ai-assistant',
+    '/scan-invoice',
+    '/profile',
+    '/notifications',
+  ])
 
   const handleToggleSidebar = () => {
     if (window.innerWidth <= 768) {
@@ -92,6 +108,13 @@ export default function AppScreen() {
   useEffect(() => {
     setIsMobileNavOpen(false);
   }, [location.pathname])
+
+  // Auto-dismiss notice toast after 5 seconds
+  useEffect(() => {
+    if (!notice) return
+    const timer = setTimeout(() => setNotice(''), 5000)
+    return () => clearTimeout(timer)
+  }, [notice])
 
   const handleAuthenticated = () => {
     setIsLoggedIn(true)
@@ -160,6 +183,8 @@ export default function AppScreen() {
     '/': 'Tổng quan',
     '/dashboard': 'Tổng quan',
     '/child-wallet': 'Ví của em',
+    '/child-chores': 'Nhiệm vụ nhận thưởng',
+    '/child-requests': 'Xin tiền bố mẹ',
     '/add-transaction': 'Thêm giao dịch',
     '/transactions': 'Quản lý Thu & Chi',
     '/budget': 'Quản lý Ngân sách',
@@ -167,16 +192,22 @@ export default function AppScreen() {
     '/schedules': 'Lịch tài chính',
     '/reminders': 'Lịch tài chính',
     '/debts': 'Quản lý Nợ',
-    '/groups': 'Chi tiêu Nhóm',
+    '/groups': isChildAccount ? 'Gia đình của em' : 'Chi tiêu Nhóm',
     '/reports': 'Báo cáo & Thống kê',
     '/ai-assistant': 'AI Thông minh',
     '/forecast': 'Dự báo tài chính',
     '/analysis': 'Phân tích hành vi chi tiêu',
     '/wallets': 'Quản lý Ví',
     '/accounts': 'Quản lý Ví',
+    '/feedback': '',
+    '/profile': '',
+    '/notifications': '',
+    '/pricing': '',
   }
 
-  const activeSection = pathToSection[location.pathname] || 'Tổng quan'
+  const activeSection = pathToSection[location.pathname] !== undefined 
+    ? pathToSection[location.pathname] 
+    : 'Tổng quan'
 
   return (
     <div className="dashboard-layout">
@@ -190,6 +221,8 @@ export default function AppScreen() {
           const routes: Record<string, string> = {
             'Ví của em': '/child-wallet',
             '__CHILD_WALLET__': '/child-wallet',
+            'Nhiệm vụ nhận thưởng': '/child-chores',
+            'Xin tiền bố mẹ': '/child-requests',
             'Tổng quan': '/dashboard',
             'Thêm giao dịch': '/add-transaction',
             'Quản lý Ví': '/wallets',
@@ -199,6 +232,7 @@ export default function AppScreen() {
             'Lịch tài chính': '/schedules',
             'Quản lý Nợ': '/debts',
             'Chi tiêu Nhóm': '/groups',
+            'Gia đình của em': '/groups',
             'Báo cáo & Thống kê': '/reports',
             'AI Thông minh': '/ai-assistant',
             'Dự báo tài chính': '/forecast',
@@ -216,6 +250,7 @@ export default function AppScreen() {
           onNotify={setNotice} 
           onOpenProfile={() => navigate('/profile')}
           onOpenChangePassword={() => setIsPasswordModalOpen(true)}
+          onOpenFeedback={() => navigate('/feedback')}
           onLogout={handleLogout}
           walletCount={walletCount}
           onToggleSidebar={handleToggleSidebar}
@@ -227,6 +262,8 @@ export default function AppScreen() {
           <Route path="/" element={<DashboardScreen onNotify={setNotice} onAddTransaction={() => navigate('/add-transaction')} />} />
           <Route path="/dashboard" element={<DashboardScreen onNotify={setNotice} onAddTransaction={() => navigate('/add-transaction')} />} />
           {isChildAccount && <Route path="/child-wallet" element={<ChildWalletScreen onNotify={setNotice} />} />}
+          {isChildAccount && <Route path="/child-chores" element={<ChildChoresScreen onNotify={setNotice} />} />}
+          {isChildAccount && <Route path="/child-requests" element={<ChildMoneyRequestsScreen onNotify={setNotice} />} />}
           <Route path="/profile" element={<ProfileScreen onLogout={handleLogout} />} />
           <Route path="/notifications" element={<NotificationScreen onNotify={setNotice} />} />
           <Route path="/feedback" element={<UserFeedbackScreen onNotify={setNotice} />} />
@@ -234,16 +271,16 @@ export default function AppScreen() {
           <Route path="/privacy" element={<PrivacyPolicyScreen />} />
           <Route path="/terms" element={<TermsOfServiceScreen />} />
           <Route path="/add-transaction" element={<AddTransactionScreen onCancel={() => navigate(-1)} onNotify={setNotice} onOpenInvoiceScanner={() => navigate('/scan-invoice')} />} />
-          {!isChildAccount && <Route path="/scan-invoice" element={<InvoiceOcrScreen onCancel={() => navigate(-1)} onNotify={setNotice} />} />}
+          <Route path="/scan-invoice" element={<InvoiceOcrScreen onCancel={() => navigate(-1)} onNotify={setNotice} />} />
           <Route path="/transactions" element={<CashFlowManagementScreen onNotify={setNotice} onAddTransaction={() => navigate('/add-transaction')} />} />
           {!isChildAccount && <Route path="/budget" element={<BudgetManagementScreen onNotify={setNotice} />} />}
-          {!isChildAccount && <Route path="/goals" element={<GoalsManagementScreen onNotify={setNotice} />} />}
+          <Route path="/goals" element={<GoalsManagementScreen onNotify={setNotice} />} />
           {!isChildAccount && <Route path="/schedules" element={<FinancialRemindersScreen onNotify={setNotice} />} />}
           {!isChildAccount && <Route path="/reminders" element={<FinancialRemindersScreen onNotify={setNotice} />} />}
           {!isChildAccount && <Route path="/debts" element={<DebtManagementScreen onNotify={setNotice} />} />}
           <Route path="/groups" element={<GroupManagementScreen onNotify={setNotice} />} />
-          {!isChildAccount && <Route path="/reports" element={<FinancialReportsDashboardScreen onNotify={setNotice} />} />}
-          {!isChildAccount && <Route path="/ai-assistant" element={<AIAssistantScreen onNotify={setNotice} />} />}
+          <Route path="/reports" element={<FinancialReportsDashboardScreen onNotify={setNotice} />} />
+          <Route path="/ai-assistant" element={<AIAssistantScreen onNotify={setNotice} />} />
           {!isChildAccount && <Route path="/forecast" element={<FinancialForecastScreen onNotify={setNotice} />} />}
           {!isChildAccount && <Route path="/analysis" element={<SpendingAnalysisScreen onNotify={setNotice} />} />}
           {!isChildAccount && <Route path="/wallets" element={<AccountManagementScreen onNotify={setNotice} onAccountsChange={setWalletCount} />} />}

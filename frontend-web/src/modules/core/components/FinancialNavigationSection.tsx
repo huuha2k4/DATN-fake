@@ -15,7 +15,6 @@ const navigation: { label: string; icon: IconName }[] = [
   { label: 'Phân tích hành vi chi tiêu', icon: 'trend' },
   { label: 'AI Thông minh', icon: 'spark' },
   { label: 'Dự báo tài chính', icon: 'trend' },
-  { label: 'Phản hồi & Trợ giúp', icon: 'message-square' },
 ]
 
 type Props = { 
@@ -33,14 +32,19 @@ export function FinancialNavigationSection({ active, onNavigate, isOpen, onClose
     if (onClose) onClose()
   }
 
-  // Danh sách các mục menu hiển thị: nếu là tài khoản trẻ em thì xếp "Ví của em" ngay dưới "Thêm giao dịch" và trên "Quản lý Thu & Chi"
+  // Danh sách các mục menu hiển thị: nếu là tài khoản trẻ em thì có bộ điều hướng riêng phù hợp
   const menuItems: { label: string; icon: IconName }[] = isChildAccount
     ? [
         { label: 'Tổng quan', icon: 'grid' },
         { label: 'Thêm giao dịch', icon: 'plus' },
         { label: 'Ví của em', icon: 'wallet' },
+        { label: 'Nhiệm vụ nhận thưởng', icon: 'star' },
+        { label: 'Xin tiền bố mẹ', icon: 'hand-coins' },
         { label: 'Quản lý Thu & Chi', icon: 'arrows' },
-        { label: 'Chi tiêu Nhóm', icon: 'users' },
+        { label: 'Gia đình của em', icon: 'home' },
+        { label: 'Mục tiêu & Tiết kiệm', icon: 'target' },
+        { label: 'Báo cáo & Thống kê', icon: 'chart' },
+        { label: 'AI Thông minh', icon: 'bot' },
       ]
     : navigation
 

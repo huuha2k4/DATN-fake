@@ -42,8 +42,15 @@ export const DEFAULT_APP_SETTINGS: AppSystemSettingsState = {
 
 let cachedSettings: AppSystemSettingsState = { ...DEFAULT_APP_SETTINGS };
 let isLoaded = false;
+type SettingsListener = (settings: AppSystemSettingsState) => void;
+const listeners = new Set<SettingsListener>();
 
 export const appSettingsStorage = {
+  subscribe(listener: SettingsListener): () => void {
+    listeners.add(listener);
+    return () => listeners.delete(listener);
+  },
+
   async getSettings(): Promise<AppSystemSettingsState> {
     if (isLoaded) {
       return cachedSettings;
@@ -72,6 +79,14 @@ export const appSettingsStorage = {
 
   async saveSettings(newSettings: AppSystemSettingsState): Promise<boolean> {
     cachedSettings = { ...newSettings };
+    listeners.forEach((listener) => {
+      try {
+        listener(cachedSettings);
+      } catch (err) {
+        console.warn('Listener error in appSettingsStorage:', err);
+      }
+    });
+
     try {
       const dir = FileSystem.documentDirectory;
       if (dir) {
