@@ -55,6 +55,9 @@ public class CreateTransactionRequest {
     
     private UUID merchantId;
     
+    private UUID receiptId;
+    private String receiptUrl;
+    
     private List<UUID> tagIds;
     
     private LocationDto location;

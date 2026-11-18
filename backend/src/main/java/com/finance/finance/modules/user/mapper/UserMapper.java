@@ -1,25 +1,39 @@
 package com.finance.finance.modules.user.mapper;
 
+import com.finance.finance.modules.group.repository.ChildWalletRepository;
 import com.finance.finance.modules.user.dto.response.UserResponse;
 import com.finance.finance.modules.user.entity.User;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
 @Component
+@RequiredArgsConstructor
 public class UserMapper {
-    
+
+    private final ChildWalletRepository childWalletRepository;
+
     public UserResponse toResponse(User user) {
         if (user == null) {
             return null;
         }
-        
-        return UserResponse.builder()
+
+        // Tự động chuẩn hóa username: nếu bị null hoặc bị lưu nhầm email thì lấy phần prefix trước dấu @
+        String resolvedUsername = user.getUsername();
+        if (resolvedUsername == null || resolvedUsername.isBlank() || resolvedUsername.contains("@")) {
+            if (user.getEmail() != null && user.getEmail().contains("@")) {
+                resolvedUsername = user.getEmail().split("@")[0];
+            }
+        }
+
+        UserResponse.UserResponseBuilder builder = UserResponse.builder()
                 .id(user.getId())
                 .email(user.getEmail())
-                .username(user.getUsername())
+                .username(resolvedUsername)
                 .fullName(user.getFullName())
                 .emailVerified(user.isEmailVerified())
                 .phone(user.getPhone())
                 .mfaEnabled(user.isMfaEnabled())
+                .loginAlertEnabled(user.isLoginAlertEnabled())
                 .userStatus(user.getUserStatus())
                 .systemRole(user.getSystemRole())
                 .subscriptionTier(user.getSubscriptionTier())
@@ -29,7 +43,15 @@ public class UserMapper {
                 .language(user.getLanguage())
                 .avatarUrl(user.getAvatarUrl())
                 .lastLoginAt(user.getLastLoginAt())
-                .createdAt(user.getCreatedAt())
-                .build();
+                .createdAt(user.getCreatedAt());
+
+        childWalletRepository.findByUserId(user.getId()).ifPresentOrElse(wallet -> {
+            builder.childAccount(true);
+            builder.childWalletId(wallet.getId());
+            builder.childWalletGroupId(wallet.getGroupId());
+            builder.childWalletName(wallet.getChildName());
+        }, () -> builder.childAccount(false));
+
+        return builder.build();
     }
 }

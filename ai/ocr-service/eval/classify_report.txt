@@ -1,0 +1,62 @@
+========================================================================
+CLASSIFY REPORT v2
+========================================================================
+Dataset: 1351 mẫu (238 thật, 1113 synthetic)
+Lớp có mẫu thật: 15 / 15
+GroupKFold: 5 fold theo thương hiệu (không leakage)
+
+── CV Results (macro-F1 chỉ trên lớp có mẫu thật) ────────────
+  LogisticRegression    : macro_f1_real=0.6743  acc_real=0.6429  ← BEST
+  LightGBM              : macro_f1_real=0.5269  acc_real=0.5462
+
+── Từ điển (đo trên cùng tập thật) ───────────────────────────
+  Coverage (độ phủ)      : 48.3%
+  Precision khi khớp     : 92.2%
+  Macro-F1               : 0.4449
+  ML cần gánh phần còn lại: 51.7%
+
+── Ngưỡng từ data ─────────────────────────────────────────────
+  t_auto = 0.75  (tự gán, precision ≥ 92%)
+  t_min  = 0.3  (gợi ý, precision ≥ 70%)
+
+── Classification report — LogisticRegression (dữ liệu thật n=238) ─
+               precision    recall  f1-score   support
+
+        bills       0.85      0.85      0.85        13
+        bonus       0.80      1.00      0.89         4
+    education       0.64      0.82      0.72        17
+entertainment       0.86      0.75      0.80         8
+       family       0.57      1.00      0.73         4
+         food       0.65      0.60      0.62        47
+       health       0.75      0.75      0.75        16
+      housing       0.75      1.00      0.86         9
+        other       0.46      0.44      0.45        36
+ other_income       0.33      0.25      0.29         4
+       salary       0.80      0.80      0.80         5
+     shopping       0.57      0.60      0.59        48
+     transfer       1.00      0.10      0.18        10
+    transport       0.70      0.88      0.78         8
+       travel       0.88      0.78      0.82         9
+
+     accuracy                           0.64       238
+    macro avg       0.71      0.71      0.67       238
+ weighted avg       0.66      0.64      0.63       238
+
+── Accuracy theo ngưỡng confidence ────────────────────────────
+   Ngưỡng       Phủ     Chính xác    n tự gán
+     0.40    68.5%         77.9%         163
+     0.50    52.9%         81.7%         126
+     0.60    43.7%         85.6%         104
+     0.70    31.1%         90.5%          74
+     0.75    27.3%         92.3%          65
+     0.80    21.0%         90.0%          50
+     0.90     8.8%         85.7%          21
+
+── Ablation (trên dữ liệu thật) ───────────────────────────────
+  Phương pháp                    macro-F1    coverage
+  Chỉ từ điển                      0.4449      48.3%
+  LogisticRegression               0.6743       100% ← best
+  LightGBM                         0.5269       100%
+
+Confusion matrix → eval/confusion_matrix.csv
+Errors (85 dòng) → eval/classify_errors.csv

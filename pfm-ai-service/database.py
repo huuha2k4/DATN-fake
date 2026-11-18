@@ -6,7 +6,12 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import declarative_base, sessionmaker, relationship
 
-load_dotenv()
+# Tự động tìm và đọc file .env ở thư mục gốc DATN
+root_env_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '.env'))
+if os.path.exists(root_env_path):
+    load_dotenv(root_env_path)
+else:
+    load_dotenv()
 
 DATABASE_URL = os.getenv("DATABASE_URL", "postgresql+psycopg2://postgres:postgres@localhost:5432/finance_db")
 
@@ -62,6 +67,8 @@ class Category(Base):
     id = Column(String, primary_key=True)
     name = Column(String(100), nullable=False)
     kind = Column(String(20), nullable=False, default="EXPENSE") # EXPENSE, INCOME
+    icon = Column(String(50), nullable=True)
+    color = Column(String(7), nullable=True)
     is_essential = Column(Boolean, default=False)
 
     transactions = relationship("Transaction", back_populates="category")
@@ -101,6 +108,8 @@ class Transaction(Base):
     occurred_at = Column(DateTime(timezone=True), nullable=False, default=datetime.utcnow)
     occurred_date = Column(Date, nullable=True)
     note = Column(Text, nullable=True)
+    description_raw = Column(String(500), nullable=True)
+    deleted_at = Column(DateTime(timezone=True), nullable=True)
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -157,6 +166,59 @@ class Goal(Base):
     current_amount = Column(Float, nullable=False, default=0.0)
     target_date = Column(Date, nullable=True)
     status = Column(String(20), default="ACTIVE")
+
+class AIChatSession(Base):
+    __tablename__ = "ai_chat_sessions"
+    __table_args__ = {"schema": "core"} if is_postgres else {}
+    id = Column(String, primary_key=True)
+    user_id = Column(String, nullable=False, index=True)
+    title = Column(String(255), nullable=False, default="Cuộc trò chuyện mới")
+    created_at = Column(DateTime(timezone=True), default=datetime.utcnow)
+    updated_at = Column(DateTime(timezone=True), default=datetime.utcnow)
+
+    messages = relationship("AIChatMessage", back_populates="session", cascade="all, delete-orphan", order_by="AIChatMessage.created_at")
+
+class ChildWallet(Base):
+    __tablename__ = "child_wallets"
+    __table_args__ = {"schema": "core"} if is_postgres else {}
+    id = Column(String, primary_key=True)
+    group_id = Column(String, nullable=False)
+    user_id = Column(String, nullable=True, index=True)
+    child_name = Column(String(150), nullable=False)
+    balance = Column("balance", Float, nullable=False, default=0.0)
+    currency = Column(String(3), default="VND")
+    weekly_allowance = Column(Float, nullable=True, default=0.0)
+
+class GroupMember(Base):
+    __tablename__ = "group_members"
+    __table_args__ = {"schema": "core"} if is_postgres else {}
+    group_id = Column(String, primary_key=True)
+    user_id = Column(String, primary_key=True, index=True)
+    role = Column(String(20), default="MEMBER")
+
+class ChildSpendRequest(Base):
+    __tablename__ = "child_spend_requests"
+    __table_args__ = {"schema": "core"} if is_postgres else {}
+    id = Column(String, primary_key=True)
+    wallet_id = Column(String, ForeignKey("core.child_wallets.id" if is_postgres else "child_wallets.id"), nullable=False)
+    amount = Column(Float, nullable=False)
+    category_id = Column(String, nullable=True)
+    description = Column(String(300), nullable=False)
+    notes = Column(Text, nullable=True)
+    status = Column(String(20), nullable=False, default="PENDING")
+    created_at = Column(DateTime(timezone=True), default=datetime.utcnow)
+
+class AIChatMessage(Base):
+    __tablename__ = "ai_chat_messages"
+    __table_args__ = {"schema": "core"} if is_postgres else {}
+    id = Column(String, primary_key=True)
+    session_id = Column(String, ForeignKey("core.ai_chat_sessions.id" if is_postgres else "ai_chat_sessions.id"), nullable=False)
+    author = Column(String(20), nullable=False)
+    text = Column(Text, nullable=False)
+    kind = Column(String(50), default="normal")
+    created_at = Column(DateTime(timezone=True), default=datetime.utcnow)
+
+    session = relationship("AIChatSession", back_populates="messages")
 
 def init_db():
     if "sqlite" in DATABASE_URL:

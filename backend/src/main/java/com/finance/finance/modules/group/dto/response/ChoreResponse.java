@@ -31,6 +31,7 @@ public class ChoreResponse {
     private String completionNotes;
     private LocalDateTime completedAt;
     private UUID approvedByUserId;
+    private String approvedByUserName;
     private LocalDateTime approvedAt;
     private String feedback;
     private LocalDateTime rejectedAt;

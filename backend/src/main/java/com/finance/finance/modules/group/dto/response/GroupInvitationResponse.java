@@ -20,6 +20,9 @@ public class GroupInvitationResponse {
     private UUID inviterId;
     private String inviterName;
     private UUID inviteeId;
+    private String inviteeName;
+    private String inviteeEmail;
+    private String inviteeAvatarUrl;
     private String role;
     private String status;
     private LocalDateTime createdAt;

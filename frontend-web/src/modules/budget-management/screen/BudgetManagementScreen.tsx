@@ -1,5 +1,6 @@
 import { useEffect, useState, useMemo } from 'react';
 import { FinanceIcon, resolveCategoryIconName, type IconName } from '../../core/components/FinanceIcon';
+import { ConfirmDeleteModal } from '../../core/components/ConfirmDeleteModal';
 import { budgetApi, type BudgetResponse, type BudgetItemResponse } from '../api/budgetApi';
 import { transactionApi, type CategoryItem, type TransactionItem } from '../../cash-flow-management/api/transactionApi';
 import './BudgetManagementScreen.css';
@@ -28,13 +29,24 @@ export function BudgetManagementScreen({ onNotify }: Props) {
     return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
   });
 
-  // Modal Thêm ngân sách cho 1 danh mục chi tiêu
+  // Modal Thêm ngân sách (chuẩn 2 chế độ như bản App: Gộp danh mục & Bảng cả tháng)
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
-  const [selectedCategoryId, setSelectedCategoryId] = useState('');
+  const [createMode, setCreateMode] = useState<'grouped' | 'batch'>('grouped');
+  const [selectedCatIds, setSelectedCatIds] = useState<string[]>([]);
   const [newBudgetName, setNewBudgetName] = useState('');
   const [newAmount, setNewAmount] = useState('');
   const [newThreshold, setNewThreshold] = useState('80');
+  const [batchAmounts, setBatchAmounts] = useState<{ [catId: string]: string }>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Dropdown chọn tháng
+  const [isMonthDropdownOpen, setIsMonthDropdownOpen] = useState(false);
+
+  // Modal Mẫu ngân sách tài chính (Quy tắc 50/30/20 & 6 Chiếc Hũ)
+  const [isTemplateModalOpen, setIsTemplateModalOpen] = useState(false);
+  const [templateIncome, setTemplateIncome] = useState<string>('15.000.000');
+  const [selectedTemplateKey, setSelectedTemplateKey] = useState<'50_30_20' | '6_JARS'>('50_30_20');
+  const [isApplyingTemplate, setIsApplyingTemplate] = useState(false);
 
   // Modal Xem chi tiết / Sửa / Xóa 1 hạn mức danh mục
   const [selectedItem, setSelectedItem] = useState<BudgetItemResponse | null>(null);
@@ -47,6 +59,10 @@ export function BudgetManagementScreen({ onNotify }: Props) {
   // Lịch sử giao dịch chi tiêu thực tế thuộc ngân sách
   const [itemTransactions, setItemTransactions] = useState<TransactionItem[]>([]);
   const [isLoadingTx, setIsLoadingTx] = useState(false);
+
+  // Modal xác nhận xóa ngân sách (Custom modal)
+  const [budgetItemToDelete, setBudgetItemToDelete] = useState<BudgetItemResponse | null>(null);
+  const [isDeletingItem, setIsDeletingItem] = useState(false);
 
   // Danh sách các tháng để chọn: gồm các tháng tới (2-3 tháng tới để lập ngân sách trước) và các tháng quá khứ
   const availableMonths = useMemo(() => {
@@ -145,58 +161,200 @@ export function BudgetManagementScreen({ onNotify }: Props) {
 
   // Mở modal thêm hạn mức
   const handleOpenAddModal = () => {
-    let initialCatId = '';
-    let initialCatName = '';
-    if (unconfiguredCategories.length > 0) {
-      initialCatId = unconfiguredCategories[0].id;
-      initialCatName = unconfiguredCategories[0].name;
-    } else if (categories.length > 0) {
-      initialCatId = categories[0].id;
-      initialCatName = categories[0].name;
-    }
-    setSelectedCategoryId(initialCatId);
-    setNewBudgetName(initialCatName ? `Ngân sách ${initialCatName}` : '');
+    setSelectedCatIds([]);
+    setCreateMode('grouped');
+    setNewBudgetName('');
     setNewAmount('');
     setNewThreshold('80');
+    setBatchAmounts({});
     setIsAddModalOpen(true);
   };
 
-  // Submit thêm hạn mức danh mục
+  // Toggle chọn danh mục
+  const handleToggleCategory = (catId: string) => {
+    setSelectedCatIds((prev) =>
+      prev.includes(catId) ? prev.filter((id) => id !== catId) : [...prev, catId]
+    );
+  };
+
+  // Chọn tất cả danh mục
+  const handleSelectAllCategories = () => {
+    setSelectedCatIds(categories.map((c) => c.id));
+  };
+
+  // Bỏ chọn tất cả danh mục
+  const handleDeselectAllCategories = () => {
+    setSelectedCatIds([]);
+  };
+
+  // Submit thêm hạn mức danh mục (Hỗ trợ cả Grouped & Batch Setup chuẩn như App)
   const handleAddItemSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const amtNum = parseFloat(newAmount.replace(/\D/g, ''));
-    if (!selectedCategoryId) {
-      onNotify('Vui lòng chọn danh mục chi tiêu');
-      return;
-    }
-    if (!amtNum || amtNum <= 0) {
-      onNotify('Vui lòng nhập số tiền hạn mức hợp lệ (> 0)');
-      return;
-    }
+    const [yStr, mStr] = selectedMonth.split('-');
+    const year = parseInt(yStr, 10);
+    const month = parseInt(mStr, 10);
 
+    if (createMode === 'grouped') {
+      const amtNum = parseFloat(newAmount.replace(/\D/g, ''));
+      if (selectedCatIds.length === 0) {
+        onNotify('Vui lòng chọn ít nhất 1 danh mục chi tiêu');
+        return;
+      }
+      if (!amtNum || amtNum <= 0) {
+        onNotify('Vui lòng nhập số tiền hạn mức hợp lệ (> 0)');
+        return;
+      }
+
+      try {
+        setIsSubmitting(true);
+        const perCategoryAmount = Math.round(amtNum / selectedCatIds.length);
+        let successCount = 0;
+
+        for (const catId of selectedCatIds) {
+          const cat = categories.find((c) => c.id === catId);
+          const itemName = newBudgetName.trim()
+            ? (selectedCatIds.length > 1 ? `${newBudgetName.trim()} - ${cat?.name}` : newBudgetName.trim())
+            : (cat?.name || 'Ngân sách danh mục');
+
+          await budgetApi.addCategoryBudgetForMonth({
+            year,
+            month,
+            categoryId: catId,
+            name: itemName,
+            amount: perCategoryAmount,
+            alertThresholdPercentage: parseInt(newThreshold, 10) || 80,
+          });
+          successCount++;
+        }
+
+        onNotify(
+          selectedCatIds.length > 1
+            ? `Đã thiết lập hạn mức cho ${selectedCatIds.length} danh mục thành công!`
+            : 'Đã thêm ngân sách cho danh mục thành công!'
+        );
+        setIsAddModalOpen(false);
+        loadBudgetForSelectedMonth();
+      } catch (err: any) {
+        const msg = err.response?.data?.message || 'Thêm ngân sách thất bại. Vui lòng thử lại';
+        onNotify(msg);
+      } finally {
+        setIsSubmitting(false);
+      }
+    } else {
+      // Chế độ Batch (Bảng cả tháng)
+      const validEntries = Object.entries(batchAmounts).filter(([_, str]) => {
+        const n = Number(str.replace(/\D/g, ''));
+        return n > 0;
+      });
+
+      if (validEntries.length === 0) {
+        onNotify('Vui lòng nhập số tiền cho ít nhất 1 danh mục chi tiêu');
+        return;
+      }
+
+      try {
+        setIsSubmitting(true);
+        let count = 0;
+        for (const [catId, str] of validEntries) {
+          const cat = categories.find((c) => c.id === catId);
+          const amount = Number(str.replace(/\D/g, ''));
+          await budgetApi.addCategoryBudgetForMonth({
+            year,
+            month,
+            categoryId: catId,
+            name: cat?.name || 'Ngân sách danh mục',
+            amount,
+            alertThresholdPercentage: 80,
+          });
+          count++;
+        }
+
+        onNotify(`Đã thiết lập ngân sách cho ${count} danh mục chi tiêu!`);
+        setIsAddModalOpen(false);
+        setBatchAmounts({});
+        loadBudgetForSelectedMonth();
+      } catch (err: any) {
+        onNotify(err.response?.data?.message || 'Không thể lưu ngân sách.');
+      } finally {
+        setIsSubmitting(false);
+      }
+    }
+  };
+
+  // Tính tổng số tiền ngân sách nhập theo batch
+  const totalBatchAmount = useMemo(() => {
+    return Object.values(batchAmounts).reduce((sum, str) => {
+      const num = Number(str.replace(/\D/g, '')) || 0;
+      return sum + num;
+    }, 0);
+  }, [batchAmounts]);
+
+  // Tính toán số tiền mẫu phân bổ tài chính
+  const incomeNumber = useMemo(() => {
+    return Number(templateIncome.replace(/\D/g, '')) || 0;
+  }, [templateIncome]);
+
+  const templateAllocations = useMemo(() => {
+    if (selectedTemplateKey === '50_30_20') {
+      return [
+        { name: 'Ăn uống', percent: 25, amount: Math.round(incomeNumber * 0.25), icon: 'utensils' as IconName, color: '#EF4444', group: '50% Nhu cầu thiết yếu' },
+        { name: 'Sinh hoạt & Hóa đơn', percent: 15, amount: Math.round(incomeNumber * 0.15), icon: 'home' as IconName, color: '#10B981', group: '50% Nhu cầu thiết yếu' },
+        { name: 'Di chuyển & Xăng xe', percent: 10, amount: Math.round(incomeNumber * 0.10), icon: 'car' as IconName, color: '#0EA5E9', group: '50% Nhu cầu thiết yếu' },
+        { name: 'Mua sắm cá nhân', percent: 15, amount: Math.round(incomeNumber * 0.15), icon: 'shopping-bag' as IconName, color: '#8B5CF6', group: '30% Mong muốn cá nhân' },
+        { name: 'Giải trí & Du lịch', percent: 10, amount: Math.round(incomeNumber * 0.10), icon: 'film' as IconName, color: '#F59E0B', group: '30% Mong muốn cá nhân' },
+        { name: 'Sức khỏe & Khác', percent: 5, amount: Math.round(incomeNumber * 0.05), icon: 'heart' as IconName, color: '#EC4899', group: '30% Mong muốn cá nhân' },
+      ];
+    }
+    return [
+      { name: 'Chi tiêu thiết yếu (Ăn uống, nhà cửa, xăng xe)', percent: 55, amount: Math.round(incomeNumber * 0.55), icon: 'home' as IconName, color: '#EF4444', group: 'Hũ 1: Thiết yếu (NEC - 55%)' },
+      { name: 'Tiết kiệm dài hạn (Mua xe, mua nhà, dự phòng)', percent: 10, amount: Math.round(incomeNumber * 0.10), icon: 'coin-stack' as IconName, color: '#10B981', group: 'Hũ 2: Tiết kiệm dài hạn (LTSS - 10%)' },
+      { name: 'Tự do tài chính (Đầu tư, kinh doanh sinh lời)', percent: 10, amount: Math.round(incomeNumber * 0.10), icon: 'chart' as IconName, color: '#047857', group: 'Hũ 3: Tự do tài chính (FFA - 10%)' },
+      { name: 'Giáo dục & Học tập (Sách vở, khóa học, kỹ năng)', percent: 10, amount: Math.round(incomeNumber * 0.10), icon: 'book' as IconName, color: '#0EA5E9', group: 'Hũ 4: Giáo dục (EDUC - 10%)' },
+      { name: 'Hưởng thụ cá nhân (Mua sắm, ăn ngon, du lịch)', percent: 10, amount: Math.round(incomeNumber * 0.10), icon: 'shopping-bag' as IconName, color: '#8B5CF6', group: 'Hũ 5: Hưởng thụ (PLAY - 10%)' },
+      { name: 'Cho đi & Từ thiện (Quà tặng, giúp đỡ gia đình)', percent: 5, amount: Math.round(incomeNumber * 0.05), icon: 'gift' as IconName, color: '#F59E0B', group: 'Hũ 6: Cho đi (GIVE - 5%)' },
+    ];
+  }, [incomeNumber, selectedTemplateKey]);
+
+  // Áp dụng mẫu phân bổ vào ngân sách tháng
+  const handleApplyTemplate = async () => {
+    if (incomeNumber <= 0) {
+      onNotify('Vui lòng nhập số tiền thu nhập dự kiến');
+      return;
+    }
     try {
-      setIsSubmitting(true);
+      setIsApplyingTemplate(true);
       const [yStr, mStr] = selectedMonth.split('-');
       const year = parseInt(yStr, 10);
       const month = parseInt(mStr, 10);
 
-      await budgetApi.addCategoryBudgetForMonth({
-        year,
-        month,
-        categoryId: selectedCategoryId,
-        name: newBudgetName.trim() || undefined,
-        amount: amtNum,
-        alertThresholdPercentage: parseInt(newThreshold, 10) || 80,
-      });
+      for (let i = 0; i < templateAllocations.length; i++) {
+        const alloc = templateAllocations[i];
+        const matched =
+          categories.find(
+            (c) =>
+              c.name.toLowerCase().includes(alloc.name.toLowerCase()) ||
+              alloc.name.toLowerCase().includes(c.name.toLowerCase())
+          ) || categories[i % categories.length];
 
-      onNotify('Đã thêm ngân sách cho danh mục thành công!');
-      setIsAddModalOpen(false);
+        if (matched) {
+          await budgetApi.addCategoryBudgetForMonth({
+            year,
+            month,
+            categoryId: matched.id,
+            name: alloc.name,
+            amount: alloc.amount,
+            alertThresholdPercentage: 80,
+          });
+        }
+      }
+
+      onNotify(`Đã áp dụng mẫu ngân sách thành công cho tháng ${month}/${year}!`);
+      setIsTemplateModalOpen(false);
       loadBudgetForSelectedMonth();
     } catch (err: any) {
-      const msg = err.response?.data?.message || 'Thêm ngân sách thất bại. Vui lòng thử lại';
-      onNotify(msg);
+      onNotify(err.response?.data?.message || 'Không thể áp dụng mẫu ngân sách.');
     } finally {
-      setIsSubmitting(false);
+      setIsApplyingTemplate(false);
     }
   };
 
@@ -270,19 +428,26 @@ export function BudgetManagementScreen({ onNotify }: Props) {
     }
   };
 
-  // Xóa 1 hạn mức danh mục
-  const handleDeleteItem = async (item: BudgetItemResponse) => {
-    if (!currentBudget) return;
-    const displayName = item.name || item.category?.name || item.categoryName;
-    if (!window.confirm(`Bạn có chắc chắn muốn xóa ngân sách "${displayName}"?`)) return;
+  // Mở popup xác nhận xóa 1 hạn mức danh mục
+  const handleDeleteItem = (item: BudgetItemResponse) => {
+    setBudgetItemToDelete(item);
+  };
 
+  // Xác nhận xóa ngân sách
+  const confirmDeleteBudgetItem = async () => {
+    if (!currentBudget || !budgetItemToDelete) return;
+    setIsDeletingItem(true);
+    const displayName = budgetItemToDelete.name || budgetItemToDelete.category?.name || budgetItemToDelete.categoryName;
     try {
-      await budgetApi.deleteBudgetItem(currentBudget.id, item.id);
-      onNotify('Đã xóa ngân sách thành công!');
+      await budgetApi.deleteBudgetItem(currentBudget.id, budgetItemToDelete.id);
+      onNotify(`Đã xóa ngân sách "${displayName}" thành công!`);
+      setBudgetItemToDelete(null);
       setSelectedItem(null);
       loadBudgetForSelectedMonth();
     } catch {
       onNotify('Xóa ngân sách thất bại');
+    } finally {
+      setIsDeletingItem(false);
     }
   };
 
@@ -298,8 +463,13 @@ export function BudgetManagementScreen({ onNotify }: Props) {
   };
 
   // Lấy màu sắc nguyên bản của danh mục (hoặc fallback theo tên/icon nếu chưa có)
-  const getCategoryTheme = (item: BudgetItemResponse) => {
-    const rawColor = item.category?.color || item.categoryColor || categories.find((c) => c.id === (item.category?.id || item.categoryId))?.color;
+  const getCategoryTheme = (itemOrCat: BudgetItemResponse | CategoryItem) => {
+    const rawColor =
+      ('category' in itemOrCat && itemOrCat.category?.color) ||
+      ('categoryColor' in itemOrCat && itemOrCat.categoryColor) ||
+      ('color' in itemOrCat && itemOrCat.color) ||
+      categories.find((c) => c.id === ('category' in itemOrCat ? (itemOrCat.category?.id || itemOrCat.categoryId) : itemOrCat.id))?.color;
+
     if (rawColor) {
       return {
         color: rawColor,
@@ -310,7 +480,13 @@ export function BudgetManagementScreen({ onNotify }: Props) {
     }
 
     // Bảng màu mặc định phong phú theo loại danh mục (Ăn uống, Đi lại, Hóa đơn, Mua sắm, v.v.)
-    const name = (item.category?.name || item.categoryName || item.name || '').toLowerCase();
+    const name = (
+      ('category' in itemOrCat && itemOrCat.category?.name) ||
+      ('categoryName' in itemOrCat && itemOrCat.categoryName) ||
+      itemOrCat.name ||
+      ''
+    ).toLowerCase();
+
     if (name.includes('uống') || name.includes('ăn')) {
       return { color: '#f59e0b', bgLight: '#fef3c7', bgDark: '#3b2507', border: '#784d12' }; // Vàng cam ấm
     }
@@ -416,17 +592,17 @@ export function BudgetManagementScreen({ onNotify }: Props) {
 
       {/* Thanh công cụ: Chọn tháng, Bộ lọc & Nút Thêm ngân sách */}
       <section className="flex flex-col gap-4" aria-label="Danh sách hạn mức ngân sách">
-        <div className="flex flex-col justify-between gap-3 lg:flex-row lg:items-center">
-          {/* Trái: Tiêu đề */}
-          <div>
-            <h2 className="text-lg font-semibold text-[#14251f]">Hạn Mức Ngân Sách Chi Tiêu</h2>
-            <p className="text-xs text-[#718078]">Giới hạn định mức kiểm soát dòng tiền theo từng danh mục</p>
+        <div className="flex flex-col justify-between gap-3 md:flex-row md:items-center">
+          {/* Trái: Tiêu đề gọn gàng giống App */}
+          <div className="shrink-0">
+            <h2 className="text-base sm:text-lg font-bold text-[#14251f]">Ngân Sách Chi Tiêu</h2>
+            <p className="text-[11px] text-[#718078]">Định mức theo từng danh mục</p>
           </div>
 
           {/* Phải: Cụm bộ lọc, Chọn tháng (ở giữa), Nút Thêm ngân sách */}
-          <div className="flex flex-wrap items-center gap-3">
+          <div className="flex flex-nowrap items-center gap-2 py-0.5">
             {/* Bộ lọc trạng thái kiểu pill xanh chuẩn theme */}
-            <div className="budget-filter-box inline-flex h-[38px] items-center rounded-xl bg-[#f0f5f2] p-1 gap-1">
+            <div className="budget-filter-box inline-flex h-9 shrink-0 items-center rounded-xl bg-[#f0f5f2] p-1 gap-1">
               {([
                 ['all', 'Tất cả'],
                 ['safe', 'An toàn'],
@@ -437,7 +613,7 @@ export function BudgetManagementScreen({ onNotify }: Props) {
                   key={val}
                   type="button"
                   onClick={() => setSelectedFilter(val)}
-                  className={`h-full rounded-lg px-3.5 text-xs font-bold transition flex items-center justify-center whitespace-nowrap ${
+                  className={`h-full rounded-lg px-2.5 text-xs font-bold transition flex items-center justify-center whitespace-nowrap ${
                     selectedFilter === val
                       ? 'is-active bg-[#07543f] text-white shadow-xs'
                       : 'text-[#52665a] hover:text-[#07543f] hover:bg-[#e4ede7]'
@@ -448,30 +624,87 @@ export function BudgetManagementScreen({ onNotify }: Props) {
               ))}
             </div>
 
-            {/* Dropdown Chọn tháng (nằm giữa bộ lọc và nút thêm ngân sách) */}
-            <div className="budget-month-selector flex h-[38px] items-center gap-2 rounded-xl border border-[#d2dcd5] bg-white px-3.5 shadow-sm">
-              <FinanceIcon name="calendar" size={15} />
-              <select
-                value={selectedMonth}
-                onChange={(e) => setSelectedMonth(e.target.value)}
-                className="bg-transparent text-xs font-semibold text-[#14251f] outline-none cursor-pointer py-1"
+            {/* Dropdown Chọn tháng hiện đại tuỳ biến */}
+            <div className="relative shrink-0">
+              <button
+                type="button"
+                onClick={() => setIsMonthDropdownOpen((prev) => !prev)}
+                className="flex h-9 items-center gap-2 rounded-xl border border-[#d2dcd5] bg-white px-3 text-xs font-bold text-[#14251f] shadow-xs hover:border-[#07543f] hover:bg-[#fafcfa] transition cursor-pointer"
                 aria-label="Chọn tháng quản lý ngân sách"
               >
-                {availableMonths.map((m) => (
-                  <option key={m.key} value={m.key}>
-                    {m.label}
-                  </option>
-                ))}
-              </select>
+                <FinanceIcon name="calendar" size={14} color="#07543f" />
+                <span>
+                  Tháng {selectedMonth.split('-')[1]}/{selectedMonth.split('-')[0]}
+                </span>
+                <FinanceIcon
+                  name="chevron-down"
+                  size={13}
+                  className={`text-[#718078] transition-transform duration-200 ${
+                    isMonthDropdownOpen ? 'rotate-180 text-[#07543f]' : ''
+                  }`}
+                />
+              </button>
+
+              {/* Menu danh sách các tháng thả xuống */}
+              {isMonthDropdownOpen && (
+                <>
+                  <div
+                    className="fixed inset-0 z-40"
+                    onClick={() => setIsMonthDropdownOpen(false)}
+                  />
+                  <div className="absolute right-0 top-full mt-1.5 z-50 w-44 rounded-2xl border border-[#e2eae4] bg-white p-1.5 shadow-xl transition-all max-h-60 overflow-y-auto">
+                    <div className="px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-[#718078]">
+                      Chọn kỳ ngân sách
+                    </div>
+                    {availableMonths.map((m) => {
+                      const isSelected = m.key === selectedMonth;
+                      return (
+                        <button
+                          key={m.key}
+                          type="button"
+                          onClick={() => {
+                            setSelectedMonth(m.key);
+                            setIsMonthDropdownOpen(false);
+                          }}
+                          className={`flex w-full items-center justify-between rounded-xl px-2.5 py-2 text-xs font-semibold transition cursor-pointer ${
+                            isSelected
+                              ? 'bg-[#eef6f2] font-bold text-[#07543f]'
+                              : 'text-[#52665a] hover:bg-[#f1f5f2] hover:text-[#14251f]'
+                          }`}
+                        >
+                          <span>{m.label}</span>
+                          {isSelected && (
+                            <span className="text-[#07543f]">
+                              <FinanceIcon name="check" size={13} color="#07543f" />
+                            </span>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </>
+              )}
             </div>
+
+            {/* Nút Mẫu ngân sách */}
+            <button
+              type="button"
+              onClick={() => setIsTemplateModalOpen(true)}
+              className="inline-flex h-9 shrink-0 items-center justify-center gap-1.5 rounded-xl border border-sky-200 bg-sky-50 hover:bg-sky-100 dark:bg-sky-950/40 px-3 text-xs font-bold text-sky-700 dark:text-sky-300 shadow-xs transition cursor-pointer whitespace-nowrap"
+              title="Áp dụng quy tắc tài chính 50/30/20 hoặc 6 Chiếc Hũ"
+            >
+              <FinanceIcon name="spark" size={14} color="#0284c7" />
+              <span>Mẫu ngân sách</span>
+            </button>
 
             {/* Nút Thêm ngân sách */}
             <button
               type="button"
               onClick={handleOpenAddModal}
-              className="btn-budget-add inline-flex h-[38px] items-center justify-center rounded-xl bg-[#07543f] px-4 text-xs font-semibold text-white shadow-sm hover:bg-[#064232] transition"
+              className="btn-budget-add inline-flex h-9 shrink-0 items-center justify-center gap-1.5 rounded-xl bg-[#07543f] hover:bg-[#064232] px-3.5 text-xs font-bold text-white shadow-xs transition cursor-pointer whitespace-nowrap"
             >
-              Thêm ngân sách
+              <FinanceIcon name="plus" size={14} color="#FFFFFF" />
+              <span>Thêm ngân sách</span>
             </button>
           </div>
         </div>
@@ -569,113 +802,397 @@ export function BudgetManagementScreen({ onNotify }: Props) {
         )}
       </section>
 
-      {/* Modal Thêm ngân sách cho 1 danh mục chi tiêu */}
+      {/* Modal Thêm ngân sách hỗ trợ 2 chế độ: Gộp danh mục & Bảng cả tháng */}
       {isAddModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm">
-          <div className="budget-modal-card w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl overflow-hidden">
-            <div className="flex items-center justify-between border-b border-[#e7ece8] pb-3">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm" onClick={() => setIsAddModalOpen(false)}>
+          <div className="budget-modal-card w-full max-w-xl rounded-2xl bg-white shadow-2xl overflow-hidden max-h-[92vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
+            {/* Header */}
+            <div className="flex items-center justify-between border-b border-[#e7ece8] px-6 py-4">
               <div>
-                <h3 className="text-base font-bold text-[#14251f]">Thêm Ngân Sách Danh Mục</h3>
-                <p className="text-xs text-[#718078]">Áp dụng cho kỳ: <strong>Tháng {selectedMonth.split('-')[1]}/{selectedMonth.split('-')[0]}</strong></p>
+                <h3 className="text-base font-bold text-[#14251f]">Thiết Lập Ngân Sách Danh Mục</h3>
+                <p className="text-xs text-[#718078]">Áp dụng cho kỳ: <strong className="text-[#07543f]">Tháng {selectedMonth.split('-')[1]}/{selectedMonth.split('-')[0]}</strong></p>
               </div>
               <button
                 type="button"
                 onClick={() => setIsAddModalOpen(false)}
-                className="grid size-8 place-items-center rounded-lg text-[#718078] hover:bg-[#f1f5f2]"
+                className="grid size-8 place-items-center rounded-lg text-[#718078] hover:bg-[#f1f5f2] transition cursor-pointer"
               >
                 ✕
               </button>
             </div>
 
-            <form onSubmit={handleAddItemSubmit} className="mt-4 space-y-4">
-              {/* Chọn danh mục chi tiêu */}
-              <div>
-                <label className="block text-xs font-semibold text-[#14251f] mb-1">Danh mục chi tiêu *</label>
-                <select
-                  value={selectedCategoryId}
-                  onChange={(e) => {
-                    const catId = e.target.value;
-                    setSelectedCategoryId(catId);
-                    const catObj = categories.find((c) => c.id === catId);
-                    if (catObj && (!newBudgetName || newBudgetName.startsWith('Ngân sách '))) {
-                      setNewBudgetName(`Ngân sách ${catObj.name}`);
-                    }
-                  }}
-                  className="w-full rounded-xl border border-[#d2dcd5] bg-white px-3.5 py-2.5 text-xs text-[#14251f] focus:border-[#07543f] focus:outline-none"
-                  required
+            {/* Chuyển chế độ: Gộp danh mục vs Bảng cả tháng (giống App) */}
+            <div className="px-6 pt-4 shrink-0">
+              <div className="grid grid-cols-2 p-1 bg-[#f0f5f2] rounded-xl gap-1">
+                <button
+                  type="button"
+                  onClick={() => setCreateMode('grouped')}
+                  className={`py-2 text-xs font-bold rounded-lg transition cursor-pointer flex items-center justify-center gap-1.5 ${
+                    createMode === 'grouped'
+                      ? 'bg-white text-[#07543f] shadow-xs'
+                      : 'text-[#52665a] hover:text-[#07543f]'
+                  }`}
                 >
-                  {categories.map((cat) => (
-                    <option key={cat.id} value={cat.id}>
-                      {cat.name}
-                    </option>
-                  ))}
-                </select>
-                <p className="mt-1 text-[11px] text-[#718078]">Hệ thống sẽ tự động đối soát các khoản chi của danh mục này vào ngân sách.</p>
+                  <FinanceIcon name="tag" size={14} />
+                  <span>Gộp danh mục</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setCreateMode('batch')}
+                  className={`py-2 text-xs font-bold rounded-lg transition cursor-pointer flex items-center justify-center gap-1.5 ${
+                    createMode === 'batch'
+                      ? 'bg-white text-[#07543f] shadow-xs'
+                      : 'text-[#52665a] hover:text-[#07543f]'
+                  }`}
+                >
+                  <FinanceIcon name="chart" size={14} />
+                  <span>Bảng cả tháng</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Nội dung form theo tab */}
+            <form onSubmit={handleAddItemSubmit} className="flex flex-col flex-1 overflow-hidden">
+              <div className="overflow-y-auto px-6 py-4 space-y-4 flex-1">
+                {createMode === 'grouped' ? (
+                  <>
+                    {/* Chọn các danh mục */}
+                    <div>
+                      <div className="flex items-center justify-between mb-1.5">
+                        <label className="text-xs font-semibold text-[#14251f]">
+                          Chọn danh mục chi tiêu ({selectedCatIds.length} đã chọn) *
+                        </label>
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={handleSelectAllCategories}
+                            className="text-[11px] font-bold text-[#07543f] hover:underline cursor-pointer"
+                          >
+                            Chọn tất cả
+                          </button>
+                          <span className="text-[#d2dcd5]">|</span>
+                          <button
+                            type="button"
+                            onClick={handleDeselectAllCategories}
+                            className="text-[11px] font-medium text-[#718078] hover:underline cursor-pointer"
+                          >
+                            Bỏ chọn
+                          </button>
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 max-h-56 overflow-y-auto p-2 bg-[#f8faf9] rounded-xl border border-[#e7ece8]">
+                        {categories.map((cat) => {
+                          const isSelected = selectedCatIds.includes(cat.id);
+                          const iconName = getCategoryIcon(cat.icon, cat.name);
+                          const catTheme = getCategoryTheme(cat);
+                          return (
+                            <button
+                              key={cat.id}
+                              type="button"
+                              onClick={() => handleToggleCategory(cat.id)}
+                              className={`flex items-center gap-2 p-2 rounded-xl border text-left text-xs transition cursor-pointer select-none ${
+                                isSelected
+                                  ? 'border-[#07543f] bg-[#eef6f2] font-bold text-[#07543f] shadow-xs'
+                                  : 'border-[#e7ece8] bg-white text-[#52665a] hover:border-[#b4c8be] hover:bg-[#fafcfa]'
+                              }`}
+                            >
+                              <span
+                                className={`grid size-4 shrink-0 place-items-center rounded border transition-colors ${
+                                  isSelected
+                                    ? 'border-[#07543f] bg-[#07543f] text-white'
+                                    : 'border-[#cbd5e1] bg-white'
+                                }`}
+                              >
+                                {isSelected && (
+                                  <FinanceIcon name="check" size={11} color="#FFFFFF" />
+                                )}
+                              </span>
+                              <span
+                                className="grid size-7 shrink-0 place-items-center rounded-lg shadow-xs"
+                                style={{
+                                  backgroundColor: catTheme.bgLight,
+                                  color: catTheme.color,
+                                }}
+                              >
+                                <FinanceIcon name={iconName} size={15} color={catTheme.color} />
+                              </span>
+                              <span className="truncate flex-1">{cat.name}</span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                      <p className="mt-1 text-[11px] text-[#718078]">Có thể chọn 1 hoặc nhiều danh mục để lập ngân sách chung.</p>
+                    </div>
+
+                    {/* Tên ngân sách */}
+                    <div>
+                      <label className="block text-xs font-semibold text-[#14251f] mb-1">Tên ngân sách (tùy chọn)</label>
+                      <input
+                        type="text"
+                        placeholder="Ví dụ: Ăn uống & Cà phê"
+                        value={newBudgetName}
+                        onChange={(e) => setNewBudgetName(e.target.value)}
+                        maxLength={100}
+                        className="w-full rounded-xl border border-[#d2dcd5] px-3.5 py-2.5 text-xs text-[#14251f] focus:border-[#07543f] focus:outline-none"
+                      />
+                    </div>
+
+                    {/* Số tiền hạn mức */}
+                    <div>
+                      <label className="block text-xs font-semibold text-[#14251f] mb-1">Số tiền hạn mức (VND) *</label>
+                      <input
+                        type="text"
+                        placeholder="Ví dụ: 2,500,000"
+                        value={newAmount}
+                        onChange={(e) => {
+                          const val = e.target.value.replace(/\D/g, '');
+                          setNewAmount(val ? Number(val).toLocaleString('vi-VN') : '');
+                        }}
+                        className="w-full rounded-xl border border-[#d2dcd5] px-3.5 py-2.5 text-xs text-[#14251f] focus:border-[#07543f] focus:outline-none"
+                        required
+                      />
+                      {selectedCatIds.length > 1 && newAmount && (
+                        <p className="mt-1 text-[11px] text-[#07543f]">
+                          Phân bổ: ~{Math.round(Number(newAmount.replace(/\D/g, '')) / selectedCatIds.length).toLocaleString('vi-VN')} đ/danh mục
+                        </p>
+                      )}
+                    </div>
+
+                    {/* Ngưỡng cảnh báo */}
+                    <div>
+                      <label className="block text-xs font-semibold text-[#14251f] mb-1">Ngưỡng cảnh báo chi tiêu (%)</label>
+                      <input
+                        type="number"
+                        min="10"
+                        max="100"
+                        value={newThreshold}
+                        onChange={(e) => setNewThreshold(e.target.value)}
+                        className="w-full rounded-xl border border-[#d2dcd5] px-3.5 py-2.5 text-xs text-[#14251f] focus:border-[#07543f] focus:outline-none"
+                      />
+                      <p className="mt-1 text-[11px] text-[#718078]">Hệ thống sẽ chuyển trạng thái sang &quot;Cần chú ý&quot; khi đạt đến ngưỡng này.</p>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    {/* Chế độ Bảng cả tháng */}
+                    <div>
+                      <p className="text-xs text-[#718078] mb-3">
+                        Nhập trực tiếp số tiền hạn mức dự kiến cho từng danh mục chi tiêu của tháng này:
+                      </p>
+                      <div className="space-y-2 max-h-[360px] overflow-y-auto pr-1">
+                        {categories.map((cat) => {
+                          const val = batchAmounts[cat.id] || '';
+                          const iconName = getCategoryIcon(cat.icon, cat.name);
+                          const catTheme = getCategoryTheme(cat);
+                          return (
+                            <div key={cat.id} className="flex items-center justify-between p-2.5 rounded-xl border border-[#e7ece8] hover:border-[#b4c8be] bg-white">
+                              <div className="flex items-center gap-2.5 min-w-0 pr-2">
+                                <span
+                                  className="grid size-8 shrink-0 place-items-center rounded-lg shadow-xs"
+                                  style={{
+                                    backgroundColor: catTheme.bgLight,
+                                    color: catTheme.color,
+                                  }}
+                                >
+                                  <FinanceIcon name={iconName} size={16} color={catTheme.color} />
+                                </span>
+                                <span className="text-xs font-semibold text-[#14251f] truncate">{cat.name}</span>
+                              </div>
+                              <div className="w-40 shrink-0 relative flex items-center">
+                                <input
+                                  type="text"
+                                  placeholder="0"
+                                  value={val}
+                                  onChange={(e) => {
+                                    const raw = e.target.value.replace(/\D/g, '');
+                                    setBatchAmounts((prev) => ({
+                                      ...prev,
+                                      [cat.id]: raw ? Number(raw).toLocaleString('vi-VN') : '',
+                                    }));
+                                  }}
+                                  className="w-full h-9 rounded-lg border border-[#d2dcd5] pl-3 pr-7 text-right text-xs font-bold text-[#14251f] focus:border-[#07543f] focus:outline-none"
+                                />
+                                <span className="absolute right-2.5 text-xs font-semibold text-[#718078] pointer-events-none select-none">
+                                  đ
+                                </span>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                      <div className="mt-3 flex items-center justify-between p-3 rounded-xl bg-[#f0f5f2] text-xs font-bold text-[#07543f]">
+                        <span>Tổng ngân sách dự kiến:</span>
+                        <span>{totalBatchAmount.toLocaleString('vi-VN')} đ</span>
+                      </div>
+                    </div>
+                  </>
+                )}
               </div>
 
-              {/* Tên ngân sách (Tự gợi ý hoặc tự đặt) */}
-              <div>
-                <label className="block text-xs font-semibold text-[#14251f] mb-1">Tên ngân sách *</label>
-                <input
-                  type="text"
-                  placeholder="Ví dụ: Ngân sách Ăn uống & Cà phê"
-                  value={newBudgetName}
-                  onChange={(e) => setNewBudgetName(e.target.value)}
-                  maxLength={100}
-                  className="w-full rounded-xl border border-[#d2dcd5] px-3.5 py-2.5 text-xs text-[#14251f] focus:border-[#07543f] focus:outline-none"
-                  required
-                />
-                <p className="mt-1 text-[11px] text-[#718078]">Tên hiển thị để bạn dễ dàng quản lý và theo dõi.</p>
-              </div>
-
-              {/* Số tiền hạn mức */}
-              <div>
-                <label className="block text-xs font-semibold text-[#14251f] mb-1">Số tiền hạn mức (VND) *</label>
-                <input
-                  type="text"
-                  placeholder="Ví dụ: 2,500,000"
-                  value={newAmount}
-                  onChange={(e) => {
-                    const val = e.target.value.replace(/\D/g, '');
-                    setNewAmount(val ? Number(val).toLocaleString('vi-VN') : '');
-                  }}
-                  className="w-full rounded-xl border border-[#d2dcd5] px-3.5 py-2.5 text-xs text-[#14251f] focus:border-[#07543f] focus:outline-none"
-                  required
-                />
-              </div>
-
-              {/* Ngưỡng cảnh báo */}
-              <div>
-                <label className="block text-xs font-semibold text-[#14251f] mb-1">Ngưỡng cảnh báo chi tiêu (%)</label>
-                <input
-                  type="number"
-                  min="10"
-                  max="100"
-                  value={newThreshold}
-                  onChange={(e) => setNewThreshold(e.target.value)}
-                  className="w-full rounded-xl border border-[#d2dcd5] px-3.5 py-2.5 text-xs text-[#14251f] focus:border-[#07543f] focus:outline-none"
-                />
-                <p className="mt-1 text-[11px] text-[#718078]">Hệ thống sẽ chuyển trạng thái sang &quot;Cần chú ý&quot; khi đạt đến ngưỡng này.</p>
-              </div>
-
-              {/* Nút hành động */}
-              <div className="flex items-center justify-end gap-2 pt-3 border-t border-[#e7ece8]">
+              {/* Nút hành động dưới modal */}
+              <div className="flex items-center justify-end gap-2 px-6 py-4 border-t border-[#e7ece8] bg-[#fdfdfd] shrink-0">
                 <button
                   type="button"
                   onClick={() => setIsAddModalOpen(false)}
-                  className="rounded-xl border border-[#d2dcd5] px-4 py-2 text-xs font-semibold text-[#53645a] hover:bg-[#f1f5f2]"
+                  className="rounded-xl border border-[#d2dcd5] px-4 py-2 text-xs font-semibold text-[#53645a] hover:bg-[#f1f5f2] transition cursor-pointer"
                 >
                   Hủy
                 </button>
                 <button
                   type="submit"
                   disabled={isSubmitting}
-                  className="rounded-xl bg-[#07543f] px-5 py-2 text-xs font-semibold text-white hover:bg-[#064232] disabled:opacity-50"
+                  className="rounded-xl bg-[#07543f] px-5 py-2 text-xs font-semibold text-white hover:bg-[#064232] transition cursor-pointer disabled:opacity-50"
                 >
-                  {isSubmitting ? 'Đang lưu...' : 'Thêm ngân sách'}
+                  {isSubmitting ? 'Đang lưu...' : 'Lưu ngân sách'}
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Mẫu ngân sách tài chính (Quy tắc 50/30/20 & 6 Chiếc Hũ) */}
+      {isTemplateModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm" onClick={() => setIsTemplateModalOpen(false)}>
+          <div className="budget-modal-card w-full max-w-lg rounded-2xl bg-white shadow-2xl overflow-hidden max-h-[92vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
+            {/* Header */}
+            <div className="flex items-center justify-between border-b border-[#e7ece8] px-6 py-4">
+              <div className="flex items-center gap-2.5">
+                <span className="grid size-9 place-items-center rounded-xl bg-sky-50 text-sky-600">
+                  <FinanceIcon name="spark" size={18} color="#0284c7" />
+                </span>
+                <div>
+                  <h3 className="text-base font-bold text-[#14251f]">Mẫu Ngân Sách Thông Minh</h3>
+                  <p className="text-xs text-[#718078]">Phân bổ thu nhập theo phương pháp tài chính chuẩn quốc tế</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsTemplateModalOpen(false)}
+                className="grid size-8 place-items-center rounded-lg text-[#718078] hover:bg-[#f1f5f2] transition cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Body */}
+            <div className="overflow-y-auto px-6 py-4 space-y-4 flex-1">
+              {/* Nhập thu nhập */}
+              <div>
+                <label className="block text-xs font-semibold text-[#14251f] mb-1">Thu nhập ước tính tháng này (VND) *</label>
+                <div className="relative">
+                  <input
+                    type="text"
+                    value={templateIncome}
+                    onChange={(e) => {
+                      const raw = e.target.value.replace(/\D/g, '');
+                      setTemplateIncome(raw ? Number(raw).toLocaleString('vi-VN') : '');
+                    }}
+                    placeholder="15,000,000"
+                    className="w-full rounded-xl border border-[#d2dcd5] px-3.5 py-2.5 text-sm font-bold text-[#07543f] focus:border-[#07543f] focus:outline-none"
+                  />
+                  <span className="absolute right-3.5 top-2.5 text-xs text-[#718078]">VND</span>
+                </div>
+              </div>
+
+              {/* Lựa chọn mô hình */}
+              <div>
+                <label className="block text-xs font-semibold text-[#14251f] mb-2">Chọn phương pháp phân bổ</label>
+                <div className="grid grid-cols-2 gap-2.5">
+                  <button
+                    type="button"
+                    onClick={() => setSelectedTemplateKey('50_30_20')}
+                    className={`p-3 rounded-xl border text-left transition cursor-pointer ${
+                      selectedTemplateKey === '50_30_20'
+                        ? 'border-[#07543f] bg-[#eef6f2] shadow-xs'
+                        : 'border-[#e7ece8] bg-white hover:border-[#b4c8be]'
+                    }`}
+                  >
+                    <p className={`text-xs font-bold ${selectedTemplateKey === '50_30_20' ? 'text-[#07543f]' : 'text-[#14251f]'}`}>
+                      Quy tắc 50/30/20
+                    </p>
+                    <p className="mt-1 text-[11px] text-[#718078]">50% Thiết yếu • 30% Mong muốn • 20% Tiết kiệm</p>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setSelectedTemplateKey('6_JARS')}
+                    className={`p-3 rounded-xl border text-left transition cursor-pointer ${
+                      selectedTemplateKey === '6_JARS'
+                        ? 'border-[#07543f] bg-[#eef6f2] shadow-xs'
+                        : 'border-[#e7ece8] bg-white hover:border-[#b4c8be]'
+                    }`}
+                  >
+                    <p className={`text-xs font-bold ${selectedTemplateKey === '6_JARS' ? 'text-[#07543f]' : 'text-[#14251f]'}`}>
+                      6 Chiếc Hũ (T. Harv Eker)
+                    </p>
+                    <p className="mt-1 text-[11px] text-[#718078]">55% NEC • 10% FFA • 10% LTSS • 10% PLAY • 10% EDUC • 5% GIVE</p>
+                  </button>
+                </div>
+              </div>
+
+              {/* Danh sách phân bổ chi tiết */}
+              <div>
+                <p className="text-xs font-semibold text-[#14251f] mb-2">Phân bổ dự kiến vào ngân sách:</p>
+                <div className="space-y-2">
+                  {templateAllocations.map((alloc, idx) => (
+                    <div key={idx} className="flex items-center justify-between p-2.5 rounded-xl border border-[#e7ece8] bg-[#fbfdfc]">
+                      <div className="flex items-center gap-3 min-w-0 pr-2">
+                        <span
+                          className="grid size-9 shrink-0 place-items-center rounded-xl"
+                          style={{
+                            backgroundColor: `${alloc.color}15`,
+                            color: alloc.color,
+                          }}
+                        >
+                          <FinanceIcon name={alloc.icon} size={18} color={alloc.color} />
+                        </span>
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-1.5">
+                            <p className="text-xs font-bold text-[#14251f] truncate">{alloc.name}</p>
+                            <span
+                              className="px-1.5 py-0.5 rounded text-[10px] font-bold text-white shrink-0"
+                              style={{ backgroundColor: alloc.color }}
+                            >
+                              {alloc.percent}%
+                            </span>
+                          </div>
+                          <p className="text-[11px] text-[#718078] mt-0.5">{alloc.group}</p>
+                        </div>
+                      </div>
+                      <span className="text-xs font-bold text-[#07543f] shrink-0">
+                        {alloc.amount.toLocaleString('vi-VN')} đ
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div className="flex items-center justify-between px-6 py-4 border-t border-[#e7ece8] bg-[#fdfdfd] shrink-0">
+              <span className="text-xs text-[#718078]">
+                Kỳ áp dụng: <strong>Tháng {selectedMonth.split('-')[1]}/{selectedMonth.split('-')[0]}</strong>
+              </span>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setIsTemplateModalOpen(false)}
+                  className="rounded-xl border border-[#d2dcd5] px-4 py-2 text-xs font-semibold text-[#53645a] hover:bg-[#f1f5f2] transition cursor-pointer"
+                >
+                  Đóng
+                </button>
+                <button
+                  type="button"
+                  onClick={handleApplyTemplate}
+                  disabled={isApplyingTemplate || incomeNumber <= 0}
+                  className="inline-flex items-center gap-1.5 rounded-xl bg-[#07543f] px-5 py-2 text-xs font-semibold text-white hover:bg-[#064232] transition cursor-pointer disabled:opacity-50"
+                >
+                  <FinanceIcon name="check" size={14} color="#FFFFFF" />
+                  <span>{isApplyingTemplate ? 'Đang tạo ngân sách...' : 'Áp dụng mẫu này'}</span>
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}
@@ -871,6 +1388,23 @@ export function BudgetManagementScreen({ onNotify }: Props) {
         </div>
         );
       })()}
+
+      {/* CUSTOM CONFIRM DELETE BUDGET ITEM MODAL */}
+      <ConfirmDeleteModal
+        isOpen={Boolean(budgetItemToDelete)}
+        title="Xác nhận xóa ngân sách?"
+        subtitle="Hạn mức chi tiêu này sẽ bị xóa khỏi tháng hiện tại"
+        itemName={budgetItemToDelete?.name || budgetItemToDelete?.category?.name || budgetItemToDelete?.categoryName}
+        itemTypeLabel="Danh mục"
+        message={
+          budgetItemToDelete
+            ? `Bạn có chắc chắn muốn xóa ngân sách "${budgetItemToDelete.name || budgetItemToDelete.category?.name || budgetItemToDelete.categoryName}" không?`
+            : ''
+        }
+        isDeleting={isDeletingItem}
+        onConfirm={confirmDeleteBudgetItem}
+        onClose={() => setBudgetItemToDelete(null)}
+      />
     </main>
   );
 }

@@ -53,6 +53,13 @@ public class ChildWallet {
     @Column(name = "weekly_allowance", precision = 19, scale = 4)
     private BigDecimal weeklyAllowance;
 
+    @Column(name = "allowance_source", length = 30)
+    @Builder.Default
+    private String allowanceSource = "PERSONAL_ACCOUNT";
+
+    @Column(name = "allowance_account_id")
+    private UUID allowanceAccountId;
+
     @Column(name = "next_allowance_date")
     private LocalDate nextAllowanceDate;
 

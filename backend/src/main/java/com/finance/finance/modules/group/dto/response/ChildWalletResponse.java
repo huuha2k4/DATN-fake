@@ -28,6 +28,8 @@ public class ChildWalletResponse {
     private BigDecimal balance;
     private String currency;
     private BigDecimal weeklyAllowance;
+    private String allowanceSource;
+    private UUID allowanceAccountId;
     private LocalDate nextAllowanceDate;
     private String privacyLevel;
     private BigDecimal spendLimitDaily;

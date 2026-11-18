@@ -4,11 +4,21 @@ import { accountApi, type AccountItem, type AccountSummary } from '../../account
 import { transactionApi, type TransactionItem } from '../../cash-flow-management/api/transactionApi';
 import { budgetApi, type BudgetResponse } from '../../budget-management/api/budgetApi';
 import { debtApi, type DebtListSummary } from '../../debt-management/api/debtApi';
+import { groupApi } from '../../group/api/groupApi';
+import { getStoredUser } from '../../auth/api/authApi';
 import './DashboardScreen.css';
 
 type Props = {
   onNotify: (message: string) => void;
   onAddTransaction: () => void;
+};
+
+// Định dạng ngày hiển thị dd/mm/yyyy
+const formatDisplayDate = (dateStr?: string | null): string => {
+  if (!dateStr) return '';
+  const [year, month, day] = dateStr.split('-');
+  if (year && month && day) return `${day}/${month}/${year}`;
+  return dateStr;
 };
 
 // Định dạng tiền tệ VND chuẩn rõ nét, đậm đà
@@ -24,6 +34,8 @@ const renderTransactionCategoryIcon = (iconName?: string, isIncome?: boolean, si
 };
 
 export function DashboardScreen({ onNotify, onAddTransaction }: Props) {
+  const currentUser = getStoredUser();
+  const isChildAccount = Boolean(currentUser?.childAccount && currentUser.childWalletId && currentUser.childWalletGroupId);
   const now = new Date();
   const currentMonthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
   const currentMonthNum = now.getMonth() + 1;
@@ -43,7 +55,6 @@ export function DashboardScreen({ onNotify, onAddTransaction }: Props) {
 
   const [currentBudget, setCurrentBudget] = useState<BudgetResponse | null>(null);
   const [, setDebtSummary] = useState<DebtListSummary | null>(null);
-  const [showAllTransactions, setShowAllTransactions] = useState(false);
   const [isBalanceHidden, setIsBalanceHidden] = useState(false);
   const [prevMonthBalance, setPrevMonthBalance] = useState<number | null>(null);
 
@@ -75,6 +86,82 @@ export function DashboardScreen({ onNotify, onAddTransaction }: Props) {
   const loadDashboardData = async () => {
     try {
       setIsLoading(true);
+
+      // Ví của bé là nguồn tiền độc lập do phụ huynh cấp, không được lẫn với
+      // tài khoản riêng của trẻ hay cho phép thêm nhiều ví.
+      if (isChildAccount) {
+        const [wallet, ledger] = await Promise.all([
+          groupApi.getChildWallet(currentUser!.childWalletGroupId!, currentUser!.childWalletId!),
+          groupApi.getSpendRequests(currentUser!.childWalletGroupId!, currentUser!.childWalletId!),
+        ]);
+        const childAccount = {
+          id: wallet.id,
+          name: `Ví của ${wallet.childName}`,
+          balance: Number(wallet.balance || 0),
+          currencyCode: wallet.currency || 'VND',
+          accountType: 'CASH',
+          isActive: true,
+          description: 'Ví do bố mẹ tạo và quản lý',
+        } as AccountItem;
+        setAccounts([childAccount]);
+        setAccountSummary({
+          summary: { totalAssets: childAccount.balance, totalLiabilities: 0, netWorth: childAccount.balance, currencyCode: childAccount.currencyCode },
+          byType: [],
+          byCurrency: [],
+        });
+        const childTransactions = ledger.filter((item) => item.status === 'APPROVED').map((item) => {
+          const isDeposit = item.description?.startsWith('[INCOME_DEPOSIT] ');
+          const isChoreReward = item.description?.startsWith('[INCOME_CHORE] ');
+          const isMoneyReq = item.description?.startsWith('[MONEY_REQUEST] ');
+          const income = isDeposit || isChoreReward || isMoneyReq;
+
+          let displayDesc = item.description || 'Giao dịch';
+          if (isDeposit) {
+            displayDesc = `Bố/mẹ nạp ví: ${item.description.replace('[INCOME_DEPOSIT] ', '')}`;
+          } else if (isChoreReward) {
+            displayDesc = `Thưởng nhiệm vụ: ${item.description.replace('[INCOME_CHORE] ', '')}`;
+          } else if (isMoneyReq) {
+            displayDesc = `Bố/mẹ cấp tiền: ${item.description.replace('[MONEY_REQUEST] ', '')}`;
+          }
+
+          const categoryItem = income
+            ? (item.category && item.category.name !== 'Lương'
+                ? item.category
+                : { id: 'family_sys', name: 'Gia đình & Con cái', icon: 'users', color: '#10b981' })
+            : item.category;
+
+          return {
+            id: item.id,
+            transactionType: income ? 'INCOME' : 'EXPENSE',
+            accountId: wallet.id,
+            accountName: `Ví của ${wallet.childName}`,
+            amount: item.amount,
+            currencyCode: wallet.currency,
+            description: displayDesc,
+            transactionDate: item.createdAt?.slice(0, 10) || new Date().toISOString().slice(0, 10),
+            createdAt: item.createdAt,
+            category: categoryItem,
+          } as TransactionItem;
+        });
+        // Giao dịch thuộc tháng hiện tại (currentMonthKey)
+        const currentMonthTxs = childTransactions.filter((item) => item.transactionDate.startsWith(currentMonthKey));
+        const prevMonthTxs = childTransactions.filter((item) => {
+          const prevKey = `${yearNum}-${String(prevMonthNum).padStart(2, '0')}`;
+          return item.transactionDate.startsWith(prevKey);
+        });
+
+        const totalIncome = currentMonthTxs.filter((item) => item.transactionType === 'INCOME').reduce((sum, item) => sum + item.amount, 0);
+        const totalExpense = currentMonthTxs.filter((item) => item.transactionType === 'EXPENSE').reduce((sum, item) => sum + item.amount, 0);
+
+        const prevIncome = prevMonthTxs.filter((item) => item.transactionType === 'INCOME').reduce((sum, item) => sum + item.amount, 0);
+        const prevExpense = prevMonthTxs.filter((item) => item.transactionType === 'EXPENSE').reduce((sum, item) => sum + item.amount, 0);
+
+        setTransactions(currentMonthTxs);
+        setMonthSummary({ totalIncome, totalExpense, netCashFlow: totalIncome - totalExpense, transactionCount: currentMonthTxs.length });
+        setPrevMonthBalance(prevIncome - prevExpense);
+        setCurrentBudget(null);
+        return;
+      }
 
       const [
         accListRes,
@@ -193,7 +280,7 @@ export function DashboardScreen({ onNotify, onAddTransaction }: Props) {
     weeks[3].isCurrent = currentDay > 21;
 
     // Phân bổ giao dịch thực tế vào từng tuần
-    transactions.forEach((tx) => {
+    transactions.filter((tx) => !tx.transactionDate || tx.transactionDate.startsWith(currentMonthKey)).forEach((tx) => {
       const day = parseInt(tx.transactionDate?.split('-')[2] || '1', 10);
       let weekIdx = 0;
       if (day <= 7) weekIdx = 0;
@@ -224,16 +311,18 @@ export function DashboardScreen({ onNotify, onAddTransaction }: Props) {
         expensePercent,
       };
     });
-  }, [transactions, currentMonthNum]);
+  }, [transactions, currentMonthNum, currentMonthKey]);
 
   // Tổng tài sản khả dụng thực tế
   const totalAssets = accountSummary?.summary?.totalAssets ?? 
     accounts.filter(a => a.accountType !== 'CREDIT_CARD').reduce((s, a) => s + (a.balance || 0), 0);
 
   // Tính tỷ lệ tăng / giảm % của Tổng số dư khả dụng so với tháng trước kề nó
-  // baseline (số dư đầu tháng / cuối tháng trước) = totalAssets - dòng tiền ròng tháng này
+  // Chuẩn tài chính kế toán:
+  // Số dư đầu kỳ (cuối tháng trước) = Số dư hiện tại - Dòng tiền ròng tích lũy tháng này (Thu - Chi)
+  // % Thay đổi = (Dòng tiền ròng tháng này / Số dư đầu kỳ) * 100
   const { balanceChangeRate, baselinePrevMonth } = useMemo(() => {
-    // Nếu có netWorthTrend30Days từ accountSummary
+    // 1. Nếu có lịch sử Net Worth từ accountSummary
     if (accountSummary?.netWorthTrend30Days && accountSummary.netWorthTrend30Days.length >= 2) {
       const history = accountSummary.netWorthTrend30Days;
       const oldestNet = Number(history[0].netWorth);
@@ -244,23 +333,23 @@ export function DashboardScreen({ onNotify, onAddTransaction }: Props) {
       }
     }
 
-    // Cách tính chuẩn tài chính: Số dư tháng trước = Số dư hiện tại - Biến động ròng tháng này
+    // 2. Tính theo số dư đầu kỳ (Số dư hiện tại - Biến động ròng tháng này)
     const prevBalance = totalAssets - monthSummary.netCashFlow;
     if (prevBalance > 0) {
-      const diff = totalAssets - prevBalance;
-      const rate = (diff / prevBalance) * 100;
+      const rate = (monthSummary.netCashFlow / prevBalance) * 100;
       return { balanceChangeRate: Math.round(rate * 10) / 10, baselinePrevMonth: prevBalance };
     }
-    // Nếu có dữ liệu dòng tiền tháng trước từ API
-    if (prevMonthBalance !== null && prevMonthBalance > 0) {
-      const rate = ((monthSummary.netCashFlow - prevMonthBalance) / prevMonthBalance) * 100;
-      return { balanceChangeRate: Math.round(rate * 10) / 10, baselinePrevMonth: prevMonthBalance };
-    }
-    return { balanceChangeRate: null, baselinePrevMonth: null };
-  }, [totalAssets, monthSummary.netCashFlow, accountSummary, prevMonthBalance]);
 
-  // Danh sách giao dịch hiển thị (5 giao dịch mới nhất hoặc tất cả)
-  const visibleTransactions = showAllTransactions ? transactions : transactions.slice(0, 5);
+    // 3. Nếu số dư tháng trước bằng 0 hoặc chưa có biến động
+    if (totalAssets > 0 && prevBalance <= 0) {
+      return { balanceChangeRate: 100, baselinePrevMonth: 0 };
+    }
+
+    return { balanceChangeRate: null, baselinePrevMonth: null };
+  }, [totalAssets, monthSummary.netCashFlow, accountSummary]);
+
+  // Tổng quan luôn gọn: chỉ hiển thị 5 giao dịch mới nhất.
+  const visibleTransactions = transactions.slice(0, 5);
 
   // Ngân sách: % sử dụng thực tế
   const budgetSpent = currentBudget?.spentAmount || monthSummary.totalExpense;
@@ -503,18 +592,9 @@ export function DashboardScreen({ onNotify, onAddTransaction }: Props) {
                   {transactions.length} hoạt động tài chính mới nhất
                 </p>
               </div>
-              {transactions.length > 5 && (
-                <button
-                  className="text-xs font-bold text-[#07543f] hover:underline flex items-center gap-1 dark:text-emerald-400"
-                  type="button"
-                  onClick={() => setShowAllTransactions(!showAllTransactions)}
-                >
-                  {showAllTransactions ? 'Thu gọn ↑' : 'Xem tất cả →'}
-                </button>
-              )}
             </div>
 
-            <div className="divide-y divide-[#edf2ee] max-h-[320px] overflow-y-auto pr-1 dark:divide-[#122432]">
+            <div className="divide-y divide-[#edf2ee] dark:divide-white/5">
               {isLoading ? (
                 <div className="py-8 text-center text-xs text-gray-400">Đang tải giao dịch...</div>
               ) : visibleTransactions.length === 0 ? (
@@ -544,7 +624,7 @@ export function DashboardScreen({ onNotify, onAddTransaction }: Props) {
                             <span className="tx-category-badge rounded px-2 py-0.5 font-semibold text-[11px]">
                               {tx.category?.name || (isIncome ? 'Thu nhập' : 'Chi tiêu')}
                             </span>
-                            <span>{tx.transactionDate}</span>
+                            <span>{formatDisplayDate(tx.transactionDate)}</span>
                           </div>
                         </div>
                       </div>

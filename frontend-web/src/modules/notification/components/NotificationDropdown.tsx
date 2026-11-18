@@ -15,31 +15,104 @@ interface NotificationDropdownProps {
 
 
 
-// Helper to map notification type to icon & color
-function getNotificationVisual(type: NotificationType): { icon: IconName; bg: string; color: string } {
+// Helper to map notification type to icon & color with dark mode classes
+interface VisualConfig {
+  icon: IconName;
+  bgClass: string;
+  colorClass: string;
+}
+
+function getNotificationVisual(type: NotificationType): VisualConfig {
   switch (type) {
     case 'BUDGET_ALERT':
     case 'BUDGET_EXCEEDED':
-      return { icon: 'bolt', bg: '#fef2f2', color: '#dc2626' };
+      return {
+        icon: 'alert-triangle',
+        bgClass: 'bg-rose-50 dark:bg-rose-950/50 border border-rose-200 dark:border-rose-900/60',
+        colorClass: 'text-rose-600 dark:text-rose-400',
+      };
     case 'GOAL_MILESTONE':
     case 'GOAL_ACHIEVED':
     case 'GOAL_REMINDER':
-      return { icon: 'spark', bg: '#ecfdf5', color: '#059669' };
+      return {
+        icon: 'target',
+        bgClass: 'bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-200 dark:border-emerald-900/60',
+        colorClass: 'text-emerald-600 dark:text-emerald-400',
+      };
     case 'DEBT_REMINDER':
     case 'DEBT_OVERDUE':
-      return { icon: 'credit-card', bg: '#fff1f2', color: '#e11d48' };
+      return {
+        icon: 'handshake',
+        bgClass: 'bg-pink-50 dark:bg-pink-950/50 border border-pink-200 dark:border-pink-900/60',
+        colorClass: 'text-pink-600 dark:text-pink-400',
+      };
     case 'TRANSACTION':
+      return {
+        icon: 'receipt',
+        bgClass: 'bg-sky-50 dark:bg-sky-950/50 border border-sky-200 dark:border-sky-900/60',
+        colorClass: 'text-sky-600 dark:text-sky-400',
+      };
     case 'RECURRING_DUE':
     case 'RECURRING_FAILED':
-      return { icon: 'wallet', bg: '#eff6ff', color: '#2563eb' };
+      return {
+        icon: 'clock',
+        bgClass: 'bg-amber-50 dark:bg-amber-950/50 border border-amber-200 dark:border-amber-900/60',
+        colorClass: 'text-amber-600 dark:text-amber-400',
+      };
     case 'ANOMALY_DETECTED':
     case 'INSIGHT_GENERATED':
     case 'WEEKLY_SUMMARY':
     case 'MONTHLY_REPORT':
-      return { icon: 'trend', bg: '#f0fdf4', color: '#16a34a' };
+      return {
+        icon: 'analytics',
+        bgClass: 'bg-teal-50 dark:bg-teal-950/50 border border-teal-200 dark:border-teal-900/60',
+        colorClass: 'text-teal-600 dark:text-teal-400',
+      };
+    case 'GROUP_INVITATION':
+      return {
+        icon: 'user-plus',
+        bgClass: 'bg-sky-50 dark:bg-sky-950/50 border border-sky-200 dark:border-sky-900/60',
+        colorClass: 'text-sky-600 dark:text-sky-400',
+      };
+    case 'GROUP_EXPENSE':
+      return {
+        icon: 'group',
+        bgClass: 'bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-200 dark:border-emerald-900/60',
+        colorClass: 'text-emerald-600 dark:text-emerald-400',
+      };
+    case 'GROUP_COMMENT':
+      return {
+        icon: 'message-square',
+        bgClass: 'bg-indigo-50 dark:bg-indigo-950/50 border border-indigo-200 dark:border-indigo-900/60',
+        colorClass: 'text-indigo-600 dark:text-indigo-400',
+      };
+    case 'CHILD_MONEY_REQUEST':
+    case 'CHILD_REQUEST_RESPONDED':
+      return {
+        icon: 'hand-coins',
+        bgClass: 'bg-amber-50 dark:bg-amber-950/50 border border-amber-200 dark:border-amber-900/60',
+        colorClass: 'text-amber-600 dark:text-amber-400',
+      };
+    case 'CHILD_CHORE_COMPLETED':
+    case 'CHILD_CHORE_ASSIGNED':
+      return {
+        icon: 'award',
+        bgClass: 'bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-200 dark:border-emerald-900/60',
+        colorClass: 'text-emerald-600 dark:text-emerald-400',
+      };
+    case 'CHILD_MONEY_RECEIVED':
+      return {
+        icon: 'gift',
+        bgClass: 'bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-200 dark:border-emerald-900/60',
+        colorClass: 'text-emerald-600 dark:text-emerald-400',
+      };
     case 'SYSTEM':
     default:
-      return { icon: 'bell', bg: '#f3f4f6', color: '#4b5563' };
+      return {
+        icon: 'megaphone',
+        bgClass: 'bg-gray-100 dark:bg-slate-800 border border-gray-200 dark:border-slate-700',
+        colorClass: 'text-gray-700 dark:text-slate-300',
+      };
   }
 }
 
@@ -243,8 +316,7 @@ export function NotificationDropdown({ onNotify }: NotificationDropdownProps) {
                   >
                     {/* Icon */}
                     <div
-                      className="notification-icon-box"
-                      style={{ backgroundColor: visual.bg, color: visual.color }}
+                      className={`notification-icon-box ${visual.bgClass} ${visual.colorClass}`}
                     >
                       <FinanceIcon name={visual.icon} size={17} />
                     </div>

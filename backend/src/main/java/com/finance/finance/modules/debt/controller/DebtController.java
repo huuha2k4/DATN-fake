@@ -1,5 +1,6 @@
 package com.finance.finance.modules.debt.controller;
 
+import com.finance.finance.common.annotation.Idempotent;
 import com.finance.finance.common.enums.DebtStatus;
 import com.finance.finance.common.enums.DebtType;
 import com.finance.finance.modules.debt.dto.request.CreateDebtRequest;
@@ -33,11 +34,14 @@ public class DebtController {
     /**
      * 1. Tạo khoản nợ mới (vay/cho vay)
      * POST /api/v1/debts
+     * Idempotent: Prevent duplicate debt creation
      */
+    @Idempotent(resourceType = "debt")
     @PostMapping
     public ResponseEntity<Map<String, Object>> createDebt(
             @Valid @RequestBody CreateDebtRequest request,
-            @AuthenticationPrincipal User user
+            @AuthenticationPrincipal User user,
+            @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey
     ) {
         DebtResponse response = debtService.createDebt(user.getId(), request);
         
@@ -127,12 +131,15 @@ public class DebtController {
     /**
      * 6. Ghi nhận trả nợ
      * POST /api/v1/debts/{id}/payments
+     * Idempotent: Prevent duplicate payment records
      */
+    @Idempotent(resourceType = "debt_payment")
     @PostMapping("/{id}/payments")
     public ResponseEntity<Map<String, Object>> recordPayment(
             @PathVariable UUID id,
             @Valid @RequestBody RecordPaymentRequest request,
-            @AuthenticationPrincipal User user
+            @AuthenticationPrincipal User user,
+            @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey
     ) {
         PaymentResponse response = debtService.recordPayment(user.getId(), id, request);
         

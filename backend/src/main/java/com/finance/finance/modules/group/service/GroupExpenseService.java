@@ -1,5 +1,6 @@
 package com.finance.finance.modules.group.service;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.finance.finance.common.enums.ActivityType;
 import com.finance.finance.common.enums.SplitMethod;
 import com.finance.finance.modules.group.dto.request.CreateExpenseRequest;
@@ -10,6 +11,11 @@ import com.finance.finance.modules.group.entity.ExpenseSplit;
 import com.finance.finance.modules.group.entity.GroupExpense;
 import com.finance.finance.modules.group.entity.GroupMember;
 import com.finance.finance.modules.group.repository.*;
+import com.finance.finance.modules.group.entity.GroupFund;
+import com.finance.finance.modules.transaction.dto.request.CreateTransactionRequest;
+import com.finance.finance.modules.transaction.dto.response.TransactionResponse;
+import com.finance.finance.modules.transaction.service.TransactionService;
+import com.finance.finance.common.enums.TransactionType;
 import com.finance.finance.modules.group.exception.ResourceNotFoundException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -34,19 +40,67 @@ public class GroupExpenseService {
     private final GroupMemberRepository groupMemberRepository;
     private final GroupActivityRepository groupActivityRepository;
     private final TransactionCommentRepository transactionCommentRepository;
+    private final GroupFundRepository groupFundRepository;
+    private final GroupRepository groupRepository;
+    private final com.finance.finance.modules.account.repository.AccountRepository accountRepository;
+    private final TransactionService transactionService;
+    private final GroupFundContributionRepository groupFundContributionRepository;
+    private final com.finance.finance.modules.category.repository.CategoryRepository categoryRepository;
+    private final com.finance.finance.modules.user.repository.UserRepository userRepository;
+    private final com.finance.finance.modules.notification.service.NotificationService notificationService;
+    private final com.finance.finance.modules.transaction.repository.TransactionRepository transactionRepository;
+    private final com.fasterxml.jackson.databind.ObjectMapper objectMapper;
 
     @Transactional
     public ExpenseResponse createExpense(UUID groupId, CreateExpenseRequest request, UUID currentUserId) {
         validateMemberAccess(groupId, currentUserId);
 
         SplitMethod splitMethod = SplitMethod.valueOf(request.getSplitMethod());
+        String paymentSource = request.getPaymentSource();
+        if (!"GROUP_FUND".equals(paymentSource) && !"PERSONAL_ACCOUNT".equals(paymentSource)) {
+            throw new IllegalArgumentException("Nguồn tiền không hợp lệ");
+        }
+        if (request.getCategoryId() == null) {
+            throw new IllegalArgumentException("Khoản chi nhóm cần chọn danh mục chi");
+        }
+        UUID payerId = currentUserId;
+        UUID sourceAccountId = null;
+        UUID personalTransactionId = null;
+        if ("GROUP_FUND".equals(paymentSource)) {
+            GroupFund fund = groupFundRepository.findByGroupId(groupId)
+                    .orElseThrow(() -> new IllegalStateException("Nhóm chưa có quỹ chung"));
+            if (fund.getBalance().compareTo(request.getAmount()) < 0) {
+                throw new IllegalArgumentException("Số dư quỹ nhóm không đủ");
+            }
+            fund.setBalance(fund.getBalance().subtract(request.getAmount()));
+            groupFundRepository.save(fund);
+        } else {
+            if (request.getSourceAccountId() == null) {
+                throw new IllegalArgumentException("Chi từ ví cá nhân cần chọn ví nguồn và danh mục");
+            }
+            var account = accountRepository.findByIdAndUserId(request.getSourceAccountId(), currentUserId)
+                    .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy ví nguồn"));
+            sourceAccountId = account.getId();
+            com.finance.finance.modules.group.entity.Group group = groupRepository.findById(groupId)
+                    .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy nhóm"));
+            TransactionResponse transaction = transactionService.createTransaction(currentUserId,
+                    CreateTransactionRequest.builder().transactionType(TransactionType.EXPENSE)
+                            .accountId(sourceAccountId).categoryId(request.getCategoryId()).amount(request.getAmount())
+                            .currencyCode(account.getCurrencyCode()).transactionDate(request.getExpenseDate())
+                            .description("Chi cho nhóm: " + group.getName() + " - " + request.getDescription())
+                            .note(request.getNotes()).isExcludedFromReport(false).build());
+            personalTransactionId = transaction.getId();
+        }
 
         GroupExpense expense = GroupExpense.builder()
                 .groupId(groupId)
                 .description(request.getDescription())
                 .amount(request.getAmount())
                 .currency("VND") // TODO: Get from group
-                .paidByUserId(request.getPaidByUserId())
+                .paidByUserId(payerId)
+                .paymentSource(paymentSource)
+                .sourceAccountId(sourceAccountId)
+                .personalTransactionId(personalTransactionId)
                 .categoryId(request.getCategoryId())
                 .splitMethod(splitMethod)
                 .expenseDate(request.getExpenseDate())
@@ -76,6 +130,30 @@ public class GroupExpenseService {
         logActivity(groupId, currentUserId, ActivityType.EXPENSE_ADDED,
                 "Added expense: " + expense.getDescription(),
                 Map.of("expenseId", expense.getId().toString(), "amount", expense.getAmount().toString()));
+
+        // Notify other group members
+        try {
+            String groupName = groupRepository.findById(groupId).map(com.finance.finance.modules.group.entity.Group::getName).orElse("nhóm");
+            String creatorName = userRepository.findById(currentUserId)
+                    .map(u -> u.getFullName() != null && !u.getFullName().isBlank() ? u.getFullName() : u.getUsername())
+                    .orElse("Một thành viên");
+            List<GroupMember> members = groupMemberRepository.findByGroupId(groupId);
+            for (GroupMember member : members) {
+                if (!member.getUserId().equals(currentUserId) && Boolean.TRUE.equals(member.getNotificationEnabled())) {
+                    notificationService.createNotification(
+                            member.getUserId(),
+                            com.finance.finance.common.enums.NotificationType.GROUP_EXPENSE,
+                            com.finance.finance.common.enums.NotificationPriority.NORMAL,
+                            "Giao dịch mới trong nhóm " + groupName,
+                            creatorName + " vừa thêm khoản chi \"" + expense.getDescription() + "\" với số tiền " + String.format("%,d", expense.getAmount().longValue()) + "đ trong nhóm " + groupName + ".",
+                            "/groups?groupId=" + groupId + "&tab=EXPENSES",
+                            "Xem chi tiêu"
+                    );
+                }
+            }
+        } catch (Exception e) {
+            log.warn("Failed to send group expense notification: {}", e.getMessage());
+        }
 
         return buildExpenseResponse(expense, splits);
     }
@@ -130,6 +208,33 @@ public class GroupExpenseService {
 
         expense = groupExpenseRepository.save(expense);
 
+        // Đồng bộ ngược lại sang Transaction cá nhân nếu chi tiêu nhóm được gắn personalTransactionId
+        if (expense.getPersonalTransactionId() != null) {
+            try {
+                final GroupExpense expFinal = expense;
+                transactionRepository.findById(expense.getPersonalTransactionId()).ifPresent(tx -> {
+                    boolean changed = false;
+                    if (request.getAmount() != null) {
+                        tx.setAmount(request.getAmount());
+                        changed = true;
+                    }
+                    if (request.getDescription() != null) {
+                        tx.setDescriptionRaw("Chi cho nhóm: " + expFinal.getDescription());
+                        changed = true;
+                    }
+                    if (request.getExpenseDate() != null) {
+                        tx.setOccurredDate(request.getExpenseDate());
+                        changed = true;
+                    }
+                    if (changed) {
+                        transactionRepository.save(tx);
+                    }
+                });
+            } catch (Exception ex) {
+                log.error("Failed to sync personal transaction on group expense update", ex);
+            }
+        }
+
         // Update splits if provided
         if (request.getSplits() != null && !request.getSplits().isEmpty()) {
             expenseSplitRepository.deleteByExpenseId(expenseId);
@@ -167,6 +272,18 @@ public class GroupExpenseService {
         expense.setDeletedAt(LocalDateTime.now());
         groupExpenseRepository.save(expense);
 
+        // Soft delete transaction cá nhân nếu có
+        if (expense.getPersonalTransactionId() != null) {
+            try {
+                transactionRepository.findById(expense.getPersonalTransactionId()).ifPresent(tx -> {
+                    tx.markAsDeleted();
+                    transactionRepository.save(tx);
+                });
+            } catch (Exception ex) {
+                log.error("Failed to delete personal transaction on group expense delete", ex);
+            }
+        }
+
         // Log activity
         logActivity(groupId, currentUserId, ActivityType.EXPENSE_DELETED,
                 "Deleted expense: " + expense.getDescription(),
@@ -179,10 +296,20 @@ public class GroupExpenseService {
 
         List<GroupMember> members = groupMemberRepository.findByGroupId(groupId);
         List<BalanceResponse.MemberBalance> balances = new ArrayList<>();
+        GroupFund fund = groupFundRepository.findByGroupId(groupId).orElse(null);
+        BigDecimal fundBalance = fund != null ? fund.getBalance() : BigDecimal.ZERO;
+        Map<UUID, BigDecimal> contributions = new HashMap<>();
+        if (fund != null) {
+            groupFundContributionRepository.findByFundIdOrderByCreatedAtDesc(fund.getId()).forEach(c ->
+                    contributions.merge(c.getContributorUserId(), c.getAmount(), BigDecimal::add));
+        }
+        BigDecimal reserveShare = members.isEmpty() ? BigDecimal.ZERO : fundBalance.divide(BigDecimal.valueOf(members.size()), 4, java.math.RoundingMode.HALF_UP);
 
         for (GroupMember member : members) {
-            BigDecimal totalPaid = calculateTotalPaid(groupId, member.getUserId());
-            BigDecimal totalOwed = calculateTotalOwed(groupId, member.getUserId());
+            BigDecimal personalPaid = calculatePersonalExpensePaid(groupId, member.getUserId());
+            BigDecimal fundContribution = contributions.getOrDefault(member.getUserId(), BigDecimal.ZERO);
+            BigDecimal totalPaid = personalPaid.add(fundContribution);
+            BigDecimal totalOwed = calculateTotalOwed(groupId, member.getUserId()).add(reserveShare);
             BigDecimal balance = totalPaid.subtract(totalOwed);
 
             BalanceResponse.UserSummary userSummary = BalanceResponse.UserSummary.builder()
@@ -194,16 +321,19 @@ public class GroupExpenseService {
                     .balance(balance)
                     .totalPaid(totalPaid)
                     .totalOwed(totalOwed)
+                    .personalExpensePaid(personalPaid)
+                    .fundContribution(fundContribution)
+                    .fundReserveShare(reserveShare)
                     .user(userSummary)
                     .build());
         }
 
         // Calculate simplified debts using greedy algorithm
+        boolean isFullySettled = balances.stream()
+                .allMatch(b -> b.getBalance().abs().compareTo(new BigDecimal("0.01")) < 0);
         List<BalanceResponse.SimplifiedDebt> simplifiedDebts = calculateSimplifiedDebts(balances);
 
         BigDecimal totalExpenses = groupExpenseRepository.sumAmountByGroupId(groupId);
-        boolean isFullySettled = balances.stream()
-                .allMatch(b -> b.getBalance().abs().compareTo(new BigDecimal("0.01")) < 0);
 
         return BalanceResponse.builder()
                 .balances(balances)
@@ -214,10 +344,10 @@ public class GroupExpenseService {
     }
 
     // Helper methods
-    private BigDecimal calculateTotalPaid(UUID groupId, UUID userId) {
+    private BigDecimal calculatePersonalExpensePaid(UUID groupId, UUID userId) {
         return groupExpenseRepository.findByGroupId(groupId, Pageable.unpaged())
-                .stream()
-                .filter(e -> e.getPaidByUserId().equals(userId) && e.getDeletedAt() == null)
+                .stream().filter(e -> e.getPaidByUserId().equals(userId) && e.getDeletedAt() == null
+                        && "PERSONAL_ACCOUNT".equals(e.getPaymentSource()))
                 .map(GroupExpense::getAmount)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
     }
@@ -231,12 +361,14 @@ public class GroupExpenseService {
         List<BalanceResponse.SimplifiedDebt> debts = new ArrayList<>();
 
         // Separate creditors (positive balance) and debtors (negative balance)
-        List<BalanceResponse.MemberBalance> creditors = balances.stream()
+        List<BalanceResponse.MemberBalance> working = balances.stream().map(b -> BalanceResponse.MemberBalance.builder()
+                .userId(b.getUserId()).balance(b.getBalance()).user(b.getUser()).build()).toList();
+        List<BalanceResponse.MemberBalance> creditors = working.stream()
                 .filter(b -> b.getBalance().compareTo(BigDecimal.ZERO) > 0)
                 .sorted((a, b) -> b.getBalance().compareTo(a.getBalance()))
                 .collect(Collectors.toList());
 
-        List<BalanceResponse.MemberBalance> debtors = balances.stream()
+        List<BalanceResponse.MemberBalance> debtors = working.stream()
                 .filter(b -> b.getBalance().compareTo(BigDecimal.ZERO) < 0)
                 .sorted((a, b) -> a.getBalance().compareTo(b.getBalance()))
                 .collect(Collectors.toList());
@@ -278,7 +410,12 @@ public class GroupExpenseService {
     private void validateAdminOrOwner(UUID groupId, UUID userId) {
         GroupMember member = groupMemberRepository.findByGroupIdAndUserId(groupId, userId)
                 .orElseThrow(() -> new SecurityException("User is not a member"));
-        // TODO: Check role
+        
+        // Check if user has permission (owner or admin can delete/edit expenses)
+        if (member.getRole() != com.finance.finance.common.enums.MemberRole.OWNER && 
+            member.getRole() != com.finance.finance.common.enums.MemberRole.ADMIN) {
+            throw new SecurityException("Only group owner or admin can perform this action");
+        }
     }
 
     private void logActivity(UUID groupId, UUID userId, ActivityType type, String description, Map<String, Object> metadata) {
@@ -286,13 +423,34 @@ public class GroupExpenseService {
     }
 
     private String serializeLocation(Object location) {
-        // TODO: Implement location serialization if needed
-        return null;
+        if (location == null) {
+            return null;
+        }
+        try {
+            return objectMapper.writeValueAsString(location);
+        } catch (Exception e) {
+            log.warn("Failed to serialize location: {}", e.getMessage());
+            return null;
+        }
     }
 
     private ExpenseResponse buildExpenseResponse(GroupExpense expense, List<ExpenseSplit> splits) {
         Long commentCount = transactionCommentRepository.countByCommentableTypeAndId(
                 com.finance.finance.common.enums.CommentableType.GROUP_EXPENSE, expense.getId());
+        ExpenseResponse.PayerSummary payer = userRepository.findById(expense.getPaidByUserId())
+                .map(user -> ExpenseResponse.PayerSummary.builder()
+                        .fullName(user.getFullName())
+                        .avatarKey(user.getAvatarUrl())
+                        .build())
+                .orElse(null);
+        ExpenseResponse.CategorySummary category = expense.getCategoryId() == null ? null : categoryRepository.findById(expense.getCategoryId())
+                .map(item -> ExpenseResponse.CategorySummary.builder()
+                        .id(item.getId())
+                        .name(item.getName())
+                        .icon(item.getIcon())
+                        .color(item.getColor())
+                        .build())
+                .orElse(null);
 
         return ExpenseResponse.builder()
                 .id(expense.getId())
@@ -301,6 +459,7 @@ public class GroupExpenseService {
                 .amount(expense.getAmount())
                 .currency(expense.getCurrency())
                 .paidByUserId(expense.getPaidByUserId())
+                .paymentSource(expense.getPaymentSource())
                 .categoryId(expense.getCategoryId())
                 .splitMethod(expense.getSplitMethod().name())
                 .expenseDate(expense.getExpenseDate())
@@ -310,6 +469,8 @@ public class GroupExpenseService {
                 .createdAt(expense.getCreatedAt())
                 .updatedAt(expense.getUpdatedAt())
                 .version(expense.getVersion())
+                .payer(payer)
+                .category(category)
                 .commentCount(commentCount.intValue())
                 .build();
     }

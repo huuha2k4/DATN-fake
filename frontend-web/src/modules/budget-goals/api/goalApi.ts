@@ -186,6 +186,12 @@ export const goalApi = {
     return res.data;
   },
 
+  // Rút tiền từ mục tiêu về ví/tài khoản
+  withdraw: async (id: string, data: { amount: number; note?: string; targetAccountId?: string }): Promise<any> => {
+    const res = await api.post(`/goals/${id}/withdraw`, data);
+    return res.data;
+  },
+
   // Đánh dấu hoàn thành
   completeGoal: async (id: string, note?: string): Promise<GoalResponse> => {
     const res = await api.put<GoalResponse>(`/goals/${id}/complete`, { note });

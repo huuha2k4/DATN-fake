@@ -1,0 +1,21 @@
+{
+  "expense": {
+    "food":          "Ăn uống",
+    "transport":     "Di chuyển",
+    "shopping":      "Mua sắm",
+    "bills":         "Hóa đơn và tiện ích",
+    "housing":       "Nhà ở",
+    "entertainment": "Giải trí",
+    "health":        "Sức khỏe",
+    "education":     "Giáo dục",
+    "travel":        "Du lịch",
+    "transfer":      "Chuyển khoản",
+    "other":         "Khác"
+  },
+  "income": {
+    "salary":        "Lương",
+    "bonus":         "Thưởng",
+    "family":        "Tiền gia đình gửi",
+    "other_income":  "Thu nhập khác"
+  }
+}

@@ -23,6 +23,7 @@ public class UserResponse {
     private Boolean emailVerified;
     private String phone;
     private Boolean mfaEnabled;
+    private Boolean loginAlertEnabled;
     private UserStatus userStatus;
     private SystemRole systemRole;
     private SubscriptionTier subscriptionTier;
@@ -33,4 +34,9 @@ public class UserResponse {
     private String avatarUrl;
     private Instant lastLoginAt;
     private Instant createdAt;
+    /** Tài khoản được phụ huynh tạo cùng một ví trẻ em, không phải tài khoản tài chính đầy đủ. */
+    private Boolean childAccount;
+    private UUID childWalletId;
+    private UUID childWalletGroupId;
+    private String childWalletName;
 }

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { LoginModal } from '../components/LoginModal';
 import { RegisterModal } from '../components/RegisterModal';
+import { ForgotPasswordModal } from '../components/ForgotPasswordModal';
 import { FinanceIcon } from '../../core/components/FinanceIcon';
 import { useTheme } from '../../core/context/ThemeContext';
 import logoImg from '../../../assets/logo.png';
@@ -13,6 +14,7 @@ interface LandingScreenProps {
 export function LandingScreen({ onAuthenticated }: LandingScreenProps) {
   const [showLogin, setShowLogin] = useState(false);
   const [showRegister, setShowRegister] = useState(false);
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
   const { theme, toggleTheme } = useTheme();
 
   const isDark = theme === 'dark';
@@ -34,7 +36,14 @@ export function LandingScreen({ onAuthenticated }: LandingScreenProps) {
 
   const switchToLogin = () => {
     setShowRegister(false);
+    setShowForgotPassword(false);
     setShowLogin(true);
+  };
+
+  const openForgotPassword = () => {
+    setShowLogin(false);
+    setShowRegister(false);
+    setShowForgotPassword(true);
   };
 
   return (
@@ -63,7 +72,7 @@ export function LandingScreen({ onAuthenticated }: LandingScreenProps) {
             <a href="#features">Tính năng nổi bật</a>
             <a href="#ai-assistant">Trợ lý Finora</a>
             <a href="#preview">Giao diện mẫu</a>
-            <a href="#security">Bảo mật</a>
+            <a href="/pricing">Bảng giá</a>
           </nav>
 
           <div className="nav-auth-actions">
@@ -420,7 +429,7 @@ export function LandingScreen({ onAuthenticated }: LandingScreenProps) {
               <a href="#features">Tính năng</a>
               <a href="#ai-assistant">Trợ lý AI</a>
               <a href="#preview">Giao diện</a>
-              <a href="#security">Bảo mật</a>
+              <a href="/pricing">Bảng giá</a>
             </div>
           </div>
 
@@ -447,6 +456,7 @@ export function LandingScreen({ onAuthenticated }: LandingScreenProps) {
           onClose={() => setShowLogin(false)}
           onSuccess={handleLoginSuccess}
           onSwitchToRegister={switchToRegister}
+          onForgotPassword={openForgotPassword}
         />
       )}
 
@@ -454,6 +464,13 @@ export function LandingScreen({ onAuthenticated }: LandingScreenProps) {
         <RegisterModal
           onClose={() => setShowRegister(false)}
           onSuccess={handleRegisterSuccess}
+          onSwitchToLogin={switchToLogin}
+        />
+      )}
+
+      {showForgotPassword && (
+        <ForgotPasswordModal
+          onClose={() => setShowForgotPassword(false)}
           onSwitchToLogin={switchToLogin}
         />
       )}

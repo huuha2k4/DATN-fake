@@ -42,6 +42,46 @@ services:
       - finance_network
     restart: unless-stopped
 
+  # OCR AI Service
+  ocr-service:
+    build:
+      context: ./ai/ocr-service
+    container_name: ocr-service
+    expose:
+      - "8000"
+    volumes:
+      # Cache PaddleOCR models (~/.paddleocr) để tránh download lại mỗi lần restart
+      - ocr_models:/root/.paddleocr
+    networks:
+      - finance_network
+    restart: unless-stopped
+
+  # PFM FinAI Service (Chatbot, Forecast, Anomaly Detection)
+  pfm-ai-service:
+    build:
+      context: ./pfm-ai-service
+      dockerfile: Dockerfile
+    container_name: pfm-ai-service
+    environment:
+      DATABASE_URL: postgresql+psycopg2://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      USE_LOCAL_LLM: ${USE_LOCAL_LLM:-false}
+      LOCAL_MODEL_NAME: ${LOCAL_MODEL_NAME:-qwen2.5:1.5b}
+      OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://localhost:11434}
+      TZ: Asia/Ho_Chi_Minh
+    ports:
+      - "8000:8000"
+    expose:
+      - "8000"
+    volumes:
+      - ./pfm-ai-service:/app
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - finance_network
+    restart: unless-stopped
+
   # Spring Boot Backend
   backend:
     build:
@@ -60,6 +100,13 @@ services:
       SUPER_ADMIN_USER: ${SUPER_ADMIN_USER}
       SUPER_ADMIN_PASSWORD: ${SUPER_ADMIN_PASSWORD}
       TZ: Asia/Ho_Chi_Minh
+      OCR_SERVICE_URL: http://ocr-service:8000
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET}
+      SMTP_HOST: ${SMTP_HOST:-smtp.gmail.com}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USER: ${SMTP_USER}
+      SMTP_PASSWORD: ${SMTP_PASSWORD}
     # Port chỉ dùng internal, không expose ra ngoài
     expose:
       - "8080"
@@ -73,6 +120,8 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+      ocr-service:
+        condition: service_started
     networks:
       - finance_network
     restart: unless-stopped
@@ -85,6 +134,7 @@ services:
     container_name: frontend-web
     environment:
       - VITE_API_URL=${VITE_API_URL}
+      - VITE_GOOGLE_CLIENT_ID=${VITE_GOOGLE_CLIENT_ID}
     # Port chỉ dùng internal, không expose ra ngoài
     expose:
       - "5173"
@@ -99,6 +149,7 @@ services:
       - frontend_node_modules:/app/node_modules
     depends_on:
       - backend
+      - pfm-ai-service
     networks:
       - finance_network
     restart: unless-stopped
@@ -113,6 +164,7 @@ services:
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
     depends_on:
       - backend
+      - pfm-ai-service
       - frontend-web
     networks:
       - finance_network
@@ -124,6 +176,7 @@ volumes:
   maven_cache:
   frontend_node_modules:
   upload_data:
+  ocr_models:
 
 networks:
   finance_network:

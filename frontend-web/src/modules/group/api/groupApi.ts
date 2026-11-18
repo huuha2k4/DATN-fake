@@ -35,6 +35,7 @@ export interface GroupMemberResponse {
   user?: {
     id: string;
     fullName: string;
+    displayName?: string;
     email: string;
     avatarUrl?: string;
     avatarKey?: string;
@@ -56,6 +57,7 @@ export interface GroupExpenseResponse {
   amount: number;
   currency: string;
   paidByUserId: string;
+  paymentSource: 'GROUP_FUND' | 'PERSONAL_ACCOUNT';
   categoryId?: string;
   splitMethod: SplitMethod;
   expenseDate: string;
@@ -92,6 +94,9 @@ export interface GroupBalanceResponse {
     balance: number;
     totalPaid: number;
     totalOwed: number;
+    personalExpensePaid?: number;
+    fundContribution?: number;
+    fundReserveShare?: number;
     user?: { fullName: string; avatarKey?: string };
   }[];
   simplifiedDebts: SimplifiedDebt[];
@@ -99,16 +104,73 @@ export interface GroupBalanceResponse {
   isFullySettled: boolean;
 }
 
+export interface GroupMonthlyCategoryStat {
+  categoryId: string;
+  categoryName: string;
+  categoryIcon?: string;
+  categoryColor?: string;
+  totalAmount: number;
+  percentage: number;
+  count: number;
+}
+
+export interface GroupMonthlyStatisticsResponse {
+  year: number;
+  month: number;
+  totalIncome: number;
+  totalExpense: number;
+  remaining: number;
+  fundBalance: number;
+  transactionCount: number;
+  trendPercentage?: number | null;
+  categoryStats: GroupMonthlyCategoryStat[];
+}
+
+export interface GroupFundResponse {
+  id: string;
+  groupId: string;
+  currency: string;
+  balance: number;
+  updatedAt?: string;
+}
+
+export interface GroupFundContributionResponse {
+  id: string;
+  contributorUserId: string;
+  contributorName: string;
+  amount: number;
+  contributedAt: string;
+  createdAt?: string;
+  note?: string;
+}
+
+export interface GroupCommentResponse {
+  id: string;
+  commentableType: 'GROUP_EXPENSE' | 'FUND_CONTRIBUTION';
+  commentableId: string;
+  userId: string;
+  content: string;
+  parentCommentId?: string;
+  createdAt: string;
+  updatedAt?: string;
+  user?: { fullName?: string };
+}
+
 export interface SettlementResponse {
   id: string;
   groupId: string;
-  payerId: string;
-  payeeId: string;
+  /** API hiện dùng from/to; payer/payee được giữ để đọc dữ liệu cũ. */
+  fromUserId?: string;
+  toUserId?: string;
+  payerId?: string;
+  payeeId?: string;
   amount: number;
   currency: string;
   status: 'PENDING' | 'CONFIRMED' | 'REJECTED';
   settlementDate: string;
   notes?: string;
+  fromUser?: { fullName: string };
+  toUser?: { fullName: string };
   payer?: { fullName: string };
   payee?: { fullName: string };
 }
@@ -124,6 +186,9 @@ export interface ChildWalletResponse {
   balance: number;
   currency: string;
   weeklyAllowance?: number;
+  allowanceSource?: 'PERSONAL_ACCOUNT' | 'GROUP_FUND';
+  allowanceAccountId?: string;
+  nextAllowanceDate?: string;
   privacyLevel?: 'FULL_ACCESS' | 'PARENT_SUPERVISED' | 'VIEW_ONLY';
   spendLimitDaily?: number;
   spendLimitWeekly?: number;
@@ -149,6 +214,8 @@ export interface CreateExpenseRequest {
   amount: number;
   currency?: string;
   paidByUserId: string;
+  paymentSource: 'GROUP_FUND' | 'PERSONAL_ACCOUNT';
+  sourceAccountId?: string;
   categoryId?: string;
   splitMethod: SplitMethod;
   expenseDate?: string;
@@ -163,6 +230,7 @@ export interface CreateExpenseRequest {
 
 export interface CreateSettlementRequest {
   payeeId: string;
+  sourceAccountId: string;
   amount: number;
   currency?: string;
   notes?: string;
@@ -175,6 +243,20 @@ export interface CreateChildWalletRequest {
   dateOfBirth?: string;
   balance?: number;
   weeklyAllowance?: number;
+  allowanceSource?: 'PERSONAL_ACCOUNT' | 'GROUP_FUND';
+  allowanceAccountId?: string;
+  privacyLevel?: 'FULL_ACCESS' | 'PARENT_SUPERVISED' | 'VIEW_ONLY';
+  spendLimitDaily?: number;
+  spendLimitWeekly?: number;
+}
+
+export interface UpdateChildWalletRequest {
+  childName?: string;
+  avatarKey?: string;
+  dateOfBirth?: string;
+  weeklyAllowance?: number;
+  allowanceSource?: 'PERSONAL_ACCOUNT' | 'GROUP_FUND';
+  allowanceAccountId?: string;
   privacyLevel?: 'FULL_ACCESS' | 'PARENT_SUPERVISED' | 'VIEW_ONLY';
   spendLimitDaily?: number;
   spendLimitWeekly?: number;
@@ -186,7 +268,9 @@ export interface UserSearchResult {
   username: string;
   fullName: string;
   avatarUrl?: string;
-}export interface GroupInvitationResponse {
+}
+
+export interface GroupInvitationResponse {
   id: string;
   groupId: string;
   groupName: string;
@@ -194,8 +278,12 @@ export interface UserSearchResult {
   inviterId: string;
   inviterName: string;
   inviteeId: string;
+  inviteeName?: string;
+  inviteeEmail?: string;
+  inviteeAvatarUrl?: string;
   role: MemberRole;
   status: 'PENDING' | 'ACCEPTED' | 'REJECTED' | 'CANCELLED';
+  createdAt?: string;
 }
 
 export interface MessageAttachmentItem {
@@ -205,6 +293,12 @@ export interface MessageAttachmentItem {
   mimeType?: string;
   fileSize?: number;
   thumbnailKey?: string;
+}
+
+export interface GroupMessageReactionItem {
+  reaction: string;
+  userId: string;
+  userName?: string;
 }
 
 export interface GroupMessageResponse {
@@ -218,7 +312,12 @@ export interface GroupMessageResponse {
   attachments?: MessageAttachmentItem[];
   readByCount?: number;
   readByUserIds?: string[];
+  isEdited?: boolean;
+  isRecalled?: boolean;
+  reactions?: GroupMessageReactionItem[];
   createdAt: string;
+  updatedAt?: string;
+  deletedAt?: string;
   sender?: {
     id: string;
     fullName: string;
@@ -238,6 +337,7 @@ export interface SpendRequestItem {
   imageKey?: string;
   status: 'PENDING' | 'APPROVED' | 'REJECTED' | 'CANCELLED';
   respondedByUserId?: string;
+  respondedByUserName?: string;
   respondedAt?: string;
   responseNotes?: string;
   rejectionReason?: string;
@@ -257,10 +357,41 @@ export interface SpendRequestItem {
 
 export interface CreateChildSpendRequestPayload {
   amount: number;
-  categoryId: string;
+  categoryId?: string;
   description: string;
   notes?: string;
   imageKey?: string;
+}
+
+export interface ChildChoreItem {
+  id: string;
+  walletId: string;
+  title: string;
+  description?: string;
+  rewardAmount: number;
+  currency?: string;
+  frequency?: 'ONCE' | 'DAILY' | 'WEEKLY' | 'MONTHLY';
+  difficulty?: 'EASY' | 'MEDIUM' | 'HARD';
+  dueDate?: string;
+  icon?: string;
+  status: 'ASSIGNED' | 'IN_PROGRESS' | 'SUBMITTED' | 'APPROVED' | 'REJECTED' | 'FAILED';
+  approvedByUserId?: string;
+  approvedByUserName?: string;
+  approvedAt?: string;
+  rejectionReason?: string;
+  rejectedAt?: string;
+  completionNotes?: string;
+  createdAt?: string;
+}
+
+export interface CreateChoreRequest {
+  title: string;
+  description?: string;
+  rewardAmount: number;
+  frequency?: 'ONCE' | 'DAILY' | 'WEEKLY' | 'MONTHLY';
+  dueDate?: string;
+  difficulty?: 'EASY' | 'MEDIUM' | 'HARD';
+  icon?: string;
 }
 
 export const groupApi = {
@@ -292,8 +423,26 @@ export const groupApi = {
     return res.data?.data || res.data;
   },
 
+  async updateGroup(groupId: string, req: Partial<CreateGroupRequest>): Promise<GroupResponse> {
+    const res = await api.put(`/groups/${groupId}`, req);
+    return res.data?.data || res.data;
+  },
+
   async deleteGroup(groupId: string): Promise<void> {
     await api.delete(`/groups/${groupId}`);
+  },
+
+  async toggleNotification(groupId: string, enabled: boolean): Promise<boolean> {
+    try {
+      await api.put(`/groups/${groupId}/notifications?enabled=${enabled}`);
+      return true;
+    } catch {
+      return false;
+    }
+  },
+
+  async leaveGroup(groupId: string): Promise<void> {
+    await api.post(`/groups/${groupId}/leave`);
   },
 
   // 2. Thành viên
@@ -348,6 +497,15 @@ export const groupApi = {
     await api.post(`/groups/invitations/${invitationId}/reject`);
   },
 
+  async getSentPendingInvitations(groupId: string): Promise<GroupInvitationResponse[]> {
+    const res = await api.get(`/groups/${groupId}/invitations/pending`);
+    return res.data?.data || res.data || [];
+  },
+
+  async cancelInvitation(groupId: string, invitationId: string): Promise<void> {
+    await api.delete(`/groups/${groupId}/invitations/${invitationId}`);
+  },
+
   async updateMember(groupId: string, userId: string, req: { role?: MemberRole; contributionRatio?: number }): Promise<GroupMemberResponse> {
     const res = await api.put(`/groups/${groupId}/members/${userId}`, req);
     return res.data?.data || res.data;
@@ -376,6 +534,14 @@ export const groupApi = {
     return res.data?.data || res.data;
   },
 
+  async getCategories(): Promise<{ id: string; name: string; kind?: 'INCOME' | 'EXPENSE'; type?: 'INCOME' | 'EXPENSE' }[]> {
+    const res = await api.get('/categories');
+    const data = res.data?.data || res.data;
+    if (Array.isArray(data)) return data;
+    if (Array.isArray(data?.categories)) return data.categories;
+    return [];
+  },
+
   async deleteExpense(groupId: string, expenseId: string): Promise<void> {
     await api.delete(`/groups/${groupId}/expenses/${expenseId}`);
   },
@@ -388,6 +554,49 @@ export const groupApi = {
       return null;
     }
   },
+
+  async getFundMonthlyStatistics(groupId: string, year?: number, month?: number): Promise<GroupMonthlyStatisticsResponse | null> {
+    try {
+      const query = year && month ? `?year=${year}&month=${month}` : '';
+      const res = await api.get(`/groups/${groupId}/fund/monthly-statistics${query}`);
+      return res.data?.data || res.data || null;
+    } catch {
+      return null;
+    }
+  },
+
+  async getFund(groupId: string): Promise<GroupFundResponse | null> {
+    try {
+      const res = await api.get(`/groups/${groupId}/fund`);
+      return res.data?.data || res.data || null;
+    } catch { return null; }
+  },
+
+  async contributeToFund(groupId: string, req: { sourceAccountId: string; amount: number; contributedAt: string; note?: string }): Promise<GroupFundResponse> {
+    const res = await api.post(`/groups/${groupId}/fund/contributions`, req);
+    return res.data?.data || res.data;
+  },
+
+  async getFundContributions(groupId: string): Promise<GroupFundContributionResponse[]> {
+    const res = await api.get(`/groups/${groupId}/fund/contributions`);
+    return res.data?.data || res.data || [];
+  },
+
+  async getComments(groupId: string, commentableType: 'GROUP_EXPENSE' | 'FUND_CONTRIBUTION', commentableId: string): Promise<GroupCommentResponse[]> {
+    const res = await api.get(`/groups/${groupId}/comments`, { params: { commentableType, commentableId, page: 0, size: 50 } });
+    const data = res.data?.data || res.data;
+    return Array.isArray(data) ? data : data?.content || [];
+  },
+
+  async createComment(groupId: string, req: { commentableType: 'GROUP_EXPENSE' | 'FUND_CONTRIBUTION'; commentableId: string; content: string; parentCommentId?: string }): Promise<GroupCommentResponse> {
+    const res = await api.post(`/groups/${groupId}/comments`, req);
+    return res.data?.data || res.data;
+  },
+
+  async updateComment(groupId: string, commentId: string, content: string): Promise<GroupCommentResponse> {
+    const res = await api.put(`/groups/${groupId}/comments/${commentId}`, { content }); return res.data?.data || res.data;
+  },
+  async deleteComment(groupId: string, commentId: string): Promise<void> { await api.delete(`/groups/${groupId}/comments/${commentId}`); },
 
   // 4. Thanh toán nợ nhóm (Settlements)
   async getSettlements(groupId: string): Promise<SettlementResponse[]> {
@@ -404,12 +613,19 @@ export const groupApi = {
   },
 
   async createSettlement(groupId: string, req: CreateSettlementRequest): Promise<SettlementResponse> {
-    const res = await api.post(`/groups/${groupId}/settlements`, req);
+    const res = await api.post(`/groups/${groupId}/settlements`, {
+      toUserId: req.payeeId,
+      sourceAccountId: req.sourceAccountId,
+      amount: req.amount,
+      currency: req.currency,
+      notes: req.notes,
+      settlementDate: new Date().toISOString().slice(0, 10),
+    });
     return res.data?.data || res.data;
   },
 
-  async confirmSettlement(groupId: string, settlementId: string): Promise<void> {
-    await api.post(`/groups/${groupId}/settlements/${settlementId}/confirm`);
+  async confirmSettlement(groupId: string, settlementId: string, receivingAccountId: string): Promise<void> {
+    await api.post(`/groups/${groupId}/settlements/${settlementId}/confirm`, { receivingAccountId });
   },
 
   // 5. Ví trẻ em trong nhóm gia đình
@@ -426,16 +642,34 @@ export const groupApi = {
     }
   },
 
+  async getChildWallet(groupId: string, walletId: string): Promise<ChildWalletResponse> {
+    const res = await api.get(`/groups/${groupId}/child-wallets/${walletId}`);
+    return res.data?.data || res.data;
+  },
+
   async createChildWallet(groupId: string, req: CreateChildWalletRequest): Promise<ChildWalletResponse> {
     const res = await api.post(`/groups/${groupId}/child-wallets`, req);
     return res.data?.data || res.data;
   },
 
-  async depositChildWallet(groupId: string, walletId: string, amount: number, description?: string, source: string = 'allowance'): Promise<void> {
+  async updateChildWallet(groupId: string, walletId: string, req: UpdateChildWalletRequest): Promise<ChildWalletResponse> {
+    const res = await api.put(`/groups/${groupId}/child-wallets/${walletId}`, req);
+    return res.data?.data || res.data;
+  },
+
+  async depositChildWallet(
+    groupId: string,
+    walletId: string,
+    amount: number,
+    description?: string,
+    source: string = 'PERSONAL_ACCOUNT',
+    sourceAccountId?: string
+  ): Promise<void> {
     await api.post(`/groups/${groupId}/child-wallets/${walletId}/deposit`, {
       amount,
       description: description || 'Nạp tiền vào ví',
       source,
+      sourceAccountId,
     });
   },
 
@@ -500,6 +734,25 @@ export const groupApi = {
     }
   },
 
+  async updateMessage(groupId: string, messageId: string, content: string): Promise<GroupMessageResponse> {
+    const res = await api.put(`/groups/${groupId}/messages/${messageId}`, { content });
+    return res.data?.data || res.data;
+  },
+
+  async recallMessage(groupId: string, messageId: string): Promise<GroupMessageResponse> {
+    const res = await api.post(`/groups/${groupId}/messages/${messageId}/recall`);
+    return res.data?.data || res.data;
+  },
+
+  async reactToMessage(groupId: string, messageId: string, reaction: string): Promise<GroupMessageResponse> {
+    const res = await api.post(`/groups/${groupId}/messages/${messageId}/react?reaction=${encodeURIComponent(reaction)}`);
+    return res.data?.data || res.data;
+  },
+
+  async deleteMessage(groupId: string, messageId: string): Promise<void> {
+    await api.delete(`/groups/${groupId}/messages/${messageId}`);
+  },
+
   async uploadMessageAttachment(groupId: string, file: File): Promise<MessageAttachmentItem> {
     const formData = new FormData();
     formData.append('file', file);
@@ -514,7 +767,7 @@ export const groupApi = {
   // 7. Yêu cầu chi tiêu của bé (Xin tiền bố mẹ)
   async getSpendRequests(groupId: string, walletId: string): Promise<SpendRequestItem[]> {
     try {
-      const res = await api.get(`/groups/${groupId}/child-wallets/${walletId}/spend-requests`);
+      const res = await api.get(`/groups/${groupId}/child-wallets/${walletId}/spend-requests?size=1000`);
       const data = res.data;
       if (Array.isArray(data)) return data;
       if (data?.content && Array.isArray(data.content)) return data.content;
@@ -530,13 +783,56 @@ export const groupApi = {
     return res.data?.data || res.data;
   },
 
-  async approveSpendRequest(groupId: string, walletId: string, requestId: string, notes?: string): Promise<SpendRequestItem> {
-    const res = await api.post(`/groups/${groupId}/child-wallets/${walletId}/spend-requests/${requestId}/approve`, { notes });
+  async createMoneyRequest(groupId: string, walletId: string, amount: number, description: string): Promise<SpendRequestItem> {
+    const res = await api.post(`/groups/${groupId}/child-wallets/${walletId}/money-requests`, { amount, description });
+    return res.data?.data || res.data;
+  },
+
+  async createChildTransaction(groupId: string, walletId: string, payload: CreateChildSpendRequestPayload): Promise<SpendRequestItem> {
+    const res = await api.post(`/groups/${groupId}/child-wallets/${walletId}/transactions`, payload);
+    return res.data?.data || res.data;
+  },
+
+  async approveSpendRequest(groupId: string, walletId: string, requestId: string, payload: { source?: string; sourceAccountId?: string; notes?: string } | string, legacyNotes?: string): Promise<SpendRequestItem> {
+    const body = typeof payload === 'string'
+      ? { sourceAccountId: payload, notes: legacyNotes }
+      : payload;
+    const res = await api.post(`/groups/${groupId}/child-wallets/${walletId}/spend-requests/${requestId}/approve`, body);
     return res.data?.data || res.data;
   },
 
   async rejectSpendRequest(groupId: string, walletId: string, requestId: string, reason: string): Promise<SpendRequestItem> {
     const res = await api.post(`/groups/${groupId}/child-wallets/${walletId}/spend-requests/${requestId}/reject`, { reason });
     return res.data?.data || res.data;
+  },
+
+  async getChores(groupId: string, walletId: string): Promise<ChildChoreItem[]> {
+    const res = await api.get(`/groups/${groupId}/child-wallets/${walletId}/chores?size=50`);
+    const data = res.data?.data || res.data;
+    return Array.isArray(data) ? data : (data?.content || []);
+  },
+
+  async createChore(groupId: string, walletId: string, req: CreateChoreRequest): Promise<ChildChoreItem> {
+    const res = await api.post(`/groups/${groupId}/child-wallets/${walletId}/chores`, req);
+    return res.data?.data || res.data;
+  },
+
+  async completeChore(groupId: string, walletId: string, choreId: string, notes?: string): Promise<ChildChoreItem> {
+    const res = await api.post(`/groups/${groupId}/child-wallets/${walletId}/chores/${choreId}/complete`, { notes: notes || '' });
+    return res.data?.data || res.data;
+  },
+
+  async approveChore(groupId: string, walletId: string, choreId: string, payload?: { feedback?: string; source?: string; sourceAccountId?: string }): Promise<ChildChoreItem> {
+    const res = await api.post(`/groups/${groupId}/child-wallets/${walletId}/chores/${choreId}/approve`, payload || {});
+    return res.data?.data || res.data;
+  },
+
+  async rejectChore(groupId: string, walletId: string, choreId: string, reason: string, canRetry: boolean = true): Promise<ChildChoreItem> {
+    const res = await api.post(`/groups/${groupId}/child-wallets/${walletId}/chores/${choreId}/reject`, { reason, canRetry });
+    return res.data?.data || res.data;
+  },
+
+  async deleteChore(groupId: string, walletId: string, choreId: string): Promise<void> {
+    await api.delete(`/groups/${groupId}/child-wallets/${walletId}/chores/${choreId}`);
   },
 };

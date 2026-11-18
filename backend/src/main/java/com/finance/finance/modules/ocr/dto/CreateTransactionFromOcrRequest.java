@@ -1,0 +1,31 @@
+package com.finance.finance.modules.ocr.dto;
+
+import jakarta.validation.constraints.NotNull;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
+import java.math.BigDecimal;
+import java.util.UUID;
+
+@Data
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
+public class CreateTransactionFromOcrRequest {
+
+    private UUID receiptId;
+
+    @NotNull(message = "Account ID is required")
+    private UUID accountId;
+
+    private UUID categoryId;
+
+    private String description;
+
+    private String note;
+
+    /** Optional user-corrected amount. When present, overrides the OCR-scanned value. */
+    private BigDecimal overrideAmount;
+}

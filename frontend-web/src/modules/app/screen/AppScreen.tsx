@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Routes, Route, useNavigate, useLocation } from 'react-router-dom'
+import { Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom'
 import { AddTransactionScreen } from '../../add-transaction/screen/AddTransactionScreen'
 import { AccountManagementScreen } from '../../account-management/screen/AccountManagementScreen'
 import { AIAssistantScreen } from '../../ai-assistant/screen/AIAssistantScreen'
@@ -21,7 +21,29 @@ import { LandingScreen } from '../../auth/screen/LandingScreen'
 import { ProfileScreen } from '../../profile/screen/ProfileScreen'
 import { ChangePasswordModal } from '../../profile/components/ChangePasswordModal'
 import { NotificationScreen } from '../../notification/screen/NotificationScreen'
-import { isAuthenticated, clearAuthData } from '../../auth/api/authApi'
+import { ChildWalletScreen } from '../../child-wallet/screen/ChildWalletScreen'
+import { ChildChoresScreen } from '../../child-wallet/screen/ChildChoresScreen'
+import { ChildMoneyRequestsScreen } from '../../child-wallet/screen/ChildMoneyRequestsScreen'
+import { UserFeedbackScreen } from '../../feedback/screen/UserFeedbackScreen'
+import { PricingScreen } from '../../pricing/screen/PricingScreen'
+import { PrivacyPolicyScreen } from '../../legal/screen/PrivacyPolicyScreen'
+import { TermsOfServiceScreen } from '../../legal/screen/TermsOfServiceScreen'
+import { AdminGuard } from '../../admin/components/AdminGuard'
+import { AdminLayout } from '../../admin/components/AdminLayout'
+import { AdminDashboardScreen } from '../../admin/screen/AdminDashboardScreen'
+import { AdminUserManagementScreen } from '../../admin/screen/AdminUserManagementScreen'
+import { AdminRolesScreen } from '../../admin/screen/AdminRolesScreen'
+import { AdminCategoriesScreen } from '../../admin/screen/AdminCategoriesScreen'
+import { AdminAIManagementScreen } from '../../admin/screen/AdminAIManagementScreen'
+import { AdminOcrManagementScreen } from '../../admin/screen/AdminOcrManagementScreen'
+import { AdminAnalyticsScreen } from '../../admin/screen/AdminAnalyticsScreen'
+import { AdminFeedbacksScreen } from '../../admin/screen/AdminFeedbacksScreen'
+import { AdminBroadcastScreen } from '../../admin/screen/AdminBroadcastScreen'
+import { AdminAuditLogsScreen } from '../../admin/screen/AdminAuditLogsScreen'
+import { AdminSystemHealthScreen } from '../../admin/screen/AdminSystemHealthScreen'
+import { AdminSettingsScreen } from '../../admin/screen/AdminSettingsScreen'
+import { AdminPlaceholderScreen } from '../../admin/screen/AdminPlaceholderScreen'
+import { isAuthenticated, clearAuthData, getStoredUser } from '../../auth/api/authApi'
 
 export default function AppScreen() {
   const [isLoggedIn, setIsLoggedIn] = useState(false)
@@ -34,13 +56,27 @@ export default function AppScreen() {
   })
   const navigate = useNavigate()
   const location = useLocation()
+  const isChildAccount = Boolean(getStoredUser()?.childAccount)
+  const childAllowedRoutes = new Set([
+    '/dashboard',
+    '/child-wallet',
+    '/child-chores',
+    '/child-requests',
+    '/add-transaction',
+    '/transactions',
+    '/goals',
+    '/reports',
+    '/groups',
+    '/ai-assistant',
+    '/scan-invoice',
+    '/profile',
+    '/notifications',
+  ])
 
   const handleToggleSidebar = () => {
-    // If mobile (< 769px), toggle drawer
     if (window.innerWidth <= 768) {
       setIsMobileNavOpen(prev => !prev)
     } else {
-      // Desktop: toggle collapsed state
       setIsSidebarCollapsed(prev => {
         const next = !prev
         localStorage.setItem('sidebar_collapsed', String(next))
@@ -49,27 +85,45 @@ export default function AppScreen() {
     }
   }
 
+  // Check auth state on mount and listen to storage changes
   useEffect(() => {
-    setIsLoggedIn(isAuthenticated())
+    const checkAuth = () => {
+      const authenticated = isAuthenticated()
+      setIsLoggedIn(authenticated)
+    }
+    
+    checkAuth()
+    
+    // Listen to custom auth events and storage events
+    window.addEventListener('storage', checkAuth)
+    window.addEventListener('auth:logout', checkAuth)
+    
+    return () => {
+      window.removeEventListener('storage', checkAuth)
+      window.removeEventListener('auth:logout', checkAuth)
+    }
   }, [])
 
-  // Auto-dismiss notice after 5 seconds
-  useEffect(() => {
-    if (!notice) return;
-    const timer = setTimeout(() => {
-      setNotice('');
-    }, 5000);
-    return () => clearTimeout(timer);
-  }, [notice])
-
-  // Tự động đóng menu trên mobile khi đổi route
+  // Close mobile sidebar on route change
   useEffect(() => {
     setIsMobileNavOpen(false);
   }, [location.pathname])
 
+  // Auto-dismiss notice toast after 5 seconds
+  useEffect(() => {
+    if (!notice) return
+    const timer = setTimeout(() => setNotice(''), 5000)
+    return () => clearTimeout(timer)
+  }, [notice])
+
   const handleAuthenticated = () => {
     setIsLoggedIn(true)
-    navigate('/dashboard')
+    const currentUser = getStoredUser()
+    if (currentUser?.systemRole === 'ADMIN') {
+      navigate('/admin')
+    } else {
+      navigate('/dashboard')
+    }
   }
 
   const handleLogout = () => {
@@ -78,55 +132,112 @@ export default function AppScreen() {
     navigate('/')
   }
 
+  // 1. Cho phép các trang công khai truy cập mà KHÔNG cần đăng nhập
+  if (location.pathname === '/privacy') {
+    return <PrivacyPolicyScreen />
+  }
+  if (location.pathname === '/terms') {
+    return <TermsOfServiceScreen />
+  }
+  if (location.pathname === '/pricing') {
+    return <PricingScreen onNotify={setNotice} />
+  }
+
+  // 2. Nếu chưa đăng nhập thì hiển thị Landing Page
   if (!isLoggedIn) {
     return <LandingScreen onAuthenticated={handleAuthenticated} />
+  }
+
+  const storedUser = getStoredUser()
+  const isAdminAccount = storedUser?.systemRole === 'ADMIN'
+
+  // Nếu là tài khoản Admin: Cố định toàn quyền tại không gian quản trị /admin, không hiển thị không gian chi tiêu cá nhân
+  if (isAdminAccount) {
+    return (
+      <AdminGuard>
+        <Routes>
+          <Route path="/admin" element={<AdminLayout />}>
+            <Route index element={<AdminDashboardScreen />} />
+            <Route path="users" element={<AdminUserManagementScreen />} />
+            <Route path="roles" element={<AdminRolesScreen />} />
+            <Route path="categories" element={<AdminCategoriesScreen />} />
+            <Route path="ai-management" element={<AdminAIManagementScreen />} />
+            <Route path="ocr-management" element={<AdminOcrManagementScreen />} />
+            <Route path="analytics" element={<AdminAnalyticsScreen />} />
+            <Route path="feedbacks" element={<AdminFeedbacksScreen />} />
+            <Route path="broadcast" element={<AdminBroadcastScreen />} />
+            <Route path="audit-logs" element={<AdminAuditLogsScreen />} />
+            <Route path="system-health" element={<AdminSystemHealthScreen />} />
+            <Route path="settings" element={<AdminSettingsScreen />} />
+            <Route path="profile" element={<ProfileScreen onLogout={handleLogout} />} />
+          </Route>
+          {/* Mọi route khác khi Admin đăng nhập đều tự động chuyển về /admin */}
+          <Route path="*" element={<Navigate to="/admin" replace />} />
+        </Routes>
+      </AdminGuard>
+    )
   }
 
   // Map route to active sidebar section
   const pathToSection: Record<string, string> = {
     '/': 'Tổng quan',
     '/dashboard': 'Tổng quan',
+    '/child-wallet': 'Ví của em',
+    '/child-chores': 'Nhiệm vụ nhận thưởng',
+    '/child-requests': 'Xin tiền bố mẹ',
     '/add-transaction': 'Thêm giao dịch',
-    '/wallets': 'Quản lý Ví',
-    '/accounts': 'Quản lý Ví',
     '/transactions': 'Quản lý Thu & Chi',
     '/budget': 'Quản lý Ngân sách',
-    '/goals': 'Mục tiêu Tài chính',
+    '/goals': 'Mục tiêu & Tiết kiệm',
     '/schedules': 'Lịch tài chính',
+    '/reminders': 'Lịch tài chính',
     '/debts': 'Quản lý Nợ',
-    '/groups': 'Chi tiêu Nhóm',
+    '/groups': isChildAccount ? 'Gia đình của em' : 'Chi tiêu Nhóm',
     '/reports': 'Báo cáo & Thống kê',
     '/ai-assistant': 'AI Thông minh',
     '/forecast': 'Dự báo tài chính',
     '/analysis': 'Phân tích hành vi chi tiêu',
-    '/profile': 'Quản lý Hồ sơ & Tài khoản',
-    '/notifications': 'Thông báo',
+    '/wallets': 'Quản lý Ví',
+    '/accounts': 'Quản lý Ví',
+    '/feedback': '',
+    '/profile': '',
+    '/notifications': '',
+    '/pricing': '',
   }
-  const activeSection = pathToSection[location.pathname] || 'Tổng quan'
+
+  const activeSection = pathToSection[location.pathname] !== undefined 
+    ? pathToSection[location.pathname] 
+    : 'Tổng quan'
 
   return (
-    <div className="finance-app">
+    <div className="dashboard-layout">
       <FinancialNavigationSection 
         active={activeSection} 
         isOpen={isMobileNavOpen}
         onClose={() => setIsMobileNavOpen(false)}
         isCollapsed={isSidebarCollapsed}
+        isChildAccount={isChildAccount}
         onNavigate={(section) => {
-          // Map sections to routes
           const routes: Record<string, string> = {
+            'Ví của em': '/child-wallet',
+            '__CHILD_WALLET__': '/child-wallet',
+            'Nhiệm vụ nhận thưởng': '/child-chores',
+            'Xin tiền bố mẹ': '/child-requests',
             'Tổng quan': '/dashboard',
             'Thêm giao dịch': '/add-transaction',
             'Quản lý Ví': '/wallets',
             'Quản lý Thu & Chi': '/transactions',
             'Quản lý Ngân sách': '/budget',
-            'Mục tiêu Tài chính': '/goals',
+            'Mục tiêu & Tiết kiệm': '/goals',
             'Lịch tài chính': '/schedules',
             'Quản lý Nợ': '/debts',
             'Chi tiêu Nhóm': '/groups',
+            'Gia đình của em': '/groups',
             'Báo cáo & Thống kê': '/reports',
             'AI Thông minh': '/ai-assistant',
             'Dự báo tài chính': '/forecast',
             'Phân tích hành vi chi tiêu': '/analysis',
+            'Phản hồi & Trợ giúp': '/feedback',
           }
           if (routes[section]) {
             navigate(routes[section])
@@ -139,6 +250,7 @@ export default function AppScreen() {
           onNotify={setNotice} 
           onOpenProfile={() => navigate('/profile')}
           onOpenChangePassword={() => setIsPasswordModalOpen(true)}
+          onOpenFeedback={() => navigate('/feedback')}
           onLogout={handleLogout}
           walletCount={walletCount}
           onToggleSidebar={handleToggleSidebar}
@@ -146,34 +258,45 @@ export default function AppScreen() {
         />
         
         <Routes>
+          {isChildAccount && !childAllowedRoutes.has(location.pathname) && <Route path="*" element={<Navigate to="/dashboard" replace />} />}
           <Route path="/" element={<DashboardScreen onNotify={setNotice} onAddTransaction={() => navigate('/add-transaction')} />} />
           <Route path="/dashboard" element={<DashboardScreen onNotify={setNotice} onAddTransaction={() => navigate('/add-transaction')} />} />
+          {isChildAccount && <Route path="/child-wallet" element={<ChildWalletScreen onNotify={setNotice} />} />}
+          {isChildAccount && <Route path="/child-chores" element={<ChildChoresScreen onNotify={setNotice} />} />}
+          {isChildAccount && <Route path="/child-requests" element={<ChildMoneyRequestsScreen onNotify={setNotice} />} />}
           <Route path="/profile" element={<ProfileScreen onLogout={handleLogout} />} />
           <Route path="/notifications" element={<NotificationScreen onNotify={setNotice} />} />
+          <Route path="/feedback" element={<UserFeedbackScreen onNotify={setNotice} />} />
+          <Route path="/pricing" element={<PricingScreen onNotify={setNotice} />} />
+          <Route path="/privacy" element={<PrivacyPolicyScreen />} />
+          <Route path="/terms" element={<TermsOfServiceScreen />} />
           <Route path="/add-transaction" element={<AddTransactionScreen onCancel={() => navigate(-1)} onNotify={setNotice} onOpenInvoiceScanner={() => navigate('/scan-invoice')} />} />
           <Route path="/scan-invoice" element={<InvoiceOcrScreen onCancel={() => navigate(-1)} onNotify={setNotice} />} />
           <Route path="/transactions" element={<CashFlowManagementScreen onNotify={setNotice} onAddTransaction={() => navigate('/add-transaction')} />} />
-          <Route path="/budget" element={<BudgetManagementScreen onNotify={setNotice} />} />
+          {!isChildAccount && <Route path="/budget" element={<BudgetManagementScreen onNotify={setNotice} />} />}
           <Route path="/goals" element={<GoalsManagementScreen onNotify={setNotice} />} />
-          <Route path="/schedules" element={<FinancialRemindersScreen onNotify={setNotice} />} />
-          <Route path="/reminders" element={<FinancialRemindersScreen onNotify={setNotice} />} />
-          <Route path="/debts" element={<DebtManagementScreen onNotify={setNotice} />} />
+          {!isChildAccount && <Route path="/schedules" element={<FinancialRemindersScreen onNotify={setNotice} />} />}
+          {!isChildAccount && <Route path="/reminders" element={<FinancialRemindersScreen onNotify={setNotice} />} />}
+          {!isChildAccount && <Route path="/debts" element={<DebtManagementScreen onNotify={setNotice} />} />}
           <Route path="/groups" element={<GroupManagementScreen onNotify={setNotice} />} />
           <Route path="/reports" element={<FinancialReportsDashboardScreen onNotify={setNotice} />} />
           <Route path="/ai-assistant" element={<AIAssistantScreen onNotify={setNotice} />} />
-          <Route path="/forecast" element={<FinancialForecastScreen onNotify={setNotice} />} />
-          <Route path="/analysis" element={<SpendingAnalysisScreen onNotify={setNotice} />} />
-          <Route path="/wallets" element={<AccountManagementScreen onNotify={setNotice} onAccountsChange={setWalletCount} />} />
-          <Route path="/accounts" element={<AccountManagementScreen onNotify={setNotice} onAccountsChange={setWalletCount} />} />
+          {!isChildAccount && <Route path="/forecast" element={<FinancialForecastScreen onNotify={setNotice} />} />}
+          {!isChildAccount && <Route path="/analysis" element={<SpendingAnalysisScreen onNotify={setNotice} />} />}
+          {!isChildAccount && <Route path="/wallets" element={<AccountManagementScreen onNotify={setNotice} onAccountsChange={setWalletCount} />} />}
+          {!isChildAccount && <Route path="/accounts" element={<AccountManagementScreen onNotify={setNotice} onAccountsChange={setWalletCount} />} />}
         </Routes>
       </div>
 
-      {/* Floating Action Buttons dock at bottom right */}
-      <FloatingActions 
-        onAddTransaction={() => navigate('/add-transaction')}
-        onOpenInvoiceScanner={() => navigate('/scan-invoice')}
-        onOpenAIAssistant={() => navigate('/ai-assistant')}
-      />
+      {/* Floating Action Buttons */}
+      {location.pathname !== '/scan-invoice' && (
+        <FloatingActions 
+          onAddTransaction={() => navigate('/add-transaction')}
+          onOpenInvoiceScanner={() => navigate('/scan-invoice')}
+          onOpenAIAssistant={() => navigate('/ai-assistant')}
+          isChildAccount={isChildAccount}
+        />
+      )}
 
       {/* Change Password Modal */}
       <ChangePasswordModal 

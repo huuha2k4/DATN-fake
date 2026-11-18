@@ -45,7 +45,7 @@ public class User implements UserDetails {
     @Column(name = "email_verified_at")
     private Instant emailVerifiedAt;
     
-    @Column(name = "password_hash", nullable = false)
+    @Column(name = "password_hash")
     private String passwordHash;
     
     @Column(name = "password_changed_at")
@@ -57,6 +57,10 @@ public class User implements UserDetails {
     @Column(name = "mfa_enabled", nullable = false)
     @Builder.Default
     private boolean mfaEnabled = false;
+
+    @Column(name = "login_alert_enabled", nullable = false)
+    @Builder.Default
+    private boolean loginAlertEnabled = true;
     
     @Column(name = "mfa_secret")
     private String mfaSecret;

@@ -76,6 +76,8 @@ public class TransactionResponse {
     private BigDecimal balanceAfter;
     
     // Metadata
+    private UUID receiptId;
+    private String receiptUrl;
     private Boolean hasAttachments;
     private Boolean isRecurring;
     private UUID recurringTemplateId;

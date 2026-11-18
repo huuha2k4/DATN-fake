@@ -1,0 +1,161 @@
+alias,category
+highlands coffee,food
+highlands,food
+phuc long,food
+the coffee house,food
+starbucks,food
+trung nguyen,food
+cong ca phe,food
+thuc coffee,food
+milano coffee,food
+kfc,food
+lotteria,food
+jollibee,food
+mcdonalds,food
+burger king,food
+pizza hut,food
+dominos,food
+pizza 4ps,food
+pho 24,food
+grabfood,food
+shopeefood,food
+baemin,food
+gofood,food
+now,food
+minimart anan,food
+pho mo,food
+phuc anh minimart,food
+grab,transport
+be,transport
+xanh sm,transport
+gojek,transport
+vetc,transport
+petrolimex,transport
+taxi vinasun,transport
+taxi mai linh,transport
+taxi group,transport
+circle k,shopping
+gs25,shopping
+familymart,shopping
+ministop,shopping
+7 eleven,shopping
+winmart,shopping
+vinmart,shopping
+vincommerce,shopping
+bach hoa xanh,shopping
+sieu thi bach hoa tong hop,shopping
+co opmart,shopping
+co op food,shopping
+saigon co op,shopping
+lotte mart,shopping
+aeon,shopping
+mega market,shopping
+mm mega market,shopping
+shopee,shopping
+lazada,shopping
+tiki,shopping
+sendo,shopping
+the gioi di dong,shopping
+dien may xanh,shopping
+fpt shop,shopping
+uniqlo,shopping
+zara,shopping
+h&m,shopping
+guardian,health
+watsons,health
+medicare,health
+pharmacity,health
+long chau,health
+an khang,health
+benh vien,health
+phong kham,health
+nha thuoc,health
+evn,bills
+dien luc,bills
+cap nuoc,bills
+sawaco,bills
+vnpt,bills
+viettel,bills
+mobifone,bills
+vinaphone,bills
+fpt telecom,bills
+cgv,entertainment
+lotte cinema,entertainment
+galaxy cinema,entertainment
+cinestar,entertainment
+netflix,entertainment
+spotify,entertainment
+steam,entertainment
+hoc phi,education
+udemy,education
+coursera,education
+ielts,education
+vnuhcm,education
+dai hoc,education
+truong,education
+vietnam airlines,travel
+vietjet,travel
+bamboo airways,travel
+pacific airlines,travel
+booking,travel
+agoda,travel
+traveloka,travel
+klook,travel
+vietcombank,transfer
+mb bank,transfer
+techcombank,transfer
+bidv,transfer
+agribank,transfer
+vpbank,transfer
+acb,transfer
+sacombank,transfer
+tpbank,transfer
+hdbank,transfer
+momo,transfer
+zalopay,transfer
+vnpay,transfer
+tien nha,housing
+tien phong tro,housing
+tien thue nha,housing
+phi quan ly,housing
+# Alias bổ sung từ MC-OCR sellers
+minimart anam,food
+minimart ananai,food
+minhmart anan,food
+books n coffee,food
+guitar cafe,food
+just goop coffee,food
+kai tea,food
+laha cafe,food
+milano coffee vietnam,food
+dim sum corner,food
+trung nguyen legend,food
+aozorora sushi,food
+co op food,shopping
+co opmart,shopping
+coop xtra,shopping
+saigon co op,shopping
+the gioi di dong,shopping
+sieu thi my pham,shopping
+indochina plaza,shopping
+satra,shopping
+satra foods,shopping
+kfc viet nam,food
+# Nhà sách / văn phòng phẩm → education
+nha sach,education
+hieu sach,education
+vpp,education
+van phong pham,education
+nha sach phuong nam,education
+nha sach fahasa,education
+nha sach tien phong,education
+# Nhà thuốc thêm
+nha thuoc,health
+trung tam y te,health
+benh vien,health
+phong kham,health
+big c,shopping
+big,shopping
+tops market,shopping
+central food,shopping
+velutino,food

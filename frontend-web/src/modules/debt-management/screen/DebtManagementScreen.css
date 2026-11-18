@@ -379,6 +379,12 @@ html.dark .group.relative.cursor-pointer.rounded-2xl .bg-amber-100 {
   color: #fde68a !important;
 }
 
+html.dark .group.relative.cursor-pointer.rounded-2xl .bg-emerald-100 {
+  background-color: rgba(16, 185, 129, 0.2) !important;
+  color: #6ee7b7 !important;
+}
+
+
 html.dark .group.relative.cursor-pointer.rounded-2xl strong.text-rose-700,
 html.dark .group.relative.cursor-pointer.rounded-2xl strong.text-rose-600 {
   color: #f43f5e !important;

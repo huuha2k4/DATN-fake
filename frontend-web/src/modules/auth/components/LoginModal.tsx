@@ -1,15 +1,17 @@
 import { useState } from 'react';
 import { authApi, saveAuthData, type LoginRequest } from '../api/authApi';
 import { FinanceIcon } from '../../core/components/FinanceIcon';
+import { GoogleSignInButton } from './GoogleSignInButton';
 import './AuthModal.css';
 
 interface LoginModalProps {
   onClose: () => void;
   onSuccess: () => void;
   onSwitchToRegister: () => void;
+  onForgotPassword?: () => void;
 }
 
-export function LoginModal({ onClose, onSuccess, onSwitchToRegister }: LoginModalProps) {
+export function LoginModal({ onClose, onSuccess, onSwitchToRegister, onForgotPassword }: LoginModalProps) {
   const [formData, setFormData] = useState<LoginRequest>({
     login: '',
     password: '',
@@ -74,8 +76,18 @@ export function LoginModal({ onClose, onSuccess, onSwitchToRegister }: LoginModa
           </div>
 
           <div className="form-field">
-            <div className="form-label">
+            <div className="form-label flex justify-between items-center">
               <label htmlFor="login-pass">Mật khẩu</label>
+              {onForgotPassword && (
+                <button
+                  type="button"
+                  onClick={onForgotPassword}
+                  className="btn-text-emerald"
+                  style={{ fontSize: '12px', fontWeight: 'normal', cursor: 'pointer' }}
+                >
+                  Quên mật khẩu?
+                </button>
+              )}
             </div>
             <div className="form-input-wrapper">
               <span className="input-icon">
@@ -121,6 +133,20 @@ export function LoginModal({ onClose, onSuccess, onSwitchToRegister }: LoginModa
             )}
           </button>
         </form>
+
+        {/* Hoặc tiếp tục với Google */}
+        <div className="mt-4 mb-2">
+          <div className="relative flex py-2 items-center">
+            <div className="flex-grow border-t border-gray-200 dark:border-slate-700"></div>
+            <span className="flex-shrink mx-3 text-gray-400 text-xs font-semibold uppercase">Hoặc</span>
+            <div className="flex-grow border-t border-gray-200 dark:border-slate-700"></div>
+          </div>
+          <GoogleSignInButton
+            onSuccess={onSuccess}
+            onError={(msg) => setError(msg)}
+            text="signin_with"
+          />
+        </div>
 
         <div className="modal-footer-box">
           <p className="modal-footer-text">

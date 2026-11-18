@@ -43,6 +43,31 @@
   box-shadow: 0 1px 2px rgba(16, 185, 129, 0.08);
 }
 
+.user-tier-clickable {
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  outline: none;
+}
+
+.user-tier-clickable:hover {
+  background: #d1fae5;
+  border-color: #34d399;
+  color: #047857;
+  transform: translateY(-1px);
+  box-shadow: 0 3px 8px rgba(16, 185, 129, 0.18);
+}
+
+.user-tier-arrow {
+  font-size: 10px;
+  opacity: 0.7;
+  transition: transform 0.2s ease;
+}
+
+.user-tier-clickable:hover .user-tier-arrow {
+  transform: translate(1px, -1px);
+  opacity: 1;
+}
+
 .user-tier-icon {
   font-size: 11px;
 }
@@ -135,7 +160,7 @@
   border: 1px solid #e5ece8;
   box-shadow: 0 16px 36px -8px rgba(15, 39, 31, 0.18), 0 0 0 1px rgba(0, 0, 0, 0.03);
   padding: 8px 6px;
-  z-index: 1000;
+  z-index: 1060;
   display: flex;
   flex-direction: column;
   animation: menuDropFade 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;

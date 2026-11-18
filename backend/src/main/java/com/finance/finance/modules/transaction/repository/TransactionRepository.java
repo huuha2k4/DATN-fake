@@ -11,6 +11,7 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
@@ -59,8 +60,7 @@ public interface TransactionRepository extends JpaRepository<Transaction, UUID> 
            "AND (:categoryStatus IS NULL OR t.categoryStatus = :categoryStatus) " +
            "AND (CAST(:isExcluded AS boolean) IS NULL OR t.isExcludedFromReport = :isExcluded) " +
            "AND (CAST(:search AS string) IS NULL OR LOWER(COALESCE(t.descriptionRaw, '')) LIKE LOWER(CONCAT('%', CAST(:search AS string), '%')) OR LOWER(COALESCE(t.note, '')) LIKE LOWER(CONCAT('%', CAST(:search AS string), '%'))) " +
-           "AND t.deletedAt IS NULL " +
-           "ORDER BY t.occurredDate DESC, t.occurredAt DESC")
+           "AND t.deletedAt IS NULL")
     Page<Transaction> findWithFilters(
             @Param("userId") UUID userId,
             @Param("fromDate") LocalDate fromDate,
@@ -99,6 +99,7 @@ public interface TransactionRepository extends JpaRepository<Transaction, UUID> 
            "COUNT(t) as transactionCount " +
            "FROM Transaction t " +
            "WHERE t.userId = :userId " +
+           "AND (CAST(:accountId AS java.util.UUID) IS NULL OR t.accountId = :accountId OR t.toAccountId = :accountId) " +
            "AND t.occurredDate BETWEEN :fromDate AND :toDate " +
            "AND (CAST(:isExcluded AS boolean) IS NULL OR t.isExcludedFromReport = :isExcluded) " +
            "AND t.deletedAt IS NULL")
@@ -106,6 +107,7 @@ public interface TransactionRepository extends JpaRepository<Transaction, UUID> 
             @Param("userId") UUID userId,
             @Param("fromDate") LocalDate fromDate,
             @Param("toDate") LocalDate toDate,
+            @Param("accountId") UUID accountId,
             @Param("isExcluded") Boolean isExcluded);
     
     /**
@@ -117,8 +119,10 @@ public interface TransactionRepository extends JpaRepository<Transaction, UUID> 
            "AVG(t.baseAmount) as averageAmount " +
            "FROM Transaction t " +
            "WHERE t.userId = :userId " +
+           "AND (CAST(:accountId AS java.util.UUID) IS NULL OR t.accountId = :accountId OR t.toAccountId = :accountId) " +
            "AND t.type = :type " +
            "AND t.occurredDate BETWEEN :fromDate AND :toDate " +
+           "AND (CAST(:isExcluded AS boolean) IS NULL OR t.isExcludedFromReport = :isExcluded) " +
            "AND t.categoryId IS NOT NULL " +
            "AND t.deletedAt IS NULL " +
            "GROUP BY t.categoryId " +
@@ -127,13 +131,16 @@ public interface TransactionRepository extends JpaRepository<Transaction, UUID> 
             @Param("userId") UUID userId,
             @Param("type") TransactionType type,
             @Param("fromDate") LocalDate fromDate,
-            @Param("toDate") LocalDate toDate);
+            @Param("toDate") LocalDate toDate,
+            @Param("accountId") UUID accountId,
+            @Param("isExcluded") Boolean isExcluded);
     
     /**
      * Find largest expense in date range
      */
     @Query("SELECT t FROM Transaction t " +
            "WHERE t.userId = :userId " +
+           "AND (CAST(:accountId AS java.util.UUID) IS NULL OR t.accountId = :accountId OR t.toAccountId = :accountId) " +
            "AND t.type = 'EXPENSE' " +
            "AND t.occurredDate BETWEEN :fromDate AND :toDate " +
            "AND t.deletedAt IS NULL " +
@@ -142,6 +149,7 @@ public interface TransactionRepository extends JpaRepository<Transaction, UUID> 
             @Param("userId") UUID userId,
             @Param("fromDate") LocalDate fromDate,
             @Param("toDate") LocalDate toDate,
+            @Param("accountId") UUID accountId,
             Pageable pageable);
     
     /**
@@ -195,6 +203,7 @@ public interface TransactionRepository extends JpaRepository<Transaction, UUID> 
            "COUNT(t) as transactionCount " +
            "FROM Transaction t " +
            "WHERE t.userId = :userId " +
+           "AND (CAST(:accountId AS java.util.UUID) IS NULL OR t.accountId = :accountId OR t.toAccountId = :accountId) " +
            "AND t.occurredDate BETWEEN :fromDate AND :toDate " +
            "AND (CAST(:isExcluded AS boolean) IS NULL OR t.isExcludedFromReport = :isExcluded) " +
            "AND t.deletedAt IS NULL " +
@@ -204,6 +213,7 @@ public interface TransactionRepository extends JpaRepository<Transaction, UUID> 
             @Param("userId") UUID userId,
             @Param("fromDate") LocalDate fromDate,
             @Param("toDate") LocalDate toDate,
+            @Param("accountId") UUID accountId,
             @Param("isExcluded") Boolean isExcluded);
 
     /**
@@ -216,6 +226,7 @@ public interface TransactionRepository extends JpaRepository<Transaction, UUID> 
            "COUNT(t) as transactionCount " +
            "FROM Transaction t " +
            "WHERE t.userId = :userId " +
+           "AND (CAST(:accountId AS java.util.UUID) IS NULL OR t.accountId = :accountId OR t.toAccountId = :accountId) " +
            "AND t.occurredDate BETWEEN :fromDate AND :toDate " +
            "AND (CAST(:isExcluded AS boolean) IS NULL OR t.isExcludedFromReport = :isExcluded) " +
            "AND t.deletedAt IS NULL " +
@@ -225,6 +236,7 @@ public interface TransactionRepository extends JpaRepository<Transaction, UUID> 
             @Param("userId") UUID userId,
             @Param("fromDate") LocalDate fromDate,
             @Param("toDate") LocalDate toDate,
+            @Param("accountId") UUID accountId,
             @Param("isExcluded") Boolean isExcluded);
     
     /**
@@ -292,4 +304,46 @@ public interface TransactionRepository extends JpaRepository<Transaction, UUID> 
         @Param("startDate") LocalDate startDate,
         @Param("endDate") LocalDate endDate
     );
+
+    /**
+     * Sum all income transactions in period for an account
+     */
+    @Query("SELECT COALESCE(SUM(t.amount), 0) FROM Transaction t " +
+           "WHERE t.accountId = :accountId " +
+           "AND t.type = 'INCOME' " +
+           "AND t.occurredAt >= :fromInstant " +
+           "AND t.occurredAt < :toInstant " +
+           "AND t.deletedAt IS NULL")
+    BigDecimal sumIncomeInPeriod(@Param("accountId") UUID accountId,
+                                  @Param("fromInstant") Instant fromInstant,
+                                  @Param("toInstant") Instant toInstant);
+
+    /**
+     * Sum all expense transactions in period for an account
+     */
+    @Query("SELECT COALESCE(SUM(t.amount), 0) FROM Transaction t " +
+           "WHERE t.accountId = :accountId " +
+           "AND t.type = 'EXPENSE' " +
+           "AND t.occurredAt >= :fromInstant " +
+           "AND t.occurredAt < :toInstant " +
+           "AND t.deletedAt IS NULL")
+    BigDecimal sumExpenseInPeriod(@Param("accountId") UUID accountId,
+                                   @Param("fromInstant") Instant fromInstant,
+                                   @Param("toInstant") Instant toInstant);
+
+    /**
+     * Sum all transactions (with sign) in period for balance calculation
+     * INCOME adds, EXPENSE subtracts, TRANSFER is neutral for source account
+     */
+    @Query("SELECT COALESCE(SUM(CASE " +
+           "WHEN t.type = 'INCOME' THEN t.amount " +
+           "WHEN t.type = 'EXPENSE' THEN -t.amount " +
+           "ELSE 0 END), 0) FROM Transaction t " +
+           "WHERE t.accountId = :accountId " +
+           "AND t.occurredAt >= :fromInstant " +
+           "AND t.occurredAt < :toInstant " +
+           "AND t.deletedAt IS NULL")
+    BigDecimal sumTransactionsInPeriod(@Param("accountId") UUID accountId,
+                                        @Param("fromInstant") Instant fromInstant,
+                                        @Param("toInstant") Instant toInstant);
 }

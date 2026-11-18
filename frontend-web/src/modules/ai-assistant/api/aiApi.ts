@@ -4,6 +4,22 @@ import { getStoredUser } from '../../auth/api/authApi';
 export interface ChatResponse {
   answer: string;
   status: string;
+  session_id?: string;
+}
+
+export interface ChatSessionItem {
+  id: string;
+  title: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ChatMessageItem {
+  id: string;
+  author: 'assistant' | 'user';
+  text: string;
+  kind?: 'analysis' | 'success' | 'normal';
+  created_at?: string;
 }
 
 export interface RecommendationItem {
@@ -117,13 +133,17 @@ export interface BalanceForecastResponse {
   };
   trend?: string;
   summary: string;
-  historical_data: BalanceForecastPoint[];
-  future_forecast: BalanceForecastPoint[];
+  historical_data?: BalanceForecastPoint[];
+  future_forecast?: BalanceForecastPoint[];
+  historical_points?: BalanceForecastPoint[];
+  forecast_points?: BalanceForecastPoint[];
 }
 
 export interface CategoryForecastResponse {
   status: string;
   category_name: string;
+  category_icon?: string | null;
+  category_color?: string | null;
   days_passed: number;
   days_remaining: number;
   current_spent: number;
@@ -134,6 +154,11 @@ export interface CategoryForecastResponse {
   summary: string;
 }
 
+export interface TopCategoryForecastsResponse {
+  status: string;
+  forecasts: CategoryForecastResponse[];
+}
+
 function getCurrentUserId(userId?: string): string {
   return userId || getStoredUser()?.id || 'b5f7482d-74a0-4582-8fa2-9c586211a583';
 }
@@ -141,17 +166,52 @@ function getCurrentUserId(userId?: string): string {
 /**
  * Gửi câu hỏi đến Trợ lý AI (FinAI Copilot)
  */
-export async function sendChatMessage(question: string, userId?: string): Promise<string> {
+export async function sendChatMessage(question: string, userId?: string, sessionId?: string): Promise<{ answer: string; sessionId?: string }> {
   const currentUserId = getCurrentUserId(userId);
   try {
     const response = await axios.post<ChatResponse>('/api/chat', {
       question,
       user_id: currentUserId,
+      session_id: sessionId,
     });
-    return response.data.answer || 'Xin lỗi, tôi chưa thể trả lời câu hỏi này vào lúc này.';
+    return {
+      answer: response.data.answer || 'Xin lỗi, tôi chưa thể trả lời câu hỏi này vào lúc này.',
+      sessionId: response.data.session_id,
+    };
   } catch (error) {
     console.error('Lỗi khi gọi API AI Chat:', error);
     throw error;
+  }
+}
+
+export async function getChatSessions(userId?: string): Promise<ChatSessionItem[]> {
+  const currentUserId = getCurrentUserId(userId);
+  try {
+    const response = await axios.get<ChatSessionItem[]>('/api/chat/sessions?user_id=' + currentUserId);
+    return response.data || [];
+  } catch (error) {
+    console.error('Lỗi khi lấy lịch sử hội thoại:', error);
+    return [];
+  }
+}
+
+export async function getSessionMessages(sessionId: string): Promise<ChatMessageItem[]> {
+  try {
+    const response = await axios.get<ChatMessageItem[]>('/api/chat/sessions/' + sessionId + '/messages');
+    return response.data || [];
+  } catch (error) {
+    console.error('Lỗi khi lấy tin nhắn session:', error);
+    return [];
+  }
+}
+
+export async function deleteChatSession(sessionId: string): Promise<boolean> {
+  try {
+    await axios.delete('/api/chat/sessions/' + sessionId);
+    return true;
+  } catch (error) {
+    console.error('Lỗi khi xóa session:', error);
+    return false;
   }
 }
 
@@ -199,15 +259,59 @@ export async function getAiRecommendations(userId?: string): Promise<Recommendat
  */
 export async function getBalanceForecast(days: number = 30, userId?: string): Promise<BalanceForecastResponse> {
   const currentUserId = getCurrentUserId(userId);
-  const response = await axios.get<BalanceForecastResponse>(`/api/forecast/balance?user_id=${currentUserId}&days=${days}`);
+  const response = await axios.get<BalanceForecastResponse>(`/api/forecast/balance?user_id=${currentUserId}&days=${days}&refresh=${Date.now()}`, {
+    headers: { 'Cache-Control': 'no-cache' },
+  });
   return response.data;
 }
 
 /**
  * Lấy dự báo chi tiêu cho một danh mục đến cuối tháng (AI 3)
  */
-export async function getCategoryForecast(category: string = 'Ăn uống', userId?: string): Promise<CategoryForecastResponse> {
+export async function getCategoryForecast(category?: string, userId?: string): Promise<CategoryForecastResponse> {
   const currentUserId = getCurrentUserId(userId);
-  const response = await axios.get<CategoryForecastResponse>(`/api/forecast/category?user_id=${currentUserId}&category=${encodeURIComponent(category)}`);
+  const categoryQuery = category ? `&category=${encodeURIComponent(category)}` : '';
+  const response = await axios.get<CategoryForecastResponse>(`/api/forecast/category?user_id=${currentUserId}${categoryQuery}&refresh=${Date.now()}`, {
+    headers: { 'Cache-Control': 'no-cache' },
+  });
+  return response.data;
+}
+
+export async function getTopCategoryForecasts(limit: number = 3, userId?: string): Promise<TopCategoryForecastsResponse> {
+  const currentUserId = getCurrentUserId(userId);
+  const response = await axios.get<TopCategoryForecastsResponse>(
+    `/api/forecast/categories?user_id=${currentUserId}&limit=${limit}&refresh=${Date.now()}`,
+    { headers: { 'Cache-Control': 'no-cache' } },
+  );
+  return response.data;
+}
+
+
+export interface GoalForecastItem {
+  goal_id: string;
+  name: string;
+  target_amount: number;
+  current_amount: number;
+  progress_pct: number;
+  remaining_amount: number;
+  months_needed: number;
+  estimated_completion_month: string;
+}
+
+export interface GoalForecastResponse {
+  status: string;
+  estimated_monthly_saving: number;
+  goals: GoalForecastItem[];
+  summary: string;
+}
+
+/**
+ * Lấy dự báo tiến độ hoàn thành các mục tiêu tài chính từ AI
+ */
+export async function getGoalsForecast(userId?: string): Promise<GoalForecastResponse> {
+  const currentUserId = getCurrentUserId(userId);
+  const response = await axios.get<GoalForecastResponse>(`/api/forecast/goals?user_id=${currentUserId}&refresh=${Date.now()}`, {
+    headers: { 'Cache-Control': 'no-cache' },
+  });
   return response.data;
 }

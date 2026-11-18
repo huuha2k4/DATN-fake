@@ -677,27 +677,150 @@ def read_root():
         }
     )
 
+import uuid
+from datetime import datetime
+from database import SessionLocal, AIChatSession, AIChatMessage, User
+
 class ChatRequest(BaseModel):
     question: str
     user_id: Optional[str] = "test_user_01"
+    session_id: Optional[str] = None
 
 class ChatResponse(BaseModel):
     answer: str
     status: str
+    session_id: Optional[str] = None
+
+@app.get("/api/chat/sessions")
+def get_user_chat_sessions(user_id: str = "test_user_01"):
+    """Lấy danh sách các cuộc trò chuyện của user từ database"""
+    user_id = resolve_user_id(user_id)
+    db = SessionLocal()
+    try:
+        sessions = db.query(AIChatSession).filter(AIChatSession.user_id == user_id).order_by(AIChatSession.updated_at.desc()).all()
+        return [
+            {
+                "id": str(s.id),
+                "title": s.title,
+                "created_at": s.created_at.isoformat() if s.created_at else None,
+                "updated_at": s.updated_at.isoformat() if s.updated_at else None
+            }
+            for s in sessions
+        ]
+    finally:
+        db.close()
+
+@app.get("/api/chat/sessions/{session_id}/messages")
+def get_session_messages(session_id: str):
+    """Lấy toàn bộ tin nhắn trong một cuộc trò chuyện từ database"""
+    db = SessionLocal()
+    try:
+        messages = db.query(AIChatMessage).filter(AIChatMessage.session_id == session_id).order_by(AIChatMessage.created_at.asc()).all()
+        return [
+            {
+                "id": str(m.id),
+                "author": m.author,
+                "text": m.text,
+                "kind": m.kind,
+                "created_at": m.created_at.isoformat() if m.created_at else None
+            }
+            for m in messages
+        ]
+    finally:
+        db.close()
+
+@app.delete("/api/chat/sessions/{session_id}")
+def delete_chat_session(session_id: str):
+    """Xóa một cuộc trò chuyện"""
+    db = SessionLocal()
+    try:
+        sess = db.query(AIChatSession).filter(AIChatSession.id == session_id).first()
+        if sess:
+            db.delete(sess)
+            db.commit()
+            return {"status": "success", "message": "Đã xóa cuộc trò chuyện"}
+        return {"status": "error", "message": "Không tìm thấy session"}
+    finally:
+        db.close()
 
 @app.post("/api/chat", response_model=ChatResponse)
 async def chat_with_ai(request: ChatRequest):
     """
-    Endpoint Chatbot AI: Nhận câu hỏi ngôn ngữ tự nhiên từ người dùng,
-    tự động gọi tools truy vấn dữ liệu chi tiêu / ngân sách / số dư và trả lời.
+    Endpoint Chatbot AI: Nhận câu hỏi, gọi tools truy vấn dữ liệu chi tiêu / ngân sách / số dư,
+    và LƯU TRỰC TIẾP LỊCH SỬ VÀO DATABASE POSTGRESQL.
     """
     user_id = resolve_user_id(request.user_id)
-    answer = run_chat(question=request.question, user_id=user_id)
-    return ChatResponse(
-        answer=answer,
-        status="success"
-    )
+    session_id = request.session_id
 
+    db = SessionLocal()
+    try:
+        # 1. Tìm hoặc tạo mới Chat Session trong DB
+        session_obj = None
+        if session_id:
+            session_obj = db.query(AIChatSession).filter(AIChatSession.id == session_id).first()
+        
+        if not session_obj:
+            new_title = request.question[:50] + ("..." if len(request.question) > 50 else "")
+            session_obj = AIChatSession(
+                id=str(uuid.uuid4()),
+                user_id=user_id,
+                title=new_title,
+                created_at=datetime.utcnow(),
+                updated_at=datetime.utcnow()
+            )
+            db.add(session_obj)
+            db.commit()
+            db.refresh(session_obj)
+        
+        session_id = str(session_obj.id)
+
+        # 2. Lưu tin nhắn của User vào DB
+        user_msg = AIChatMessage(
+            id=str(uuid.uuid4()),
+            session_id=session_id,
+            author="user",
+            text=request.question,
+            kind="normal",
+            created_at=datetime.utcnow()
+        )
+        db.add(user_msg)
+        session_obj.updated_at = datetime.utcnow()
+        db.commit()
+
+        # 3. Chạy AI suy luận & gọi tools
+        history_messages = db.query(AIChatMessage).filter(
+            AIChatMessage.session_id == session_id,
+            AIChatMessage.id != user_msg.id
+        ).order_by(AIChatMessage.created_at.desc()).limit(12).all()
+        conversation_history = [
+            ("assistant" if message.author == "assistant" else "user", message.text)
+            for message in reversed(history_messages)
+        ]
+        answer = run_chat(
+            question=request.question,
+            user_id=user_id,
+            conversation_history=conversation_history,
+        )
+
+        # 4. Lưu câu trả lời của AI vào DB
+        ai_msg = AIChatMessage(
+            id=str(uuid.uuid4()),
+            session_id=session_id,
+            author="assistant",
+            text=answer,
+            kind="analysis",
+            created_at=datetime.utcnow()
+        )
+        db.add(ai_msg)
+        db.commit()
+
+        return ChatResponse(
+            answer=answer,
+            status="success",
+            session_id=session_id
+        )
+    finally:
+        db.close()
 # --- CÁC ENDPOINT AI 3 (DỰ BÁO TÀI CHÍNH) ---
 from forecaster import (
     forecast_balance,
@@ -724,12 +847,44 @@ def api_forecast_spending(user_id: str = "test_user_01", days: int = 30):
     return forecast_spending(user_id=user_id, horizon_days=days)
 
 @app.get("/api/forecast/category")
-def api_forecast_category(user_id: str = "test_user_01", category: str = "Ăn uống"):
+def api_forecast_category(user_id: str = "test_user_01", category: Optional[str] = None):
     """
     API Dự báo tổng chi tiêu cho một danh mục đến cuối tháng và đối chiếu ngân sách.
     """
     user_id = resolve_user_id(user_id)
     return forecast_category_spending(user_id=user_id, category_name=category)
+
+@app.get("/api/forecast/categories")
+def api_top_category_forecasts(user_id: str = "test_user_01", limit: int = 3):
+    """Return forecasts for the user's top spending categories this month."""
+    from sqlalchemy import func
+    from datetime import date, datetime
+    from database import Transaction, Category
+
+    user_id = resolve_user_id(user_id)
+    today = date.today()
+    month_start = datetime(today.year, today.month, 1)
+    db = SessionLocal()
+    try:
+        category_ids = [row[0] for row in (
+            db.query(Transaction.category_id)
+            .filter(Transaction.user_id == user_id, Transaction.type == "EXPENSE",
+                    Transaction.occurred_at >= month_start)
+            .group_by(Transaction.category_id)
+            .order_by(func.sum(Transaction.amount).desc())
+            .limit(max(1, min(limit, 6)))
+            .all()
+        )]
+        categories = db.query(Category).filter(Category.id.in_(category_ids)).all() if category_ids else []
+        names_by_id = {category.id: category.name for category in categories}
+        forecasts = [
+            forecast_category_spending(user_id=user_id, category_id=category_id)
+            for category_id in category_ids if category_id in names_by_id
+        ]
+        forecasts = [forecast for forecast in forecasts if forecast.get("current_spent", 0) > 0]
+        return {"status": "success", "forecasts": forecasts}
+    finally:
+        db.close()
 
 @app.get("/api/forecast/goals")
 def api_forecast_goals(user_id: str = "test_user_01", goal_name: Optional[str] = None):
@@ -802,3 +957,73 @@ def api_get_recommendations(user_id: str = "test_user_01"):
 
 
 
+
+@app.get("/api/ai/admin/stats")
+def get_ai_admin_stats():
+    """Endpoint quản trị AI: Trả về trạng thái mô hình, số liệu chat sessions, thông số LLM"""
+    import os
+    db = SessionLocal()
+    try:
+        total_sessions = db.query(AIChatSession).count()
+        total_messages = db.query(AIChatMessage).count()
+        recent_sessions = db.query(AIChatSession).order_by(AIChatSession.updated_at.desc()).limit(10).all()
+
+        current_model = os.getenv("LOCAL_MODEL_NAME", "gemini-flash-lite-latest") if os.getenv("USE_LOCAL_LLM", "false").lower() == "true" else "gemini-flash-lite-latest"
+        provider = "Ollama (Local LLM)" if os.getenv("USE_LOCAL_LLM", "false").lower() == "true" else "Google Gemini API"
+
+        sessions_data = []
+        for s in recent_sessions:
+            msg_count = db.query(AIChatMessage).filter(AIChatMessage.session_id == s.id).count()
+            user_obj = db.query(User).filter(User.id == s.user_id).first()
+            sessions_data.append({
+                "id": str(s.id),
+                "title": s.title,
+                "userId": str(s.user_id),
+                "userName": user_obj.full_name if user_obj and user_obj.full_name else (user_obj.email if user_obj else "Người dùng"),
+                "userEmail": user_obj.email if user_obj else "N/A",
+                "messageCount": msg_count,
+                "createdAt": s.created_at.isoformat() if s.created_at else None,
+                "updatedAt": s.updated_at.isoformat() if s.updated_at else None
+            })
+
+        return {
+            "status": "HEALTHY",
+            "provider": provider,
+            "activeModel": current_model,
+            "temperature": 0.2,
+            "totalSessions": total_sessions,
+            "totalMessages": total_messages,
+            "algorithms": [
+                {
+                    "name": "FinAI Chatbot Copilot",
+                    "type": "LLM ReAct Agent + Function Calling",
+                    "engine": "LangChain + Gemini Flash-Lite",
+                    "status": "ONLINE",
+                    "desc": "Tự động gọi công cụ truy vấn Database thời gian thực"
+                },
+                {
+                    "name": "Financial Forecaster",
+                    "type": "Time Series Forecasting",
+                    "engine": "Facebook Prophet",
+                    "status": "ONLINE",
+                    "desc": "Dự phóng dòng tiền & số dư tài khoản đến cuối tháng"
+                },
+                {
+                    "name": "Anomaly Detector",
+                    "type": "Unsupervised Machine Learning",
+                    "engine": "Isolation Forest (Scikit-Learn)",
+                    "status": "ONLINE",
+                    "desc": "Phát hiện giao dịch chi tiêu bất thường theo thời gian thực"
+                },
+                {
+                    "name": "Behavior Profiler & Persona",
+                    "type": "Statistical Rule Engine",
+                    "engine": "50/30/20 Rule + Radar Scoring",
+                    "status": "ONLINE",
+                    "desc": "Phân tích thói quen và chấm điểm phong cách tài chính"
+                }
+            ],
+            "recentSessions": sessions_data
+        }
+    finally:
+        db.close()

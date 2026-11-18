@@ -187,15 +187,15 @@
    ======================================================== */
 /* 1. Nền trang chính */
 html.dark .financial-schedule-page {
-  background-color: #060e15 !important;
+  background-color: #081622 !important;
   color: #cbd5e1 !important;
 }
 
 /* 2. Các thẻ thống kê & Card chung */
 html.dark .schedule-stat-card,
 html.dark .schedule-row-card {
-  background-color: #0a1722 !important;
-  border-color: #122432 !important;
+  background-color: #0e2333 !important;
+  border-color: #173852 !important;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4) !important;
   color: #cbd5e1 !important;
 }
@@ -245,8 +245,8 @@ html.dark .schedule-hero-card {
 /* 3. Khối điều khiển Toolbar & Quick Presets */
 html.dark .financial-schedule-page section.rounded-2xl.border,
 html.dark .financial-schedule-page div.rounded-2xl.border {
-  background-color: #0a1722 !important;
-  border-color: #122432 !important;
+  background-color: #0e2333 !important;
+  border-color: #173852 !important;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4) !important;
 }
 
@@ -303,7 +303,7 @@ html.dark .financial-schedule-page .text-\[\#07543f\] {
 }
 
 html.dark .calendar-cell {
-  border-color: #122432 !important;
+  border-color: #173852 !important;
   background-color: #091520 !important;
   color: #cbd5e1 !important;
 }
@@ -382,7 +382,7 @@ html.dark aside .bg-\[\#f8faf9\] {
 
 /* 6. Modal / Popup Dialog */
 html.dark .modal-backdrop-blur > div {
-  background-color: #0a1722 !important;
+  background-color: #0e2333 !important;
   border: 1px solid #16364a !important;
   color: #cbd5e1 !important;
 }

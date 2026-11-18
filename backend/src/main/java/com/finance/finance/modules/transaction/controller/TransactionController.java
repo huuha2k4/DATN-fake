@@ -1,5 +1,6 @@
 package com.finance.finance.modules.transaction.controller;
 
+import com.finance.finance.common.annotation.Idempotent;
 import com.finance.finance.modules.transaction.dto.request.*;
 import com.finance.finance.modules.transaction.dto.response.*;
 import com.finance.finance.modules.transaction.service.TransactionService;
@@ -32,14 +33,18 @@ public class TransactionController {
     /**
      * POST /api/v1/transactions
      * Create a new transaction (INCOME, EXPENSE, or TRANSFER)
+     * Idempotent: Use Idempotency-Key header to prevent duplicates
      */
+    @Idempotent(resourceType = "transaction")
     @PostMapping
     public ResponseEntity<TransactionResponse> createTransaction(
             @AuthenticationPrincipal User user,
+            @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey,
             @Valid @RequestBody CreateTransactionRequest request) {
         
         UUID userId = user.getId();
-        log.info("POST /transactions - user: {}, type: {}", userId, request.getTransactionType());
+        log.info("POST /transactions - user: {}, type: {}, idempotency-key: {}", 
+                userId, request.getTransactionType(), idempotencyKey);
         
         TransactionResponse response = transactionService.createTransaction(userId, request);
         
@@ -200,10 +205,10 @@ public class TransactionController {
             @RequestParam(required = false) String currencyCode) {
         
         UUID userId = user.getId();
-        log.debug("GET /transactions/summary - user: {}, from: {}, to: {}", userId, fromDate, toDate);
+        log.debug("GET /transactions/summary - user: {}, from: {}, to: {}, account: {}", userId, fromDate, toDate, accountId);
         
         TransactionSummaryResponse response = transactionService.getTransactionSummary(
-                userId, fromDate, toDate, groupBy);
+                userId, fromDate, toDate, groupBy, accountId);
         
         return ResponseEntity.ok(response);
     }
@@ -262,16 +267,17 @@ public class TransactionController {
      * Upload attachment for transaction
      * TODO: Implement file upload with multipart/form-data
      */
-    @PostMapping("/{id}/attachments")
-    public ResponseEntity<Void> uploadAttachment(
+    @PostMapping(value = "/{id}/attachments", consumes = org.springframework.http.MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<TransactionResponse> uploadAttachment(
             @AuthenticationPrincipal User user,
-            @PathVariable UUID id) {
-        
+            @PathVariable UUID id,
+            @RequestParam("file") org.springframework.web.multipart.MultipartFile file) throws java.io.IOException {
+
         UUID userId = user.getId();
-        log.info("POST /transactions/{}/attachments - user: {}", id, userId);
-        
-        // TODO: Implement attachment upload
-        return ResponseEntity.status(HttpStatus.NOT_IMPLEMENTED).build();
+        log.info("POST /transactions/{}/attachments - user: {}, file: {}", id, userId, file.getOriginalFilename());
+
+        TransactionResponse response = transactionService.uploadAttachment(userId, id, file);
+        return ResponseEntity.ok(response);
     }
     
     /**

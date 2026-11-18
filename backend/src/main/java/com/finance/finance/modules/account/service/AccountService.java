@@ -2,6 +2,7 @@ package com.finance.finance.modules.account.service;
 
 import com.finance.finance.common.enums.AccountType;
 import com.finance.finance.common.enums.TransactionType;
+import com.finance.finance.common.exception.BusinessException;
 import com.finance.finance.modules.account.dto.request.AdjustBalanceRequest;
 import com.finance.finance.modules.account.dto.request.CreateAccountRequest;
 import com.finance.finance.modules.account.dto.request.UpdateAccountRequest;
@@ -13,6 +14,9 @@ import com.finance.finance.modules.account.exception.DuplicateAccountNameExcepti
 import com.finance.finance.modules.account.repository.AccountRepository;
 import com.finance.finance.modules.transaction.entity.Transaction;
 import com.finance.finance.modules.transaction.repository.TransactionRepository;
+import com.finance.finance.modules.group.repository.ChildWalletRepository;
+import com.finance.finance.modules.system.repository.BankRepository;
+import com.finance.finance.modules.system.entity.Bank;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -21,6 +25,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.text.NumberFormat;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
@@ -34,6 +39,10 @@ public class AccountService {
 
     private final AccountRepository accountRepository;
     private final TransactionRepository transactionRepository;
+    private final ChildWalletRepository childWalletRepository;
+    private final com.finance.finance.modules.user.repository.UserRepository userRepository;
+    private final com.finance.finance.modules.admin.service.SystemConfigService systemConfigService;
+    private final BankRepository bankRepository;
 
     /**
      * Lấy danh sách các loại ví / tài khoản và cấu hình trường nhập liệu
@@ -108,7 +117,20 @@ public class AccountService {
      */
     @Transactional
     public AccountResponse createAccount(UUID userId, CreateAccountRequest request) {
+        if (childWalletRepository.findByUserId(userId).isPresent()) {
+            throw new BusinessException("Tài khoản trẻ em chỉ sử dụng ví do phụ huynh tạo, không thể thêm ví riêng");
+        }
         log.info("Creating account for user: {}, name: {}", userId, request.getName());
+
+        // Kiểm tra hạn mức số ví tối đa cho gói FREE
+        com.finance.finance.modules.user.entity.User user = userRepository.findById(userId).orElse(null);
+        if (user != null && user.getSubscriptionTier() == com.finance.finance.common.enums.SubscriptionTier.FREE) {
+            int maxWallets = systemConfigService.getInt("FREE_TIER_MAX_WALLETS", 3);
+            long currentWalletCount = accountRepository.findAllByUserId(userId).size();
+            if (currentWalletCount >= maxWallets) {
+                throw new BusinessException("Gói Miễn phí chỉ cho phép tạo tối đa " + maxWallets + " ví. Vui lòng nâng cấp lên gói Premium để tạo ví không giới hạn!");
+            }
+        }
 
         // Validate duplicate name
         if (accountRepository.existsByNameAndUserId(request.getName(), userId, null)) {
@@ -477,16 +499,37 @@ public class AccountService {
                     .build());
         }
 
-        // Calculate summary
+        // Calculate summary with actual data
         BigDecimal endingBalance = account.getBalance();
+        
+        // Calculate income and expense in this period
+        Instant fromInstant = fromDate.atStartOfDay().atZone(java.time.ZoneId.systemDefault()).toInstant();
+        Instant toInstant = toDate.plusDays(1).atStartOfDay().atZone(java.time.ZoneId.systemDefault()).toInstant();
+        
+        BigDecimal totalIncome = transactionRepository.sumIncomeInPeriod(accountId, fromInstant, toInstant);
+        BigDecimal totalExpense = transactionRepository.sumExpenseInPeriod(accountId, fromInstant, toInstant);
+        
+        // Find highest and lowest balance from history
+        BigDecimal highestBalance = startingBalance;
+        BigDecimal lowestBalance = startingBalance;
+        
+        for (BalanceHistoryResponse.BalancePoint point : balancePoints) {
+            if (point.getBalance().compareTo(highestBalance) > 0) {
+                highestBalance = point.getBalance();
+            }
+            if (point.getBalance().compareTo(lowestBalance) < 0) {
+                lowestBalance = point.getBalance();
+            }
+        }
+        
         BalanceHistoryResponse.HistorySummary summary = BalanceHistoryResponse.HistorySummary.builder()
                 .startingBalance(startingBalance)
                 .endingBalance(endingBalance)
                 .netChange(endingBalance.subtract(startingBalance))
-                .totalIncome(BigDecimal.ZERO) // TODO
-                .totalExpense(BigDecimal.ZERO) // TODO
-                .highestBalance(startingBalance) // TODO
-                .lowestBalance(startingBalance) // TODO
+                .totalIncome(totalIncome != null ? totalIncome : BigDecimal.ZERO)
+                .totalExpense(totalExpense != null ? totalExpense : BigDecimal.ZERO)
+                .highestBalance(highestBalance)
+                .lowestBalance(lowestBalance)
                 .build();
 
         return BalanceHistoryResponse.builder()
@@ -533,11 +576,13 @@ public class AccountService {
 
         // Add bank info if available
         if (account.getBankId() != null) {
-            builder.bank(AccountResponse.BankInfo.builder()
-                    .id(account.getBankId().toString())
-                    .name(account.getBankId().toString()) // TODO: Get from bank service
-                    .logoUrl(null) // TODO: Get from bank service
-                    .build());
+            bankRepository.findById(account.getBankId()).ifPresent(bank -> 
+                builder.bank(AccountResponse.BankInfo.builder()
+                        .id(bank.getId().toString())
+                        .name(bank.getShortName() != null ? bank.getShortName() : bank.getName())
+                        .logoUrl(bank.getLogoUrl())
+                        .build())
+            );
         }
 
         // Add credit card specific fields
@@ -590,7 +635,23 @@ public class AccountService {
     }
 
     private BigDecimal calculateBalanceAtDate(Account account, LocalDate date) {
-        // TODO: Calculate balance at specific date by summing transactions
-        return account.getBalance();
+        // Calculate balance at specific date by summing all transactions before that date
+        LocalDate today = LocalDate.now();
+        
+        // If date is today or future, return current balance
+        if (!date.isBefore(today)) {
+            return account.getBalance();
+        }
+        
+        // Calculate transactions from date until today
+        Instant dateStart = date.atStartOfDay().atZone(java.time.ZoneId.systemDefault()).toInstant();
+        Instant todayStart = today.atStartOfDay().atZone(java.time.ZoneId.systemDefault()).toInstant();
+        
+        // Sum all transactions between date and today
+        BigDecimal transactionSum = transactionRepository.sumTransactionsInPeriod(
+                account.getId(), dateStart, todayStart);
+        
+        // Balance at date = current balance - sum of transactions since then
+        return account.getBalance().subtract(transactionSum != null ? transactionSum : BigDecimal.ZERO);
     }
 }

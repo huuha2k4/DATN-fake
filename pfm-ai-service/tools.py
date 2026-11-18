@@ -3,7 +3,7 @@ from datetime import datetime, date
 from typing import Optional
 from sqlalchemy import func, extract
 from langchain_core.tools import tool
-from database import SessionLocal, Account, Transaction, Category, Budget, BudgetItem, User, resolve_user_id
+from database import SessionLocal, Account, Transaction, Category, Budget, BudgetItem, User, ChildWallet, ChildSpendRequest, GroupMember, resolve_user_id
 
 @tool
 def get_account_balances(user_id: str = "test_user_01") -> str:
@@ -14,15 +14,40 @@ def get_account_balances(user_id: str = "test_user_01") -> str:
     db = SessionLocal()
     try:
         user_id = resolve_user_id(user_id, db)
+        # Kiểm tra xem người dùng có phải là tài khoản trẻ em (Child Wallet) không
+        child_wallet = db.query(ChildWallet).filter(ChildWallet.user_id == user_id).first()
         accounts = db.query(Account).filter(Account.user_id == user_id).all()
-        if not accounts:
-            return "Không tìm thấy tài khoản nào của người dùng."
         
-        result = ["Danh sách tài khoản và số dư:"]
+        if not accounts and not child_wallet:
+            return "Không tìm thấy tài khoản hay ví nào của người dùng."
+        
+        result = ["Danh sách tài khoản/ví và số dư:"]
         total = 0.0
+
+        if child_wallet:
+            bal = float(child_wallet.balance or 0.0)
+            result.append(f"- Ví của em ({child_wallet.child_name}): {bal:,.0f} {child_wallet.currency or 'VND'}")
+            if child_wallet.weekly_allowance:
+                result.append(f"  (Tiền tiêu vặt tuần: {float(child_wallet.weekly_allowance):,.0f} VND)")
+            total += bal
+
         for acc in accounts:
             result.append(f"- {acc.name} ({acc.type}): {acc.current_balance:,.0f} {acc.currency_code}")
             total += acc.current_balance
+
+        # Nếu là tài khoản phụ huynh (có quản lý ví của bé trong nhóm gia đình)
+        parent_groups = db.query(GroupMember.group_id).filter(GroupMember.user_id == user_id).all()
+        group_ids = [g[0] for g in parent_groups]
+        if group_ids:
+            managed_kids = db.query(ChildWallet).filter(ChildWallet.group_id.in_(group_ids), ChildWallet.user_id != user_id).all()
+            if managed_kids:
+                result.append("\n👶 Ví của con (thuộc nhóm gia đình quản lý):")
+                for kw in managed_kids:
+                    k_bal = float(kw.balance or 0.0)
+                    result.append(f"- Ví của bé {kw.child_name}: {k_bal:,.0f} {kw.currency or 'VND'}")
+                    if kw.weekly_allowance:
+                        result.append(f"  (Hạn mức/Tiêu vặt tuần: {float(kw.weekly_allowance):,.0f} VND)")
+
         result.append(f"=> Tổng tài sản hiện có: {total:,.0f} VND")
         return "\n".join(result)
     finally:
@@ -38,6 +63,49 @@ def get_spending_by_category(month: int, year: int, user_id: str = "test_user_01
     db = SessionLocal()
     try:
         user_id = resolve_user_id(user_id, db)
+        child_wallet = db.query(ChildWallet).filter(ChildWallet.user_id == user_id).first()
+        if child_wallet:
+            reqs = (
+                db.query(ChildSpendRequest)
+                .filter(
+                    ChildSpendRequest.wallet_id == child_wallet.id,
+                    ChildSpendRequest.status == "APPROVED",
+                    extract("month", ChildSpendRequest.created_at) == month,
+                    extract("year", ChildSpendRequest.created_at) == year
+                )
+                .all()
+            )
+            if not reqs:
+                return f"Ví của em ({child_wallet.child_name}) không có dữ liệu chi tiêu trong tháng {month}/{year}."
+            
+            exp_total = 0.0
+            inc_total = 0.0
+            cat_map = {}
+            for r in reqs:
+                desc = r.description or ""
+                amt = float(r.amount or 0.0)
+                is_inc = desc.startswith("[INCOME_DEPOSIT] ") or desc.startswith("[INCOME_CHORE] ") or desc.startswith("[INCOME_GIFT] ") or desc.startswith("[MONEY_REQUEST] ")
+                if is_inc:
+                    inc_total += amt
+                else:
+                    exp_total += amt
+                    # Tìm tên category
+                    cat_name = "Ăn uống / Mua sắm"
+                    if r.category_id:
+                        c_obj = db.query(Category).filter(Category.id == str(r.category_id)).first()
+                        if c_obj: cat_name = c_obj.name
+                    cat_map[cat_name] = cat_map.get(cat_name, 0.0) + amt
+
+            lines = [f"Báo cáo ví của em ({child_wallet.child_name}) tháng {month}/{year}:"]
+            lines.append(f"- Tổng tiền nhận được (thu): +{inc_total:,.0f} VND")
+            lines.append(f"- Tổng tiền đã tiêu (chi): -{exp_total:,.0f} VND")
+            if cat_map:
+                lines.append("Chi tiết các khoản chi:")
+                for c_name, c_amt in sorted(cat_map.items(), key=lambda x: x[1], reverse=True):
+                    pct = (c_amt / exp_total) * 100 if exp_total > 0 else 0
+                    lines.append(f"  • {c_name}: {c_amt:,.0f} VND ({pct:.1f}%)")
+            return "\n".join(lines)
+
         query = (
             db.query(
                 Category.name,
@@ -126,6 +194,39 @@ def get_recent_transactions(limit: int = 5, user_id: str = "test_user_01") -> st
     db = SessionLocal()
     try:
         user_id = resolve_user_id(user_id, db)
+        child_wallet = db.query(ChildWallet).filter(ChildWallet.user_id == user_id).first()
+        
+        # Nếu là tài khoản trẻ em, ưu tiên đọc từ bảng child_spend_requests
+        if child_wallet:
+            reqs = (
+                db.query(ChildSpendRequest)
+                .filter(ChildSpendRequest.wallet_id == child_wallet.id, ChildSpendRequest.status == "APPROVED")
+                .order_by(ChildSpendRequest.created_at.desc())
+                .limit(limit)
+                .all()
+            )
+            if not reqs:
+                return f"Ví của em ({child_wallet.child_name}) chưa có giao dịch nào gần đây."
+            lines = [f"{len(reqs)} hoạt động gần đây của Ví của em ({child_wallet.child_name}):"]
+            for r in reqs:
+                d_str = r.created_at.strftime('%d/%m/%Y') if r.created_at else "Gần đây"
+                desc = r.description or "Giao dịch"
+                is_deposit = desc.startswith("[INCOME_DEPOSIT] ")
+                is_chore = desc.startswith("[INCOME_CHORE] ")
+                is_gift = desc.startswith("[INCOME_GIFT] ")
+                is_money = desc.startswith("[MONEY_REQUEST] ")
+                income = is_deposit or is_chore or is_gift or is_money
+                
+                clean_title = desc
+                if is_deposit: clean_title = f"Bố/mẹ nạp ví: {desc.replace('[INCOME_DEPOSIT] ', '')}"
+                elif is_chore: clean_title = f"Thưởng nhiệm vụ: {desc.replace('[INCOME_CHORE] ', '')}"
+                elif is_gift: clean_title = desc.replace('[INCOME_GIFT] ', '')
+                elif is_money: clean_title = f"Bố/mẹ cấp tiền: {desc.replace('[MONEY_REQUEST] ', '')}"
+                
+                sign = "+" if income else "-"
+                lines.append(f"- [{d_str}] {clean_title}: {sign}{float(r.amount):,.0f} VND")
+            return "\n".join(lines)
+
         txs = (
             db.query(Transaction)
             .filter(Transaction.user_id == user_id)
@@ -447,7 +548,71 @@ def get_financial_recommendations(user_id: str = "test_user_01") -> str:
         lines.append("")
     return "\n".join(lines)
 
+@tool
+def get_child_wallet_info(user_id: str = "test_user_01") -> str:
+    """
+    Tra cứu thông tin chi tiết về Ví của con/bé (số dư ví bé, các khoản chi tiêu gần đây của bé,
+    các yêu cầu xin tiền/tiêu vặt đang chờ duyệt, tiền tiêu vặt tuần).
+    Dùng khi người dùng (bố mẹ hoặc chính bé) hỏi:
+    - 'Ví của con/bé còn bao nhiêu tiền?'
+    - 'Tình hình chi tiêu của bé gần đây'
+    - 'Bé có xin tiền gì không?'
+    - 'Ví của em còn bao nhiêu?'
+    """
+    db = SessionLocal()
+    try:
+        user_id = resolve_user_id(user_id, db)
+        # 1. Tìm xem chính user có phải là bé không
+        direct_wallet = db.query(ChildWallet).filter(ChildWallet.user_id == user_id).first()
+        wallets_to_check = [direct_wallet] if direct_wallet else []
+
+        # 2. Nếu không, tìm các ví con thuộc nhóm gia đình mà user làm thành viên/quản lý
+        if not wallets_to_check:
+            parent_groups = db.query(GroupMember.group_id).filter(GroupMember.user_id == user_id).all()
+            group_ids = [g[0] for g in parent_groups]
+            if group_ids:
+                wallets_to_check = db.query(ChildWallet).filter(ChildWallet.group_id.in_(group_ids)).all()
+
+        if not wallets_to_check:
+            return "Không tìm thấy thông tin ví của bé trong tài khoản hoặc nhóm gia đình của bạn."
+
+        output = []
+        for kw in wallets_to_check:
+            bal = float(kw.balance or 0.0)
+            output.append(f"👶 THÔNG TIN VÍ CỦA BÉ: {kw.child_name}")
+            output.append(f"- Số dư hiện tại: {bal:,.0f} {kw.currency or 'VND'}")
+            if kw.weekly_allowance:
+                output.append(f"- Tiền tiêu vặt định kỳ tuần: {float(kw.weekly_allowance):,.0f} VND")
+            
+            # Lấy 5 hoạt động gần nhất
+            reqs = (
+                db.query(ChildSpendRequest)
+                .filter(ChildSpendRequest.wallet_id == kw.id)
+                .order_by(ChildSpendRequest.created_at.desc())
+                .limit(5)
+                .all()
+            )
+            if reqs:
+                output.append("- Hoạt động & yêu cầu gần nhất:")
+                for r in reqs:
+                    d_str = r.created_at.strftime('%d/%m/%Y') if r.created_at else "Gần đây"
+                    stt = "Đã duyệt" if r.status == "APPROVED" else ("Chờ duyệt" if r.status == "PENDING" else "Từ chối")
+                    desc = r.description or "Giao dịch"
+                    if desc.startswith("[INCOME_DEPOSIT] "): desc = f"Bố/mẹ nạp ví: {desc.replace('[INCOME_DEPOSIT] ', '')}"
+                    elif desc.startswith("[INCOME_CHORE] "): desc = f"Thưởng việc nhà: {desc.replace('[INCOME_CHORE] ', '')}"
+                    elif desc.startswith("[INCOME_GIFT] "): desc = desc.replace('[INCOME_GIFT] ', '')
+                    elif desc.startswith("[MONEY_REQUEST] "): desc = f"Xin tiền: {desc.replace('[MONEY_REQUEST] ', '')}"
+                    output.append(f"  • [{d_str}] {desc}: {float(r.amount):,.0f} VND [{stt}]")
+            else:
+                output.append("- Chưa có hoạt động chi tiêu nào gần đây.")
+            output.append("")
+
+        return "\n".join(output).strip()
+    finally:
+        db.close()
+
 ALL_TOOLS = [
+    get_child_wallet_info,
     get_account_balances,
     get_spending_by_category,
     get_budget_status,

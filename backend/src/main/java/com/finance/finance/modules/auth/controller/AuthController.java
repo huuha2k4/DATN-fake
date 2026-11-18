@@ -17,6 +17,7 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -29,6 +30,31 @@ import java.util.Map;
 public class AuthController {
 
     private final AuthService authService;
+
+    /**
+     * Send OTP for email verification before registration
+     * POST /api/v1/auth/send-register-otp
+     */
+    @PostMapping("/send-register-otp")
+    public ResponseEntity<Map<String, Object>> sendRegisterOtp(@RequestBody Map<String, String> body) {
+        String email = body.get("email");
+        log.info("Send register OTP request received for email: {}", email);
+
+        if (email == null || email.isBlank()) {
+            Map<String, Object> errResponse = new HashMap<>();
+            errResponse.put("success", false);
+            errResponse.put("message", "Vui lòng nhập email hợp lệ");
+            return ResponseEntity.badRequest().body(errResponse);
+        }
+
+        MessageResponse messageResponse = authService.sendRegistrationOtp(email);
+
+        Map<String, Object> response = new HashMap<>();
+        response.put("success", true);
+        response.put("message", messageResponse.getMessage());
+
+        return ResponseEntity.ok(response);
+    }
 
     /**
      * Register a new user
@@ -68,6 +94,26 @@ public class AuthController {
     }
 
     /**
+     * Login or Register with Google ID Token
+     * POST /api/v1/auth/google
+     */
+    @PostMapping("/google")
+    public ResponseEntity<Map<String, Object>> loginWithGoogle(
+            @Valid @RequestBody com.finance.finance.modules.auth.dto.request.GoogleAuthRequest request,
+            HttpServletRequest httpRequest) {
+        log.info("Google login request received");
+
+        AuthResponse authResponse = authService.authenticateWithGoogle(request, httpRequest);
+
+        Map<String, Object> response = new HashMap<>();
+        response.put("success", true);
+        response.put("data", buildAuthData(authResponse));
+        response.put("message", authResponse.getMessage());
+
+        return ResponseEntity.ok(response);
+    }
+
+    /**
      * Logout current user
      * POST /api/v1/auth/logout
      */
@@ -84,6 +130,20 @@ public class AuthController {
         response.put("success", true);
         response.put("message", messageResponse.getMessage());
         
+        return ResponseEntity.ok(response);
+    }
+
+    /**
+     * Lấy danh sách thiết bị đang đăng nhập và lần truy cập
+     * GET /api/v1/auth/devices
+     */
+    @GetMapping("/devices")
+    public ResponseEntity<Map<String, Object>> getActiveDevices(@AuthenticationPrincipal User user) {
+        List<Map<String, Object>> devices = authService.getActiveDevices(user);
+        Map<String, Object> response = new HashMap<>();
+        response.put("success", true);
+        response.put("totalDevices", devices.size());
+        response.put("devices", devices);
         return ResponseEntity.ok(response);
     }
 
@@ -126,6 +186,28 @@ public class AuthController {
         data.put("expires_in", 3600); // 1 hour in seconds
         response.put("data", data);
         
+        return ResponseEntity.ok(response);
+    }
+
+    /**
+     * Verify password reset OTP
+     * POST /api/v1/auth/verify-reset-otp
+     */
+    @PostMapping("/verify-reset-otp")
+    public ResponseEntity<Map<String, Object>> verifyResetOtp(@RequestBody Map<String, String> body) {
+        String email = body.get("email");
+        String otp = body.get("otp");
+        if (otp == null || otp.isBlank()) {
+            Map<String, Object> err = new HashMap<>();
+            err.put("success", false);
+            err.put("message", "Vui lòng nhập mã OTP");
+            return ResponseEntity.badRequest().body(err);
+        }
+
+        MessageResponse res = authService.verifyPasswordResetOtp(email, otp);
+        Map<String, Object> response = new HashMap<>();
+        response.put("success", true);
+        response.put("message", res.getMessage());
         return ResponseEntity.ok(response);
     }
 

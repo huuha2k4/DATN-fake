@@ -55,6 +55,7 @@ public class SecurityConfig {
                         .requestMatchers("/actuator/health/**").permitAll()  // Docker healthcheck
                         .requestMatchers("/error").permitAll()  // Error page
                         .requestMatchers("/uploads/**").permitAll()  // Static files (avatars, etc.)
+                        .requestMatchers(HttpMethod.GET, "/api/v1/groups/messages/attachments/download").permitAll()
                         
                         // Admin endpoints
                         .requestMatchers("/api/v1/admin/**").hasRole("ADMIN")

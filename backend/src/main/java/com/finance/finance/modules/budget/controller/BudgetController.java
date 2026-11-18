@@ -1,5 +1,6 @@
 package com.finance.finance.modules.budget.controller;
 
+import com.finance.finance.common.annotation.Idempotent;
 import com.finance.finance.common.enums.BudgetPeriodType;
 import com.finance.finance.common.enums.BudgetStatus;
 import com.finance.finance.modules.budget.dto.request.*;
@@ -33,11 +34,14 @@ public class BudgetController {
     /**
      * Tạo ngân sách mới
      * POST /api/v1/budgets
+     * Idempotent: Prevent duplicate budget creation
      */
+    @Idempotent(resourceType = "budget")
     @PostMapping
     public ResponseEntity<Map<String, Object>> createBudget(
             @AuthenticationPrincipal User user,
-            @Valid @RequestBody CreateBudgetRequest request) {
+            @Valid @RequestBody CreateBudgetRequest request,
+            @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey) {
         log.info("Create budget request from user: {}", user.getId());
 
         BudgetResponse budgetResponse = budgetService.createBudget(user.getId(), request);
@@ -178,12 +182,15 @@ public class BudgetController {
     /**
      * Thêm budget item (category) vào ngân sách
      * POST /api/v1/budgets/{id}/items
+     * Idempotent: Prevent duplicate budget item creation
      */
+    @Idempotent(resourceType = "budget_item")
     @PostMapping("/{id}/items")
     public ResponseEntity<Map<String, Object>> addBudgetItem(
             @AuthenticationPrincipal User user,
             @PathVariable UUID id,
-            @Valid @RequestBody BudgetItemRequest request) {
+            @Valid @RequestBody BudgetItemRequest request,
+            @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey) {
         log.info("Add budget item to budget: {} for user: {}", id, user.getId());
 
         BudgetResponse.BudgetItemResponse itemResponse = budgetService.addBudgetItem(

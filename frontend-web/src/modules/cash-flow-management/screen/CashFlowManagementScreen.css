@@ -409,9 +409,40 @@ html.dark .cashflow-table td .text-\[\#94a3b8\] {
 }
 
 /* Icon Danh mục giao dịch (Cột 1): Nền tối có màu tương ứng, icon tươi sáng rõ ràng */
-html.dark .cashflow-table td:first-child span.rounded-2xl {
-  border-width: 1px !important;
-  border-style: solid !important;
+.tx-category-icon-box {
+  background-color: var(--custom-icon-bg, #fee2e2);
+  color: var(--custom-icon-color, #dc2626);
+}
+
+html.dark .tx-category-icon-box {
+  background-color: rgba(244, 63, 94, 0.15) !important;
+  color: #fb7185 !important;
+  border: 1px solid rgba(244, 63, 94, 0.35) !important;
+}
+
+html.dark .tx-category-icon-box.is-income {
+  background-color: rgba(16, 185, 129, 0.15) !important;
+  color: #34d399 !important;
+  border-color: rgba(16, 185, 129, 0.35) !important;
+}
+
+html.dark .tx-category-icon-box.is-transfer {
+  background-color: rgba(56, 189, 248, 0.15) !important;
+  color: #38bdf8 !important;
+  border-color: rgba(56, 189, 248, 0.35) !important;
+}
+
+/* Các badge phân loại */
+.tx-category-badge {
+  background-color: #fee2e2;
+  border-color: #fca5a5;
+  color: #dc2626;
+}
+
+html.dark .tx-category-badge {
+  background-color: rgba(244, 63, 94, 0.15) !important;
+  border-color: rgba(244, 63, 94, 0.4) !important;
+  color: #fb7185 !important;
 }
 
 /* Biểu tượng Icon tài khoản/thẻ vuông trong bảng: Nền tối navy dịu, icon màu tươi rõ */
@@ -430,14 +461,14 @@ html.dark .cashflow-table td span.bg-\[\#f0f9ff\] {
 
 /* Các badge phân loại: Màu sắc tươi rõ, đậm đà, chữ dễ đọc không chói lóa */
 html.dark .cashflow-table .bg-\[\#dcfce7\] {
-  background-color: #072a1e !important;
-  border-color: #10593f !important;
-  color: #10b981 !important;
+  background-color: rgba(16, 185, 129, 0.15) !important;
+  border-color: rgba(16, 185, 129, 0.4) !important;
+  color: #34d399 !important;
 }
 
 html.dark .cashflow-table .bg-\[\#e0f2fe\] {
-  background-color: #072439 !important;
-  border-color: #0d4a72 !important;
+  background-color: rgba(56, 189, 248, 0.15) !important;
+  border-color: rgba(56, 189, 248, 0.4) !important;
   color: #38bdf8 !important;
 }
 
@@ -554,4 +585,26 @@ html.dark .fixed.inset-0 button.bg-white {
   border-color: #1a3c54 !important;
   color: #9cb1c1 !important;
 }
+
+/* Badge phân loại chi tiêu: Luôn hiển thị đỏ / hồng nổi bật ở cả giao diện sáng & tối */
+.cashflow-expense-badge {
+  background-color: #fee2e2 !important;
+  border-color: #fca5a5 !important;
+  color: #dc2626 !important;
+}
+
+.cashflow-expense-badge span {
+  color: #dc2626 !important;
+}
+
+html.dark .cashflow-expense-badge {
+  background-color: rgba(244, 63, 94, 0.18) !important;
+  border-color: rgba(244, 63, 94, 0.45) !important;
+  color: #fb7185 !important;
+}
+
+html.dark .cashflow-expense-badge span {
+  color: #fb7185 !important;
+}
+
 

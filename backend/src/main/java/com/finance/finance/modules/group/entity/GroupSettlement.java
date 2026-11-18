@@ -33,6 +33,11 @@ public class GroupSettlement {
     @Column(name = "to_user_id", nullable = false)
     private UUID toUserId;
 
+    @Column(name = "from_account_id") private UUID fromAccountId;
+    @Column(name = "to_account_id") private UUID toAccountId;
+    @Column(name = "outgoing_transaction_id") private UUID outgoingTransactionId;
+    @Column(name = "incoming_transaction_id") private UUID incomingTransactionId;
+
     @Column(nullable = false, precision = 19, scale = 4)
     private BigDecimal amount;
 

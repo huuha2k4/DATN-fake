@@ -31,7 +31,7 @@ public class UserService {
     private final PasswordEncoder passwordEncoder;
     
     private static final String UPLOAD_DIR = "uploads/avatars";
-    private static final long MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
+    private static final long MAX_FILE_SIZE = 100 * 1024 * 1024; // 100MB
     private static final String[] ALLOWED_EXTENSIONS = {".jpg", ".jpeg", ".png", ".gif", ".webp"};
     
     private User findUserByIdOrIdentifier(String identifier) {
@@ -60,11 +60,17 @@ public class UserService {
 
     @Transactional(readOnly = true)
     public java.util.List<UserResponse> searchUsers(String query) {
-        if (query == null || query.trim().length() < 2) {
+        if (query == null) {
             return java.util.Collections.emptyList();
         }
+        String cleanQuery = query.trim().toLowerCase();
+        // Chỉ bắt đầu tìm kiếm khi người dùng đã gõ ký tự @
+        if (!cleanQuery.contains("@")) {
+            return java.util.Collections.emptyList();
+        }
+
         org.springframework.data.domain.Pageable limit = org.springframework.data.domain.PageRequest.of(0, 10);
-        java.util.List<User> users = userRepository.searchUsersByKeyword(query.trim(), limit);
+        java.util.List<User> users = userRepository.searchUsersByKeyword(cleanQuery, limit);
         return users.stream()
                 .map(userMapper::toResponse)
                 .collect(java.util.stream.Collectors.toList());
@@ -91,6 +97,9 @@ public class UserService {
         if (request.getLanguage() != null) {
             user.setLanguage(request.getLanguage());
         }
+        if (request.getAvatarUrl() != null) {
+            user.setAvatarUrl(request.getAvatarUrl().trim().isEmpty() ? null : request.getAvatarUrl().trim());
+        }
         
         User savedUser = userRepository.save(user);
         log.info("Profile updated for user: {}", userId);
@@ -106,7 +115,7 @@ public class UserService {
         }
         
         if (file.getSize() > MAX_FILE_SIZE) {
-            throw new IllegalArgumentException("File size exceeds maximum allowed size of 5MB");
+            throw new IllegalArgumentException("File size exceeds maximum allowed size of 100MB");
         }
         
         String originalFilename = file.getOriginalFilename();
@@ -185,6 +194,20 @@ public class UserService {
         user.setPasswordHash(passwordEncoder.encode(newPassword));
         userRepository.save(user);
         log.info("Password changed successfully for user: {}", identifier);
+    }
+
+    @Transactional
+    public UserResponse updateSecuritySettings(String identifier, Boolean twoFactorEnabled, Boolean loginAlertEnabled) {
+        User user = findUserByIdOrIdentifier(identifier);
+        if (twoFactorEnabled != null) {
+            user.setMfaEnabled(twoFactorEnabled);
+        }
+        if (loginAlertEnabled != null) {
+            user.setLoginAlertEnabled(loginAlertEnabled);
+        }
+        User saved = userRepository.save(user);
+        log.info("Security settings updated for user {}: 2FA={}, alert={}", identifier, saved.isMfaEnabled(), saved.isLoginAlertEnabled());
+        return userMapper.toResponse(saved);
     }
     
     private void deleteOldAvatar(String avatarUrl) {

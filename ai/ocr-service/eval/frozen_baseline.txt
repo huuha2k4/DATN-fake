@@ -1,0 +1,12 @@
+=== SỐ ĐÓNG BĂNG — ghi lại TRƯỚC khi phân tách dev/test đúng ===
+(Lưu ý: các số này bị ảnh hưởng bởi data leakage — đã sửa từ ca lỗi trên tập test)
+
+LogisticRegression: macro_f1_real=0.7048  acc_real=0.6803
+LightGBM          : macro_f1_real=0.5996  acc_real=0.6189
+Từ điển coverage  : 48.4%  precision: 92.4%
+
+Vấn đề: mẫu train (BIG C, nhà sách...) lấy từ ảnh trong test set
+→ từ điển "học thuộc" test → coverage tăng giả tạo 39.5% → 45.8% → 48.4%
+→ Không phải số đáng báo cáo
+
+Sau khi phân tách lại xem file: eval/clean_eval_report.txt

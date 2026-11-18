@@ -22,8 +22,11 @@ public class AuthToken {
     private UUID id;
     
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "user_id", nullable = false)
+    @JoinColumn(name = "user_id", nullable = true)
     private User user;
+
+    @Column(name = "email", length = 255)
+    private String email;
     
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)

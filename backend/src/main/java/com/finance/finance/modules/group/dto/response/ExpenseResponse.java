@@ -22,6 +22,7 @@ public class ExpenseResponse {
     private BigDecimal amount;
     private String currency;
     private UUID paidByUserId;
+    private String paymentSource;
     private UUID categoryId;
     private String splitMethod;
     private LocalDate expenseDate;

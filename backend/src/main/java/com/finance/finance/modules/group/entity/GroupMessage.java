@@ -56,4 +56,8 @@ public class GroupMessage {
 
     @Column(name = "deleted_at")
     private LocalDateTime deletedAt;
+
+    @Column(name = "is_recalled", nullable = false)
+    @Builder.Default
+    private Boolean isRecalled = false;
 }

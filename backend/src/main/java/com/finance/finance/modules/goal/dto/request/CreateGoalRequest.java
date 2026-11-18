@@ -26,9 +26,9 @@ public class CreateGoalRequest {
     @NotNull(message = "Loại mục tiêu không được để trống")
     private GoalType goalType;
     
-    @NotNull(message = "Số tiền mục tiêu không được để trống")
-    @DecimalMin(value = "0.0", inclusive = false, message = "Số tiền mục tiêu phải > 0")
-    private BigDecimal targetAmount;
+    @DecimalMin(value = "0.0", message = "Số tiền mục tiêu phải >= 0")
+    @Builder.Default
+    private BigDecimal targetAmount = BigDecimal.ZERO;
     
     @DecimalMin(value = "0.0", message = "Số tiền hiện tại phải >= 0")
     @Builder.Default
@@ -43,7 +43,7 @@ public class CreateGoalRequest {
     @Builder.Default
     private GoalPriority priority = GoalPriority.MEDIUM;
     
-    @Size(max = 10, message = "Icon tối đa 10 ký tự")
+    @Size(max = 50, message = "Icon tối đa 50 ký tự")
     private String icon;
     
     @Pattern(regexp = "^#[0-9A-Fa-f]{6}$", message = "Mã màu phải theo định dạng hex (#RRGGBB)")

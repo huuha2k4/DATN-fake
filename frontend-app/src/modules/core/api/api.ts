@@ -1,4 +1,6 @@
-const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:8080/api';
+import { API_BASE_URL } from '../../auth/api/authApi';
+
+export { API_BASE_URL };
 
 export async function apiRequest<T>(path: string, options?: RequestInit): Promise<T> {
   const response = await fetch(`${API_BASE_URL}${path}`, {

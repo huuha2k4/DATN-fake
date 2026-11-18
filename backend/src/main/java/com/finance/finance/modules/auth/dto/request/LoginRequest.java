@@ -15,4 +15,5 @@ public class LoginRequest {
     private String deviceId;
     private String deviceName;
     private Boolean rememberMe = false;
+    private String otp;
 }

@@ -26,6 +26,10 @@ public class UpdateChildWalletRequest {
     @DecimalMin(value = "0.0", message = "Tiền tiêu vặt phải >= 0")
     private BigDecimal weeklyAllowance;
 
+    private String allowanceSource; // PERSONAL_ACCOUNT or GROUP_FUND
+
+    private UUID allowanceAccountId;
+
     private PrivacyLevel privacyLevel; // FULL_ACCESS, PARENT_SUPERVISED, VIEW_ONLY
 
     @DecimalMin(value = "0.0", message = "Hạn mức phải >= 0")

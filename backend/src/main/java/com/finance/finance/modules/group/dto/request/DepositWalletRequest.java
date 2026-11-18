@@ -9,6 +9,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.math.BigDecimal;
+import java.util.UUID;
 
 @Data
 @NoArgsConstructor
@@ -22,5 +23,7 @@ public class DepositWalletRequest {
     private String description;
 
     @NotBlank(message = "Nguồn không được để trống")
-    private String source; // parent, chore, allowance, gift, other
+    private String source; // PERSONAL_ACCOUNT, GROUP_FUND, allowance, gift, other
+
+    private UUID sourceAccountId;
 }

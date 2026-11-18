@@ -173,6 +173,15 @@ public class DebtDetailResponse {
         @JsonProperty("payment_method")
         private String paymentMethod;
 
+        @JsonProperty("account_id")
+        private UUID accountId;
+
+        @JsonProperty("account_name")
+        private String accountName;
+
+        @JsonProperty("created_at")
+        private LocalDateTime createdAt;
+
         private String note;
 
         @JsonProperty("transaction_id")

@@ -2,6 +2,8 @@ package com.finance.finance.common.config;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.client.SimpleClientHttpRequestFactory;
+import org.springframework.web.client.RestTemplate;
 import org.springframework.web.filter.CommonsRequestLoggingFilter;
 import org.springframework.web.servlet.config.annotation.ResourceHandlerRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
@@ -22,14 +24,23 @@ public class WebConfig implements WebMvcConfigurer {
         return loggingFilter;
     }
 
+    @Bean
+    public RestTemplate restTemplate() {
+        SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
+        factory.setConnectTimeout(10_000);  // 10 seconds
+        factory.setReadTimeout(120_000);    // 120 seconds (OCR takes longer)
+        return new RestTemplate(factory);
+    }
+
     @Override
     public void addResourceHandlers(ResourceHandlerRegistry registry) {
-        // Serve uploaded files
+        // Serve uploaded files with cache header for high performance
         String uploadPath = Paths.get("uploads").toAbsolutePath().toUri().toString();
         if (!uploadPath.endsWith("/")) {
             uploadPath += "/";
         }
         registry.addResourceHandler("/uploads/**")
-                .addResourceLocations(uploadPath);
+                .addResourceLocations(uploadPath)
+                .setCachePeriod(86400 * 30); // Cache 30 days
     }
 }

@@ -7,8 +7,8 @@ const navigation: { label: string; icon: IconName }[] = [
   { label: 'Quản lý Ví', icon: 'wallet' },
   { label: 'Quản lý Thu & Chi', icon: 'arrows' },
   { label: 'Quản lý Ngân sách', icon: 'chart' },
-  { label: 'Mục tiêu Tài chính', icon: 'trend' },
-  { label: 'Lịch tài chính', icon: 'bell' },
+  { label: 'Mục tiêu & Tiết kiệm', icon: 'target' },
+  { label: 'Lịch tài chính', icon: 'calendar' },
   { label: 'Quản lý Nợ', icon: 'credit-card' },
   { label: 'Chi tiêu Nhóm', icon: 'users' },
   { label: 'Báo cáo & Thống kê', icon: 'chart' },
@@ -23,13 +23,30 @@ type Props = {
   isOpen?: boolean;
   onClose?: () => void;
   isCollapsed?: boolean;
+  isChildAccount?: boolean;
 }
 
-export function FinancialNavigationSection({ active, onNavigate, isOpen, onClose, isCollapsed }: Props) {
+export function FinancialNavigationSection({ active, onNavigate, isOpen, onClose, isCollapsed, isChildAccount = false }: Props) {
   const navigate = (item: (typeof navigation)[number]) => {
     onNavigate(item.label)
     if (onClose) onClose()
   }
+
+  // Danh sách các mục menu hiển thị: nếu là tài khoản trẻ em thì có bộ điều hướng riêng phù hợp
+  const menuItems: { label: string; icon: IconName }[] = isChildAccount
+    ? [
+        { label: 'Tổng quan', icon: 'grid' },
+        { label: 'Thêm giao dịch', icon: 'plus' },
+        { label: 'Ví của em', icon: 'wallet' },
+        { label: 'Nhiệm vụ nhận thưởng', icon: 'star' },
+        { label: 'Xin tiền bố mẹ', icon: 'hand-coins' },
+        { label: 'Quản lý Thu & Chi', icon: 'arrows' },
+        { label: 'Gia đình của em', icon: 'home' },
+        { label: 'Mục tiêu & Tiết kiệm', icon: 'target' },
+        { label: 'Báo cáo & Thống kê', icon: 'chart' },
+        { label: 'AI Thông minh', icon: 'bot' },
+      ]
+    : navigation
 
   return <>
     {/* Mobile backdrop */}
@@ -64,7 +81,7 @@ export function FinancialNavigationSection({ active, onNavigate, isOpen, onClose
       </div>
       <p className="nav-caption">KHÔNG GIAN TÀI CHÍNH</p>
       <nav className="nav-list" aria-label="Điều hướng tài chính">
-        {navigation.map((item) => (
+        {menuItems.map((item) => (
           <button 
             key={item.label} 
             type="button" 
@@ -81,4 +98,3 @@ export function FinancialNavigationSection({ active, onNavigate, isOpen, onClose
     </aside>
   </>
 }
-

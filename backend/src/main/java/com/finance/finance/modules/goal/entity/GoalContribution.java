@@ -39,6 +39,9 @@ public class GoalContribution {
     @Column(name = "source_account_id")
     private UUID sourceAccountId;
     
+    @Column(name = "transaction_id")
+    private UUID transactionId;
+    
     @Column(name = "contributed_at", nullable = false)
     @CreationTimestamp
     private LocalDateTime contributedAt;

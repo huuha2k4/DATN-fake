@@ -6,6 +6,8 @@ import lombok.Data;
 @Data
 public class VerifyEmailRequest {
     
-    @NotBlank(message = "Token không được để trống")
-    private String token;
+    private String email;
+
+    @NotBlank(message = "Mã xác thực không được để trống")
+    private String token; // Hỗ trợ cả 6 số OTP hoặc token URL
 }

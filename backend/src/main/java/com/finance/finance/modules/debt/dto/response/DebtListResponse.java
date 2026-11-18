@@ -54,6 +54,9 @@ public class DebtListResponse {
 
         private com.finance.finance.common.enums.DebtStatus status;
 
+        @JsonProperty("start_date")
+        private LocalDate startDate;
+
         @JsonProperty("due_date")
         private LocalDate dueDate;
 

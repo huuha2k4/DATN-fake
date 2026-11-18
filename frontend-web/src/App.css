@@ -10,6 +10,21 @@
   color: var(--ink);
 }
 
+/* Custom scrollbar gọn gàng cho các panel admin */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 5px;
+}
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background-color: rgba(156, 163, 175, 0.4);
+  border-radius: 9999px;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(156, 163, 175, 0.7);
+}
+
 .sidebar {
   position: fixed;
   z-index: 5;
@@ -21,6 +36,7 @@
   border-right: 1px solid #e9eeea;
   background: #fff;
   transition: width 0.25s cubic-bezier(0.4, 0, 0.2, 1), padding 0.25s ease;
+  overflow: hidden;
 }
 
 /* Khi thu nhỏ sidebar trên Desktop */
@@ -172,13 +188,28 @@ html.dark .desktop-sidebar-toggle:hover {
 }
 
 .nav-list {
-  display: grid;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
   gap: 4px;
   margin-top: 10px;
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-width: none; /* Firefox: Ẩn thanh cuộn */
+  -ms-overflow-style: none; /* IE/Edge: Ẩn thanh cuộn */
+}
+
+/* Chrome, Safari, Opera: Ẩn hoàn toàn thanh cuộn, vẫn cuộn mượt bằng chuột/trackpad khi dài quá màn hình */
+.nav-list::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
 }
 
 .nav-item {
   display: flex;
+  width: 100%;
   min-height: 44px;
   align-items: center;
   gap: 12px;
@@ -319,7 +350,7 @@ html.dark .desktop-sidebar-toggle:hover {
 
 .topbar {
   position: sticky;
-  z-index: 4;
+  z-index: 30;
   top: 0;
   display: flex;
   min-height: 68px;
@@ -1792,16 +1823,40 @@ html.dark .desktop-sidebar-toggle:hover {
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  background-color: #ffffff;
+  color: #374151;
+  border: 1px solid #e5e7eb;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
   cursor: pointer;
-  transition: transform 0.2s ease, background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .theme-toggle-btn:hover {
-  transform: rotate(15deg) scale(1.05);
+  background-color: #f9fafb;
+  color: #07543f;
+  border-color: #d1d5db;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.06);
 }
 
 .theme-toggle-btn:active {
-  transform: scale(0.95);
+  transform: scale(0.96);
+}
+
+html.dark .theme-toggle-btn {
+  background-color: #1e293b;
+  color: #cbd5e1;
+  border-color: #334155;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+}
+
+html.dark .theme-toggle-btn:hover {
+  background-color: #334155;
+  color: #f1f5f9;
+  border-color: #475569;
 }
 
 /* --- LUXURY DEEP NAVY BLUE DARK MODE (Tông xanh dương thẫm chuẩn ảnh mẫu) --- */
@@ -2139,7 +2194,7 @@ html.dark .btn-remove-avatar:hover {
 /* Nền màn hình chính: than chì xám nhẹ, không tối thui cũng không tương phản gắt */
 html.dark main,
 html.dark .main-shell {
-  background-color: #060e15 !important;
+  background-color: #081622 !important;
   color: #cbd5e1 !important;
 }
 
@@ -2148,7 +2203,7 @@ html.dark main .bg-white,
 html.dark .main-shell .bg-white,
 html.dark [class*="bg-[#f6f8f6]"],
 html.dark [class*="bg-[#f9fbf9]"] {
-  background-color: #0a1722 !important;
+  background-color: #0e2333 !important;
   color: #cbd5e1;
 }
 
@@ -2160,7 +2215,7 @@ html.dark main .border-\[\#edf2ee\],
 html.dark main .border-\[\#edf0ed\],
 html.dark main .divide-\[\#edf2ee\] > * + *,
 html.dark main .border-\[\#cbe0d3\] {
-  border-color: #122432 !important;
+  border-color: #173852 !important;
 }
 
 /* Màu chữ tiêu đề & nội dung chính: màu xanh xám nhạt dịu mắt (như màu chữ Tiền mặt) */
@@ -2181,7 +2236,14 @@ html.dark .upgrade-card strong {
 
 /* Số tiền lớn trên banner: chữ trắng bạc sáng rõ */
 html.dark #hero-amount-input {
-  color: #f8fafc !important;
+  color: #ffffff !important;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.4) !important;
+}
+
+html.dark #hero-amount-input::placeholder {
+  color: rgba(255, 255, 255, 0.5) !important;
+  -webkit-text-fill-color: rgba(255, 255, 255, 0.5) !important;
+  opacity: 1 !important;
 }
 
 /* 2 dòng trên banner (nhãn "SỐ TIỀN MUỐN CHI" và ký hiệu tiền tệ "₫") chuyển qua màu xanh tươi hơn */
@@ -2254,7 +2316,7 @@ html.dark main textarea::placeholder {
 html.dark main .rounded-2xl.border.bg-white,
 html.dark main [class*="shadow-2xl"] {
   background-color: #0c1c28 !important;
-  border-color: #162f42 !important;
+  border-color: #173852 !important;
   box-shadow: 0 12px 28px rgba(0, 0, 0, 0.55) !important;
 }
 
@@ -2294,7 +2356,7 @@ html.dark main button[class*="bg-[#e3f4e9]"]:hover {
 /* Các nút FAB nổi tròn ở góc dưới bên phải (Floating Action Buttons) */
 html.dark .fab-scanner {
   background: #0c1c28 !important;
-  border-color: #162f42 !important;
+  border-color: #173852 !important;
   color: #38bdf8 !important;
 }
 
@@ -2354,7 +2416,7 @@ html.dark main .bg-gray-100.text-gray-700 {
 
 html.dark .reports-tab-group {
   background-color: #0c1c28 !important;
-  border-color: #162f42 !important;
+  border-color: #173852 !important;
 }
 
 .reports-tab-item {
@@ -2426,8 +2488,8 @@ html.dark .reports-tab-item.active {
 }
 
 html.dark .reports-action-btn {
-  background: #0a1722 !important;
-  border-color: #162f42 !important;
+  background: #0e2333 !important;
+  border-color: #173852 !important;
   color: #cbd5e1 !important;
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2) !important;
 }
@@ -2452,8 +2514,8 @@ html.dark .reports-action-btn svg {
 }
 
 html.dark .reports-filter-container {
-  background: #0a1722 !important;
-  border-color: #162f42 !important;
+  background: #0e2333 !important;
+  border-color: #173852 !important;
 }
 
 /* Nhóm 4 nút thời gian preset */
@@ -2470,7 +2532,7 @@ html.dark .reports-filter-container {
 
 html.dark .reports-preset-group {
   background: #07131e !important;
-  border-color: #122432 !important;
+  border-color: #173852 !important;
 }
 
 .reports-preset-btn {
@@ -2533,7 +2595,7 @@ html.dark .reports-preset-btn.active {
 
 html.dark .reports-date-picker-box {
   background: #07131e !important;
-  border-color: #162f42 !important;
+  border-color: #173852 !important;
 }
 
 html.dark .reports-date-picker-box:focus-within {
@@ -2585,7 +2647,7 @@ html.dark .reports-date-picker-box input[type="date"] {
 
 html.dark .reports-wallet-select-box {
   background: #07131e !important;
-  border-color: #162f42 !important;
+  border-color: #173852 !important;
 }
 
 html.dark .reports-wallet-select-box:hover {
@@ -2630,8 +2692,8 @@ html.dark .reports-wallet-select-box select {
 }
 
 html.dark .reports-card {
-  background: #0a1722 !important;
-  border-color: #162f42 !important;
+  background: #0e2333 !important;
+  border-color: #173852 !important;
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25) !important;
 }
 
@@ -2649,8 +2711,8 @@ html.dark .reports-card {
 }
 
 html.dark .reports-kpi-card {
-  background: #0a1722 !important;
-  border-color: #162f42 !important;
+  background: #0e2333 !important;
+  border-color: #173852 !important;
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25) !important;
 }
 
@@ -2792,7 +2854,7 @@ html.dark .reports-sub-footer {
 }
 
 html.dark .reports-donut-center {
-  background-color: #0a1722 !important;
+  background-color: #0e2333 !important;
   color: #e2edf5 !important;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4) !important;
 }
@@ -2866,15 +2928,16 @@ html:not(.dark) .reports-kpi-amount-savings {
 /* Bảng phân bổ cơ cấu theo danh mục */
 .reports-table {
   width: 100%;
-  min-width: 650px;
+  /* responsive */
   border-collapse: collapse;
   text-align: left;
   font-size: 13px;
 }
 
 .reports-table th {
-  padding: 12px 16px;
-  font-size: 11.5px;
+  padding: 8px 10px;
+  font-size: 11px;
+  white-space: nowrap;
   font-weight: 800;
   text-transform: uppercase;
   letter-spacing: 0.05em;
@@ -2884,7 +2947,7 @@ html:not(.dark) .reports-kpi-amount-savings {
 }
 
 .reports-table td {
-  padding: 14px 16px;
+  padding: 9px 10px;
   border-bottom: 1px solid #edf2ee;
   color: #14251f;
   background: transparent;
@@ -3116,4 +3179,4 @@ html.dark .reports-category-count-badge {
     size: A4 portrait;
   }
 }
-
+
