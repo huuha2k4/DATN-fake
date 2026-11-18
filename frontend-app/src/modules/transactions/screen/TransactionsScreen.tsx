@@ -1,7 +1,7 @@
+import { AppAlert as Alert } from '../../../context/DialogContext';
 import React, { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   Image,
   KeyboardAvoidingView,
   Modal,

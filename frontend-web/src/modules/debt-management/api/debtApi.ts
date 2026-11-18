@@ -15,9 +15,13 @@ export interface DebtSummaryItem {
   remaining: number;
   percentage_paid: number;
   status: DebtStatus;
+  start_date?: string;
   due_date?: string;
   next_payment_date?: string;
   next_payment_amount?: number;
+  payment_frequency?: PaymentFrequency;
+  monthly_payment?: number;
+  payment_amount?: number;
 }
 
 export interface DebtListSummary {

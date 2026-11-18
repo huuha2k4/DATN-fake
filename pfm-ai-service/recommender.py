@@ -364,14 +364,18 @@ class FinancialRecommender:
                 for r in recommendations
             ]
 
+            monthly_food_avg = round(dining.get('dining_amount', 0.0) / 3.0)
             prompt = f"""Bạn là Chuyên gia Tư vấn Tài chính Cá nhân Cao cấp (PFM Senior Financial Advisor).
-Dưới đây là chẩn đoán số liệu tài chính thực tế trích xuất từ database của người dùng:
+Dưới đây là chẩn đoán số liệu tài chính thực tế trích xuất từ database của người dùng (dữ liệu tích lũy 3 tháng qua):
 - Hình mẫu tài chính: {persona.get('title', 'Người dùng')} - {persona.get('tagline', '')}
 - Tỷ lệ tiết kiệm thực tế: {summary.get('savings_rate', 0)}% ({summary.get('savings_label', '')})
 - Phân bổ 50/30/20: Thiết yếu {rule_50.get('needs_pct', 0)}% | Hưởng thụ {rule_50.get('wants_pct', 0)}% | Tích lũy {rule_50.get('savings_pct', 0)}%
-- Chi tiêu ăn uống: chiếm {dining.get('dining_percentage', 0)}% tổng ngân sách ({dining.get('dining_amount', 0):,.0f} VND)
+- Chi tiêu ăn uống trung bình hàng tháng: ~{monthly_food_avg:,.0f} VND/tháng (tổng tiền ăn 3 tháng qua là {dining.get('dining_amount', 0):,.0f} VND, chiếm {dining.get('dining_percentage', 0)}% tổng chi tiêu)
 - Danh sách các khuyến nghị cốt lõi cần tối ưu:
 {json.dumps(recs_summary, ensure_ascii=False, indent=2)}
+
+LƯU Ý QUAN TRỌNG VỀ SỐ LIỆU:
+Mọi số liệu chi tiêu/tiết kiệm định kỳ đều tính theo đơn vị HÀNG THÁNG (ví dụ tiền ăn uống hàng tháng là ~{monthly_food_avg:,.0f} VND/tháng, tiết kiệm 15% là ~{round(monthly_food_avg * 0.15):,.0f} VND/tháng). TUYỆT ĐỐI KHÔNG nhầm lẫn tổng chi tiêu 3 tháng ({dining.get('dining_amount', 0):,.0f} VND) thành số tiền của 1 tháng.
 
 NHIỆM VỤ:
 Hãy đóng vai trò là một cố vấn tài chính am hiểu tâm lý, viết lại lời khuyên cho người dùng thật tự nhiên, sắc sảo, truyền động lực và mang đậm dấu ấn cá nhân hóa (không dùng văn phong dập khuôn máy móc).

@@ -235,6 +235,22 @@ export function DebtManagementScreen({ onNotify }: Props) {
         }
       }
 
+      // Tính ngày kết thúc do số kỳ quy định nếu người dùng không nhập ngày phải trả
+      let computedDueDateWeb = formDueDate || undefined;
+      if (!computedDueDateWeb && paymentPlanType === 'INSTALLMENT') {
+        const count = parseInt(formInstallmentCount, 10) || 1;
+        const baseDate = new Date(firstPayDate || formStartDate);
+        const intervals = Math.max(0, count - 1);
+        if (formFrequency === 'WEEKLY') {
+          baseDate.setDate(baseDate.getDate() + intervals * 7);
+        } else if (formFrequency === 'QUARTERLY') {
+          baseDate.setMonth(baseDate.getMonth() + intervals * 3);
+        } else {
+          baseDate.setMonth(baseDate.getMonth() + intervals);
+        }
+        computedDueDateWeb = baseDate.toISOString().split('T')[0];
+      }
+
       // 1. Tạo khoản nợ trong Debt API
       await debtApi.createDebt({
         debt_type: formType,
@@ -249,7 +265,7 @@ export function DebtManagementScreen({ onNotify }: Props) {
         payment_amount: paymentPlanType === 'INSTALLMENT' ? periodicAmountNum : undefined,
         monthly_payment: paymentPlanType === 'INSTALLMENT' ? periodicAmountNum : undefined,
         start_date: formStartDate,
-        due_date: formDueDate || undefined,
+        due_date: computedDueDateWeb,
         next_payment_date: paymentPlanType === 'INSTALLMENT' ? firstPayDate : (formDueDate || undefined),
         account_id: selectedAccountId || undefined,
         note: formNote.trim() || undefined,
@@ -577,7 +593,15 @@ export function DebtManagementScreen({ onNotify }: Props) {
 
                 <div className="debt-card-footer">
                   <span className="debt-card-footer-due">
-                    Hạn trả: <strong>{formatDate(item.due_date || item.next_payment_date, 'Không có')}</strong>
+                    {item.payment_frequency && item.payment_frequency !== 'ONE_TIME' ? (
+                      <>
+                        Kỳ tới: <strong>{formatDate(item.next_payment_date || item.due_date, 'Không có')}</strong>
+                      </>
+                    ) : (
+                      <>
+                        Hạn trả: <strong>{formatDate(item.due_date, 'Không có')}</strong>
+                      </>
+                    )}
                   </span>
                   <span className="debt-card-footer-action">Chi tiết →</span>
                 </div>
@@ -1030,50 +1054,111 @@ export function DebtManagementScreen({ onNotify }: Props) {
                   <FinanceIcon name="refresh" size={16} className="animate-spin inline-block mr-1.5 text-[#07543f]" />
                   <span>Đang tải kế hoạch trả nợ...</span>
                 </div>
-              ) : debtSchedule && debtSchedule.schedule && debtSchedule.schedule.length > 0 ? (
-                <div className="pt-2 border-t border-gray-100">
-                  <div className="flex items-center justify-between mb-2">
-                    <h4 className="text-xs font-bold text-[#14261e]">Lịch trình trả nợ theo kỳ ({debtSchedule.schedule.length} kỳ)</h4>
-                    <span className="text-[11px] text-[#718579]">
-                      Đã trả {debtSchedule.summary.completed_payments} / {debtSchedule.summary.total_payments} kỳ
-                    </span>
-                  </div>
-                  <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1">
-                    {debtSchedule.schedule.map((item) => (
-                      <div
-                        key={item.payment_number}
-                        className={`flex items-center justify-between p-2 rounded-xl text-xs border ${
-                          item.status === 'PAID'
-                            ? 'bg-emerald-50/50 border-emerald-100 text-emerald-800'
-                            : item.status === 'OVERDUE'
-                            ? 'bg-rose-50/50 border-rose-100 text-rose-800'
-                            : 'bg-gray-50 border-gray-100 text-gray-800'
-                        }`}
-                      >
-                        <div className="flex items-center gap-2">
-                          <span className="grid size-5 place-items-center rounded-full bg-white text-[10px] font-bold shadow-xs">
-                            {item.payment_number}
-                          </span>
-                          <div>
-                            <span className="font-semibold">Hạn: {formatDate(item.due_date)}</span>
-                            <span className="text-[10px] text-gray-500 block">
-                              Còn lại sau kỳ: {formatCurrency(item.remaining_after)}
+              ) : (() => {
+                // Ưu tiên lịch trình từ API, nếu không có hoặc bị trùng ngày thì fallback sinh chính xác từ thông tin khoản nợ
+                const freq = selectedDebtDetail.payment_frequency;
+                const periodicAmt = selectedDebtDetail.payment_amount || selectedDebtDetail.monthly_payment || 0;
+                const totalPrincipal = selectedDebtDetail.principal_amount || 0;
+                const totalPaid = selectedDebtDetail.paid_amount || 0;
+                const count = (periodicAmt > 0 && totalPrincipal > 0)
+                  ? Math.max(1, Math.round(totalPrincipal / periodicAmt))
+                  : 1;
+
+                let scheduleList: Array<{
+                  payment_number: number;
+                  due_date: string;
+                  amount: number;
+                  remaining_after: number;
+                  status: string;
+                }> = [];
+
+                if (debtSchedule && debtSchedule.schedule && debtSchedule.schedule.length > 0) {
+                  // Kiểm tra xem các kỳ có bị trùng lặp ngày do lỗi API trước đó không
+                  const datesSet = new Set(debtSchedule.schedule.map((it) => it.due_date));
+                  if (datesSet.size === debtSchedule.schedule.length) {
+                    scheduleList = debtSchedule.schedule;
+                  }
+                }
+
+                // Nếu chưa có hoặc bị trùng ngày thì tự động sinh chuẩn xác theo tần suất
+                if (scheduleList.length === 0 && freq && freq !== 'ONE_TIME') {
+                  const baseDateStr = selectedDebtDetail.next_payment_date || selectedDebtDetail.start_date || selectedDebtDetail.due_date;
+                  const baseDate = baseDateStr ? new Date(baseDateStr) : new Date();
+                  let iterDate = new Date(baseDate.getFullYear(), baseDate.getMonth(), baseDate.getDate());
+                  let rem = totalPrincipal;
+
+                  for (let i = 1; i <= count; i++) {
+                    const threshold = periodicAmt * (i - 0.1);
+                    const isPaid = totalPaid >= threshold || selectedDebtDetail.remaining_amount <= 0;
+                    const yStr = iterDate.getFullYear();
+                    const mStr = String(iterDate.getMonth() + 1).padStart(2, '0');
+                    const dStr = String(iterDate.getDate()).padStart(2, '0');
+                    const dueStr = `${yStr}-${mStr}-${dStr}`;
+
+                    rem = Math.max(0, rem - periodicAmt);
+                    scheduleList.push({
+                      payment_number: i,
+                      due_date: dueStr,
+                      amount: periodicAmt,
+                      remaining_after: rem,
+                      status: isPaid ? 'PAID' : 'PENDING',
+                    });
+
+                    if (freq === 'WEEKLY') iterDate.setDate(iterDate.getDate() + 7);
+                    else if (freq === 'QUARTERLY') iterDate.setMonth(iterDate.getMonth() + 3);
+                    else iterDate.setMonth(iterDate.getMonth() + 1);
+                  }
+                }
+
+                if (scheduleList.length === 0) return null;
+
+                const completedCount = scheduleList.filter((it) => it.status === 'PAID').length;
+
+                return (
+                  <div className="pt-2 border-t border-gray-100">
+                    <div className="flex items-center justify-between mb-2">
+                      <h4 className="text-xs font-bold text-[#14261e]">Lịch trình trả nợ theo kỳ ({scheduleList.length} kỳ)</h4>
+                      <span className="text-[11px] text-[#718579]">
+                        Đã trả {completedCount} / {scheduleList.length} kỳ
+                      </span>
+                    </div>
+                    <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1">
+                      {scheduleList.map((item) => (
+                        <div
+                          key={item.payment_number}
+                          className={`flex items-center justify-between p-2 rounded-xl text-xs border ${
+                            item.status === 'PAID'
+                              ? 'bg-emerald-50/50 border-emerald-100 text-emerald-800'
+                              : item.status === 'OVERDUE'
+                              ? 'bg-rose-50/50 border-rose-100 text-rose-800'
+                              : 'bg-gray-50 border-gray-100 text-gray-800'
+                          }`}
+                        >
+                          <div className="flex items-center gap-2">
+                            <span className="grid size-5 place-items-center rounded-full bg-white text-[10px] font-bold shadow-xs">
+                              {item.payment_number}
+                            </span>
+                            <div>
+                              <span className="font-semibold">Hạn: {formatDate(item.due_date)}</span>
+                              <span className="text-[10px] text-gray-500 block">
+                                Còn lại sau kỳ: {formatCurrency(item.remaining_after)}
+                              </span>
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <strong className="block">{formatCurrency(item.amount)}</strong>
+                            <span className={`text-[10px] font-bold ${
+                              item.status === 'PAID' ? 'text-emerald-700' : item.status === 'OVERDUE' ? 'text-rose-600' : 'text-gray-500'
+                            }`}>
+                              {item.status === 'PAID' ? 'Đã trả ✓' : item.status === 'OVERDUE' ? 'Quá hạn ⚠' : 'Chưa trả'}
                             </span>
                           </div>
                         </div>
-                        <div className="text-right">
-                          <strong className="block">{formatCurrency(item.amount)}</strong>
-                          <span className={`text-[10px] font-bold ${
-                            item.status === 'PAID' ? 'text-emerald-700' : item.status === 'OVERDUE' ? 'text-rose-600' : 'text-gray-500'
-                          }`}>
-                            {item.status === 'PAID' ? 'Đã trả ✓' : item.status === 'OVERDUE' ? 'Quá hạn ⚠' : 'Chưa trả'}
-                          </span>
-                        </div>
-                      </div>
-                    ))}
+                      ))}
+                    </div>
                   </div>
-                </div>
-              ) : null}
+                );
+              })()}
 
               {/* Nút hành động: Sửa khoản nợ, Trả nợ & Xóa - Chia đều 3 cột bằng nhau */}
               <div className="grid grid-cols-3 gap-2.5 pt-2">

@@ -176,7 +176,8 @@ public class AuthService {
         user.setPasswordHash(passwordEncoder.encode(request.getPassword()));
         user.setFullName(request.getFullName());
         user.setPhone(request.getPhone());
-        user.setPreferredCurrency(request.getPreferredCurrency() != null ? request.getPreferredCurrency() : "VND");
+        // Currency fixed to VND for Vietnam market - no need to set
+        // user.setPreferredCurrency("VND"); // Already default in entity
         user.setTimezone(request.getTimezone() != null ? request.getTimezone() : "Asia/Ho_Chi_Minh");
         user.setLanguage(request.getLanguage() != null ? request.getLanguage() : "vi-VN");
         user.setAvatarUrl("/default-avatar.png");

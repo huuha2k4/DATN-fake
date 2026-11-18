@@ -409,8 +409,86 @@ public class ChildWalletService {
         return buildWalletResponse(wallet);
     }
 
+
+
+    /**
+     * Gắn Child Wallet Profile cho thành viên đã có trong nhóm
+     * Dùng cho trường hợp con tự tạo tài khoản độc lập rồi gia nhập gia đình
+     */
     @Transactional
-    public ChildWalletResponse withdraw(UUID groupId, UUID walletId, WithdrawWalletRequest request, UUID currentUserId) {
+    public ChildWalletResponse linkChildWallet(UUID groupId, UUID memberId, com.finance.finance.modules.group.dto.request.LinkChildWalletRequest request, UUID currentUserId) {
+        // Validate user is admin or owner
+        validateAdminOrOwner(groupId, currentUserId);
+
+        // Validate member exists and belongs to group
+        GroupMember member = groupMemberRepository.findById(new GroupMemberId(groupId, memberId))
+                .orElseThrow(() -> new ResourceNotFoundException("Thành viên không tồn tại trong nhóm"));
+
+        // Check if member already has a linked child wallet
+        if (member.getLinkedChildWalletId() != null) {
+            throw new BusinessException("Thành viên này đã được gắn với một ví trẻ em");
+        }
+
+        // Check if member already has a child wallet (created by parent before)
+        if (walletRepository.findByUserId(memberId).isPresent()) {
+            throw new BusinessException("Thành viên này đã có ví trẻ em được tạo bởi bố mẹ");
+        }
+
+        // Create ChildWallet for this member (without separate balance - uses member's own accounts)
+        ChildWallet wallet = ChildWallet.builder()
+                .groupId(groupId)
+                .userId(memberId)
+                .childUsername(userRepository.findById(memberId).map(u -> u.getUsername()).orElse(null))
+                .childName(request.getChildName())
+                .avatarKey(request.getAvatarKey())
+                .dateOfBirth(request.getDateOfBirth())
+                .currency("VND")
+                .balance(BigDecimal.ZERO)  // Không dùng balance riêng cho tài khoản độc lập
+                .weeklyAllowance(request.getWeeklyAllowance())
+                .allowanceSource(request.getAllowanceSource() != null ? request.getAllowanceSource() : "PERSONAL_ACCOUNT")
+                .allowanceAccountId(request.getAllowanceAccountId())
+                .privacyLevel(com.finance.finance.common.enums.PrivacyLevel.FULL_ACCESS)  // Con tự quản lý
+                .spendLimitDaily(request.getSpendLimitDaily())
+                .spendLimitWeekly(request.getSpendLimitWeekly())
+                .requireApprovalAbove(request.getRequireApprovalAbove())
+                .createdAt(LocalDateTime.now())
+                .updatedAt(LocalDateTime.now())
+                .version(0L)
+                .build();
+
+        wallet = walletRepository.save(wallet);
+
+        // Link wallet to member
+        member.setIsChildProfile(true);
+        member.setLinkedChildWalletId(wallet.getId());
+        groupMemberRepository.save(member);
+
+        log.info("Linked child wallet {} to member {} in group {}", wallet.getId(), memberId, groupId);
+
+        // Send notification to child
+        try {
+            String parentName = userRepository.findById(currentUserId)
+                    .map(u -> u.getFullName() != null && !u.getFullName().isBlank() ? u.getFullName() : u.getUsername())
+                    .orElse("Phụ huynh");
+
+            notificationService.createNotification(
+                    memberId,
+                    NotificationType.SYSTEM,
+                    NotificationPriority.HIGH,
+                    "Bạn đã được thêm vào quản lý gia đình",
+                    parentName + " đã gắn hồ sơ quản lý trẻ em cho bạn trong nhóm gia đình. Bố mẹ có thể yêu cầu xem dữ liệu chi tiêu của bạn.",
+                    "/groups?groupId=" + groupId + "&tab=CHILD_WALLETS&walletId=" + wallet.getId(),
+                    "Xem chi tiết"
+            );
+        } catch (Exception e) {
+            log.warn("Failed to send child wallet linked notification: {}", e.getMessage());
+        }
+
+        return buildWalletResponse(wallet);
+    }
+
+    @Transactional
+    public void resetChildPassword(UUID groupId, UUID walletId, String newPassword, UUID currentUserId) {
         // Validate user is admin or owner
         validateAdminOrOwner(groupId, currentUserId);
 
@@ -421,20 +499,39 @@ public class ChildWalletService {
             throw new ResourceNotFoundException("Wallet does not belong to this group");
         }
 
-        // Check sufficient balance
-        if (wallet.getBalance().compareTo(request.getAmount()) < 0) {
-            throw new IllegalStateException("Insufficient balance");
+        // Check if wallet has a user account
+        if (wallet.getUserId() == null) {
+            throw new BusinessException("Ví này không có tài khoản đăng nhập. Chỉ ví có tài khoản mới có thể đổi mật khẩu.");
         }
 
-        // Deduct from balance
-        wallet.setBalance(wallet.getBalance().subtract(request.getAmount()));
-        wallet.setUpdatedAt(LocalDateTime.now());
-        wallet = walletRepository.save(wallet);
+        // Get child user and reset password
+        User childUser = userRepository.findById(wallet.getUserId())
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy tài khoản của bé"));
 
-        // Log activity
-        log.info("Withdraw from child wallet: walletId={}, amount={}, by userId={}", walletId, request.getAmount(), currentUserId);
+        childUser.setPasswordHash(passwordEncoder.encode(newPassword));
+        userRepository.save(childUser);
 
-        return buildWalletResponse(wallet);
+        log.info("Parent {} reset password for child wallet {} (user: {})", 
+                currentUserId, walletId, wallet.getUserId());
+
+        // Send notification to child
+        try {
+            String parentName = userRepository.findById(currentUserId)
+                    .map(u -> u.getFullName() != null && !u.getFullName().isBlank() ? u.getFullName() : u.getUsername())
+                    .orElse("Phụ huynh");
+
+            notificationService.createNotification(
+                    wallet.getUserId(),
+                    NotificationType.SYSTEM,
+                    NotificationPriority.HIGH,
+                    "Mật khẩu của bạn đã được thay đổi",
+                    parentName + " đã đặt lại mật khẩu cho tài khoản của bạn. Hãy đăng nhập bằng mật khẩu mới nhé!",
+                    "/profile/security",
+                    "Xem chi tiết"
+            );
+        } catch (Exception e) {
+            log.warn("Failed to send password reset notification: {}", e.getMessage());
+        }
     }
 
     private void validateMember(UUID groupId, UUID userId) {

@@ -22,9 +22,8 @@ public class CreateAccountRequest {
     @NotNull(message = "Loại tài khoản không được để trống")
     private AccountType accountType;
     
-    @NotBlank(message = "Mã tiền tệ không được để trống")
-    @Size(min = 3, max = 3, message = "Mã tiền tệ phải là 3 ký tự (ISO 4217)")
-    private String currencyCode;
+    // Currency is fixed to VND for Vietnam market
+    // currencyCode field removed - always VND
     
     @NotNull(message = "Số dư ban đầu không được để trống")
     private BigDecimal initialBalance;

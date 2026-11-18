@@ -107,11 +107,26 @@ public class GroupMessageService {
         String mimeType = file.getContentType();
         long fileSize = file.getSize();
 
+        Integer width = null;
+        Integer height = null;
+        if (mimeType != null && mimeType.startsWith("image/")) {
+            try {
+                java.awt.image.BufferedImage bimg = javax.imageio.ImageIO.read(filePath.toFile());
+                if (bimg != null) {
+                    width = bimg.getWidth();
+                    height = bimg.getHeight();
+                }
+            } catch (Exception ignored) {
+            }
+        }
+
         return MessageResponse.AttachmentSummary.builder()
                 .fileKey(fileKey)
                 .fileName(originalFilename)
                 .mimeType(mimeType)
                 .fileSize(fileSize)
+                .width(width)
+                .height(height)
                 .build();
     }
 
@@ -154,6 +169,8 @@ public class GroupMessageService {
                             .mimeType(dto.getMimeType())
                             .fileSize(dto.getFileSize())
                             .thumbnailKey(dto.getThumbnailKey())
+                            .width(dto.getWidth())
+                            .height(dto.getHeight())
                             .build())
                     .collect(Collectors.toList());
             attachmentRepository.saveAll(attachments);
@@ -433,6 +450,8 @@ public class GroupMessageService {
                                 .mimeType(att.getMimeType())
                                 .fileSize(att.getFileSize())
                                 .thumbnailKey(att.getThumbnailKey())
+                                .width(att.getWidth())
+                                .height(att.getHeight())
                                 .build())
                         .collect(Collectors.toList()))
                 .readByCount(readByUserIds.size())

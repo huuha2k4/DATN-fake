@@ -1,17 +1,6 @@
 import React, { useEffect, useState, useMemo } from 'react';
-import {
-  ActivityIndicator,
-  Alert,
-  Modal,
-  Platform,
-  Pressable,
-  ScrollView,
-  Share,
-  StatusBar,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
+import { ActivityIndicator, Modal, Platform, Pressable, ScrollView, Share, StatusBar, StyleSheet, Text, View } from 'react-native';
+import { AppAlert as Alert } from '../../../context/DialogContext';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Circle } from 'react-native-svg';
 import { FinanceIcon } from '../../core/components/FinanceIcon';
@@ -23,6 +12,7 @@ import {
 } from '../api/periodicReportsApi';
 import { exportReportToExcelFile } from '../utils/exportReportHelper';
 import { exportReportToPdfHtmlFile } from '../utils/exportReportPdfHelper';
+import { useAppTheme } from '../../../context/ThemeContext';
 
 interface PeriodicReportsScreenProps {
   onBack: () => void;
@@ -40,6 +30,7 @@ export function PeriodicReportsScreen({
   initialToDate,
 }: PeriodicReportsScreenProps) {
   const insets = useSafeAreaInsets();
+  const { isDark, colors: themeColors } = useAppTheme();
   const user = authStorage.getUser();
   const isChildAccount = Boolean(user?.childAccount && user?.childWalletGroupId);
   const [activeTab, setActiveTab] = useState<TabType>('INCOME_EXPENSE');
@@ -293,27 +284,39 @@ export function PeriodicReportsScreen({
   }, [fromDate, toDate, periodPresets]);
 
   return (
-    <View style={styles.screen}>
-      <StatusBar barStyle="dark-content" backgroundColor="#FAFCFB" />
+    <View style={[styles.screen, isDark && { backgroundColor: themeColors.background }]}>
+      <StatusBar barStyle={isDark ? "light-content" : "dark-content"} backgroundColor={isDark ? themeColors.background : "#FAFCFB"} />
 
       {/* ── 1. TOP HEADER ── */}
-      <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
-        <Pressable onPress={onBack} style={styles.headerIconBtn} hitSlop={12}>
-          <FinanceIcon name="chevron-left" size={22} color="#047857" />
-        </Pressable>
-        <Text style={styles.headerTitle}>{isChildAccount ? 'Báo cáo của em' : 'Báo cáo tài chính'}</Text>
+      <View
+        style={[
+          styles.header,
+          { paddingTop: Math.max(insets.top + 8, 16) },
+          isDark && { backgroundColor: themeColors.background, borderBottomColor: themeColors.cardBorder },
+        ]}
+      >
         <Pressable
-          style={styles.headerIconBtn}
+          onPress={onBack}
+          style={[styles.headerIconBtn, isDark && { backgroundColor: themeColors.surfaceSubtle }]}
+          hitSlop={12}
+        >
+          <FinanceIcon name="chevron-left" size={22} color={isDark ? themeColors.accentGreen : "#047857"} />
+        </Pressable>
+        <Text style={[styles.headerTitle, isDark && { color: themeColors.textPrimary }]}>
+          {isChildAccount ? 'Báo cáo của em' : 'Báo cáo tài chính'}
+        </Text>
+        <Pressable
+          style={[styles.headerIconBtn, isDark && { backgroundColor: themeColors.surfaceSubtle }]}
           hitSlop={12}
           onPress={() => setExportModalVisible(true)}
         >
-          <FinanceIcon name="share-2" size={20} color="#047857" />
+          <FinanceIcon name="share-2" size={20} color={isDark ? themeColors.accentGreen : "#047857"} />
         </Pressable>
       </View>
 
       {/* ── 2. THANH TAB NỀN XANH LÁ ĐẬM CHUẨN MẪU (Thu - Chi, Danh mục, So sánh) ── */}
-      <View style={styles.tabContainer}>
-        <View style={styles.tabTrack}>
+      <View style={[styles.tabContainer, isDark && { backgroundColor: themeColors.background }]}>
+        <View style={[styles.tabTrack, isDark && { backgroundColor: themeColors.surfaceSubtle }]}>
           <Pressable
             style={[styles.tabItem, activeTab === 'INCOME_EXPENSE' && styles.tabItemActive]}
             onPress={() => setActiveTab('INCOME_EXPENSE')}
@@ -321,9 +324,15 @@ export function PeriodicReportsScreen({
             <FinanceIcon
               name="arrows"
               size={15}
-              color={activeTab === 'INCOME_EXPENSE' ? '#FFFFFF' : '#64748B'}
+              color={activeTab === 'INCOME_EXPENSE' ? '#FFFFFF' : isDark ? themeColors.textMuted : '#64748B'}
             />
-            <Text style={[styles.tabText, activeTab === 'INCOME_EXPENSE' && styles.tabTextActive]}>
+            <Text
+              style={[
+                styles.tabText,
+                isDark && { color: themeColors.textSecondary },
+                activeTab === 'INCOME_EXPENSE' && styles.tabTextActive,
+              ]}
+            >
               Thu - Chi
             </Text>
           </Pressable>
@@ -335,9 +344,15 @@ export function PeriodicReportsScreen({
             <FinanceIcon
               name="layers"
               size={15}
-              color={activeTab === 'CATEGORY' ? '#FFFFFF' : '#64748B'}
+              color={activeTab === 'CATEGORY' ? '#FFFFFF' : isDark ? themeColors.textMuted : '#64748B'}
             />
-            <Text style={[styles.tabText, activeTab === 'CATEGORY' && styles.tabTextActive]}>
+            <Text
+              style={[
+                styles.tabText,
+                isDark && { color: themeColors.textSecondary },
+                activeTab === 'CATEGORY' && styles.tabTextActive,
+              ]}
+            >
               Danh mục
             </Text>
           </Pressable>
@@ -349,9 +364,15 @@ export function PeriodicReportsScreen({
             <FinanceIcon
               name="trending-up"
               size={15}
-              color={activeTab === 'COMPARISON' ? '#FFFFFF' : '#64748B'}
+              color={activeTab === 'COMPARISON' ? '#FFFFFF' : isDark ? themeColors.textMuted : '#64748B'}
             />
-            <Text style={[styles.tabText, activeTab === 'COMPARISON' && styles.tabTextActive]}>
+            <Text
+              style={[
+                styles.tabText,
+                isDark && { color: themeColors.textSecondary },
+                activeTab === 'COMPARISON' && styles.tabTextActive,
+              ]}
+            >
               So sánh
             </Text>
           </Pressable>
@@ -359,35 +380,35 @@ export function PeriodicReportsScreen({
       </View>
 
       {/* ── 3. THANH BỘ LỌC KỲ THỜI GIAN & TÀI KHOẢN VÍ ── */}
-      <View style={styles.filterRow}>
+      <View style={[styles.filterRow, isDark && { backgroundColor: themeColors.background, borderBottomColor: themeColors.cardBorder }]}>
         {/* Bộ chọn ngày */}
         <Pressable
-          style={styles.filterPill}
+          style={[styles.filterPill, isDark && { backgroundColor: themeColors.surface, borderColor: themeColors.cardBorder }]}
           onPress={() => setDatePickerVisible(true)}
         >
-          <FinanceIcon name="calendar" size={15} color="#059669" />
-          <Text style={styles.filterPillText}>{dateRangeDisplay}</Text>
-          <FinanceIcon name="chevron-down" size={14} color="#94A3B8" />
+          <FinanceIcon name="calendar" size={15} color={isDark ? themeColors.accentGreen : "#059669"} />
+          <Text style={[styles.filterPillText, isDark && { color: themeColors.textPrimary }]}>{dateRangeDisplay}</Text>
+          <FinanceIcon name="chevron-down" size={14} color={isDark ? themeColors.textMuted : "#94A3B8"} />
         </Pressable>
 
         {/* Bộ chọn ví (Tài khoản bé: cố định Ví của em, không cho chọn ví khác) */}
         {isChildAccount ? (
-          <View style={[styles.filterPill, { flex: 0.85, opacity: 0.95 }]}>
-            <FinanceIcon name="wallet" size={15} color="#059669" />
-            <Text style={styles.filterPillText} numberOfLines={1}>
+          <View style={[styles.filterPill, { flex: 0.85, opacity: 0.95 }, isDark && { backgroundColor: themeColors.surface, borderColor: themeColors.cardBorder }]}>
+            <FinanceIcon name="wallet" size={15} color={isDark ? themeColors.accentGreen : "#059669"} />
+            <Text style={[styles.filterPillText, isDark && { color: themeColors.textPrimary }]} numberOfLines={1}>
               {user?.childWalletName || 'Ví của em'}
             </Text>
           </View>
         ) : (
           <Pressable
-            style={[styles.filterPill, { flex: 0.85 }]}
+            style={[styles.filterPill, { flex: 0.85 }, isDark && { backgroundColor: themeColors.surface, borderColor: themeColors.cardBorder }]}
             onPress={() => setAccountPickerVisible(true)}
           >
             <FinanceIcon name={selectedAccountInfo.icon} size={15} color={selectedAccountInfo.color} />
-            <Text style={styles.filterPillText} numberOfLines={1}>
+            <Text style={[styles.filterPillText, isDark && { color: themeColors.textPrimary }]} numberOfLines={1}>
               {selectedAccountLabel}
             </Text>
-            <FinanceIcon name="chevron-down" size={14} color="#94A3B8" />
+            <FinanceIcon name="chevron-down" size={14} color={isDark ? themeColors.textMuted : "#94A3B8"} />
           </Pressable>
         )}
       </View>
@@ -395,8 +416,8 @@ export function PeriodicReportsScreen({
       {/* ── 4. NỘI DUNG THEO TỪNG TAB ── */}
       {isLoading ? (
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#047857" />
-          <Text style={styles.loadingText}>Đang tổng hợp báo cáo tài chính...</Text>
+          <ActivityIndicator size="large" color={isDark ? themeColors.accentGreen : "#047857"} />
+          <Text style={[styles.loadingText, isDark && { color: themeColors.textSecondary }]}>Đang tổng hợp báo cáo tài chính...</Text>
         </View>
       ) : (
         <ScrollView
@@ -406,17 +427,17 @@ export function PeriodicReportsScreen({
         >
           {/* TAB 1: THU - CHI */}
           {activeTab === 'INCOME_EXPENSE' && reportData && (
-            <TabThuChi report={reportData} formatVND={formatVND} dateRangeDisplay={dateRangeDisplay} />
+            <TabThuChi report={reportData} formatVND={formatVND} dateRangeDisplay={dateRangeDisplay} isDark={isDark} themeColors={themeColors} />
           )}
 
           {/* TAB 2: DANH MỤC */}
           {activeTab === 'CATEGORY' && reportData && (
-            <TabDanhMuc report={reportData} formatVND={formatVND} periodName={currentPeriodName} />
+            <TabDanhMuc report={reportData} formatVND={formatVND} periodName={currentPeriodName} isDark={isDark} themeColors={themeColors} />
           )}
 
           {/* TAB 3: SO SÁNH */}
           {activeTab === 'COMPARISON' && reportData && (
-            <TabSoSanh report={reportData} formatVND={formatVND} />
+            <TabSoSanh report={reportData} formatVND={formatVND} isDark={isDark} themeColors={themeColors} />
           )}
         </ScrollView>
       )}
@@ -424,64 +445,68 @@ export function PeriodicReportsScreen({
       {/* ── MODAL CHỌN VÍ TÀI KHOẢN ── */}
       <Modal visible={accountPickerVisible} transparent animationType="fade">
         <Pressable style={styles.modalBackdrop} onPress={() => setAccountPickerVisible(false)}>
-          <View style={styles.modalSheet}>
-            <Text style={styles.modalSheetTitle}>Chọn ví tài khoản</Text>
+          <View style={[styles.modalSheet, isDark && { backgroundColor: themeColors.surface, borderColor: themeColors.cardBorder }]}>
+            <Text style={[styles.modalSheetTitle, isDark && { color: themeColors.textPrimary }]}>Chọn ví tài khoản</Text>
             
             {/* Tùy chọn: Tất cả ví */}
             <Pressable
               style={[
                 styles.modalOptionRow,
+                isDark && { backgroundColor: themeColors.surfaceSubtle },
                 selectedAccountId === 'ALL' && styles.modalOptionActive,
+                selectedAccountId === 'ALL' && isDark && { backgroundColor: 'rgba(52, 211, 153, 0.12)', borderColor: themeColors.accentGreen },
               ]}
               onPress={() => {
                 setSelectedAccountId('ALL');
                 setAccountPickerVisible(false);
               }}
             >
-              <View style={[styles.accIconBox, { backgroundColor: '#ECFDF5' }]}>
-                <FinanceIcon name="wallet" size={18} color="#059669" />
+              <View style={[styles.accIconBox, { backgroundColor: isDark ? 'rgba(52, 211, 153, 0.16)' : '#ECFDF5' }]}>
+                <FinanceIcon name="wallet" size={18} color={isDark ? themeColors.accentGreen : "#059669"} />
               </View>
               <View style={{ flex: 1 }}>
                 <Text
                   style={[
                     styles.modalOptionText,
+                    isDark && { color: themeColors.textPrimary },
                     selectedAccountId === 'ALL' && styles.modalOptionTextActive,
+                    selectedAccountId === 'ALL' && isDark && { color: themeColors.accentGreen },
                   ]}
                 >
                   Tất cả ví
                 </Text>
-                <Text style={styles.modalOptionSub}>
+                <Text style={[styles.modalOptionSub, isDark && { color: themeColors.textSecondary }]}>
                   {accounts.length} ví đang hoạt động
                 </Text>
               </View>
-              {selectedAccountId === 'ALL' && <FinanceIcon name="check" size={18} color="#059669" />}
+              {selectedAccountId === 'ALL' && <FinanceIcon name="check" size={18} color={isDark ? themeColors.accentGreen : "#059669"} />}
             </Pressable>
 
             {/* Từng tài khoản ví cụ thể */}
             {accounts.map((acc) => {
               const accType = String(acc.accountType || '').toUpperCase();
               let iconName: any = 'wallet';
-              let iconBg = '#F1F5F9';
-              let iconColor = '#475569';
+              let iconBg = isDark ? themeColors.surfaceSubtle : '#F1F5F9';
+              let iconColor = isDark ? themeColors.textSecondary : '#475569';
 
               if (acc.icon) {
                 iconName = acc.icon;
               } else if (accType.includes('BANK') || String(acc.name).toLowerCase().includes('vietcombank') || String(acc.name).toLowerCase().includes('mbbank')) {
                 iconName = 'bank';
-                iconBg = '#EFF6FF';
-                iconColor = '#2563EB';
+                iconBg = isDark ? 'rgba(56, 189, 248, 0.16)' : '#EFF6FF';
+                iconColor = isDark ? '#38BDF8' : '#2563EB';
               } else if (accType.includes('CREDIT') || String(acc.name).toLowerCase().includes('thẻ') || String(acc.name).toLowerCase().includes('tín dụng')) {
                 iconName = 'credit-card';
-                iconBg = '#FFFBEB';
-                iconColor = '#D97706';
+                iconBg = isDark ? 'rgba(251, 191, 36, 0.16)' : '#FFFBEB';
+                iconColor = isDark ? '#FBBF24' : '#D97706';
               } else if (accType.includes('CASH') || String(acc.name).toLowerCase().includes('tiền mặt')) {
                 iconName = 'wallet';
-                iconBg = '#ECFDF5';
-                iconColor = '#059669';
+                iconBg = isDark ? 'rgba(52, 211, 153, 0.16)' : '#ECFDF5';
+                iconColor = isDark ? themeColors.accentGreen : '#059669';
               } else if (accType.includes('SAVING') || String(acc.name).toLowerCase().includes('tiết kiệm')) {
                 iconName = 'piggy-bank';
-                iconBg = '#FAF5FF';
-                iconColor = '#9333EA';
+                iconBg = isDark ? 'rgba(168, 85, 247, 0.16)' : '#FAF5FF';
+                iconColor = isDark ? '#C084FC' : '#9333EA';
               }
 
               return (
@@ -489,7 +514,9 @@ export function PeriodicReportsScreen({
                   key={acc.id}
                   style={[
                     styles.modalOptionRow,
+                    isDark && { backgroundColor: themeColors.surfaceSubtle },
                     selectedAccountId === acc.id && styles.modalOptionActive,
+                    selectedAccountId === acc.id && isDark && { backgroundColor: 'rgba(52, 211, 153, 0.12)', borderColor: themeColors.accentGreen },
                   ]}
                   onPress={() => {
                     setSelectedAccountId(acc.id);
@@ -503,17 +530,19 @@ export function PeriodicReportsScreen({
                     <Text
                       style={[
                         styles.modalOptionText,
+                        isDark && { color: themeColors.textPrimary },
                         selectedAccountId === acc.id && styles.modalOptionTextActive,
+                        selectedAccountId === acc.id && isDark && { color: themeColors.accentGreen },
                       ]}
                       numberOfLines={1}
                     >
                       {acc.name}
                     </Text>
-                    <Text style={styles.modalOptionSub}>
+                    <Text style={[styles.modalOptionSub, isDark && { color: themeColors.textSecondary }]}>
                       Số dư: {formatVND(acc.balance || 0)}
                     </Text>
                   </View>
-                  {selectedAccountId === acc.id && <FinanceIcon name="check" size={18} color="#059669" />}
+                  {selectedAccountId === acc.id && <FinanceIcon name="check" size={18} color={isDark ? themeColors.accentGreen : "#059669"} />}
                 </Pressable>
               );
             })}
@@ -524,14 +553,16 @@ export function PeriodicReportsScreen({
       {/* ── MODAL CHỌN KỲ BÁO CÁO NHANH ── */}
       <Modal visible={datePickerVisible} transparent animationType="fade">
         <Pressable style={styles.modalBackdrop} onPress={() => setDatePickerVisible(false)}>
-          <View style={styles.modalSheet}>
-            <Text style={styles.modalSheetTitle}>Chọn kỳ báo cáo</Text>
+          <View style={[styles.modalSheet, isDark && { backgroundColor: themeColors.surface, borderColor: themeColors.cardBorder }]}>
+            <Text style={[styles.modalSheetTitle, isDark && { color: themeColors.textPrimary }]}>Chọn kỳ báo cáo</Text>
             {periodPresets.map((period) => (
               <Pressable
                 key={period.id}
                 style={[
                   styles.modalOptionRow,
+                  isDark && { backgroundColor: themeColors.surfaceSubtle },
                   fromDate === period.from && toDate === period.to && styles.modalOptionActive,
+                  fromDate === period.from && toDate === period.to && isDark && { backgroundColor: 'rgba(52, 211, 153, 0.12)', borderColor: themeColors.accentGreen },
                 ]}
                 onPress={() => {
                   setFromDate(period.from);
@@ -542,13 +573,15 @@ export function PeriodicReportsScreen({
                 <Text
                   style={[
                     styles.modalOptionText,
+                    isDark && { color: themeColors.textPrimary },
                     fromDate === period.from && toDate === period.to && styles.modalOptionTextActive,
+                    fromDate === period.from && toDate === period.to && isDark && { color: themeColors.accentGreen },
                   ]}
                 >
                   {period.label}
                 </Text>
                 {fromDate === period.from && toDate === period.to && (
-                  <FinanceIcon name="check" size={18} color="#059669" />
+                  <FinanceIcon name="check" size={18} color={isDark ? themeColors.accentGreen : "#059669"} />
                 )}
               </Pressable>
             ))}
@@ -558,15 +591,15 @@ export function PeriodicReportsScreen({
       {/* ── MODAL XUẤT BÁO CÁO (EXCEL & PDF) ── */}
       <Modal visible={exportModalVisible} transparent animationType="fade">
         <Pressable style={styles.modalBackdrop} onPress={() => setExportModalVisible(false)}>
-          <View style={styles.modalSheet}>
-            <Text style={styles.modalSheetTitle}>Chia sẻ & Xuất báo cáo</Text>
-            <Text style={[styles.sectionCardSub, { textAlign: 'center', marginBottom: 16 }]}>
+          <View style={[styles.modalSheet, isDark && { backgroundColor: themeColors.surface, borderColor: themeColors.cardBorder }]}>
+            <Text style={[styles.modalSheetTitle, isDark && { color: themeColors.textPrimary }]}>Chia sẻ & Xuất báo cáo</Text>
+            <Text style={[styles.sectionCardSub, { textAlign: 'center', marginBottom: 16 }, isDark && { color: themeColors.textSecondary }]}>
               Kỳ: {dateRangeDisplay} • {selectedAccountLabel}
             </Text>
 
             {/* Nút Xuất Excel */}
             <Pressable
-              style={styles.exportOptionCard}
+              style={[styles.exportOptionCard, isDark && { backgroundColor: themeColors.surfaceSubtle, borderColor: themeColors.cardBorder }]}
               onPress={() => {
                 Alert.alert('Đang chuẩn bị dữ liệu', 'Đang tạo bảng tính Excel...');
                 setExportModalVisible(false);
@@ -581,21 +614,21 @@ export function PeriodicReportsScreen({
                 }, 400);
               }}
             >
-              <View style={[styles.exportIconBox, { backgroundColor: '#ECFDF5' }]}>
-                <FinanceIcon name="file-excel" size={22} color="#059669" />
+              <View style={[styles.exportIconBox, { backgroundColor: isDark ? 'rgba(52, 211, 153, 0.16)' : '#ECFDF5' }]}>
+                <FinanceIcon name="file-excel" size={22} color={isDark ? themeColors.accentGreen : "#059669"} />
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={styles.exportOptionTitle}>Chia sẻ file Excel (.csv / .xlsx)</Text>
-                <Text style={styles.exportOptionSub}>
+                <Text style={[styles.exportOptionTitle, isDark && { color: themeColors.textPrimary }]}>Chia sẻ file Excel (.csv / .xlsx)</Text>
+                <Text style={[styles.exportOptionSub, isDark && { color: themeColors.textSecondary }]}>
                   Gửi qua Zalo, Gmail, Drive hoặc mở trên máy tính (đầy đủ bảng tổng hợp, danh mục, top chi tiêu theo chuẩn Web)
                 </Text>
               </View>
-              <FinanceIcon name="share-2" size={16} color="#059669" />
+              <FinanceIcon name="share-2" size={16} color={isDark ? themeColors.accentGreen : "#059669"} />
             </Pressable>
 
             {/* Nút Xuất PDF */}
             <Pressable
-              style={styles.exportOptionCard}
+              style={[styles.exportOptionCard, isDark && { backgroundColor: themeColors.surfaceSubtle, borderColor: themeColors.cardBorder }]}
               onPress={() => {
                 Alert.alert('Đang chuẩn bị dữ liệu', 'Đang tạo tài liệu PDF...');
                 setExportModalVisible(false);
@@ -610,16 +643,16 @@ export function PeriodicReportsScreen({
                 }, 400);
               }}
             >
-              <View style={[styles.exportIconBox, { backgroundColor: '#FEF2F2' }]}>
-                <FinanceIcon name="file-text" size={22} color="#DC2626" />
+              <View style={[styles.exportIconBox, { backgroundColor: isDark ? 'rgba(239, 68, 68, 0.16)' : '#FEF2F2' }]}>
+                <FinanceIcon name="file-text" size={22} color="#F87171" />
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={styles.exportOptionTitle}>Chia sẻ bản in PDF (.pdf / A4)</Text>
-                <Text style={styles.exportOptionSub}>
+                <Text style={[styles.exportOptionTitle, isDark && { color: themeColors.textPrimary }]}>Chia sẻ bản in PDF (.pdf / A4)</Text>
+                <Text style={[styles.exportOptionSub, isDark && { color: themeColors.textSecondary }]}>
                   Giao diện đồ họa Finora cao cấp, 4 thẻ KPI, bảng cơ cấu danh mục & đối chiếu biến động
                 </Text>
               </View>
-              <FinanceIcon name="share-2" size={16} color="#DC2626" />
+              <FinanceIcon name="share-2" size={16} color="#F87171" />
             </Pressable>
           </View>
         </Pressable>
@@ -635,10 +668,14 @@ function TabThuChi({
   report,
   formatVND,
   dateRangeDisplay,
+  isDark,
+  themeColors,
 }: {
   report: ReportSummaryData;
   formatVND: (n: number) => string;
   dateRangeDisplay?: string;
+  isDark?: boolean;
+  themeColors?: any;
 }) {
   // Tìm giá trị max để vẽ biểu đồ cột và các mốc trục Y
   const { maxBarValue, yAxisLabels } = useMemo(() => {
@@ -679,77 +716,77 @@ function TabThuChi({
       {/* 4 Thẻ chỉ số tổng quan 2x2 */}
       <View style={styles.grid2x2}>
         {/* Tổng thu nhập */}
-        <View style={styles.statCard}>
+        <View style={[styles.statCard, isDark && { backgroundColor: themeColors.surface, borderColor: themeColors.cardBorder }]}>
           <View style={styles.statCardHeader}>
-            <Text style={styles.statCardLabel}>Tổng thu nhập</Text>
-            <View style={[styles.arrowBadge, { backgroundColor: '#ECFDF5' }]}>
-              <FinanceIcon name="arrow-up" size={12} color="#059669" />
+            <Text style={[styles.statCardLabel, isDark && { color: themeColors.textSecondary }]}>Tổng thu nhập</Text>
+            <View style={[styles.arrowBadge, { backgroundColor: isDark ? 'rgba(52, 211, 153, 0.16)' : '#ECFDF5' }]}>
+              <FinanceIcon name="arrow-up" size={12} color={isDark ? themeColors.accentGreen : "#059669"} />
             </View>
           </View>
-          <Text style={[styles.statCardValue, { color: '#047857' }]}>
+          <Text style={[styles.statCardValue, { color: isDark ? themeColors.accentGreen : '#047857' }]}>
             {formatVND(report.totalIncome)}
           </Text>
           <View style={styles.statCardFooter}>
-            <View style={[styles.tinyDot, { backgroundColor: '#059669' }]} />
-            <Text style={styles.statCardSub}>Thu thực tế ghi nhận</Text>
+            <View style={[styles.tinyDot, { backgroundColor: isDark ? themeColors.accentGreen : '#059669' }]} />
+            <Text style={[styles.statCardSub, isDark && { color: themeColors.textMuted }]}>Thu thực tế ghi nhận</Text>
           </View>
         </View>
 
         {/* Tổng chi tiêu */}
-        <View style={styles.statCard}>
+        <View style={[styles.statCard, isDark && { backgroundColor: themeColors.surface, borderColor: themeColors.cardBorder }]}>
           <View style={styles.statCardHeader}>
-            <Text style={styles.statCardLabel}>Tổng chi tiêu</Text>
-            <View style={[styles.arrowBadge, { backgroundColor: '#FEE2E2' }]}>
-              <FinanceIcon name="arrow-down" size={12} color="#DC2626" />
+            <Text style={[styles.statCardLabel, isDark && { color: themeColors.textSecondary }]}>Tổng chi tiêu</Text>
+            <View style={[styles.arrowBadge, { backgroundColor: isDark ? 'rgba(239, 68, 68, 0.16)' : '#FEE2E2' }]}>
+              <FinanceIcon name="arrow-down" size={12} color="#F87171" />
             </View>
           </View>
-          <Text style={[styles.statCardValue, { color: '#DC2626' }]}>
+          <Text style={[styles.statCardValue, { color: isDark ? '#F87171' : '#DC2626' }]}>
             {formatVND(report.totalExpense)}
           </Text>
           <View style={styles.statCardFooter}>
-            <Text style={styles.statCardSub}>
+            <Text style={[styles.statCardSub, isDark && { color: themeColors.textMuted }]}>
               Trung bình: {formatVND(report.averageDailyExpense)}/ngày
             </Text>
           </View>
         </View>
 
         {/* Dòng tiền ròng */}
-        <View style={styles.statCard}>
+        <View style={[styles.statCard, isDark && { backgroundColor: themeColors.surface, borderColor: themeColors.cardBorder }]}>
           <View style={styles.statCardHeader}>
-            <Text style={styles.statCardLabel}>Dòng tiền ròng</Text>
-            <View style={[styles.arrowBadge, { backgroundColor: '#ECFDF5' }]}>
-              <FinanceIcon name="trending-up" size={12} color="#059669" />
+            <Text style={[styles.statCardLabel, isDark && { color: themeColors.textSecondary }]}>Dòng tiền ròng</Text>
+            <View style={[styles.arrowBadge, { backgroundColor: isDark ? 'rgba(52, 211, 153, 0.16)' : '#ECFDF5' }]}>
+              <FinanceIcon name="trending-up" size={12} color={isDark ? themeColors.accentGreen : "#059669"} />
             </View>
           </View>
           <Text
             style={[
               styles.statCardValue,
-              { color: report.netCashFlow >= 0 ? '#047857' : '#DC2626' },
+              { color: report.netCashFlow >= 0 ? (isDark ? themeColors.accentGreen : '#047857') : '#F87171' },
             ]}
           >
             {report.netCashFlow >= 0 ? '+' : ''}
             {formatVND(report.netCashFlow)}
           </Text>
-          <View style={styles.pillBadgeSuccess}>
-            <Text style={styles.pillBadgeSuccessText}>
+          <View style={[styles.pillBadgeSuccess, isDark && { backgroundColor: 'rgba(52, 211, 153, 0.16)' }]}>
+            <Text style={[styles.pillBadgeSuccessText, isDark && { color: themeColors.accentGreen }]}>
               {report.netCashFlow >= 0 ? 'Thặng dư tích lũy' : 'Thâm hụt chi tiêu'}
             </Text>
           </View>
         </View>
 
         {/* Tỷ lệ tiết kiệm */}
-        <View style={styles.statCard}>
+        <View style={[styles.statCard, isDark && { backgroundColor: themeColors.surface, borderColor: themeColors.cardBorder }]}>
           <View style={styles.statCardHeader}>
-            <Text style={styles.statCardLabel}>Tỷ lệ tiết kiệm</Text>
-            <View style={[styles.arrowBadge, { backgroundColor: '#E0F2FE' }]}>
-              <FinanceIcon name="shield" size={12} color="#0284C7" />
+            <Text style={[styles.statCardLabel, isDark && { color: themeColors.textSecondary }]}>Tỷ lệ tiết kiệm</Text>
+            <View style={[styles.arrowBadge, { backgroundColor: isDark ? 'rgba(56, 189, 248, 0.16)' : '#E0F2FE' }]}>
+              <FinanceIcon name="shield" size={12} color={isDark ? '#38BDF8' : "#0284C7"} />
             </View>
           </View>
-          <Text style={[styles.statCardValue, { color: '#0F172A' }]}>
+          <Text style={[styles.statCardValue, { color: isDark ? themeColors.textPrimary : '#0F172A' }]}>
             {report.savingRate}%
           </Text>
           <View style={styles.statCardFooter}>
-            <Text style={styles.statCardSub}>
+            <Text style={[styles.statCardSub, isDark && { color: themeColors.textMuted }]}>
               Tổng cộng: {report.transactionCount} giao dịch
             </Text>
           </View>
@@ -758,33 +795,33 @@ function TabThuChi({
 
       {/* Thẻ FinAI Nhận định */}
       {report.aiInsight && (
-        <View style={styles.aiInsightCard}>
-          <View style={styles.aiIconCircle}>
-            <FinanceIcon name="spark" size={16} color="#059669" />
+        <View style={[styles.aiInsightCard, isDark && { backgroundColor: themeColors.surface, borderColor: themeColors.cardBorder }]}>
+          <View style={[styles.aiIconCircle, isDark && { backgroundColor: 'rgba(52, 211, 153, 0.15)' }]}>
+            <FinanceIcon name="spark" size={16} color={isDark ? themeColors.accentGreen : "#059669"} />
           </View>
           <View style={styles.aiTextWrap}>
-            <Text style={styles.aiInsightTitle}>FinAI Nhận định:</Text>
-            <Text style={styles.aiInsightText}>{report.aiInsight.text}</Text>
+            <Text style={[styles.aiInsightTitle, isDark && { color: themeColors.accentGreen }]}>FinAI Nhận định:</Text>
+            <Text style={[styles.aiInsightText, isDark && { color: themeColors.textSecondary }]}>{report.aiInsight.text}</Text>
           </View>
-          <FinanceIcon name="chevron-right" size={16} color="#059669" />
+          <FinanceIcon name="chevron-right" size={16} color={isDark ? themeColors.accentGreen : "#059669"} />
         </View>
       )}
 
       {/* Thẻ Biểu đồ Cột Thu - Chi Theo Ngày */}
-      <View style={styles.sectionCard}>
+      <View style={[styles.sectionCard, isDark && { backgroundColor: themeColors.surface, borderColor: themeColors.cardBorder }]}>
         <View style={styles.chartHeaderRow}>
           <View>
-            <Text style={styles.sectionCardTitle}>Biến động Thu - Chi Theo Ngày</Text>
-            <Text style={styles.sectionCardSub}>{dateRangeDisplay || 'Kỳ đã chọn'}</Text>
+            <Text style={[styles.sectionCardTitle, isDark && { color: themeColors.textPrimary }]}>Biến động Thu - Chi Theo Ngày</Text>
+            <Text style={[styles.sectionCardSub, isDark && { color: themeColors.textSecondary }]}>{dateRangeDisplay || 'Kỳ đã chọn'}</Text>
           </View>
           <View style={styles.chartLegend}>
             <View style={styles.legendItem}>
-              <View style={[styles.legendDot, { backgroundColor: '#059669' }]} />
-              <Text style={styles.legendLabel}>Thu</Text>
+              <View style={[styles.legendDot, { backgroundColor: isDark ? themeColors.accentGreen : '#059669' }]} />
+              <Text style={[styles.legendLabel, isDark && { color: themeColors.textSecondary }]}>Thu</Text>
             </View>
             <View style={styles.legendItem}>
-              <View style={[styles.legendDot, { backgroundColor: '#DC2626' }]} />
-              <Text style={styles.legendLabel}>Chi</Text>
+              <View style={[styles.legendDot, { backgroundColor: isDark ? '#F87171' : '#DC2626' }]} />
+              <Text style={[styles.legendLabel, isDark && { color: themeColors.textSecondary }]}>Chi</Text>
             </View>
           </View>
         </View>
@@ -794,17 +831,17 @@ function TabThuChi({
           {/* Cột trục Y */}
           <View style={styles.yAxisCol}>
             {yAxisLabels.map((yl, i) => (
-              <Text key={i} style={styles.axisLabel}>{yl}</Text>
+              <Text key={i} style={[styles.axisLabel, isDark && { color: themeColors.textMuted }]}>{yl}</Text>
             ))}
           </View>
 
           {/* Khung vẽ các cặp cột */}
           <View style={styles.barsArea}>
-            <View style={styles.gridLine} />
-            <View style={[styles.gridLine, { top: '25%' }]} />
-            <View style={[styles.gridLine, { top: '50%' }]} />
-            <View style={[styles.gridLine, { top: '75%' }]} />
-            <View style={[styles.gridLine, { top: '100%' }]} />
+            <View style={[styles.gridLine, isDark && { backgroundColor: themeColors.cardBorder }]} />
+            <View style={[styles.gridLine, { top: '25%' }, isDark && { backgroundColor: themeColors.cardBorder }]} />
+            <View style={[styles.gridLine, { top: '50%' }, isDark && { backgroundColor: themeColors.cardBorder }]} />
+            <View style={[styles.gridLine, { top: '75%' }, isDark && { backgroundColor: themeColors.cardBorder }]} />
+            <View style={[styles.gridLine, { top: '100%' }, isDark && { backgroundColor: themeColors.cardBorder }]} />
 
             {/* KHI LÀ TUẦN (<= 7 ngày): Mỗi cột và nhãn ngày nằm chung 1 group để luôn thẳng tâm 100% */}
             {report.dailyTrend.length <= 7 ? (
@@ -818,16 +855,16 @@ function TabThuChi({
                     <View key={idx} style={styles.weekBarGroup}>
                       <View style={styles.weekBarsPair}>
                         {d.income > 0 ? (
-                          <View style={[styles.weekBarCol, { height: `${incomeH}%`, backgroundColor: '#059669' }]} />
+                          <View style={[styles.weekBarCol, { height: `${incomeH}%`, backgroundColor: isDark ? themeColors.accentGreen : '#059669' }]} />
                         ) : null}
                         {d.expense > 0 ? (
-                          <View style={[styles.weekBarCol, { height: `${expenseH}%`, backgroundColor: '#DC2626' }]} />
+                          <View style={[styles.weekBarCol, { height: `${expenseH}%`, backgroundColor: isDark ? '#F87171' : '#DC2626' }]} />
                         ) : null}
                         {isZero && (
-                          <View style={[styles.weekBarCol, { height: 2, backgroundColor: '#E2E8F0' }]} />
+                          <View style={[styles.weekBarCol, { height: 2, backgroundColor: isDark ? themeColors.cardBorder : '#E2E8F0' }]} />
                         )}
                       </View>
-                      <Text style={styles.weekXLabel}>{d.date}</Text>
+                      <Text style={[styles.weekXLabel, isDark && { color: themeColors.textMuted }]}>{d.date}</Text>
                     </View>
                   );
                 })}
@@ -845,13 +882,13 @@ function TabThuChi({
                       <View key={idx} style={styles.fitBarItem}>
                         <View style={styles.fitBarsPair}>
                           {d.income > 0 ? (
-                            <View style={[styles.fitBarCol, { height: `${incomeH}%`, backgroundColor: '#059669' }]} />
+                            <View style={[styles.fitBarCol, { height: `${incomeH}%`, backgroundColor: isDark ? themeColors.accentGreen : '#059669' }]} />
                           ) : null}
                           {d.expense > 0 ? (
-                            <View style={[styles.fitBarCol, { height: `${expenseH}%`, backgroundColor: '#DC2626' }]} />
+                            <View style={[styles.fitBarCol, { height: `${expenseH}%`, backgroundColor: isDark ? '#F87171' : '#DC2626' }]} />
                           ) : null}
                           {isZero && (
-                            <View style={[styles.fitBarCol, { height: 2, backgroundColor: '#E2E8F0' }]} />
+                            <View style={[styles.fitBarCol, { height: 2, backgroundColor: isDark ? themeColors.cardBorder : '#E2E8F0' }]} />
                           )}
                         </View>
                       </View>
@@ -882,7 +919,7 @@ function TabThuChi({
                         }
                       }
                       return (
-                        <Text key={i} style={styles.xAxisLabelMonth}>
+                        <Text key={i} style={[styles.xAxisLabelMonth, isDark && { color: themeColors.textMuted }]}>
                           {label}
                         </Text>
                       );
@@ -896,24 +933,35 @@ function TabThuChi({
       </View>
 
       {/* Danh sách 5 Khoản Chi Tiêu Lớn Nhất */}
-      <View style={styles.sectionCard}>
+      <View style={[styles.sectionCard, isDark && { backgroundColor: themeColors.surface, borderColor: themeColors.cardBorder }]}>
         <View style={styles.listHeaderRow}>
-          <Text style={styles.sectionCardTitle}>5 Khoản Chi Tiêu Lớn Nhất</Text>
+          <Text style={[styles.sectionCardTitle, isDark && { color: themeColors.textPrimary }]}>5 Khoản Chi Tiêu Lớn Nhất</Text>
           <Pressable style={styles.viewAllRow}>
-            <Text style={styles.viewAllText}>Xem tất cả</Text>
-            <FinanceIcon name="chevron-right" size={14} color="#059669" />
+            <Text style={[styles.viewAllText, isDark && { color: themeColors.accentGreen }]}>Xem tất cả</Text>
+            <FinanceIcon name="chevron-right" size={14} color={isDark ? themeColors.accentGreen : "#059669"} />
           </Pressable>
         </View>
 
         <View style={styles.transactionsList}>
           {report.topTransactions.length === 0 ? (
             <View style={{ paddingVertical: 16, alignItems: 'center' }}>
-              <Text style={{ fontSize: 12, color: '#94A3B8' }}>Không có khoản chi tiêu nào trong kỳ</Text>
+              <Text style={{ fontSize: 12, color: isDark ? themeColors.textMuted : '#94A3B8' }}>Không có khoản chi tiêu nào trong kỳ</Text>
             </View>
           ) : (
             report.topTransactions.map((tx, idx) => {
               // Màu nền mềm cho icon theo loại
               const getIconBgColor = (icon: string) => {
+                if (isDark) {
+                  switch (icon) {
+                    case 'utensils': return 'rgba(239, 68, 68, 0.16)';
+                    case 'users': return 'rgba(139, 92, 246, 0.16)';
+                    case 'credit-card': return 'rgba(245, 158, 11, 0.16)';
+                    case 'car': return 'rgba(14, 165, 233, 0.16)';
+                    case 'home': return 'rgba(16, 185, 129, 0.16)';
+                    case 'piggy-bank': return 'rgba(168, 85, 247, 0.16)';
+                    default: return themeColors.surfaceSubtle;
+                  }
+                }
                 switch (icon) {
                   case 'utensils': return '#FEF2F2';
                   case 'users': return '#F5F3FF';
@@ -933,22 +981,22 @@ function TabThuChi({
                   case 'car': return '#0EA5E9';
                   case 'home': return '#10B981';
                   case 'piggy-bank': return '#A855F7';
-                  default: return '#64748B';
+                  default: return isDark ? themeColors.textSecondary : '#64748B';
                 }
               };
 
               return (
                 <View key={tx.id || idx}>
-                  {idx > 0 && <View style={styles.itemDivider} />}
+                  {idx > 0 && <View style={[styles.itemDivider, isDark && { backgroundColor: themeColors.cardBorder }]} />}
                   <View style={styles.txRow}>
                     <View style={[styles.txIconBox, { backgroundColor: getIconBgColor(tx.icon) }]}>
                       <FinanceIcon name={tx.icon as any} size={18} color={getIconColor(tx.icon)} />
                     </View>
                     <View style={styles.txInfoWrap}>
-                      <Text style={styles.txTitle} numberOfLines={1}>{tx.title}</Text>
-                      <Text style={styles.txSub}>{tx.sub}</Text>
+                      <Text style={[styles.txTitle, isDark && { color: themeColors.textPrimary }]} numberOfLines={1}>{tx.title}</Text>
+                      <Text style={[styles.txSub, isDark && { color: themeColors.textSecondary }]}>{tx.sub}</Text>
                     </View>
-                    <Text style={[styles.txAmount, { color: '#DC2626' }]}>
+                    <Text style={[styles.txAmount, { color: isDark ? '#F87171' : '#DC2626' }]}>
                       -{formatVND(tx.amount)}
                     </Text>
                   </View>
@@ -969,24 +1017,28 @@ function TabDanhMuc({
   report,
   formatVND,
   periodName = 'THÁNG NÀY',
+  isDark,
+  themeColors,
 }: {
   report: ReportSummaryData;
   formatVND: (n: number) => string;
   periodName?: string;
+  isDark?: boolean;
+  themeColors?: any;
 }) {
   const totalCatCount = report.categories.length;
 
   return (
     <>
       {/* Khối 1: Tỷ trọng cơ cấu chi tiêu & Donut Chart */}
-      <View style={styles.sectionCard}>
+      <View style={[styles.sectionCard, isDark && { backgroundColor: themeColors.surface, borderColor: themeColors.cardBorder }]}>
         <View style={styles.listHeaderRow}>
           <View>
-            <Text style={styles.sectionCardTitle}>Tỷ trọng cơ cấu chi tiêu</Text>
-            <Text style={styles.sectionCardSub}>Phân bổ theo nhóm danh mục</Text>
+            <Text style={[styles.sectionCardTitle, isDark && { color: themeColors.textPrimary }]}>Tỷ trọng cơ cấu chi tiêu</Text>
+            <Text style={[styles.sectionCardSub, isDark && { color: themeColors.textSecondary }]}>Phân bổ theo nhóm danh mục</Text>
           </View>
-          <View style={styles.badgeCount}>
-            <Text style={styles.badgeCountText}>{totalCatCount} nhóm</Text>
+          <View style={[styles.badgeCount, isDark && { backgroundColor: 'rgba(52, 211, 153, 0.16)' }]}>
+            <Text style={[styles.badgeCountText, isDark && { color: themeColors.accentGreen }]}>{totalCatCount} nhóm</Text>
           </View>
         </View>
 
@@ -994,7 +1046,7 @@ function TabDanhMuc({
           {/* Donut Chart SVG */}
           <View style={styles.donutBox}>
             <Svg width={130} height={130} viewBox="0 0 100 100">
-              <Circle cx="50" cy="50" r="38" stroke="#F1F5F9" strokeWidth="18" fill="none" />
+              <Circle cx="50" cy="50" r="38" stroke={isDark ? themeColors.surfaceSubtle : "#F1F5F9"} strokeWidth="18" fill="none" />
               {/* Phác họa các lát tròn */}
               {(() => {
                 const totalCatPercent = report.categories.reduce((acc, c) => acc + (c.percentage || 0), 0) || 100;
@@ -1024,10 +1076,10 @@ function TabDanhMuc({
               })()}
             </Svg>
             <View style={styles.donutCenterLabel}>
-              <Text style={styles.donutCenterValue}>
+              <Text style={[styles.donutCenterValue, isDark && { color: themeColors.textPrimary }]}>
                 {Math.round(report.totalExpense / 1000)}k
               </Text>
-              <Text style={styles.donutCenterSub}>{periodName}</Text>
+              <Text style={[styles.donutCenterSub, isDark && { color: themeColors.textSecondary }]}>{periodName}</Text>
             </View>
           </View>
 
@@ -1036,8 +1088,8 @@ function TabDanhMuc({
             {report.categories.map((c) => (
               <View key={c.id} style={styles.donutLegendItem}>
                 <View style={[styles.legendDot, { backgroundColor: c.color }]} />
-                <Text style={styles.donutLegendName} numberOfLines={1}>{c.name}</Text>
-                <Text style={styles.donutLegendAmount}>
+                <Text style={[styles.donutLegendName, isDark && { color: themeColors.textPrimary }]} numberOfLines={1}>{c.name}</Text>
+                <Text style={[styles.donutLegendAmount, isDark && { color: themeColors.textSecondary }]}>
                   {formatVND(c.amount)} ({c.percentage}%)
                 </Text>
               </View>
@@ -1047,18 +1099,18 @@ function TabDanhMuc({
       </View>
 
       {/* Khối 2: Bảng thống kê chi tiết danh mục */}
-      <View style={styles.sectionCard}>
-        <Text style={styles.sectionCardTitle}>Bảng thống kê chi tiết danh mục</Text>
-        <Text style={styles.sectionCardSub}>Số tiền, tỷ trọng, số lần chi và mức chi tiêu trung bình</Text>
+      <View style={[styles.sectionCard, isDark && { backgroundColor: themeColors.surface, borderColor: themeColors.cardBorder }]}>
+        <Text style={[styles.sectionCardTitle, isDark && { color: themeColors.textPrimary }]}>Bảng thống kê chi tiết danh mục</Text>
+        <Text style={[styles.sectionCardSub, isDark && { color: themeColors.textSecondary }]}>Số tiền, tỷ trọng, số lần chi và mức chi tiêu trung bình</Text>
 
         <View style={styles.tableWrap}>
           {/* Header Bảng */}
-          <View style={styles.tableHeaderRow}>
-            <Text style={[styles.tableColHeader, { flex: 1.5 }]}>Danh mục</Text>
-            <Text style={[styles.tableColHeader, { flex: 1.3, textAlign: 'right' }]}>Tổng chi</Text>
-            <Text style={[styles.tableColHeader, { flex: 1, textAlign: 'center' }]}>Tỷ trọng</Text>
-            <Text style={[styles.tableColHeader, { flex: 0.8, textAlign: 'center' }]}>Số lần</Text>
-            <Text style={[styles.tableColHeader, { flex: 1.4, textAlign: 'right' }]}>TB / lần</Text>
+          <View style={[styles.tableHeaderRow, isDark && { backgroundColor: themeColors.surfaceSubtle }]}>
+            <Text style={[styles.tableColHeader, { flex: 1.5 }, isDark && { color: themeColors.textMuted }]}>Danh mục</Text>
+            <Text style={[styles.tableColHeader, { flex: 1.3, textAlign: 'right' }, isDark && { color: themeColors.textMuted }]}>Tổng chi</Text>
+            <Text style={[styles.tableColHeader, { flex: 1, textAlign: 'center' }, isDark && { color: themeColors.textMuted }]}>Tỷ trọng</Text>
+            <Text style={[styles.tableColHeader, { flex: 0.8, textAlign: 'center' }, isDark && { color: themeColors.textMuted }]}>Số lần</Text>
+            <Text style={[styles.tableColHeader, { flex: 1.4, textAlign: 'right' }, isDark && { color: themeColors.textMuted }]}>TB / lần</Text>
           </View>
 
           {/* Dòng dữ liệu */}
@@ -1067,28 +1119,28 @@ function TabDanhMuc({
               <View style={styles.tableDataRow}>
                 <View style={[styles.tableCatNameCell, { flex: 1.5 }]}>
                   <View style={[styles.legendDot, { backgroundColor: cat.color }]} />
-                  <Text style={styles.tableCatText} numberOfLines={1}>{cat.name}</Text>
+                  <Text style={[styles.tableCatText, isDark && { color: themeColors.textPrimary }]} numberOfLines={1}>{cat.name}</Text>
                 </View>
 
-                <Text style={[styles.tableAmountText, { flex: 1.3, textAlign: 'right' }]}>
+                <Text style={[styles.tableAmountText, { flex: 1.3, textAlign: 'right' }, isDark && { color: themeColors.textPrimary }]}>
                   -{formatVND(cat.amount)}
                 </Text>
 
                 <View style={{ flex: 1, alignItems: 'center' }}>
-                  <View style={styles.tablePctBadge}>
-                    <Text style={styles.tablePctText}>{cat.percentage}.0%</Text>
+                  <View style={[styles.tablePctBadge, isDark && { backgroundColor: 'rgba(52, 211, 153, 0.16)' }]}>
+                    <Text style={[styles.tablePctText, isDark && { color: themeColors.accentGreen }]}>{cat.percentage}.0%</Text>
                   </View>
                 </View>
 
-                <Text style={[styles.tableCountText, { flex: 0.8, textAlign: 'center' }]}>
+                <Text style={[styles.tableCountText, { flex: 0.8, textAlign: 'center' }, isDark && { color: themeColors.textSecondary }]}>
                   {cat.count}
                 </Text>
 
-                <Text style={[styles.tableAvgText, { flex: 1.4, textAlign: 'right' }]}>
+                <Text style={[styles.tableAvgText, { flex: 1.4, textAlign: 'right' }, isDark && { color: themeColors.textMuted }]}>
                   {formatVND(cat.avgPerTx)}
                 </Text>
               </View>
-              {idx < report.categories.length - 1 && <View style={styles.tableDivider} />}
+              {idx < report.categories.length - 1 && <View style={[styles.tableDivider, isDark && { backgroundColor: themeColors.cardBorder }]} />}
             </View>
           ))}
         </View>
@@ -1100,7 +1152,17 @@ function TabDanhMuc({
 // ─────────────────────────────────────────────────────────────
 // COMPONENT TAB 3: SO SÁNH
 // ─────────────────────────────────────────────────────────────
-function TabSoSanh({ report, formatVND }: { report: ReportSummaryData; formatVND: (n: number) => string }) {
+function TabSoSanh({
+  report,
+  formatVND,
+  isDark,
+  themeColors,
+}: {
+  report: ReportSummaryData;
+  formatVND: (n: number) => string;
+  isDark?: boolean;
+  themeColors?: any;
+}) {
   const comp = report.comparison;
 
   return (
@@ -1108,9 +1170,9 @@ function TabSoSanh({ report, formatVND }: { report: ReportSummaryData; formatVND
       {/* 3 Thẻ chỉ số so sánh kỳ trước */}
       <View style={styles.grid3Cols}>
         {/* Biến động thu nhập */}
-        <View style={styles.compCard}>
-          <Text style={styles.compCardLabel}>Biến động thu nhập</Text>
-          <Text style={styles.compCardValue}>{formatVND(report.totalIncome)}</Text>
+        <View style={[styles.compCard, isDark && { backgroundColor: themeColors.surface, borderColor: themeColors.cardBorder }]}>
+          <Text style={[styles.compCardLabel, isDark && { color: themeColors.textSecondary }]}>Biến động thu nhập</Text>
+          <Text style={[styles.compCardValue, isDark && { color: themeColors.textPrimary }]}>{formatVND(report.totalIncome)}</Text>
           {(() => {
             const incPct = comp?.incomeChangePercent || 0;
             const isInc = incPct > 0;
@@ -1119,13 +1181,21 @@ function TabSoSanh({ report, formatVND }: { report: ReportSummaryData; formatVND
               <View
                 style={[
                   styles.compChangePill,
-                  { backgroundColor: isInc ? '#ECFDF5' : isDec ? '#FEE2E2' : '#F1F5F9' },
+                  {
+                    backgroundColor: isDark
+                      ? (isInc ? 'rgba(52, 211, 153, 0.16)' : isDec ? 'rgba(239, 68, 68, 0.16)' : themeColors.surfaceSubtle)
+                      : (isInc ? '#ECFDF5' : isDec ? '#FEE2E2' : '#F1F5F9'),
+                  },
                 ]}
               >
                 <Text
                   style={[
                     styles.compChangeText,
-                    { color: isInc ? '#059669' : isDec ? '#DC2626' : '#64748B' },
+                    {
+                      color: isDark
+                        ? (isInc ? themeColors.accentGreen : isDec ? '#F87171' : themeColors.textMuted)
+                        : (isInc ? '#059669' : isDec ? '#DC2626' : '#64748B'),
+                    },
                   ]}
                 >
                   {isInc ? `↑ +${incPct}%` : isDec ? `↓ -${Math.abs(incPct)}%` : '→ 0%'}
@@ -1136,9 +1206,9 @@ function TabSoSanh({ report, formatVND }: { report: ReportSummaryData; formatVND
         </View>
 
         {/* Biến động chi tiêu */}
-        <View style={styles.compCard}>
-          <Text style={styles.compCardLabel}>Biến động chi tiêu</Text>
-          <Text style={styles.compCardValue}>{formatVND(report.totalExpense)}</Text>
+        <View style={[styles.compCard, isDark && { backgroundColor: themeColors.surface, borderColor: themeColors.cardBorder }]}>
+          <Text style={[styles.compCardLabel, isDark && { color: themeColors.textSecondary }]}>Biến động chi tiêu</Text>
+          <Text style={[styles.compCardValue, isDark && { color: themeColors.textPrimary }]}>{formatVND(report.totalExpense)}</Text>
           {(() => {
             const expPct = comp?.expenseChangePercent || 0;
             const isInc = expPct > 0;
@@ -1147,13 +1217,21 @@ function TabSoSanh({ report, formatVND }: { report: ReportSummaryData; formatVND
               <View
                 style={[
                   styles.compChangePill,
-                  { backgroundColor: isInc ? '#FEE2E2' : isDec ? '#ECFDF5' : '#F1F5F9' },
+                  {
+                    backgroundColor: isDark
+                      ? (isInc ? 'rgba(239, 68, 68, 0.16)' : isDec ? 'rgba(52, 211, 153, 0.16)' : themeColors.surfaceSubtle)
+                      : (isInc ? '#FEE2E2' : isDec ? '#ECFDF5' : '#F1F5F9'),
+                  },
                 ]}
               >
                 <Text
                   style={[
                     styles.compChangeText,
-                    { color: isInc ? '#DC2626' : isDec ? '#059669' : '#64748B' },
+                    {
+                      color: isDark
+                        ? (isInc ? '#F87171' : isDec ? themeColors.accentGreen : themeColors.textMuted)
+                        : (isInc ? '#DC2626' : isDec ? '#059669' : '#64748B'),
+                    },
                   ]}
                 >
                   {isInc ? `↑ +${expPct}%` : isDec ? `↓ -${Math.abs(expPct)}%` : '→ 0%'}
@@ -1164,14 +1242,14 @@ function TabSoSanh({ report, formatVND }: { report: ReportSummaryData; formatVND
         </View>
 
         {/* Dòng tiền ròng */}
-        <View style={styles.compCard}>
-          <Text style={styles.compCardLabel}>Dòng tiền ròng</Text>
-          <Text style={styles.compCardValue}>
+        <View style={[styles.compCard, isDark && { backgroundColor: themeColors.surface, borderColor: themeColors.cardBorder }]}>
+          <Text style={[styles.compCardLabel, isDark && { color: themeColors.textSecondary }]}>Dòng tiền ròng</Text>
+          <Text style={[styles.compCardValue, isDark && { color: themeColors.textPrimary }]}>
             {report.netCashFlow >= 0 ? '+' : ''}
             {formatVND(report.netCashFlow)}
           </Text>
-          <View style={[styles.compChangePill, { backgroundColor: '#ECFDF5' }]}>
-            <Text style={[styles.compChangeText, { color: '#059669' }]}>
+          <View style={[styles.compChangePill, { backgroundColor: isDark ? 'rgba(52, 211, 153, 0.16)' : '#ECFDF5' }]}>
+            <Text style={[styles.compChangeText, { color: isDark ? themeColors.accentGreen : '#059669' }]}>
               ↑ Cải thiện
             </Text>
           </View>
@@ -1179,18 +1257,18 @@ function TabSoSanh({ report, formatVND }: { report: ReportSummaryData; formatVND
       </View>
 
       {/* Đối chiếu chi tiêu theo danh mục */}
-      <View style={styles.sectionCard}>
-        <Text style={styles.sectionCardTitle}>Đối chiếu chi tiêu theo danh mục</Text>
-        <Text style={styles.sectionCardSub}>So sánh kỳ này với kỳ trước để đánh giá biến động</Text>
+      <View style={[styles.sectionCard, isDark && { backgroundColor: themeColors.surface, borderColor: themeColors.cardBorder }]}>
+        <Text style={[styles.sectionCardTitle, isDark && { color: themeColors.textPrimary }]}>Đối chiếu chi tiêu theo danh mục</Text>
+        <Text style={[styles.sectionCardSub, isDark && { color: themeColors.textSecondary }]}>So sánh kỳ này với kỳ trước để đánh giá biến động</Text>
 
         <View style={styles.tableWrap}>
           {/* Table Header */}
-          <View style={styles.tableHeaderRow}>
-            <Text style={[styles.tableColHeader, { flex: 1.4 }]}>Danh mục</Text>
-            <Text style={[styles.tableColHeader, { flex: 1.1, textAlign: 'right' }]}>Kỳ trước</Text>
-            <Text style={[styles.tableColHeader, { flex: 1.1, textAlign: 'right' }]}>Kỳ này</Text>
-            <Text style={[styles.tableColHeader, { flex: 1.2, textAlign: 'right' }]}>Chênh lệch</Text>
-            <Text style={[styles.tableColHeader, { flex: 1.1, textAlign: 'right' }]}>% Biến động</Text>
+          <View style={[styles.tableHeaderRow, isDark && { backgroundColor: themeColors.surfaceSubtle }]}>
+            <Text style={[styles.tableColHeader, { flex: 1.4 }, isDark && { color: themeColors.textMuted }]}>Danh mục</Text>
+            <Text style={[styles.tableColHeader, { flex: 1.1, textAlign: 'right' }, isDark && { color: themeColors.textMuted }]}>Kỳ trước</Text>
+            <Text style={[styles.tableColHeader, { flex: 1.1, textAlign: 'right' }, isDark && { color: themeColors.textMuted }]}>Kỳ này</Text>
+            <Text style={[styles.tableColHeader, { flex: 1.2, textAlign: 'right' }, isDark && { color: themeColors.textMuted }]}>Chênh lệch</Text>
+            <Text style={[styles.tableColHeader, { flex: 1.1, textAlign: 'right' }, isDark && { color: themeColors.textMuted }]}>% Biến động</Text>
           </View>
 
           {/* Table Rows */}
@@ -1203,14 +1281,14 @@ function TabSoSanh({ report, formatVND }: { report: ReportSummaryData; formatVND
                 <View style={styles.tableDataRow}>
                   <View style={[styles.tableCatNameCell, { flex: 1.4 }]}>
                     <View style={[styles.legendDot, { backgroundColor: c.color }]} />
-                    <Text style={styles.tableCatText} numberOfLines={1}>{c.name}</Text>
+                    <Text style={[styles.tableCatText, isDark && { color: themeColors.textPrimary }]} numberOfLines={1}>{c.name}</Text>
                   </View>
 
-                  <Text style={[styles.tableCompAmount, { flex: 1.1, textAlign: 'right' }]}>
+                  <Text style={[styles.tableCompAmount, { flex: 1.1, textAlign: 'right' }, isDark && { color: themeColors.textSecondary }]}>
                     {formatVND(c.prevAmount)}
                   </Text>
 
-                  <Text style={[styles.tableCompAmount, { flex: 1.1, textAlign: 'right', fontWeight: '700' }]}>
+                  <Text style={[styles.tableCompAmount, { flex: 1.1, textAlign: 'right', fontWeight: '700' }, isDark && { color: themeColors.textPrimary }]}>
                     {formatVND(c.currentAmount)}
                   </Text>
 
@@ -1220,7 +1298,9 @@ function TabSoSanh({ report, formatVND }: { report: ReportSummaryData; formatVND
                       {
                         flex: 1.2,
                         textAlign: 'right',
-                        color: isIncrease ? '#DC2626' : isDecrease ? '#059669' : '#64748B',
+                        color: isDark
+                          ? (isIncrease ? '#F87171' : isDecrease ? themeColors.accentGreen : themeColors.textMuted)
+                          : (isIncrease ? '#DC2626' : isDecrease ? '#059669' : '#64748B'),
                       },
                     ]}
                   >
@@ -1233,7 +1313,9 @@ function TabSoSanh({ report, formatVND }: { report: ReportSummaryData; formatVND
                       style={[
                         styles.changePillSmall,
                         {
-                          backgroundColor: isIncrease ? '#FEE2E2' : isDecrease ? '#ECFDF5' : '#F1F5F9',
+                          backgroundColor: isDark
+                            ? (isIncrease ? 'rgba(239, 68, 68, 0.16)' : isDecrease ? 'rgba(52, 211, 153, 0.16)' : themeColors.surfaceSubtle)
+                            : (isIncrease ? '#FEE2E2' : isDecrease ? '#ECFDF5' : '#F1F5F9'),
                         },
                       ]}
                     >
@@ -1241,7 +1323,9 @@ function TabSoSanh({ report, formatVND }: { report: ReportSummaryData; formatVND
                         style={[
                           styles.changePillSmallText,
                           {
-                            color: isIncrease ? '#DC2626' : isDecrease ? '#059669' : '#64748B',
+                            color: isDark
+                              ? (isIncrease ? '#F87171' : isDecrease ? themeColors.accentGreen : themeColors.textMuted)
+                              : (isIncrease ? '#DC2626' : isDecrease ? '#059669' : '#64748B'),
                           },
                         ]}
                       >
@@ -1254,7 +1338,7 @@ function TabSoSanh({ report, formatVND }: { report: ReportSummaryData; formatVND
                     </View>
                   </View>
                 </View>
-                {idx < comp.categoryComparisons.length - 1 && <View style={styles.tableDivider} />}
+                {idx < comp.categoryComparisons.length - 1 && <View style={[styles.tableDivider, isDark && { backgroundColor: themeColors.cardBorder }]} />}
               </View>
             );
           })}
@@ -1262,19 +1346,19 @@ function TabSoSanh({ report, formatVND }: { report: ReportSummaryData; formatVND
       </View>
 
       {/* Khối Nhận xét so sánh */}
-      <View style={styles.notesCard}>
+      <View style={[styles.notesCard, isDark && { backgroundColor: themeColors.surface, borderColor: themeColors.cardBorder }]}>
         <View style={styles.notesHeaderRow}>
-          <View style={styles.notesIconBox}>
-            <FinanceIcon name="trending-up" size={16} color="#059669" />
+          <View style={[styles.notesIconBox, isDark && { backgroundColor: 'rgba(52, 211, 153, 0.15)' }]}>
+            <FinanceIcon name="trending-up" size={16} color={isDark ? themeColors.accentGreen : "#059669"} />
           </View>
-          <Text style={styles.notesTitle}>Nhận xét so sánh</Text>
+          <Text style={[styles.notesTitle, isDark && { color: themeColors.accentGreen }]}>Nhận xét so sánh</Text>
         </View>
 
         <View style={styles.notesList}>
           {comp?.notes.map((note, idx) => (
             <View key={idx} style={styles.noteItemRow}>
-              <View style={styles.noteBullet} />
-              <Text style={styles.noteText}>{note}</Text>
+              <View style={[styles.noteBullet, isDark && { backgroundColor: themeColors.accentGreen }]} />
+              <Text style={[styles.noteText, isDark && { color: themeColors.textSecondary }]}>{note}</Text>
             </View>
           ))}
         </View>

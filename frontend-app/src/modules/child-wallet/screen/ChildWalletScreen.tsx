@@ -1,20 +1,12 @@
 import React, { useEffect, useState } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  Pressable,
-  Image,
-  RefreshControl,
-  ActivityIndicator,
-  Alert,
-} from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Pressable, Image, RefreshControl, ActivityIndicator } from 'react-native';
+import { AppAlert as Alert } from '../../../context/DialogContext';
 import { ArrowLeft, Plus, CheckCircle2, Star, Gift, Eye, EyeOff, Calendar, Coins, ChevronRight } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { authStorage } from '../../auth/api/authApi';
 import { groupApi } from '../../group/api/groupApi';
 import { FinanceIcon, resolveCategoryIconName } from '../../core/components/FinanceIcon';
+import { useAppTheme } from '../../../context/ThemeContext';
 
 type Props = {
   onBack: () => void;
@@ -33,6 +25,7 @@ export function ChildWalletScreen({
   onViewRequests,
   onViewAllTransactions,
 }: Props) {
+  const { isDark, colors: themeColors } = useAppTheme();
   const insets = useSafeAreaInsets();
   const user = authStorage.getUser();
   const groupId = user?.childWalletGroupId;
@@ -68,14 +61,30 @@ export function ChildWalletScreen({
   const approvedItems = requests.filter((r) => r.status === 'APPROVED');
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, isDark && { backgroundColor: themeColors.background }]}>
       {/* Header */}
-      <View style={[styles.header, { paddingTop: Math.max(insets.top, 14), height: 54 + Math.max(insets.top, 14) }]}>
+      <View
+        style={[
+          styles.header,
+          { paddingTop: Math.max(insets.top, 14), height: 54 + Math.max(insets.top, 14) },
+          isDark && {
+            backgroundColor: themeColors.headerBackground,
+            borderBottomColor: themeColors.divider,
+          },
+        ]}
+      >
         <View style={styles.headerLeftCol}>
-          <Pressable onPress={onBack} hitSlop={12} style={styles.headerIconBtn}>
-            <FinanceIcon name="chevron-left" size={22} color="#047857" />
+          <Pressable
+            onPress={onBack}
+            hitSlop={12}
+            style={[
+              styles.headerIconBtn,
+              isDark && { backgroundColor: themeColors.surfaceSubtle },
+            ]}
+          >
+            <FinanceIcon name="chevron-left" size={22} color={isDark ? themeColors.textPrimary : '#047857'} />
           </Pressable>
-          <Text style={styles.headerTitle}>Ví của em</Text>
+          <Text style={[styles.headerTitle, isDark && { color: themeColors.textPrimary }]}>Ví của em</Text>
         </View>
         <View style={{ width: 40 }} />
       </View>
@@ -83,7 +92,16 @@ export function ChildWalletScreen({
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={[styles.scrollContent, { paddingBottom: Math.max(insets.bottom, 20) + 20 }]}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); loadData(); }} />}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={() => {
+              setRefreshing(true);
+              loadData();
+            }}
+            tintColor={isDark ? themeColors.accentGreen : '#059669'}
+          />
+        }
       >
         {/* ── 1. BANNER NGUYÊN BẢN CHUẨN ĐỒ HỌA BẠN GỬI ── */}
         <View style={styles.bannerContainer}>
@@ -95,10 +113,23 @@ export function ChildWalletScreen({
         </View>
 
         {/* ── 2. THẺ TRẮNG THÔNG TIN SỐ DƯ & HẠN MỨC (CARD 2 CỘT) ── */}
-        <View style={styles.summaryCard}>
+        <View
+          style={[
+            styles.summaryCard,
+            isDark && {
+              backgroundColor: themeColors.surface,
+              borderColor: themeColors.cardBorder,
+            },
+          ]}
+        >
           {/* Cột trái: Số dư hiện tại (dùng icon ngoài trang chủ kid_icon_wallet) */}
           <View style={styles.summaryLeft}>
-            <View style={styles.walletIconSq}>
+            <View
+              style={[
+                styles.walletIconSq,
+                isDark && { backgroundColor: 'rgba(52, 211, 153, 0.15)' },
+              ]}
+            >
               <Image
                 source={require('../../../assets/icons/kid_icon_wallet.png')}
                 style={styles.walletIconImg}
@@ -107,45 +138,71 @@ export function ChildWalletScreen({
             </View>
             <View style={styles.balanceInfo}>
               <View style={styles.balanceLabelRow}>
-                <Text style={styles.balanceLabel}>Số dư hiện tại</Text>
+                <Text style={[styles.balanceLabel, isDark && { color: themeColors.textSecondary }]}>Số dư hiện tại</Text>
                 <Pressable onPress={() => setShowBalance(!showBalance)} hitSlop={8}>
                   {showBalance ? (
-                    <Eye size={15} color="#059669" />
+                    <Eye size={15} color={isDark ? themeColors.accentGreen : '#059669'} />
                   ) : (
-                    <EyeOff size={15} color="#94A3B8" />
+                    <EyeOff size={15} color={isDark ? themeColors.textMuted : '#94A3B8'} />
                   )}
                 </Pressable>
               </View>
-              <Text style={styles.balanceAmount} numberOfLines={1} adjustsFontSizeToFit>
+              <Text
+                style={[
+                  styles.balanceAmount,
+                  isDark && { color: themeColors.accentGreen },
+                ]}
+                numberOfLines={1}
+                adjustsFontSizeToFit
+              >
                 {showBalance ? formatVND(wallet?.balance || 0) : '•••••• đ'}
               </Text>
             </View>
           </View>
 
           {/* Đường phân cách đứng mờ */}
-          <View style={styles.summaryDivider} />
+          <View style={[styles.summaryDivider, isDark && { backgroundColor: themeColors.divider }]} />
 
           {/* Cột phải: Hạn mức ngày & Tiêu vặt tuần (Icon đơn giản) */}
           <View style={styles.summaryRight}>
             <View style={styles.metaRow}>
-              <View style={[styles.metaIconSq, { backgroundColor: '#DCFCE7' }]}>
-                <Calendar size={14} color="#059669" />
+              <View
+                style={[
+                  styles.metaIconSq,
+                  { backgroundColor: isDark ? 'rgba(52, 211, 153, 0.15)' : '#DCFCE7' },
+                ]}
+              >
+                <Calendar size={14} color={isDark ? themeColors.accentGreen : '#059669'} />
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={styles.metaTitle}>Hạn mức ngày</Text>
-                <Text style={styles.metaValue} numberOfLines={1}>
+                <Text style={[styles.metaTitle, isDark && { color: themeColors.textSecondary }]}>Hạn mức ngày</Text>
+                <Text
+                  style={[styles.metaValue, isDark && { color: themeColors.textPrimary }]}
+                  numberOfLines={1}
+                >
                   {wallet?.spendLimitDaily ? formatVND(wallet.spendLimitDaily) : 'Không giới hạn'}
                 </Text>
               </View>
             </View>
 
             <View style={[styles.metaRow, { marginTop: 10 }]}>
-              <View style={[styles.metaIconSq, { backgroundColor: '#FEF3C7' }]}>
-                <Coins size={14} color="#D97706" />
+              <View
+                style={[
+                  styles.metaIconSq,
+                  { backgroundColor: isDark ? 'rgba(251, 191, 36, 0.15)' : '#FEF3C7' },
+                ]}
+              >
+                <Coins size={14} color={isDark ? '#FBBF24' : '#D97706'} />
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={styles.metaTitle}>Tiêu vặt tuần</Text>
-                <Text style={[styles.metaValue, { color: '#059669' }]} numberOfLines={1}>
+                <Text style={[styles.metaTitle, isDark && { color: themeColors.textSecondary }]}>Tiêu vặt tuần</Text>
+                <Text
+                  style={[
+                    styles.metaValue,
+                    { color: isDark ? themeColors.accentGreen : '#059669' },
+                  ]}
+                  numberOfLines={1}
+                >
                   {wallet?.weeklyAllowance ? `+${formatVND(wallet.weeklyAllowance)}` : '+0 đ'}
                 </Text>
               </View>
@@ -153,55 +210,108 @@ export function ChildWalletScreen({
           </View>
         </View>
 
-        {/* ── 3. BỘ 3 NÚT CHỨC NĂNG (GIỮ NGUYÊN) ── */}
+        {/* ── 3. BỘ 3 NÚT CHỨC NĂNG ── */}
         <View style={styles.navRow}>
-          <Pressable style={styles.navBtn} onPress={onAddTransaction}>
-            <View style={[styles.navIconBox, { backgroundColor: '#DCFCE7' }]}>
-              <Plus size={20} color="#15803D" />
+          <Pressable
+            style={({ pressed }) => [
+              styles.navBtn,
+              isDark && {
+                backgroundColor: themeColors.surface,
+                borderColor: themeColors.cardBorder,
+              },
+              pressed && { opacity: 0.8 },
+            ]}
+            onPress={onAddTransaction}
+          >
+            <View
+              style={[
+                styles.navIconBox,
+                { backgroundColor: isDark ? 'rgba(52, 211, 153, 0.15)' : '#DCFCE7' },
+              ]}
+            >
+              <Plus size={20} color={isDark ? themeColors.accentGreen : '#15803D'} />
             </View>
-            <Text style={styles.navBtnText}>Thêm thu/chi</Text>
+            <Text style={[styles.navBtnText, isDark && { color: themeColors.textPrimary }]}>Thêm thu/chi</Text>
           </Pressable>
 
-          <Pressable style={styles.navBtn} onPress={onViewChores}>
-            <View style={[styles.navIconBox, { backgroundColor: '#FEF3C7' }]}>
-              <Star size={20} color="#D97706" />
+          <Pressable
+            style={({ pressed }) => [
+              styles.navBtn,
+              isDark && {
+                backgroundColor: themeColors.surface,
+                borderColor: themeColors.cardBorder,
+              },
+              pressed && { opacity: 0.8 },
+            ]}
+            onPress={onViewChores}
+          >
+            <View
+              style={[
+                styles.navIconBox,
+                { backgroundColor: isDark ? 'rgba(251, 191, 36, 0.15)' : '#FEF3C7' },
+              ]}
+            >
+              <Star size={20} color={isDark ? '#FBBF24' : '#D97706'} />
             </View>
-            <Text style={styles.navBtnText}>Làm nhiệm vụ</Text>
+            <Text style={[styles.navBtnText, isDark && { color: themeColors.textPrimary }]}>Làm nhiệm vụ</Text>
           </Pressable>
 
-          <Pressable style={styles.navBtn} onPress={onViewRequests}>
-            <View style={[styles.navIconBox, { backgroundColor: '#E0F2FE' }]}>
-              <Gift size={20} color="#0284C7" />
+          <Pressable
+            style={({ pressed }) => [
+              styles.navBtn,
+              isDark && {
+                backgroundColor: themeColors.surface,
+                borderColor: themeColors.cardBorder,
+              },
+              pressed && { opacity: 0.8 },
+            ]}
+            onPress={onViewRequests}
+          >
+            <View
+              style={[
+                styles.navIconBox,
+                { backgroundColor: isDark ? 'rgba(56, 189, 248, 0.15)' : '#E0F2FE' },
+              ]}
+            >
+              <Gift size={20} color={isDark ? '#38BDF8' : '#0284C7'} />
             </View>
-            <Text style={styles.navBtnText}>Xin tiền bố mẹ</Text>
+            <Text style={[styles.navBtnText, isDark && { color: themeColors.textPrimary }]}>Xin tiền bố mẹ</Text>
           </Pressable>
         </View>
 
         {/* ── 4. LỊCH SỬ HOẠT ĐỘNG (HIỂN THỊ 6 GIAO DỊCH GẦN NHẤT) ── */}
-        <View style={styles.historySection}>
+        <View
+          style={[
+            styles.historySection,
+            isDark && {
+              backgroundColor: themeColors.surface,
+              borderColor: themeColors.cardBorder,
+            },
+          ]}
+        >
           <View style={styles.historyHeader}>
-            <Text style={styles.sectionTitle}>Hoạt động gần đây</Text>
+            <Text style={[styles.sectionTitle, isDark && { color: themeColors.textPrimary }]}>Hoạt động gần đây</Text>
             {onViewAllTransactions ? (
               <Pressable
                 onPress={onViewAllTransactions}
                 style={{ flexDirection: 'row', alignItems: 'center', gap: 2 }}
                 hitSlop={8}
               >
-                <Text style={{ fontSize: 13, fontWeight: '700', color: '#059669' }}>Xem tất cả</Text>
-                <ChevronRight size={16} color="#059669" strokeWidth={2.5} />
+                <Text style={{ fontSize: 13, fontWeight: '700', color: isDark ? themeColors.accentGreen : '#059669' }}>Xem tất cả</Text>
+                <ChevronRight size={16} color={isDark ? themeColors.accentGreen : '#059669'} strokeWidth={2.5} />
               </Pressable>
             ) : approvedItems.length > 6 ? (
-              <Text style={styles.recentCountText}>Gần đây</Text>
+              <Text style={[styles.recentCountText, isDark && { color: themeColors.accentGreen }]}>Gần đây</Text>
             ) : null}
           </View>
 
           {loading ? (
-            <ActivityIndicator size="small" color="#059669" style={{ marginTop: 20 }} />
+            <ActivityIndicator size="small" color={isDark ? themeColors.accentGreen : '#059669'} style={{ marginTop: 20 }} />
           ) : approvedItems.length === 0 ? (
             <View style={styles.emptyContainer}>
               <Text style={{ fontSize: 32, marginBottom: 8 }}>👛</Text>
-              <Text style={styles.emptyTitle}>Chưa có giao dịch nào</Text>
-              <Text style={styles.emptySub}>Hãy hoàn thành việc nhà hoặc xin tiền bố mẹ để tích lũy tiền vào ví nhé!</Text>
+              <Text style={[styles.emptyTitle, isDark && { color: themeColors.textPrimary }]}>Chưa có giao dịch nào</Text>
+              <Text style={[styles.emptySub, isDark && { color: themeColors.textSecondary }]}>Hãy hoàn thành việc nhà hoặc xin tiền bố mẹ để tích lũy tiền vào ví nhé!</Text>
             </View>
           ) : (
             approvedItems.slice(0, 6).map((item) => {
@@ -238,12 +348,22 @@ export function ChildWalletScreen({
               }
 
               return (
-                <View key={item.id} style={styles.historyItem}>
+                <View
+                  key={item.id}
+                  style={[
+                    styles.historyItem,
+                    isDark && { borderBottomColor: themeColors.divider },
+                  ]}
+                >
                   <View style={styles.historyLeft}>
                     <View
                       style={[
                         styles.historyIconBox,
-                        { backgroundColor: isIncome ? '#DCFCE7' : '#FEE2E2' },
+                        {
+                          backgroundColor: isIncome
+                            ? (isDark ? 'rgba(52, 211, 153, 0.15)' : '#DCFCE7')
+                            : (isDark ? 'rgba(239, 68, 68, 0.15)' : '#FEE2E2'),
+                        },
                       ]}
                     >
                       <FinanceIcon
@@ -265,20 +385,33 @@ export function ChildWalletScreen({
                             : resolveCategoryIconName(undefined, isIncome ? 'INCOME' : 'EXPENSE', displayTitle)
                         }
                         size={17}
-                        color={isIncome ? '#15803D' : '#DC2626'}
+                        color={
+                          isIncome
+                            ? (isDark ? themeColors.accentGreen : '#15803D')
+                            : (isDark ? '#F87171' : '#DC2626')
+                        }
                       />
                     </View>
                     <View style={{ flex: 1 }}>
-                      <Text style={styles.historyTitle} numberOfLines={1}>
+                      <Text
+                        style={[styles.historyTitle, isDark && { color: themeColors.textPrimary }]}
+                        numberOfLines={1}
+                      >
                         {displayTitle}
                       </Text>
-                      <Text style={styles.historyDate}>{subText} · {dateDisplay}</Text>
+                      <Text style={[styles.historyDate, isDark && { color: themeColors.textSecondary }]}>
+                        {subText} · {dateDisplay}
+                      </Text>
                     </View>
                   </View>
                   <Text
                     style={[
                       styles.historyAmount,
-                      { color: isIncome ? '#15803D' : '#DC2626' },
+                      {
+                        color: isIncome
+                          ? (isDark ? themeColors.accentGreen : '#15803D')
+                          : (isDark ? '#F87171' : '#DC2626'),
+                      },
                     ]}
                   >
                     {isIncome ? '+' : '-'}{formatVND(item.amount)}
@@ -324,7 +457,7 @@ const styles = StyleSheet.create({
   /* 1. Banner nguyên bản */
   bannerContainer: {
     width: '100%',
-    aspectRatio: 1004 / 314,
+    aspectRatio: 1004 / 304,
     borderRadius: 22,
     overflow: 'hidden',
     marginBottom: 14,

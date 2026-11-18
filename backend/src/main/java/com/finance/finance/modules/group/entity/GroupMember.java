@@ -42,4 +42,27 @@ public class GroupMember {
     @Column(name = "notification_enabled", nullable = false)
     @Builder.Default
     private Boolean notificationEnabled = true;
+
+    /**
+     * Thành viên này có được xem chi tiêu gia đình không?
+     * Bố mẹ quyết định khi thêm con vào nhóm
+     */
+    @Column(name = "can_view_family_expenses", nullable = false)
+    @Builder.Default
+    private Boolean canViewFamilyExpenses = true;
+
+    /**
+     * Thành viên này có phải là "con" không?
+     * Đánh dấu để áp dụng các chính sách quản lý trẻ em
+     */
+    @Column(name = "is_child_profile", nullable = false)
+    @Builder.Default
+    private Boolean isChildProfile = false;
+
+    /**
+     * ID của ChildWallet được gắn với thành viên này (nếu có)
+     * Dùng cho trường hợp con tự tạo tài khoản rồi gia nhập gia đình
+     */
+    @Column(name = "linked_child_wallet_id")
+    private UUID linkedChildWalletId;
 }

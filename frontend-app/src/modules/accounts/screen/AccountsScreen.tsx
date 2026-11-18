@@ -1,9 +1,10 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   Image,
+  KeyboardAvoidingView,
   Modal,
+  Platform,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -17,6 +18,8 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ArrowLeft, Plus } from 'lucide-react-native';
 import { FinanceIcon } from '../../core/components/FinanceIcon';
+import { useAppTheme } from '../../../context/ThemeContext';
+import { useAppDialog, AppAlert as Alert } from '../../../context/DialogContext';
 
 const BG_INCOME_WAVE = require('../../add-transaction/assets/bg-income-wave.jpg');
 const WALLET_3D_ICON = require('../../../assets/icons/hero_wallet_3d.png');
@@ -64,9 +67,11 @@ const FILTER_TABS = [
 type FilterKey = typeof FILTER_TABS[number]['key'];
 
 export function AccountsScreen({ onBack, onAddTransaction }: Props) {
+  const { isDark, colors: themeColors } = useAppTheme();
   const insets = useSafeAreaInsets();
   const { width: screenWidth } = useWindowDimensions();
   const cardWidth = Math.max(300, screenWidth - 32);
+  const { confirmDelete, showSuccess, showError } = useAppDialog();
 
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -100,10 +105,6 @@ export function AccountsScreen({ onBack, onAddTransaction }: Props) {
   const [editDescription, setEditDescription] = useState('');
   const [editIsActive, setEditIsActive] = useState(true);
   const [editSubmitting, setEditSubmitting] = useState(false);
-
-  // Modal Xác nhận xóa ví
-  const [accountToDelete, setAccountToDelete] = useState<AccountItem | null>(null);
-  const [isDeleting, setIsDeleting] = useState(false);
 
   // Định dạng số có dấu chấm ngăn cách hàng nghìn
   const formatNumberWithDots = (val: string | number) => {
@@ -382,35 +383,14 @@ export function AccountsScreen({ onBack, onAddTransaction }: Props) {
     }
   };
 
-  // Xử lý Xóa ví
-  const handleConfirmDelete = async () => {
-    if (!accountToDelete) return;
-    try {
-      setIsDeleting(true);
-      const res = await accountApi.deleteAccount(accountToDelete.id);
-      if (res.success) {
-        Alert.alert('Thành công', `Đã xóa ví "${accountToDelete.name}" thành công!`);
-        setAccountToDelete(null);
-        setSelectedAccountDetail(null);
-        await loadAccounts();
-      } else {
-        Alert.alert('Lỗi', res.message || 'Không thể xóa ví này.');
-      }
-    } catch (err: any) {
-      Alert.alert('Lỗi', err?.message || 'Có lỗi xảy ra khi xóa ví.');
-    } finally {
-      setIsDeleting(false);
-    }
-  };
-
   return (
-    <View style={styles.screen}>
+    <View style={[styles.screen, isDark && { backgroundColor: themeColors.background }]}>
       {/* ── 1. HEADER SÁNG TRẮNG ĐỒNG BỘ MÀN THÊM GIAO DỊCH ── */}
-      <View style={[styles.header, { paddingTop: Math.max(insets.top, 10) + 4 }]}>
+      <View style={[styles.header, { paddingTop: Math.max(insets.top, 10) + 4 }, isDark && { backgroundColor: themeColors.background, borderBottomColor: themeColors.cardBorder }]}>
         <Pressable onPress={onBack} hitSlop={12} style={styles.backBtn}>
-          <ArrowLeft size={25} color="#0F172A" strokeWidth={2.5} />
+          <ArrowLeft size={25} color={isDark ? themeColors.textPrimary : "#0F172A"} strokeWidth={2.5} />
         </Pressable>
-        <Text style={styles.headerTitle}>Ví & Tài khoản</Text>
+        <Text style={[styles.headerTitle, isDark && { color: themeColors.textPrimary }]}>Ví & Tài khoản</Text>
         <Pressable onPress={handleOpenAddModal} style={styles.addNavBtn} hitSlop={8}>
           <Plus size={16} color="#FFFFFF" strokeWidth={2.6} />
           <Text style={styles.addNavBtnText}>Thêm ví</Text>
@@ -430,7 +410,7 @@ export function AccountsScreen({ onBack, onAddTransaction }: Props) {
         }
       >
         {/* ── 2. HERO CARD TỔNG TÀI SẢN NỀN SÓNG XANH 3D + ICON VÍ 3D NGOÀI TRANG CHỦ ── */}
-        <View style={[styles.heroTotalCard, { width: cardWidth }]}>
+        <View style={[styles.heroTotalCard, { width: cardWidth }, isDark && { backgroundColor: "#064E3B" }]}>
           <Image
             source={BG_INCOME_WAVE}
             style={[styles.heroWaveBgImg, { width: cardWidth }]}
@@ -452,7 +432,7 @@ export function AccountsScreen({ onBack, onAddTransaction }: Props) {
           </View>
 
           {totalLiabilities > 0 && (
-            <View style={styles.liabilitiesRow}>
+            <View style={[styles.liabilitiesRow, isDark && { backgroundColor: "rgba(225, 29, 72, 0.18)" }]}>
               <Text style={styles.liabilitiesLabel}>Dư nợ thẻ tín dụng:</Text>
               <Text style={styles.liabilitiesValue}>-{formatVND(totalLiabilities)} ₫</Text>
             </View>
@@ -485,14 +465,14 @@ export function AccountsScreen({ onBack, onAddTransaction }: Props) {
                 <Pressable
                   key={tab.key}
                   onPress={() => setActiveFilter(tab.key)}
-                  style={[styles.filterPill, isSelected && styles.filterPillActive]}
+                  style={[styles.filterPill, isDark && { backgroundColor: themeColors.surface, borderColor: themeColors.cardBorder }, isSelected && (isDark ? { backgroundColor: "#059669", borderColor: "#059669" } : styles.filterPillActive)]}
                 >
                   <FinanceIcon
                     name={tab.icon}
                     size={16}
                     color={isSelected ? '#FFFFFF' : '#15803D'}
                   />
-                  <Text style={[styles.filterPillText, isSelected && styles.filterPillTextActive]}>
+                  <Text style={[styles.filterPillText, isDark && { color: themeColors.textSecondary }, isSelected && { color: "#FFFFFF" }]}>
                     {tab.label}
                   </Text>
                 </Pressable>
@@ -508,10 +488,10 @@ export function AccountsScreen({ onBack, onAddTransaction }: Props) {
             <Text style={styles.loadingText}>Đang nạp danh sách tài khoản...</Text>
           </View>
         ) : filteredAccounts.length === 0 ? (
-          <View style={styles.emptyCard}>
+          <View style={[styles.emptyCard, isDark && { backgroundColor: themeColors.surface, borderColor: themeColors.cardBorder }]}>
             <Text style={styles.emptyIcon}>💳</Text>
-            <Text style={styles.emptyTitle}>Chưa có tài khoản trong mục này</Text>
-            <Text style={styles.emptySub}>Nhấn nút "+ Thêm ví" ở góc trên để bổ sung nguồn tiền mới.</Text>
+            <Text style={[styles.emptyTitle, isDark && { color: themeColors.textPrimary }]}>Chưa có tài khoản trong mục này</Text>
+            <Text style={[styles.emptySub, isDark && { color: themeColors.textSecondary }]}>Nhấn nút "+ Thêm ví" ở góc trên để bổ sung nguồn tiền mới.</Text>
           </View>
         ) : (
           filteredAccounts.map((acc) => {
@@ -522,6 +502,7 @@ export function AccountsScreen({ onBack, onAddTransaction }: Props) {
               findBankOrWalletPreset(acc.description);
             const resolvedLogoUrl = acc.bank?.logoUrl || brandPreset?.logoUrl;
             const isCredit = acc.accountType === 'CREDIT_CARD';
+            const isWalletPreset = ['MOMO', 'ZALOPAY', 'VNPAY'].includes(brandPreset?.code || '');
 
             return (
               <Pressable
@@ -529,17 +510,18 @@ export function AccountsScreen({ onBack, onAddTransaction }: Props) {
                 onPress={() => setSelectedAccountDetail(acc)}
                 style={({ pressed }) => [
                   styles.accountCard,
+                  isDark && { backgroundColor: themeColors.surface, borderColor: themeColors.cardBorder },
                   pressed && { opacity: 0.92, transform: [{ scale: 0.99 }] },
-                  acc.isActive === false && styles.accountCardInactive,
+                  acc.isActive === false && (isDark ? { backgroundColor: themeColors.surfaceSubtle, opacity: 0.6 } : styles.accountCardInactive),
                 ]}
               >
                 <View style={styles.cardMainRow}>
-                  {/* LOGO NGÂN HÀNG / VÍ ĐIỆN TỬ TRONG Ô VUÔNG BO GÓC TRẮNG */}
+                  {/* LOGO NGÂN HÀNG / VÍ ĐIỆN TỬ TRONG Ô VUÔNG BO GÓC TRẮNG SÁNG NHƯ GIAO DIỆN SÁNG */}
                   {resolvedLogoUrl ? (
-                    <View style={styles.brandLogoBox}>
+                    <View style={[styles.brandLogoBox, isWalletPreset && { padding: 6 }]}>
                       <Image
                         source={{ uri: resolvedLogoUrl }}
-                        style={styles.brandLogoImg}
+                        style={[styles.brandLogoImg, isWalletPreset && { transform: [{ scale: 0.95 }] }]}
                         resizeMode="contain"
                       />
                     </View>
@@ -557,7 +539,7 @@ export function AccountsScreen({ onBack, onAddTransaction }: Props) {
 
                   {/* Thông tin tên & phân loại */}
                   <View style={styles.cardInfoCol}>
-                    <Text style={styles.accName} numberOfLines={1}>
+                    <Text style={[styles.accName, isDark && { color: themeColors.textPrimary }]} numberOfLines={1}>
                       {acc.name}
                     </Text>
                     <View style={styles.accBadgeRow}>
@@ -567,24 +549,24 @@ export function AccountsScreen({ onBack, onAddTransaction }: Props) {
                         </Text>
                       </View>
                       {acc.accountNumberMasked ? (
-                        <Text style={styles.maskedNumText}>• {acc.accountNumberMasked}</Text>
+                        <Text style={[styles.maskedNumText, isDark && { color: themeColors.textMuted }]}>• {acc.accountNumberMasked}</Text>
                       ) : null}
                     </View>
                   </View>
 
                   {/* Số dư to rõ ràng */}
                   <View style={styles.cardBalanceCol}>
-                    <Text style={[styles.cardBalanceValue, isCredit && { color: '#E11D48' }]}>
-                      {formatVND(acc.balance)} <Text style={styles.currencySmall}>₫</Text>
+                    <Text style={[styles.cardBalanceValue, isDark && { color: themeColors.textPrimary }, isCredit && { color: '#F87171' }]}>
+                      {formatVND(acc.balance)} <Text style={[styles.currencySmall, isDark && { color: themeColors.textMuted }]}>₫</Text>
                     </Text>
-                    <Text style={[styles.cardStatusText, isCredit && { color: '#E11D48' }]}>
+                    <Text style={[styles.cardStatusText, isCredit && { color: '#F87171' }]}>
                       {isCredit ? 'Dư nợ' : 'Khả dụng'}
                     </Text>
                   </View>
                 </View>
 
                 {/* Footer thẻ: Trạng thái & Xem chi tiết */}
-                <View style={styles.cardFooterRow}>
+                <View style={[styles.cardFooterRow, isDark && { borderTopColor: themeColors.cardBorder }]}>
                   <View style={styles.statusIndicator}>
                     <View
                       style={[
@@ -595,7 +577,7 @@ export function AccountsScreen({ onBack, onAddTransaction }: Props) {
                     <Text
                       style={[
                         styles.statusText,
-                        { color: acc.isActive !== false ? '#059669' : '#E11D48' },
+                        { color: acc.isActive !== false ? (isDark ? '#34D399' : '#059669') : '#F87171' },
                       ]}
                     >
                       {acc.isActive !== false ? 'Đang hoạt động' : 'Tạm tắt'}
@@ -603,8 +585,8 @@ export function AccountsScreen({ onBack, onAddTransaction }: Props) {
                   </View>
 
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 2 }}>
-                    <Text style={styles.tapToDetailText}>Xem chi tiết</Text>
-                    <FinanceIcon name="chevron-right" size={14} color="#059669" />
+                    <Text style={[styles.tapToDetailText, isDark && { color: themeColors.accentGreen }]}>Xem chi tiết</Text>
+                    <FinanceIcon name="chevron-right" size={14} color={isDark ? themeColors.accentGreen : '#059669'} />
                   </View>
                 </View>
               </Pressable>
@@ -618,19 +600,20 @@ export function AccountsScreen({ onBack, onAddTransaction }: Props) {
         const isCredit = selectedAccountDetail.accountType === 'CREDIT_CARD';
         const brandPreset = findBankOrWalletPreset(selectedAccountDetail.name);
         const meta = getAccountTypeMeta(selectedAccountDetail.accountType, selectedAccountDetail);
+        const isWalletPreset = ['MOMO', 'ZALOPAY', 'VNPAY'].includes(brandPreset?.code || '');
 
         return (
           <Modal visible transparent animationType="slide">
             <View style={styles.modalOverlay}>
-              <View style={styles.detailSheet}>
+              <View style={[styles.detailSheet, isDark && { backgroundColor: themeColors.surface }]}>
                 {/* Header chi tiết */}
-                <View style={styles.detailHeader}>
+                <View style={[styles.detailHeader, isDark && { borderBottomColor: themeColors.cardBorder }]}>
                   <View style={styles.detailHeaderLeft}>
                     {brandPreset?.logoUrl ? (
-                      <View style={styles.detailLogoWrap}>
+                      <View style={[styles.detailLogoWrap, isWalletPreset && { padding: 6 }]}>
                         <Image
                           source={{ uri: brandPreset.logoUrl }}
-                          style={styles.brandLogoImg}
+                          style={[styles.brandLogoImg, isWalletPreset && { transform: [{ scale: 0.95 }] }]}
                           resizeMode="contain"
                         />
                       </View>
@@ -640,10 +623,10 @@ export function AccountsScreen({ onBack, onAddTransaction }: Props) {
                       </View>
                     )}
                     <View style={{ flex: 1 }}>
-                      <Text style={styles.detailTitle} numberOfLines={1}>
+                      <Text style={[styles.detailTitle, isDark && { color: themeColors.textPrimary }]} numberOfLines={1}>
                         {selectedAccountDetail.name}
                       </Text>
-                      <Text style={styles.detailSub}>
+                      <Text style={[styles.detailSub, isDark && { color: themeColors.textSecondary }]}>
                         {selectedAccountDetail.accountNumberMasked
                           ? `STK: ${selectedAccountDetail.accountNumberMasked}`
                           : selectedAccountDetail.phoneNumber || meta.label}
@@ -653,15 +636,15 @@ export function AccountsScreen({ onBack, onAddTransaction }: Props) {
                   <Pressable
                     onPress={() => setSelectedAccountDetail(null)}
                     hitSlop={10}
-                    style={styles.modalCloseBtn}
+                    style={[styles.modalCloseBtn, isDark && { backgroundColor: themeColors.surfaceSubtle }]}
                   >
-                    <FinanceIcon name="close" size={18} color="#475569" />
+                    <FinanceIcon name="close" size={18} color={isDark ? themeColors.textSecondary : "#475569"} />
                   </Pressable>
                 </View>
 
                 {/* Nội dung thông tin số dư & hạn mức */}
                 <View style={styles.detailBody}>
-                  <View style={styles.detailCardBox}>
+                  <View style={[styles.detailCardBox, isDark && { backgroundColor: themeColors.surfaceSubtle, borderColor: themeColors.cardBorder }]}>
                     <View style={styles.detailRow}>
                       <Text style={styles.detailRowLabel}>
                         {isCredit ? 'Dư nợ hiện tại:' : 'Số dư khả dụng:'}
@@ -746,31 +729,28 @@ export function AccountsScreen({ onBack, onAddTransaction }: Props) {
                       onPress={() => {
                         const acc = selectedAccountDetail;
                         if (!acc) return;
-                        Alert.alert(
-                          'Xác nhận xóa ví',
-                          `Bạn có chắc chắn muốn xóa ví "${acc.name}" không?\nHành động này không thể hoàn tác.`,
-                          [
-                            { text: 'Hủy', style: 'cancel' },
-                            {
-                              text: 'Xóa ví',
-                              style: 'destructive',
-                              onPress: async () => {
-                                try {
-                                  setSelectedAccountDetail(null);
-                                  const res = await accountApi.deleteAccount(acc.id);
-                                  if (res.success) {
-                                    Alert.alert('Thành công', `Đã xóa ví "${acc.name}" thành công!`);
-                                    await loadAccounts();
-                                  } else {
-                                    Alert.alert('Lỗi', res.message || 'Không thể xóa ví này.');
-                                  }
-                                } catch (err: any) {
-                                  Alert.alert('Lỗi', err?.message || 'Có lỗi xảy ra khi xóa ví.');
-                                }
-                              },
-                            },
-                          ]
-                        );
+                        setSelectedAccountDetail(null);
+                        confirmDelete({
+                          title: 'Xóa ví / tài khoản',
+                          message: `Bạn có chắc chắn muốn xóa ví "${acc.name}" không?\nHành động này không thể hoàn tác.`,
+                          itemName: acc.name,
+                          onCancel: () => {
+                            setSelectedAccountDetail(acc);
+                          },
+                          onConfirm: async () => {
+                            try {
+                              const res = await accountApi.deleteAccount(acc.id);
+                              if (res.success) {
+                                showSuccess('Thành công', `Đã xóa ví "${acc.name}" thành công!`);
+                                await loadAccounts();
+                              } else {
+                                showError('Lỗi', res.message || 'Không thể xóa ví này.');
+                              }
+                            } catch (err: any) {
+                              showError('Lỗi', err?.message || 'Có lỗi xảy ra khi xóa ví.');
+                            }
+                          },
+                        });
                       }}
                       style={styles.deleteActionBtn}
                     >
@@ -795,43 +775,50 @@ export function AccountsScreen({ onBack, onAddTransaction }: Props) {
       {/* ── 6. MODAL CHỈNH SỬA VÍ (ĐỔI TÊN, SỐ DƯ, BẬT TẮT) ── */}
       {isEditModalOpen && selectedAccountForEdit && (
         <Modal visible transparent animationType="slide">
-          <View style={styles.modalOverlay}>
-            <View style={styles.modalSheet}>
-              <View style={styles.modalHeader}>
+          <KeyboardAvoidingView
+            style={styles.modalOverlay}
+            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          >
+            <View style={[styles.modalSheet, isDark && { backgroundColor: themeColors.surface }]}>
+              <View style={[styles.modalHeader, isDark && { borderBottomColor: themeColors.cardBorder }]}>
                 <View style={styles.modalHeaderLeft}>
-                  <View style={[styles.modalIconWrap, { backgroundColor: '#E0F2FE' }]}>
-                    <FinanceIcon name="edit" size={18} color="#0284C7" />
+                  <View style={[styles.modalIconWrap, isDark ? { backgroundColor: 'rgba(2, 132, 199, 0.2)' } : { backgroundColor: '#E0F2FE' }]}>
+                    <FinanceIcon name="edit" size={18} color={isDark ? '#38BDF8' : '#0284C7'} />
                   </View>
                   <View>
-                    <Text style={styles.modalTitle}>Sửa thông tin ví</Text>
-                    <Text style={styles.modalSubTitle}>{selectedAccountForEdit.name}</Text>
+                    <Text style={[styles.modalTitle, isDark && { color: themeColors.textPrimary }]}>Sửa thông tin ví</Text>
+                    <Text style={[styles.modalSubTitle, isDark && { color: themeColors.textMuted }]}>{selectedAccountForEdit.name}</Text>
                   </View>
                 </View>
                 <Pressable
                   onPress={() => setIsEditModalOpen(false)}
                   hitSlop={10}
-                  style={styles.modalCloseBtn}
+                  style={[styles.modalCloseBtn, isDark && { backgroundColor: themeColors.surfaceSubtle }]}
                 >
-                  <FinanceIcon name="close" size={18} color="#475569" />
+                  <FinanceIcon name="close" size={18} color={isDark ? themeColors.textSecondary : "#475569"} />
                 </Pressable>
               </View>
 
-              <ScrollView style={styles.modalBody} showsVerticalScrollIndicator={false}>
+              <ScrollView
+                style={styles.modalBody}
+                showsVerticalScrollIndicator={false}
+                keyboardShouldPersistTaps="handled"
+              >
                 {/* Tên ví */}
                 <View style={styles.modalInputGroup}>
-                  <Text style={styles.modalInputLabel}>Tên hiển thị ví / tài khoản *</Text>
+                  <Text style={[styles.modalInputLabel, isDark && { color: themeColors.textSecondary }]}>Tên hiển thị ví / tài khoản *</Text>
                   <TextInput
                     value={editName}
                     onChangeText={setEditName}
                     placeholder="Nhập tên ví..."
-                    placeholderTextColor="#94A3B8"
-                    style={styles.modalTextInput}
+                    placeholderTextColor={isDark ? '#64748B' : '#94A3B8'}
+                    style={[styles.modalTextInput, isDark && { backgroundColor: themeColors.surfaceSubtle, borderColor: themeColors.cardBorder, color: themeColors.textPrimary }]}
                   />
                 </View>
 
                 {/* Số dư hiện tại */}
                 <View style={styles.modalInputGroup}>
-                  <Text style={styles.modalInputLabel}>
+                  <Text style={[styles.modalInputLabel, isDark && { color: themeColors.textSecondary }]}>
                     {selectedAccountForEdit.accountType === 'CREDIT_CARD'
                       ? 'Dư nợ hiện tại (VNĐ) *'
                       : 'Số dư hiện tại (VNĐ) *'}
@@ -840,37 +827,37 @@ export function AccountsScreen({ onBack, onAddTransaction }: Props) {
                     value={editBalance}
                     onChangeText={(t) => setEditBalance(formatNumberWithDots(t))}
                     placeholder="0"
-                    placeholderTextColor="#94A3B8"
+                    placeholderTextColor={isDark ? '#64748B' : '#94A3B8'}
                     keyboardType="numeric"
-                    style={[styles.modalTextInput, { fontSize: 16, fontWeight: '800', color: '#059669' }]}
+                    style={[styles.modalTextInput, { fontSize: 16, fontWeight: '800', color: isDark ? '#34D399' : '#059669' }, isDark && { backgroundColor: themeColors.surfaceSubtle, borderColor: themeColors.cardBorder }]}
                   />
-                  <Text style={styles.inputHelperText}>
+                  <Text style={[styles.inputHelperText, isDark && { color: themeColors.textMuted }]}>
                     Hệ thống sẽ tự động cập nhật số dư mới vào lịch sử ví.
                   </Text>
                 </View>
 
                 {/* Ghi chú / Mô tả */}
                 <View style={styles.modalInputGroup}>
-                  <Text style={styles.modalInputLabel}>Mô tả / Ghi chú ví</Text>
+                  <Text style={[styles.modalInputLabel, isDark && { color: themeColors.textSecondary }]}>Mô tả / Ghi chú ví</Text>
                   <TextInput
                     value={editDescription}
                     onChangeText={setEditDescription}
                     placeholder="Ghi chú ví (ví dụ: Ví tiền tiêu vặt, tài khoản nhận lương...)"
-                    placeholderTextColor="#94A3B8"
-                    style={styles.modalTextInput}
+                    placeholderTextColor={isDark ? '#64748B' : '#94A3B8'}
+                    style={[styles.modalTextInput, isDark && { backgroundColor: themeColors.surfaceSubtle, borderColor: themeColors.cardBorder, color: themeColors.textPrimary }]}
                   />
                 </View>
 
                 {/* Trạng thái hoạt động */}
-                <View style={styles.switchRowGroup}>
+                <View style={[styles.switchRowGroup, isDark && { backgroundColor: themeColors.surfaceSubtle, borderColor: themeColors.cardBorder }]}>
                   <View style={{ flex: 1 }}>
-                    <Text style={styles.switchTitle}>Trạng thái hoạt động</Text>
-                    <Text style={styles.switchSub}>Bật hoặc tắt ghi nhận giao dịch của ví này</Text>
+                    <Text style={[styles.switchTitle, isDark && { color: themeColors.textPrimary }]}>Trạng thái hoạt động</Text>
+                    <Text style={[styles.switchSub, isDark && { color: themeColors.textSecondary }]}>Bật hoặc tắt ghi nhận giao dịch của ví này</Text>
                   </View>
                   <Switch
                     value={editIsActive}
                     onValueChange={setEditIsActive}
-                    trackColor={{ false: '#CBD5E1', true: '#00A86B' }}
+                    trackColor={{ false: isDark ? '#334155' : '#CBD5E1', true: '#00A86B' }}
                     thumbColor="#FFFFFF"
                   />
                 </View>
@@ -879,9 +866,9 @@ export function AccountsScreen({ onBack, onAddTransaction }: Props) {
                 <View style={styles.editModalButtonsRow}>
                   <Pressable
                     onPress={() => setIsEditModalOpen(false)}
-                    style={styles.editCancelBtn}
+                    style={[styles.editCancelBtn, isDark && { backgroundColor: themeColors.surfaceSubtle }]}
                   >
-                    <Text style={styles.editCancelBtnText}>Hủy</Text>
+                    <Text style={[styles.editCancelBtnText, isDark && { color: themeColors.textSecondary }]}>Hủy</Text>
                   </Pressable>
                   <Pressable
                     onPress={handleSaveEdit}
@@ -897,33 +884,44 @@ export function AccountsScreen({ onBack, onAddTransaction }: Props) {
                 </View>
               </ScrollView>
             </View>
-          </View>
+          </KeyboardAvoidingView>
         </Modal>
       )}
 
       {/* ── 7. MODAL THÊM VÍ / TÀI KHOẢN MỚI CÓ BỘ CHỌN LOGO ── */}
       <Modal visible={createModalVisible} transparent animationType="slide">
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalSheet}>
-            <View style={styles.modalHeader}>
+        <KeyboardAvoidingView
+          style={styles.modalOverlay}
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        >
+          <View style={[styles.modalSheet, isDark && { backgroundColor: themeColors.surface }]}>
+            <View style={[styles.modalHeader, isDark && { borderBottomColor: themeColors.cardBorder }]}>
               <View style={styles.modalHeaderLeft}>
-                <View style={styles.modalIconWrap}>
-                  <FinanceIcon name="wallet" size={20} color="#059669" />
+                <View style={[styles.modalIconWrap, isDark ? { backgroundColor: 'rgba(5, 150, 105, 0.2)' } : { backgroundColor: '#E8F8F0' }]}>
+                  <FinanceIcon name="wallet" size={20} color={isDark ? '#34D399' : '#059669'} />
                 </View>
                 <View>
-                  <Text style={styles.modalTitle}>Thêm ví / Nguồn tiền mới</Text>
-                  <Text style={styles.modalSubTitle}>Tạo tài khoản quản lý chi tiêu</Text>
+                  <Text style={[styles.modalTitle, isDark && { color: themeColors.textPrimary }]}>Thêm ví / Nguồn tiền mới</Text>
+                  <Text style={[styles.modalSubTitle, isDark && { color: themeColors.textMuted }]}>Tạo tài khoản quản lý chi tiêu</Text>
                 </View>
               </View>
-              <Pressable onPress={() => setCreateModalVisible(false)} hitSlop={10} style={styles.modalCloseBtn}>
-                <FinanceIcon name="close" size={18} color="#475569" />
+              <Pressable
+                onPress={() => setCreateModalVisible(false)}
+                hitSlop={10}
+                style={[styles.modalCloseBtn, isDark && { backgroundColor: themeColors.surfaceSubtle }]}
+              >
+                <FinanceIcon name="close" size={18} color={isDark ? themeColors.textSecondary : "#475569"} />
               </Pressable>
             </View>
 
-            <ScrollView style={styles.modalBody} showsVerticalScrollIndicator={false}>
+            <ScrollView
+              style={styles.modalBody}
+              showsVerticalScrollIndicator={false}
+              keyboardShouldPersistTaps="handled"
+            >
               {/* 1. Chọn loại tài khoản */}
               <View style={styles.modalInputGroup}>
-                <Text style={styles.modalInputLabel}>Loại tài khoản / ví *</Text>
+                <Text style={[styles.modalInputLabel, isDark && { color: themeColors.textSecondary }]}>Loại tài khoản / ví *</Text>
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.categoryScroll}>
                   {ACCOUNT_CATEGORIES.map((cat) => {
                     const isSelected = modalCategory === cat.code;
@@ -931,9 +929,19 @@ export function AccountsScreen({ onBack, onAddTransaction }: Props) {
                       <Pressable
                         key={cat.code}
                         onPress={() => handleSelectCategory(cat.code)}
-                        style={[styles.categoryPill, isSelected && styles.categoryPillActive]}
+                        style={[
+                          styles.categoryPill,
+                          isDark && { backgroundColor: themeColors.surfaceSubtle, borderColor: themeColors.cardBorder },
+                          isSelected && (isDark ? { backgroundColor: '#059669', borderColor: '#059669' } : styles.categoryPillActive),
+                        ]}
                       >
-                        <Text style={[styles.categoryPillText, isSelected && styles.categoryPillTextActive]}>
+                        <Text
+                          style={[
+                            styles.categoryPillText,
+                            isDark && { color: themeColors.textSecondary },
+                            isSelected && styles.categoryPillTextActive,
+                          ]}
+                        >
                           {cat.label}
                         </Text>
                       </Pressable>
@@ -949,7 +957,7 @@ export function AccountsScreen({ onBack, onAddTransaction }: Props) {
                 modalCategory === 'E_WALLET') && (
                 <View style={styles.modalInputGroup}>
                   <View style={styles.presetLabelRow}>
-                    <Text style={styles.modalInputLabel}>
+                    <Text style={[styles.modalInputLabel, isDark && { color: themeColors.textSecondary }]}>
                       {modalCategory === 'E_WALLET' ? 'Chọn ví điện tử *' : 'Chọn ngân hàng *'}
                     </Text>
                     {selectedPreset && (
@@ -965,13 +973,13 @@ export function AccountsScreen({ onBack, onAddTransaction }: Props) {
                   </View>
 
                   {selectedPreset ? (
-                    <View style={styles.selectedPresetCard}>
+                    <View style={[styles.selectedPresetCard, isDark && { backgroundColor: themeColors.surfaceSubtle, borderColor: themeColors.cardBorder }]}>
                       <View style={styles.selectedPresetLeft}>
-                        <View style={styles.presetLogoSmall}>
+                        <View style={[styles.presetLogoSmall, ['MOMO', 'ZALOPAY', 'VNPAY'].includes(selectedPreset.code) && { padding: 5 }]}>
                           {selectedPreset.logoUrl ? (
                             <Image
                               source={{ uri: selectedPreset.logoUrl }}
-                              style={styles.brandLogoImg}
+                              style={[styles.brandLogoImg, ['MOMO', 'ZALOPAY', 'VNPAY'].includes(selectedPreset.code) && { transform: [{ scale: 0.95 }] }]}
                               resizeMode="contain"
                             />
                           ) : (
@@ -982,12 +990,12 @@ export function AccountsScreen({ onBack, onAddTransaction }: Props) {
                         </View>
                         <View style={{ flex: 1 }}>
                           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                            <Text style={styles.selectedPresetName}>{selectedPreset.shortName}</Text>
-                            <View style={styles.codeTag}>
-                              <Text style={styles.codeTagText}>{selectedPreset.code}</Text>
+                            <Text style={[styles.selectedPresetName, isDark && { color: themeColors.textPrimary }]}>{selectedPreset.shortName}</Text>
+                            <View style={[styles.codeTag, isDark && { backgroundColor: 'rgba(5, 150, 105, 0.25)' }]}>
+                              <Text style={[styles.codeTagText, isDark && { color: '#34D399' }]}>{selectedPreset.code}</Text>
                             </View>
                           </View>
-                          <Text style={styles.selectedPresetFullName} numberOfLines={1}>
+                          <Text style={[styles.selectedPresetFullName, isDark && { color: themeColors.textMuted }]} numberOfLines={1}>
                             {selectedPreset.name}
                           </Text>
                         </View>
@@ -995,7 +1003,7 @@ export function AccountsScreen({ onBack, onAddTransaction }: Props) {
                     </View>
                   ) : (
                     <View>
-                      <View style={styles.searchPresetBox}>
+                      <View style={[styles.searchPresetBox, isDark && { backgroundColor: themeColors.surfaceSubtle, borderColor: themeColors.cardBorder }]}>
                         <FinanceIcon name="search" size={16} color="#94A3B8" />
                         <TextInput
                           value={bankSearchQuery}
@@ -1010,7 +1018,7 @@ export function AccountsScreen({ onBack, onAddTransaction }: Props) {
                               : 'Tìm ngân hàng: VCB, MB, Techcombank...'
                           }
                           placeholderTextColor="#94A3B8"
-                          style={styles.searchPresetInput}
+                          style={[styles.searchPresetInput, isDark && { color: themeColors.textPrimary }]}
                         />
                         {bankSearchQuery ? (
                           <Pressable onPress={() => setBankSearchQuery('')} hitSlop={8}>
@@ -1020,36 +1028,39 @@ export function AccountsScreen({ onBack, onAddTransaction }: Props) {
                       </View>
 
                       <View style={styles.presetListWrap}>
-                        <Text style={styles.presetListTitle}>Phổ biến nhất:</Text>
+                        <Text style={[styles.presetListTitle, isDark && { color: themeColors.textSecondary }]}>Phổ biến nhất:</Text>
                         <ScrollView
                           horizontal
                           showsHorizontalScrollIndicator={false}
                           contentContainerStyle={styles.popularPresetsRow}
                         >
-                          {filteredPresets.slice(0, 8).map((preset) => (
-                            <Pressable
-                              key={preset.code}
-                              onPress={() => handleSelectPreset(preset)}
-                              style={styles.popularPresetItem}
-                            >
-                              <View style={styles.popularPresetLogo}>
-                                {preset.logoUrl ? (
-                                  <Image
-                                    source={{ uri: preset.logoUrl }}
-                                    style={styles.brandLogoImg}
-                                    resizeMode="contain"
-                                  />
-                                ) : (
-                                  <Text style={{ fontSize: 10, fontWeight: '800', color: preset.textColor }}>
-                                    {preset.shortName.slice(0, 3)}
-                                  </Text>
-                                )}
-                              </View>
-                              <Text style={styles.popularPresetName} numberOfLines={1}>
-                                {preset.shortName}
-                              </Text>
-                            </Pressable>
-                          ))}
+                          {filteredPresets.slice(0, 8).map((preset) => {
+                            const isWallet = ['MOMO', 'ZALOPAY', 'VNPAY'].includes(preset.code);
+                            return (
+                              <Pressable
+                                key={preset.code}
+                                onPress={() => handleSelectPreset(preset)}
+                                style={styles.popularPresetItem}
+                              >
+                                <View style={[styles.popularPresetLogo, isWallet && { padding: 5 }]}>
+                                  {preset.logoUrl ? (
+                                    <Image
+                                      source={{ uri: preset.logoUrl }}
+                                      style={[styles.brandLogoImg, isWallet && { transform: [{ scale: 0.95 }] }]}
+                                      resizeMode="contain"
+                                    />
+                                  ) : (
+                                    <Text style={{ fontSize: 10, fontWeight: '800', color: preset.textColor }}>
+                                      {preset.shortName.slice(0, 3)}
+                                    </Text>
+                                  )}
+                                </View>
+                                <Text style={[styles.popularPresetName, isDark ? { color: '#F1F5F9' } : { color: '#334155' }]} numberOfLines={1}>
+                                  {preset.shortName}
+                                </Text>
+                              </Pressable>
+                            );
+                          })}
                         </ScrollView>
                       </View>
                     </View>
@@ -1059,13 +1070,13 @@ export function AccountsScreen({ onBack, onAddTransaction }: Props) {
 
               {/* 3. Tên ví / tài khoản hiển thị */}
               <View style={styles.modalInputGroup}>
-                <Text style={styles.modalInputLabel}>Tên tài khoản / ví *</Text>
+                <Text style={[styles.modalInputLabel, isDark && { color: themeColors.textSecondary }]}>Tên tài khoản / ví *</Text>
                 <TextInput
                   value={newAccName}
                   onChangeText={setNewAccName}
                   placeholder="Ví dụ: MB Bank, MoMo, Tiền mặt..."
-                  placeholderTextColor="#94A3B8"
-                  style={styles.modalTextInput}
+                  placeholderTextColor={isDark ? '#64748B' : '#94A3B8'}
+                  style={[styles.modalTextInput, isDark && { backgroundColor: themeColors.surfaceSubtle, borderColor: themeColors.cardBorder, color: themeColors.textPrimary }]}
                 />
               </View>
 
@@ -1074,28 +1085,28 @@ export function AccountsScreen({ onBack, onAddTransaction }: Props) {
                 modalCategory === 'DEBIT_CARD' ||
                 modalCategory === 'CREDIT_CARD') && (
                 <View style={styles.modalInputGroup}>
-                  <Text style={styles.modalInputLabel}>Số tài khoản / Số thẻ (Tùy chọn)</Text>
+                  <Text style={[styles.modalInputLabel, isDark && { color: themeColors.textSecondary }]}>Số tài khoản / Số thẻ (Tùy chọn)</Text>
                   <TextInput
                     value={newAccountNumber}
                     onChangeText={setNewAccountNumber}
                     placeholder="Ví dụ: 1903... hoặc 9704..."
-                    placeholderTextColor="#94A3B8"
+                    placeholderTextColor={isDark ? '#64748B' : '#94A3B8'}
                     keyboardType="number-pad"
-                    style={styles.modalTextInput}
+                    style={[styles.modalTextInput, isDark && { backgroundColor: themeColors.surfaceSubtle, borderColor: themeColors.cardBorder, color: themeColors.textPrimary }]}
                   />
                 </View>
               )}
 
               {/* 5. Số dư ban đầu */}
               <View style={styles.modalInputGroup}>
-                <Text style={styles.modalInputLabel}>Số dư ban đầu (VNĐ)</Text>
+                <Text style={[styles.modalInputLabel, isDark && { color: themeColors.textSecondary }]}>Số dư ban đầu (VNĐ)</Text>
                 <TextInput
                   value={newAccBalance ? formatNumberWithDots(newAccBalance) : ''}
                   onChangeText={setNewAccBalance}
                   placeholder="0"
-                  placeholderTextColor="#94A3B8"
+                  placeholderTextColor={isDark ? '#64748B' : '#94A3B8'}
                   keyboardType="numeric"
-                  style={styles.modalTextInput}
+                  style={[styles.modalTextInput, { fontSize: 16, fontWeight: '800', color: isDark ? '#34D399' : '#059669' }, isDark && { backgroundColor: themeColors.surfaceSubtle, borderColor: themeColors.cardBorder }]}
                 />
               </View>
 
@@ -1111,9 +1122,10 @@ export function AccountsScreen({ onBack, onAddTransaction }: Props) {
                   <Text style={styles.submitModalBtnText}>Xác nhận thêm ví</Text>
                 )}
               </Pressable>
+              <View style={{ height: 24 }} />
             </ScrollView>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
     </View>
   );
@@ -1904,77 +1916,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   closeActionBtnText: {
-    fontSize: 13.5,
-    fontWeight: '800',
-    color: '#FFFFFF',
-  },
-  /* ── MODAL XÁC NHẬN XÓA ── */
-  confirmModalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 24,
-  },
-  confirmModalBox: {
-    width: '100%',
-    maxWidth: 340,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 22,
-    padding: 22,
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOpacity: 0.15,
-    shadowRadius: 12,
-    elevation: 6,
-  },
-  deleteIconWrap: {
-    width: 52,
-    height: 52,
-    borderRadius: 18,
-    backgroundColor: '#FEE2E2',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 14,
-  },
-  confirmModalTitle: {
-    fontSize: 17,
-    fontWeight: '800',
-    color: '#0F172A',
-    marginBottom: 6,
-  },
-  confirmModalDesc: {
-    fontSize: 13,
-    color: '#64748B',
-    textAlign: 'center',
-    lineHeight: 19,
-    marginBottom: 20,
-  },
-  confirmActionsRow: {
-    flexDirection: 'row',
-    gap: 10,
-    width: '100%',
-  },
-  confirmCancelBtn: {
-    flex: 1,
-    backgroundColor: '#F1F5F9',
-    borderRadius: 14,
-    paddingVertical: 12,
-    alignItems: 'center',
-  },
-  confirmCancelText: {
-    fontSize: 13.5,
-    fontWeight: '700',
-    color: '#64748B',
-  },
-  confirmDeleteBtn: {
-    flex: 1,
-    backgroundColor: '#DC2626',
-    borderRadius: 14,
-    paddingVertical: 12,
-    alignItems: 'center',
-  },
-  confirmDeleteText: {
     fontSize: 13.5,
     fontWeight: '800',
     color: '#FFFFFF',

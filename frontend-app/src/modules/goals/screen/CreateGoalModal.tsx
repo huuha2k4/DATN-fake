@@ -1,21 +1,10 @@
 import React, { useState } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  Modal,
-  TextInput,
-  Pressable,
-  ScrollView,
-  KeyboardAvoidingView,
-  Platform,
-  Alert,
-  ActivityIndicator,
-  Image,
-} from 'react-native';
+import { View, Text, StyleSheet, Modal, TextInput, Pressable, ScrollView, KeyboardAvoidingView, Platform, ActivityIndicator, Image } from 'react-native';
+import { AppAlert as Alert } from '../../../context/DialogContext';
 import { FinanceIcon } from '../../core/components/FinanceIcon';
 import { goalsApi } from '../api/goalsApi';
 import { authStorage } from '../../auth/api/authApi';
+import { useAppTheme } from '../../../context/ThemeContext';
 
 type Props = {
   visible: boolean;
@@ -148,6 +137,7 @@ function parseDDMMYYYYtoIso(val?: string): string {
 }
 
 export function CreateGoalModal({ visible, onClose, onSuccess }: Props) {
+  const { isDark, colors: themeColors } = useAppTheme();
   const user = authStorage.getUser();
   const isChildAccount = Boolean(user?.childAccount && user?.childWalletGroupId);
   const activeGoalTypes = isChildAccount ? KID_GOAL_TYPES : GOAL_TYPES;
@@ -213,23 +203,43 @@ export function CreateGoalModal({ visible, onClose, onSuccess }: Props) {
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         style={styles.backdrop}
       >
-        <View style={styles.sheet}>
+        <View
+          style={[
+            styles.sheet,
+            isDark && { backgroundColor: themeColors.surface, borderColor: themeColors.cardBorder, borderWidth: 1 },
+          ]}
+        >
           {/* Header */}
-          <View style={styles.header}>
-            <Text style={styles.headerTitle}>Thêm mục tiêu mới</Text>
-            <Pressable onPress={onClose} hitSlop={10} style={styles.closeBtn}>
-              <FinanceIcon name="close" size={20} color="#64748B" />
+          <View style={[styles.header, isDark && { borderBottomColor: themeColors.cardBorder }]}>
+            <Text style={[styles.headerTitle, isDark && { color: themeColors.textPrimary }]}>
+              Thêm mục tiêu mới
+            </Text>
+            <Pressable
+              onPress={onClose}
+              hitSlop={10}
+              style={[styles.closeBtn, isDark && { backgroundColor: themeColors.surfaceSubtle }]}
+            >
+              <FinanceIcon name="close" size={20} color={isDark ? themeColors.textSecondary : '#64748B'} />
             </Pressable>
           </View>
 
           <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scroll}>
             {/* Tên mục tiêu */}
             <View style={styles.field}>
-              <Text style={styles.label}>Tên mục tiêu *</Text>
+              <Text style={[styles.label, isDark && { color: themeColors.textSecondary }]}>
+                Tên mục tiêu *
+              </Text>
               <TextInput
-                style={styles.input}
+                style={[
+                  styles.input,
+                  isDark && {
+                    backgroundColor: themeColors.surfaceSubtle,
+                    borderColor: themeColors.cardBorder,
+                    color: themeColors.textPrimary,
+                  },
+                ]}
                 placeholder="VD: Mua MacBook Pro, Du lịch Nhật Bản..."
-                placeholderTextColor="#94A3B8"
+                placeholderTextColor={isDark ? '#64748B' : '#94A3B8'}
                 value={name}
                 onChangeText={setName}
               />
@@ -237,26 +247,43 @@ export function CreateGoalModal({ visible, onClose, onSuccess }: Props) {
 
             {/* Loại mục tiêu (Dropdown phong cách quản lý nợ) */}
             <View style={styles.field}>
-              <Text style={styles.label}>Loại mục tiêu</Text>
+              <Text style={[styles.label, isDark && { color: themeColors.textSecondary }]}>Loại mục tiêu</Text>
               <Pressable
                 onPress={() => setShowCategoryPicker(true)}
-                style={styles.dropdownBtn}
+                style={[
+                  styles.dropdownBtn,
+                  isDark && {
+                    backgroundColor: themeColors.surfaceSubtle,
+                    borderColor: themeColors.cardBorder,
+                  },
+                ]}
               >
                 <View style={styles.dropdownLeft}>
                   <Image source={selectedTypeObj.image} style={styles.dropdownIconImg} resizeMode="contain" />
-                  <Text style={styles.dropdownText}>{selectedTypeObj.label}</Text>
+                  <Text style={[styles.dropdownText, isDark && { color: themeColors.textPrimary }]}>
+                    {selectedTypeObj.label}
+                  </Text>
                 </View>
-                <FinanceIcon name="chevron-down" size={18} color="#006747" />
+                <FinanceIcon name="chevron-down" size={18} color={isDark ? '#34D399' : '#006747'} />
               </Pressable>
             </View>
 
             {/* Số tiền mục tiêu */}
             <View style={styles.field}>
-              <Text style={styles.label}>Số tiền mục tiêu (đ) *</Text>
+              <Text style={[styles.label, isDark && { color: themeColors.textSecondary }]}>
+                Số tiền mục tiêu (đ) *
+              </Text>
               <TextInput
-                style={styles.input}
+                style={[
+                  styles.input,
+                  isDark && {
+                    backgroundColor: themeColors.surfaceSubtle,
+                    borderColor: themeColors.cardBorder,
+                    color: themeColors.textPrimary,
+                  },
+                ]}
                 placeholder="VD: 20.000.000"
-                placeholderTextColor="#94A3B8"
+                placeholderTextColor={isDark ? '#64748B' : '#94A3B8'}
                 keyboardType="numeric"
                 value={targetAmount}
                 onChangeText={(val) => setTargetAmount(formatCurrencyInput(val))}
@@ -265,11 +292,20 @@ export function CreateGoalModal({ visible, onClose, onSuccess }: Props) {
 
             {/* Đã có sẵn */}
             <View style={styles.field}>
-              <Text style={styles.label}>Số tiền đã có sẵn (đ)</Text>
+              <Text style={[styles.label, isDark && { color: themeColors.textSecondary }]}>
+                Số tiền đã có sẵn (đ)
+              </Text>
               <TextInput
-                style={styles.input}
+                style={[
+                  styles.input,
+                  isDark && {
+                    backgroundColor: themeColors.surfaceSubtle,
+                    borderColor: themeColors.cardBorder,
+                    color: themeColors.textPrimary,
+                  },
+                ]}
                 placeholder="0"
-                placeholderTextColor="#94A3B8"
+                placeholderTextColor={isDark ? '#64748B' : '#94A3B8'}
                 keyboardType="numeric"
                 value={currentAmount}
                 onChangeText={(val) => setCurrentAmount(formatCurrencyInput(val))}
@@ -278,11 +314,20 @@ export function CreateGoalModal({ visible, onClose, onSuccess }: Props) {
 
             {/* Thời hạn */}
             <View style={styles.field}>
-              <Text style={styles.label}>Thời hạn hoàn thành</Text>
+              <Text style={[styles.label, isDark && { color: themeColors.textSecondary }]}>
+                Thời hạn hoàn thành
+              </Text>
               <TextInput
-                style={styles.input}
+                style={[
+                  styles.input,
+                  isDark && {
+                    backgroundColor: themeColors.surfaceSubtle,
+                    borderColor: themeColors.cardBorder,
+                    color: themeColors.textPrimary,
+                  },
+                ]}
                 placeholder="31/12/2027"
-                placeholderTextColor="#94A3B8"
+                placeholderTextColor={isDark ? '#64748B' : '#94A3B8'}
                 keyboardType="numeric"
                 value={targetDateInput}
                 onChangeText={(t) => setTargetDateInput(formatInputDDMMYYYY(t))}
@@ -291,11 +336,19 @@ export function CreateGoalModal({ visible, onClose, onSuccess }: Props) {
 
             {/* Mô tả */}
             <View style={styles.field}>
-              <Text style={styles.label}>Mô tả ghi chú</Text>
+              <Text style={[styles.label, isDark && { color: themeColors.textSecondary }]}>Mô tả ghi chú</Text>
               <TextInput
-                style={[styles.input, styles.textArea]}
+                style={[
+                  styles.input,
+                  styles.textArea,
+                  isDark && {
+                    backgroundColor: themeColors.surfaceSubtle,
+                    borderColor: themeColors.cardBorder,
+                    color: themeColors.textPrimary,
+                  },
+                ]}
                 placeholder="Nhập ghi chú cho mục tiêu..."
-                placeholderTextColor="#94A3B8"
+                placeholderTextColor={isDark ? '#64748B' : '#94A3B8'}
                 multiline
                 numberOfLines={3}
                 value={description}
@@ -305,7 +358,11 @@ export function CreateGoalModal({ visible, onClose, onSuccess }: Props) {
 
             {/* Submit Button */}
             <Pressable
-              style={[styles.submitBtn, isSubmitting && { opacity: 0.7 }]}
+              style={[
+                styles.submitBtn,
+                isDark && { backgroundColor: '#10B981', shadowColor: '#10B981' },
+                isSubmitting && { opacity: 0.7 },
+              ]}
               onPress={handleSubmit}
               disabled={isSubmitting}
             >
@@ -321,11 +378,18 @@ export function CreateGoalModal({ visible, onClose, onSuccess }: Props) {
           {showCategoryPicker && (
             <View style={styles.pickerBackdrop}>
               <Pressable style={StyleSheet.absoluteFillObject} onPress={() => setShowCategoryPicker(false)} />
-              <View style={styles.pickerBox}>
-                <View style={styles.pickerHeader}>
-                  <Text style={styles.pickerTitle}>Chọn loại mục tiêu</Text>
+              <View
+                style={[
+                  styles.pickerBox,
+                  isDark && { backgroundColor: themeColors.surface, borderColor: themeColors.cardBorder, borderWidth: 1 },
+                ]}
+              >
+                <View style={[styles.pickerHeader, isDark && { borderBottomColor: themeColors.cardBorder }]}>
+                  <Text style={[styles.pickerTitle, isDark && { color: themeColors.textPrimary }]}>
+                    Chọn loại mục tiêu
+                  </Text>
                   <Pressable onPress={() => setShowCategoryPicker(false)} hitSlop={10}>
-                    <FinanceIcon name="close" size={18} color="#64748B" />
+                    <FinanceIcon name="close" size={18} color={isDark ? themeColors.textSecondary : '#64748B'} />
                   </Pressable>
                 </View>
 
@@ -339,16 +403,27 @@ export function CreateGoalModal({ visible, onClose, onSuccess }: Props) {
                           setGoalType(t.value);
                           setShowCategoryPicker(false);
                         }}
-                        style={[styles.pickerRow, isSel && styles.pickerRowActive]}
+                        style={[
+                          styles.pickerRow,
+                          isSel && (isDark ? { backgroundColor: 'rgba(52, 211, 153, 0.15)' } : styles.pickerRowActive),
+                        ]}
                       >
                         <Image source={t.image} style={styles.pickerItemImg} resizeMode="contain" />
                         <View style={{ flex: 1, marginLeft: 12 }}>
-                          <Text style={[styles.pickerRowTitle, isSel && styles.pickerRowTitleActive]}>
+                          <Text
+                            style={[
+                              styles.pickerRowTitle,
+                              isDark && { color: themeColors.textPrimary },
+                              isSel && (isDark ? { color: '#34D399', fontWeight: '700' } : styles.pickerRowTitleActive),
+                            ]}
+                          >
                             {t.label}
                           </Text>
-                          <Text style={styles.pickerRowDesc}>{t.desc}</Text>
+                          <Text style={[styles.pickerRowDesc, isDark && { color: themeColors.textSecondary }]}>
+                            {t.desc}
+                          </Text>
                         </View>
-                        {isSel && <FinanceIcon name="check" size={18} color="#006747" />}
+                        {isSel && <FinanceIcon name="check" size={18} color={isDark ? '#34D399' : '#006747'} />}
                       </Pressable>
                     );
                   })}

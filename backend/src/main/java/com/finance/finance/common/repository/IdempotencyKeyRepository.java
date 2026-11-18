@@ -49,4 +49,34 @@ public interface IdempotencyKeyRepository extends JpaRepository<IdempotencyKey, 
      */
     @Query("SELECT COUNT(i) FROM IdempotencyKey i WHERE i.userId = :userId AND i.retryCount > 0")
     long countRetriesByUser(@Param("userId") UUID userId);
+
+    /**
+     * Delete keys older than threshold (for cleanup)
+     */
+    @Modifying
+    @Query("DELETE FROM IdempotencyKey i WHERE i.createdAt < :threshold")
+    int deleteByCreatedAtBefore(@Param("threshold") LocalDateTime threshold);
+
+    /**
+     * Mark stuck PROCESSING records as FAILED
+     */
+    @Modifying
+    @Query("UPDATE IdempotencyKey i SET i.status = 'FAILED', i.errorMessage = 'Processing timeout - marked as failed by cleanup job' WHERE i.status = 'PROCESSING' AND i.createdAt < :threshold")
+    int markStuckProcessingAsFailed(@Param("threshold") LocalDateTime threshold);
+
+    /**
+     * Count by status (for monitoring)
+     */
+    long countByStatus(IdempotencyKey.IdempotencyStatus status);
+
+    /**
+     * Count keys created after timestamp (for rate limiting)
+     */
+    long countByCreatedAtAfter(LocalDateTime threshold);
+
+    /**
+     * Count keys by user in time window (for per-user rate limiting)
+     */
+    @Query("SELECT COUNT(i) FROM IdempotencyKey i WHERE i.userId = :userId AND i.createdAt > :threshold")
+    long countByUserIdAndCreatedAtAfter(@Param("userId") UUID userId, @Param("threshold") LocalDateTime threshold);
 }

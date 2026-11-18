@@ -7,7 +7,6 @@ import {
   Pressable,
   RefreshControl,
   ActivityIndicator,
-  Alert,
   Modal,
 } from 'react-native';
 import { ChevronLeft, Clock, Calendar, CheckCircle2, RotateCcw, ChevronRight, ChevronDown, Wallet, CalendarCheck } from 'lucide-react-native';
@@ -17,6 +16,8 @@ import { authStorage } from '../../auth/api/authApi';
 import { groupApi } from '../../group/api/groupApi';
 import { resolveChoreIconSource } from '../components/choreIcons';
 import { FinanceIcon } from '../../core/components/FinanceIcon';
+import { useAppTheme } from '../../../context/ThemeContext';
+import { AppAlert as Alert } from '../../../context/DialogContext';
 
 type Props = {
   onBack: () => void;
@@ -32,6 +33,7 @@ const formatDate = (dateString?: string) => {
 };
 
 export function ChildChoresScreen({ onBack }: Props) {
+  const { isDark, colors: themeColors } = useAppTheme();
   const insets = useSafeAreaInsets();
   const user = authStorage.getUser();
   const groupId = user?.childWalletGroupId;
@@ -149,34 +151,69 @@ export function ChildChoresScreen({ onBack }: Props) {
     .reduce((sum, c) => sum + (c.rewardAmount || 0), 0);
 
   return (
-    <View style={styles.container}>
-      {/* Header: Đẩy tiêu đề sát nút quay về hình < và bên phải là nút lọc tháng */}
-      <View style={[styles.header, { paddingTop: Math.max(insets.top, 14), height: 54 + Math.max(insets.top, 14) }]}>
+    <View style={[styles.container, isDark && { backgroundColor: themeColors.background }]}>
+      {/* Header */}
+      <View
+        style={[
+          styles.header,
+          { paddingTop: Math.max(insets.top, 14), height: 54 + Math.max(insets.top, 14) },
+          isDark && {
+            backgroundColor: themeColors.headerBackground,
+            borderBottomColor: themeColors.divider,
+          },
+        ]}
+      >
         <View style={styles.headerLeftCol}>
-          <Pressable onPress={onBack} hitSlop={12} style={styles.headerIconBtn}>
-            <FinanceIcon name="chevron-left" size={22} color="#047857" />
+          <Pressable
+            onPress={onBack}
+            hitSlop={12}
+            style={[
+              styles.headerIconBtn,
+              isDark && { backgroundColor: themeColors.surfaceSubtle },
+            ]}
+          >
+            <FinanceIcon name="chevron-left" size={22} color={isDark ? themeColors.textPrimary : '#047857'} />
           </Pressable>
-          <Text style={styles.headerTitle} numberOfLines={1}>Nhiệm vụ nhận thưởng</Text>
+          <Text style={[styles.headerTitle, isDark && { color: themeColors.textPrimary }]} numberOfLines={1}>
+            Nhiệm vụ nhận thưởng
+          </Text>
         </View>
 
-        {/* Nút lọc tháng bên phải (theo chuẩn lịch sử giao dịch) */}
+        {/* Nút lọc tháng bên phải */}
         <Pressable
           onPress={() => setIsMonthPickerVisible(true)}
-          style={styles.monthFilterBtn}
+          style={[
+            styles.monthFilterBtn,
+            isDark && {
+              backgroundColor: 'rgba(52, 211, 153, 0.15)',
+              borderColor: 'rgba(52, 211, 153, 0.3)',
+            },
+          ]}
           hitSlop={8}
         >
-          <FinanceIcon name="calendar" size={14} color="#047857" />
-          <Text style={styles.monthFilterText}>{selectedMonthDisplay}</Text>
-          <FinanceIcon name="chevron-down" size={12} color="#047857" />
+          <FinanceIcon name="calendar" size={14} color={isDark ? themeColors.accentGreen : '#047857'} />
+          <Text style={[styles.monthFilterText, isDark && { color: themeColors.accentGreen }]}>
+            {selectedMonthDisplay}
+          </Text>
+          <FinanceIcon name="chevron-down" size={12} color={isDark ? themeColors.accentGreen : '#047857'} />
         </Pressable>
       </View>
 
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={[styles.scrollContent, { paddingBottom: Math.max(insets.bottom, 20) + 20 }]}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); loadData(); }} />}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={() => {
+              setRefreshing(true);
+              loadData();
+            }}
+            tintColor={isDark ? themeColors.accentGreen : '#059669'}
+          />
+        }
       >
-        {/* Banner Nhiệm vụ nhận thưởng nguyên bản 100% bạn gửi */}
+        {/* Banner Nhiệm vụ nhận thưởng */}
         <View style={styles.bannerContainer}>
           <Image
             source={require('../../../assets/icons/kid_chores_banner_complete.png')}
@@ -185,75 +222,114 @@ export function ChildChoresScreen({ onBack }: Props) {
           />
         </View>
 
-        {/* KPI Banner đôi (Phong cách thẻ đôi chuẩn ảnh mẫu) */}
-        <View style={styles.kpiRow}>
+        {/* KPI Banner đôi */}
+        <View
+          style={[
+            styles.kpiRow,
+            isDark && {
+              backgroundColor: themeColors.surface,
+              borderColor: themeColors.cardBorder,
+            },
+          ]}
+        >
           {/* Ô 1: Cần làm */}
           <Pressable
             style={styles.kpiCard}
             onPress={() => setActiveTab('ASSIGNED')}
           >
-            <View style={[styles.kpiIconWrap, { backgroundColor: '#DCFCE7' }]}>
-              <CalendarCheck size={24} color="#15803D" strokeWidth={2.2} />
+            <View
+              style={[
+                styles.kpiIconWrap,
+                { backgroundColor: isDark ? 'rgba(52, 211, 153, 0.15)' : '#DCFCE7' },
+              ]}
+            >
+              <CalendarCheck size={24} color={isDark ? themeColors.accentGreen : '#15803D'} strokeWidth={2.2} />
             </View>
             <View style={styles.kpiInfo}>
-              <Text style={styles.kpiLabel}>Cần làm</Text>
-              <Text style={[styles.kpiValue, { color: '#15803D' }]}>{assignedCount}</Text>
+              <Text style={[styles.kpiLabel, isDark && { color: themeColors.textSecondary }]}>Cần làm</Text>
+              <Text style={[styles.kpiValue, { color: isDark ? themeColors.accentGreen : '#15803D' }]}>
+                {assignedCount}
+              </Text>
             </View>
           </Pressable>
 
           {/* Đường phân cách giữa 2 thẻ */}
-          <View style={styles.kpiDivider} />
+          <View style={[styles.kpiDivider, isDark && { backgroundColor: themeColors.divider }]} />
 
           {/* Ô 2: Tổng thưởng */}
           <Pressable
             style={styles.kpiCard}
             onPress={() => setActiveTab('APPROVED')}
           >
-            <View style={[styles.kpiIconWrap, { backgroundColor: '#DCFCE7' }]}>
-              <Wallet size={24} color="#15803D" strokeWidth={2.2} />
+            <View
+              style={[
+                styles.kpiIconWrap,
+                { backgroundColor: isDark ? 'rgba(52, 211, 153, 0.15)' : '#DCFCE7' },
+              ]}
+            >
+              <Wallet size={24} color={isDark ? themeColors.accentGreen : '#15803D'} strokeWidth={2.2} />
             </View>
             <View style={styles.kpiInfo}>
-              <Text style={styles.kpiLabel}>Tổng thưởng</Text>
-              <Text style={[styles.kpiValue, { color: '#15803D' }]} numberOfLines={1} adjustsFontSizeToFit>
+              <Text style={[styles.kpiLabel, isDark && { color: themeColors.textSecondary }]}>Tổng thưởng</Text>
+              <Text
+                style={[styles.kpiValue, { color: isDark ? themeColors.accentGreen : '#15803D' }]}
+                numberOfLines={1}
+                adjustsFontSizeToFit
+              >
                 {formatVND(approvedTotalReward)}
               </Text>
             </View>
           </Pressable>
         </View>
 
-        {/* Tab Filter dàn đều vừa khít màn hình */}
-        <View style={styles.tabsRow}>
+        {/* Tab Filter dàn đều */}
+        <View style={[styles.tabsRow, isDark && { backgroundColor: themeColors.surfaceSubtle }]}>
           {[
             { key: 'ALL', label: 'Tất cả' },
             { key: 'ASSIGNED', label: 'Cần làm' },
             { key: 'SUBMITTED', label: 'Chờ duyệt' },
             { key: 'APPROVED', label: 'Đã nhận' },
             { key: 'REJECTED', label: 'Làm lại' },
-          ].map((t) => (
-            <Pressable
-              key={t.key}
-              onPress={() => setActiveTab(t.key as any)}
-              style={[styles.tabBtn, activeTab === t.key && styles.tabBtnActive]}
-            >
-              <Text
-                style={[styles.tabText, activeTab === t.key && styles.tabTextActive]}
-                numberOfLines={1}
-                adjustsFontSizeToFit
+          ].map((t) => {
+            const isActive = activeTab === t.key;
+            return (
+              <Pressable
+                key={t.key}
+                onPress={() => setActiveTab(t.key as any)}
+                style={[
+                  styles.tabBtn,
+                  isActive && [
+                    styles.tabBtnActive,
+                    isDark && { backgroundColor: themeColors.accentGreen },
+                  ],
+                ]}
               >
-                {t.label}
-              </Text>
-            </Pressable>
-          ))}
+                <Text
+                  style={[
+                    styles.tabText,
+                    isDark && { color: themeColors.textSecondary },
+                    isActive && styles.tabTextActive,
+                  ]}
+                  numberOfLines={1}
+                  adjustsFontSizeToFit
+                >
+                  {t.label}
+                </Text>
+              </Pressable>
+            );
+          })}
         </View>
 
         {/* List */}
         {loading ? (
-          <ActivityIndicator size="small" color="#059669" style={{ marginTop: 40 }} />
+          <ActivityIndicator size="small" color={isDark ? themeColors.accentGreen : '#059669'} style={{ marginTop: 40 }} />
         ) : filteredChores.length === 0 ? (
           <View style={styles.emptyContainer}>
             <Text style={{ fontSize: 36, marginBottom: 8 }}>⭐</Text>
-            <Text style={styles.emptyTitle}>Chưa có nhiệm vụ nào</Text>
-            <Text style={styles.emptySub}>Hãy nhắc bố mẹ giao thêm việc nhà để tích lũy tiền thưởng nhé!</Text>
+            <Text style={[styles.emptyTitle, isDark && { color: themeColors.textPrimary }]}>Chưa có nhiệm vụ nào</Text>
+            <Text style={[styles.emptySub, isDark && { color: themeColors.textSecondary }]}>
+              Hãy nhắc bố mẹ giao thêm việc nhà để tích lũy tiền thưởng nhé!
+            </Text>
           </View>
         ) : (
           filteredChores.map((chore) => {
@@ -267,42 +343,78 @@ export function ChildChoresScreen({ onBack }: Props) {
             return (
               <Pressable
                 key={chore.id}
-                style={({ pressed }) => [styles.choreCard, pressed && { opacity: 0.9 }]}
+                style={({ pressed }) => [
+                  styles.choreCard,
+                  isDark && {
+                    backgroundColor: themeColors.surface,
+                    borderColor: themeColors.cardBorder,
+                  },
+                  pressed && { opacity: 0.9 },
+                ]}
                 onPress={() => setSelectedChoreDetail(chore)}
               >
                 <View style={styles.choreHeader}>
                   <Image source={iconSource} style={styles.choreIconImg} resizeMode="contain" />
                   <View style={{ flex: 1, marginRight: 8 }}>
-                    <Text style={styles.choreTitle}>{chore.title}</Text>
+                    <Text style={[styles.choreTitle, isDark && { color: themeColors.textPrimary }]}>
+                      {chore.title}
+                    </Text>
                     {chore.description ? (
-                      <Text style={styles.choreDesc} numberOfLines={2}>{chore.description}</Text>
+                      <Text style={[styles.choreDesc, isDark && { color: themeColors.textSecondary }]} numberOfLines={2}>
+                        {chore.description}
+                      </Text>
                     ) : null}
                     {chore.dueDate ? (
                       <View style={styles.choreMeta}>
-                        <Calendar size={12} color="#64748B" />
-                        <Text style={styles.choreMetaText}>Hạn: {formatDate(chore.dueDate)}</Text>
+                        <Calendar size={12} color={isDark ? themeColors.textMuted : '#64748B'} />
+                        <Text style={[styles.choreMetaText, isDark && { color: themeColors.textSecondary }]}>
+                          Hạn: {formatDate(chore.dueDate)}
+                        </Text>
                       </View>
                     ) : null}
                   </View>
 
                   {/* Cột phải: Tiền thưởng & Trạng thái / Nút hành động */}
                   <View style={styles.rewardCol}>
-                    <Text style={styles.choreReward}>+{formatVND(chore.rewardAmount)}</Text>
+                    <Text style={[styles.choreReward, isDark && { color: themeColors.accentGreen }]}>
+                      +{formatVND(chore.rewardAmount)}
+                    </Text>
                     {isApproved && (
-                      <View style={[styles.statusBadge, { backgroundColor: '#DCFCE7' }]}>
-                        <CheckCircle2 size={11} color="#15803D" />
-                        <Text style={[styles.statusBadgeText, { color: '#15803D' }]}>Đã nhận</Text>
+                      <View
+                        style={[
+                          styles.statusBadge,
+                          {
+                            backgroundColor: isDark ? 'rgba(52, 211, 153, 0.15)' : '#DCFCE7',
+                          },
+                        ]}
+                      >
+                        <CheckCircle2 size={11} color={isDark ? themeColors.accentGreen : '#15803D'} />
+                        <Text style={[styles.statusBadgeText, { color: isDark ? themeColors.accentGreen : '#15803D' }]}>
+                          Đã nhận
+                        </Text>
                       </View>
                     )}
                     {isSubmitted && (
-                      <View style={[styles.statusBadge, { backgroundColor: '#F3E8FF' }]}>
-                        <Clock size={11} color="#7E22CE" />
-                        <Text style={[styles.statusBadgeText, { color: '#7E22CE' }]}>Chờ duyệt</Text>
+                      <View
+                        style={[
+                          styles.statusBadge,
+                          {
+                            backgroundColor: isDark ? 'rgba(168, 85, 247, 0.15)' : '#F3E8FF',
+                          },
+                        ]}
+                      >
+                        <Clock size={11} color={isDark ? '#C084FC' : '#7E22CE'} />
+                        <Text style={[styles.statusBadgeText, { color: isDark ? '#C084FC' : '#7E22CE' }]}>
+                          Chờ duyệt
+                        </Text>
                       </View>
                     )}
                     {isAssigned && (
                       <Pressable
-                        style={styles.actionBtn}
+                        style={[
+                          styles.actionBtn,
+                          isDark && { backgroundColor: themeColors.accentGreen },
+                        ]}
                         onPress={(e) => {
                           e.stopPropagation?.();
                           handleSubmitChore(chore);
@@ -327,8 +439,15 @@ export function ChildChoresScreen({ onBack }: Props) {
                 </View>
 
                 {isRejected && chore.rejectionReason ? (
-                  <View style={styles.rejectNotice}>
-                    <Text style={styles.rejectNoticeText}>⚠️ Bố mẹ nhắn: {chore.rejectionReason}</Text>
+                  <View
+                    style={[
+                      styles.rejectNotice,
+                      isDark && { backgroundColor: 'rgba(245, 158, 11, 0.15)' },
+                    ]}
+                  >
+                    <Text style={[styles.rejectNoticeText, isDark && { color: '#FBBF24' }]}>
+                      ⚠️ Bố mẹ nhắn: {chore.rejectionReason}
+                    </Text>
                   </View>
                 ) : null}
               </Pressable>
@@ -346,11 +465,11 @@ export function ChildChoresScreen({ onBack }: Props) {
       >
         <View style={styles.sheetOverlay}>
           <Pressable style={styles.modalBackdrop} onPress={() => setIsMonthPickerVisible(false)} />
-          <View style={styles.modalSheet}>
-            <View style={styles.modalTopBar}>
-              <Text style={styles.modalTopTitle}>Chọn kỳ / Tháng</Text>
+          <View style={[styles.modalSheet, isDark && { backgroundColor: themeColors.surface }]}>
+            <View style={[styles.modalTopBar, isDark && { borderBottomColor: themeColors.divider }]}>
+              <Text style={[styles.modalTopTitle, isDark && { color: themeColors.textPrimary }]}>Chọn kỳ / Tháng</Text>
               <Pressable onPress={() => setIsMonthPickerVisible(false)} hitSlop={10}>
-                <Text style={styles.modalCloseText}>Đóng</Text>
+                <Text style={[styles.modalCloseText, isDark && { color: themeColors.accentGreen }]}>Đóng</Text>
               </Pressable>
             </View>
             <ScrollView style={{ paddingHorizontal: 16 }} showsVerticalScrollIndicator={false}>
@@ -363,12 +482,30 @@ export function ChildChoresScreen({ onBack }: Props) {
                       setSelectedMonth(m.key);
                       setIsMonthPickerVisible(false);
                     }}
-                    style={[styles.monthOptionRow, isSelected && styles.monthOptionRowActive]}
+                    style={[
+                      styles.monthOptionRow,
+                      isDark && { borderBottomColor: themeColors.divider },
+                      isSelected && [
+                        styles.monthOptionRowActive,
+                        isDark && { backgroundColor: themeColors.surfaceSubtle },
+                      ],
+                    ]}
                   >
-                    <Text style={[styles.monthOptionLabel, isSelected && styles.monthOptionLabelActive]}>
+                    <Text
+                      style={[
+                        styles.monthOptionLabel,
+                        isDark && { color: themeColors.textPrimary },
+                        isSelected && [
+                          styles.monthOptionLabelActive,
+                          isDark && { color: themeColors.accentGreen },
+                        ],
+                      ]}
+                    >
                       {m.label}
                     </Text>
-                    {isSelected && <Text style={styles.checkmarkIcon}>✓</Text>}
+                    {isSelected && (
+                      <Text style={[styles.checkmarkIcon, isDark && { color: themeColors.accentGreen }]}>✓</Text>
+                    )}
                   </Pressable>
                 );
               })}
@@ -380,30 +517,59 @@ export function ChildChoresScreen({ onBack }: Props) {
       {/* Modal Chi tiết Nhiệm vụ nhận thưởng */}
       <Modal visible={Boolean(selectedChoreDetail)} transparent animationType="fade" onRequestClose={() => setSelectedChoreDetail(null)}>
         <View style={styles.modalOverlay}>
-          <Pressable style={StyleSheet.absoluteFillObject} onPress={() => setSelectedChoreDetail(null)} />
-          <View style={styles.detailModalCard}>
+          <Pressable style={StyleSheet.absoluteFill} onPress={() => setSelectedChoreDetail(null)} />
+          <View
+            style={[
+              styles.detailModalCard,
+              isDark && {
+                backgroundColor: themeColors.surface,
+                borderColor: themeColors.cardBorder,
+              },
+            ]}
+          >
             {/* Header */}
-            <View style={styles.detailHeader}>
+            <View style={[styles.detailHeader, isDark && { borderBottomColor: themeColors.divider }]}>
               <View style={styles.detailHeaderLeft}>
                 <Image
                   source={resolveChoreIconSource(selectedChoreDetail?.icon, selectedChoreDetail?.id || selectedChoreDetail?.title)}
-                  style={{ width: 42, height: 42 }}
+                  style={{ width: 48, height: 48 }}
                   resizeMode="contain"
                 />
                 <View style={{ flex: 1 }}>
-                  <Text style={styles.detailHeaderTitle} numberOfLines={1}>{selectedChoreDetail?.title}</Text>
-                  <Text style={styles.detailHeaderSub}>Nhiệm vụ làm việc nhà nhận thưởng</Text>
+                  <Text style={[styles.detailHeaderTitle, isDark && { color: themeColors.textPrimary }]} numberOfLines={1}>
+                    {selectedChoreDetail?.title}
+                  </Text>
+                  <Text style={[styles.detailHeaderSub, isDark && { color: themeColors.textSecondary }]}>
+                    Nhiệm vụ làm việc nhà nhận thưởng
+                  </Text>
                 </View>
               </View>
-              <Pressable onPress={() => setSelectedChoreDetail(null)} hitSlop={10} style={styles.detailCloseBtn}>
-                <Text style={{ fontSize: 16, color: '#64748B', fontWeight: 'bold' }}>✕</Text>
+              <Pressable
+                onPress={() => setSelectedChoreDetail(null)}
+                hitSlop={10}
+                style={[
+                  styles.detailCloseBtn,
+                  isDark && { backgroundColor: themeColors.surfaceSubtle },
+                ]}
+              >
+                <Text style={{ fontSize: 16, color: isDark ? themeColors.textSecondary : '#64748B', fontWeight: 'bold' }}>✕</Text>
               </Pressable>
             </View>
 
             {/* Thẻ tiền thưởng */}
-            <View style={styles.detailAmountBox}>
-              <Text style={styles.detailAmountLabel}>TIỀN THƯỞNG NHẬN ĐƯỢC</Text>
-              <Text style={styles.detailAmountValue}>+{formatVND(selectedChoreDetail?.rewardAmount || 0)}</Text>
+            <View
+              style={[
+                styles.detailAmountBox,
+                isDark && {
+                  backgroundColor: themeColors.surfaceSubtle,
+                  borderColor: themeColors.cardBorder,
+                },
+              ]}
+            >
+              <Text style={[styles.detailAmountLabel, isDark && { color: themeColors.accentGreen }]}>TIỀN THƯỞNG NHẬN ĐƯỢC</Text>
+              <Text style={[styles.detailAmountValue, isDark && { color: themeColors.accentGreen }]}>
+                +{formatVND(selectedChoreDetail?.rewardAmount || 0)}
+              </Text>
               <View style={{ marginTop: 8, flexDirection: 'row', justifyContent: 'center' }}>
                 <View
                   style={[
@@ -411,12 +577,12 @@ export function ChildChoresScreen({ onBack }: Props) {
                     {
                       backgroundColor:
                         selectedChoreDetail?.status === 'APPROVED'
-                          ? '#DCFCE7'
+                          ? (isDark ? 'rgba(52, 211, 153, 0.15)' : '#DCFCE7')
                           : selectedChoreDetail?.status === 'SUBMITTED'
-                            ? '#F3E8FF'
+                            ? (isDark ? 'rgba(168, 85, 247, 0.15)' : '#F3E8FF')
                             : selectedChoreDetail?.status === 'REJECTED'
-                              ? '#FEF3C7'
-                              : '#E2E8F0',
+                              ? (isDark ? 'rgba(245, 158, 11, 0.15)' : '#FEF3C7')
+                              : (isDark ? themeColors.surfaceSubtle : '#E2E8F0'),
                       paddingHorizontal: 12,
                       paddingVertical: 5,
                     },
@@ -428,12 +594,12 @@ export function ChildChoresScreen({ onBack }: Props) {
                       {
                         color:
                           selectedChoreDetail?.status === 'APPROVED'
-                            ? '#15803D'
+                            ? (isDark ? themeColors.accentGreen : '#15803D')
                             : selectedChoreDetail?.status === 'SUBMITTED'
-                              ? '#7E22CE'
+                              ? (isDark ? '#C084FC' : '#7E22CE')
                               : selectedChoreDetail?.status === 'REJECTED'
-                                ? '#B45309'
-                                : '#475569',
+                                ? (isDark ? '#FBBF24' : '#B45309')
+                                : (isDark ? themeColors.textSecondary : '#475569'),
                       },
                     ]}
                   >
@@ -450,22 +616,34 @@ export function ChildChoresScreen({ onBack }: Props) {
             </View>
 
             {/* Chi tiết nội dung */}
-            <View style={styles.detailContentGroup}>
+            <View
+              style={[
+                styles.detailContentGroup,
+                isDark && {
+                  backgroundColor: themeColors.surfaceSubtle,
+                  borderColor: themeColors.cardBorder,
+                },
+              ]}
+            >
               {selectedChoreDetail?.description ? (
                 <View style={styles.detailItemRow}>
-                  <Text style={styles.detailItemLabel}>Yêu cầu:</Text>
-                  <Text style={styles.detailItemValBold}>{selectedChoreDetail.description}</Text>
+                  <Text style={[styles.detailItemLabel, isDark && { color: themeColors.textSecondary }]}>Yêu cầu:</Text>
+                  <Text style={[styles.detailItemValBold, isDark && { color: themeColors.textPrimary }]}>
+                    {selectedChoreDetail.description}
+                  </Text>
                 </View>
               ) : null}
 
               <View style={styles.detailItemRow}>
-                <Text style={styles.detailItemLabel}>Hạn hoàn thành:</Text>
-                <Text style={styles.detailItemVal}>{formatDate(selectedChoreDetail?.dueDate)}</Text>
+                <Text style={[styles.detailItemLabel, isDark && { color: themeColors.textSecondary }]}>Hạn hoàn thành:</Text>
+                <Text style={[styles.detailItemVal, isDark && { color: themeColors.textPrimary }]}>
+                  {formatDate(selectedChoreDetail?.dueDate)}
+                </Text>
               </View>
 
               <View style={styles.detailItemRow}>
-                <Text style={styles.detailItemLabel}>Tần suất lặp:</Text>
-                <Text style={styles.detailItemVal}>
+                <Text style={[styles.detailItemLabel, isDark && { color: themeColors.textSecondary }]}>Tần suất lặp:</Text>
+                <Text style={[styles.detailItemVal, isDark && { color: themeColors.textPrimary }]}>
                   {selectedChoreDetail?.frequency === 'DAILY'
                     ? 'Hằng ngày'
                     : selectedChoreDetail?.frequency === 'WEEKLY'
@@ -475,8 +653,13 @@ export function ChildChoresScreen({ onBack }: Props) {
               </View>
 
               {selectedChoreDetail?.status === 'REJECTED' && selectedChoreDetail?.rejectionReason ? (
-                <View style={styles.detailRejectNotice}>
-                  <Text style={styles.detailRejectNoticeText}>
+                <View
+                  style={[
+                    styles.detailRejectNotice,
+                    isDark && { backgroundColor: 'rgba(245, 158, 11, 0.15)' },
+                  ]}
+                >
+                  <Text style={[styles.detailRejectNoticeText, isDark && { color: '#FBBF24' }]}>
                     ⚠️ Lời nhắn bố mẹ: {selectedChoreDetail.rejectionReason}
                   </Text>
                 </View>
@@ -487,7 +670,10 @@ export function ChildChoresScreen({ onBack }: Props) {
             <View style={{ marginTop: 16, flexDirection: 'row', gap: 10 }}>
               {(selectedChoreDetail?.status === 'ASSIGNED' || selectedChoreDetail?.status === 'IN_PROGRESS' || selectedChoreDetail?.status === 'REJECTED') ? (
                 <Pressable
-                  style={[styles.detailConfirmBtn, { flex: 1, backgroundColor: '#059669' }]}
+                  style={[
+                    styles.detailConfirmBtn,
+                    { flex: 1, backgroundColor: isDark ? themeColors.accentGreen : '#059669' },
+                  ]}
                   onPress={() => {
                     const chore = selectedChoreDetail;
                     setSelectedChoreDetail(null);
@@ -498,10 +684,18 @@ export function ChildChoresScreen({ onBack }: Props) {
                 </Pressable>
               ) : null}
               <Pressable
-                style={[styles.detailConfirmBtn, { flex: 1, backgroundColor: '#F1F5F9' }]}
+                style={[
+                  styles.detailConfirmBtn,
+                  {
+                    flex: 1,
+                    backgroundColor: isDark ? themeColors.surfaceSubtle : '#F1F5F9',
+                  },
+                ]}
                 onPress={() => setSelectedChoreDetail(null)}
               >
-                <Text style={[styles.detailConfirmBtnText, { color: '#475569' }]}>Đóng</Text>
+                <Text style={[styles.detailConfirmBtnText, { color: isDark ? themeColors.textPrimary : '#475569' }]}>
+                  Đóng
+                </Text>
               </Pressable>
             </View>
           </View>
@@ -620,7 +814,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0, 0, 0, 0.45)',
   },
   modalBackdrop: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
   },
   scrollContent: { padding: 16, paddingBottom: 40 },
   bannerContainer: {
@@ -781,122 +975,125 @@ const styles = StyleSheet.create({
 
   /* Modal Chi tiết */
   detailModalCard: {
-  backgroundColor: '#FFF',
-  borderRadius: 24,
-  marginHorizontal: 20,
-  marginBottom: 'auto',
-  marginTop: 'auto',
-  padding: 20,
-  shadowColor: '#000',
-  shadowOpacity: 0.15,
-  shadowRadius: 20,
-  shadowOffset: { width: 0, height: 6 },
-  elevation: 8,
-},
+    backgroundColor: '#FFF',
+    borderRadius: 24,
+    width: '92%',
+    maxWidth: 420,
+    alignSelf: 'center',
+    padding: 22,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    shadowColor: '#000',
+    shadowOpacity: 0.25,
+    shadowRadius: 24,
+    shadowOffset: { width: 0, height: 8 },
+    elevation: 10,
+  },
   detailHeader: {
-  flexDirection: 'row',
-  alignItems: 'center',
-  justifyContent: 'space-between',
-  paddingBottom: 14,
-  borderBottomWidth: 1,
-  borderBottomColor: '#F1F5F9',
-},
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingBottom: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F1F5F9',
+  },
   detailHeaderLeft: {
-  flexDirection: 'row',
-  alignItems: 'center',
-  gap: 12,
-  flex: 1,
-  paddingRight: 6,
-},
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    flex: 1,
+    paddingRight: 6,
+  },
   detailHeaderTitle: {
-  fontSize: 16,
-  fontWeight: '800',
-  color: '#0F172A',
-},
+    fontSize: 18,
+    fontWeight: '800',
+    color: '#0F172A',
+  },
   detailHeaderSub: {
-  fontSize: 11,
-  color: '#64748B',
-  marginTop: 2,
-},
+    fontSize: 12,
+    color: '#64748B',
+    marginTop: 2,
+  },
   detailCloseBtn: {
-  width: 28,
-  height: 28,
-  borderRadius: 14,
-  backgroundColor: '#F1F5F9',
-  alignItems: 'center',
-  justifyContent: 'center',
-},
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#F1F5F9',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   detailAmountBox: {
-  marginVertical: 14,
-  padding: 16,
-  borderRadius: 18,
-  backgroundColor: '#F0FDF4',
-  borderWidth: 1,
-  borderColor: '#DCFCE7',
-  alignItems: 'center',
-},
+    marginVertical: 16,
+    paddingVertical: 18,
+    paddingHorizontal: 16,
+    borderRadius: 20,
+    backgroundColor: '#F0FDF4',
+    borderWidth: 1,
+    borderColor: '#DCFCE7',
+    alignItems: 'center',
+  },
   detailAmountLabel: {
-  fontSize: 11,
-  fontWeight: '800',
-  color: '#15803D',
-  letterSpacing: 0.5,
-},
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#15803D',
+    letterSpacing: 0.6,
+  },
   detailAmountValue: {
-  fontSize: 26,
-  fontWeight: '900',
-  color: '#15803D',
-  marginTop: 4,
-},
+    fontSize: 30,
+    fontWeight: '900',
+    color: '#15803D',
+    marginTop: 4,
+  },
   detailContentGroup: {
-  backgroundColor: '#F8FAFC',
-  borderRadius: 16,
-  padding: 14,
-  gap: 10,
-  borderWidth: 1,
-  borderColor: '#E2E8F0',
-},
+    backgroundColor: '#F8FAFC',
+    borderRadius: 18,
+    padding: 16,
+    gap: 12,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
   detailItemRow: {
-  flexDirection: 'row',
-  justifyContent: 'space-between',
-  alignItems: 'center',
-},
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
   detailItemLabel: {
-  fontSize: 12,
-  color: '#64748B',
-  fontWeight: '500',
-},
+    fontSize: 13.5,
+    color: '#64748B',
+    fontWeight: '500',
+  },
   detailItemVal: {
-  fontSize: 12,
-  color: '#0F172A',
-  fontWeight: '700',
-},
+    fontSize: 13.5,
+    color: '#0F172A',
+    fontWeight: '700',
+  },
   detailItemValBold: {
-  fontSize: 13,
-  color: '#0F172A',
-  fontWeight: '800',
-  maxWidth: '65%',
-  textAlign: 'right',
-},
+    fontSize: 14.5,
+    color: '#0F172A',
+    fontWeight: '800',
+    maxWidth: '65%',
+    textAlign: 'right',
+  },
   detailRejectNotice: {
-  backgroundColor: '#FEF3C7',
-  padding: 10,
-  borderRadius: 10,
-  marginTop: 4,
-},
+    backgroundColor: '#FEF3C7',
+    padding: 12,
+    borderRadius: 12,
+    marginTop: 4,
+  },
   detailRejectNoticeText: {
-  fontSize: 12,
-  color: '#92400E',
-  fontWeight: '700',
-},
+    fontSize: 13,
+    color: '#92400E',
+    fontWeight: '700',
+  },
   detailConfirmBtn: {
-  height: 44,
-  borderRadius: 14,
-  alignItems: 'center',
-  justifyContent: 'center',
-},
+    height: 48,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   detailConfirmBtnText: {
-  color: '#FFF',
-  fontSize: 14,
-  fontWeight: '700',
-},
+    color: '#FFF',
+    fontSize: 15,
+    fontWeight: '700',
+  },
 });

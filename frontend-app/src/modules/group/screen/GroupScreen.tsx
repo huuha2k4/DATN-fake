@@ -1,7 +1,8 @@
+import { AppAlert as Alert } from '../../../context/DialogContext';
+import { styles } from './GroupScreen.styles';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   Dimensions,
   FlatList,
   Image,
@@ -50,6 +51,7 @@ import { GroupBalancesTab } from '../components/balances';
 import { GroupSettingsTab } from '../components/settings';
 import { DepositFundModal } from '../components/fund';
 import { ChildWalletResponse, CreateChildWalletRequest } from '../api/groupApi';
+import { useAppTheme } from '../../../context/ThemeContext';
 
 const GROUP_ICONS: Record<string, any> = {
   FAMILY: require('../../../assets/icons/groups/group_family.png'),
@@ -85,50 +87,40 @@ function formatVND(val: number) {
 // Bộ nhớ tạm tỷ lệ ảnh trong phiên hoạt động để tránh gọi lại Image.getSize
 const imageAspectRatioCache: Record<string, number> = {};
 
-// Component hiển thị ảnh đính kèm tự động tính tỷ lệ theo kích thước ảnh thực tế (không bị crop/hụt chiều cao)
+// Component hiển thị ảnh đính kèm: Sử dụng width/height lưu sẵn trong DB để hiển thị tỷ lệ chuẩn ngay lập tức, không bị giật lag
 function ChatAttachmentImageItem({
   uri,
+  width,
+  height,
   onPress,
   onLongPress,
 }: {
   uri: string;
+  width?: number;
+  height?: number;
   onPress: () => void;
   onLongPress: () => void;
 }) {
-  const [aspectRatio, setAspectRatio] = useState<number>(imageAspectRatioCache[uri] || (4 / 3));
-
   useEffect(() => {
     if (uri) {
       // Tải trước vào bộ nhớ cache của máy để hiển thị tức thì
       Image.prefetch(uri).catch(() => {});
-
-      if (imageAspectRatioCache[uri]) {
-        setAspectRatio(imageAspectRatioCache[uri]);
-        return;
-      }
-
-      Image.getSize(
-        uri,
-        (w, h) => {
-          if (w > 0 && h > 0) {
-            // Giới hạn tỷ lệ khung hình trong khoảng hợp lý (tối thiểu 0.55 cho ảnh đứng, tối đa 1.8 cho ảnh ngang)
-            const ratio = Math.max(0.55, Math.min(1.8, w / h));
-            imageAspectRatioCache[uri] = ratio;
-            setAspectRatio(ratio);
-          }
-        },
-        () => {
-          // Bỏ qua lỗi fallback mặc định
-        }
-      );
     }
   }, [uri]);
+
+  // Nếu có sẵn width & height từ DB: tính aspectRatio chuẩn (giới hạn từ 0.6 đến 1.8)
+  const computedAspectRatio = (width && height && width > 0 && height > 0)
+    ? Math.max(0.6, Math.min(1.8, width / height))
+    : (4 / 3);
 
   return (
     <Pressable
       onPress={onPress}
       onLongPress={onLongPress}
-      style={[styles.chatAttachmentImgContainer, { aspectRatio }]}
+      style={[
+        styles.chatAttachmentImgContainer,
+        { aspectRatio: computedAspectRatio },
+      ]}
     >
       <Image
         source={{ uri, cache: 'force-cache' }}
@@ -215,6 +207,7 @@ export function GroupScreen({
   initialKidSubTab?: 'REQUESTS' | 'SPENDS' | 'CHORES' | 'DEPOSIT' | 'SETTINGS';
 } = {}) {
   const insets = useSafeAreaInsets();
+  const { isDark, colors: themeColors } = useAppTheme();
   const currentUser = authStorage.getUser();
   const isChildAccount = Boolean(currentUser?.childAccount && currentUser.childWalletGroupId);
 
@@ -389,10 +382,12 @@ export function GroupScreen({
   const [sendingMessage, setSendingMessage] = useState(false);
   const [loadingDetail, setLoadingDetail] = useState(false);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
-  const [selectedImageAttachment, setSelectedImageAttachment] = useState<{ uri: string; name: string; type: string } | null>(null);
+  const [selectedImageAttachment, setSelectedImageAttachment] = useState<{ uri: string; name: string; type: string; width?: number; height?: number } | null>(null);
   const [uploadingAttachment, setUploadingAttachment] = useState(false);
+  const [chatVisibleCount, setChatVisibleCount] = useState<number>(25);
   const chatScrollViewRef = useRef<ScrollView>(null);
   const detailTxScrollViewRef = useRef<ScrollView>(null);
+  const expenseFormScrollViewRef = useRef<ScrollView>(null);
   const [keyboardHeight, setKeyboardHeight] = useState(0);
   const [showScrollBottomBtn, setShowScrollBottomBtn] = useState(false);
   const messageItemLayouts = useRef<Record<string, number>>({});
@@ -778,9 +773,10 @@ export function GroupScreen({
     }
   };
 
-  // Reset flag tự động cuộn khi chuyển tab hoặc đổi nhóm
+  // Reset flag tự động cuộn và số lượng tin hiển thị ban đầu khi chuyển tab hoặc đổi nhóm
   useEffect(() => {
     hasAutoScrolledOnEnterRef.current = false;
+    setChatVisibleCount(25);
   }, [selectedGroup?.id, detailTab]);
 
   // Đánh dấu đã đọc và tự động cuộn đến tin nhắn chưa đọc hoặc xuống cuối cùng khi vào tab CHAT
@@ -876,6 +872,8 @@ export function GroupScreen({
           uri: asset.uri,
           name: fileName,
           type: mimeType,
+          width: asset.width,
+          height: asset.height,
         });
       }
     } catch (err: any) {
@@ -903,7 +901,11 @@ export function GroupScreen({
       if (imageToSend) {
         setUploadingAttachment(true);
         const uploaded = await groupApi.uploadMessageAttachment(selectedGroup.id, imageToSend);
-        attachmentsList = [uploaded];
+        attachmentsList = [{
+          ...uploaded,
+          width: imageToSend.width || uploaded.width,
+          height: imageToSend.height || uploaded.height,
+        }];
       }
 
       shouldAutoScrollRef.current = true;
@@ -1383,10 +1385,27 @@ export function GroupScreen({
       selectedGroup.groupType === 'OTHER';
 
     return (
-      <View style={styles.detailScreenContainer}>
-        <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
+      <View
+        style={[
+          styles.detailScreenContainer,
+          isDark && { backgroundColor: themeColors.background },
+        ]}
+      >
+        <StatusBar
+          barStyle={isDark ? 'light-content' : 'dark-content'}
+          backgroundColor={isDark ? themeColors.surface : '#FFFFFF'}
+        />
         {/* Header Trang Chi tiết full màn hình - Phong cách sáng & icons tương tác chuẩn mẫu */}
-        <View style={[styles.detailScreenHeaderModern, { paddingTop: Math.max(insets.top, 14) + 6 }]}>
+        <View
+          style={[
+            styles.detailScreenHeaderModern,
+            { paddingTop: Math.max(insets.top, 14) + 6 },
+            isDark && {
+              backgroundColor: themeColors.surface,
+              borderBottomColor: themeColors.cardBorder,
+            },
+          ]}
+        >
           {!isChildAccount && (
             <Pressable
               onPress={() => {
@@ -1394,9 +1413,15 @@ export function GroupScreen({
                 setDetailTab('OVERVIEW');
               }}
               hitSlop={12}
-              style={({ pressed }) => [styles.detailModernBackBtn, pressed && styles.pressed]}
+              style={({ pressed }) => [
+                styles.detailModernBackBtn,
+                isDark && {
+                  backgroundColor: 'rgba(255, 255, 255, 0.08)',
+                },
+                pressed && styles.pressed,
+              ]}
             >
-              <FinanceIcon name="chevron-left" size={22} color="#0F172A" />
+              <FinanceIcon name="chevron-left" size={22} color={isDark ? themeColors.textPrimary : '#0F172A'} />
             </Pressable>
           )}
 
@@ -1408,12 +1433,23 @@ export function GroupScreen({
             />
             <View style={{ flex: 1 }}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
-                <Text style={styles.detailModernTitle} numberOfLines={1}>
+                <Text
+                  style={[
+                    styles.detailModernTitle,
+                    isDark && { color: themeColors.textPrimary },
+                  ]}
+                  numberOfLines={1}
+                >
                   {selectedGroup.name}
                 </Text>
                 {isFamily && <FinanceIcon name="crown" size={14} color="#D97706" />}
               </View>
-              <Text style={styles.detailModernSub}>
+              <Text
+                style={[
+                  styles.detailModernSub,
+                  isDark && { color: themeColors.textSecondary },
+                ]}
+              >
                 {members.length} thành viên
               </Text>
             </View>
@@ -1424,17 +1460,31 @@ export function GroupScreen({
             <View style={styles.detailHeaderActionsRow}>
               <Pressable
                 onPress={() => setDetailTab('SETTINGS')}
-                style={styles.detailActionCircleBtn}
+                style={[
+                  styles.detailActionCircleBtn,
+                  isDark && {
+                    backgroundColor: 'rgba(52, 211, 153, 0.15)',
+                    borderColor: 'rgba(52, 211, 153, 0.3)',
+                  },
+                ]}
                 hitSlop={6}
               >
-                <FinanceIcon name="settings" size={17} color="#059669" />
+                <FinanceIcon name="settings" size={17} color={isDark ? themeColors.accentGreen : '#059669'} />
               </Pressable>
             </View>
           )}
         </View>
 
         {/* Thanh Tabs Trượt Ngang (Tab Bar gạch chân xanh chuẩn ảnh mẫu) */}
-        <View style={styles.tabsScrollWrapper}>
+        <View
+          style={[
+            styles.tabsScrollWrapper,
+            isDark && {
+              backgroundColor: themeColors.surface,
+              borderBottomColor: themeColors.cardBorder,
+            },
+          ]}
+        >
           <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
@@ -1475,12 +1525,20 @@ export function GroupScreen({
                     <FinanceIcon
                       name={tab.icon as any}
                       size={16}
-                      color={isSelected ? '#0E964E' : '#64748B'}
+                      color={
+                        isSelected
+                          ? (isDark ? themeColors.accentGreen : '#0E964E')
+                          : (isDark ? themeColors.textSecondary : '#64748B')
+                      }
                     />
                     <Text
                       style={[
                         styles.detailTabItemTextClean,
-                        isSelected && styles.detailTabItemTextCleanActive,
+                        isDark && { color: themeColors.textSecondary },
+                        isSelected && [
+                          styles.detailTabItemTextCleanActive,
+                          isDark && { color: themeColors.accentGreen },
+                        ],
                       ]}
                     >
                       {tab.label}
@@ -1493,7 +1551,14 @@ export function GroupScreen({
                       </View>
                     )}
                   </View>
-                  {isSelected && <View style={styles.detailActiveIndicatorLine} />}
+                  {isSelected && (
+                    <View
+                      style={[
+                        styles.detailActiveIndicatorLine,
+                        isDark && { backgroundColor: themeColors.accentGreen },
+                      ]}
+                    />
+                  )}
                 </Pressable>
               );
             })}
@@ -1504,13 +1569,16 @@ export function GroupScreen({
         {loadingDetail ? (
           <View style={styles.detailLoadingWrap}>
             <ActivityIndicator size="large" color="#00A86B" />
-            <Text style={styles.detailLoadingText}>Đang nạp dữ liệu nhóm...</Text>
+            <Text style={[styles.detailLoadingText, isDark && { color: themeColors.textSecondary }]}>Đang nạp dữ liệu nhóm...</Text>
           </View>
         ) : detailTab === 'CHAT' ? (
           /* RIÊNG TAB TRÒ CHUYỆN: Chiếm toàn bộ chiều cao còn lại của màn hình (flex: 1), 
              cuộn độc lập bằng ScrollView bên trong, thanh chat ghim cố định ở đáy */
           <KeyboardAvoidingView
-            style={styles.chatViewportContainer}
+            style={[
+              styles.chatViewportContainer,
+              isDark && { backgroundColor: themeColors.background },
+            ]}
             behavior={Platform.OS === 'ios' ? 'padding' : undefined}
             keyboardVerticalOffset={0}
           >
@@ -1570,9 +1638,40 @@ export function GroupScreen({
                         })
                       : null;
 
-                    return messages
-                      .filter((m) => !hiddenMessageIds.includes(m.id))
-                      .map((msg, index, filteredArr) => {
+                    // Chỉ lấy số lượng tin nhắn mới nhất theo chatVisibleCount
+                    const nonHiddenMessages = messages.filter((m) => !hiddenMessageIds.includes(m.id));
+                    const hasOlderMessages = nonHiddenMessages.length > chatVisibleCount;
+                    const visibleMessages = hasOlderMessages
+                      ? nonHiddenMessages.slice(-chatVisibleCount)
+                      : nonHiddenMessages;
+
+                    return (
+                      <>
+                        {hasOlderMessages && (
+                          <View style={styles.chatLoadMoreWrap}>
+                            <Pressable
+                              style={[
+                                styles.chatLoadMoreBtn,
+                                isDark && { backgroundColor: themeColors.surface, borderColor: themeColors.cardBorder },
+                              ]}
+                              onPress={() => {
+                                shouldAutoScrollRef.current = false;
+                                setChatVisibleCount((prev) => Math.min(nonHiddenMessages.length, prev + 25));
+                              }}
+                            >
+                              <FinanceIcon name="chevron-up" size={15} color={isDark ? themeColors.textSecondary : '#475569'} />
+                              <Text
+                                style={[
+                                  styles.chatLoadMoreBtnText,
+                                  isDark && { color: themeColors.textSecondary },
+                                ]}
+                              >
+                                Xem các tin nhắn cũ hơn ({nonHiddenMessages.length - chatVisibleCount})
+                              </Text>
+                            </Pressable>
+                          </View>
+                        )}
+                        {visibleMessages.map((msg, index, filteredArr) => {
                       const isFirstUnread = firstUnreadMsg && firstUnreadMsg.id === msg.id;
                       const isMe = msg.senderId === currentUser?.id;
                       const senderName = isMe ? 'Bạn' : (msg.sender?.fullName || msg.sender?.username || 'Thành viên');
@@ -1670,11 +1769,26 @@ export function GroupScreen({
                           {/* Thanh phân cách ngày/giờ động chuẩn như Web & Messenger */}
                           {showDateDivider && (
                             <View style={styles.chatDayDividerWrap}>
-                            <View style={styles.chatDayPill}>
-                              <Text style={styles.chatDayPillText}>{dividerText || 'Hôm nay'}</Text>
+                              <View
+                                style={[
+                                  styles.chatDayPill,
+                                  isDark && {
+                                    backgroundColor: themeColors.surfaceSubtle,
+                                    borderColor: themeColors.cardBorder,
+                                  },
+                                ]}
+                              >
+                                <Text
+                                  style={[
+                                    styles.chatDayPillText,
+                                    isDark && { color: themeColors.textSecondary },
+                                  ]}
+                                >
+                                  {dividerText || 'Hôm nay'}
+                                </Text>
+                              </View>
                             </View>
-                          </View>
-                        )}
+                          )}
 
                         <View
                           style={[
@@ -1705,21 +1819,23 @@ export function GroupScreen({
                           <View style={{ maxWidth: '82%' }}>
                             {/* Tên người gửi ở trên tin nhắn (chỉ hiện ở tin nhắn đầu của cụm nếu là người khác) */}
                             {!isMe && isFirstInCluster && (
-                              <Text style={styles.chatSenderTitleWeb}>{senderName}</Text>
+                              <Text style={[styles.chatSenderTitleWeb, isDark && { color: themeColors.accentGreen }]}>
+                                {senderName}
+                              </Text>
                             )}
 
                           {/* Trường hợp 1: Thẻ tệp đính kèm Excel (.xlsx) chuẩn mẫu */}
                           {isExcelFile ? (
-                            <View style={styles.chatFileCardWeb}>
-                              <View style={styles.chatFileIconBox}>
-                                <FinanceIcon name="file-excel" size={24} color="#16A34A" />
+                            <View style={[styles.chatFileCardWeb, isDark && { backgroundColor: themeColors.surface, borderColor: themeColors.cardBorder }]}>
+                              <View style={[styles.chatFileIconBox, isDark && { backgroundColor: 'rgba(52, 211, 153, 0.15)' }]}>
+                                <FinanceIcon name="file-excel" size={24} color={isDark ? themeColors.accentGreen : '#16A34A'} />
                               </View>
                               <View style={{ flex: 1 }}>
-                                <Text style={styles.chatFileNameText} numberOfLines={1}>{cleanContent}</Text>
-                                <Text style={styles.chatFileSizeText}>32 KB</Text>
+                                <Text style={[styles.chatFileNameText, isDark && { color: themeColors.textPrimary }]} numberOfLines={1}>{cleanContent}</Text>
+                                <Text style={[styles.chatFileSizeText, isDark && { color: themeColors.textMuted }]}>32 KB</Text>
                               </View>
-                              <Pressable hitSlop={8} style={styles.chatFileDownloadBtn}>
-                                <FinanceIcon name="download" size={16} color="#16A34A" />
+                              <Pressable hitSlop={8} style={[styles.chatFileDownloadBtn, isDark && { backgroundColor: 'rgba(52, 211, 153, 0.15)' }]}>
+                                <FinanceIcon name="download" size={16} color={isDark ? themeColors.accentGreen : '#16A34A'} />
                               </Pressable>
                             </View>
                           ) : msg.attachments && msg.attachments.length > 0 ? (
@@ -1737,6 +1853,8 @@ export function GroupScreen({
                                   <ChatAttachmentImageItem
                                     key={aIdx}
                                     uri={fileUri}
+                                    width={att.width}
+                                    height={att.height}
                                     onPress={() => {
                                       shouldAutoScrollRef.current = false;
                                       setLightboxImageUrl(fileUri);
@@ -1767,21 +1885,25 @@ export function GroupScreen({
                                 <View
                                   style={[
                                     styles.chatMessageBubbleWeb,
-                                    isMe ? styles.chatBubbleMeWeb : styles.chatBubbleOtherWeb,
+                                    isMe
+                                      ? (isDark ? { backgroundColor: '#059669', borderColor: '#047857' } : styles.chatBubbleMeWeb)
+                                      : (isDark ? { backgroundColor: themeColors.surface, borderColor: themeColors.cardBorder } : styles.chatBubbleOtherWeb),
                                     // Bo góc cụm tin nhắn
                                     !isFirstInCluster && (isMe ? { borderTopRightRadius: 6 } : { borderTopLeftRadius: 6 }),
                                     !isLastInCluster && (isMe ? { borderBottomRightRadius: 6 } : { borderBottomLeftRadius: 6 }),
                                   ]}
                                 >
                                   {isEdited && !isRecalled && (
-                                    <Text style={[styles.chatEditedBadge, isMe ? { color: '#047857' } : { color: '#64748B' }]}>
+                                    <Text style={[styles.chatEditedBadge, isMe ? { color: '#DCFCE7' } : { color: isDark ? themeColors.textMuted : '#64748B' }]}>
                                       Đã sửa
                                     </Text>
                                   )}
                                   <Text
                                     style={[
                                       styles.chatMessageContentWeb,
-                                      isMe ? styles.chatMessageTextMeWeb : styles.chatMessageTextOtherWeb,
+                                      isMe
+                                        ? (isDark ? { color: '#FFFFFF' } : styles.chatMessageTextMeWeb)
+                                        : [styles.chatMessageTextOtherWeb, isDark && { color: themeColors.textPrimary }],
                                     ]}
                                   >
                                     {cleanContent}
@@ -1819,10 +1941,26 @@ export function GroupScreen({
                             </View>
                           ) : isRecalled ? (
                             /* Tin nhắn đã bị thu hồi */
-                            <View style={[styles.chatMessageBubbleWeb, styles.chatRecalledBubble]}>
+                            <View
+                              style={[
+                                styles.chatMessageBubbleWeb,
+                                styles.chatRecalledBubble,
+                                isDark && {
+                                  backgroundColor: themeColors.surfaceSubtle,
+                                  borderColor: themeColors.cardBorder,
+                                },
+                              ]}
+                            >
                               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                                <FinanceIcon name="alert-circle" size={13} color="#94A3B8" />
-                                <Text style={styles.chatRecalledText}>Tin nhắn đã bị thu hồi</Text>
+                                <FinanceIcon name="alert-circle" size={13} color={isDark ? themeColors.textMuted : '#94A3B8'} />
+                                <Text
+                                  style={[
+                                    styles.chatRecalledText,
+                                    isDark && { color: themeColors.textMuted },
+                                  ]}
+                                >
+                                  Tin nhắn đã bị thu hồi
+                                </Text>
                               </View>
                             </View>
                           ) : (
@@ -1855,21 +1993,25 @@ export function GroupScreen({
                                 }}
                                 style={[
                                   styles.chatMessageBubbleWeb,
-                                  isMe ? styles.chatBubbleMeWeb : styles.chatBubbleOtherWeb,
+                                  isMe
+                                    ? (isDark ? { backgroundColor: '#059669', borderColor: '#047857' } : styles.chatBubbleMeWeb)
+                                    : (isDark ? { backgroundColor: themeColors.surface, borderColor: themeColors.cardBorder } : styles.chatBubbleOtherWeb),
                                   // Bo góc cụm tin nhắn như Messenger
                                   !isFirstInCluster && (isMe ? { borderTopRightRadius: 6 } : { borderTopLeftRadius: 6 }),
                                   !isLastInCluster && (isMe ? { borderBottomRightRadius: 6 } : { borderBottomLeftRadius: 6 }),
                                 ]}
                               >
                                 {isEdited && (
-                                  <Text style={[styles.chatEditedBadge, isMe ? { color: '#047857' } : { color: '#64748B' }]}>
+                                  <Text style={[styles.chatEditedBadge, isMe ? { color: '#DCFCE7' } : { color: isDark ? themeColors.textMuted : '#64748B' }]}>
                                     Đã sửa
                                   </Text>
                                 )}
                                 <Text
                                   style={[
                                     styles.chatMessageContentWeb,
-                                    isMe ? styles.chatMessageTextMeWeb : styles.chatMessageTextOtherWeb,
+                                    isMe
+                                      ? styles.chatMessageTextMeWeb
+                                      : [styles.chatMessageTextOtherWeb, isDark && { color: themeColors.textPrimary }],
                                   ]}
                                 >
                                   {cleanContent}
@@ -1884,6 +2026,10 @@ export function GroupScreen({
                               onPress={() => setViewingReactionModalMessage(msg)}
                               style={[
                                 styles.chatReactionsBadgeContainer,
+                                isDark && {
+                                  backgroundColor: themeColors.surface,
+                                  borderColor: themeColors.cardBorder,
+                                },
                                 isMe ? { alignSelf: 'flex-end', marginRight: 4 } : { alignSelf: 'flex-start', marginLeft: 4 },
                               ]}
                             >
@@ -1891,7 +2037,14 @@ export function GroupScreen({
                                 {uniqueEmojis.map((emoji) => (
                                   <Text key={emoji} style={styles.chatReactionEmojiText}>{emoji}</Text>
                                 ))}
-                                <Text style={styles.chatReactionCountText}>{reactionsList.length}</Text>
+                                <Text
+                                  style={[
+                                    styles.chatReactionCountText,
+                                    isDark && { color: themeColors.textSecondary },
+                                  ]}
+                                >
+                                  {reactionsList.length}
+                                </Text>
                               </View>
                             </Pressable>
                           )}
@@ -1948,7 +2101,9 @@ export function GroupScreen({
                       </View>
                     </View>
                   );
-                })
+                })}
+                </>
+              );
               })()}
               </View>
               )}
@@ -1956,8 +2111,23 @@ export function GroupScreen({
 
             {/* Popup chọn Emoji / Biểu cảm nhanh chuẩn như Web */}
             {showEmojiPicker && (
-              <View style={styles.chatEmojiPickerPopup}>
-                <Text style={styles.chatEmojiPickerTitle}>Biểu cảm nhanh</Text>
+              <View
+                style={[
+                  styles.chatEmojiPickerPopup,
+                  isDark && {
+                    backgroundColor: themeColors.surface,
+                    borderColor: themeColors.cardBorder,
+                  },
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.chatEmojiPickerTitle,
+                    isDark && { color: themeColors.textSecondary },
+                  ]}
+                >
+                  Biểu cảm nhanh
+                </Text>
                 <View style={styles.chatEmojiGrid}>
                   {['👍', '❤️', '😂', '😮', '😢', '😡', '👏', '🎉', '🔥', '✨', '💸', '💰', '🍔', '☕', '👶', '🙏', '💯', '👌'].map((emoji) => (
                     <Pressable
@@ -1966,7 +2136,11 @@ export function GroupScreen({
                         setNewMessageText((prev) => prev + emoji);
                         setShowEmojiPicker(false);
                       }}
-                      style={({ pressed }) => [styles.chatEmojiItemBtn, pressed && styles.pressed]}
+                      style={({ pressed }) => [
+                        styles.chatEmojiItemBtn,
+                        isDark && { backgroundColor: themeColors.surfaceSubtle },
+                        pressed && styles.pressed,
+                      ]}
                     >
                       <Text style={{ fontSize: 20 }}>{emoji}</Text>
                     </Pressable>
@@ -2023,20 +2197,44 @@ export function GroupScreen({
             )}
 
             {/* Khung Gửi Tin Nhắn Ghim Cố Định Ở Đáy Chuẩn Mẫu (Icon Đính kèm + Input bo tròn + Emoji + Nút Send tròn xanh) */}
-            <View style={[styles.chatInputBarContainerWeb, { paddingBottom: insets.bottom > 0 ? Math.max(insets.bottom - 10, 6) : 6 }]}>
+            <View
+              style={[
+                styles.chatInputBarContainerWeb,
+                { paddingBottom: insets.bottom > 0 ? Math.max(insets.bottom - 10, 6) : 6 },
+                isDark && {
+                  backgroundColor: themeColors.surface,
+                  borderTopColor: themeColors.cardBorder,
+                },
+              ]}
+            >
               <Pressable
                 onPress={handlePickChatImage}
                 hitSlop={10}
-                style={({ pressed }) => [styles.chatInputAttachmentBtn, pressed && styles.pressed]}
+                style={({ pressed }) => [
+                  styles.chatInputAttachmentBtn,
+                  isDark && { backgroundColor: 'rgba(52, 211, 153, 0.15)' },
+                  pressed && styles.pressed,
+                ]}
               >
-                <FinanceIcon name="paperclip" size={20} color="#0E964E" />
+                <FinanceIcon name="paperclip" size={20} color={isDark ? themeColors.accentGreen : '#0E964E'} />
               </Pressable>
 
-              <View style={styles.chatInputInnerBox}>
+              <View
+                style={[
+                  styles.chatInputInnerBox,
+                  isDark && {
+                    backgroundColor: themeColors.surfaceSubtle,
+                    borderColor: themeColors.cardBorder,
+                  },
+                ]}
+              >
                 <TextInput
-                  style={styles.chatTextInputWeb}
+                  style={[
+                    styles.chatTextInputWeb,
+                    isDark && { color: themeColors.textPrimary },
+                  ]}
                   placeholder={selectedImageAttachment ? 'Thêm chú thích ảnh...' : 'Nhập tin nhắn...'}
-                  placeholderTextColor="#94A3B8"
+                  placeholderTextColor={isDark ? '#64748B' : '#94A3B8'}
                   value={newMessageText}
                   onChangeText={setNewMessageText}
                   onFocus={() => {
@@ -2051,7 +2249,11 @@ export function GroupScreen({
                   hitSlop={8}
                   style={({ pressed }) => [styles.chatEmojiBtn, pressed && styles.pressed]}
                 >
-                  <FinanceIcon name="smile" size={19} color={showEmojiPicker ? '#0E964E' : '#94A3B8'} />
+                  <FinanceIcon
+                    name="smile"
+                    size={19}
+                    color={showEmojiPicker ? (isDark ? themeColors.accentGreen : '#0E964E') : (isDark ? '#64748B' : '#94A3B8')}
+                  />
                 </Pressable>
               </View>
 
@@ -2060,6 +2262,7 @@ export function GroupScreen({
                 disabled={sendingMessage || uploadingAttachment || (!newMessageText.trim() && !selectedImageAttachment)}
                 style={({ pressed }) => [
                   styles.chatSendCircleBtnWeb,
+                  isDark && { backgroundColor: '#10B981' },
                   (!newMessageText.trim() && !selectedImageAttachment) && styles.disabled,
                   (sendingMessage || uploadingAttachment) && styles.disabled,
                   pressed && styles.pressed,
@@ -2174,19 +2377,23 @@ export function GroupScreen({
                               <View
                                 style={[
                                   styles.chatMessageBubbleWeb,
-                                  isMe ? styles.chatBubbleMeWeb : styles.chatBubbleOtherWeb,
+                                  isMe
+                                    ? (isDark ? { backgroundColor: '#059669', borderColor: '#047857' } : styles.chatBubbleMeWeb)
+                                    : (isDark ? { backgroundColor: themeColors.surface, borderColor: themeColors.cardBorder } : styles.chatBubbleOtherWeb),
                                   { width: '100%', height: '100%', margin: 0 },
                                 ]}
                               >
                                 {target.isEdited && (
-                                  <Text style={[styles.chatEditedBadge, isMe ? { color: '#047857' } : { color: '#64748B' }]}>
+                                  <Text style={[styles.chatEditedBadge, isMe ? { color: '#DCFCE7' } : { color: isDark ? themeColors.textMuted : '#64748B' }]}>
                                     Đã sửa
                                   </Text>
                                 )}
                                 <Text
                                   style={[
                                     styles.chatMessageContentWeb,
-                                    isMe ? styles.chatMessageTextMeWeb : styles.chatMessageTextOtherWeb,
+                                    isMe
+                                      ? (isDark ? { color: '#FFFFFF' } : styles.chatMessageTextMeWeb)
+                                      : [styles.chatMessageTextOtherWeb, isDark && { color: themeColors.textPrimary }],
                                   ]}
                                 >
                                   {cleanContent}
@@ -2213,7 +2420,15 @@ export function GroupScreen({
                           >
                             <View style={{ gap: 8 }}>
                               {/* Thanh 6 Emoji cảm xúc */}
-                              <View style={styles.chatReactionPickRowModal}>
+                              <View
+                                style={[
+                                  styles.chatReactionPickRowModal,
+                                  isDark && {
+                                    backgroundColor: themeColors.surface,
+                                    borderColor: themeColors.cardBorder,
+                                  },
+                                ]}
+                              >
                                 {['❤️', '😆', '😮', '😢', '😡', '👍'].map((emoji) => (
                                   <Pressable
                                     key={emoji}
@@ -2229,7 +2444,15 @@ export function GroupScreen({
                               </View>
 
                               {/* Menu các thao tác: Chỉnh sửa / Thu hồi */}
-                              <View style={styles.chatActionMenuModalBox}>
+                              <View
+                                style={[
+                                  styles.chatActionMenuModalBox,
+                                  isDark && {
+                                    backgroundColor: themeColors.surface,
+                                    borderColor: themeColors.cardBorder,
+                                  },
+                                ]}
+                              >
                                 {isMe && (!target.attachments || target.attachments.length === 0) && (
                                   <Pressable
                                     onPress={() => {
@@ -2241,8 +2464,15 @@ export function GroupScreen({
                                     }}
                                     style={({ pressed }) => [styles.chatActionModalItem, pressed && styles.pressed]}
                                   >
-                                    <Text style={styles.chatActionModalItemText}>Chỉnh sửa</Text>
-                                    <FinanceIcon name="edit" size={16} color="#334155" />
+                                    <Text
+                                      style={[
+                                        styles.chatActionModalItemText,
+                                        isDark && { color: themeColors.textPrimary },
+                                      ]}
+                                    >
+                                      Chỉnh sửa
+                                    </Text>
+                                    <FinanceIcon name="edit" size={16} color={isDark ? themeColors.textSecondary : '#334155'} />
                                   </Pressable>
                                 )}
 
@@ -2252,7 +2482,10 @@ export function GroupScreen({
                                     style={({ pressed }) => [
                                       styles.chatActionModalItem,
                                       pressed && styles.pressed,
-                                      (!target.attachments || target.attachments.length === 0) && { borderTopWidth: 1, borderTopColor: '#F1F5F9' },
+                                      (!target.attachments || target.attachments.length === 0) && {
+                                        borderTopWidth: 1,
+                                        borderTopColor: isDark ? themeColors.divider : '#F1F5F9',
+                                      },
                                     ]}
                                   >
                                     <Text style={[styles.chatActionModalItemText, { color: '#DC2626' }]}>Thu hồi</Text>
@@ -2266,16 +2499,38 @@ export function GroupScreen({
                                     }}
                                     style={({ pressed }) => [styles.chatActionModalItem, pressed && styles.pressed]}
                                   >
-                                    <Text style={styles.chatActionModalItemText}>Xóa ở phía tôi</Text>
-                                    <FinanceIcon name="trash" size={16} color="#64748B" />
+                                    <Text
+                                      style={[
+                                        styles.chatActionModalItemText,
+                                        isDark && { color: themeColors.textPrimary },
+                                      ]}
+                                    >
+                                      Xóa ở phía tôi
+                                    </Text>
+                                    <FinanceIcon name="trash" size={16} color={isDark ? themeColors.textMuted : '#64748B'} />
                                   </Pressable>
                                 )}
                               </View>
 
                               {/* Bảng phụ xác nhận Thu hồi 2 lựa chọn (khi bấm Thu hồi) */}
                               {recallingMessageId === target.id && (
-                                <View style={styles.chatRecallSubMenuModalBox}>
-                                  <Text style={styles.chatRecallSubMenuTitleModal}>Bạn muốn thu hồi tin nhắn này ở đâu?</Text>
+                                <View
+                                  style={[
+                                    styles.chatRecallSubMenuModalBox,
+                                    isDark && {
+                                      backgroundColor: themeColors.surface,
+                                      borderColor: themeColors.cardBorder,
+                                    },
+                                  ]}
+                                >
+                                  <Text
+                                    style={[
+                                      styles.chatRecallSubMenuTitleModal,
+                                      isDark && { color: themeColors.textPrimary },
+                                    ]}
+                                  >
+                                    Bạn muốn thu hồi tin nhắn này ở đâu?
+                                  </Text>
                                   <Pressable
                                     onPress={() => {
                                       handleHideMessageForMe(target.id);
@@ -2444,6 +2699,7 @@ export function GroupScreen({
                       onPress={() => setDepositFundModalVisible(true)}
                       style={({ pressed }) => [
                         styles.heroDepositFundBtn,
+                        isDark && { backgroundColor: '#10B981' },
                         pressed && { opacity: 0.85 },
                       ]}
                     >
@@ -2460,63 +2716,99 @@ export function GroupScreen({
                       }}
                       style={({ pressed }) => [
                         styles.heroAddTxBtn,
+                        isDark && {
+                          backgroundColor: 'rgba(52, 211, 153, 0.15)',
+                          borderColor: 'rgba(52, 211, 153, 0.3)',
+                        },
                         pressed && { opacity: 0.85 },
                       ]}
                     >
-                      <FinanceIcon name="plus" size={17} color="#059669" />
-                      <Text style={styles.heroAddTxBtnText}>Thêm giao dịch</Text>
+                      <FinanceIcon name="plus" size={17} color={isDark ? themeColors.accentGreen : '#059669'} />
+                      <Text style={[styles.heroAddTxBtnText, isDark && { color: themeColors.accentGreen }]}>Thêm giao dịch</Text>
                     </Pressable>
                   </View>
 
                   {/* 2. LƯỚI 4 THẺ THỐNG KÊ (THU, CHI, CÒN LẠI, GIAO DỊCH) */}
                   <View style={styles.stat4Grid}>
                     {/* Thẻ Thu: Mũi tên xanh đi lên */}
-                    <View style={styles.stat4Card}>
-                      <View style={[styles.stat4IconBox, { backgroundColor: '#DCFCE7' }]}>
-                        <FinanceIcon name="income" size={17} color="#16A34A" />
+                    <View
+                      style={[
+                        styles.stat4Card,
+                        isDark && {
+                          backgroundColor: themeColors.surface,
+                          borderColor: themeColors.cardBorder,
+                        },
+                      ]}
+                    >
+                      <View style={[styles.stat4IconBox, { backgroundColor: isDark ? 'rgba(52, 211, 153, 0.16)' : '#DCFCE7' }]}>
+                        <FinanceIcon name="income" size={17} color={isDark ? '#34D399' : '#16A34A'} />
                       </View>
                       <View style={styles.stat4Content}>
-                        <Text style={styles.stat4Label}>Thu</Text>
-                        <Text style={[styles.stat4Value, { color: '#0F172A' }]}>
+                        <Text style={[styles.stat4Label, isDark && { color: themeColors.textSecondary }]}>Thu</Text>
+                        <Text style={[styles.stat4Value, { color: isDark ? '#34D399' : '#0F172A' }]}>
                           {formatVND(totalIncome)} đ
                         </Text>
                       </View>
                     </View>
 
                     {/* Thẻ Chi: Mũi tên đỏ đi xuống */}
-                    <View style={styles.stat4Card}>
-                      <View style={[styles.stat4IconBox, { backgroundColor: '#FFE4E6' }]}>
-                        <FinanceIcon name="expense" size={17} color="#E11D48" />
+                    <View
+                      style={[
+                        styles.stat4Card,
+                        isDark && {
+                          backgroundColor: themeColors.surface,
+                          borderColor: themeColors.cardBorder,
+                        },
+                      ]}
+                    >
+                      <View style={[styles.stat4IconBox, { backgroundColor: isDark ? 'rgba(239, 68, 68, 0.16)' : '#FFE4E6' }]}>
+                        <FinanceIcon name="expense" size={17} color={isDark ? '#F87171' : '#E11D48'} />
                       </View>
                       <View style={styles.stat4Content}>
-                        <Text style={styles.stat4Label}>Chi</Text>
-                        <Text style={[styles.stat4Value, { color: '#E11D48' }]}>
+                        <Text style={[styles.stat4Label, isDark && { color: themeColors.textSecondary }]}>Chi</Text>
+                        <Text style={[styles.stat4Value, { color: isDark ? '#F87171' : '#E11D48' }]}>
                           {formatVND(totalExp)} đ
                         </Text>
                       </View>
                     </View>
 
                     {/* Thẻ Còn lại */}
-                    <View style={styles.stat4Card}>
-                      <View style={[styles.stat4IconBox, { backgroundColor: '#DCFCE7' }]}>
-                        <FinanceIcon name="credit-card" size={17} color="#16A34A" />
+                    <View
+                      style={[
+                        styles.stat4Card,
+                        isDark && {
+                          backgroundColor: themeColors.surface,
+                          borderColor: themeColors.cardBorder,
+                        },
+                      ]}
+                    >
+                      <View style={[styles.stat4IconBox, { backgroundColor: isDark ? 'rgba(52, 211, 153, 0.16)' : '#DCFCE7' }]}>
+                        <FinanceIcon name="credit-card" size={17} color={isDark ? '#34D399' : '#16A34A'} />
                       </View>
                       <View style={styles.stat4Content}>
-                        <Text style={styles.stat4Label}>Còn lại</Text>
-                        <Text style={[styles.stat4Value, { color: '#0F172A' }]}>
+                        <Text style={[styles.stat4Label, isDark && { color: themeColors.textSecondary }]}>Còn lại</Text>
+                        <Text style={[styles.stat4Value, { color: isDark ? themeColors.textPrimary : '#0F172A' }]}>
                           {formatVND(remaining)} đ
                         </Text>
                       </View>
                     </View>
 
                     {/* Thẻ Giao dịch */}
-                    <View style={styles.stat4Card}>
-                      <View style={[styles.stat4IconBox, { backgroundColor: '#E0F2FE' }]}>
-                        <FinanceIcon name="receipt" size={17} color="#0284C7" />
+                    <View
+                      style={[
+                        styles.stat4Card,
+                        isDark && {
+                          backgroundColor: themeColors.surface,
+                          borderColor: themeColors.cardBorder,
+                        },
+                      ]}
+                    >
+                      <View style={[styles.stat4IconBox, { backgroundColor: isDark ? 'rgba(56, 189, 248, 0.16)' : '#E0F2FE' }]}>
+                        <FinanceIcon name="receipt" size={17} color={isDark ? '#38BDF8' : '#0284C7'} />
                       </View>
                       <View style={styles.stat4Content}>
-                        <Text style={styles.stat4Label}>Giao dịch</Text>
-                        <Text style={[styles.stat4Value, { color: '#0F172A' }]}>
+                        <Text style={[styles.stat4Label, isDark && { color: themeColors.textSecondary }]}>Giao dịch</Text>
+                        <Text style={[styles.stat4Value, { color: isDark ? themeColors.textPrimary : '#0F172A' }]}>
                           {txCount} khoản
                         </Text>
                       </View>
@@ -2524,8 +2816,16 @@ export function GroupScreen({
                   </View>
 
                   {/* 3. BIỂU ĐỒ CHI TIÊU THEO DANH MỤC */}
-                  <View style={styles.categoryChartCard}>
-                    <Text style={styles.categoryChartTitle}>Chi tiêu theo danh mục</Text>
+                  <View
+                    style={[
+                      styles.categoryChartCard,
+                      isDark && {
+                        backgroundColor: themeColors.surface,
+                        borderColor: themeColors.cardBorder,
+                      },
+                    ]}
+                  >
+                    <Text style={[styles.categoryChartTitle, isDark && { color: themeColors.textPrimary }]}>Chi tiêu theo danh mục</Text>
                     <View style={styles.categoryChartRow}>
                       {/* Biểu đồ Donut SVG động */}
                       <View style={styles.donutChartContainer}>
@@ -2565,11 +2865,17 @@ export function GroupScreen({
 
                         {/* Tổng số tiền đã chi nằm ở tâm vòng tròn */}
                         <View style={styles.donutCenterContent}>
-                          <Text style={styles.donutCenterLabel}>Tổng chi</Text>
-                          <Text style={styles.donutCenterValue} numberOfLines={1}>
+                          <Text style={[styles.donutCenterLabel, isDark && { color: themeColors.textMuted }]}>Tổng chi</Text>
+                          <Text
+                            style={[
+                              styles.donutCenterValue,
+                              isDark ? { color: '#F87171' } : null,
+                            ]}
+                            numberOfLines={1}
+                          >
                             {formatVND(totalExp)}
                           </Text>
-                          <Text style={styles.donutCenterCurrency}>VNĐ</Text>
+                          <Text style={[styles.donutCenterCurrency, isDark && { color: themeColors.textMuted }]}>VNĐ</Text>
                         </View>
                       </View>
 
@@ -2578,10 +2884,21 @@ export function GroupScreen({
                         {categories.slice(0, 4).map((cat, idx) => (
                           <View key={idx} style={styles.legendItem}>
                             <View style={[styles.legendDot, { backgroundColor: cat.color || '#10B981' }]} />
-                            <Text style={styles.legendName} numberOfLines={1}>
+                            <Text
+                              style={[
+                                styles.legendName,
+                                isDark && { color: themeColors.textSecondary },
+                              ]}
+                              numberOfLines={1}
+                            >
                               {cat.categoryName}
                             </Text>
-                            <Text style={styles.legendPercent}>
+                            <Text
+                              style={[
+                                styles.legendPercent,
+                                isDark && { color: themeColors.textPrimary },
+                              ]}
+                            >
                               {Math.round(cat.percentage)}%
                             </Text>
                           </View>
@@ -2669,20 +2986,28 @@ export function GroupScreen({
                     const topRecent = recentList.slice(0, 4);
 
                     return (
-                      <View style={styles.recentTxCard}>
+                      <View
+                        style={[
+                          styles.recentTxCard,
+                          isDark && {
+                            backgroundColor: themeColors.surface,
+                            borderColor: themeColors.cardBorder,
+                          },
+                        ]}
+                      >
                         <View style={styles.recentTxHeader}>
-                          <Text style={styles.recentTxTitle}>Giao dịch gần đây</Text>
+                          <Text style={[styles.recentTxTitle, isDark && { color: themeColors.textPrimary }]}>Giao dịch gần đây</Text>
                           <Pressable onPress={() => setDetailTab('EXPENSES')} hitSlop={8} style={{ flexDirection: 'row', alignItems: 'center', gap: 2 }}>
-                            <Text style={styles.recentTxViewMore}>Xem tất cả</Text>
-                            <FinanceIcon name="chevron-right" size={14} color="#059669" />
+                            <Text style={[styles.recentTxViewMore, isDark && { color: themeColors.accentGreen }]}>Xem tất cả</Text>
+                            <FinanceIcon name="chevron-right" size={14} color={isDark ? themeColors.accentGreen : '#059669'} />
                           </Pressable>
                         </View>
 
                         {topRecent.length === 0 ? (
                           <View style={{ alignItems: 'center', justifyContent: 'center', paddingVertical: 24, gap: 6 }}>
-                            <FinanceIcon name="receipt" size={28} color="#94A3B8" />
-                            <Text style={{ fontSize: 13, fontWeight: '600', color: '#64748B' }}>Chưa có giao dịch gần đây</Text>
-                            <Text style={{ fontSize: 11, color: '#94A3B8' }}>Các khoản nộp quỹ và chi tiêu sẽ xuất hiện tại đây</Text>
+                            <FinanceIcon name="receipt" size={28} color={isDark ? themeColors.textMuted : '#94A3B8'} />
+                            <Text style={[{ fontSize: 13, fontWeight: '600', color: '#64748B' }, isDark && { color: themeColors.textSecondary }]}>Chưa có giao dịch gần đây</Text>
+                            <Text style={[{ fontSize: 11, color: '#94A3B8' }, isDark && { color: themeColors.textMuted }]}>Các khoản nộp quỹ và chi tiêu sẽ xuất hiện tại đây</Text>
                           </View>
                         ) : (
                           topRecent.map((item) => {
@@ -2704,30 +3029,57 @@ export function GroupScreen({
                                 <View
                                   style={[
                                     styles.sampleTxIconWrap,
-                                    { backgroundColor: isIncome ? '#ECFDF5' : '#FFF1F2' },
+                                    {
+                                      backgroundColor: isIncome
+                                        ? (isDark ? 'rgba(52, 211, 153, 0.16)' : '#ECFDF5')
+                                        : (isDark ? 'rgba(239, 68, 68, 0.16)' : '#FFF1F2'),
+                                    },
                                   ]}
                                 >
                                   <FinanceIcon
                                     name={item.iconName}
                                     size={18}
-                                    color={isIncome ? '#059669' : item.categoryColor || '#E11D48'}
+                                    color={isIncome ? (isDark ? '#34D399' : '#059669') : (isDark ? '#F87171' : (item.categoryColor || '#E11D48'))}
                                   />
                                 </View>
                                 <View style={{ flex: 1, paddingRight: 6 }}>
-                                  <Text style={styles.sampleTxDesc} numberOfLines={1}>
+                                  <Text
+                                    style={[
+                                      styles.sampleTxDesc,
+                                      isDark && { color: themeColors.textPrimary },
+                                    ]}
+                                    numberOfLines={1}
+                                  >
                                     {item.title}
                                   </Text>
-                                  <Text style={styles.sampleTxCreator} numberOfLines={1}>
+                                  <Text
+                                    style={[
+                                      styles.sampleTxCreator,
+                                      isDark && { color: themeColors.textSecondary },
+                                    ]}
+                                    numberOfLines={1}
+                                  >
                                     bởi {item.creatorName}
                                   </Text>
-                                  <Text style={styles.sampleTxTime} numberOfLines={1}>
+                                  <Text
+                                    style={[
+                                      styles.sampleTxTime,
+                                      isDark && { color: themeColors.textMuted },
+                                    ]}
+                                    numberOfLines={1}
+                                  >
                                     {item.dateText}
                                   </Text>
                                 </View>
                                 <Text
                                   style={[
                                     styles.sampleTxAmount,
-                                    { color: isIncome ? '#059669' : '#E11D48', fontWeight: '800' },
+                                    {
+                                      color: isIncome
+                                        ? (isDark ? '#34D399' : '#059669')
+                                        : (isDark ? '#F87171' : '#E11D48'),
+                                      fontWeight: '800',
+                                    },
                                   ]}
                                 >
                                   {isIncome ? `+${formatVND(item.amount)} đ` : `-${formatVND(item.amount)} đ`}
@@ -2932,18 +3284,30 @@ export function GroupScreen({
                   {/* THANH CHỌN BỘ LỌC (TẤT CẢ | THU | CHI) & BỘ CHỌN THÁNG CHUẨN ẢNH MẪU */}
                   <View style={styles.filterAndMonthHeaderRow}>
                     {/* Cụm Segmented Filter: Tất cả | Thu | Chi */}
-                    <View style={styles.segmentedFilterContainer}>
+                    <View
+                      style={[
+                        styles.segmentedFilterContainer,
+                        isDark && {
+                          backgroundColor: themeColors.surfaceSubtle,
+                          borderColor: themeColors.cardBorder,
+                        },
+                      ]}
+                    >
                       <Pressable
                         onPress={() => setTxTypeFilter('ALL')}
                         style={[
                           styles.segmentedFilterBtn,
-                          txTypeFilter === 'ALL' && styles.segmentedFilterBtnActive,
+                          txTypeFilter === 'ALL' && (isDark ? { backgroundColor: '#10B981' } : styles.segmentedFilterBtnActive),
                         ]}
                       >
                         <Text
                           style={[
                             styles.segmentedFilterText,
-                            txTypeFilter === 'ALL' && styles.segmentedFilterTextActive,
+                            isDark && { color: themeColors.textSecondary },
+                            txTypeFilter === 'ALL' && [
+                              styles.segmentedFilterTextActive,
+                              isDark && { color: '#FFFFFF', fontWeight: '800' },
+                            ],
                           ]}
                         >
                           Tất cả
@@ -2954,13 +3318,17 @@ export function GroupScreen({
                         onPress={() => setTxTypeFilter('INCOME')}
                         style={[
                           styles.segmentedFilterBtn,
-                          txTypeFilter === 'INCOME' && styles.segmentedFilterBtnActive,
+                          txTypeFilter === 'INCOME' && (isDark ? { backgroundColor: '#10B981' } : styles.segmentedFilterBtnActive),
                         ]}
                       >
                         <Text
                           style={[
                             styles.segmentedFilterText,
-                            txTypeFilter === 'INCOME' && styles.segmentedFilterTextActive,
+                            isDark && { color: themeColors.textSecondary },
+                            txTypeFilter === 'INCOME' && [
+                              styles.segmentedFilterTextActive,
+                              isDark && { color: '#FFFFFF', fontWeight: '800' },
+                            ],
                           ]}
                         >
                           Thu
@@ -2971,13 +3339,17 @@ export function GroupScreen({
                         onPress={() => setTxTypeFilter('EXPENSE')}
                         style={[
                           styles.segmentedFilterBtn,
-                          txTypeFilter === 'EXPENSE' && styles.segmentedFilterBtnActive,
+                          txTypeFilter === 'EXPENSE' && (isDark ? { backgroundColor: '#10B981' } : styles.segmentedFilterBtnActive),
                         ]}
                       >
                         <Text
                           style={[
                             styles.segmentedFilterText,
-                            txTypeFilter === 'EXPENSE' && styles.segmentedFilterTextActive,
+                            isDark && { color: themeColors.textSecondary },
+                            txTypeFilter === 'EXPENSE' && [
+                              styles.segmentedFilterTextActive,
+                              isDark && { color: '#FFFFFF', fontWeight: '800' },
+                            ],
                           ]}
                         >
                           Chi
@@ -2988,37 +3360,83 @@ export function GroupScreen({
                     {/* Nút chọn tháng thả xuống chuẩn như màn Ví/Thu chi */}
                     <Pressable
                       onPress={() => setMonthModalVisible(true)}
-                      style={styles.monthDropdownPillBtn}
+                      style={[
+                        styles.monthDropdownPillBtn,
+                        isDark && {
+                          backgroundColor: themeColors.surface,
+                          borderColor: themeColors.cardBorder,
+                        },
+                      ]}
                       hitSlop={8}
                     >
-                      <Text style={styles.monthDropdownPillText}>{selectedMonthLabel}</Text>
-                      <Text style={styles.monthDropdownChevron}>⌄</Text>
+                      <Text
+                        style={[
+                          styles.monthDropdownPillText,
+                          isDark && { color: themeColors.textPrimary },
+                        ]}
+                      >
+                        {selectedMonthLabel}
+                      </Text>
+                      <Text
+                        style={[
+                          styles.monthDropdownChevron,
+                          isDark && { color: themeColors.textMuted },
+                        ]}
+                      >
+                        ⌄
+                      </Text>
                     </Pressable>
                   </View>
 
                   {/* 2 THẺ TỔNG HỢP: TỔNG THU & TỔNG CHI (CHUẨN MÀU BẢN WEB) */}
                   <View style={styles.summaryTopRow}>
                     {/* Thẻ Tổng thu */}
-                    <View style={styles.summaryBoxHalf}>
-                      <View style={[styles.summaryArrowCircle, { backgroundColor: '#E6F4EA' }]}>
-                        <FinanceIcon name="income" size={16} color="#137333" />
+                    <View
+                      style={[
+                        styles.summaryBoxHalf,
+                        isDark && {
+                          backgroundColor: themeColors.surface,
+                          borderColor: themeColors.cardBorder,
+                        },
+                      ]}
+                    >
+                      <View style={[styles.summaryArrowCircle, { backgroundColor: isDark ? 'rgba(52, 211, 153, 0.16)' : '#E6F4EA' }]}>
+                        <FinanceIcon name="income" size={16} color={isDark ? '#34D399' : '#137333'} />
                       </View>
                       <View style={{ flex: 1 }}>
-                        <Text style={styles.summaryBoxLabel}>Tổng thu</Text>
-                        <Text style={styles.summaryBoxIncomeValue}>
+                        <Text style={[styles.summaryBoxLabel, isDark && { color: themeColors.textSecondary }]}>Tổng thu</Text>
+                        <Text
+                          style={[
+                            styles.summaryBoxIncomeValue,
+                            isDark && { color: '#34D399' },
+                          ]}
+                        >
                           {formatVND(totalIncome)} đ
                         </Text>
                       </View>
                     </View>
 
                     {/* Thẻ Tổng chi */}
-                    <View style={styles.summaryBoxHalf}>
-                      <View style={[styles.summaryArrowCircle, { backgroundColor: '#FCE8E6' }]}>
-                        <FinanceIcon name="expense" size={16} color="#C5221F" />
+                    <View
+                      style={[
+                        styles.summaryBoxHalf,
+                        isDark && {
+                          backgroundColor: themeColors.surface,
+                          borderColor: themeColors.cardBorder,
+                        },
+                      ]}
+                    >
+                      <View style={[styles.summaryArrowCircle, { backgroundColor: isDark ? 'rgba(239, 68, 68, 0.16)' : '#FCE8E6' }]}>
+                        <FinanceIcon name="expense" size={16} color={isDark ? '#F87171' : '#C5221F'} />
                       </View>
                       <View style={{ flex: 1 }}>
-                        <Text style={styles.summaryBoxLabel}>Tổng chi</Text>
-                        <Text style={styles.summaryBoxExpenseValue}>
+                        <Text style={[styles.summaryBoxLabel, isDark && { color: themeColors.textSecondary }]}>Tổng chi</Text>
+                        <Text
+                          style={[
+                            styles.summaryBoxExpenseValue,
+                            isDark && { color: '#F87171' },
+                          ]}
+                        >
                           {formatVND(totalExpense)} đ
                         </Text>
                       </View>
@@ -3027,29 +3445,53 @@ export function GroupScreen({
 
                   {/* TIÊU ĐỀ DANH SÁCH GIAO DỊCH */}
                   <View style={styles.txSectionHeader}>
-                    <Text style={styles.txSectionTitle}>Giao dịch ({unifiedList.length})</Text>
+                    <Text style={[styles.txSectionTitle, isDark && { color: themeColors.textPrimary }]}>Giao dịch ({unifiedList.length})</Text>
                     <Pressable hitSlop={8}>
-                      <FinanceIcon name="search" size={16} color="#64748B" />
+                      <FinanceIcon name="search" size={16} color={isDark ? themeColors.textMuted : '#64748B'} />
                     </Pressable>
                   </View>
 
                   {/* DANH SÁCH GIAO DỊCH GOM THEO NGÀY */}
                   {unifiedList.length === 0 ? (
-                    <View style={styles.detailEmptyCard}>
+                    <View
+                      style={[
+                        styles.detailEmptyCard,
+                        isDark && {
+                          backgroundColor: themeColors.surface,
+                          borderColor: themeColors.cardBorder,
+                        },
+                      ]}
+                    >
                       <Text style={{ fontSize: 28, marginBottom: 6 }}>🧾</Text>
-                      <Text style={styles.detailEmptyTitle}>Không có giao dịch trong {selectedMonthLabel}</Text>
-                      <Text style={styles.detailEmptySub}>
+                      <Text style={[styles.detailEmptyTitle, isDark && { color: themeColors.textPrimary }]}>Không có giao dịch trong {selectedMonthLabel}</Text>
+                      <Text style={[styles.detailEmptySub, isDark && { color: themeColors.textSecondary }]}>
                         Bấm "+ Thêm giao dịch" bên dưới để ghi nhận chi tiêu hoặc nộp quỹ.
                       </Text>
                     </View>
                   ) : (
                     Object.entries(groupedByDate).map(([dateLabel, items]) => (
                       <View key={dateLabel} style={styles.dateGroupContainer}>
-                        <View style={styles.dateBadgePill}>
-                          <Text style={styles.dateBadgeText}>{dateLabel}</Text>
+                        <View
+                          style={[
+                            styles.dateBadgePill,
+                            isDark && {
+                              backgroundColor: themeColors.surfaceSubtle,
+                              borderColor: themeColors.cardBorder,
+                            },
+                          ]}
+                        >
+                          <Text style={[styles.dateBadgeText, isDark && { color: themeColors.textSecondary }]}>{dateLabel}</Text>
                         </View>
 
-                        <View style={styles.txItemsListCard}>
+                        <View
+                          style={[
+                            styles.txItemsListCard,
+                            isDark && {
+                              backgroundColor: themeColors.surface,
+                              borderColor: themeColors.cardBorder,
+                            },
+                          ]}
+                        >
                           {items.map((tx, idx) => {
                             const meta = getTxIconMeta(tx);
                             const isIncome = tx.type === 'INCOME';
@@ -3066,20 +3508,47 @@ export function GroupScreen({
                                 }}
                                 style={[
                                   styles.unifiedTxItemRow,
-                                  idx < items.length - 1 && styles.unifiedTxItemBorder,
+                                  idx < items.length - 1 && [
+                                    styles.unifiedTxItemBorder,
+                                    isDark && { borderBottomColor: themeColors.divider },
+                                  ],
                                 ]}
                               >
                                 {/* Icon tròn theo danh mục */}
-                                <View style={[styles.unifiedTxIconCircle, { backgroundColor: meta.bg }]}>
-                                  <FinanceIcon name={meta.icon} size={17} color={meta.color} />
+                                <View
+                                  style={[
+                                    styles.unifiedTxIconCircle,
+                                    {
+                                      backgroundColor: isIncome
+                                        ? (isDark ? 'rgba(52, 211, 153, 0.16)' : '#E8F8F0')
+                                        : (isDark ? 'rgba(239, 68, 68, 0.16)' : '#FCE8E6'),
+                                    },
+                                  ]}
+                                >
+                                  <FinanceIcon
+                                    name={meta.icon}
+                                    size={17}
+                                    color={isIncome ? (isDark ? '#34D399' : '#059669') : (isDark ? '#F87171' : '#C5221F')}
+                                  />
                                 </View>
 
                                 {/* Tiêu đề & người tạo */}
                                 <View style={{ flex: 1 }}>
-                                  <Text style={styles.unifiedTxTitle} numberOfLines={1}>
+                                  <Text
+                                    style={[
+                                      styles.unifiedTxTitle,
+                                      isDark && { color: themeColors.textPrimary },
+                                    ]}
+                                    numberOfLines={1}
+                                  >
                                     {tx.title}
                                   </Text>
-                                  <Text style={styles.unifiedTxSub}>
+                                  <Text
+                                    style={[
+                                      styles.unifiedTxSub,
+                                      isDark && { color: themeColors.textSecondary },
+                                    ]}
+                                  >
                                     {tx.subtitle} • {tx.timeStr}
                                   </Text>
                                 </View>
@@ -3089,16 +3558,23 @@ export function GroupScreen({
                                   <Text
                                     style={[
                                       styles.unifiedTxAmount,
-                                      isIncome ? styles.unifiedTxAmountIncome : styles.unifiedTxAmountExpense,
+                                      isIncome
+                                        ? [styles.unifiedTxAmountIncome, isDark && { color: '#34D399' }]
+                                        : [styles.unifiedTxAmountExpense, isDark && { color: '#F87171' }],
                                     ]}
                                   >
                                     {isIncome ? `+${formatVND(tx.amount)} đ` : `-${formatVND(tx.amount)} đ`}
                                   </Text>
 
                                   {/* Icon bong bóng chat kèm số lượng bình luận */}
-                                  <View style={styles.commentCountBadge}>
-                                    <FinanceIcon name="message-square" size={13} color="#64748B" />
-                                    <Text style={styles.commentCountText}>{tx.commentCount}</Text>
+                                  <View
+                                    style={[
+                                      styles.commentCountBadge,
+                                      isDark && { backgroundColor: themeColors.surfaceSubtle },
+                                    ]}
+                                  >
+                                    <FinanceIcon name="message-square" size={13} color={isDark ? themeColors.textMuted : '#64748B'} />
+                                    <Text style={[styles.commentCountText, isDark && { color: themeColors.textSecondary }]}>{tx.commentCount}</Text>
                                   </View>
                                 </View>
                               </Pressable>
@@ -3238,7 +3714,16 @@ export function GroupScreen({
 
         {/* ── NÚT THÊM GIAO DỊCH NỔI CỐ ĐỊNH Ở DƯỚI CÙNG CHO TAB THU & CHI ── */}
         {detailTab === 'EXPENSES' && (
-          <View style={[styles.bottomStickyBar, { paddingBottom: Math.max(insets.bottom, 14) }]}>
+          <View
+            style={[
+              styles.bottomStickyBar,
+              { paddingBottom: Math.max(insets.bottom, 14) },
+              isDark && {
+                backgroundColor: themeColors.background,
+                borderTopColor: themeColors.cardBorder,
+              },
+            ]}
+          >
             <Pressable
               onPress={() => setExpenseModalVisible(true)}
               style={styles.addTxFloatingFullBtn}
@@ -3251,344 +3736,487 @@ export function GroupScreen({
 
         {/* ── MODAL CHỌN KHOẢN CHI CHUNG (CHO NHÓM) ĐẶT NGAY TRONG VIEW CHI TIẾT ── */}
         <Modal visible={expenseModalVisible} transparent animationType="slide">
-          <View style={styles.modalOverlay}>
-            <View style={[styles.inputModalSheet, { maxHeight: '90%', position: 'relative' }]}>
-              <View style={styles.inputModalHeader}>
-                <View>
-                  <Text style={styles.inputModalTitle}>Thêm giao dịch nhóm</Text>
-                  <Text style={{ fontSize: 11.5, color: '#64748B', marginTop: 2 }}>
-                    {selectedGroup?.groupType === 'FAMILY' || selectedGroup?.groupType === 'COUPLE'
-                      ? 'Khoản chi tiêu chung của gia đình / cặp đôi'
-                      : 'Khoản chi sẽ tự động chia đều cho các thành viên trong nhóm'}
-                  </Text>
-                </View>
-                <Pressable onPress={() => setExpenseModalVisible(false)} hitSlop={10}>
-                  <FinanceIcon name="close" size={18} color="#475569" />
-                </Pressable>
-              </View>
-
-              <ScrollView showsVerticalScrollIndicator={false}>
-                {/* 1. Nội dung chi */}
-                <Text style={styles.inputLabel}>Nội dung chi tiêu *</Text>
-                <TextInput
-                  value={expDescription}
-                  onChangeText={setExpDescription}
-                  placeholder="VD: Bữa tối BBQ, Mua đồ siêu thị, Tiền điện..."
-                  placeholderTextColor="#94A3B8"
-                  style={styles.textInput}
-                />
-
-                {/* 2. Số tiền */}
-                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
-                  <Text style={styles.inputLabel}>Số tiền giao dịch (VNĐ) *</Text>
-                  <Pressable
-                    onPress={() => Keyboard.dismiss()}
-                    hitSlop={10}
-                    style={styles.keyboardDismissBtn}
-                  >
-                    <FinanceIcon name="download" size={13} color="#059669" />
-                    <Text style={styles.keyboardDismissBtnText}>Ẩn bàn phím</Text>
+          <KeyboardAvoidingView
+            style={{ flex: 1 }}
+            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          >
+            <View style={styles.modalOverlay}>
+              <View
+                style={[
+                  styles.inputModalSheet,
+                  isDark && {
+                    backgroundColor: themeColors.surface,
+                    borderColor: themeColors.cardBorder,
+                  },
+                  { maxHeight: '90%', position: 'relative' },
+                ]}
+              >
+                <View style={[styles.inputModalHeader, isDark && { borderBottomColor: themeColors.cardBorder }]}>
+                  <View>
+                    <Text style={[styles.inputModalTitle, isDark && { color: themeColors.textPrimary }]}>Thêm giao dịch nhóm</Text>
+                    <Text style={{ fontSize: 11.5, color: isDark ? themeColors.textMuted : '#64748B', marginTop: 2 }}>
+                      {selectedGroup?.groupType === 'FAMILY' || selectedGroup?.groupType === 'COUPLE'
+                        ? 'Khoản chi tiêu chung của gia đình / cặp đôi'
+                        : 'Khoản chi sẽ tự động chia đều cho các thành viên trong nhóm'}
+                    </Text>
+                  </View>
+                  <Pressable onPress={() => setExpenseModalVisible(false)} hitSlop={10}>
+                    <FinanceIcon name="close" size={18} color={isDark ? themeColors.textMuted : '#475569'} />
                   </Pressable>
                 </View>
-                <TextInput
-                  value={
-                    expAmount ? new Intl.NumberFormat('vi-VN').format(parseInt(expAmount.replace(/\D/g, '') || '0', 10)) : ''
-                  }
-                  onChangeText={setExpAmount}
-                  placeholder="0"
-                  placeholderTextColor="#94A3B8"
-                  keyboardType="numeric"
-                  returnKeyType="done"
-                  onSubmitEditing={() => Keyboard.dismiss()}
-                  style={[styles.textInput, { fontSize: 18, fontWeight: '800', color: '#E11D48' }]}
-                />
 
-                {/* 3. Nguồn tiền */}
-                <Text style={styles.inputLabel}>Nguồn thanh toán *</Text>
-                <View style={{ flexDirection: 'row', gap: 10, marginBottom: 10 }}>
-                  <Pressable
-                    onPress={() => setExpPaymentSource('GROUP_FUND')}
+                <ScrollView
+                  ref={expenseFormScrollViewRef}
+                  showsVerticalScrollIndicator={false}
+                  keyboardShouldPersistTaps="handled"
+                  contentContainerStyle={{ paddingBottom: 24 }}
+                >
+                  {/* 1. Nội dung chi */}
+                  <Text style={[styles.inputLabel, isDark && { color: themeColors.textSecondary }]}>Nội dung chi tiêu *</Text>
+                  <TextInput
+                    value={expDescription}
+                    onChangeText={setExpDescription}
+                    placeholder="VD: Bữa tối BBQ, Mua đồ siêu thị, Tiền điện..."
+                    placeholderTextColor={isDark ? '#64748B' : '#94A3B8'}
                     style={[
-                      styles.sourceSelectBtn,
-                      expPaymentSource === 'GROUP_FUND' && styles.sourceSelectBtnActive,
+                      styles.textInput,
+                      isDark && {
+                        backgroundColor: themeColors.surfaceSubtle,
+                        borderColor: themeColors.cardBorder,
+                        color: themeColors.textPrimary,
+                      },
                     ]}
-                  >
-                    <Text
+                  />
+
+                  {/* 2. Số tiền */}
+                  <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+                    <Text style={[styles.inputLabel, isDark && { color: themeColors.textSecondary }]}>Số tiền giao dịch (VNĐ) *</Text>
+                    <Pressable
+                      onPress={() => Keyboard.dismiss()}
+                      hitSlop={10}
+                      style={[styles.keyboardDismissBtn, isDark && { backgroundColor: 'rgba(16, 185, 129, 0.15)' }]}
+                    >
+                      <FinanceIcon name="download" size={13} color={isDark ? themeColors.accentGreen : '#059669'} />
+                      <Text style={[styles.keyboardDismissBtnText, isDark && { color: themeColors.accentGreen }]}>Ẩn bàn phím</Text>
+                    </Pressable>
+                  </View>
+                  <TextInput
+                    value={
+                      expAmount ? new Intl.NumberFormat('vi-VN').format(parseInt(expAmount.replace(/\D/g, '') || '0', 10)) : ''
+                    }
+                    onChangeText={setExpAmount}
+                    placeholder="0"
+                    placeholderTextColor={isDark ? '#64748B' : '#94A3B8'}
+                    keyboardType="numeric"
+                    returnKeyType="done"
+                    onSubmitEditing={() => Keyboard.dismiss()}
+                    style={[
+                      styles.textInput,
+                      isDark && {
+                        backgroundColor: themeColors.surfaceSubtle,
+                        borderColor: themeColors.cardBorder,
+                      },
+                      { fontSize: 18, fontWeight: '800', color: '#E11D48' },
+                    ]}
+                  />
+
+                  {/* 3. Nguồn tiền */}
+                  <Text style={[styles.inputLabel, isDark && { color: themeColors.textSecondary }]}>Nguồn thanh toán *</Text>
+                  <View style={{ flexDirection: 'row', gap: 10, marginBottom: 10 }}>
+                    <Pressable
+                      onPress={() => setExpPaymentSource('GROUP_FUND')}
                       style={[
-                        styles.sourceSelectBtnText,
-                        expPaymentSource === 'GROUP_FUND' && styles.sourceSelectBtnTextActive,
+                        styles.sourceSelectBtn,
+                        isDark && {
+                          backgroundColor: themeColors.surfaceSubtle,
+                          borderColor: themeColors.cardBorder,
+                        },
+                        expPaymentSource === 'GROUP_FUND' && [
+                          styles.sourceSelectBtnActive,
+                          isDark && {
+                            backgroundColor: 'rgba(16, 185, 129, 0.15)',
+                            borderColor: themeColors.accentGreen,
+                          },
+                        ],
                       ]}
                     >
-                      Quỹ chung của nhóm
-                    </Text>
-                  </Pressable>
-                  <Pressable
-                    onPress={() => setExpPaymentSource('PERSONAL_ACCOUNT')}
-                    style={[
-                      styles.sourceSelectBtn,
-                      expPaymentSource === 'PERSONAL_ACCOUNT' && styles.sourceSelectBtnActive,
-                    ]}
-                  >
-                    <Text
+                      <Text
+                        style={[
+                          styles.sourceSelectBtnText,
+                          isDark && { color: themeColors.textSecondary },
+                          expPaymentSource === 'GROUP_FUND' && [
+                            styles.sourceSelectBtnTextActive,
+                            isDark && { color: themeColors.accentGreen },
+                          ],
+                        ]}
+                      >
+                        Quỹ chung của nhóm
+                      </Text>
+                    </Pressable>
+                    <Pressable
+                      onPress={() => setExpPaymentSource('PERSONAL_ACCOUNT')}
                       style={[
-                        styles.sourceSelectBtnText,
-                        expPaymentSource === 'PERSONAL_ACCOUNT' && styles.sourceSelectBtnTextActive,
+                        styles.sourceSelectBtn,
+                        isDark && {
+                          backgroundColor: themeColors.surfaceSubtle,
+                          borderColor: themeColors.cardBorder,
+                        },
+                        expPaymentSource === 'PERSONAL_ACCOUNT' && [
+                          styles.sourceSelectBtnActive,
+                          isDark && {
+                            backgroundColor: 'rgba(16, 185, 129, 0.15)',
+                            borderColor: themeColors.accentGreen,
+                          },
+                        ],
                       ]}
                     >
-                      Ví cá nhân của tôi
-                    </Text>
-                  </Pressable>
-                </View>
+                      <Text
+                        style={[
+                          styles.sourceSelectBtnText,
+                          isDark && { color: themeColors.textSecondary },
+                          expPaymentSource === 'PERSONAL_ACCOUNT' && [
+                            styles.sourceSelectBtnTextActive,
+                            isDark && { color: themeColors.accentGreen },
+                          ],
+                        ]}
+                      >
+                        Ví cá nhân của tôi
+                      </Text>
+                    </Pressable>
+                  </View>
 
-                {/* Khối hiển thị nguồn tiền cố định chiều cao để không bị giật / nhảy UI */}
-                <View style={{ marginBottom: 14 }}>
-                  {expPaymentSource === 'GROUP_FUND' ? (
-                    <View style={styles.dropdownSelectorCard}>
-                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 }}>
-                        <View style={[styles.selectIconWrap, { backgroundColor: '#DCFCE7' }]}>
-                          <FinanceIcon name="banknote" size={18} color="#16A34A" />
+                  {/* Khối hiển thị nguồn tiền cố định chiều cao để không bị giật / nhảy UI */}
+                  <View style={{ marginBottom: 14 }}>
+                    {expPaymentSource === 'GROUP_FUND' ? (
+                      <View
+                        style={[
+                          styles.dropdownSelectorCard,
+                          isDark && {
+                            backgroundColor: themeColors.surfaceSubtle,
+                            borderColor: themeColors.cardBorder,
+                          },
+                        ]}
+                      >
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 }}>
+                          <View style={[styles.selectIconWrap, { backgroundColor: isDark ? 'rgba(16, 185, 129, 0.2)' : '#DCFCE7' }]}>
+                            <FinanceIcon name="banknote" size={18} color={isDark ? themeColors.accentGreen : '#16A34A'} />
+                          </View>
+                          <View style={{ flex: 1 }}>
+                            <Text style={[styles.dropdownSelectorTitle, isDark && { color: themeColors.textPrimary }]} numberOfLines={1}>
+                              Quỹ chung {selectedGroup?.name || 'nhóm'}
+                            </Text>
+                            <Text style={[styles.dropdownSelectorSub, isDark && { color: themeColors.textMuted }]}>
+                              Số dư quỹ: <Text style={{ color: isDark ? themeColors.accentGreen : '#059669', fontWeight: '800' }}>{formatVND(fundData?.balance ?? 0)} đ</Text>
+                            </Text>
+                          </View>
                         </View>
-                        <View style={{ flex: 1 }}>
-                          <Text style={styles.dropdownSelectorTitle} numberOfLines={1}>
-                            Quỹ chung {selectedGroup?.name || 'nhóm'}
-                          </Text>
-                          <Text style={styles.dropdownSelectorSub}>
-                            Số dư quỹ: <Text style={{ color: '#059669', fontWeight: '800' }}>{formatVND(fundData?.balance ?? 0)} đ</Text>
-                          </Text>
+                        <View style={[styles.sourceFundCheckBadge, isDark && { backgroundColor: 'rgba(16, 185, 129, 0.2)' }]}>
+                          <FinanceIcon name="check" size={14} color={isDark ? themeColors.accentGreen : '#059669'} />
                         </View>
                       </View>
-                      <View style={styles.sourceFundCheckBadge}>
-                        <FinanceIcon name="check" size={14} color="#059669" />
-                      </View>
-                    </View>
-                  ) : (
-                    (() => {
-                      const selAcc = personalAccounts.find((a) => a.id === expAccountId) || personalAccounts[0];
+                    ) : (
+                      (() => {
+                        const selAcc = personalAccounts.find((a) => a.id === expAccountId) || personalAccounts[0];
+                        return (
+                          <View>
+                            <Pressable
+                              onPress={() => setGroupPickerModalType('ACCOUNT')}
+                              style={[
+                                styles.dropdownSelectorCard,
+                                isDark && {
+                                  backgroundColor: themeColors.surfaceSubtle,
+                                  borderColor: themeColors.cardBorder,
+                                },
+                              ]}
+                            >
+                              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 }}>
+                                <View style={[styles.selectIconWrap, { backgroundColor: isDark ? 'rgba(56, 189, 248, 0.2)' : '#E0F2FE' }]}>
+                                  <FinanceIcon name="wallet" size={18} color={isDark ? '#38BDF8' : '#0284C7'} />
+                                </View>
+                                <View style={{ flex: 1 }}>
+                                  <Text style={[styles.dropdownSelectorTitle, isDark && { color: themeColors.textPrimary }]} numberOfLines={1}>
+                                    {selAcc?.name || 'Chọn ví thanh toán'}
+                                  </Text>
+                                  <Text style={[styles.dropdownSelectorSub, isDark && { color: themeColors.textMuted }]}>
+                                    Số dư: <Text style={{ color: isDark ? themeColors.accentGreen : '#059669', fontWeight: '800' }}>{formatVND(selAcc?.balance || 0)} đ</Text>
+                                  </Text>
+                                </View>
+                              </View>
+                              <FinanceIcon name="chevron-down" size={18} color={isDark ? themeColors.accentGreen : '#059669'} />
+                            </Pressable>
+                          </View>
+                        );
+                      })()
+                    )}
+                  </View>
+
+                  {/* 4. Danh mục chi thả xuống (Popup Bottom Sheet mượt mà chuẩn Quản lý nợ) */}
+                  <View style={{ marginBottom: 14 }}>
+                    <Text style={[styles.inputLabel, isDark && { color: themeColors.textSecondary }]}>Danh mục chi tiêu</Text>
+                    {(() => {
+                      const selCat = categoriesList.find((c) => c.id === expCategoryId) || categoriesList[0];
                       return (
                         <View>
                           <Pressable
-                            onPress={() => setGroupPickerModalType('ACCOUNT')}
-                            style={styles.dropdownSelectorCard}
+                            onPress={() => setGroupPickerModalType('CATEGORY')}
+                            style={[
+                              styles.dropdownSelectorCard,
+                              isDark && {
+                                backgroundColor: themeColors.surfaceSubtle,
+                                borderColor: themeColors.cardBorder,
+                              },
+                            ]}
                           >
                             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 }}>
-                              <View style={[styles.selectIconWrap, { backgroundColor: '#E0F2FE' }]}>
-                                <FinanceIcon name="wallet" size={18} color="#0284C7" />
+                              <View style={[styles.selectIconWrap, { backgroundColor: isDark ? 'rgba(244, 63, 94, 0.2)' : '#FEE2E2' }]}>
+                                <FinanceIcon
+                                  name={resolveCategoryIconName(selCat?.icon, 'EXPENSE', selCat?.name)}
+                                  size={18}
+                                  color="#E11D48"
+                                />
                               </View>
-                              <View style={{ flex: 1 }}>
-                                <Text style={styles.dropdownSelectorTitle} numberOfLines={1}>
-                                  {selAcc?.name || 'Chọn ví thanh toán'}
-                                </Text>
-                                <Text style={styles.dropdownSelectorSub}>
-                                  Số dư: <Text style={{ color: '#059669', fontWeight: '800' }}>{formatVND(selAcc?.balance || 0)} đ</Text>
-                                </Text>
-                              </View>
+                              <Text style={[styles.dropdownSelectorTitle, isDark && { color: themeColors.textPrimary }]}>
+                                {selCat?.name || 'Chọn danh mục chi'}
+                              </Text>
                             </View>
-                            <FinanceIcon name="chevron-down" size={18} color="#059669" />
+                            <FinanceIcon name="chevron-down" size={18} color={isDark ? themeColors.accentGreen : '#059669'} />
                           </Pressable>
                         </View>
                       );
-                    })()
-                  )}
-                </View>
+                    })()}
+                  </View>
 
-                {/* 4. Danh mục chi thả xuống (Popup Bottom Sheet mượt mà chuẩn Quản lý nợ) */}
-                <View style={{ marginBottom: 14 }}>
-                  <Text style={styles.inputLabel}>Danh mục chi tiêu</Text>
-                  {(() => {
-                    const selCat = categoriesList.find((c) => c.id === expCategoryId) || categoriesList[0];
-                    return (
-                      <View>
-                        <Pressable
-                          onPress={() => setGroupPickerModalType('CATEGORY')}
-                          style={styles.dropdownSelectorCard}
-                        >
-                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 }}>
-                            <View style={[styles.selectIconWrap, { backgroundColor: '#FEE2E2' }]}>
-                              <FinanceIcon
-                                name={resolveCategoryIconName(selCat?.icon, 'EXPENSE', selCat?.name)}
-                                size={18}
-                                color="#E11D48"
-                              />
-                            </View>
-                            <Text style={styles.dropdownSelectorTitle}>
-                              {selCat?.name || 'Chọn danh mục chi'}
-                            </Text>
-                          </View>
-                          <FinanceIcon name="chevron-down" size={18} color="#059669" />
+                  {/* 5. Thời gian giao dịch (Toggle Giờ trước - Ngày sau chuẩn AddTransactionScreen) */}
+                  <View style={{ marginBottom: 14 }}>
+                    <View style={styles.timeSwitchHeader}>
+                      <View style={{ flex: 1 }}>
+                        <Text style={[styles.inputLabel, isDark && { color: themeColors.textSecondary }]}>Thời gian giao dịch</Text>
+                        <Text style={[styles.timeSubLabel, isDark && { color: themeColors.textMuted }]}>
+                          {isCustomDateTime ? 'Đang chỉnh giờ & ngày thủ công' : `Tự động: ${expTime} hôm nay`}
+                        </Text>
+                      </View>
+                      <Switch
+                        value={isCustomDateTime}
+                        onValueChange={setIsCustomDateTime}
+                        trackColor={{ false: isDark ? '#334155' : '#CBD5E1', true: '#00A86B' }}
+                        thumbColor="#FFFFFF"
+                      />
+                    </View>
+
+                    {isCustomDateTime && (
+                      <View style={styles.timeDateRow}>
+                        {/* Giờ trước */}
+                        <View style={styles.timeCol}>
+                          <Text style={[styles.microLabel, isDark && { color: themeColors.textMuted }]}>Giờ thực hiện</Text>
+                          <TextInput
+                            value={expTime}
+                            onChangeText={setExpTime}
+                            placeholder="HH:mm"
+                            placeholderTextColor={isDark ? '#64748B' : '#94A3B8'}
+                            style={[
+                              styles.timeDateInput,
+                              isDark && {
+                                backgroundColor: themeColors.surfaceSubtle,
+                                borderColor: themeColors.cardBorder,
+                                color: themeColors.textPrimary,
+                              },
+                            ]}
+                          />
+                        </View>
+
+                        {/* Ngày sau */}
+                        <View style={styles.dateCol}>
+                          <Text style={[styles.microLabel, isDark && { color: themeColors.textMuted }]}>Ngày giao dịch</Text>
+                          <TextInput
+                            value={expDate}
+                            onChangeText={setExpDate}
+                            placeholder="DD/MM/YYYY"
+                            placeholderTextColor={isDark ? '#64748B' : '#94A3B8'}
+                            style={[
+                              styles.timeDateInput,
+                              isDark && {
+                                backgroundColor: themeColors.surfaceSubtle,
+                                borderColor: themeColors.cardBorder,
+                                color: themeColors.textPrimary,
+                              },
+                            ]}
+                          />
+                        </View>
+                      </View>
+                    )}
+                  </View>
+
+                  {/* 6. Ghi chú */}
+                  <Text style={[styles.inputLabel, isDark && { color: themeColors.textSecondary }]}>Ghi chú (Tùy chọn)</Text>
+                  <TextInput
+                    value={expNotes}
+                    onChangeText={setExpNotes}
+                    placeholder="Thêm mô tả, phân công hoặc địa điểm..."
+                    placeholderTextColor={isDark ? '#64748B' : '#94A3B8'}
+                    style={[
+                      styles.textInput,
+                      isDark && {
+                        backgroundColor: themeColors.surfaceSubtle,
+                        borderColor: themeColors.cardBorder,
+                        color: themeColors.textPrimary,
+                      },
+                    ]}
+                    onFocus={() => {
+                      setTimeout(() => {
+                        expenseFormScrollViewRef.current?.scrollToEnd({ animated: true });
+                      }, 250);
+                    }}
+                  />
+
+                  <Pressable
+                    onPress={handleAddExpense}
+                    disabled={submittingExpense}
+                    style={[
+                      styles.submitActionBtn,
+                      isDark && { backgroundColor: '#10B981' },
+                      submittingExpense && styles.disabled,
+                    ]}
+                  >
+                    {submittingExpense ? (
+                      <ActivityIndicator color="#FFFFFF" />
+                    ) : (
+                      <Text style={styles.submitActionBtnText}>Lưu giao dịch</Text>
+                    )}
+                  </Pressable>
+                </ScrollView>
+
+                {/* OVERLAY POPUP DROPDOWN (Nằm trực tiếp trong Modal Thêm giao dịch nhóm) */}
+                {groupPickerModalType !== 'NONE' && (
+                  <View style={[StyleSheet.absoluteFillObject, styles.pickerModalBackdrop, { zIndex: 9999, elevation: 9999 }]}>
+                    <Pressable
+                      style={StyleSheet.absoluteFillObject}
+                      onPress={() => setGroupPickerModalType('NONE')}
+                    />
+                    <View
+                      style={[
+                        styles.pickerModalBox,
+                        isDark && {
+                          backgroundColor: themeColors.surface,
+                          borderColor: themeColors.cardBorder,
+                        },
+                      ]}
+                    >
+                      <View style={[styles.pickerModalHeader, isDark && { borderBottomColor: themeColors.cardBorder }]}>
+                        <Text style={[styles.pickerModalTitle, isDark && { color: themeColors.textPrimary }]}>
+                          {groupPickerModalType === 'ACCOUNT' && 'Chọn ví thanh toán'}
+                          {groupPickerModalType === 'CATEGORY' && 'Chọn danh mục chi tiêu'}
+                        </Text>
+                        <Pressable onPress={() => setGroupPickerModalType('NONE')} hitSlop={10}>
+                          <FinanceIcon name="close" size={18} color={isDark ? themeColors.textMuted : '#64748B'} />
                         </Pressable>
                       </View>
-                    );
-                  })()}
-                </View>
 
-                {/* 5. Thời gian giao dịch (Toggle Giờ trước - Ngày sau chuẩn AddTransactionScreen) */}
-                <View style={{ marginBottom: 14 }}>
-                  <View style={styles.timeSwitchHeader}>
-                    <View style={{ flex: 1 }}>
-                      <Text style={styles.inputLabel}>Thời gian giao dịch</Text>
-                      <Text style={styles.timeSubLabel}>
-                        {isCustomDateTime ? 'Đang chỉnh giờ & ngày thủ công' : `Tự động: ${expTime} hôm nay`}
-                      </Text>
-                    </View>
-                    <Switch
-                      value={isCustomDateTime}
-                      onValueChange={setIsCustomDateTime}
-                      trackColor={{ false: '#CBD5E1', true: '#00A86B' }}
-                      thumbColor="#FFFFFF"
-                    />
-                  </View>
-
-                  {isCustomDateTime && (
-                    <View style={styles.timeDateRow}>
-                      {/* Giờ trước */}
-                      <View style={styles.timeCol}>
-                        <Text style={styles.microLabel}>Giờ thực hiện</Text>
-                        <TextInput
-                          value={expTime}
-                          onChangeText={setExpTime}
-                          placeholder="HH:mm"
-                          style={styles.timeDateInput}
-                        />
-                      </View>
-
-                      {/* Ngày sau */}
-                      <View style={styles.dateCol}>
-                        <Text style={styles.microLabel}>Ngày giao dịch</Text>
-                        <TextInput
-                          value={expDate}
-                          onChangeText={setExpDate}
-                          placeholder="DD/MM/YYYY"
-                          style={styles.timeDateInput}
-                        />
-                      </View>
-                    </View>
-                  )}
-                </View>
-
-                {/* 6. Ghi chú */}
-                <Text style={styles.inputLabel}>Ghi chú (Tùy chọn)</Text>
-                <TextInput
-                  value={expNotes}
-                  onChangeText={setExpNotes}
-                  placeholder="Thêm mô tả, phân công hoặc địa điểm..."
-                  placeholderTextColor="#94A3B8"
-                  style={styles.textInput}
-                />
-
-                <Pressable
-                  onPress={handleAddExpense}
-                  disabled={submittingExpense}
-                  style={[styles.submitActionBtn, submittingExpense && styles.disabled]}
-                >
-                  {submittingExpense ? (
-                    <ActivityIndicator color="#FFFFFF" />
-                  ) : (
-                    <Text style={styles.submitActionBtnText}>Lưu giao dịch</Text>
-                  )}
-                </Pressable>
-              </ScrollView>
-
-              {/* OVERLAY POPUP DROPDOWN (Nằm trực tiếp trong Modal Thêm giao dịch nhóm) */}
-              {groupPickerModalType !== 'NONE' && (
-                <View style={[StyleSheet.absoluteFillObject, styles.pickerModalBackdrop, { zIndex: 9999, elevation: 9999 }]}>
-                  <Pressable
-                    style={StyleSheet.absoluteFillObject}
-                    onPress={() => setGroupPickerModalType('NONE')}
-                  />
-                  <View style={styles.pickerModalBox}>
-                    <View style={styles.pickerModalHeader}>
-                      <Text style={styles.pickerModalTitle}>
-                        {groupPickerModalType === 'ACCOUNT' && 'Chọn ví thanh toán'}
-                        {groupPickerModalType === 'CATEGORY' && 'Chọn danh mục chi tiêu'}
-                      </Text>
-                      <Pressable onPress={() => setGroupPickerModalType('NONE')} hitSlop={10}>
-                        <FinanceIcon name="close" size={18} color="#64748B" />
-                      </Pressable>
-                    </View>
-
-                    <ScrollView style={{ maxHeight: 340 }} showsVerticalScrollIndicator={false}>
-                      {/* Chọn ví */}
-                      {groupPickerModalType === 'ACCOUNT' && (
-                        <>
-                          {personalAccounts.map((acc) => {
-                            const isSelected = expAccountId === acc.id;
-                            return (
-                              <Pressable
-                                key={acc.id}
-                                onPress={() => {
-                                  setExpAccountId(acc.id);
-                                  setGroupPickerModalType('NONE');
-                                }}
-                                style={[styles.pickerItemRow, isSelected && styles.pickerItemRowActive]}
-                              >
-                                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 }}>
-                                  <View style={[styles.selectIconWrap, { backgroundColor: '#E0F2FE' }]}>
-                                    <FinanceIcon name="wallet" size={16} color="#0284C7" />
+                      <ScrollView style={{ maxHeight: 340 }} showsVerticalScrollIndicator={false}>
+                        {/* Chọn ví */}
+                        {groupPickerModalType === 'ACCOUNT' && (
+                          <>
+                            {personalAccounts.map((acc) => {
+                              const isSelected = expAccountId === acc.id;
+                              return (
+                                <Pressable
+                                  key={acc.id}
+                                  onPress={() => {
+                                    setExpAccountId(acc.id);
+                                    setGroupPickerModalType('NONE');
+                                  }}
+                                  style={[
+                                    styles.pickerItemRow,
+                                    isDark && { borderBottomColor: themeColors.divider },
+                                    isSelected && [
+                                      styles.pickerItemRowActive,
+                                      isDark && { backgroundColor: themeColors.surfaceSubtle },
+                                    ],
+                                  ]}
+                                >
+                                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 }}>
+                                    <View style={[styles.selectIconWrap, { backgroundColor: isDark ? 'rgba(56, 189, 248, 0.2)' : '#E0F2FE' }]}>
+                                      <FinanceIcon name="wallet" size={16} color={isDark ? '#38BDF8' : '#0284C7'} />
+                                    </View>
+                                    <View style={{ flex: 1 }}>
+                                      <Text style={[styles.pickerItemText, isDark && { color: themeColors.textPrimary }, isSelected && styles.pickerItemTextActive]}>
+                                        {acc.name}
+                                      </Text>
+                                      <Text style={[styles.pickerItemSub, isDark && { color: themeColors.textMuted }]}>
+                                        Số dư: {formatVND(acc.balance)} đ
+                                      </Text>
+                                    </View>
                                   </View>
-                                  <View style={{ flex: 1 }}>
-                                    <Text style={[styles.pickerItemText, isSelected && styles.pickerItemTextActive]}>
-                                      {acc.name}
-                                    </Text>
-                                    <Text style={styles.pickerItemSub}>
-                                      Số dư: {formatVND(acc.balance)} đ
+                                  {isSelected && <FinanceIcon name="check" size={16} color={isDark ? themeColors.accentGreen : '#059669'} />}
+                                </Pressable>
+                              );
+                            })}
+                          </>
+                        )}
+
+                        {/* Chọn danh mục */}
+                        {groupPickerModalType === 'CATEGORY' && (
+                          <>
+                            {categoriesList.map((cat) => {
+                              const isSelected = expCategoryId === cat.id;
+                              return (
+                                <Pressable
+                                  key={cat.id}
+                                  onPress={() => {
+                                    setExpCategoryId(cat.id);
+                                    setGroupPickerModalType('NONE');
+                                  }}
+                                  style={[
+                                    styles.pickerItemRow,
+                                    isDark && { borderBottomColor: themeColors.divider },
+                                    isSelected && [
+                                      styles.pickerItemRowActive,
+                                      isDark && { backgroundColor: themeColors.surfaceSubtle },
+                                    ],
+                                  ]}
+                                >
+                                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 }}>
+                                    <View style={[styles.catCircleIconWrap, { backgroundColor: isDark ? 'rgba(244, 63, 94, 0.2)' : '#FEE2E2', width: 34, height: 34 }]}>
+                                      <FinanceIcon
+                                        name={resolveCategoryIconName(cat.icon, 'EXPENSE', cat.name)}
+                                        size={16}
+                                        color="#E11D48"
+                                      />
+                                    </View>
+                                    <Text style={[styles.pickerItemText, isDark && { color: themeColors.textPrimary }, isSelected && styles.pickerItemTextActive, { flex: 1 }]}>
+                                      {cat.name}
                                     </Text>
                                   </View>
-                                </View>
-                                {isSelected && <FinanceIcon name="check" size={16} color="#059669" />}
-                              </Pressable>
-                            );
-                          })}
-                        </>
-                      )}
-
-                      {/* Chọn danh mục */}
-                      {groupPickerModalType === 'CATEGORY' && (
-                        <>
-                          {categoriesList.map((cat) => {
-                            const isSelected = expCategoryId === cat.id;
-                            return (
-                              <Pressable
-                                key={cat.id}
-                                onPress={() => {
-                                  setExpCategoryId(cat.id);
-                                  setGroupPickerModalType('NONE');
-                                }}
-                                style={[styles.pickerItemRow, isSelected && styles.pickerItemRowActive]}
-                              >
-                                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 }}>
-                                  <View style={[styles.catCircleIconWrap, { backgroundColor: '#FEE2E2', width: 34, height: 34 }]}>
-                                    <FinanceIcon
-                                      name={resolveCategoryIconName(cat.icon, 'EXPENSE', cat.name)}
-                                      size={16}
-                                      color="#E11D48"
-                                    />
-                                  </View>
-                                  <Text style={[styles.pickerItemText, isSelected && styles.pickerItemTextActive, { flex: 1 }]}>
-                                    {cat.name}
-                                  </Text>
-                                </View>
-                                {isSelected && <FinanceIcon name="check" size={16} color="#059669" />}
-                              </Pressable>
-                            );
-                          })}
-                        </>
-                      )}
-                    </ScrollView>
+                                  {isSelected && <FinanceIcon name="check" size={16} color={isDark ? themeColors.accentGreen : '#059669'} />}
+                                </Pressable>
+                              );
+                            })}
+                          </>
+                        )}
+                      </ScrollView>
+                    </View>
                   </View>
-                </View>
-              )}
+                )}
+              </View>
             </View>
-          </View>
+          </KeyboardAvoidingView>
         </Modal>
 
         {/* ── MODAL CHỌN DANH MỤC THẢ XUỐNG DỌC (VERTICAL BOTTOM SHEET) ── */}
         <Modal visible={categoryPickerModalVisible} transparent animationType="fade">
           <View style={styles.modalOverlay}>
-            <View style={styles.modalSheet}>
-              <View style={styles.modalTopBar}>
-                <Text style={styles.modalTopTitle}>Chọn danh mục chi tiêu</Text>
+            <View
+              style={[
+                styles.modalSheet,
+                isDark && {
+                  backgroundColor: themeColors.surface,
+                  borderColor: themeColors.cardBorder,
+                },
+              ]}
+            >
+              <View style={[styles.modalTopBar, isDark && { borderBottomColor: themeColors.cardBorder }]}>
+                <Text style={[styles.modalTopTitle, isDark && { color: themeColors.textPrimary }]}>Chọn danh mục chi tiêu</Text>
                 <Pressable onPress={() => setCategoryPickerModalVisible(false)} hitSlop={10}>
-                  <Text style={styles.modalCloseText}>Đóng</Text>
+                  <Text style={[styles.modalCloseText, isDark && { color: themeColors.textMuted }]}>Đóng</Text>
                 </Pressable>
               </View>
               <ScrollView style={{ paddingHorizontal: 16, maxHeight: 420 }} showsVerticalScrollIndicator={false}>
@@ -3601,19 +4229,32 @@ export function GroupScreen({
                         setExpCategoryId(cat.id);
                         setCategoryPickerModalVisible(false);
                       }}
-                      style={[styles.categoryOptionRow, isSelected && styles.categoryOptionRowActive]}
+                      style={[
+                        styles.categoryOptionRow,
+                        isDark && { borderBottomColor: themeColors.divider },
+                        isSelected && [
+                          styles.categoryOptionRowActive,
+                          isDark && { backgroundColor: themeColors.surfaceSubtle },
+                        ],
+                      ]}
                     >
-                      <View style={[styles.catCircleIconWrap, { backgroundColor: '#FEE2E2' }]}>
+                      <View style={[styles.catCircleIconWrap, { backgroundColor: isDark ? 'rgba(244, 63, 94, 0.2)' : '#FEE2E2' }]}>
                         <FinanceIcon
                           name={resolveCategoryIconName(cat.icon, 'EXPENSE', cat.name)}
                           size={18}
                           color="#E11D48"
                         />
                       </View>
-                      <Text style={[styles.categoryOptionLabel, isSelected && styles.categoryOptionLabelActive]}>
+                      <Text
+                        style={[
+                          styles.categoryOptionLabel,
+                          isDark && { color: themeColors.textPrimary },
+                          isSelected && styles.categoryOptionLabelActive,
+                        ]}
+                      >
                         {cat.name}
                       </Text>
-                      {isSelected && <Text style={styles.checkmarkIcon}>✓</Text>}
+                      {isSelected && <Text style={[styles.checkmarkIcon, isDark && { color: themeColors.accentGreen }]}>✓</Text>}
                     </Pressable>
                   );
                 })}
@@ -3625,11 +4266,19 @@ export function GroupScreen({
         {/* ── MODAL CHỌN VÍ CÁ NHÂN KÈM SỐ DƯ KHẢ DỤNG ── */}
         <Modal visible={accountPickerModalVisible} transparent animationType="fade">
           <View style={styles.modalOverlay}>
-            <View style={styles.modalSheet}>
-              <View style={styles.modalTopBar}>
-                <Text style={styles.modalTopTitle}>Chọn ví thanh toán</Text>
+            <View
+              style={[
+                styles.modalSheet,
+                isDark && {
+                  backgroundColor: themeColors.surface,
+                  borderColor: themeColors.cardBorder,
+                },
+              ]}
+            >
+              <View style={[styles.modalTopBar, isDark && { borderBottomColor: themeColors.cardBorder }]}>
+                <Text style={[styles.modalTopTitle, isDark && { color: themeColors.textPrimary }]}>Chọn ví thanh toán</Text>
                 <Pressable onPress={() => setAccountPickerModalVisible(false)} hitSlop={10}>
-                  <Text style={styles.modalCloseText}>Đóng</Text>
+                  <Text style={[styles.modalCloseText, isDark && { color: themeColors.textMuted }]}>Đóng</Text>
                 </Pressable>
               </View>
               <ScrollView style={{ paddingHorizontal: 16, maxHeight: 420 }} showsVerticalScrollIndicator={false}>
@@ -3642,20 +4291,33 @@ export function GroupScreen({
                         setExpAccountId(acc.id);
                         setAccountPickerModalVisible(false);
                       }}
-                      style={[styles.accountOptionRow, isSelected && styles.accountOptionRowActive]}
+                      style={[
+                        styles.accountOptionRow,
+                        isDark && { borderBottomColor: themeColors.divider },
+                        isSelected && [
+                          styles.accountOptionRowActive,
+                          isDark && { backgroundColor: themeColors.surfaceSubtle },
+                        ],
+                      ]}
                     >
-                      <View style={[styles.catCircleIconWrap, { backgroundColor: '#E0F2FE' }]}>
-                        <FinanceIcon name="wallet" size={18} color="#0284C7" />
+                      <View style={[styles.catCircleIconWrap, { backgroundColor: isDark ? 'rgba(56, 189, 248, 0.2)' : '#E0F2FE' }]}>
+                        <FinanceIcon name="wallet" size={18} color={isDark ? '#38BDF8' : '#0284C7'} />
                       </View>
                       <View style={{ flex: 1 }}>
-                        <Text style={[styles.accountOptionName, isSelected && styles.accountOptionNameActive]}>
+                        <Text
+                          style={[
+                            styles.accountOptionName,
+                            isDark && { color: themeColors.textPrimary },
+                            isSelected && styles.accountOptionNameActive,
+                          ]}
+                        >
                           {acc.name}
                         </Text>
-                        <Text style={styles.accountOptionBalance}>
-                          Số dư: <Text style={{ color: '#059669', fontWeight: '800' }}>{formatVND(acc.balance)} đ</Text>
+                        <Text style={[styles.accountOptionBalance, isDark && { color: themeColors.textMuted }]}>
+                          Số dư: <Text style={{ color: isDark ? themeColors.accentGreen : '#059669', fontWeight: '800' }}>{formatVND(acc.balance)} đ</Text>
                         </Text>
                       </View>
-                      {isSelected && <Text style={styles.checkmarkIcon}>✓</Text>}
+                      {isSelected && <Text style={[styles.checkmarkIcon, isDark && { color: themeColors.accentGreen }]}>✓</Text>}
                     </Pressable>
                   );
                 })}
@@ -3667,11 +4329,19 @@ export function GroupScreen({
         {/* ── MODAL CHỌN THÁNG / KỲ BÁO CÁO (THẢ XUỐNG CHUẨN VÍ) ── */}
         <Modal visible={monthModalVisible} transparent animationType="slide">
           <View style={styles.modalOverlay}>
-            <View style={styles.modalSheet}>
-              <View style={styles.modalTopBar}>
-                <Text style={styles.modalTopTitle}>Chọn kỳ báo cáo / Tháng</Text>
+            <View
+              style={[
+                styles.modalSheet,
+                isDark && {
+                  backgroundColor: themeColors.surface,
+                  borderColor: themeColors.cardBorder,
+                },
+              ]}
+            >
+              <View style={[styles.modalTopBar, isDark && { borderBottomColor: themeColors.cardBorder }]}>
+                <Text style={[styles.modalTopTitle, isDark && { color: themeColors.textPrimary }]}>Chọn kỳ báo cáo / Tháng</Text>
                 <Pressable onPress={() => setMonthModalVisible(false)} hitSlop={10}>
-                  <Text style={styles.modalCloseText}>Đóng</Text>
+                  <Text style={[styles.modalCloseText, isDark && { color: themeColors.textMuted }]}>Đóng</Text>
                 </Pressable>
               </View>
               <ScrollView style={{ paddingHorizontal: 16, maxHeight: 420 }}>
@@ -3684,12 +4354,25 @@ export function GroupScreen({
                         setSelectedMonth(m.key);
                         setMonthModalVisible(false);
                       }}
-                      style={[styles.monthOptionRow, isSelected && styles.monthOptionRowActive]}
+                      style={[
+                        styles.monthOptionRow,
+                        isDark && { borderBottomColor: themeColors.divider },
+                        isSelected && [
+                          styles.monthOptionRowActive,
+                          isDark && { backgroundColor: themeColors.surfaceSubtle },
+                        ],
+                      ]}
                     >
-                      <Text style={[styles.monthOptionLabel, isSelected && styles.monthOptionLabelActive]}>
+                      <Text
+                        style={[
+                          styles.monthOptionLabel,
+                          isDark && { color: themeColors.textPrimary },
+                          isSelected && styles.monthOptionLabelActive,
+                        ]}
+                      >
                         {m.label}
                       </Text>
-                      {isSelected && <Text style={styles.checkmarkIcon}>✓</Text>}
+                      {isSelected && <Text style={[styles.checkmarkIcon, isDark && { color: themeColors.accentGreen }]}>✓</Text>}
                     </Pressable>
                   );
                 })}
@@ -3702,22 +4385,67 @@ export function GroupScreen({
         {/* Đã được tích hợp trực tiếp vào trong Modal viewingExpense để hoạt động mượt mà trên cả iOS & Android */}
 
         {/* ── MODAL CHI TIẾT GIAO DỊCH (CHUẨN DESIGN ẢNH MẪU) ── */}
-        <Modal visible={!!viewingExpense} transparent animationType="slide">
-          <View style={styles.detailTxModalOverlay}>
-            <KeyboardAvoidingView
-              style={{ flex: 1 }}
-              behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-              keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
+        <Modal
+          visible={!!viewingExpense}
+          transparent
+          animationType="slide"
+          onRequestClose={() => setViewingExpense(null)}
+        >
+          <StatusBar
+            barStyle={isDark ? 'light-content' : 'dark-content'}
+            backgroundColor={isDark ? themeColors.surface : '#FFFFFF'}
+          />
+          <View
+            style={[
+              styles.detailTxModalOverlay,
+              { backgroundColor: isDark ? themeColors.surface : '#FFFFFF' },
+            ]}
+          >
+            <View
+              style={[
+                styles.detailTxModalContainer,
+                {
+                  backgroundColor: isDark ? themeColors.surface : '#FFFFFF',
+                  paddingTop: Math.max(insets.top, 14) + 8,
+                },
+              ]}
             >
-              <View style={[styles.detailTxModalContainer, { paddingTop: Math.max(insets.top, 14) + 8 }]}>
               {/* Header Modal */}
-              <View style={styles.detailTxHeaderRow}>
-                <Pressable onPress={() => setViewingExpense(null)} hitSlop={12} style={styles.detailTxBackBtn}>
-                  <FinanceIcon name="chevron-left" size={22} color="#0F172A" />
+              <View
+                style={[
+                  styles.detailTxHeaderRow,
+                  {
+                    backgroundColor: isDark ? themeColors.surface : '#FFFFFF',
+                    borderBottomColor: isDark ? themeColors.cardBorder : '#F1F5F9',
+                  },
+                ]}
+              >
+                <Pressable
+                  onPress={() => setViewingExpense(null)}
+                  hitSlop={12}
+                  style={[
+                    styles.detailTxBackBtn,
+                    isDark && { backgroundColor: 'rgba(255, 255, 255, 0.08)' },
+                  ]}
+                >
+                  <FinanceIcon name="chevron-left" size={22} color={isDark ? themeColors.textPrimary : '#0F172A'} />
                 </Pressable>
-                <Text style={styles.detailTxHeaderTitle}>Chi tiết giao dịch</Text>
-                <Pressable hitSlop={12} style={styles.detailTxOptionBtn}>
-                  <FinanceIcon name="more-horizontal" size={18} color="#059669" />
+                <Text
+                  style={[
+                    styles.detailTxHeaderTitle,
+                    isDark && { color: themeColors.textPrimary },
+                  ]}
+                >
+                  Chi tiết giao dịch
+                </Text>
+                <Pressable
+                  hitSlop={12}
+                  style={[
+                    styles.detailTxOptionBtn,
+                    isDark && { backgroundColor: 'rgba(52, 211, 153, 0.15)' },
+                  ]}
+                >
+                  <FinanceIcon name="more-horizontal" size={18} color={isDark ? themeColors.accentGreen : '#059669'} />
                 </Pressable>
               </View>
 
@@ -3758,43 +4486,70 @@ export function GroupScreen({
                     style={{ flex: 1 }}
                     contentContainerStyle={{
                       padding: 18,
-                      paddingBottom: keyboardHeight > 0 ? keyboardHeight + 80 : Math.max(insets.bottom, 16) + 80,
+                      paddingBottom: (Platform.OS === 'ios' ? keyboardHeight : 0) + (keyboardHeight > 0 ? 80 : Math.max(insets.bottom, 16) + 80),
                       gap: 18,
                     }}
                     showsVerticalScrollIndicator={false}
                     keyboardShouldPersistTaps="handled"
                   >
                     {/* CARD 1: THÔNG TIN GIAO DỊCH CHÍNH */}
-                    <View style={styles.txDetailMainCard}>
+                    <View
+                      style={[
+                        styles.txDetailMainCard,
+                        isDark && {
+                          backgroundColor: themeColors.surface,
+                          borderColor: themeColors.cardBorder,
+                        },
+                      ]}
+                    >
                       <View style={styles.txDetailTopRow}>
                         <View style={[styles.unifiedTxIconCircle, { backgroundColor: iconBg }]}>
                           <FinanceIcon name={iconName} size={20} color={iconColor} />
                         </View>
-                        <Text style={styles.txDetailMainTitle}>{exp.description}</Text>
-                        <Text style={styles.txDetailMainAmount}>-{formatVND(exp.amount)} đ</Text>
+                        <Text
+                          style={[
+                            styles.txDetailMainTitle,
+                            isDark && { color: themeColors.textPrimary },
+                          ]}
+                        >
+                          {exp.description}
+                        </Text>
+                        <Text style={[styles.txDetailMainAmount, isDark && { color: '#F87171' }]}>
+                          -{formatVND(exp.amount)} đ
+                        </Text>
                       </View>
 
-                      <View style={styles.txDetailDivider} />
+                      <View
+                        style={[
+                          styles.txDetailDivider,
+                          isDark && { backgroundColor: themeColors.divider },
+                        ]}
+                      />
 
                       <View style={styles.txDetailInfoTable}>
                         {/* Danh mục */}
                         <View style={styles.txDetailInfoRow}>
                           <View style={styles.txDetailInfoLabelRow}>
-                            <FinanceIcon name="grid" size={15} color="#64748B" />
-                            <Text style={styles.txDetailInfoLabel}>Danh mục</Text>
+                            <FinanceIcon name="grid" size={15} color={isDark ? themeColors.textMuted : '#64748B'} />
+                            <Text style={[styles.txDetailInfoLabel, isDark && { color: themeColors.textSecondary }]}>Danh mục</Text>
                           </View>
-                          <View style={styles.txDetailCategoryPill}>
-                            <Text style={styles.txDetailCategoryPillText}>{catName}</Text>
+                          <View
+                            style={[
+                              styles.txDetailCategoryPill,
+                              isDark && { backgroundColor: 'rgba(219, 39, 119, 0.15)' },
+                            ]}
+                          >
+                            <Text style={[styles.txDetailCategoryPillText, isDark && { color: '#F472B6' }]}>{catName}</Text>
                           </View>
                         </View>
 
                         {/* Thời gian */}
                         <View style={styles.txDetailInfoRow}>
                           <View style={styles.txDetailInfoLabelRow}>
-                            <FinanceIcon name="calendar" size={15} color="#64748B" />
-                            <Text style={styles.txDetailInfoLabel}>Thời gian</Text>
+                            <FinanceIcon name="calendar" size={15} color={isDark ? themeColors.textMuted : '#64748B'} />
+                            <Text style={[styles.txDetailInfoLabel, isDark && { color: themeColors.textSecondary }]}>Thời gian</Text>
                           </View>
-                          <Text style={styles.txDetailInfoValue}>
+                          <Text style={[styles.txDetailInfoValue, isDark && { color: themeColors.textPrimary }]}>
                             {exp.expenseDate ? new Date(exp.expenseDate).toLocaleDateString('vi-VN') : 'Hôm nay'}
                           </Text>
                         </View>
@@ -3802,16 +4557,26 @@ export function GroupScreen({
                         {/* Người tạo */}
                         <View style={styles.txDetailInfoRow}>
                           <View style={styles.txDetailInfoLabelRow}>
-                            <FinanceIcon name="user" size={15} color="#64748B" />
-                            <Text style={styles.txDetailInfoLabel}>Người tạo</Text>
+                            <FinanceIcon name="user" size={15} color={isDark ? themeColors.textMuted : '#64748B'} />
+                            <Text style={[styles.txDetailInfoLabel, isDark && { color: themeColors.textSecondary }]}>Người tạo</Text>
                           </View>
                           <View style={styles.txDetailPayerRow}>
-                            <View style={styles.txDetailSmallAvatar}>
-                              <Text style={styles.txDetailSmallAvatarText}>
+                            <View
+                              style={[
+                                styles.txDetailSmallAvatar,
+                                isDark && { backgroundColor: 'rgba(52, 211, 153, 0.2)' },
+                              ]}
+                            >
+                              <Text
+                                style={[
+                                  styles.txDetailSmallAvatarText,
+                                  isDark && { color: themeColors.accentGreen },
+                                ]}
+                              >
                                 {payerName.slice(0, 1).toUpperCase()}
                               </Text>
                             </View>
-                            <Text style={styles.txDetailPayerName}>{payerName}</Text>
+                            <Text style={[styles.txDetailPayerName, isDark && { color: themeColors.textPrimary }]}>{payerName}</Text>
                           </View>
                         </View>
 
@@ -3821,22 +4586,24 @@ export function GroupScreen({
                             <FinanceIcon
                               name={exp.paymentSource === 'GROUP_FUND' ? 'banknote' : 'wallet'}
                               size={15}
-                              color="#64748B"
+                              color={isDark ? themeColors.textMuted : '#64748B'}
                             />
-                            <Text style={styles.txDetailInfoLabel}>Nguồn tiền</Text>
+                            <Text style={[styles.txDetailInfoLabel, isDark && { color: themeColors.textSecondary }]}>Nguồn tiền</Text>
                           </View>
                           <View
                             style={[
                               styles.txDetailSourceBadge,
                               exp.paymentSource === 'GROUP_FUND'
-                                ? { backgroundColor: '#E8F8F0', borderColor: '#A7F3D0' }
-                                : { backgroundColor: '#F1F5F9', borderColor: '#E2E8F0' },
+                                ? (isDark ? { backgroundColor: 'rgba(52, 211, 153, 0.15)', borderColor: 'rgba(52, 211, 153, 0.3)' } : { backgroundColor: '#E8F8F0', borderColor: '#A7F3D0' })
+                                : (isDark ? { backgroundColor: themeColors.surfaceSubtle, borderColor: themeColors.cardBorder } : { backgroundColor: '#F1F5F9', borderColor: '#E2E8F0' }),
                             ]}
                           >
                             <Text
                               style={[
                                 styles.txDetailSourceBadgeText,
-                                exp.paymentSource === 'GROUP_FUND' ? { color: '#059669' } : { color: '#475569' },
+                                exp.paymentSource === 'GROUP_FUND'
+                                  ? { color: isDark ? themeColors.accentGreen : '#059669' }
+                                  : { color: isDark ? themeColors.textSecondary : '#475569' },
                               ]}
                             >
                               {exp.paymentSource === 'GROUP_FUND' ? 'Quỹ nhóm' : 'Ví cá nhân'}
@@ -3846,12 +4613,17 @@ export function GroupScreen({
 
                         {/* Ghi chú */}
                         {exp.notes ? (
-                          <View style={styles.txDetailNotesBox}>
+                          <View
+                            style={[
+                              styles.txDetailNotesBox,
+                              isDark && { backgroundColor: themeColors.surfaceSubtle },
+                            ]}
+                          >
                             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4 }}>
-                              <FinanceIcon name="edit" size={14} color="#64748B" />
-                              <Text style={styles.txDetailNotesLabel}>Ghi chú</Text>
+                              <FinanceIcon name="edit" size={14} color={isDark ? themeColors.textMuted : '#64748B'} />
+                              <Text style={[styles.txDetailNotesLabel, isDark && { color: themeColors.textSecondary }]}>Ghi chú</Text>
                             </View>
-                            <Text style={styles.txDetailNotesText}>{exp.notes}</Text>
+                            <Text style={[styles.txDetailNotesText, isDark && { color: themeColors.textPrimary }]}>{exp.notes}</Text>
                           </View>
                         ) : null}
                       </View>
@@ -3861,28 +4633,68 @@ export function GroupScreen({
                     {selectedGroup?.groupType !== 'FAMILY' && selectedGroup?.groupType !== 'COUPLE' && (
                       <View style={styles.txSplitSection}>
                         <View style={styles.txSplitHeaderRow}>
-                          <Text style={styles.txSplitSectionTitle}>Phân chia chi phí</Text>
-                          <View style={styles.txSplitMethodBadge}>
-                            <Text style={styles.txSplitMethodBadgeText}>Chia đều</Text>
+                          <Text style={[styles.txSplitSectionTitle, isDark && { color: themeColors.textPrimary }]}>Phân chia chi phí</Text>
+                          <View
+                            style={[
+                              styles.txSplitMethodBadge,
+                              isDark && { backgroundColor: 'rgba(52, 211, 153, 0.15)' },
+                            ]}
+                          >
+                            <Text style={[styles.txSplitMethodBadgeText, isDark && { color: themeColors.accentGreen }]}>Chia đều</Text>
                           </View>
                         </View>
 
-                        <View style={styles.txSplitListCard}>
+                        <View
+                          style={[
+                            styles.txSplitListCard,
+                            isDark && {
+                              backgroundColor: themeColors.surface,
+                              borderColor: themeColors.cardBorder,
+                            },
+                          ]}
+                        >
                           {splitsList.map((s, idx) => (
                             <View
                               key={s.userId || idx}
                               style={[
                                 styles.txSplitMemberRow,
-                                idx < splitsList.length - 1 && styles.unifiedTxItemBorder,
+                                idx < splitsList.length - 1 && [
+                                  styles.unifiedTxItemBorder,
+                                  isDark && { borderBottomColor: themeColors.divider },
+                                ],
                               ]}
                             >
-                              <View style={styles.txSplitAvatarCircle}>
-                                <Text style={styles.txSplitAvatarText}>
+                              <View
+                                style={[
+                                  styles.txSplitAvatarCircle,
+                                  isDark && { backgroundColor: 'rgba(56, 189, 248, 0.18)' },
+                                ]}
+                              >
+                                <Text
+                                  style={[
+                                    styles.txSplitAvatarText,
+                                    isDark && { color: '#38BDF8' },
+                                  ]}
+                                >
                                   {s.name.slice(0, 1).toUpperCase()}
                                 </Text>
                               </View>
-                              <Text style={styles.txSplitMemberName}>{s.name}</Text>
-                              <Text style={styles.txSplitAmount}>{formatVND(s.amount)} đ</Text>
+                              <Text
+                                style={[
+                                  styles.txSplitMemberName,
+                                  isDark && { color: themeColors.textPrimary },
+                                ]}
+                              >
+                                {s.name}
+                              </Text>
+                              <Text
+                                style={[
+                                  styles.txSplitAmount,
+                                  isDark && { color: themeColors.textPrimary },
+                                ]}
+                              >
+                                {formatVND(s.amount)} đ
+                              </Text>
                               <View style={styles.txSplitCheckCircle}>
                                 <FinanceIcon name="check" size={12} color="#FFFFFF" />
                               </View>
@@ -3894,11 +4706,11 @@ export function GroupScreen({
 
                     {/* CARD 3: BÌNH LUẬN (THEO CHUẨN DESIGN MẪU) */}
                     <View style={styles.txCommentSection}>
-                      <Text style={styles.txCommentSectionTitle}>Bình luận ({comments.length})</Text>
+                      <Text style={[styles.txCommentSectionTitle, isDark && { color: themeColors.textPrimary }]}>Bình luận ({comments.length})</Text>
 
                       <View style={{ gap: 10 }}>
                         {comments.length === 0 ? (
-                          <Text style={{ fontSize: 12, color: '#94A3B8', fontStyle: 'italic', paddingVertical: 8 }}>
+                          <Text style={{ fontSize: 12, color: isDark ? themeColors.textMuted : '#94A3B8', fontStyle: 'italic', paddingVertical: 8 }}>
                             Chưa có bình luận nào. Hãy là người đầu tiên bình luận!
                           </Text>
                         ) : (
@@ -3923,14 +4735,34 @@ export function GroupScreen({
                             const likeInfo = commentLikes[c.id] || { count: 0, liked: false };
 
                             return (
-                              <View key={c.id} style={[styles.commentMockCard, parent ? { marginLeft: 28 } : null]}>
+                              <View
+                                key={c.id}
+                                style={[
+                                  styles.commentMockCard,
+                                  isDark && {
+                                    backgroundColor: themeColors.surface,
+                                    borderColor: themeColors.cardBorder,
+                                  },
+                                  parent ? { marginLeft: 28 } : null,
+                                ]}
+                              >
                                 <View style={styles.commentMockHeader}>
                                   {/* Avatar thực tế của người dùng */}
-                                  <View style={styles.commentMockAvatar}>
+                                  <View
+                                    style={[
+                                      styles.commentMockAvatar,
+                                      isDark && { backgroundColor: 'rgba(219, 39, 119, 0.16)' },
+                                    ]}
+                                  >
                                     {avatarUri ? (
                                       <Image source={{ uri: avatarUri }} style={styles.commentMockAvatarImg} />
                                     ) : (
-                                      <Text style={styles.commentMockAvatarText}>
+                                      <Text
+                                        style={[
+                                          styles.commentMockAvatarText,
+                                          isDark && { color: '#F472B6' },
+                                        ]}
+                                      >
                                         {actualAuthorName.slice(0, 1).toUpperCase()}
                                       </Text>
                                     )}
@@ -3940,11 +4772,20 @@ export function GroupScreen({
                                     {/* Hàng tên tác giả + giờ ngày + nút ... */}
                                     <View style={styles.commentAuthorRow}>
                                       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap', flex: 1 }}>
-                                        <Text style={styles.commentMockAuthor}>{authorDisplayName}</Text>
-                                        <Text style={styles.commentMockTimeDot}>•</Text>
-                                        <Text style={styles.commentMockTimeText}>{timeStr}</Text>
+                                        <Text
+                                          style={[
+                                            styles.commentMockAuthor,
+                                            isDark && { color: themeColors.textPrimary },
+                                          ]}
+                                        >
+                                          {authorDisplayName}
+                                        </Text>
+                                        <Text style={[styles.commentMockTimeDot, isDark && { color: themeColors.textMuted }]}>•</Text>
+                                        <Text style={[styles.commentMockTimeText, isDark && { color: themeColors.textSecondary }]}>{timeStr}</Text>
                                         {isEdited && (
-                                          <Text style={styles.commentEditedTag}>(đã sửa)</Text>
+                                          <Text style={[styles.commentEditedTag, isDark && { color: themeColors.textMuted }]}>
+                                            (đã sửa)
+                                          </Text>
                                         )}
                                       </View>
 
@@ -3963,12 +4804,17 @@ export function GroupScreen({
                                         hitSlop={8}
                                         style={styles.commentMoreOptionBtn}
                                       >
-                                        <Text style={styles.commentMoreOptionIcon}>⋮</Text>
+                                        <Text style={[styles.commentMoreOptionIcon, isDark && { color: themeColors.textMuted }]}>⋮</Text>
                                       </Pressable>
                                     </View>
 
                                     {/* Nội dung bình luận */}
-                                    <Text style={styles.commentMockContent}>
+                                    <Text
+                                      style={[
+                                        styles.commentMockContent,
+                                        isDark && { color: themeColors.textPrimary },
+                                      ]}
+                                    >
                                       {(() => {
                                         let displayContent = c.content || '';
                                         // Nếu comment đã có liên kết parent và nội dung bắt đầu bằng @... thì làm sạch tag thừa để tránh bị lặp thành 2 cái @
@@ -3976,7 +4822,7 @@ export function GroupScreen({
                                           displayContent = displayContent.replace(/^@\S+\s*/, '');
                                           return (
                                             <>
-                                              <Text style={{ color: '#059669', fontWeight: '700' }}>
+                                              <Text style={{ color: isDark ? themeColors.accentGreen : '#059669', fontWeight: '700' }}>
                                                 @{parentActualName}{' '}
                                               </Text>
                                               {displayContent}
@@ -4000,11 +4846,12 @@ export function GroupScreen({
                                         <FinanceIcon
                                           name="heart"
                                           size={14}
-                                          color={likeInfo.liked ? '#E11D48' : '#64748B'}
+                                          color={likeInfo.liked ? '#E11D48' : (isDark ? themeColors.textMuted : '#64748B')}
                                         />
                                         <Text
                                           style={[
                                             styles.commentLikeCountText,
+                                            isDark && { color: themeColors.textSecondary },
                                             likeInfo.liked && styles.commentLikeCountTextActive,
                                           ]}
                                         >
@@ -4027,7 +4874,7 @@ export function GroupScreen({
                                         style={styles.commentReplyBtn}
                                         hitSlop={6}
                                       >
-                                        <Text style={styles.commentReplyBtnText}>Trả lời</Text>
+                                        <Text style={[styles.commentReplyBtnText, isDark && { color: themeColors.textSecondary }]}>Trả lời</Text>
                                       </Pressable>
                                     </View>
                                   </View>
@@ -4047,9 +4894,13 @@ export function GroupScreen({
                 <View
                   style={[
                     styles.detailTxBottomInputBar,
+                    isDark && {
+                      backgroundColor: themeColors.surface,
+                      borderTopColor: themeColors.cardBorder,
+                    },
                     {
-                      bottom: keyboardHeight,
-                      paddingBottom: keyboardHeight > 0 ? 10 : Math.max(insets.bottom, 12),
+                      bottom: Platform.OS === 'ios' ? keyboardHeight : 0,
+                      paddingBottom: (Platform.OS === 'ios' && keyboardHeight > 0) ? 10 : Math.max(insets.bottom, 12),
                     },
                   ]}
                 >
@@ -4063,8 +4914,8 @@ export function GroupScreen({
 
                     return (
                       <View style={styles.replyingNoticeBar}>
-                        <Text style={styles.replyingNoticeText}>
-                          Đang trả lời <Text style={{ fontWeight: '800', color: '#059669' }}>@{repName}</Text>
+                        <Text style={[styles.replyingNoticeText, isDark && { color: themeColors.accentGreen }]}>
+                          Đang trả lời <Text style={{ fontWeight: '800', color: isDark ? themeColors.accentGreen : '#059669' }}>@{repName}</Text>
                         </Text>
                         <Pressable
                           onPress={() => {
@@ -4078,11 +4929,22 @@ export function GroupScreen({
                       </View>
                     );
                   })()}
-                  <View style={styles.detailTxInputWrapper}>
+                  <View
+                    style={[
+                      styles.detailTxInputWrapper,
+                      isDark && {
+                        backgroundColor: themeColors.surfaceSubtle,
+                        borderColor: themeColors.cardBorder,
+                      },
+                    ]}
+                  >
                     <TextInput
-                      style={styles.detailTxTextInput}
+                      style={[
+                        styles.detailTxTextInput,
+                        isDark && { color: themeColors.textPrimary },
+                      ]}
                       placeholder={replyingToCommentId[viewingExpense.id] ? 'Viết câu trả lời...' : 'Viết bình luận...'}
-                      placeholderTextColor="#94A3B8"
+                      placeholderTextColor={isDark ? '#64748B' : '#94A3B8'}
                       value={inlineCommentText[viewingExpense.id] || ''}
                       onChangeText={(val) =>
                         setInlineCommentText((prev) => ({ ...prev, [viewingExpense.id]: val }))
@@ -4095,7 +4957,10 @@ export function GroupScreen({
                     />
                     <Pressable
                       onPress={() => handleSendComment(viewingExpense.id)}
-                      style={styles.detailTxSendBtn}
+                      style={[
+                        styles.detailTxSendBtn,
+                        isDark && { backgroundColor: '#10B981' },
+                      ]}
                     >
                       <FinanceIcon name="send" size={16} color="#FFFFFF" />
                     </Pressable>
@@ -4125,6 +4990,10 @@ export function GroupScreen({
                       <Pressable
                         style={[
                           styles.commentPopoverMenu,
+                          isDark && {
+                            backgroundColor: themeColors.surface,
+                            borderColor: themeColors.cardBorder,
+                          },
                           {
                             top: popoverTop,
                             right: popoverRight,
@@ -4140,10 +5009,10 @@ export function GroupScreen({
                             setReplyingToCommentId((prev) => ({ ...prev, [targetId]: comment.id }));
                             setInlineCommentText((prev) => ({ ...prev, [targetId]: '' }));
                           }}
-                          style={styles.commentPopoverItem}
+                          style={[styles.commentPopoverItem, isDark && { borderBottomColor: themeColors.divider }]}
                         >
-                          <FinanceIcon name="reply" size={15} color="#059669" />
-                          <Text style={styles.commentPopoverText}>Trả lời</Text>
+                          <FinanceIcon name="reply" size={15} color={isDark ? themeColors.accentGreen : '#059669'} />
+                          <Text style={[styles.commentPopoverText, isDark && { color: themeColors.textPrimary }]}>Trả lời</Text>
                         </Pressable>
 
                         {/* Chỉnh sửa nếu là bình luận của mình */}
@@ -4154,10 +5023,10 @@ export function GroupScreen({
                               setEditingComment({ targetId, comment });
                               setEditingCommentContent(comment.content);
                             }}
-                            style={styles.commentPopoverItem}
+                            style={[styles.commentPopoverItem, isDark && { borderBottomColor: themeColors.divider }]}
                           >
-                            <FinanceIcon name="edit" size={15} color="#0284C7" />
-                            <Text style={styles.commentPopoverText}>Chỉnh sửa</Text>
+                            <FinanceIcon name="edit" size={15} color={isDark ? '#38BDF8' : '#0284C7'} />
+                            <Text style={[styles.commentPopoverText, isDark && { color: themeColors.textPrimary }]}>Chỉnh sửa</Text>
                           </Pressable>
                         )}
 
@@ -4183,11 +5052,19 @@ export function GroupScreen({
               {/* ── MODAL SỬA BÌNH LUẬN LỒNG TRONG MODAL CHI TIẾT ── */}
               {editingComment && (
                 <View style={[StyleSheet.absoluteFill, styles.modalOverlay, { zIndex: 10000 }]}>
-                  <View style={styles.inputModalSheet}>
+                  <View
+                    style={[
+                      styles.inputModalSheet,
+                      isDark && {
+                        backgroundColor: themeColors.surface,
+                        borderColor: themeColors.cardBorder,
+                      },
+                    ]}
+                  >
                     <View style={styles.inputModalHeader}>
-                      <Text style={styles.inputModalTitle}>Chỉnh sửa bình luận</Text>
+                      <Text style={[styles.inputModalTitle, isDark && { color: themeColors.textPrimary }]}>Chỉnh sửa bình luận</Text>
                       <Pressable onPress={() => setEditingComment(null)} hitSlop={10}>
-                        <FinanceIcon name="close" size={18} color="#475569" />
+                        <FinanceIcon name="close" size={18} color={isDark ? themeColors.textSecondary : '#475569'} />
                       </Pressable>
                     </View>
 
@@ -4196,13 +5073,25 @@ export function GroupScreen({
                       onChangeText={setEditingCommentContent}
                       multiline
                       placeholder="Nhập nội dung mới..."
-                      placeholderTextColor="#94A3B8"
-                      style={[styles.textInput, { minHeight: 90, textAlignVertical: 'top', paddingTop: 10 }]}
+                      placeholderTextColor={isDark ? '#64748B' : '#94A3B8'}
+                      style={[
+                        styles.textInput,
+                        isDark && {
+                          backgroundColor: themeColors.surfaceSubtle,
+                          borderColor: themeColors.cardBorder,
+                          color: themeColors.textPrimary,
+                        },
+                        { minHeight: 90, textAlignVertical: 'top', paddingTop: 10 },
+                      ]}
                     />
 
                     <Pressable
                       onPress={handleSaveEditComment}
-                      style={[styles.submitActionBtn, { marginTop: 12 }]}
+                      style={[
+                        styles.submitActionBtn,
+                        isDark && { backgroundColor: '#10B981' },
+                        { marginTop: 12 },
+                      ]}
                     >
                       <Text style={styles.submitActionBtnText}>Lưu chỉnh sửa</Text>
                     </Pressable>
@@ -4210,283 +5099,395 @@ export function GroupScreen({
                 </View>
               )}
             </View>
-          </KeyboardAvoidingView>
-        </View>
-      </Modal>
+          </View>
+        </Modal>
 
       {/* ── MODAL CHI TIẾT NỘP QUỸ (KÈM BÌNH LUẬN TRÊN BẢN APP) ── */}
-      <Modal visible={!!viewingContribution} transparent animationType="slide">
-        <View style={styles.detailTxModalOverlay}>
-          <KeyboardAvoidingView
-            style={{ flex: 1 }}
-            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      <Modal
+        visible={!!viewingContribution}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setViewingContribution(null)}
+      >
+        <StatusBar
+          barStyle={isDark ? 'light-content' : 'dark-content'}
+          backgroundColor={isDark ? themeColors.surface : '#FFFFFF'}
+        />
+        <View
+          style={[
+            styles.detailTxModalOverlay,
+            { backgroundColor: isDark ? themeColors.surface : '#FFFFFF' },
+          ]}
+        >
+          <View
+            style={[
+              styles.detailTxModalContainer,
+              {
+                backgroundColor: isDark ? themeColors.surface : '#FFFFFF',
+                paddingTop: Math.max(insets.top, 14) + 8,
+              },
+            ]}
           >
-            <View style={[styles.detailTxModalContainer, { paddingTop: Math.max(insets.top, 14) + 8 }]}>
-              {/* Header Modal */}
-              <View style={styles.detailTxHeaderRow}>
-                <Pressable onPress={() => setViewingContribution(null)} hitSlop={12} style={styles.detailTxBackBtn}>
-                  <FinanceIcon name="chevron-left" size={22} color="#0F172A" />
-                </Pressable>
-                <Text style={styles.detailTxHeaderTitle}>Chi tiết nộp quỹ</Text>
-                <View style={{ width: 36 }} />
-              </View>
+            {/* Header Modal */}
+            <View
+              style={[
+                styles.detailTxHeaderRow,
+                {
+                  backgroundColor: isDark ? themeColors.surface : '#FFFFFF',
+                  borderBottomColor: isDark ? themeColors.cardBorder : '#F1F5F9',
+                },
+              ]}
+            >
+              <Pressable
+                onPress={() => setViewingContribution(null)}
+                hitSlop={12}
+                style={[
+                  styles.detailTxBackBtn,
+                  isDark && { backgroundColor: 'rgba(255, 255, 255, 0.08)' },
+                ]}
+              >
+                <FinanceIcon name="chevron-left" size={22} color={isDark ? themeColors.textPrimary : '#0F172A'} />
+              </Pressable>
+              <Text style={[styles.detailTxHeaderTitle, isDark && { color: themeColors.textPrimary }]}>Chi tiết nộp quỹ</Text>
+              <View style={{ width: 36 }} />
+            </View>
 
-              {viewingContribution && (() => {
-                const c = viewingContribution;
-                const contributor = getContributorDisplayName(c);
-                const rawComments = commentsByTarget[c.id] || [];
-                const comments = [...rawComments].sort((a, b) => {
-                  const tA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
-                  const tB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
-                  return tA - tB;
-                });
-                const dtStr = c.createdAt || c.contributedAt
-                  ? formatMessengerDateDivider(c.createdAt || c.contributedAt)
-                  : 'Vừa xong';
+            {viewingContribution && (() => {
+              const c = viewingContribution;
+              const contributor = getContributorDisplayName(c);
+              const rawComments = commentsByTarget[c.id] || [];
+              const comments = [...rawComments].sort((a, b) => {
+                const tA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+                const tB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+                return tA - tB;
+              });
+              const dtStr = c.createdAt || c.contributedAt
+                ? formatMessengerDateDivider(c.createdAt || c.contributedAt)
+                : 'Vừa xong';
 
-                return (
-                  <ScrollView
-                    ref={detailTxScrollViewRef}
-                    style={{ flex: 1 }}
-                    contentContainerStyle={{
-                      padding: 18,
-                      paddingBottom: keyboardHeight > 0 ? keyboardHeight + 80 : Math.max(insets.bottom, 16) + 80,
-                      gap: 18,
-                    }}
-                    showsVerticalScrollIndicator={false}
-                    keyboardShouldPersistTaps="handled"
+              return (
+                <ScrollView
+                  ref={detailTxScrollViewRef}
+                  style={{ flex: 1 }}
+                  contentContainerStyle={{
+                    padding: 18,
+                    paddingBottom: (Platform.OS === 'ios' && keyboardHeight > 0) ? keyboardHeight + 80 : Math.max(insets.bottom, 16) + 80,
+                    gap: 18,
+                  }}
+                  showsVerticalScrollIndicator={false}
+                  keyboardShouldPersistTaps="handled"
+                >
+                  {/* CARD 1: THÔNG TIN NỘP QUỸ */}
+                  <View
+                    style={[
+                      styles.txDetailMainCard,
+                      isDark && {
+                        backgroundColor: themeColors.surface,
+                        borderColor: themeColors.cardBorder,
+                      },
+                    ]}
                   >
-                    {/* CARD 1: THÔNG TIN NỘP QUỸ */}
-                    <View style={styles.txDetailMainCard}>
-                      <View style={styles.txDetailTopRow}>
-                        <View style={[styles.unifiedTxIconCircle, { backgroundColor: '#E6F4EA' }]}>
-                          <FinanceIcon name="income" size={20} color="#137333" />
-                        </View>
-                        <Text style={styles.txDetailMainTitle}>{c.note || 'Nộp quỹ chung'}</Text>
-                        <Text style={[styles.txDetailMainAmount, { color: '#059669' }]}>+{formatVND(c.amount)} đ</Text>
+                    <View style={styles.txDetailTopRow}>
+                      <View style={[styles.unifiedTxIconCircle, { backgroundColor: isDark ? 'rgba(16, 185, 129, 0.15)' : '#E6F4EA' }]}>
+                        <FinanceIcon name="income" size={20} color={isDark ? themeColors.accentGreen : '#137333'} />
                       </View>
-
-                      <View style={styles.txDetailDivider} />
-
-                      <View style={styles.txDetailInfoTable}>
-                        <View style={styles.txDetailInfoRow}>
-                          <View style={styles.txDetailInfoLabelRow}>
-                            <FinanceIcon name="grid" size={15} color="#64748B" />
-                            <Text style={styles.txDetailInfoLabel}>Hạng mục</Text>
-                          </View>
-                          <View style={styles.txDetailCategoryPill}>
-                            <Text style={styles.txDetailCategoryPillText}>Đóng quỹ</Text>
-                          </View>
-                        </View>
-
-                        <View style={styles.txDetailInfoRow}>
-                          <View style={styles.txDetailInfoLabelRow}>
-                            <FinanceIcon name="calendar" size={15} color="#64748B" />
-                            <Text style={styles.txDetailInfoLabel}>Thời gian</Text>
-                          </View>
-                          <Text style={styles.txDetailInfoValue}>{dtStr}</Text>
-                        </View>
-
-                        <View style={styles.txDetailInfoRow}>
-                          <View style={styles.txDetailInfoLabelRow}>
-                            <FinanceIcon name="user" size={15} color="#64748B" />
-                            <Text style={styles.txDetailInfoLabel}>Người nộp</Text>
-                          </View>
-                          <View style={styles.txDetailPayerRow}>
-                            <View style={styles.txDetailSmallAvatar}>
-                              <Text style={styles.txDetailSmallAvatarText}>
-                                {contributor.slice(0, 1).toUpperCase()}
-                              </Text>
-                            </View>
-                            <Text style={styles.txDetailPayerName}>{contributor}</Text>
-                          </View>
-                        </View>
-
-                        {c.note ? (
-                          <View style={styles.txDetailNotesBox}>
-                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4 }}>
-                              <FinanceIcon name="edit" size={14} color="#64748B" />
-                              <Text style={styles.txDetailNotesLabel}>Ghi chú</Text>
-                            </View>
-                            <Text style={styles.txDetailNotesText}>{c.note}</Text>
-                          </View>
-                        ) : null}
-                      </View>
+                      <Text style={[styles.txDetailMainTitle, isDark && { color: themeColors.textPrimary }]}>
+                        {c.note || 'Nộp quỹ chung'}
+                      </Text>
+                      <Text style={[styles.txDetailMainAmount, { color: isDark ? themeColors.accentGreen : '#059669' }]}>
+                        +{formatVND(c.amount)} đ
+                      </Text>
                     </View>
 
-                    {/* CARD 2: BÌNH LUẬN NỘP QUỸ */}
-                    <View style={styles.txCommentSection}>
-                      <Text style={styles.txCommentSectionTitle}>Bình luận ({comments.length})</Text>
+                    <View style={[styles.txDetailDivider, isDark && { backgroundColor: themeColors.divider }]} />
 
-                      <View style={{ gap: 10 }}>
-                        {comments.length === 0 ? (
-                          <Text style={{ fontSize: 12, color: '#94A3B8', fontStyle: 'italic', paddingVertical: 8 }}>
-                            Chưa có bình luận nào cho lần nộp quỹ này.
-                          </Text>
-                        ) : (
-                          comments.map((comment) => {
-                            const isMe = comment.userId === currentUser?.id;
-                            const memberInfo = members.find((m) => m.userId === comment.userId);
-                            const authorDisplayName = isMe
-                              ? 'Bạn'
-                              : (comment.user?.fullName || memberInfo?.user?.fullName || memberInfo?.nickname || comment.user?.username || 'Thành viên');
-                            const actualAuthorName = comment.user?.fullName || memberInfo?.user?.fullName || memberInfo?.nickname || comment.user?.username || 'Thành viên';
-                            const rawAvatar = comment.user?.avatarUrl || comment.user?.avatarKey || memberInfo?.user?.avatarUrl || (isMe ? currentUser?.avatarUrl : null);
-                            const avatarUri = rawAvatar ? userProfileApi.formatAvatarUrl(rawAvatar) : null;
-                            const parent = comment.parentCommentId ? comments.find((p) => p.id === comment.parentCommentId) : null;
-                            const parentActualName = parent?.user?.fullName || 'Thành viên';
+                    <View style={styles.txDetailInfoTable}>
+                      <View style={styles.txDetailInfoRow}>
+                        <View style={styles.txDetailInfoLabelRow}>
+                          <FinanceIcon name="grid" size={15} color={isDark ? themeColors.textMuted : '#64748B'} />
+                          <Text style={[styles.txDetailInfoLabel, isDark && { color: themeColors.textSecondary }]}>Hạng mục</Text>
+                        </View>
+                        <View style={[styles.txDetailCategoryPill, isDark && { backgroundColor: 'rgba(16, 185, 129, 0.15)' }]}>
+                          <Text style={[styles.txDetailCategoryPillText, isDark && { color: themeColors.accentGreen }]}>Đóng quỹ</Text>
+                        </View>
+                      </View>
 
-                            const timeStr = comment.createdAt
-                              ? formatMessengerDateDivider(comment.createdAt)
-                              : 'Vừa xong';
+                      <View style={styles.txDetailInfoRow}>
+                        <View style={styles.txDetailInfoLabelRow}>
+                          <FinanceIcon name="calendar" size={15} color={isDark ? themeColors.textMuted : '#64748B'} />
+                          <Text style={[styles.txDetailInfoLabel, isDark && { color: themeColors.textSecondary }]}>Thời gian</Text>
+                        </View>
+                        <Text style={[styles.txDetailInfoValue, isDark && { color: themeColors.textPrimary }]}>{dtStr}</Text>
+                      </View>
 
-                            const likeInfo = commentLikes[comment.id] || { count: 0, liked: false };
+                      <View style={styles.txDetailInfoRow}>
+                        <View style={styles.txDetailInfoLabelRow}>
+                          <FinanceIcon name="user" size={15} color={isDark ? themeColors.textMuted : '#64748B'} />
+                          <Text style={[styles.txDetailInfoLabel, isDark && { color: themeColors.textSecondary }]}>Người nộp</Text>
+                        </View>
+                        <View style={styles.txDetailPayerRow}>
+                          <View style={[styles.txDetailSmallAvatar, isDark && { backgroundColor: 'rgba(56, 189, 248, 0.18)' }]}>
+                            <Text style={[styles.txDetailSmallAvatarText, isDark && { color: '#38BDF8' }]}>
+                              {contributor.slice(0, 1).toUpperCase()}
+                            </Text>
+                          </View>
+                          <Text style={[styles.txDetailPayerName, isDark && { color: themeColors.textPrimary }]}>{contributor}</Text>
+                        </View>
+                      </View>
 
-                            return (
-                              <View key={comment.id} style={[styles.commentMockCard, parent ? { marginLeft: 28 } : null]}>
-                                <View style={styles.commentMockHeader}>
-                                  <View style={styles.commentMockAvatar}>
-                                    {avatarUri ? (
-                                      <Image source={{ uri: avatarUri }} style={styles.commentMockAvatarImg} />
-                                    ) : (
-                                      <Text style={styles.commentMockAvatarText}>
-                                        {actualAuthorName.slice(0, 1).toUpperCase()}
-                                      </Text>
-                                    )}
+                      {c.note ? (
+                        <View
+                          style={[
+                            styles.txDetailNotesBox,
+                            isDark && { backgroundColor: themeColors.surfaceSubtle },
+                          ]}
+                        >
+                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+                            <FinanceIcon name="edit" size={14} color={isDark ? themeColors.textMuted : '#64748B'} />
+                            <Text style={[styles.txDetailNotesLabel, isDark && { color: themeColors.textSecondary }]}>Ghi chú</Text>
+                          </View>
+                          <Text style={[styles.txDetailNotesText, isDark && { color: themeColors.textPrimary }]}>{c.note}</Text>
+                        </View>
+                      ) : null}
+                    </View>
+                  </View>
+
+                  {/* CARD 2: BÌNH LUẬN NỘP QUỸ */}
+                  <View style={styles.txCommentSection}>
+                    <Text style={[styles.txCommentSectionTitle, isDark && { color: themeColors.textPrimary }]}>
+                      Bình luận ({comments.length})
+                    </Text>
+
+                    <View style={{ gap: 10 }}>
+                      {comments.length === 0 ? (
+                        <Text style={{ fontSize: 12, color: isDark ? themeColors.textMuted : '#94A3B8', fontStyle: 'italic', paddingVertical: 8 }}>
+                          Chưa có bình luận nào cho lần nộp quỹ này.
+                        </Text>
+                      ) : (
+                        comments.map((comment) => {
+                          const isMe = comment.userId === currentUser?.id;
+                          const memberInfo = members.find((m) => m.userId === comment.userId);
+                          const authorDisplayName = isMe
+                            ? 'Bạn'
+                            : (comment.user?.fullName || memberInfo?.user?.fullName || memberInfo?.nickname || comment.user?.username || 'Thành viên');
+                          const actualAuthorName = comment.user?.fullName || memberInfo?.user?.fullName || memberInfo?.nickname || comment.user?.username || 'Thành viên';
+                          const rawAvatar = comment.user?.avatarUrl || comment.user?.avatarKey || memberInfo?.user?.avatarUrl || (isMe ? currentUser?.avatarUrl : null);
+                          const avatarUri = rawAvatar ? userProfileApi.formatAvatarUrl(rawAvatar) : null;
+                          const parent = comment.parentCommentId ? comments.find((p) => p.id === comment.parentCommentId) : null;
+                          const parentActualName = parent?.user?.fullName || 'Thành viên';
+
+                          const timeStr = comment.createdAt
+                            ? formatMessengerDateDivider(comment.createdAt)
+                            : 'Vừa xong';
+
+                          const likeInfo = commentLikes[comment.id] || { count: 0, liked: false };
+
+                          return (
+                            <View
+                              key={comment.id}
+                              style={[
+                                styles.commentMockCard,
+                                isDark && {
+                                  backgroundColor: themeColors.surface,
+                                  borderColor: themeColors.cardBorder,
+                                },
+                                parent ? { marginLeft: 28 } : null,
+                              ]}
+                            >
+                              <View style={styles.commentMockHeader}>
+                                <View style={[styles.commentMockAvatar, isDark && { backgroundColor: themeColors.surfaceSubtle }]}>
+                                  {avatarUri ? (
+                                    <Image source={{ uri: avatarUri }} style={styles.commentMockAvatarImg} />
+                                  ) : (
+                                    <Text style={[styles.commentMockAvatarText, isDark && { color: themeColors.textSecondary }]}>
+                                      {actualAuthorName.slice(0, 1).toUpperCase()}
+                                    </Text>
+                                  )}
+                                </View>
+
+                                <View style={{ flex: 1 }}>
+                                  <View style={styles.commentAuthorRow}>
+                                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap', flex: 1 }}>
+                                      <Text style={[styles.commentMockAuthor, isDark && { color: themeColors.textPrimary }]}>{authorDisplayName}</Text>
+                                      <Text style={[styles.commentMockTimeDot, isDark && { color: themeColors.textMuted }]}>•</Text>
+                                      <Text style={[styles.commentMockTimeText, isDark && { color: themeColors.textMuted }]}>{timeStr}</Text>
+                                    </View>
+
+                                    <Pressable
+                                      onPress={(e) => {
+                                        const targetEl = e.currentTarget as any;
+                                        if (targetEl && targetEl.measureInWindow) {
+                                          targetEl.measureInWindow((x: number, y: number, width: number, height: number) => {
+                                            setCommentActionMenuTarget({ targetId: c.id, comment, anchor: { x, y, width, height } });
+                                          });
+                                        } else {
+                                          setCommentActionMenuTarget({ targetId: c.id, comment });
+                                        }
+                                      }}
+                                      hitSlop={8}
+                                      style={styles.commentMoreOptionBtn}
+                                    >
+                                      <Text style={[styles.commentMoreOptionIcon, isDark && { color: themeColors.textMuted }]}>⋮</Text>
+                                    </Pressable>
                                   </View>
 
-                                  <View style={{ flex: 1 }}>
-                                    <View style={styles.commentAuthorRow}>
-                                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap', flex: 1 }}>
-                                        <Text style={styles.commentMockAuthor}>{authorDisplayName}</Text>
-                                        <Text style={styles.commentMockTimeDot}>•</Text>
-                                        <Text style={styles.commentMockTimeText}>{timeStr}</Text>
-                                      </View>
+                                  <Text style={[styles.commentMockContent, isDark && { color: themeColors.textPrimary }]}>
+                                    {parent && (
+                                      <Text style={{ color: isDark ? themeColors.accentGreen : '#059669', fontWeight: '700' }}>
+                                        @{parentActualName}{' '}
+                                      </Text>
+                                    )}
+                                    {comment.content}
+                                  </Text>
 
-                                      <Pressable
-                                        onPress={(e) => {
-                                          const targetEl = e.currentTarget as any;
-                                          if (targetEl && targetEl.measureInWindow) {
-                                            targetEl.measureInWindow((x: number, y: number, width: number, height: number) => {
-                                              setCommentActionMenuTarget({ targetId: c.id, comment, anchor: { x, y, width, height } });
-                                            });
-                                          } else {
-                                            setCommentActionMenuTarget({ targetId: c.id, comment });
-                                          }
-                                        }}
-                                        hitSlop={8}
-                                        style={styles.commentMoreOptionBtn}
-                                      >
-                                        <Text style={styles.commentMoreOptionIcon}>⋮</Text>
-                                      </Pressable>
-                                    </View>
-
-                                    <Text style={styles.commentMockContent}>
-                                      {parent && (
-                                        <Text style={{ color: '#059669', fontWeight: '700' }}>
-                                          @{parentActualName}{' '}
-                                        </Text>
-                                      )}
-                                      {comment.content}
-                                    </Text>
-
-                                    <View style={styles.commentActionFooterRow}>
-                                      <Pressable
-                                        onPress={() => handleToggleLikeComment(comment.id)}
+                                  <View style={styles.commentActionFooterRow}>
+                                    <Pressable
+                                      onPress={() => handleToggleLikeComment(comment.id)}
+                                      style={[
+                                        styles.commentLikeBtn,
+                                        likeInfo.liked && styles.commentLikeBtnActive,
+                                      ]}
+                                      hitSlop={6}
+                                    >
+                                      <FinanceIcon
+                                        name="heart"
+                                        size={14}
+                                        color={likeInfo.liked ? '#E11D48' : (isDark ? themeColors.textMuted : '#64748B')}
+                                      />
+                                      <Text
                                         style={[
-                                          styles.commentLikeBtn,
-                                          likeInfo.liked && styles.commentLikeBtnActive,
+                                          styles.commentLikeCountText,
+                                          isDark && { color: themeColors.textSecondary },
+                                          likeInfo.liked && styles.commentLikeCountTextActive,
                                         ]}
-                                        hitSlop={6}
                                       >
-                                        <FinanceIcon
-                                          name="heart"
-                                          size={14}
-                                          color={likeInfo.liked ? '#E11D48' : '#64748B'}
-                                        />
-                                        <Text
-                                          style={[
-                                            styles.commentLikeCountText,
-                                            likeInfo.liked && styles.commentLikeCountTextActive,
-                                          ]}
-                                        >
-                                          {likeInfo.liked ? 'Đã thích' : 'Thích'}{likeInfo.count > 0 ? ` (${likeInfo.count})` : ''}
-                                        </Text>
-                                      </Pressable>
+                                        {likeInfo.liked ? 'Đã thích' : 'Thích'}{likeInfo.count > 0 ? ` (${likeInfo.count})` : ''}
+                                      </Text>
+                                    </Pressable>
 
-                                      <Pressable
-                                        onPress={() => {
-                                          setReplyingToCommentId((prev) => ({ ...prev, [c.id]: comment.id }));
-                                          setInlineCommentText((prev) => ({ ...prev, [c.id]: '' }));
-                                          setTimeout(() => {
-                                            detailTxScrollViewRef.current?.scrollToEnd({ animated: true });
-                                          }, 200);
-                                        }}
-                                        style={styles.commentReplyBtn}
-                                        hitSlop={6}
-                                      >
-                                        <Text style={styles.commentReplyBtnText}>Trả lời</Text>
-                                      </Pressable>
-                                    </View>
+                                    <Pressable
+                                      onPress={() => {
+                                        setReplyingToCommentId((prev) => ({ ...prev, [c.id]: comment.id }));
+                                        setInlineCommentText((prev) => ({ ...prev, [c.id]: '' }));
+                                        setTimeout(() => {
+                                          detailTxScrollViewRef.current?.scrollToEnd({ animated: true });
+                                        }, 200);
+                                      }}
+                                      style={styles.commentReplyBtn}
+                                      hitSlop={6}
+                                    >
+                                      <Text style={[styles.commentReplyBtnText, isDark && { color: themeColors.textSecondary }]}>Trả lời</Text>
+                                    </Pressable>
                                   </View>
                                 </View>
                               </View>
-                            );
-                          })
-                        )}
-                      </View>
+                            </View>
+                          );
+                        })
+                      )}
                     </View>
-                  </ScrollView>
-                );
-              })()}
+                  </View>
+                </ScrollView>
+              );
+            })()}
 
-              {/* Khung chat bình luận nộp quỹ */}
-              {viewingContribution && (
+            {/* Khung chat bình luận nộp quỹ */}
+            {viewingContribution && (
+              <View
+                style={[
+                  styles.detailTxBottomInputBar,
+                  isDark && {
+                    backgroundColor: themeColors.surface,
+                    borderTopColor: themeColors.cardBorder,
+                  },
+                  {
+                    bottom: Platform.OS === 'ios' ? keyboardHeight : 0,
+                    paddingBottom: (Platform.OS === 'ios' && keyboardHeight > 0) ? 10 : Math.max(insets.bottom, 12),
+                  },
+                ]}
+              >
+                {replyingToCommentId[viewingContribution.id] && (() => {
+                  const currentFundComments = commentsByTarget[viewingContribution.id] || [];
+                  const replyingCmt = currentFundComments.find((c) => c && c.id === replyingToCommentId[viewingContribution.id]);
+                  const repMember = (replyingCmt && members) ? members.find((m) => m && m.userId === replyingCmt.userId) : null;
+                  const repName = replyingCmt?.userId === currentUser?.id
+                    ? (currentUser?.fullName || currentUser?.username || 'bạn')
+                    : (replyingCmt?.user?.fullName || repMember?.user?.fullName || repMember?.nickname || replyingCmt?.user?.username || 'thành viên');
+
+                  return (
+                    <View style={styles.replyingNoticeBar}>
+                      <Text style={[styles.replyingNoticeText, isDark && { color: themeColors.accentGreen }]}>
+                        Đang trả lời <Text style={{ fontWeight: '800', color: isDark ? themeColors.accentGreen : '#059669' }}>@{repName}</Text>
+                      </Text>
+                      <Pressable
+                        onPress={() => {
+                          setReplyingToCommentId((prev) => ({ ...prev, [viewingContribution.id]: null }));
+                          setInlineCommentText((prev) => ({ ...prev, [viewingContribution.id]: '' }));
+                        }}
+                        hitSlop={8}
+                      >
+                        <Text style={styles.replyingCancelText}>✕ Hủy</Text>
+                      </Pressable>
+                    </View>
+                  );
+                })()}
                 <View
                   style={[
-                    styles.detailTxBottomInputBar,
-                    {
-                      bottom: keyboardHeight,
-                      paddingBottom: keyboardHeight > 0 ? 10 : Math.max(insets.bottom, 12),
+                    styles.detailTxInputWrapper,
+                    isDark && {
+                      backgroundColor: themeColors.surfaceSubtle,
+                      borderColor: themeColors.cardBorder,
                     },
                   ]}
                 >
-                  <View style={styles.detailTxInputWrapper}>
-                    <TextInput
-                      style={styles.detailTxTextInput}
-                      placeholder={replyingToCommentId[viewingContribution.id] ? 'Viết câu trả lời...' : 'Viết bình luận nộp quỹ...'}
-                      placeholderTextColor="#94A3B8"
-                      value={inlineCommentText[viewingContribution.id] || ''}
-                      onChangeText={(val) =>
-                        setInlineCommentText((prev) => ({ ...prev, [viewingContribution.id]: val }))
-                      }
-                      onFocus={() => {
-                        setTimeout(() => {
-                          detailTxScrollViewRef.current?.scrollToEnd({ animated: true });
-                        }, 250);
-                      }}
-                    />
-                    <Pressable
-                      onPress={() => handleSendComment(viewingContribution.id, 'FUND_CONTRIBUTION')}
-                      style={styles.detailTxSendBtn}
-                    >
-                      <FinanceIcon name="send" size={16} color="#FFFFFF" />
-                    </Pressable>
-                  </View>
+                  <TextInput
+                    style={[
+                      styles.detailTxTextInput,
+                      isDark && { color: themeColors.textPrimary },
+                    ]}
+                    placeholder={replyingToCommentId[viewingContribution.id] ? 'Viết câu trả lời...' : 'Viết bình luận nộp quỹ...'}
+                    placeholderTextColor={isDark ? '#64748B' : '#94A3B8'}
+                    value={inlineCommentText[viewingContribution.id] || ''}
+                    onChangeText={(val) =>
+                      setInlineCommentText((prev) => ({ ...prev, [viewingContribution.id]: val }))
+                    }
+                    onFocus={() => {
+                      setTimeout(() => {
+                        detailTxScrollViewRef.current?.scrollToEnd({ animated: true });
+                      }, 250);
+                    }}
+                  />
+                  <Pressable
+                    onPress={() => handleSendComment(viewingContribution.id, 'FUND_CONTRIBUTION')}
+                    style={[
+                      styles.detailTxSendBtn,
+                      isDark && { backgroundColor: '#10B981' },
+                    ]}
+                  >
+                    <FinanceIcon name="send" size={16} color="#FFFFFF" />
+                  </Pressable>
                 </View>
-              )}
-            </View>
-          </KeyboardAvoidingView>
+              </View>
+            )}
+          </View>
         </View>
       </Modal>
         {/* Modal Xem cảm xúc về tin nhắn (Reactions Modal chuẩn Web) */}
         <Modal visible={!!viewingReactionModalMessage} transparent animationType="fade">
           <View style={styles.reactionModalOverlay}>
-            <View style={styles.reactionModalSheet}>
-              <View style={styles.reactionModalHeader}>
-                <Text style={styles.reactionModalTitle}>Cảm xúc về tin nhắn</Text>
+            <View
+              style={[
+                styles.reactionModalSheet,
+                isDark && {
+                  backgroundColor: themeColors.surface,
+                  borderColor: themeColors.cardBorder,
+                },
+              ]}
+            >
+              <View style={[styles.reactionModalHeader, isDark && { borderBottomColor: themeColors.cardBorder }]}>
+                <Text style={[styles.reactionModalTitle, isDark && { color: themeColors.textPrimary }]}>Cảm xúc về tin nhắn</Text>
                 <Pressable onPress={() => setViewingReactionModalMessage(null)} hitSlop={10}>
-                  <FinanceIcon name="close" size={18} color="#475569" />
+                  <FinanceIcon name="close" size={18} color={isDark ? themeColors.textMuted : '#475569'} />
                 </Pressable>
               </View>
 
@@ -4499,12 +5500,27 @@ export function GroupScreen({
 
                 return (
                   <>
-                    <View style={styles.reactionModalTabsRow}>
+                    <View style={[styles.reactionModalTabsRow, isDark && { borderBottomColor: themeColors.cardBorder }]}>
                       <Pressable
                         onPress={() => setReactionModalTab('ALL')}
-                        style={[styles.reactionModalTabItem, reactionModalTab === 'ALL' && styles.reactionModalTabItemActive]}
+                        style={[
+                          styles.reactionModalTabItem,
+                          reactionModalTab === 'ALL' && [
+                            styles.reactionModalTabItemActive,
+                            isDark && { borderBottomColor: themeColors.accentGreen },
+                          ],
+                        ]}
                       >
-                        <Text style={[styles.reactionModalTabText, reactionModalTab === 'ALL' && styles.reactionModalTabTextActive]}>
+                        <Text
+                          style={[
+                            styles.reactionModalTabText,
+                            isDark && { color: themeColors.textSecondary },
+                            reactionModalTab === 'ALL' && [
+                              styles.reactionModalTabTextActive,
+                              isDark && { color: themeColors.accentGreen },
+                            ],
+                          ]}
+                        >
                           Tất cả ({reactionsList.length})
                         </Text>
                       </Pressable>
@@ -4514,7 +5530,13 @@ export function GroupScreen({
                           <Pressable
                             key={emoji}
                             onPress={() => setReactionModalTab(emoji)}
-                            style={[styles.reactionModalTabItem, reactionModalTab === emoji && styles.reactionModalTabItemActive]}
+                            style={[
+                              styles.reactionModalTabItem,
+                              reactionModalTab === emoji && [
+                                styles.reactionModalTabItemActive,
+                                isDark && { borderBottomColor: themeColors.accentGreen },
+                              ],
+                            ]}
                           >
                             <Text style={styles.reactionModalTabEmojiText}>{emoji} {count}</Text>
                           </Pressable>
@@ -4542,17 +5564,22 @@ export function GroupScreen({
                                 handleToggleReaction(viewingReactionModalMessage.id, r.reaction);
                               }
                             }}
-                            style={styles.reactionModalUserRow}
+                            style={[
+                              styles.reactionModalUserRow,
+                              isDark && { borderBottomColor: themeColors.divider },
+                            ]}
                           >
                             <View style={styles.reactionModalUserLeft}>
-                              <View style={styles.reactionModalAvatarBox}>
+                              <View style={[styles.reactionModalAvatarBox, isDark && { backgroundColor: themeColors.surfaceSubtle }]}>
                                 {avatarSrc ? (
                                   <Image source={{ uri: avatarSrc }} style={styles.reactionModalAvatarImg} />
                                 ) : (
-                                  <Text style={styles.reactionModalAvatarInitial}>{displayName.slice(0, 1).toUpperCase()}</Text>
+                                  <Text style={[styles.reactionModalAvatarInitial, isDark && { color: themeColors.textSecondary }]}>
+                                    {displayName.slice(0, 1).toUpperCase()}
+                                  </Text>
                                 )}
                               </View>
-                              <Text style={styles.reactionModalUserName}>{displayName}</Text>
+                              <Text style={[styles.reactionModalUserName, isDark && { color: themeColors.textPrimary }]}>{displayName}</Text>
                             </View>
                             <Text style={{ fontSize: 20 }}>{r.reaction}</Text>
                           </Pressable>
@@ -4748,47 +5775,110 @@ export function GroupScreen({
   }
 
   return (
-    <View style={styles.screen}>
-      <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
+    <View style={[styles.screen, isDark && { backgroundColor: themeColors.background }]}>
+      <StatusBar
+        barStyle={isDark ? 'light-content' : 'dark-content'}
+        backgroundColor={isDark ? themeColors.surface : '#FFFFFF'}
+      />
       {/* ── 1. HEADER NỀN TRẮNG THANH LỊCH ĐỒNG BỘ ── */}
-      <View style={[styles.header, { paddingTop: Math.max(insets.top, 12) + 4 }]}>
+      <View
+        style={[
+          styles.header,
+          {
+            paddingTop: Math.max(insets.top, 12) + 4,
+            backgroundColor: isDark ? themeColors.surface : '#FFFFFF',
+            borderBottomColor: isDark ? themeColors.cardBorder : '#F1F5F9',
+          },
+        ]}
+      >
         <View style={styles.headerLeft}>
-          <Text style={styles.headerTitle}>Quản lý nhóm</Text>
+          <Text style={[styles.headerTitle, isDark && { color: themeColors.textPrimary }]}>Quản lý nhóm</Text>
         </View>
         <Pressable
           onPress={() => setCreateModalVisible(true)}
-          style={({ pressed }) => [styles.createGroupBtn, pressed && styles.pressed]}
+          style={({ pressed }) => [
+            styles.createGroupBtn,
+            isDark && {
+              backgroundColor: 'rgba(52, 211, 153, 0.15)',
+              borderColor: 'rgba(52, 211, 153, 0.3)',
+            },
+            pressed && styles.pressed,
+          ]}
         >
-          <FinanceIcon name="plus" size={16} color="#047857" />
-          <Text style={styles.createGroupBtnText}>Tạo nhóm</Text>
+          <FinanceIcon name="plus" size={16} color={isDark ? themeColors.accentGreen : '#047857'} />
+          <Text style={[styles.createGroupBtnText, isDark && { color: themeColors.accentGreen }]}>Tạo nhóm</Text>
         </Pressable>
       </View>
 
       {/* ── 2. FILTER PILLS (Tất cả (5), Của tôi (3), Đã tham gia (2)) CHUẨN DESIGN ── */}
-      <View style={styles.filterPillsRow}>
+      <View
+        style={[
+          styles.filterPillsRow,
+          isDark && { backgroundColor: themeColors.background },
+        ]}
+      >
         <Pressable
           onPress={() => setActiveFilterTab('ALL')}
-          style={[styles.filterPill, activeFilterTab === 'ALL' && styles.filterPillActive]}
+          style={[
+            styles.filterPill,
+            isDark && {
+              backgroundColor: themeColors.surface,
+              borderColor: themeColors.cardBorder,
+            },
+            activeFilterTab === 'ALL' && (isDark ? { backgroundColor: '#10B981', borderColor: '#10B981' } : styles.filterPillActive),
+          ]}
         >
-          <Text style={[styles.filterPillText, activeFilterTab === 'ALL' && styles.filterPillTextActive]}>
+          <Text
+            style={[
+              styles.filterPillText,
+              isDark && { color: themeColors.textSecondary },
+              activeFilterTab === 'ALL' && (isDark ? { color: '#FFFFFF', fontWeight: '800' } : styles.filterPillTextActive),
+            ]}
+          >
             Tất cả ({groups.length})
           </Text>
         </Pressable>
 
         <Pressable
           onPress={() => setActiveFilterTab('MY_GROUPS')}
-          style={[styles.filterPill, activeFilterTab === 'MY_GROUPS' && styles.filterPillActive]}
+          style={[
+            styles.filterPill,
+            isDark && {
+              backgroundColor: themeColors.surface,
+              borderColor: themeColors.cardBorder,
+            },
+            activeFilterTab === 'MY_GROUPS' && (isDark ? { backgroundColor: '#10B981', borderColor: '#10B981' } : styles.filterPillActive),
+          ]}
         >
-          <Text style={[styles.filterPillText, activeFilterTab === 'MY_GROUPS' && styles.filterPillTextActive]}>
+          <Text
+            style={[
+              styles.filterPillText,
+              isDark && { color: themeColors.textSecondary },
+              activeFilterTab === 'MY_GROUPS' && (isDark ? { color: '#FFFFFF', fontWeight: '800' } : styles.filterPillTextActive),
+            ]}
+          >
             Của tôi ({myGroupsCount})
           </Text>
         </Pressable>
 
         <Pressable
           onPress={() => setActiveFilterTab('JOINED')}
-          style={[styles.filterPill, activeFilterTab === 'JOINED' && styles.filterPillActive]}
+          style={[
+            styles.filterPill,
+            isDark && {
+              backgroundColor: themeColors.surface,
+              borderColor: themeColors.cardBorder,
+            },
+            activeFilterTab === 'JOINED' && (isDark ? { backgroundColor: '#10B981', borderColor: '#10B981' } : styles.filterPillActive),
+          ]}
         >
-          <Text style={[styles.filterPillText, activeFilterTab === 'JOINED' && styles.filterPillTextActive]}>
+          <Text
+            style={[
+              styles.filterPillText,
+              isDark && { color: themeColors.textSecondary },
+              activeFilterTab === 'JOINED' && (isDark ? { color: '#FFFFFF', fontWeight: '800' } : styles.filterPillTextActive),
+            ]}
+          >
             Đã tham gia ({joinedGroupsCount})
           </Text>
         </Pressable>
@@ -4798,13 +5888,21 @@ export function GroupScreen({
       {loading ? (
         <View style={styles.centerLoading}>
           <ActivityIndicator size="large" color="#00A86B" />
-          <Text style={styles.centerLoadingText}>Đang nạp danh sách nhóm...</Text>
+          <Text style={[styles.centerLoadingText, isDark && { color: themeColors.textSecondary }]}>Đang nạp danh sách nhóm...</Text>
         </View>
       ) : filteredGroups.length === 0 ? (
-        <View style={styles.emptyContainer}>
+        <View
+          style={[
+            styles.emptyContainer,
+            isDark && {
+              backgroundColor: themeColors.surface,
+              borderColor: themeColors.cardBorder,
+            },
+          ]}
+        >
           <Text style={styles.emptyEmoji}>👥</Text>
-          <Text style={styles.emptyTitle}>Chưa có nhóm nào trong mục này</Text>
-          <Text style={styles.emptySub}>
+          <Text style={[styles.emptyTitle, isDark && { color: themeColors.textPrimary }]}>Chưa có nhóm nào trong mục này</Text>
+          <Text style={[styles.emptySub, isDark && { color: themeColors.textSecondary }]}>
             Tạo nhóm cho gia đình, hội bạn thân hoặc chuyến du lịch để tự động chia tiền sòng phẳng.
           </Text>
           <Pressable onPress={() => setCreateModalVisible(true)} style={styles.emptyActionBtn}>
@@ -4833,10 +5931,25 @@ export function GroupScreen({
             return (
               <Pressable
                 onPress={() => handleOpenGroupDetail(item)}
-                style={({ pressed }) => [styles.modernChatGroupCard, pressed && styles.cardPressed]}
+                style={({ pressed }) => [
+                  styles.modernChatGroupCard,
+                  isDark && {
+                    backgroundColor: themeColors.surface,
+                    borderColor: themeColors.cardBorder,
+                  },
+                  pressed && styles.cardPressed,
+                ]}
               >
                 {/* Avatar Icon tròn lớn 3D bên trái */}
-                <View style={styles.modernGroupAvatar}>
+                <View
+                  style={[
+                    styles.modernGroupAvatar,
+                    isDark && {
+                      backgroundColor: themeColors.surfaceSubtle,
+                      borderColor: themeColors.cardBorder,
+                    },
+                  ]}
+                >
                   {typeInfo.imageSource ? (
                     <Image
                       source={typeInfo.imageSource}
@@ -4853,24 +5966,52 @@ export function GroupScreen({
                   {/* Hàng 1: Tên nhóm + Thời gian */}
                   <View style={styles.modernGroupHeaderLine}>
                     <View style={styles.modernGroupNameWrap}>
-                      <Text style={styles.modernGroupName} numberOfLines={1}>
+                      <Text
+                        style={[
+                          styles.modernGroupName,
+                          isDark && { color: themeColors.textPrimary },
+                        ]}
+                        numberOfLines={1}
+                      >
                         {item.name}
                       </Text>
                     </View>
 
-                    <Text style={styles.modernLastTimeText}>
+                    <Text
+                      style={[
+                        styles.modernLastTimeText,
+                        isDark && { color: themeColors.textMuted },
+                      ]}
+                    >
                       {lastMsg?.time || 'Hôm nay'}
                     </Text>
                   </View>
 
                   {/* Hàng 2: Số thành viên • Tag loại nhóm */}
                   <View style={styles.modernSublineRow}>
-                    <Text style={styles.modernMemberCountText}>
+                    <Text
+                      style={[
+                        styles.modernMemberCountText,
+                        isDark && { color: themeColors.textSecondary },
+                      ]}
+                    >
                       {item.memberCount || 1} thành viên
                     </Text>
-                    <Text style={styles.modernDotSep}>•</Text>
-                    <View style={[styles.modernTypeBadgePill, { backgroundColor: typeInfo.bg }]}>
-                      <Text style={[styles.modernTypeBadgeText, { color: typeInfo.color }]}>
+                    <Text style={[styles.modernDotSep, isDark && { color: themeColors.textMuted }]}>•</Text>
+                    <View
+                      style={[
+                        styles.modernTypeBadgePill,
+                        {
+                          backgroundColor: isDark ? 'rgba(52, 211, 153, 0.15)' : typeInfo.bg,
+                        },
+                      ]}
+                    >
+                      <Text
+                        style={[
+                          styles.modernTypeBadgeText,
+                          { color: isDark ? themeColors.accentGreen : typeInfo.color },
+                        ]}
+                      >
                         {typeInfo.label}
                       </Text>
                     </View>
@@ -4878,7 +6019,13 @@ export function GroupScreen({
 
                   {/* Hàng 3: Tin nhắn chat gần nhất + Badge tin nhắn chưa đọc màu xanh */}
                   <View style={styles.modernLastMsgRow}>
-                    <Text style={styles.modernLastMsgText} numberOfLines={1}>
+                    <Text
+                      style={[
+                        styles.modernLastMsgText,
+                        isDark && { color: themeColors.textSecondary },
+                      ]}
+                      numberOfLines={1}
+                    >
                       {lastMsg?.senderName ? `${lastMsg.senderName}: ` : ''}
                       {lastMsg?.content || item.description || 'Chạm để xem chi tiêu và tin nhắn'}
                     </Text>
@@ -4904,17 +6051,26 @@ export function GroupScreen({
           keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
         >
           <Pressable style={styles.modalBackdrop} onPress={() => setCreateModalVisible(false)} />
-          <View style={[styles.inputModalSheet, { maxHeight: '78%' }]}>
+          <View
+            style={[
+              styles.inputModalSheet,
+              { maxHeight: '78%' },
+              isDark && {
+                backgroundColor: themeColors.surface,
+                borderColor: themeColors.cardBorder,
+              },
+            ]}
+          >
             {/* Thanh kéo trang trí drag-bar nhỏ mềm mại */}
-            <View style={styles.modalDragBar} />
+            <View style={[styles.modalDragBar, isDark && { backgroundColor: themeColors.cardBorder }]} />
 
-            <View style={styles.inputModalHeader}>
+            <View style={[styles.inputModalHeader, isDark && { borderBottomColor: themeColors.cardBorder }]}>
               <View>
-                <Text style={styles.inputModalTitle}>Tạo nhóm tài chính mới</Text>
-                <Text style={styles.inputModalSubtitle}>Quản lý thu chi chung cùng người thân, bạn bè</Text>
+                <Text style={[styles.inputModalTitle, isDark && { color: themeColors.textPrimary }]}>Tạo nhóm tài chính mới</Text>
+                <Text style={[styles.inputModalSubtitle, isDark && { color: themeColors.textSecondary }]}>Quản lý thu chi chung cùng người thân, bạn bè</Text>
               </View>
               <Pressable onPress={() => setCreateModalVisible(false)} hitSlop={10} style={styles.modalCloseBtn}>
-                <FinanceIcon name="close" size={18} color="#64748B" />
+                <FinanceIcon name="close" size={18} color={isDark ? themeColors.textSecondary : '#64748B'} />
               </Pressable>
             </View>
 
@@ -4924,19 +6080,26 @@ export function GroupScreen({
               keyboardShouldPersistTaps="handled"
               contentContainerStyle={{ paddingBottom: 32 }}
             >
-              <Text style={styles.inputLabel}>Tên nhóm *</Text>
+              <Text style={[styles.inputLabel, isDark && { color: themeColors.textSecondary }]}>Tên nhóm *</Text>
               <TextInput
                 value={newGroupName}
                 onChangeText={setNewGroupName}
                 placeholder="Ví dụ: Gia đình nhỏ, Chuyến đi Đà Lạt..."
-                placeholderTextColor="#94A3B8"
-                style={styles.textInput}
+                placeholderTextColor={isDark ? '#64748B' : '#94A3B8'}
+                style={[
+                  styles.textInput,
+                  isDark && {
+                    backgroundColor: themeColors.surfaceSubtle,
+                    borderColor: themeColors.cardBorder,
+                    color: themeColors.textPrimary,
+                  },
+                ]}
                 onFocus={() => {
                   createScrollViewRef.current?.scrollTo({ y: 0, animated: true });
                 }}
               />
 
-              <Text style={styles.inputLabel}>Loại nhóm *</Text>
+              <Text style={[styles.inputLabel, isDark && { color: themeColors.textSecondary }]}>Loại nhóm *</Text>
               <View style={styles.typeGridRow}>
                 {(['FAMILY', 'ROOMMATE', 'TRAVEL', 'PROJECT', 'COUPLE'] as GroupType[]).map((t) => {
                   const info = GROUP_TYPE_MAP[t];
@@ -4945,7 +6108,14 @@ export function GroupScreen({
                     <Pressable
                       key={t}
                       onPress={() => setNewGroupType(t)}
-                      style={[styles.typeSelectCard, isSelected && styles.typeSelectCardActive]}
+                      style={[
+                        styles.typeSelectCard,
+                        isDark && {
+                          backgroundColor: themeColors.surfaceSubtle,
+                          borderColor: themeColors.cardBorder,
+                        },
+                        isSelected && (isDark ? { backgroundColor: 'rgba(52, 211, 153, 0.16)', borderColor: themeColors.accentGreen } : styles.typeSelectCardActive),
+                      ]}
                     >
                       {info.imageSource ? (
                         <Image
@@ -4954,12 +6124,20 @@ export function GroupScreen({
                           resizeMode="contain"
                         />
                       ) : (
-                        <FinanceIcon name={info.iconName} size={24} color={isSelected ? '#006747' : '#64748B'} />
+                        <FinanceIcon
+                          name={info.iconName}
+                          size={24}
+                          color={isSelected ? (isDark ? themeColors.accentGreen : '#006747') : (isDark ? themeColors.textMuted : '#64748B')}
+                        />
                       )}
                       <Text
                         style={[
                           styles.typeSelectCardText,
-                          isSelected && styles.typeSelectCardTextActive,
+                          isDark && { color: themeColors.textSecondary },
+                          isSelected && [
+                            styles.typeSelectCardTextActive,
+                            isDark && { color: themeColors.accentGreen },
+                          ],
                         ]}
                       >
                         {info.label}
@@ -4969,13 +6147,20 @@ export function GroupScreen({
                 })}
               </View>
 
-              <Text style={styles.inputLabel}>Mô tả nhóm (Tùy chọn)</Text>
+              <Text style={[styles.inputLabel, isDark && { color: themeColors.textSecondary }]}>Mô tả nhóm (Tùy chọn)</Text>
               <TextInput
                 value={newGroupDesc}
                 onChangeText={setNewGroupDesc}
                 placeholder="Mục đích chi tiêu, quỹ ăn uống..."
-                placeholderTextColor="#94A3B8"
-                style={styles.textInput}
+                placeholderTextColor={isDark ? '#64748B' : '#94A3B8'}
+                style={[
+                  styles.textInput,
+                  isDark && {
+                    backgroundColor: themeColors.surfaceSubtle,
+                    borderColor: themeColors.cardBorder,
+                    color: themeColors.textPrimary,
+                  },
+                ]}
                 onFocus={() => {
                   setTimeout(() => {
                     createScrollViewRef.current?.scrollTo({ y: 220, animated: true });
@@ -5126,3873 +6311,3 @@ export function GroupScreen({
   );
 }
 
-const styles = StyleSheet.create({
-  screen: {
-    flex: 1,
-    backgroundColor: '#F8FAFC',
-  },
-  /* ── 2. FILTER PILLS STYLE (TẤT CẢ, CỦA TÔI, ĐÃ THAM GIA) ── */
-  filterPillsRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    gap: 10,
-    backgroundColor: '#F8FAFC',
-  },
-  filterPill: {
-    paddingHorizontal: 16,
-    paddingVertical: 9,
-    borderRadius: 22,
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.03,
-    shadowRadius: 2,
-    elevation: 1,
-  },
-  filterPillActive: {
-    backgroundColor: '#00A86B',
-    borderColor: '#00A86B',
-  },
-  filterPillText: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#475569',
-  },
-  filterPillTextActive: {
-    color: '#FFFFFF',
-    fontWeight: '800',
-  },
-
-  /* ── CARD DANH SÁCH NHÓM CHUẨN DESIGN MỚI ── */
-  modernChatGroupCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#FFFFFF',
-    borderRadius: 24,
-    padding: 14,
-    borderWidth: 1,
-    borderColor: '#F1F5F9',
-    shadowColor: '#0F172A',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.04,
-    shadowRadius: 8,
-    elevation: 2,
-    gap: 14,
-  },
-  modernGroupAvatar: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    alignItems: 'center',
-    justifyContent: 'center',
-    overflow: 'hidden',
-  },
-  modernGroupAvatarImg: {
-    width: '100%',
-    height: '100%',
-  },
-  modernGroupInfoCenter: {
-    flex: 1,
-  },
-  modernGroupHeaderLine: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 4,
-  },
-  modernGroupNameWrap: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 7,
-    flex: 1,
-    marginRight: 8,
-  },
-  modernGroupName: {
-    fontSize: 15.5,
-    fontWeight: '800',
-    color: '#0F172A',
-    flexShrink: 1,
-  },
-  modernLastTimeText: {
-    fontSize: 11.5,
-    fontWeight: '600',
-    color: '#64748B',
-  },
-  modernSublineRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    marginBottom: 6,
-  },
-  modernMemberCountText: {
-    fontSize: 12,
-    color: '#64748B',
-    fontWeight: '500',
-  },
-  modernDotSep: {
-    fontSize: 12,
-    color: '#94A3B8',
-  },
-  modernTypeBadgePill: {
-    paddingHorizontal: 9,
-    paddingVertical: 2,
-    borderRadius: 12,
-  },
-  modernTypeBadgeText: {
-    fontSize: 10.5,
-    fontWeight: '700',
-  },
-  modernLastMsgRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: 8,
-  },
-  modernLastMsgText: {
-    fontSize: 12.5,
-    color: '#475569',
-    flex: 1,
-  },
-  modernUnreadBadge: {
-    backgroundColor: '#00A86B',
-    borderRadius: 10,
-    minWidth: 20,
-    height: 20,
-    paddingHorizontal: 6,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  modernUnreadBadgeText: {
-    color: '#FFFFFF',
-    fontSize: 11,
-    fontWeight: '800',
-  },
-
-  header: {
-    backgroundColor: '#FFFFFF',
-    paddingHorizontal: 16,
-    paddingBottom: 14,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    borderBottomWidth: 1,
-    borderBottomColor: '#F1F5F9',
-  },
-  headerLeft: {
-    flex: 1,
-    marginRight: 10,
-  },
-  headerTitle: {
-    color: '#0F172A',
-    fontSize: 20,
-    fontWeight: '700',
-  },
-  headerSub: {
-    color: '#64748B',
-    fontSize: 12,
-    marginTop: 2,
-    fontWeight: '500',
-  },
-  createGroupBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: '#ECFDF5',
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: '#A7F3D0',
-  },
-  createGroupBtnText: {
-    color: '#047857',
-    fontSize: 13,
-    fontWeight: '700',
-  },
-  smartShareBanner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#ECFDF5',
-    margin: 16,
-    marginBottom: 8,
-    padding: 14,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: '#A7F3D0',
-    gap: 12,
-  },
-  bannerIconBox: {
-    width: 36,
-    height: 36,
-    borderRadius: 12,
-    backgroundColor: '#FFFFFF',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  bannerIconText: {
-    fontSize: 18,
-  },
-  bannerTitle: {
-    fontSize: 13,
-    fontWeight: '800',
-    color: '#065F46',
-  },
-  bannerDesc: {
-    fontSize: 11,
-    color: '#047857',
-    marginTop: 2,
-    lineHeight: 16,
-  },
-  centerLoading: {
-    paddingVertical: 60,
-    alignItems: 'center',
-    gap: 10,
-  },
-  centerLoadingText: {
-    fontSize: 13,
-    color: '#64748B',
-    fontWeight: '500',
-  },
-  emptyContainer: {
-    padding: 40,
-    alignItems: 'center',
-    backgroundColor: '#FFFFFF',
-    margin: 16,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-  },
-  emptyEmoji: {
-    fontSize: 40,
-    marginBottom: 10,
-  },
-  emptyTitle: {
-    fontSize: 16,
-    fontWeight: '800',
-    color: '#0F172A',
-    marginBottom: 6,
-  },
-  emptySub: {
-    fontSize: 12,
-    color: '#64748B',
-    textAlign: 'center',
-    lineHeight: 18,
-    marginBottom: 16,
-  },
-  emptyActionBtn: {
-    backgroundColor: '#074838',
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 14,
-  },
-  emptyActionBtnText: {
-    color: '#FFFFFF',
-    fontSize: 13,
-    fontWeight: '700',
-  },
-  listContent: {
-    padding: 16,
-    paddingTop: 8,
-    gap: 14,
-  },
-  groupCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 20,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    shadowColor: '#000',
-    shadowOpacity: 0.04,
-    shadowRadius: 8,
-    elevation: 2,
-  },
-  cardPressed: {
-    opacity: 0.9,
-    transform: [{ scale: 0.99 }],
-  },
-  groupCardTop: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  groupCardTitleWrap: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    flex: 1,
-  },
-  typeIconBox: {
-    width: 44,
-    height: 44,
-    borderRadius: 14,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  typeEmoji: {
-    fontSize: 22,
-  },
-  groupName: {
-    fontSize: 15,
-    fontWeight: '800',
-    color: '#0F172A',
-    marginBottom: 4,
-  },
-  badgeRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  typeBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 2.5,
-    borderRadius: 6,
-  },
-  typeBadgeText: {
-    fontSize: 10.5,
-    fontWeight: '700',
-  },
-  memberCountBadge: {
-    fontSize: 11,
-    color: '#64748B',
-    fontWeight: '500',
-  },
-  chevronIcon: {
-    fontSize: 24,
-    color: '#94A3B8',
-    marginLeft: 6,
-  },
-  groupDesc: {
-    fontSize: 12,
-    color: '#64748B',
-    marginTop: 10,
-  },
-  cardDivider: {
-    height: 1,
-    backgroundColor: '#F1F5F9',
-    marginVertical: 12,
-  },
-  groupCardBottom: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  bottomLabel: {
-    fontSize: 11,
-    color: '#64748B',
-    marginBottom: 2,
-  },
-  totalExpText: {
-    fontSize: 15,
-    fontWeight: '900',
-    color: '#059669',
-  },
-  roleTag: {
-    backgroundColor: '#E0F2FE',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 6,
-  },
-  roleTagText: {
-    fontSize: 10.5,
-    fontWeight: '700',
-    color: '#0284C7',
-  },
-  /* ── CHI TIẾT NHÓM FULL SCREEN (HEADER MỚI THEO MẪU) ── */
-  detailScreenContainer: {
-    flex: 1,
-    backgroundColor: '#F8FAFC',
-  },
-  detailScreenHeaderModern: {
-    backgroundColor: '#FFFFFF',
-    paddingHorizontal: 16,
-    paddingBottom: 12,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    borderBottomWidth: 1,
-    borderBottomColor: '#F1F5F9',
-  },
-  detailModernBackBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: '#F1F5F9',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  detailModernBackArrow: {
-    fontSize: 26,
-    color: '#059669',
-    fontWeight: '700',
-    marginTop: -2,
-  },
-  detailModernHeaderCenter: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginHorizontal: 12,
-    gap: 10,
-  },
-  detailGroupHeaderIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-  },
-  detailModernTitle: {
-    fontSize: 16,
-    fontWeight: '800',
-    color: '#0F172A',
-  },
-  detailModernSub: {
-    fontSize: 11.5,
-    color: '#64748B',
-    marginTop: 1,
-  },
-  detailHeaderActionsRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  detailActionCircleBtn: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    backgroundColor: '#F1F5F9',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  detailScreenHeader: {
-    backgroundColor: '#074838',
-    paddingHorizontal: 16,
-    paddingBottom: 14,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  detailBackBtn: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    backgroundColor: 'rgba(255, 255, 255, 0.15)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  detailBackArrow: {
-    color: '#FFFFFF',
-    fontSize: 28,
-    lineHeight: 30,
-    fontWeight: '300',
-    marginTop: -2,
-  },
-  detailHeaderCenter: {
-    flex: 1,
-    alignItems: 'center',
-    marginHorizontal: 10,
-  },
-  detailScreenTitle: {
-    color: '#FFFFFF',
-    fontSize: 16.5,
-    fontWeight: '800',
-    textAlign: 'center',
-  },
-  detailScreenSub: {
-    color: 'rgba(255, 255, 255, 0.8)',
-    fontSize: 11.5,
-    marginTop: 2,
-    textAlign: 'center',
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.45)',
-    justifyContent: 'flex-end',
-  },
-  keyboardContainer: {
-    flex: 1,
-    justifyContent: 'flex-end',
-    backgroundColor: 'rgba(15, 23, 42, 0.45)',
-  },
-  modalBackdrop: {
-    ...StyleSheet.absoluteFillObject,
-  },
-  modalCloseBtn: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: '#F1F5F9',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  inputModalSubtitle: {
-    fontSize: 12,
-    color: '#64748B',
-    marginTop: 2,
-    fontWeight: '500',
-  },
-  /* ── TABS CHUẨN DESIGN THEO ẢNH MẪU ── */
-  tabsScrollWrapper: {
-    backgroundColor: '#FFFFFF',
-    borderBottomWidth: 1,
-    borderBottomColor: '#F1F5F9',
-  },
-  detailTabsScrollContent: {
-    paddingHorizontal: 8,
-    paddingVertical: 0,
-    gap: 4,
-  },
-  detailTabItemUnderline: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: 12,
-    paddingVertical: 12,
-    position: 'relative',
-  },
-  detailTabItemUnderlineActive: {},
-  detailTabItemTextClean: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#64748B',
-  },
-  detailTabItemTextCleanActive: {
-    color: '#0E964E',
-    fontWeight: '800',
-  },
-  detailActiveIndicatorLine: {
-    position: 'absolute',
-    bottom: 0,
-    left: 12,
-    right: 12,
-    height: 2.5,
-    backgroundColor: '#0E964E',
-    borderRadius: 2,
-  },
-  detailTabUnreadBadge: {
-    backgroundColor: '#EF4444',
-    borderRadius: 10,
-    minWidth: 18,
-    height: 18,
-    paddingHorizontal: 5,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginLeft: 2,
-  },
-  detailTabUnreadBadgeText: {
-    color: '#FFFFFF',
-    fontSize: 10,
-    fontWeight: '800',
-  },
-  detailTabsRow: {
-    flexDirection: 'row',
-    borderBottomWidth: 1,
-    borderBottomColor: '#F1F5F9',
-  },
-  detailTabItem: {
-    flex: 1,
-    paddingVertical: 12,
-    alignItems: 'center',
-    borderBottomWidth: 2,
-    borderBottomColor: 'transparent',
-  },
-  detailTabItemActive: {
-    borderBottomColor: '#074838',
-  },
-  detailTabItemText: {
-    fontSize: 12.5,
-    fontWeight: '700',
-    color: '#64748B',
-  },
-  detailTabItemTextActive: {
-    color: '#074838',
-  },
-  detailLoadingWrap: {
-    paddingVertical: 40,
-    alignItems: 'center',
-    gap: 8,
-  },
-  detailLoadingText: {
-    fontSize: 12.5,
-    color: '#64748B',
-  },
-  detailScrollContent: {
-    padding: 18,
-  },
-  /* ── THANH CHỌN THÁNG THEO MOCKUP THU & CHI ── */
-  monthPillRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  monthPillNavBtn: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: '#F1F5F9',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  /* ── THANH CHỌN BỘ LỌC (TẤT CẢ | THU | CHI) & BỘ CHỌN THÁNG THEO MẪU ── */
-  filterAndMonthHeaderRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: 8,
-  },
-  segmentedFilterContainer: {
-    flexDirection: 'row',
-    backgroundColor: '#F1F5F9',
-    borderRadius: 22,
-    padding: 3,
-  },
-  segmentedFilterBtn: {
-    paddingHorizontal: 14,
-    paddingVertical: 6,
-    borderRadius: 18,
-  },
-  segmentedFilterBtnActive: {
-    backgroundColor: '#0E964E',
-  },
-  segmentedFilterText: {
-    fontSize: 12.5,
-    fontWeight: '700',
-    color: '#64748B',
-  },
-  segmentedFilterTextActive: {
-    color: '#FFFFFF',
-  },
-  monthPillRowCompact: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  monthCompactNavBtn: {
-    width: 26,
-    height: 26,
-    borderRadius: 13,
-    backgroundColor: '#F1F5F9',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  monthCompactNavArrow: {
-    fontSize: 17,
-    fontWeight: '800',
-    color: '#059669',
-    lineHeight: 18,
-  },
-  monthPill: {
-    backgroundColor: '#FFFFFF',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 18,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.03,
-    shadowRadius: 2,
-    elevation: 1,
-  },
-  monthPillText: {
-    fontSize: 12.5,
-    fontWeight: '700',
-    color: '#1E293B',
-  },
-  /* Nút chọn tháng thả xuống chuẩn như tab Giao dịch / Ví */
-  monthDropdownPillBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: '#FFFFFF',
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.04,
-    shadowRadius: 3,
-    elevation: 1,
-  },
-  monthDropdownPillText: {
-    fontSize: 12.5,
-    fontWeight: '700',
-    color: '#1E293B',
-  },
-  monthDropdownChevron: {
-    fontSize: 13,
-    fontWeight: '800',
-    color: '#059669',
-    marginTop: -2,
-  },
-  /* Modal danh sách chọn tháng thả xuống (Bottom Sheet) */
-  modalSheet: {
-    backgroundColor: '#FFFFFF',
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    maxHeight: '65%',
-    paddingBottom: 26,
-  },
-  modalTopBar: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#F1F5F9',
-  },
-  modalTopTitle: {
-    fontSize: 16,
-    fontWeight: '800',
-    color: '#0F172A',
-  },
-  modalCloseText: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#00A86B',
-  },
-  monthOptionRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 14,
-    paddingHorizontal: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#F1F5F9',
-  },
-  monthOptionRowActive: {
-    backgroundColor: '#F0FDF4',
-    borderRadius: 12,
-  },
-  monthOptionLabel: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#1E293B',
-  },
-  monthOptionLabelActive: {
-    color: '#00A86B',
-    fontWeight: '800',
-  },
-  checkmarkIcon: {
-    fontSize: 16,
-    fontWeight: '900',
-    color: '#00A86B',
-  },
-  filterSquareBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 12,
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-
-  /* ── BẢNG TỔNG HỢP 3 THẺ: TỔNG THU - TỔNG CHI - CÒN LẠI ── */
-  summary3Container: {
-    gap: 8,
-  },
-  summaryTopRow: {
-    flexDirection: 'row',
-    gap: 10,
-  },
-  summaryBoxHalf: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 18,
-    padding: 12,
-    borderWidth: 1,
-    borderColor: '#F1F5F9',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.03,
-    shadowRadius: 3,
-    elevation: 1,
-  },
-  summaryArrowCircle: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  summaryBoxLabel: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: '#64748B',
-    marginBottom: 2,
-  },
-  summaryBoxIncomeValue: {
-    fontSize: 15,
-    fontWeight: '900',
-    color: '#0F172A',
-  },
-  summaryBoxExpenseValue: {
-    fontSize: 15,
-    fontWeight: '900',
-    color: '#C5221F',
-  },
-
-  /* ── DANH SÁCH GIAO DỊCH ── */
-  txSectionHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginTop: 6,
-  },
-  txSectionTitle: {
-    fontSize: 15.5,
-    fontWeight: '800',
-    color: '#0F172A',
-  },
-  dateGroupContainer: {
-    gap: 6,
-  },
-  dateBadgePill: {
-    alignSelf: 'flex-start',
-    backgroundColor: '#F1F5F9',
-    paddingHorizontal: 10,
-    paddingVertical: 3,
-    borderRadius: 12,
-    marginTop: 4,
-  },
-  dateBadgeText: {
-    fontSize: 11.5,
-    fontWeight: '700',
-    color: '#64748B',
-  },
-  txItemsListCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 18,
-    paddingHorizontal: 14,
-    paddingVertical: 4,
-    borderWidth: 1,
-    borderColor: '#F1F5F9',
-  },
-  unifiedTxItemRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 12,
-    gap: 12,
-  },
-  unifiedTxItemBorder: {
-    borderBottomWidth: 1,
-    borderBottomColor: '#F8FAFC',
-  },
-  unifiedTxIconCircle: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  unifiedTxTitle: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#0F172A',
-    marginBottom: 2,
-  },
-  unifiedTxSub: {
-    fontSize: 11.5,
-    color: '#94A3B8',
-  },
-  unifiedTxRightWrap: {
-    alignItems: 'flex-end',
-    gap: 4,
-  },
-  unifiedTxAmount: {
-    fontSize: 14.5,
-    fontWeight: '800',
-  },
-  unifiedTxAmountIncome: {
-    color: '#16A34A',
-  },
-  unifiedTxAmountExpense: {
-    color: '#E11D48',
-  },
-  commentCountBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 3,
-  },
-  commentCountText: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: '#64748B',
-  },
-  commentInlineDropdown: {
-    backgroundColor: '#F8FAFC',
-    borderRadius: 12,
-    padding: 10,
-    marginBottom: 10,
-    marginTop: -4,
-  },
-  commentTinyBubble: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 8,
-    padding: 6,
-    paddingHorizontal: 8,
-  },
-  commentTinyAuthor: {
-    fontSize: 10.5,
-    fontWeight: '700',
-    color: '#059669',
-  },
-  commentTinyContent: {
-    fontSize: 11.5,
-    color: '#334155',
-    marginTop: 1,
-  },
-  addTxFloatingFullBtn: {
-    backgroundColor: '#0E964E',
-    borderRadius: 24,
-    paddingVertical: 13,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    shadowColor: '#0E964E',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.25,
-    shadowRadius: 5,
-    elevation: 3,
-  },
-  addTxFloatingFullBtnText: {
-    color: '#FFFFFF',
-    fontSize: 14.5,
-    fontWeight: '800',
-  },
-  bottomStickyBar: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    backgroundColor: 'rgba(248, 250, 252, 0.95)',
-    paddingHorizontal: 18,
-    paddingTop: 10,
-    borderTopWidth: 1,
-    borderTopColor: '#E2E8F0',
-  },
-
-  /* ── CHI TIẾT GIAO DỊCH MODAL (CHUẨN ẢNH MẪU) ── */
-  detailTxModalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.45)',
-  },
-  detailTxModalContainer: {
-    flex: 1,
-    backgroundColor: '#F8FAFC',
-  },
-  detailTxHeaderRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingBottom: 12,
-    backgroundColor: '#FFFFFF',
-    borderBottomWidth: 1,
-    borderBottomColor: '#F1F5F9',
-  },
-  detailTxBackBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: '#F1F5F9',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  detailTxHeaderTitle: {
-    fontSize: 16,
-    fontWeight: '800',
-    color: '#0F172A',
-  },
-  detailTxOptionBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: '#F1F5F9',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  txDetailMainCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 20,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: '#F1F5F9',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.04,
-    shadowRadius: 6,
-    elevation: 2,
-  },
-  txDetailTopRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  txDetailMainTitle: {
-    flex: 1,
-    fontSize: 16,
-    fontWeight: '800',
-    color: '#0F172A',
-  },
-  txDetailMainAmount: {
-    fontSize: 17,
-    fontWeight: '900',
-    color: '#E11D48',
-  },
-  txDetailDivider: {
-    height: 1,
-    backgroundColor: '#F1F5F9',
-    marginVertical: 14,
-  },
-  txDetailInfoTable: {
-    gap: 12,
-  },
-  txDetailInfoRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  txDetailInfoLabelRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  txDetailInfoLabel: {
-    fontSize: 13,
-    color: '#64748B',
-    fontWeight: '600',
-  },
-  txDetailCategoryPill: {
-    backgroundColor: '#FDF2F8',
-    paddingHorizontal: 12,
-    paddingVertical: 4,
-    borderRadius: 12,
-  },
-  txDetailCategoryPillText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#DB2777',
-  },
-  txDetailInfoValue: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#0F172A',
-  },
-  txDetailPayerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  txDetailSmallAvatar: {
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    backgroundColor: '#DCFCE7',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  txDetailSmallAvatarText: {
-    fontSize: 11,
-    fontWeight: '800',
-    color: '#16A34A',
-  },
-  txDetailPayerName: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#0F172A',
-  },
-  txDetailNotesBox: {
-    backgroundColor: '#F8FAFC',
-    borderRadius: 12,
-    padding: 10,
-    marginTop: 4,
-  },
-  txDetailSourceBadge: {
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 10,
-    borderWidth: 1,
-  },
-  txDetailSourceBadgeText: {
-    fontSize: 12,
-    fontWeight: '800',
-  },
-  sourceFundCheckBadge: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    backgroundColor: '#DCFCE7',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  txDetailNotesLabel: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: '#64748B',
-  },
-  txDetailNotesText: {
-    fontSize: 12.5,
-    color: '#334155',
-    lineHeight: 18,
-  },
-  txSplitSection: {
-    gap: 10,
-  },
-  txSplitHeaderRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  txSplitSectionTitle: {
-    fontSize: 15,
-    fontWeight: '800',
-    color: '#0F172A',
-  },
-  txSplitMethodBadge: {
-    backgroundColor: '#ECFDF5',
-    paddingHorizontal: 10,
-    paddingVertical: 3,
-    borderRadius: 10,
-  },
-  txSplitMethodBadgeText: {
-    fontSize: 11.5,
-    fontWeight: '700',
-    color: '#059669',
-  },
-  txSplitListCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 18,
-    paddingHorizontal: 14,
-    borderWidth: 1,
-    borderColor: '#F1F5F9',
-  },
-  txSplitMemberRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 12,
-    gap: 10,
-  },
-  txSplitAvatarCircle: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: '#E0F2FE',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  txSplitAvatarText: {
-    fontSize: 12,
-    fontWeight: '800',
-    color: '#0284C7',
-  },
-  txSplitMemberName: {
-    flex: 1,
-    fontSize: 13.5,
-    fontWeight: '700',
-    color: '#0F172A',
-  },
-  txSplitAmount: {
-    fontSize: 13.5,
-    fontWeight: '800',
-    color: '#0F172A',
-    marginRight: 6,
-  },
-  txSplitCheckCircle: {
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    backgroundColor: '#16A34A',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  txCommentSection: {
-    gap: 10,
-  },
-  txCommentSectionTitle: {
-    fontSize: 15,
-    fontWeight: '800',
-    color: '#0F172A',
-  },
-  commentMockCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    padding: 12,
-    borderWidth: 1,
-    borderColor: '#F1F5F9',
-  },
-  commentMockHeader: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 10,
-  },
-  commentMockAvatar: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: '#FCE7F3',
-    alignItems: 'center',
-    justifyContent: 'center',
-    overflow: 'hidden',
-  },
-  commentMockAvatarImg: {
-    width: '100%',
-    height: '100%',
-    borderRadius: 18,
-  },
-  commentMockAvatarText: {
-    fontSize: 13,
-    fontWeight: '800',
-    color: '#DB2777',
-  },
-  commentAuthorRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 4,
-  },
-  commentMockAuthor: {
-    fontSize: 13,
-    fontWeight: '800',
-    color: '#0F172A',
-  },
-  commentMockTimeDot: {
-    fontSize: 11,
-    color: '#94A3B8',
-  },
-  commentMockTimeText: {
-    fontSize: 11,
-    color: '#64748B',
-    fontWeight: '500',
-  },
-  commentEditedTag: {
-    fontSize: 10.5,
-    color: '#94A3B8',
-    fontStyle: 'italic',
-  },
-  commentMoreOptionBtn: {
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-  },
-  commentMoreOptionIcon: {
-    fontSize: 16,
-    color: '#64748B',
-    fontWeight: '800',
-  },
-  /* Popover nổi ngay tại nút 3 chấm của bình luận */
-  commentPopoverMenu: {
-    position: 'absolute',
-    backgroundColor: '#FFFFFF',
-    borderRadius: 14,
-    paddingVertical: 4,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 10,
-    elevation: 8,
-    zIndex: 10000,
-  },
-  commentPopoverItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: '#F8FAFC',
-  },
-  commentPopoverText: {
-    fontSize: 12.5,
-    fontWeight: '700',
-    color: '#334155',
-  },
-  commentMockContent: {
-    fontSize: 13,
-    color: '#334155',
-    lineHeight: 18,
-    marginTop: 2,
-  },
-  commentActionFooterRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 16,
-    marginTop: 6,
-  },
-  commentLikeBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    paddingVertical: 2,
-    paddingHorizontal: 2,
-  },
-  commentLikeBtnActive: {
-    opacity: 1,
-  },
-  commentLikeCountText: {
-    fontSize: 11.5,
-    fontWeight: '700',
-    color: '#64748B',
-  },
-  commentLikeCountTextActive: {
-    color: '#E11D48',
-    fontWeight: '800',
-  },
-  commentReplyBtn: {
-    paddingVertical: 2,
-  },
-  commentReplyBtnText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#64748B',
-  },
-  replyingNoticeBar: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 8,
-    paddingBottom: 6,
-  },
-  replyingNoticeText: {
-    fontSize: 11.5,
-    fontWeight: '600',
-    color: '#059669',
-  },
-  replyingCancelText: {
-    fontSize: 11.5,
-    fontWeight: '700',
-    color: '#EF4444',
-  },
-  actionMenuModalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.4)',
-    justifyContent: 'flex-end',
-  },
-  actionMenuModalSheet: {
-    backgroundColor: '#FFFFFF',
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    padding: 16,
-    paddingBottom: 28,
-  },
-  actionMenuSheetTitle: {
-    fontSize: 13.5,
-    fontWeight: '800',
-    color: '#0F172A',
-    marginBottom: 8,
-    paddingHorizontal: 4,
-  },
-  actionMenuItemRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    paddingVertical: 12,
-    paddingHorizontal: 10,
-    borderRadius: 12,
-  },
-  actionMenuItemText: {
-    fontSize: 13.5,
-    fontWeight: '700',
-    color: '#1E293B',
-  },
-  detailTxBottomInputBar: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    backgroundColor: '#FFFFFF',
-    borderTopWidth: 1,
-    borderTopColor: '#E2E8F0',
-    paddingHorizontal: 16,
-    paddingTop: 10,
-  },
-  detailTxInputWrapper: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    backgroundColor: '#F1F5F9',
-    borderRadius: 22,
-    paddingHorizontal: 14,
-    paddingVertical: 6,
-  },
-  detailTxTextInput: {
-    flex: 1,
-    fontSize: 13.5,
-    color: '#0F172A',
-    paddingVertical: 6,
-  },
-  detailTxSendBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: '#0E964E',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-
-  /* ── THANH CHỌN THÁNG CŨ ── */
-  monthSelectorBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.04,
-    shadowRadius: 2,
-    elevation: 1,
-  },
-  monthNavBtn: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: '#F1F5F9',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  monthNavArrow: {
-    fontSize: 20,
-    fontWeight: '800',
-    color: '#059669',
-    lineHeight: 22,
-  },
-  monthSelectorTitle: {
-    fontSize: 14.5,
-    fontWeight: '800',
-    color: '#0F172A',
-  },
-  /* ── OVERVIEW STYLES (CHUẨN DESIGN MỚI) ── */
-  fundBannerCard: {
-    backgroundColor: '#0E964E',
-    borderRadius: 22,
-    paddingVertical: 12,
-    paddingLeft: 18,
-    paddingRight: 10,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    height: 98,
-    overflow: 'visible',
-    shadowColor: '#0E964E',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 10,
-    elevation: 4,
-  },
-  fundBannerBgImage: {
-    borderRadius: 22,
-  },
-  fundBannerLeft: {
-    maxWidth: '56%',
-    paddingRight: 6,
-    zIndex: 2,
-  },
-  fundBannerSubtitle: {
-    color: '#D1FAE5',
-    fontSize: 12,
-    fontWeight: '700',
-    marginBottom: 2,
-  },
-  fundBannerAmount: {
-    color: '#FFFFFF',
-    fontSize: 24,
-    fontWeight: '900',
-    marginBottom: 6,
-  },
-  fundTrendRow: {
-    alignSelf: 'flex-start',
-    backgroundColor: 'rgba(255, 255, 255, 0.22)',
-    paddingHorizontal: 9,
-    paddingVertical: 3,
-    borderRadius: 12,
-  },
-  fundTrendText: {
-    color: '#FFFFFF',
-    fontSize: 10.5,
-    fontWeight: '700',
-  },
-  /* Cặp nút Nộp quỹ & Thêm giao dịch chuẩn ảnh */
-  heroActionButtonsRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  heroDepositFundBtn: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    backgroundColor: '#059669',
-    height: 46,
-    borderRadius: 16,
-    shadowColor: '#059669',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.25,
-    shadowRadius: 6,
-    elevation: 3,
-  },
-  heroDepositFundBtnText: {
-    fontSize: 14.5,
-    fontWeight: '800',
-    color: '#FFFFFF',
-  },
-  heroAddTxBtn: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    backgroundColor: '#FFFFFF',
-    height: 46,
-    borderRadius: 16,
-    borderWidth: 1.5,
-    borderColor: '#A7F3D0',
-    shadowColor: '#64748B',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 6,
-    elevation: 1,
-  },
-  heroAddTxBtnText: {
-    fontSize: 14.5,
-    fontWeight: '800',
-    color: '#059669',
-  },
-  fundBannerIllustration: {
-    width: 155,
-    height: 112,
-    zIndex: 1,
-    marginRight: -6,
-  },
-  stat4Grid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 10,
-    justifyContent: 'space-between',
-  },
-  stat4Card: {
-    width: '48.2%',
-    backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    padding: 12,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    borderWidth: 1,
-    borderColor: '#F1F5F9',
-    shadowColor: '#0F172A',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.03,
-    shadowRadius: 6,
-    elevation: 1,
-  },
-  stat4IconBox: {
-    width: 38,
-    height: 38,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  stat4Content: {
-    flex: 1,
-  },
-  stat4Label: {
-    fontSize: 11.5,
-    color: '#64748B',
-    fontWeight: '600',
-    marginBottom: 2,
-  },
-  stat4Value: {
-    fontSize: 14,
-    fontWeight: '800',
-  },
-  categoryChartCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 20,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: '#F1F5F9',
-    shadowColor: '#0F172A',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.03,
-    shadowRadius: 6,
-    elevation: 1,
-  },
-  categoryChartTitle: {
-    fontSize: 14,
-    fontWeight: '800',
-    color: '#0F172A',
-    marginBottom: 14,
-  },
-  categoryChartRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-around',
-    gap: 12,
-  },
-  donutChartContainer: {
-    width: 120,
-    height: 120,
-    alignItems: 'center',
-    justifyContent: 'center',
-    position: 'relative',
-  },
-  donutCenterContent: {
-    position: 'absolute',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  donutCenterLabel: {
-    fontSize: 9.5,
-    fontWeight: '600',
-    color: '#64748B',
-    marginBottom: 1,
-  },
-  donutCenterValue: {
-    fontSize: 13,
-    fontWeight: '800',
-    color: '#0F172A',
-    maxWidth: 68,
-    textAlign: 'center',
-  },
-  donutCenterCurrency: {
-    fontSize: 8.5,
-    fontWeight: '600',
-    color: '#94A3B8',
-    marginTop: -1,
-  },
-  donutChartImg: {
-    width: 110,
-    height: 110,
-  },
-  chartLegendCol: {
-    flex: 1,
-    gap: 10,
-    paddingLeft: 8,
-  },
-  legendItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  legendDot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    marginRight: 8,
-  },
-  legendName: {
-    flex: 1,
-    fontSize: 12.5,
-    fontWeight: '600',
-    color: '#334155',
-  },
-  legendPercent: {
-    fontSize: 12.5,
-    fontWeight: '800',
-    color: '#0F172A',
-  },
-  recentTxCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 20,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: '#F1F5F9',
-    shadowColor: '#0F172A',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.03,
-    shadowRadius: 6,
-    elevation: 1,
-  },
-  recentTxHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 12,
-  },
-  recentTxTitle: {
-    fontSize: 14,
-    fontWeight: '800',
-    color: '#0F172A',
-  },
-  recentTxViewMore: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#059669',
-  },
-  sampleTxItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 10,
-    gap: 12,
-  },
-  sampleTxIconWrap: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#FFE4E6',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  sampleTxDesc: {
-    fontSize: 13.5,
-    fontWeight: '800',
-    color: '#0F172A',
-    marginBottom: 2,
-  },
-  sampleTxCreator: {
-    fontSize: 11,
-    color: '#94A3B8',
-    lineHeight: 16,
-  },
-  sampleTxTime: {
-    fontSize: 10.5,
-    color: '#94A3B8',
-    marginTop: 1,
-    lineHeight: 14,
-  },
-  sampleTxSub: {
-    fontSize: 11.5,
-    color: '#64748B',
-    marginTop: 2,
-  },
-  sampleTxAmount: {
-    fontSize: 14,
-    fontWeight: '800',
-    color: '#E11D48',
-  },
-  overviewGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 10,
-    marginBottom: 8,
-  },
-  /* ── EXPENSE CARD & COMMENTS ── */
-  expenseCardContainer: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    overflow: 'hidden',
-  },
-  commentSectionBox: {
-    backgroundColor: '#F8FAFC',
-    borderTopWidth: 1,
-    borderTopColor: '#F1F5F9',
-    padding: 12,
-    gap: 8,
-  },
-  commentSectionTitle: {
-    fontSize: 11.5,
-    fontWeight: '800',
-    color: '#475569',
-    marginBottom: 2,
-  },
-  commentItemRow: {
-    flexDirection: 'row',
-    gap: 8,
-    alignItems: 'flex-start',
-  },
-  commentAvatarCircle: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    backgroundColor: '#E8F8F0',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  commentAvatarChar: {
-    fontSize: 10,
-    fontWeight: '800',
-    color: '#059669',
-  },
-  commentBubble: {
-    flex: 1,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    paddingHorizontal: 10,
-    paddingVertical: 7,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-  },
-  commentHeaderRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 2,
-  },
-  commentAuthorName: {
-    fontSize: 11,
-    fontWeight: '800',
-    color: '#0F172A',
-  },
-  commentTimeText: {
-    fontSize: 9.5,
-    color: '#94A3B8',
-  },
-  commentContentText: {
-    fontSize: 12,
-    color: '#334155',
-    lineHeight: 16,
-  },
-  commentInputRow: {
-    flexDirection: 'row',
-    gap: 8,
-    marginTop: 4,
-  },
-  commentTextInput: {
-    flex: 1,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    fontSize: 12,
-    color: '#0F172A',
-  },
-  commentSendBtn: {
-    backgroundColor: '#074838',
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  commentSendBtnText: {
-    color: '#FFFFFF',
-    fontSize: 11.5,
-    fontWeight: '800',
-  },
-  /* ── CHAT TAB (CHUẨN WEB HIỆN ĐẠI & KHÔNG BỊ TRÀN VIEWPORT) ── */
-  chatViewportContainer: {
-    flex: 1,
-    backgroundColor: '#F8FAFC',
-    justifyContent: 'space-between',
-  },
-  chatMessagesScrollView: {
-    flex: 1,
-    paddingHorizontal: 14,
-  },
-  chatMessagesContentContainer: {
-    paddingVertical: 10,
-    paddingBottom: 16,
-  },
-  chatTabContainer: {
-    flex: 1,
-    justifyContent: 'space-between',
-  },
-  chatStreamList: {
-    flex: 1,
-    paddingVertical: 4,
-  },
-  chatRowWrapper: {
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-    gap: 8,
-    marginVertical: 2,
-  },
-  chatRowMe: {
-    justifyContent: 'flex-end',
-  },
-  chatRowOther: {
-    justifyContent: 'flex-start',
-  },
-  chatAvatarBox: {
-    width: 32,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  chatAvatarCircle: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: '#E8F8F0',
-    borderWidth: 1,
-    borderColor: '#A7F3D0',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  chatAvatarText: {
-    fontSize: 12,
-    fontWeight: '800',
-    color: '#059669',
-  },
-  chatSenderTitle: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: '#64748B',
-    marginBottom: 4,
-    marginLeft: 4,
-  },
-  /* ── PHONG CÁCH CHAT WEB & CHUẨN DESIGN ẢNH MẪU ── */
-  chatDayDividerWrap: {
-    alignItems: 'center',
-    marginVertical: 12,
-  },
-  chatDayPill: {
-    backgroundColor: '#F1F5F9',
-    paddingHorizontal: 16,
-    paddingVertical: 5,
-    borderRadius: 16,
-  },
-  chatDayPillText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#64748B',
-  },
-  chatAvatarCircleWeb: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: '#FEE2E2',
-    alignItems: 'center',
-    justifyContent: 'center',
-    overflow: 'hidden',
-  },
-  chatAvatarImgWeb: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-  },
-  chatAvatarCharWeb: {
-    fontSize: 14,
-    fontWeight: '800',
-    color: '#E11D48',
-  },
-  chatSenderTitleWeb: {
-    fontSize: 12,
-    fontWeight: '800',
-    color: '#0F172A',
-    marginBottom: 4,
-    marginLeft: 2,
-  },
-  chatMessageBubbleWeb: {
-    paddingHorizontal: 14,
-    paddingTop: 10,
-    paddingBottom: 8,
-    borderRadius: 18,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.04,
-    shadowRadius: 3,
-    elevation: 1,
-  },
-  chatBubbleMeWeb: {
-    backgroundColor: '#DCFCE7', // Màu xanh nhạt chuẩn mẫu cho tin nhắn gửi đi
-    borderBottomRightRadius: 4,
-  },
-  chatBubbleOtherWeb: {
-    backgroundColor: '#FFFFFF', // Màu trắng cho tin nhắn người khác
-    borderBottomLeftRadius: 4,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-  },
-  chatMessageContentWeb: {
-    fontSize: 13.5,
-    color: '#0F172A',
-    lineHeight: 20,
-    fontWeight: '500',
-  },
-  chatMessageTextMeWeb: {
-    color: '#0F172A',
-  },
-  chatMessageTextOtherWeb: {
-    color: '#0F172A',
-  },
-  chatTimeAndStatusRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'flex-end',
-    gap: 4,
-    marginTop: 4,
-  },
-  chatTimestampTextWeb: {
-    fontSize: 10,
-    color: '#64748B',
-    fontWeight: '600',
-  },
-  chatTimestampMeWeb: {
-    color: '#16A34A',
-  },
-  chatTimestampOtherWeb: {
-    color: '#94A3B8',
-  },
-  /* Hiển thị avatar những người đã xem ở dưới tin nhắn (Messenger style) */
-  chatSeenRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: -4,
-    marginTop: 3,
-  },
-  chatSeenAvatarCircle: {
-    width: 16,
-    height: 16,
-    borderRadius: 8,
-    borderWidth: 1.2,
-    borderColor: '#FFFFFF',
-    backgroundColor: '#D1FAE5',
-    alignItems: 'center',
-    justifyContent: 'center',
-    overflow: 'hidden',
-  },
-  chatSeenAvatarImg: {
-    width: 16,
-    height: 16,
-  },
-  chatSeenAvatarChar: {
-    fontSize: 8,
-    fontWeight: '800',
-    color: '#065F46',
-  },
-  /* Chi tiết khi ấn vào tin nhắn: Giờ/ngày gửi và danh sách người đã xem */
-  chatClickedDetailContainer: {
-    marginTop: 4,
-    maxWidth: '92%',
-    gap: 4,
-  },
-  chatClickedDetailTimeText: {
-    fontSize: 10.5,
-    fontWeight: '600',
-    color: '#64748B',
-    paddingHorizontal: 4,
-  },
-  chatClickedSeenBox: {
-    paddingHorizontal: 8,
-    paddingVertical: 5,
-    backgroundColor: '#F8FAFC',
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-  },
-  chatClickedSeenHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    marginBottom: 4,
-  },
-  chatClickedSeenTitle: {
-    fontSize: 10.5,
-    fontWeight: '700',
-    color: '#059669',
-  },
-  chatClickedSeenAvatarsList: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 6,
-    alignItems: 'center',
-  },
-  chatClickedSeenUserChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: '#FFFFFF',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-  },
-  chatClickedSeenUserName: {
-    fontSize: 10,
-    fontWeight: '600',
-    color: '#334155',
-    maxWidth: 90,
-  },
-  /* Card file Excel đính kèm chuẩn design */
-  chatFileCardWeb: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    padding: 12,
-    gap: 10,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    minWidth: 220,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.04,
-    shadowRadius: 3,
-    elevation: 1,
-  },
-  chatFileIconBox: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
-    backgroundColor: '#DCFCE7',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  chatFileNameText: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#0F172A',
-  },
-  chatFileSizeText: {
-    fontSize: 11,
-    color: '#64748B',
-    marginTop: 2,
-  },
-  chatFileDownloadBtn: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: '#F0FDF4',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  chatFileTimeText: {
-    fontSize: 9.5,
-    color: '#94A3B8',
-    marginLeft: 4,
-    alignSelf: 'flex-end',
-  },
-  /* Hiển thị ảnh đính kèm trong tin nhắn: Chuẩn Messenger (tự co giãn chiều cao theo tỷ lệ gốc của ảnh) */
-  chatAttachmentImgContainer: {
-    borderRadius: 16,
-    overflow: 'hidden',
-    width: 230,
-    maxWidth: '100%',
-    backgroundColor: 'transparent',
-  },
-  /* Vạch phân cách tin nhắn chưa đọc */
-  chatUnreadDividerWrap: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginVertical: 10,
-    paddingHorizontal: 12,
-    gap: 8,
-  },
-  chatUnreadDividerLine: {
-    flex: 1,
-    height: 1,
-    backgroundColor: '#FCA5A5',
-  },
-  chatUnreadDividerBadge: {
-    backgroundColor: '#FEF2F2',
-    paddingHorizontal: 10,
-    paddingVertical: 3,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#FECACA',
-  },
-  chatUnreadDividerBadgeText: {
-    fontSize: 10.5,
-    fontWeight: '800',
-    color: '#DC2626',
-  },
-  /* Nút nổi cuộn xuống cuối */
-  chatScrollBottomFloatingBtn: {
-    position: 'absolute',
-    right: 16,
-    bottom: 80,
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1,
-    borderColor: '#CBD5E1',
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    elevation: 8,
-    zIndex: 99,
-  },
-  chatAttachmentImg: {
-    width: '100%',
-    height: '100%',
-    borderRadius: 16,
-  },
-  /* Xem trước ảnh đính kèm ở thanh nhập */
-  chatAttachmentPreviewBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#F0FDF4',
-    borderWidth: 1,
-    borderColor: '#BBF7D0',
-    borderRadius: 14,
-    marginHorizontal: 12,
-    marginBottom: 6,
-    padding: 8,
-    gap: 10,
-  },
-  chatAttachmentPreviewThumb: {
-    width: 42,
-    height: 42,
-    borderRadius: 8,
-  },
-  chatAttachmentPreviewName: {
-    fontSize: 12.5,
-    fontWeight: '700',
-    color: '#065F46',
-  },
-  chatAttachmentPreviewSub: {
-    fontSize: 11,
-    color: '#059669',
-    marginTop: 2,
-  },
-  chatAttachmentRemoveBtn: {
-    padding: 6,
-    borderRadius: 12,
-    backgroundColor: '#FEE2E2',
-  },
-  /* Popup chọn emoji nhanh */
-  chatEmojiPickerPopup: {
-    position: 'absolute',
-    bottom: 74,
-    right: 16,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 20,
-    padding: 12,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.12,
-    shadowRadius: 10,
-    elevation: 6,
-    zIndex: 99,
-    width: 280,
-  },
-  chatEditedBadge: {
-    fontSize: 9.5,
-    fontWeight: '700',
-    marginBottom: 2,
-  },
-  chatRecalledBubble: {
-    backgroundColor: '#F1F5F9',
-    borderWidth: 1,
-    borderColor: '#CBD5E1',
-    borderStyle: 'dashed',
-  },
-  chatRecalledText: {
-    fontSize: 12,
-    fontStyle: 'italic',
-    color: '#64748B',
-  },
-  chatReactionsBadgeContainer: {
-    marginTop: -8,
-    zIndex: 10,
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    borderRadius: 12,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.08,
-    shadowRadius: 2,
-    elevation: 2,
-  },
-  chatReactionsRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 2,
-  },
-  chatReactionEmojiText: {
-    fontSize: 11,
-  },
-  chatReactionCountText: {
-    fontSize: 10,
-    fontWeight: '700',
-    color: '#64748B',
-    marginLeft: 2,
-  },
-  chatQuickActionFloatingBar: {
-    position: 'absolute',
-    bottom: '100%',
-    marginBottom: 6,
-    zIndex: 50,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 20,
-    padding: 6,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.12,
-    shadowRadius: 10,
-    elevation: 8,
-  },
-  chatReactionPickRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: 4,
-    paddingVertical: 2,
-  },
-  chatReactionPickBtn: {
-    padding: 4,
-  },
-  chatActionMenuDropdown: {
-    borderTopWidth: 1,
-    borderTopColor: '#F1F5F9',
-    marginTop: 6,
-    paddingTop: 4,
-    gap: 2,
-  },
-  chatActionMenuItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    paddingVertical: 6,
-    paddingHorizontal: 8,
-    borderRadius: 8,
-  },
-  chatActionMenuText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#1E293B',
-  },
-  /* Modal Overlay chuẩn khi đè vào tin nhắn (Messenger style) */
-  chatActionModalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.4)',
-  },
-  chatActionModalContent: {
-    // Vị trí động neo theo tin nhắn
-  },
-  chatReactionPickRowModal: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-around',
-    backgroundColor: '#FFFFFF',
-    borderRadius: 30,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    width: '100%',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 10,
-    elevation: 8,
-  },
-  chatReactionPickBtnModal: {
-    padding: 6,
-  },
-  chatActionMenuModalBox: {
-    width: '100%',
-    backgroundColor: '#FFFFFF',
-    borderRadius: 18,
-    overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 10,
-    elevation: 8,
-  },
-  chatActionModalItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 13,
-  },
-  chatActionModalItemText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#1E293B',
-  },
-  chatRecallSubMenuModalBox: {
-    width: '100%',
-    backgroundColor: '#FFFFFF',
-    borderRadius: 18,
-    padding: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 10,
-    elevation: 8,
-  },
-  chatRecallSubMenuTitleModal: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#64748B',
-    marginBottom: 8,
-    textAlign: 'center',
-  },
-  chatRecallSubMenuItemModal: {
-    paddingVertical: 10,
-    paddingHorizontal: 8,
-  },
-  chatRecallSubMenuTextModal: {
-    fontSize: 13.5,
-    fontWeight: '700',
-    color: '#0F172A',
-  },
-  chatRecallSubMenuSubModal: {
-    fontSize: 11,
-    color: '#64748B',
-    marginTop: 2,
-  },
-  /* Popup 2 tùy chọn thu hồi: với bạn hoặc với mọi người (chuẩn Messenger nền sáng) */
-  chatRecallSubMenuPopup: {
-    position: 'absolute',
-    bottom: '100%',
-    marginBottom: 8,
-    zIndex: 60,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 18,
-    padding: 12,
-    width: 250,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.15,
-    shadowRadius: 12,
-    elevation: 10,
-  },
-  chatRecallSubMenuTitle: {
-    fontSize: 11.5,
-    fontWeight: '700',
-    color: '#64748B',
-    marginBottom: 8,
-    textAlign: 'center',
-  },
-  chatRecallSubMenuItem: {
-    paddingVertical: 8,
-    paddingHorizontal: 6,
-  },
-  chatRecallSubMenuText: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#0F172A',
-  },
-  chatRecallSubMenuSub: {
-    fontSize: 10.5,
-    color: '#64748B',
-    marginTop: 2,
-  },
-  chatRecallSubMenuCancelBtn: {
-    marginTop: 6,
-    paddingVertical: 8,
-    alignItems: 'center',
-    borderTopWidth: 1,
-    borderTopColor: '#F1F5F9',
-  },
-  chatRecallSubMenuCancelText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#64748B',
-  },
-  /* Chỉnh sửa tin nhắn Banner */
-  chatEditingBanner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#FEF3C7',
-    borderWidth: 1,
-    borderColor: '#FDE68A',
-    borderRadius: 14,
-    marginHorizontal: 12,
-    marginBottom: 6,
-    padding: 10,
-  },
-  chatEditingBannerTitle: {
-    fontSize: 11,
-    fontWeight: '800',
-    color: '#92400E',
-    marginBottom: 4,
-  },
-  chatEditingTextInput: {
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1,
-    borderColor: '#FCD34D',
-    borderRadius: 8,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    fontSize: 13,
-    color: '#0F172A',
-  },
-  chatEditingSaveBtn: {
-    backgroundColor: '#07543f',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 8,
-    alignItems: 'center',
-  },
-  chatEditingSaveBtnText: {
-    color: '#FFFFFF',
-    fontSize: 12,
-    fontWeight: '800',
-  },
-  chatEditingCancelBtn: {
-    backgroundColor: '#E2E8F0',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 8,
-    alignItems: 'center',
-  },
-  chatEditingCancelBtnText: {
-    color: '#475569',
-    fontSize: 12,
-    fontWeight: '700',
-  },
-  /* Modal Reactions */
-  reactionModalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.45)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 20,
-  },
-  reactionModalSheet: {
-    width: '100%',
-    maxWidth: 340,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 20,
-    padding: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 10,
-    elevation: 8,
-  },
-  reactionModalHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 12,
-  },
-  reactionModalTitle: {
-    fontSize: 14,
-    fontWeight: '800',
-    color: '#0F172A',
-  },
-  reactionModalCloseText: {
-    fontSize: 16,
-    color: '#64748B',
-    fontWeight: '700',
-  },
-  reactionModalTabsRow: {
-    flexDirection: 'row',
-    borderBottomWidth: 1,
-    borderBottomColor: '#F1F5F9',
-    paddingBottom: 8,
-    marginBottom: 10,
-    gap: 12,
-  },
-  reactionModalTabItem: {
-    paddingBottom: 4,
-  },
-  reactionModalTabItemActive: {
-    borderBottomWidth: 2,
-    borderBottomColor: '#059669',
-  },
-  reactionModalTabText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#64748B',
-  },
-  reactionModalTabTextActive: {
-    color: '#059669',
-    fontWeight: '800',
-  },
-  reactionModalTabEmojiText: {
-    fontSize: 12,
-    color: '#334155',
-  },
-  reactionModalUserRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: '#F8FAFC',
-  },
-  reactionModalUserLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-  },
-  reactionModalAvatarBox: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    backgroundColor: '#059669',
-    alignItems: 'center',
-    justifyContent: 'center',
-    overflow: 'hidden',
-  },
-  reactionModalAvatarImg: {
-    width: 34,
-    height: 34,
-  },
-  reactionModalAvatarInitial: {
-    fontSize: 13,
-    fontWeight: '800',
-    color: '#FFFFFF',
-  },
-  reactionModalUserName: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#0F172A',
-  },
-  /* Lightbox Xem ảnh */
-  lightboxModalOverlay: {
-    flex: 1,
-    backgroundColor: '#000000',
-    justifyContent: 'space-between',
-  },
-  lightboxHeaderBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingBottom: 12,
-    backgroundColor: 'rgba(0, 0, 0, 0.65)',
-    zIndex: 50,
-  },
-  lightboxHeaderLeft: {
-    flex: 1,
-  },
-  lightboxSenderText: {
-    fontSize: 14,
-    fontWeight: '800',
-    color: '#FFFFFF',
-  },
-  lightboxTimeText: {
-    fontSize: 11.5,
-    color: '#CBD5E1',
-    marginTop: 2,
-  },
-  lightboxHeaderRight: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  lightboxActionCircleBtn: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  lightboxImageWrapper: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 10,
-  },
-  lightboxFullImage: {
-    width: '100%',
-    height: '100%',
-  },
-  chatEmojiPickerTitle: {
-    fontSize: 11,
-    fontWeight: '800',
-    color: '#64748B',
-    marginBottom: 8,
-    marginLeft: 4,
-    textTransform: 'uppercase',
-  },
-  chatEmojiGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 6,
-    justifyContent: 'space-between',
-  },
-  chatEmojiItemBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#F8FAFC',
-  },
-  /* Thanh soạn thảo chat tròn chuẩn mẫu */
-  chatInputBarContainerWeb: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#FFFFFF',
-    paddingTop: 8,
-    paddingHorizontal: 12,
-    gap: 8,
-    borderTopWidth: 1,
-    borderTopColor: '#F1F5F9',
-  },
-  chatInputAttachmentBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  chatInputInnerBox: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#F1F5F9',
-    borderRadius: 24,
-    paddingHorizontal: 14,
-    minHeight: 44,
-  },
-  chatTextInputWeb: {
-    flex: 1,
-    fontSize: 13.5,
-    color: '#0F172A',
-    paddingVertical: 6,
-    maxHeight: 100,
-  },
-  chatEmojiBtn: {
-    padding: 4,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  chatSendCircleBtnWeb: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#0E964E',
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#0E964E',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  chatMessageBubble: {
-    paddingHorizontal: 14,
-    paddingVertical: 9,
-    borderRadius: 18,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 1,
-  },
-  chatBubbleIsMe: {
-    backgroundColor: '#074838',
-    borderBottomRightRadius: 4,
-  },
-  chatBubbleIsOther: {
-    backgroundColor: '#FFFFFF',
-    borderBottomLeftRadius: 4,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-  },
-  chatMessageContent: {
-    fontSize: 14,
-    lineHeight: 20,
-  },
-  chatMessageTextMe: {
-    color: '#FFFFFF',
-  },
-  chatMessageTextOther: {
-    color: '#0F172A',
-  },
-  chatTimestampText: {
-    fontSize: 9.5,
-    marginTop: 4,
-    alignSelf: 'flex-end',
-  },
-  chatTimestampMe: {
-    color: 'rgba(255, 255, 255, 0.7)',
-  },
-  chatTimestampOther: {
-    color: '#94A3B8',
-  },
-  /* Card thông báo trong chat */
-  chatCardBubble: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    padding: 12,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    gap: 6,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.06,
-    shadowRadius: 3,
-    elevation: 2,
-  },
-  chatBalanceCard: {
-    borderLeftWidth: 4,
-    borderLeftColor: '#059669',
-  },
-  chatLedgerCard: {
-    borderLeftWidth: 4,
-    borderLeftColor: '#0284C7',
-  },
-  chatCardHeaderRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  chatCardHeaderText: {
-    fontSize: 10.5,
-    fontWeight: '800',
-    color: '#64748B',
-    letterSpacing: 0.4,
-  },
-  chatCardBodyText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#1E293B',
-    lineHeight: 18,
-  },
-  chatCardActionBtn: {
-    alignSelf: 'flex-start',
-    marginTop: 4,
-    paddingVertical: 4,
-    paddingHorizontal: 8,
-    backgroundColor: '#F1F5F9',
-    borderRadius: 8,
-  },
-  chatCardActionBtnText: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: '#074838',
-  },
-  /* Khung gõ chat */
-  modernChatInputBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    backgroundColor: '#FFFFFF',
-    borderTopWidth: 1,
-    borderTopColor: '#E2E8F0',
-    paddingVertical: 10,
-    marginTop: 12,
-  },
-  modernChatTextInput: {
-    flex: 1,
-    backgroundColor: '#F8FAFC',
-    borderRadius: 22,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    fontSize: 13.5,
-    color: '#0F172A',
-    maxHeight: 100,
-  },
-  modernChatSendBtn: {
-    backgroundColor: '#074838',
-    borderRadius: 22,
-    paddingHorizontal: 18,
-    paddingVertical: 11,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  modernChatSendBtnText: {
-    color: '#FFFFFF',
-    fontSize: 13,
-    fontWeight: '800',
-  },
-
-  /* ── MEMBERS TAB (CHUẨN WEB HIỆN ĐẠI) ── */
-  memberHeaderCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: '#ECFDF5',
-    padding: 14,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: '#A7F3D0',
-  },
-  memberHeaderTitle: {
-    fontSize: 13.5,
-    fontWeight: '800',
-    color: '#065F46',
-  },
-  memberHeaderSub: {
-    fontSize: 11,
-    color: '#047857',
-    marginTop: 2,
-  },
-  inviteMemberModernBtn: {
-    backgroundColor: '#074838',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 12,
-  },
-  inviteMemberModernBtnText: {
-    color: '#FFFFFF',
-    fontSize: 11.5,
-    fontWeight: '800',
-  },
-  modernMemberCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    backgroundColor: '#FFFFFF',
-    padding: 14,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.04,
-    shadowRadius: 3,
-    elevation: 1,
-  },
-  modernMemberAvatar: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
-    borderWidth: 1.5,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  modernMemberAvatarText: {
-    fontSize: 14,
-    fontWeight: '800',
-  },
-  modernMemberName: {
-    fontSize: 13.5,
-    fontWeight: '800',
-    color: '#0F172A',
-  },
-  modernMemberEmail: {
-    fontSize: 11,
-    color: '#64748B',
-    marginTop: 2,
-  },
-  selfPill: {
-    backgroundColor: '#E8F8F0',
-    paddingHorizontal: 6,
-    paddingVertical: 1,
-    borderRadius: 6,
-  },
-  selfPillText: {
-    fontSize: 10,
-    fontWeight: '800',
-    color: '#059669',
-  },
-  modernRoleBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 8,
-    borderWidth: 1,
-  },
-  modernRoleBadgeText: {
-    fontSize: 10.5,
-    fontWeight: '800',
-  },
-  modernDeleteMemBtn: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: '#FEE2E2',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  chatTextInputOld: {
-    flex: 1,
-    backgroundColor: '#F8FAFC',
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    fontSize: 13.5,
-    color: '#0F172A',
-  },
-  chatSendBtn: {
-    backgroundColor: '#074838',
-    borderRadius: 20,
-    paddingHorizontal: 16,
-    paddingVertical: 9,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  chatSendBtnText: {
-    color: '#FFFFFF',
-    fontSize: 13,
-    fontWeight: '800',
-  },
-  overviewCard: {
-    width: '48%',
-    backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    padding: 14,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-  },
-  overviewCardLabel: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: '#64748B',
-    marginBottom: 4,
-  },
-  overviewCardValue: {
-    fontSize: 16,
-    fontWeight: '800',
-    color: '#0F172A',
-    marginBottom: 2,
-  },
-  overviewCardSub: {
-    fontSize: 10.5,
-    color: '#94A3B8',
-  },
-  sectionBox: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    padding: 14,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    marginTop: 6,
-  },
-  sectionHeaderRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  sectionTitle: {
-    fontSize: 13.5,
-    fontWeight: '800',
-    color: '#0F172A',
-  },
-  viewMoreText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#00A86B',
-  },
-  emptyNoteText: {
-    fontSize: 12,
-    color: '#94A3B8',
-    textAlign: 'center',
-    paddingVertical: 12,
-  },
-  outlineActionBtn: {
-    borderWidth: 1.5,
-    borderColor: '#074838',
-    borderRadius: 14,
-    paddingVertical: 12,
-    alignItems: 'center',
-    backgroundColor: '#FFFFFF',
-  },
-  outlineActionBtnText: {
-    color: '#074838',
-    fontSize: 13.5,
-    fontWeight: '800',
-  },
-  expenseDesc: {
-    fontSize: 13.5,
-    fontWeight: '700',
-    color: '#0F172A',
-  },
-  expenseSub: {
-    fontSize: 11,
-    color: '#64748B',
-    marginTop: 2,
-  },
-  expenseAmountText: {
-    fontSize: 13.5,
-    fontWeight: '800',
-    color: '#059669',
-  },
-  expenseDateText: {
-    fontSize: 10.5,
-    color: '#94A3B8',
-    marginTop: 2,
-  },
-  addExpensePrimaryBtn: {
-    backgroundColor: '#074838',
-    borderRadius: 14,
-    paddingVertical: 12,
-    alignItems: 'center',
-  },
-  addExpensePrimaryBtnText: {
-    color: '#FFFFFF',
-    fontSize: 13.5,
-    fontWeight: '800',
-  },
-  detailEmptyCard: {
-    backgroundColor: '#F8FAFC',
-    borderRadius: 16,
-    padding: 24,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    marginVertical: 10,
-  },
-  detailEmptyTitle: {
-    fontSize: 14,
-    fontWeight: '800',
-    color: '#1E293B',
-  },
-  detailEmptySub: {
-    fontSize: 11.5,
-    color: '#64748B',
-    textAlign: 'center',
-    marginTop: 4,
-    lineHeight: 17,
-  },
-  expenseItemRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: '#F8FAFC',
-    padding: 12,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-  },
-  expenseItemLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    flex: 1,
-    marginRight: 10,
-  },
-  expenseIconWrap: {
-    width: 34,
-    height: 34,
-    borderRadius: 10,
-    backgroundColor: '#E8F8F0',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  expenseItemDesc: {
-    fontSize: 13.5,
-    fontWeight: '700',
-    color: '#0F172A',
-  },
-  expenseItemSub: {
-    fontSize: 11,
-    color: '#64748B',
-    marginTop: 2,
-  },
-  expenseItemAmount: {
-    fontSize: 14.5,
-    fontWeight: '800',
-    color: '#059669',
-  },
-  balanceSummaryBox: {
-    backgroundColor: '#ECFDF5',
-    padding: 14,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: '#A7F3D0',
-  },
-  balanceSummaryTitle: {
-    fontSize: 11,
-    fontWeight: '800',
-    color: '#065F46',
-    letterSpacing: 0.5,
-  },
-  balanceSummaryDesc: {
-    fontSize: 12,
-    color: '#047857',
-    marginTop: 4,
-    lineHeight: 18,
-  },
-  debtItemCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: '#FFFFFF',
-    padding: 14,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-  },
-  debtFromToText: {
-    fontSize: 12.5,
-    color: '#475569',
-    marginBottom: 4,
-  },
-  debtAmountValue: {
-    fontSize: 16,
-    fontWeight: '900',
-    color: '#DC2626',
-  },
-  settleActionBtn: {
-    backgroundColor: '#00A86B',
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 10,
-  },
-  settleActionBtnText: {
-    color: '#FFFFFF',
-    fontSize: 12,
-    fontWeight: '800',
-  },
-  fundHeroCard: {
-    backgroundColor: '#F8FAFC',
-    borderRadius: 18,
-    padding: 20,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-  },
-  fundHeroLabel: {
-    fontSize: 11,
-    fontWeight: '800',
-    color: '#64748B',
-    letterSpacing: 0.5,
-  },
-  fundHeroAmount: {
-    fontSize: 28,
-    fontWeight: '900',
-    color: '#059669',
-    marginVertical: 8,
-  },
-  fundHeroNote: {
-    fontSize: 11.5,
-    color: '#64748B',
-  },
-  addMemberOutlineBtn: {
-    borderWidth: 1.5,
-    borderColor: '#074838',
-    borderRadius: 14,
-    paddingVertical: 12,
-    alignItems: 'center',
-    borderStyle: 'dashed',
-  },
-  addMemberOutlineBtnText: {
-    color: '#074838',
-    fontSize: 13,
-    fontWeight: '800',
-  },
-  memberRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 12,
-    backgroundColor: '#F8FAFC',
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    gap: 10,
-  },
-  memberAvatar: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: '#074838',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  memberAvatarText: {
-    color: '#FFFFFF',
-    fontSize: 13,
-    fontWeight: '800',
-  },
-  memberName: {
-    fontSize: 13.5,
-    fontWeight: '700',
-    color: '#0F172A',
-  },
-  memberEmail: {
-    fontSize: 11,
-    color: '#64748B',
-    marginTop: 1,
-  },
-  roleBadgeSmall: {
-    backgroundColor: '#E2E8F0',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 6,
-  },
-  roleBadgeSmallText: {
-    fontSize: 10,
-    fontWeight: '700',
-    color: '#334155',
-  },
-  removeMemBtn: {
-    padding: 6,
-  },
-  removeMemBtnText: {
-    fontSize: 14,
-    color: '#EF4444',
-    fontWeight: '800',
-  },
-  /* ── FORM MODAL ── */
-  inputModalSheet: {
-    backgroundColor: '#FFFFFF',
-    borderTopLeftRadius: 28,
-    borderTopRightRadius: 28,
-    paddingHorizontal: 20,
-    paddingTop: 12,
-    maxHeight: '78%',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: -4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 12,
-    elevation: 10,
-  },
-  modalDragBar: {
-    width: 40,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: '#E2E8F0',
-    alignSelf: 'center',
-    marginBottom: 14,
-  },
-  inputModalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  inputModalTitle: {
-    fontSize: 17,
-    fontWeight: '800',
-    color: '#0F172A',
-  },
-  inputLabel: {
-    fontSize: 12,
-    fontWeight: '800',
-    color: '#334155',
-    textTransform: 'uppercase',
-    marginBottom: 8,
-    letterSpacing: 0.3,
-  },
-  keyboardDismissBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: '#E8F8F0',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 8,
-  },
-  keyboardDismissBtnText: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: '#059669',
-  },
-  textInput: {
-    backgroundColor: '#F8FAFC',
-    borderRadius: 14,
-    borderWidth: 1.2,
-    borderColor: '#E2E8F0',
-    paddingHorizontal: 14,
-    paddingVertical: 11,
-    fontSize: 14,
-    color: '#0F172A',
-    fontWeight: '600',
-    marginBottom: 16,
-  },
-  typeGridRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-    marginBottom: 16,
-  },
-  typeSelectCard: {
-    width: '30.5%',
-    backgroundColor: '#F8FAFC',
-    borderRadius: 14,
-    paddingVertical: 12,
-    alignItems: 'center',
-    borderWidth: 1.5,
-    borderColor: '#E2E8F0',
-    gap: 6,
-  },
-  typeSelectCardActive: {
-    backgroundColor: '#E8F8F0',
-    borderColor: '#059669',
-  },
-  typeSelectIconImg: {
-    width: 44,
-    height: 44,
-  },
-  typeSelectCardText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#475569',
-  },
-  typeSelectCardTextActive: {
-    color: '#059669',
-  },
-  sourceSelectBtn: {
-    flex: 1,
-    backgroundColor: '#F8FAFC',
-    paddingVertical: 10,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    alignItems: 'center',
-  },
-  sourceSelectBtnActive: {
-    backgroundColor: '#E8F8F0',
-    borderColor: '#059669',
-  },
-  sourceSelectBtnText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#475569',
-  },
-  sourceSelectBtnTextActive: {
-    color: '#059669',
-  },
-  /* Pill chọn ví cá nhân & danh mục trong modal thêm giao dịch */
-  dropdownSelectorCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: '#F8FAFC',
-    borderWidth: 1.2,
-    borderColor: '#E2E8F0',
-    borderRadius: 14,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-  },
-  dropdownSelectorTitle: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#0F172A',
-  },
-  dropdownSelectorSub: {
-    fontSize: 12,
-    color: '#64748B',
-    marginTop: 2,
-  },
-  inlinePickerDropdownContainer: {
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1.5,
-    borderColor: '#E2E8F0',
-    borderRadius: 16,
-    marginTop: 8,
-    padding: 10,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.08,
-    shadowRadius: 10,
-    elevation: 4,
-  },
-  inlinePickerHeaderTitle: {
-    fontSize: 10.5,
-    fontWeight: '800',
-    color: '#64748B',
-    letterSpacing: 0.5,
-    paddingHorizontal: 8,
-    paddingVertical: 6,
-  },
-  inlinePickerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 10,
-    paddingHorizontal: 8,
-    borderRadius: 12,
-    gap: 10,
-  },
-  inlinePickerRowActive: {
-    backgroundColor: '#F0FDF4',
-  },
-  inlinePickerItemTitle: {
-    fontSize: 13.5,
-    fontWeight: '700',
-    color: '#1E293B',
-  },
-  inlinePickerItemTitleActive: {
-    color: '#059669',
-    fontWeight: '800',
-  },
-  inlinePickerItemSub: {
-    fontSize: 11.5,
-    color: '#64748B',
-    marginTop: 2,
-  },
-  selectIconWrap: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  chevronIcon: {
-    fontSize: 16,
-    color: '#94A3B8',
-    fontWeight: '800',
-  },
-  categoryOptionRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 12,
-    paddingHorizontal: 12,
-    borderRadius: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#F1F5F9',
-    gap: 12,
-  },
-  categoryOptionRowActive: {
-    backgroundColor: '#F0FDF4',
-  },
-  catCircleIconWrap: {
-    width: 38,
-    height: 38,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  categoryOptionLabel: {
-    flex: 1,
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#1E293B',
-  },
-  categoryOptionLabelActive: {
-    color: '#059669',
-    fontWeight: '800',
-  },
-  accountOptionRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 12,
-    paddingHorizontal: 12,
-    borderRadius: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#F1F5F9',
-    gap: 12,
-  },
-  accountOptionRowActive: {
-    backgroundColor: '#F0FDF4',
-  },
-  accountOptionName: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#1E293B',
-  },
-  accountOptionNameActive: {
-    color: '#059669',
-    fontWeight: '800',
-  },
-  accountOptionBalance: {
-    fontSize: 12,
-    color: '#64748B',
-    marginTop: 2,
-  },
-  checkmarkIcon: {
-    fontSize: 16,
-    fontWeight: '800',
-    color: '#059669',
-  },
-  timeSwitchHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 8,
-  },
-  timeSubLabel: {
-    fontSize: 12,
-    color: '#64748B',
-    marginTop: 2,
-  },
-  timeDateRow: {
-    flexDirection: 'row',
-    gap: 10,
-    marginTop: 6,
-  },
-  timeCol: {
-    flex: 1,
-  },
-  dateCol: {
-    flex: 1,
-  },
-  microLabel: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: '#64748B',
-    marginBottom: 4,
-    textTransform: 'uppercase',
-  },
-  timeDateInput: {
-    backgroundColor: '#F8FAFC',
-    borderRadius: 12,
-    borderWidth: 1.2,
-    borderColor: '#E2E8F0',
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    fontSize: 13.5,
-    fontWeight: '700',
-    color: '#0F172A',
-  },
-  accOptionPill: {
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 12,
-    backgroundColor: '#F8FAFC',
-    borderWidth: 1.2,
-    borderColor: '#E2E8F0',
-  },
-  accOptionPillActive: {
-    backgroundColor: '#E8F8F0',
-    borderColor: '#059669',
-  },
-  accOptionPillText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#475569',
-  },
-  accOptionPillTextActive: {
-    color: '#059669',
-    fontWeight: '800',
-  },
-  catOptionPill: {
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 12,
-    backgroundColor: '#F8FAFC',
-    borderWidth: 1.2,
-    borderColor: '#E2E8F0',
-  },
-  catOptionPillActive: {
-    backgroundColor: '#E8F8F0',
-    borderColor: '#059669',
-  },
-  catOptionPillText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#475569',
-  },
-  catOptionPillTextActive: {
-    color: '#059669',
-    fontWeight: '800',
-  },
-  submitActionBtn: {
-    backgroundColor: '#00A86B',
-    borderRadius: 16,
-    paddingVertical: 14,
-    alignItems: 'center',
-    marginTop: 8,
-    marginBottom: 16,
-  },
-  /* Mời thành viên khi tạo nhóm */
-  createInviteSection: {
-    marginTop: 14,
-    marginBottom: 14,
-  },
-  createInviteHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 6,
-  },
-  selectedCountBadge: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#047857',
-    backgroundColor: '#ECFDF5',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 10,
-  },
-  selectedUserTagsRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 6,
-    marginBottom: 10,
-  },
-  userTagPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#ECFDF5',
-    borderWidth: 1,
-    borderColor: '#A7F3D0',
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 12,
-    maxWidth: 160,
-    gap: 4,
-  },
-  userTagText: {
-    fontSize: 12,
-    color: '#047857',
-    fontWeight: '600',
-    flexShrink: 1,
-  },
-  userTagRemoveBtn: {
-    padding: 2,
-  },
-  createMemberSearchBox: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#F8FAFC',
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    paddingHorizontal: 12,
-    height: 44,
-  },
-  createMemberSearchInput: {
-    flex: 1,
-    fontSize: 13,
-    color: '#0F172A',
-    marginLeft: 8,
-  },
-  createSearchResultsBox: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    marginTop: 8,
-    maxHeight: 240,
-    padding: 4,
-  },
-  searchResultUserRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 8,
-    borderRadius: 10,
-    gap: 10,
-  },
-  searchResultUserRowSelected: {
-    backgroundColor: '#F0FDF4',
-  },
-  searchUserAvatar: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: '#E0F2FE',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  searchUserAvatarText: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#0284C7',
-  },
-  searchUserInfoCol: {
-    flex: 1,
-  },
-  searchUserNameText: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#0F172A',
-  },
-  searchUserEmailText: {
-    fontSize: 11,
-    color: '#64748B',
-  },
-  multiSelectCheckCircle: {
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    borderWidth: 2,
-    borderColor: '#CBD5E1',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  multiSelectCheckCircleActive: {
-    backgroundColor: '#047857',
-    borderColor: '#047857',
-  },
-  submitActionBtnText: {
-    color: '#FFFFFF',
-    fontSize: 14.5,
-    fontWeight: '800',
-  },
-  searchUserItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: '#F1F5F9',
-    gap: 10,
-  },
-  inviteActionLabel: {
-    fontSize: 12.5,
-    fontWeight: '800',
-    color: '#00A86B',
-  },
-  noUserFoundText: {
-    textAlign: 'center',
-    fontSize: 12.5,
-    color: '#94A3B8',
-    marginVertical: 16,
-  },
-  searchHintText: {
-    textAlign: 'center',
-    fontSize: 12,
-    color: '#64748B',
-    marginVertical: 16,
-    lineHeight: 18,
-  },
-  pressed: {
-    opacity: 0.85,
-  },
-  disabled: {
-    opacity: 0.6,
-  },
-
-  /* MODAL DROPDOWN PICKER SHEET ĐỒNG BỘ */
-  pickerModalBackdrop: {
-    backgroundColor: 'rgba(15, 23, 42, 0.45)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 20,
-    borderTopLeftRadius: 28,
-    borderTopRightRadius: 28,
-  },
-  pickerModalBox: {
-    width: '100%',
-    maxHeight: 420,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 20,
-    padding: 18,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 10,
-    elevation: 8,
-  },
-  pickerModalHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingBottom: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#F1F5F9',
-    marginBottom: 6,
-  },
-  pickerModalTitle: {
-    fontSize: 15.5,
-    fontWeight: '800',
-    color: '#0F172A',
-  },
-  pickerItemRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: 12,
-    paddingHorizontal: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: '#F8FAFC',
-    borderRadius: 8,
-  },
-  pickerItemRowActive: {
-    backgroundColor: '#F0FDF4',
-  },
-  pickerItemText: {
-    fontSize: 13.5,
-    fontWeight: '600',
-    color: '#334155',
-  },
-  pickerItemTextActive: {
-    color: '#059669',
-    fontWeight: '800',
-  },
-  pickerItemSub: {
-    fontSize: 11,
-    color: '#64748B',
-    marginTop: 2,
-  },
-});

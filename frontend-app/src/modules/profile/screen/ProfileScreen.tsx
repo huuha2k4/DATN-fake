@@ -1,15 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import {
-  Alert,
-  Image,
-  ImageBackground,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-  ActivityIndicator,
-} from 'react-native';
+import { Image, ImageBackground, Pressable, ScrollView, StatusBar, StyleSheet, Text, View, ActivityIndicator } from 'react-native';
+import { AppAlert as Alert } from '../../../context/DialogContext';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { FinanceIcon } from '../../core/components/FinanceIcon';
 import { API_BASE_URL, authStorage } from '../../auth/api/authApi';
@@ -22,6 +13,8 @@ import { HelpCenterScreen } from './HelpCenterScreen';
 import { AboutFinoraScreen } from './AboutFinoraScreen';
 import { NotificationSettingsScreen } from './NotificationSettingsScreen';
 import { SystemSettingsScreen } from './SystemSettingsScreen';
+import { useAppTheme } from '../../../context/ThemeContext';
+import { notificationApi } from '../../notifications/api';
 
 interface ProfileScreenProps {
   onLogout?: () => void;
@@ -37,10 +30,12 @@ export function ProfileScreen({
   onSubPageChange,
 }: ProfileScreenProps) {
   const insets = useSafeAreaInsets();
+  const { isDark, colors: themeColors } = useAppTheme();
   const [profile, setProfile] = useState<UserProfileResponse | null>(null);
   const [totalTxCount, setTotalTxCount] = useState<number>(0);
   const [monthsUsedText, setMonthsUsedText] = useState<string>('1 tháng');
   const [savingRateText, setSavingRateText] = useState<string>('0%');
+  const [unreadCount, setUnreadCount] = useState<number>(0);
   const [showPricingModal, setShowPricingModal] = useState<boolean>(false);
   const [showAccountInfoModal, setShowAccountInfoModal] = useState<boolean>(false);
   const [showAvatarPickerModal, setShowAvatarPickerModal] = useState<boolean>(false);
@@ -49,6 +44,25 @@ export function ProfileScreen({
   useEffect(() => {
     onSubPageChange?.(currentSubPage !== 'MAIN');
   }, [currentSubPage, onSubPageChange]);
+
+  // Kiểm tra số lượng thông báo chưa đọc để hiển thị chấm đỏ
+  useEffect(() => {
+    let isMounted = true;
+    const fetchUnread = () => {
+      notificationApi
+        .getUnreadCount()
+        .then((count) => {
+          if (isMounted) setUnreadCount(count || 0);
+        })
+        .catch(() => {});
+    };
+    fetchUnread();
+    const interval = setInterval(fetchUnread, 15000);
+    return () => {
+      isMounted = false;
+      clearInterval(interval);
+    };
+  }, []);
   const [isLoggingOut, setIsLoggingOut] = useState<boolean>(false);
   const currentUser = authStorage.getUser();
 
@@ -251,33 +265,48 @@ export function ProfileScreen({
   }
 
   return (
-    <View style={styles.screen}>
-      {/* ── BACKGROUND LƯỢN SÓNG XANH CHỈ Ở PHẦN ĐẦU (Header & User Info) ── */}
-      <ImageBackground
-        source={require('../../../assets/profile-bg-wave.jpg')}
-        style={styles.bgWaveTop}
-        resizeMode="cover"
+    <View style={[styles.screen, isDark && { backgroundColor: themeColors.background }]}>
+      <StatusBar
+        barStyle={isDark ? 'light-content' : 'dark-content'}
+        backgroundColor={isDark ? themeColors.background : 'transparent'}
+        animated
       />
+      {/* ── BACKGROUND LƯỢN SÓNG XANH CHỈ Ở PHẦN ĐẦU (Header & User Info) ── */}
+      {!isDark && (
+        <ImageBackground
+          source={require('../../../assets/profile-bg-wave.jpg')}
+          style={styles.bgWaveTop}
+          resizeMode="cover"
+        />
+      )}
 
       {/* ── 1. TOP HEADER (Tiêu đề, Bell, Setting) ── */}
       <View style={[styles.headerRow, { paddingTop: Math.max(insets.top, 14) + 4 }]}>
         <View style={{ width: 40 }} />
-        <Text style={styles.headerTitle}>Cá nhân</Text>
+        <Text style={[styles.headerTitle, isDark && { color: themeColors.textPrimary }]}>Cá nhân</Text>
         <View style={styles.headerActions}>
           <Pressable
             onPress={onNotifications}
-            style={({ pressed }) => [styles.headerIconBtn, pressed && styles.pressed]}
+            style={({ pressed }) => [
+              styles.headerIconBtn,
+              isDark && { backgroundColor: themeColors.surface, borderColor: themeColors.cardBorder, borderWidth: 1 },
+              pressed && styles.pressed,
+            ]}
             hitSlop={8}
           >
-            <FinanceIcon name="bell" size={19} color="#047857" />
-            <View style={styles.bellBadge} />
+            <FinanceIcon name="bell" size={19} color={isDark ? themeColors.accentGreen : '#047857'} />
+            {unreadCount > 0 && <View style={styles.bellBadge} />}
           </Pressable>
           <Pressable
             onPress={() => setCurrentSubPage('SYSTEM_SETTINGS')}
-            style={({ pressed }) => [styles.headerIconBtn, pressed && styles.pressed]}
+            style={({ pressed }) => [
+              styles.headerIconBtn,
+              isDark && { backgroundColor: themeColors.surface, borderColor: themeColors.cardBorder, borderWidth: 1 },
+              pressed && styles.pressed,
+            ]}
             hitSlop={8}
           >
-            <FinanceIcon name="settings" size={19} color="#047857" />
+            <FinanceIcon name="settings" size={19} color={isDark ? themeColors.accentGreen : '#047857'} />
           </Pressable>
         </View>
       </View>
@@ -293,7 +322,7 @@ export function ProfileScreen({
           {/* ── 2. THẺ USER INFO (AVATAR, NAME, TÍCH XANH, BADGE) ── */}
           <View style={styles.userCardRow}>
             <View style={styles.avatarContainer}>
-              <View style={styles.avatarCircle}>
+              <View style={[styles.avatarCircle, isDark && { borderColor: themeColors.accentGreen, backgroundColor: themeColors.surfaceSubtle }]}>
                 {avatarUri ? (
                   <Image source={{ uri: avatarUri }} style={styles.avatarImg} />
                 ) : (
@@ -305,7 +334,7 @@ export function ProfileScreen({
               </View>
               <Pressable
                 onPress={() => setShowAvatarPickerModal(true)}
-                style={styles.cameraBtn}
+                style={[styles.cameraBtn, isDark && { borderColor: themeColors.surface }]}
                 hitSlop={8}
               >
                 <FinanceIcon name="camera" size={13} color="#FFFFFF" />
@@ -314,7 +343,7 @@ export function ProfileScreen({
 
             <View style={styles.userInfoWrap}>
               <View style={styles.userNameRow}>
-                <Text style={styles.userNameText} numberOfLines={1}>
+                <Text style={[styles.userNameText, isDark && { color: themeColors.textPrimary }]} numberOfLines={1}>
                   {displayName}
                 </Text>
                 {/* Tích xanh verified */}
@@ -322,13 +351,13 @@ export function ProfileScreen({
                   <FinanceIcon name="check" size={11} color="#FFFFFF" />
                 </View>
               </View>
-              <Text style={styles.userEmailText} numberOfLines={1}>
+              <Text style={[styles.userEmailText, isDark && { color: themeColors.textSecondary }]} numberOfLines={1}>
                 {displayEmail}
               </Text>
 
-              <View style={[styles.premiumBadgePill, { backgroundColor: tierInfo.bg }]}>
-                <FinanceIcon name={tierInfo.icon as any} size={13} color={tierInfo.color} />
-                <Text style={[styles.premiumBadgeText, { color: tierInfo.color }]}>
+              <View style={[styles.premiumBadgePill, { backgroundColor: isDark ? (isPremiumUser ? '#451A03' : rawTier === 'STANDARD' ? '#082F49' : '#064E3B') : tierInfo.bg }]}>
+                <FinanceIcon name={tierInfo.icon as any} size={13} color={isDark ? (isPremiumUser ? '#FCD34D' : rawTier === 'STANDARD' ? '#38BDF8' : '#34D399') : tierInfo.color} />
+                <Text style={[styles.premiumBadgeText, { color: isDark ? (isPremiumUser ? '#FCD34D' : rawTier === 'STANDARD' ? '#38BDF8' : '#34D399') : tierInfo.color }]}>
                   {tierInfo.label}
                 </Text>
               </View>
@@ -338,7 +367,7 @@ export function ProfileScreen({
               onPress={() => setShowAccountInfoModal(true)}
               hitSlop={12}
             >
-              <FinanceIcon name="chevron-right" size={20} color="#64748B" />
+              <FinanceIcon name="chevron-right" size={20} color={isDark ? themeColors.textSecondary : '#64748B'} />
             </Pressable>
           </View>
 
@@ -383,152 +412,153 @@ export function ProfileScreen({
           </View>
 
           {/* ── 4. 3 THẺ CHỈ SỐ THỐNG KÊ (STATS CARD - TÍNH TOÁN DỮ LIỆU THẬT) ── */}
-          <View style={styles.statsRow}>
+          <View style={[styles.statsRow, isDark && { backgroundColor: themeColors.surface, borderColor: themeColors.cardBorder }]}>
             <View style={styles.statCard}>
               <View style={styles.statIconWrap}>
-                <FinanceIcon name="chart" size={17} color="#10B981" />
+                <FinanceIcon name="chart" size={17} color={isDark ? themeColors.accentGreen : '#10B981'} />
               </View>
-              <Text style={styles.statValue}>{totalTxCount}</Text>
-              <Text style={styles.statLabel}>Giao dịch</Text>
+              <Text style={[styles.statValue, isDark && { color: themeColors.textPrimary }]}>{totalTxCount}</Text>
+              <Text style={[styles.statLabel, isDark && { color: themeColors.textSecondary }]}>Giao dịch</Text>
             </View>
 
             <View style={styles.statCard}>
               <View style={styles.statIconWrap}>
-                <FinanceIcon name="calendar" size={17} color="#10B981" />
+                <FinanceIcon name="calendar" size={17} color={isDark ? themeColors.accentGreen : '#10B981'} />
               </View>
-              <Text style={styles.statValue}>{monthsUsedText}</Text>
-              <Text style={styles.statLabel}>Đã sử dụng</Text>
+              <Text style={[styles.statValue, isDark && { color: themeColors.textPrimary }]}>{monthsUsedText}</Text>
+              <Text style={[styles.statLabel, isDark && { color: themeColors.textSecondary }]}>Đã sử dụng</Text>
             </View>
 
             <View style={styles.statCard}>
               <View style={styles.statIconWrap}>
-                <FinanceIcon name="leaf" size={17} color="#10B981" />
+                <FinanceIcon name="leaf" size={17} color={isDark ? themeColors.accentGreen : '#10B981'} />
               </View>
-              <Text style={styles.statValue}>{savingRateText}</Text>
-              <Text style={styles.statLabel}>Tỷ lệ tích luỹ</Text>
+              <Text style={[styles.statValue, isDark && { color: themeColors.textPrimary }]}>{savingRateText}</Text>
+              <Text style={[styles.statLabel, isDark && { color: themeColors.textSecondary }]}>Tỷ lệ tích luỹ</Text>
             </View>
           </View>
 
           {/* ── 5. NHÓM TÍNH NĂNG 1: TÀI KHOẢN & BẢO MẬT ── */}
-          <View style={styles.menuGroupCard}>
+          <View style={[styles.menuGroupCard, isDark && { backgroundColor: themeColors.surface, borderColor: themeColors.cardBorder }]}>
             <Pressable
               onPress={() => setShowAccountInfoModal(true)}
               style={styles.menuItemRow}
             >
-              <View style={[styles.menuIconBox, { backgroundColor: '#E8F8F0' }]}>
-                <FinanceIcon name="user" size={18} color="#059669" />
+              <View style={[styles.menuIconBox, { backgroundColor: isDark ? 'rgba(16, 185, 129, 0.16)' : '#E8F8F0' }]}>
+                <FinanceIcon name="user" size={18} color={isDark ? '#34D399' : '#059669'} />
               </View>
               <View style={styles.menuTextWrap}>
-                <Text style={styles.menuItemTitle}>Thông tin tài khoản</Text>
-                <Text style={styles.menuItemSub}>Xem và cập nhật thông tin</Text>
+                <Text style={[styles.menuItemTitle, isDark && { color: themeColors.textPrimary }]}>Thông tin tài khoản</Text>
+                <Text style={[styles.menuItemSub, isDark && { color: themeColors.textSecondary }]}>Xem và cập nhật thông tin</Text>
               </View>
-              <FinanceIcon name="chevron-right" size={18} color="#94A3B8" />
+              <FinanceIcon name="chevron-right" size={18} color={isDark ? themeColors.textSecondary : '#94A3B8'} />
             </Pressable>
 
-            <View style={styles.menuDivider} />
+            <View style={[styles.menuDivider, isDark && { backgroundColor: themeColors.cardBorder }]} />
 
             <Pressable
               onPress={() => setCurrentSubPage('SECURITY')}
               style={styles.menuItemRow}
             >
-              <View style={[styles.menuIconBox, { backgroundColor: '#E8F8F0' }]}>
-                <FinanceIcon name="shield" size={18} color="#059669" />
+              <View style={[styles.menuIconBox, { backgroundColor: isDark ? 'rgba(59, 130, 246, 0.16)' : '#EFF6FF' }]}>
+                <FinanceIcon name="shield" size={18} color={isDark ? '#60A5FA' : '#2563EB'} />
               </View>
               <View style={styles.menuTextWrap}>
-                <Text style={styles.menuItemTitle}>Bảo mật & Đăng nhập</Text>
-                <Text style={styles.menuItemSub}>Mật khẩu, xác thực 2 bước (2FA)</Text>
+                <Text style={[styles.menuItemTitle, isDark && { color: themeColors.textPrimary }]}>Bảo mật & Đăng nhập</Text>
+                <Text style={[styles.menuItemSub, isDark && { color: themeColors.textSecondary }]}>Mật khẩu, xác thực 2 bước (2FA)</Text>
               </View>
-              <FinanceIcon name="chevron-right" size={18} color="#94A3B8" />
+              <FinanceIcon name="chevron-right" size={18} color={isDark ? themeColors.textSecondary : '#94A3B8'} />
             </Pressable>
 
-            <View style={styles.menuDivider} />
+            <View style={[styles.menuDivider, isDark && { backgroundColor: themeColors.cardBorder }]} />
 
             <Pressable
               onPress={() => setShowPricingModal(true)}
               style={styles.menuItemRow}
             >
-              <View style={[styles.menuIconBox, { backgroundColor: '#FEF3C7' }]}>
-                <FinanceIcon name="crown" size={18} color="#D97706" />
+              <View style={[styles.menuIconBox, { backgroundColor: isDark ? 'rgba(245, 158, 11, 0.18)' : '#FEF3C7' }]}>
+                <FinanceIcon name="crown" size={18} color={isDark ? '#FBBF24' : '#D97706'} />
               </View>
               <View style={styles.menuTextWrap}>
-                <Text style={styles.menuItemTitle}>Gói thành viên</Text>
-                <Text style={styles.menuItemSub}>Quản lý gói và quyền lợi Premium</Text>
+                <Text style={[styles.menuItemTitle, isDark && { color: themeColors.textPrimary }]}>Gói thành viên</Text>
+                <Text style={[styles.menuItemSub, isDark && { color: themeColors.textSecondary }]}>Quản lý gói và quyền lợi Premium</Text>
               </View>
-              <FinanceIcon name="chevron-right" size={18} color="#94A3B8" />
+              <FinanceIcon name="chevron-right" size={18} color={isDark ? themeColors.textSecondary : '#94A3B8'} />
             </Pressable>
           </View>
 
           {/* ── 6. NHÓM TÍNH NĂNG 2: THIẾT LẬP & TRỢ GIÚP ── */}
-          <View style={styles.menuGroupCard}>
+          <View style={[styles.menuGroupCard, isDark && { backgroundColor: themeColors.surface, borderColor: themeColors.cardBorder }]}>
             <Pressable
               onPress={() => setCurrentSubPage('NOTIFICATION_SETTINGS')}
               style={styles.menuItemRow}
             >
-              <View style={[styles.menuIconBox, { backgroundColor: '#E8F8F0' }]}>
-                <FinanceIcon name="bell" size={18} color="#059669" />
+              <View style={[styles.menuIconBox, { backgroundColor: isDark ? 'rgba(249, 115, 22, 0.16)' : '#FFF7ED' }]}>
+                <FinanceIcon name="bell" size={18} color={isDark ? '#FB923C' : '#EA580C'} />
               </View>
               <View style={styles.menuTextWrap}>
-                <Text style={styles.menuItemTitle}>Cài đặt thông báo</Text>
-                <Text style={styles.menuItemSub}>Tùy chỉnh thông báo, lịch nhắc & cảnh báo</Text>
+                <Text style={[styles.menuItemTitle, isDark && { color: themeColors.textPrimary }]}>Cài đặt thông báo</Text>
+                <Text style={[styles.menuItemSub, isDark && { color: themeColors.textSecondary }]}>Tùy chỉnh thông báo, lịch nhắc & cảnh báo</Text>
               </View>
-              <FinanceIcon name="chevron-right" size={18} color="#94A3B8" />
+              <FinanceIcon name="chevron-right" size={18} color={isDark ? themeColors.textSecondary : '#94A3B8'} />
             </Pressable>
 
-            <View style={styles.menuDivider} />
+            <View style={[styles.menuDivider, isDark && { backgroundColor: themeColors.cardBorder }]} />
 
             <Pressable
               onPress={() => setCurrentSubPage('HELP_CENTER')}
               style={styles.menuItemRow}
             >
-              <View style={[styles.menuIconBox, { backgroundColor: '#E8F8F0' }]}>
-                <FinanceIcon name="help-circle" size={18} color="#059669" />
+              <View style={[styles.menuIconBox, { backgroundColor: isDark ? 'rgba(20, 184, 166, 0.16)' : '#F0FDFA' }]}>
+                <FinanceIcon name="help-circle" size={18} color={isDark ? '#2DD4BF' : '#0D9488'} />
               </View>
               <View style={styles.menuTextWrap}>
-                <Text style={styles.menuItemTitle}>Trung tâm trợ giúp</Text>
-                <Text style={styles.menuItemSub}>Hướng dẫn, câu hỏi thường gặp & gửi phản hồi</Text>
+                <Text style={[styles.menuItemTitle, isDark && { color: themeColors.textPrimary }]}>Trung tâm trợ giúp</Text>
+                <Text style={[styles.menuItemSub, isDark && { color: themeColors.textSecondary }]}>Hướng dẫn, câu hỏi thường gặp & gửi phản hồi</Text>
               </View>
-              <FinanceIcon name="chevron-right" size={18} color="#94A3B8" />
+              <FinanceIcon name="chevron-right" size={18} color={isDark ? themeColors.textSecondary : '#94A3B8'} />
             </Pressable>
 
-            <View style={styles.menuDivider} />
+            <View style={[styles.menuDivider, isDark && { backgroundColor: themeColors.cardBorder }]} />
 
             <Pressable
               onPress={() => setCurrentSubPage('SYSTEM_SETTINGS')}
               style={styles.menuItemRow}
             >
-              <View style={[styles.menuIconBox, { backgroundColor: '#E8F8F0' }]}>
-                <FinanceIcon name="settings" size={18} color="#059669" />
+              <View style={[styles.menuIconBox, { backgroundColor: isDark ? 'rgba(168, 85, 247, 0.16)' : '#FAF5FF' }]}>
+                <FinanceIcon name="settings" size={18} color={isDark ? '#C084FC' : '#9333EA'} />
               </View>
               <View style={styles.menuTextWrap}>
-                <Text style={styles.menuItemTitle}>Cài đặt hệ thống</Text>
-                <Text style={styles.menuItemSub}>Giao diện, ngôn ngữ, tiền tệ & bảo mật app</Text>
+                <Text style={[styles.menuItemTitle, isDark && { color: themeColors.textPrimary }]}>Cài đặt hệ thống</Text>
+                <Text style={[styles.menuItemSub, isDark && { color: themeColors.textSecondary }]}>Giao diện, ngôn ngữ, tiền tệ & bảo mật app</Text>
               </View>
-              <FinanceIcon name="chevron-right" size={18} color="#94A3B8" />
+              <FinanceIcon name="chevron-right" size={18} color={isDark ? themeColors.textSecondary : '#94A3B8'} />
             </Pressable>
 
-            <View style={styles.menuDivider} />
+            <View style={[styles.menuDivider, isDark && { backgroundColor: themeColors.cardBorder }]} />
 
             <Pressable
               onPress={() => setCurrentSubPage('ABOUT')}
               style={styles.menuItemRow}
             >
-              <View style={[styles.menuIconBox, { backgroundColor: '#E8F8F0' }]}>
-                <FinanceIcon name="info" size={18} color="#059669" />
+              <View style={[styles.menuIconBox, { backgroundColor: isDark ? 'rgba(244, 63, 94, 0.16)' : '#FFF1F2' }]}>
+                <FinanceIcon name="info" size={18} color={isDark ? '#FB7185' : '#E11D48'} />
               </View>
               <View style={styles.menuTextWrap}>
-                <Text style={styles.menuItemTitle}>Giới thiệu Finora</Text>
-                <Text style={styles.menuItemSub}>Phiên bản, đội ngũ phát triển & điều khoản</Text>
+                <Text style={[styles.menuItemTitle, isDark && { color: themeColors.textPrimary }]}>Giới thiệu Finora</Text>
+                <Text style={[styles.menuItemSub, isDark && { color: themeColors.textSecondary }]}>Phiên bản, đội ngũ phát triển & điều khoản</Text>
               </View>
-              <FinanceIcon name="chevron-right" size={18} color="#94A3B8" />
+              <FinanceIcon name="chevron-right" size={18} color={isDark ? themeColors.textSecondary : '#94A3B8'} />
             </Pressable>
           </View>
 
-          {/* ── 7. NÚT ĐĂNG XUẤT NỀN ĐỎ NHẸ CAO CẤP ── */}
+          {/* ── 7. NÚT ĐĂNG XUẤT ── */}
           <Pressable
             onPress={handleLogout}
             disabled={isLoggingOut}
             style={({ pressed }) => [
               styles.logoutBtnCard,
+              isDark && { backgroundColor: themeColors.surface, borderColor: '#EF4444' },
               (pressed || isLoggingOut) && styles.pressed,
               isLoggingOut && { opacity: 0.6 },
             ]}
@@ -900,18 +930,23 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#FFF1F2',
+    backgroundColor: '#FFFFFF',
     borderWidth: 1,
-    borderColor: '#FECDD3',
+    borderColor: '#EF4444',
     borderRadius: 18,
     paddingVertical: 13,
     gap: 8,
     marginTop: 6,
     marginBottom: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.03,
+    shadowRadius: 3,
+    elevation: 1,
   },
   logoutBtnText: {
     fontSize: 14,
-    fontWeight: '800',
+    fontWeight: '700',
     color: '#EF4444',
   },
 

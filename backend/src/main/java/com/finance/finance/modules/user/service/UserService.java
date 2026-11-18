@@ -88,9 +88,7 @@ public class UserService {
         if (request.getPhone() != null) {
             user.setPhone(request.getPhone());
         }
-        if (request.getPreferredCurrency() != null) {
-            user.setPreferredCurrency(request.getPreferredCurrency());
-        }
+        // Currency is fixed to VND - cannot be changed
         if (request.getTimezone() != null) {
             user.setTimezone(request.getTimezone());
         }

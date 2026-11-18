@@ -475,6 +475,18 @@ public class DebtService {
         }
     }
 
+    private LocalDate advancePaymentDate(LocalDate date, PaymentFrequency frequency) {
+        if (date == null || frequency == null) return date;
+        return switch (frequency) {
+            case WEEKLY -> date.plusWeeks(1);
+            case BIWEEKLY -> date.plusWeeks(2);
+            case MONTHLY -> date.plusMonths(1);
+            case QUARTERLY -> date.plusMonths(3);
+            case YEARLY -> date.plusYears(1);
+            case ONE_TIME -> date;
+        };
+    }
+
     private LocalDate calculateNextPaymentDate(LocalDate startDate, PaymentFrequency frequency) {
         LocalDate today = LocalDate.now();
         LocalDate nextDate = startDate;
@@ -576,7 +588,7 @@ public class DebtService {
                     .build());
 
             remaining = remainingAfter;
-            currentDate = calculateNextPaymentDate(currentDate, debt.getPaymentFrequency());
+            currentDate = advancePaymentDate(currentDate, debt.getPaymentFrequency());
             paymentNumber++;
 
             // Break if we've reached or passed the due date
@@ -645,6 +657,9 @@ public class DebtService {
                 .dueDate(debt.getDueDate())
                 .nextPaymentDate(debt.getNextPaymentDate())
                 .nextPaymentAmount(debt.getPaymentAmount())
+                .paymentFrequency(debt.getPaymentFrequency())
+                .monthlyPayment(debt.getPaymentAmount())
+                .paymentAmount(debt.getPaymentAmount())
                 .build();
     }
 

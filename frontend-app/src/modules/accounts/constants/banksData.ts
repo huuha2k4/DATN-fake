@@ -282,16 +282,6 @@ export const POPULAR_BANKS_AND_WALLETS: BankOrWalletPreset[] = [
     "logoUrl": "https://cdn.vietqr.io/img/TIMO.png"
   },
   {
-    "code": "VTLMONEY",
-    "name": "Tổng Công ty Dịch vụ số Viettel - Chi nhánh tập đoàn công nghiệp viễn thông Quân Đội",
-    "shortName": "ViettelMoney",
-    "kind": "E_WALLET",
-    "brandColor": "#7a207f",
-    "bgColor": "#f9edf9",
-    "textColor": "#6f1974",
-    "logoUrl": "https://cdn.vietqr.io/img/VTLMONEY.png"
-  },
-  {
     "code": "SGICB",
     "name": "Ngân hàng TMCP Sài Gòn Công Thương",
     "shortName": "SaigonBank",

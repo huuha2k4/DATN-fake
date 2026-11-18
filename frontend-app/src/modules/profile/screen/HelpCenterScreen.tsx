@@ -1,21 +1,9 @@
 import React, { useEffect, useState } from 'react';
-import {
-  ActivityIndicator,
-  Alert,
-  KeyboardAvoidingView,
-  Modal,
-  Platform,
-  Pressable,
-  RefreshControl,
-  ScrollView,
-  StatusBar,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from 'react-native';
+import { ActivityIndicator, KeyboardAvoidingView, Modal, Platform, Pressable, RefreshControl, ScrollView, StatusBar, StyleSheet, Text, TextInput, View } from 'react-native';
+import { AppAlert as Alert } from '../../../context/DialogContext';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { FinanceIcon } from '../../core/components/FinanceIcon';
+import { useAppTheme } from '../../../context/ThemeContext';
 import { feedbackApi, type FeedbackItem } from '../api/feedbackApi';
 
 interface HelpCenterScreenProps {
@@ -52,6 +40,7 @@ const FAQS = [
 ];
 
 export function HelpCenterScreen({ onBack, onOpenAiAssistant }: HelpCenterScreenProps) {
+  const { isDark, colors: themeColors } = useAppTheme();
   const insets = useSafeAreaInsets();
   const [activeTab, setActiveTab] = useState<'FAQ' | 'TICKETS'>('FAQ');
   const [expandedFaqId, setExpandedFaqId] = useState<string | null>('faq1');
@@ -155,37 +144,67 @@ export function HelpCenterScreen({ onBack, onOpenAiAssistant }: HelpCenterScreen
   };
 
   return (
-    <View style={styles.screen}>
-      <StatusBar barStyle="dark-content" backgroundColor="#FAFCFB" />
+    <View style={[styles.screen, isDark && { backgroundColor: themeColors.background }]}>
+      <StatusBar barStyle={isDark ? "light-content" : "dark-content"} backgroundColor={isDark ? themeColors.background : "#FAFCFB"} />
 
       {/* TOP HEADER */}
-      <View style={[styles.headerContainer, { paddingTop: Math.max(insets.top + 6, 16) }]}>
-        <Pressable onPress={onBack} style={styles.headerIconButton} hitSlop={12}>
-          <FinanceIcon name="chevron-left" size={24} color="#0F172A" />
+      <View style={[styles.headerContainer, { paddingTop: Math.max(insets.top + 6, 16) }, isDark && { backgroundColor: themeColors.surface, borderBottomColor: themeColors.cardBorder }]}>
+        <Pressable
+          onPress={onBack}
+          style={[styles.headerIconButton, isDark && { backgroundColor: themeColors.surfaceSubtle }]}
+          hitSlop={12}
+        >
+          <FinanceIcon name="chevron-left" size={24} color={isDark ? themeColors.textPrimary : "#0F172A"} />
         </Pressable>
-        <Text style={styles.headerTitle}>Trung tâm trợ giúp</Text>
+        <Text style={[styles.headerTitle, isDark && { color: themeColors.textPrimary }]}>Trung tâm trợ giúp</Text>
         <View style={{ width: 38 }} />
       </View>
 
       {/* TAB SELECTOR: CÂU HỎI FAQ vs YÊU CẦU HỖ TRỢ CỦA TÔI */}
       <View style={styles.tabBarWrapper}>
-        <View style={styles.tabBarPill}>
+        <View style={[styles.tabBarPill, isDark && { backgroundColor: themeColors.surface, borderColor: themeColors.cardBorder }]}>
           <Pressable
-            style={[styles.tabButton, activeTab === 'FAQ' && styles.tabButtonActive]}
+            style={[
+              styles.tabButton,
+              activeTab === 'FAQ' && (isDark ? { backgroundColor: themeColors.surfaceSubtle } : styles.tabButtonActive),
+            ]}
             onPress={() => setActiveTab('FAQ')}
           >
-            <FinanceIcon name="help-circle" size={17} color={activeTab === 'FAQ' ? '#0F172A' : '#64748B'} />
-            <Text style={[styles.tabButtonText, activeTab === 'FAQ' && styles.tabButtonTextActive]}>
+            <FinanceIcon
+              name="help-circle"
+              size={17}
+              color={activeTab === 'FAQ' ? (isDark ? themeColors.accentGreen : '#0F172A') : (isDark ? themeColors.textMuted : '#64748B')}
+            />
+            <Text
+              style={[
+                styles.tabButtonText,
+                isDark && { color: themeColors.textSecondary },
+                activeTab === 'FAQ' && (isDark ? { color: themeColors.accentGreen, fontWeight: '800' } : styles.tabButtonTextActive),
+              ]}
+            >
               Câu hỏi thường gặp
             </Text>
           </Pressable>
 
           <Pressable
-            style={[styles.tabButton, activeTab === 'TICKETS' && styles.tabButtonActiveDark]}
+            style={[
+              styles.tabButton,
+              activeTab === 'TICKETS' && (isDark ? { backgroundColor: themeColors.surfaceSubtle } : styles.tabButtonActiveDark),
+            ]}
             onPress={() => setActiveTab('TICKETS')}
           >
-            <FinanceIcon name="file-text" size={17} color={activeTab === 'TICKETS' ? '#FFFFFF' : '#64748B'} />
-            <Text style={[styles.tabButtonText, activeTab === 'TICKETS' && styles.tabButtonTextActiveDark]}>
+            <FinanceIcon
+              name="file-text"
+              size={17}
+              color={activeTab === 'TICKETS' ? (isDark ? themeColors.accentGreen : '#FFFFFF') : (isDark ? themeColors.textMuted : '#64748B')}
+            />
+            <Text
+              style={[
+                styles.tabButtonText,
+                isDark && { color: themeColors.textSecondary },
+                activeTab === 'TICKETS' && (isDark ? { color: themeColors.accentGreen, fontWeight: '800' } : styles.tabButtonTextActiveDark),
+              ]}
+            >
               Yêu cầu của tôi
             </Text>
           </Pressable>
@@ -206,13 +225,13 @@ export function HelpCenterScreen({ onBack, onOpenAiAssistant }: HelpCenterScreen
         {activeTab === 'FAQ' && (
           <View>
             {/* Banner FinAI Assistant */}
-            <View style={styles.aiBannerCard}>
-              <View style={styles.aiBannerIconWrap}>
-                <FinanceIcon name="spark" size={24} color="#047857" />
+            <View style={[styles.aiBannerCard, isDark && { backgroundColor: themeColors.surface, borderColor: themeColors.cardBorder }]}>
+              <View style={[styles.aiBannerIconWrap, isDark && { backgroundColor: 'rgba(16, 185, 129, 0.16)' }]}>
+                <FinanceIcon name="spark" size={24} color={isDark ? '#34D399' : '#047857'} />
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={styles.aiBannerTitle}>Hỏi đáp trực tiếp với FinAI</Text>
-                <Text style={styles.aiBannerSub}>
+                <Text style={[styles.aiBannerTitle, isDark && { color: themeColors.accentGreen }]}>Hỏi đáp trực tiếp với FinAI</Text>
+                <Text style={[styles.aiBannerSub, isDark && { color: themeColors.textSecondary }]}>
                   Trợ lý tài chính AI luôn sẵn sàng giải đáp thắc mắc và phân tích chi tiêu cho bạn 24/7.
                 </Text>
                 {onOpenAiAssistant && (
@@ -224,7 +243,7 @@ export function HelpCenterScreen({ onBack, onOpenAiAssistant }: HelpCenterScreen
               </View>
             </View>
 
-            <Text style={styles.sectionHeading}>Các chủ đề thường gặp</Text>
+            <Text style={[styles.sectionHeading, isDark && { color: themeColors.accentGreen }]}>Các chủ đề thường gặp</Text>
 
             <View style={styles.faqListWrap}>
               {FAQS.map((faq) => {
@@ -232,11 +251,11 @@ export function HelpCenterScreen({ onBack, onOpenAiAssistant }: HelpCenterScreen
                 return (
                   <Pressable
                     key={faq.id}
-                    style={[styles.faqCard, isExpanded && styles.faqCardActive]}
+                    style={[styles.faqCard, isDark && { backgroundColor: themeColors.surface, borderColor: themeColors.cardBorder }, isExpanded && (isDark ? { borderColor: themeColors.accentGreen } : styles.faqCardActive)]}
                     onPress={() => setExpandedFaqId(isExpanded ? null : faq.id)}
                   >
                     <View style={styles.faqHeaderRow}>
-                      <Text style={[styles.faqQuestion, isExpanded && styles.faqQuestionActive]}>
+                      <Text style={[styles.faqQuestion, isDark && { color: themeColors.textPrimary }, isExpanded && (isDark ? { color: themeColors.accentGreen } : styles.faqQuestionActive)]}>
                         {faq.question}
                       </Text>
                       <FinanceIcon
@@ -247,7 +266,7 @@ export function HelpCenterScreen({ onBack, onOpenAiAssistant }: HelpCenterScreen
                     </View>
                     {isExpanded && (
                       <View style={styles.faqAnswerWrap}>
-                        <Text style={styles.faqAnswerText}>{faq.answer}</Text>
+                        <Text style={[styles.faqAnswerText, isDark && { color: themeColors.textSecondary }]}>{faq.answer}</Text>
                       </View>
                     )}
                   </Pressable>
@@ -256,13 +275,13 @@ export function HelpCenterScreen({ onBack, onOpenAiAssistant }: HelpCenterScreen
             </View>
 
             {/* Hộp liên hệ hỗ trợ thêm */}
-            <View style={styles.contactSupportCard}>
-              <Text style={styles.contactTitle}>Bạn vẫn chưa tìm được câu trả lời?</Text>
-              <Text style={styles.contactDesc}>
+            <View style={[styles.contactSupportCard, isDark && { backgroundColor: themeColors.surface, borderColor: themeColors.cardBorder }]}>
+              <Text style={[styles.contactTitle, isDark && { color: themeColors.textPrimary }]}>Bạn vẫn chưa tìm được câu trả lời?</Text>
+              <Text style={[styles.contactDesc, isDark && { color: themeColors.textSecondary }]}>
                 Hãy gửi câu hỏi hoặc phản hồi lỗi cho ban quản trị. Chúng tôi sẽ giải đáp chi tiết cho bạn.
               </Text>
               <Pressable
-                style={styles.contactBtn}
+                style={[styles.contactBtn, isDark && { backgroundColor: '#10B981' }]}
                 onPress={() => setShowCreateModal(true)}
               >
                 <FinanceIcon name="plus" size={16} color="#FFFFFF" />
@@ -276,29 +295,32 @@ export function HelpCenterScreen({ onBack, onOpenAiAssistant }: HelpCenterScreen
         {activeTab === 'TICKETS' && (
           <View>
             <View style={styles.ticketTopRow}>
-              <Text style={styles.sectionHeading}>Lịch sử phản hồi ({feedbacks.length})</Text>
+              <Text style={[styles.sectionHeading, isDark && { color: themeColors.accentGreen }]}>Lịch sử phản hồi ({feedbacks.length})</Text>
               <Pressable
-                style={styles.newTicketPillBtn}
+                style={[
+                  styles.newTicketPillBtn,
+                  isDark && { backgroundColor: 'rgba(16, 185, 129, 0.16)', borderColor: themeColors.cardBorder },
+                ]}
                 onPress={() => setShowCreateModal(true)}
               >
-                <FinanceIcon name="plus" size={14} color="#047857" />
-                <Text style={styles.newTicketPillText}>Tạo mới</Text>
+                <FinanceIcon name="plus" size={14} color={isDark ? themeColors.accentGreen : '#047857'} />
+                <Text style={[styles.newTicketPillText, isDark && { color: themeColors.accentGreen }]}>Tạo mới</Text>
               </Pressable>
             </View>
 
             {loading ? (
               <View style={styles.centerLoading}>
-                <ActivityIndicator size="large" color="#047857" />
+                <ActivityIndicator size="large" color={isDark ? themeColors.accentGreen : '#047857'} />
               </View>
             ) : feedbacks.length === 0 ? (
-              <View style={styles.emptyWrap}>
-                <FinanceIcon name="inbox" size={44} color="#94A3B8" />
-                <Text style={styles.emptyTitle}>Chưa có yêu cầu hỗ trợ nào</Text>
-                <Text style={styles.emptySub}>
+              <View style={[styles.emptyWrap, isDark && { backgroundColor: themeColors.surface, borderColor: themeColors.cardBorder }]}>
+                <FinanceIcon name="inbox" size={44} color={isDark ? themeColors.textMuted : '#94A3B8'} />
+                <Text style={[styles.emptyTitle, isDark && { color: themeColors.textPrimary }]}>Chưa có yêu cầu hỗ trợ nào</Text>
+                <Text style={[styles.emptySub, isDark && { color: themeColors.textSecondary }]}>
                   Khi bạn gửi phản hồi hoặc báo lỗi, tiến trình xử lý và câu trả lời của admin sẽ xuất hiện tại đây.
                 </Text>
                 <Pressable
-                  style={styles.emptyActionBtn}
+                  style={[styles.emptyActionBtn, isDark && { backgroundColor: '#10B981' }]}
                   onPress={() => setShowCreateModal(true)}
                 >
                   <FinanceIcon name="plus" size={16} color="#FFFFFF" />
@@ -310,36 +332,36 @@ export function HelpCenterScreen({ onBack, onOpenAiAssistant }: HelpCenterScreen
                 {feedbacks.map((item) => {
                   const badge = getStatusBadge(item.status);
                   return (
-                    <View key={item.id} style={styles.ticketCard}>
+                    <View key={item.id} style={[styles.ticketCard, isDark && { backgroundColor: themeColors.surface, borderColor: themeColors.cardBorder }]}>
                       <View style={styles.ticketHeaderRow}>
-                        <View style={styles.ticketCategoryPill}>
-                          <Text style={styles.ticketCategoryText}>
+                        <View style={[styles.ticketCategoryPill, isDark && { backgroundColor: themeColors.surfaceSubtle }]}>
+                          <Text style={[styles.ticketCategoryText, isDark && { color: themeColors.accentGreen }]}>
                             {getCategoryLabel(item.category)}
                           </Text>
                         </View>
-                        <View style={[styles.ticketStatusBadge, { backgroundColor: badge.bg }]}>
-                          <Text style={[styles.ticketStatusText, { color: badge.color }]}>
+                        <View style={[styles.ticketStatusBadge, { backgroundColor: isDark && badge.bg === '#ECFDF5' ? 'rgba(16, 185, 129, 0.16)' : (isDark && badge.bg === '#FEF3C7' ? 'rgba(245, 158, 11, 0.16)' : badge.bg) }]}>
+                          <Text style={[styles.ticketStatusText, { color: isDark && badge.color === '#047857' ? themeColors.accentGreen : badge.color }]}>
                             {badge.text}
                           </Text>
                         </View>
                       </View>
 
-                      <Text style={styles.ticketTitle}>{item.title}</Text>
-                      <Text style={styles.ticketContent}>{item.content}</Text>
+                      <Text style={[styles.ticketTitle, isDark && { color: themeColors.textPrimary }]}>{item.title}</Text>
+                      <Text style={[styles.ticketContent, isDark && { color: themeColors.textSecondary }]}>{item.content}</Text>
 
                       {/* Phản hồi từ Ban Quản Trị nếu có */}
                       {Boolean(item.adminReply) && (
-                        <View style={styles.adminReplyBox}>
+                        <View style={[styles.adminReplyBox, isDark && { backgroundColor: 'rgba(16, 185, 129, 0.12)', borderLeftColor: themeColors.accentGreen }]}>
                           <View style={styles.adminReplyHeader}>
-                            <FinanceIcon name="shield" size={14} color="#047857" />
-                            <Text style={styles.adminReplyTitle}>Phản hồi từ Admin Finora</Text>
+                            <FinanceIcon name="shield" size={14} color={isDark ? themeColors.accentGreen : '#047857'} />
+                            <Text style={[styles.adminReplyTitle, isDark && { color: themeColors.accentGreen }]}>Phản hồi từ Admin Finora</Text>
                           </View>
-                          <Text style={styles.adminReplyContent}>{item.adminReply}</Text>
+                          <Text style={[styles.adminReplyContent, isDark && { color: themeColors.textPrimary }]}>{item.adminReply}</Text>
                         </View>
                       )}
 
-                      <View style={styles.ticketFooterRow}>
-                        <Text style={styles.ticketDate}>
+                      <View style={[styles.ticketFooterRow, isDark && { borderTopColor: themeColors.divider }]}>
+                        <Text style={[styles.ticketDate, isDark && { color: themeColors.textMuted }]}>
                           Gửi ngày: {item.createdAt ? item.createdAt.split('T')[0] : 'Gần đây'}
                         </Text>
                       </View>
@@ -363,22 +385,22 @@ export function HelpCenterScreen({ onBack, onOpenAiAssistant }: HelpCenterScreen
           behavior={Platform.OS === 'ios' ? 'padding' : undefined}
           style={styles.modalOverlay}
         >
-          <View style={[styles.modalSheet, { paddingBottom: insets.bottom + 20 }]}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalHeaderTitle}>Gửi phản hồi / Yêu cầu hỗ trợ</Text>
+          <View style={[styles.modalSheet, { paddingBottom: insets.bottom + 20 }, isDark && { backgroundColor: themeColors.surface, borderColor: themeColors.cardBorder, borderWidth: 1 }]}>
+            <View style={[styles.modalHeader, isDark && { borderBottomColor: themeColors.divider }]}>
+              <Text style={[styles.modalHeaderTitle, isDark && { color: themeColors.textPrimary }]}>Gửi phản hồi / Yêu cầu hỗ trợ</Text>
               <Pressable
                 onPress={() => setShowCreateModal(false)}
                 hitSlop={12}
-                style={styles.modalCloseBtn}
+                style={[styles.modalCloseBtn, isDark && { backgroundColor: themeColors.surfaceSubtle, borderRadius: 16 }]}
               >
-                <FinanceIcon name="close" size={20} color="#64748B" />
+                <FinanceIcon name="close" size={20} color={isDark ? themeColors.textSecondary : '#64748B'} />
               </Pressable>
             </View>
 
             <ScrollView style={styles.modalBody} showsVerticalScrollIndicator={false}>
               {/* Phân loại phản hồi */}
               <View style={styles.formGroup}>
-                <Text style={styles.formLabel}>Chủ đề phản hồi *</Text>
+                <Text style={[styles.formLabel, isDark && { color: themeColors.textSecondary }]}>Chủ đề phản hồi *</Text>
                 <View style={styles.categoryPillsRow}>
                   {[
                     { key: 'QUESTION', label: 'Hỏi đáp' },
@@ -391,13 +413,15 @@ export function HelpCenterScreen({ onBack, onOpenAiAssistant }: HelpCenterScreen
                       onPress={() => setFormCategory(it.key as any)}
                       style={[
                         styles.catPillBtn,
-                        formCategory === it.key && styles.catPillBtnActive,
+                        isDark && { backgroundColor: themeColors.surfaceSubtle, borderColor: themeColors.cardBorder },
+                        formCategory === it.key && (isDark ? { backgroundColor: 'rgba(16, 185, 129, 0.16)', borderColor: themeColors.accentGreen } : styles.catPillBtnActive),
                       ]}
                     >
                       <Text
                         style={[
                           styles.catPillText,
-                          formCategory === it.key && styles.catPillTextActive,
+                          isDark && { color: themeColors.textSecondary },
+                          formCategory === it.key && (isDark ? { color: themeColors.accentGreen, fontWeight: '700' } : styles.catPillTextActive),
                         ]}
                       >
                         {it.label}
@@ -409,7 +433,7 @@ export function HelpCenterScreen({ onBack, onOpenAiAssistant }: HelpCenterScreen
 
               {/* Mức độ ưu tiên */}
               <View style={styles.formGroup}>
-                <Text style={styles.formLabel}>Mức độ khẩn cấp</Text>
+                <Text style={[styles.formLabel, isDark && { color: themeColors.textSecondary }]}>Mức độ khẩn cấp</Text>
                 <View style={styles.categoryPillsRow}>
                   {[
                     { key: 'LOW', label: 'Thấp' },
@@ -422,13 +446,15 @@ export function HelpCenterScreen({ onBack, onOpenAiAssistant }: HelpCenterScreen
                       onPress={() => setFormPriority(it.key as any)}
                       style={[
                         styles.catPillBtn,
-                        formPriority === it.key && styles.catPillBtnActive,
+                        isDark && { backgroundColor: themeColors.surfaceSubtle, borderColor: themeColors.cardBorder },
+                        formPriority === it.key && (isDark ? { backgroundColor: 'rgba(16, 185, 129, 0.16)', borderColor: themeColors.accentGreen } : styles.catPillBtnActive),
                       ]}
                     >
                       <Text
                         style={[
                           styles.catPillText,
-                          formPriority === it.key && styles.catPillTextActive,
+                          isDark && { color: themeColors.textSecondary },
+                          formPriority === it.key && (isDark ? { color: themeColors.accentGreen, fontWeight: '700' } : styles.catPillTextActive),
                         ]}
                       >
                         {it.label}
@@ -440,11 +466,14 @@ export function HelpCenterScreen({ onBack, onOpenAiAssistant }: HelpCenterScreen
 
               {/* Tiêu đề */}
               <View style={styles.formGroup}>
-                <Text style={styles.formLabel}>Tiêu đề câu hỏi / phản hồi *</Text>
+                <Text style={[styles.formLabel, isDark && { color: themeColors.textSecondary }]}>Tiêu đề câu hỏi / phản hồi *</Text>
                 <TextInput
-                  style={styles.formInput}
+                  style={[
+                    styles.formInput,
+                    isDark && { backgroundColor: themeColors.surfaceSubtle, borderColor: themeColors.cardBorder, color: themeColors.textPrimary },
+                  ]}
                   placeholder="Ví dụ: Cần hỗ trợ tạo ngân sách, phản hồi tính năng..."
-                  placeholderTextColor="#94A3B8"
+                  placeholderTextColor={isDark ? '#64748B' : '#94A3B8'}
                   value={formTitle}
                   onChangeText={setFormTitle}
                 />
@@ -452,11 +481,15 @@ export function HelpCenterScreen({ onBack, onOpenAiAssistant }: HelpCenterScreen
 
               {/* Nội dung chi tiết */}
               <View style={styles.formGroup}>
-                <Text style={styles.formLabel}>Nội dung chi tiết *</Text>
+                <Text style={[styles.formLabel, isDark && { color: themeColors.textSecondary }]}>Nội dung chi tiết *</Text>
                 <TextInput
-                  style={[styles.formInput, { height: 110, textAlignVertical: 'top' }]}
+                  style={[
+                    styles.formInput,
+                    { height: 110, textAlignVertical: 'top' },
+                    isDark && { backgroundColor: themeColors.surfaceSubtle, borderColor: themeColors.cardBorder, color: themeColors.textPrimary },
+                  ]}
                   placeholder="Mô tả cụ thể vấn đề hoặc ý kiến đóng góp của bạn để ban quản trị hỗ trợ tốt nhất..."
-                  placeholderTextColor="#94A3B8"
+                  placeholderTextColor={isDark ? '#64748B' : '#94A3B8'}
                   multiline
                   value={formContent}
                   onChangeText={setFormContent}
@@ -466,7 +499,11 @@ export function HelpCenterScreen({ onBack, onOpenAiAssistant }: HelpCenterScreen
 
             <View style={styles.modalFooter}>
               <Pressable
-                style={[styles.modalSubmitBtn, isSubmitting && { opacity: 0.7 }]}
+                style={[
+                  styles.modalSubmitBtn,
+                  isDark && { backgroundColor: '#10B981' },
+                  isSubmitting && { opacity: 0.7 },
+                ]}
                 onPress={handleSubmitFeedback}
                 disabled={isSubmitting}
               >

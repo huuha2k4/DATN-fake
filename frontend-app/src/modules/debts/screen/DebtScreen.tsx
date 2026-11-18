@@ -1,7 +1,7 @@
+import { AppAlert as Alert, useAppDialog } from '../../../context/DialogContext';
 import React, { useEffect, useState, useMemo } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   Dimensions,
   Image,
   ImageBackground,
@@ -29,6 +29,7 @@ import {
   type PaymentFrequency,
   type PaymentPlanType,
 } from '../api/debtApi';
+import { useAppTheme } from '../../../context/ThemeContext';
 
 interface DebtScreenProps {
   onBack?: () => void;
@@ -273,6 +274,8 @@ const INITIAL_DEMO_DEBTS: DebtItem[] = [
 
 export function DebtScreen({ onBack }: DebtScreenProps) {
   const insets = useSafeAreaInsets();
+  const { isDark, colors: themeColors } = useAppTheme();
+  const { confirmDelete, showSuccess, showError } = useAppDialog();
 
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -303,7 +306,7 @@ export function DebtScreen({ onBack }: DebtScreenProps) {
   const [formDayOfMonth, setFormDayOfMonth] = useState<number>(new Date().getDate()); // Ngày trong tháng (1-31)
   const [formDayOfWeek, setFormDayOfWeek] = useState<number>(1); // Thứ trong tuần (1: Thứ 2 ... 0: CN)
   const [formFirstPaymentDate, setFormFirstPaymentDate] = useState(getTodayDDMMYYYY());
-  
+
   // Tài khoản & nhắc nhở
   const [selectedAccountId, setSelectedAccountId] = useState('');
   const [formNotifyDaysBefore, setFormNotifyDaysBefore] = useState(1);
@@ -341,6 +344,7 @@ export function DebtScreen({ onBack }: DebtScreenProps) {
   const [payAmount, setPayAmount] = useState('');
   const [payAccountId, setPayAccountId] = useState('');
   const [payNote, setPayNote] = useState('');
+  const [paySelectedPeriod, setPaySelectedPeriod] = useState<number | null>(null);
   const [submittingPay, setSubmittingPay] = useState(false);
 
   // Modal Chi tiết giao dịch thanh toán trong lịch sử
@@ -605,12 +609,14 @@ export function DebtScreen({ onBack }: DebtScreenProps) {
         const count = parseInt(formInstallmentCount, 10) || 1;
         const baseDateStr = isoFirstPaymentDate || isoStartDate;
         const d = new Date(baseDateStr);
+        // Nếu trả N kỳ thì kỳ 1 là baseDateStr, kỳ N là sau (count - 1) khoảng thời gian
+        const intervals = Math.max(0, count - 1);
         if (formFrequency === 'WEEKLY') {
-          d.setDate(d.getDate() + count * 7);
+          d.setDate(d.getDate() + intervals * 7);
         } else if (formFrequency === 'QUARTERLY') {
-          d.setMonth(d.getMonth() + count * 3);
+          d.setMonth(d.getMonth() + intervals * 3);
         } else {
-          d.setMonth(d.getMonth() + count);
+          d.setMonth(d.getMonth() + intervals);
         }
         computedDueDate = d.toISOString().split('T')[0];
       }
@@ -653,8 +659,11 @@ export function DebtScreen({ onBack }: DebtScreenProps) {
         percentagePaid: 0,
         status: 'ACTIVE',
         paymentFrequency: chosenFreq,
+        monthlyPayment: paymentPlanType === 'INSTALLMENT' ? periodicAmountNum : undefined,
+        paymentAmount: paymentPlanType === 'INSTALLMENT' ? periodicAmountNum : undefined,
         startDate: isoStartDate,
         dueDate: computedDueDate,
+        nextPaymentDate: paymentPlanType === 'INSTALLMENT' ? (isoFirstPaymentDate || computedDueDate) : computedDueDate,
         accountId: selectedAccountId || undefined,
         note: formNote.trim() || undefined,
         description: formNote.trim() || undefined,
@@ -750,7 +759,7 @@ export function DebtScreen({ onBack }: DebtScreenProps) {
         if (selectedDebtDetail.id && !selectedDebtDetail.id.startsWith('demo-')) {
           debtApi.getDebtById(selectedDebtDetail.id).then((full) => {
             if (full) setDetailFullData(full);
-          }).catch(() => {});
+          }).catch(() => { });
         }
       }
       setSelectedDebtForPay(null);
@@ -766,38 +775,3012 @@ export function DebtScreen({ onBack }: DebtScreenProps) {
 
   // Xóa khoản nợ
   const handleDeleteDebt = (debt: DebtItem) => {
-    Alert.alert(
-      'Xóa khoản nợ',
-      `Bạn có chắc chắn muốn xóa khoản nợ "${debt.counterpartyName}"?`,
-      [
-        { text: 'Hủy', style: 'cancel' },
-        {
-          text: 'Xóa',
-          style: 'destructive',
-          onPress: async () => {
-            await debtApi.deleteDebt(debt.id);
-            setDebts((prev) => prev.filter((d) => d.id !== debt.id));
-            setSelectedDebtDetail(null);
-          },
-        },
-      ]
-    );
+    confirmDelete({
+      title: 'Xóa khoản nợ',
+      message: `Bạn có chắc chắn muốn xóa khoản nợ "${debt.counterpartyName}" không?\nHành động này không thể hoàn tác.`,
+      itemName: debt.counterpartyName,
+      onConfirm: async () => {
+        try {
+          await debtApi.deleteDebt(debt.id);
+          setDebts((prev) => prev.filter((d) => d.id !== debt.id));
+          setSelectedDebtDetail(null);
+          showSuccess('Thành công', `Đã xóa khoản nợ "${debt.counterpartyName}" thành công!`);
+        } catch (err: any) {
+          showError('Lỗi', err?.message || 'Không thể xóa khoản nợ này.');
+        }
+      },
+    });
   };
 
+  // NẾU ĐANG CHỌN XEM CHI TIẾT KHOẢN NỢ -> RENDER TOÀN MÀN HÌNH NHƯ BÊN MỤC TIÊU & TIẾT KIỆM (GoalDetailScreen)
+  if (selectedDebtDetail) {
+    const isBorrow = selectedDebtDetail.debtType === 'BORROWING';
+    const visual = resolveDebtVisual(selectedDebtDetail.counterpartyName, selectedDebtDetail.debtType);
+    const isPaidOff = selectedDebtDetail.status === 'PAID_OFF' || selectedDebtDetail.remainingAmount <= 0;
+    const displayRemaining = selectedDebtDetail.remainingAmount;
+    const displayPaid = selectedDebtDetail.paidAmount;
+    const displayPrincipal = selectedDebtDetail.principalAmount;
+    const displayPercent = selectedDebtDetail.percentagePaid || (displayPrincipal > 0 ? Math.round((displayPaid / displayPrincipal) * 100) : 0);
+
+    // Lấy lịch sử thanh toán từ API hoặc từ mock demo
+    const rawHistory: any[] = detailFullData?.payment_history || demoPayments[selectedDebtDetail.id] || [];
+    const historyList = rawHistory.map((pm, idx) => {
+      const rawDate = pm.created_at || pm.payment_date || pm.paymentDate || selectedDebtDetail.startDate || new Date().toISOString();
+      const matchedAccount = accounts.find((a) => a.id === (pm.account_id || pm.accountId || selectedDebtDetail.accountId));
+      const accountName = pm.account_name || pm.accountName || matchedAccount?.name || detailFullData?.account?.name || 'Ví tiền mặt';
+      return {
+        id: String(pm.id || idx),
+        amount: Number(pm.amount || 0),
+        rawDate,
+        date: formatDateTime(rawDate),
+        note: pm.note || 'Thanh toán khoản nợ',
+        accountName,
+      };
+    });
+
+    const debtTypeLabel = selectedDebtDetail.paymentFrequency && selectedDebtDetail.paymentFrequency !== 'ONE_TIME'
+      ? 'Trả góp'
+      : (isBorrow ? 'Khoản đi vay' : 'Cho vay');
+
+    return (
+      <View
+        style={[
+          styles.detailScreenContainer,
+          isDark && { backgroundColor: themeColors.background },
+          { paddingTop: Math.max(insets.top, 16) },
+        ]}
+      >
+        <StatusBar
+          barStyle={isDark ? 'light-content' : 'dark-content'}
+          backgroundColor={isDark ? themeColors.background : '#FFFFFF'}
+        />
+
+        {/* 1. Header chi tiết: [<] Chi tiết khoản nợ */}
+        <View
+          style={[
+            styles.detailScreenHeaderRow,
+            isDark && { backgroundColor: themeColors.background, borderBottomColor: themeColors.cardBorder },
+          ]}
+        >
+          <Pressable
+            onPress={() => setSelectedDebtDetail(null)}
+            hitSlop={12}
+            style={[styles.detailBackCircleBtn, isDark && { backgroundColor: themeColors.surfaceSubtle }]}
+          >
+            <FinanceIcon name="chevron-left" size={22} color={isDark ? themeColors.accentGreen : '#0E964E'} />
+          </Pressable>
+
+          <Text style={[styles.detailScreenHeaderTitle, isDark && { color: themeColors.textPrimary }]}>
+            Chi tiết khoản nợ
+          </Text>
+
+          {/* Khoảng trống để cân đối header */}
+          <View style={{ width: 36, height: 36 }} />
+        </View>
+
+        <ScrollView
+          style={{ flex: 1 }}
+          contentContainerStyle={[styles.detailScreenScrollContent, { paddingBottom: Math.max(insets.bottom, 24) + 20 }]}
+          showsVerticalScrollIndicator={false}
+        >
+          {/* 2. Banner nền ảnh theo loại nợ (Đỏ: Khoản đang vay, Xanh: Khoản cho vay) */}
+          <ImageBackground
+            source={isBorrow ? DEBT_RED_BANNER_BG : BANNER_BG_IMG}
+            style={styles.detailHeroBanner}
+            imageStyle={styles.detailHeroBannerImgStyle}
+            resizeMode="cover"
+          >
+            {/* Cột chữ bên trái */}
+            <View style={styles.detailHeroTextCol}>
+              <Text style={styles.detailHeroCategoryTitle}>
+                {isBorrow ? 'Khoản đang vay' : 'Khoản cho vay'}
+              </Text>
+              <Text style={styles.detailHeroCategorySub}>
+                {isBorrow ? 'Bạn đang vay tiền' : 'Bạn đã cho người khác vay tiền'}
+              </Text>
+            </View>
+
+            {/* Icon 3D bên phải */}
+            <View style={styles.detailHero3dWrap}>
+              <Image
+                source={isBorrow ? BORROWING_WALLET_3D : LENDING_BAG_3D}
+                style={styles.detailHero3dImg}
+                resizeMode="contain"
+              />
+            </View>
+          </ImageBackground>
+
+          {/* Card tên khoản vay & Tag trạng thái */}
+          <View
+            style={[
+              styles.detailDebtNameCard,
+              isDark && { backgroundColor: themeColors.surface, borderColor: themeColors.cardBorder },
+            ]}
+          >
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 }}>
+              <View
+                style={[
+                  styles.detailDocIconWrap,
+                  { backgroundColor: isBorrow ? (isDark ? 'rgba(239, 68, 68, 0.2)' : '#FEE2E2') : (isDark ? 'rgba(52, 211, 153, 0.2)' : '#DCFCE7') },
+                ]}
+              >
+                <FinanceIcon name="file-text" size={18} color={isBorrow ? '#EF4444' : '#10B981'} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.detailDebtNameLabel, isDark && { color: themeColors.textSecondary }]}>
+                  {isBorrow ? 'TÊN KHOẢN VAY' : 'TÊN KHOẢN CHO VAY'}
+                </Text>
+                <Text style={[styles.detailDebtNameValue, isDark && { color: themeColors.textPrimary }]} numberOfLines={1}>
+                  {selectedDebtDetail.counterpartyName}
+                </Text>
+              </View>
+            </View>
+
+            <View
+              style={[
+                styles.detailDebtStatusPill,
+                { backgroundColor: isPaidOff ? (isDark ? 'rgba(52, 211, 153, 0.2)' : '#DCFCE7') : (isDark ? 'rgba(239, 68, 68, 0.2)' : '#FEE2E2') },
+              ]}
+            >
+              <Text
+                style={[
+                  styles.detailDebtStatusPillText,
+                  { color: isPaidOff ? (isDark ? themeColors.accentGreen : '#059669') : '#DC2626' },
+                ]}
+              >
+                {isPaidOff ? 'Đã hoàn thành' : 'Đang thực hiện'}
+              </Text>
+            </View>
+          </View>
+
+          {/* 3. Khối 3 cột số tiền (Tổng nợ - Đã trả - Còn lại) */}
+          <View
+            style={[
+              styles.detailBalanceCard,
+              isDark && { backgroundColor: themeColors.surface, borderColor: themeColors.cardBorder },
+            ]}
+          >
+            <View style={styles.detailBalanceThreeCols}>
+              <View style={styles.detailBalanceColItem}>
+                <Text style={[styles.detailBalanceLabel, isDark && { color: themeColors.textSecondary }]}>
+                  {isBorrow ? 'Tiền vay' : 'Cho vay'}
+                </Text>
+                <Text style={[styles.detailBalanceColPrincipal, isDark && { color: themeColors.textPrimary }]}>
+                  {formatVND(displayPrincipal)}
+                </Text>
+              </View>
+
+              <View style={[styles.detailBalanceColDivider, isDark && { backgroundColor: themeColors.cardBorder }]} />
+
+              <View style={styles.detailBalanceColItem}>
+                <Text style={[styles.detailBalanceLabel, isDark && { color: themeColors.textSecondary }]}>
+                  {isBorrow ? 'Đã trả' : 'Đã thu'}
+                </Text>
+                <Text style={[styles.detailBalanceColPaid, isDark && { color: themeColors.textSecondary }]}>
+                  {formatVND(displayPaid)}
+                </Text>
+              </View>
+
+              <View style={[styles.detailBalanceColDivider, isDark && { backgroundColor: themeColors.cardBorder }]} />
+
+              <View style={styles.detailBalanceColItem}>
+                <Text style={[styles.detailBalanceLabel, isDark && { color: themeColors.textSecondary }]}>
+                  Còn lại
+                </Text>
+                <Text
+                  style={[
+                    styles.detailBalanceColRemaining,
+                    { color: isBorrow ? '#EF4444' : (isDark ? themeColors.accentGreen : '#0E964E') },
+                  ]}
+                >
+                  {formatVND(displayRemaining)}
+                </Text>
+              </View>
+            </View>
+
+            {/* Thanh tiến trình % trả nợ */}
+            <View style={styles.detailProgressBarRow}>
+              <View style={[styles.detailProgressBarTrack, isDark && { backgroundColor: themeColors.surfaceSubtle }]}>
+                <View
+                  style={[
+                    styles.detailProgressBarFill,
+                    {
+                      width: `${displayPercent}%`,
+                      backgroundColor: isBorrow ? '#EF4444' : (isDark ? themeColors.accentGreen : '#0E964E'),
+                    },
+                  ]}
+                />
+              </View>
+              <Text
+                style={[
+                  styles.detailProgressPercentText,
+                  { color: isBorrow ? '#EF4444' : (isDark ? themeColors.accentGreen : '#0E964E') },
+                ]}
+              >
+                {displayPercent}%
+              </Text>
+            </View>
+          </View>
+
+          {/* 4. Khối Thông tin chung */}
+          <View
+            style={[
+              styles.detailSectionCard,
+              isDark && { backgroundColor: themeColors.surface, borderColor: themeColors.cardBorder },
+            ]}
+          >
+            <View style={styles.detailSectionTitleRow}>
+              <View
+                style={[
+                  styles.sectionHeaderIconCircle,
+                  isDark && { backgroundColor: 'rgba(52, 211, 153, 0.15)' },
+                ]}
+              >
+                <FinanceIcon name="file-text" size={17} color={isDark ? themeColors.accentGreen : '#16A34A'} />
+              </View>
+              <Text style={[styles.detailSectionTitleText, isDark && { color: themeColors.textPrimary }]}>
+                Thông tin chung
+              </Text>
+            </View>
+
+            <View style={[styles.detailSectionDivider, isDark && { backgroundColor: themeColors.cardBorder }]} />
+
+            {/* Dòng 1: Loại nợ */}
+            <View style={[styles.detailInfoRow, isDark && { borderBottomColor: themeColors.cardBorder }]}>
+              <View style={styles.detailInfoLeft}>
+                <FinanceIcon name="tag" size={16} color={isDark ? themeColors.textMuted : '#64748B'} />
+                <Text style={[styles.detailInfoLabelText, isDark && { color: themeColors.textSecondary }]}>
+                  Loại giao dịch
+                </Text>
+              </View>
+              <Text style={[styles.detailInfoValueBoldText, isDark && { color: themeColors.textPrimary }]}>
+                {debtTypeLabel}
+              </Text>
+            </View>
+
+            {/* Dòng 2: Người liên hệ & SĐT */}
+            <View style={[styles.detailInfoRow, isDark && { borderBottomColor: themeColors.cardBorder }]}>
+              <View style={styles.detailInfoLeft}>
+                <FinanceIcon name="user" size={16} color={isDark ? themeColors.textMuted : '#64748B'} />
+                <Text style={[styles.detailInfoLabelText, isDark && { color: themeColors.textSecondary }]}>
+                  {isBorrow ? 'Người cho vay' : 'Người vay'}
+                </Text>
+              </View>
+              <Text style={[styles.detailInfoValueBoldText, isDark && { color: themeColors.textPrimary }]}>
+                {selectedDebtDetail.counterpartyName}
+                {(selectedDebtDetail.creditorPhone || selectedDebtDetail.debtorPhone) ? ` (${selectedDebtDetail.creditorPhone || selectedDebtDetail.debtorPhone})` : ''}
+              </Text>
+            </View>
+
+            {/* Dòng 3: Thời hạn / Kỳ hạn */}
+            <View style={[styles.detailInfoRow, isDark && { borderBottomColor: themeColors.cardBorder }]}>
+              <View style={styles.detailInfoLeft}>
+                <FinanceIcon name="calendar" size={16} color={isDark ? themeColors.textMuted : '#64748B'} />
+                <Text style={[styles.detailInfoLabelText, isDark && { color: themeColors.textSecondary }]}>
+                  {selectedDebtDetail.paymentFrequency && selectedDebtDetail.paymentFrequency !== 'ONE_TIME' ? 'Kỳ hạn thanh toán' : 'Thời hạn'}
+                </Text>
+              </View>
+              <Text style={[styles.detailInfoValueBoldText, isDark && { color: themeColors.textPrimary }]}>
+                {(() => {
+                  const freq = selectedDebtDetail.paymentFrequency;
+                  if (freq && freq !== 'ONE_TIME') {
+                    const periodic = selectedDebtDetail.monthlyPayment || selectedDebtDetail.paymentAmount || 0;
+                    const count = (periodic > 0 && selectedDebtDetail.principalAmount)
+                      ? Math.max(1, Math.round(selectedDebtDetail.principalAmount / periodic))
+                      : 1;
+
+                    // Lấy ngày trong tháng hoặc thứ trong tuần từ nextPaymentDate / startDate
+                    const baseDateStr = selectedDebtDetail.nextPaymentDate || selectedDebtDetail.startDate || selectedDebtDetail.dueDate;
+                    let schedulePatternText = 'Hàng tháng';
+                    if (baseDateStr) {
+                      const d = new Date(baseDateStr);
+                      if (!isNaN(d.getTime())) {
+                        if (freq === 'WEEKLY') {
+                          const dowNames = ['Chủ nhật', 'Thứ 2', 'Thứ 3', 'Thứ 4', 'Thứ 5', 'Thứ 6', 'Thứ 7'];
+                          schedulePatternText = `${dowNames[d.getDay()]} hàng tuần`;
+                        } else if (freq === 'QUARTERLY') {
+                          schedulePatternText = `Ngày ${d.getDate()} hàng quý`;
+                        } else {
+                          schedulePatternText = `Ngày ${d.getDate()} hàng tháng`;
+                        }
+                      }
+                    } else {
+                      schedulePatternText = freq === 'WEEKLY' ? 'Hàng tuần' : freq === 'QUARTERLY' ? 'Hàng quý' : 'Hàng tháng';
+                    }
+
+                    return `${count} kỳ - ${schedulePatternText}`;
+                  }
+                  return `${formatDate(selectedDebtDetail.startDate)} → ${formatDate(selectedDebtDetail.dueDate)}`;
+                })()}
+              </Text>
+            </View>
+
+            {/* Dòng 4: Ghi chú */}
+            <View style={[styles.detailInfoRow, { borderBottomWidth: 0, paddingBottom: 0 }]}>
+              <View style={styles.detailInfoLeft}>
+                <FinanceIcon name="credit-card" size={16} color={isDark ? themeColors.textMuted : '#64748B'} />
+                <Text style={[styles.detailInfoLabelText, isDark && { color: themeColors.textSecondary }]}>
+                  Ghi chú
+                </Text>
+              </View>
+              <Text
+                style={[
+                  styles.detailInfoValueRegularText,
+                  isDark && { color: themeColors.textPrimary },
+                  { flex: 1, textAlign: 'right' },
+                ]}
+                numberOfLines={2}
+              >
+                {selectedDebtDetail.note || selectedDebtDetail.description || 'Không có ghi chú'}
+              </Text>
+            </View>
+          </View>
+
+          {/* 5. Khối Kế hoạch trả theo kỳ (Liệt kê rõ ràng từng kỳ hạn, ngày đến hạn & trạng thái đã trả / chưa trả) */}
+          {(() => {
+            const freq = selectedDebtDetail.paymentFrequency;
+            if (!freq || freq === 'ONE_TIME') return null;
+
+            const periodicAmt = selectedDebtDetail.monthlyPayment || selectedDebtDetail.paymentAmount || 0;
+            const totalPrincipal = selectedDebtDetail.principalAmount || 0;
+            const totalPaid = selectedDebtDetail.paidAmount || 0;
+            const count = (periodicAmt > 0 && totalPrincipal > 0)
+              ? Math.max(1, Math.round(totalPrincipal / periodicAmt))
+              : 1;
+
+            const baseDateStr = selectedDebtDetail.nextPaymentDate || selectedDebtDetail.startDate || selectedDebtDetail.dueDate;
+            const baseDate = baseDateStr ? new Date(baseDateStr) : new Date();
+
+            const installmentSchedule: Array<{
+              periodNumber: number;
+              dueDate: string;
+              amount: number;
+              isPaid: boolean;
+            }> = [];
+
+            let iterDate = new Date(baseDate.getFullYear(), baseDate.getMonth(), baseDate.getDate());
+            for (let i = 1; i <= count; i++) {
+              const dStr = String(iterDate.getDate()).padStart(2, '0');
+              const mStr = String(iterDate.getMonth() + 1).padStart(2, '0');
+              const yStr = iterDate.getFullYear();
+              const dateFormatted = `${dStr}/${mStr}/${yStr}`;
+
+              // Kỳ i được xem là đã trả nếu tổng số tiền đã trả >= số tiền tích lũy đến kỳ này (hoặc trả hết nợ)
+              const thresholdForPeriod = periodicAmt * (i - 0.1);
+              const isPeriodPaid = totalPaid >= thresholdForPeriod || selectedDebtDetail.remainingAmount <= 0;
+
+              installmentSchedule.push({
+                periodNumber: i,
+                dueDate: dateFormatted,
+                amount: periodicAmt,
+                isPaid: isPeriodPaid,
+              });
+
+              if (freq === 'WEEKLY') iterDate.setDate(iterDate.getDate() + 7);
+              else if (freq === 'QUARTERLY') iterDate.setMonth(iterDate.getMonth() + 3);
+              else iterDate.setMonth(iterDate.getMonth() + 1);
+            }
+
+            return (
+              <View
+                style={[
+                  styles.detailSectionCard,
+                  isDark && { backgroundColor: themeColors.surface, borderColor: themeColors.cardBorder },
+                ]}
+              >
+                <View style={styles.detailSectionTitleRow}>
+                  <View
+                    style={[
+                      styles.sectionHeaderIconCircle,
+                      isDark && { backgroundColor: 'rgba(52, 211, 153, 0.15)' },
+                    ]}
+                  >
+                    <FinanceIcon name="calendar" size={17} color={isDark ? themeColors.accentGreen : '#16A34A'} />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={[styles.detailSectionTitleText, isDark && { color: themeColors.textPrimary }]}>
+                      Kế hoạch trả theo kỳ ({count} kỳ)
+                    </Text>
+                  </View>
+                  <Text style={{ fontSize: 11.5, fontWeight: '700', color: isDark ? themeColors.accentGreen : '#059669' }}>
+                    {installmentSchedule.filter((p) => p.isPaid).length}/{count} đã trả
+                  </Text>
+                </View>
+
+                <View style={[styles.detailSectionDivider, isDark && { backgroundColor: themeColors.cardBorder }]} />
+
+                <ScrollView
+                  style={count > 3 ? { maxHeight: 195 } : undefined}
+                  nestedScrollEnabled
+                  showsVerticalScrollIndicator={count > 3}
+                  contentContainerStyle={{ gap: 10 }}
+                >
+                  {installmentSchedule.map((p) => (
+                    <View
+                      key={p.periodNumber}
+                      style={{
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        paddingVertical: 10,
+                        paddingHorizontal: 12,
+                        borderRadius: 12,
+                        backgroundColor: p.isPaid
+                          ? (isDark ? 'rgba(52, 211, 153, 0.1)' : '#F0FDF4')
+                          : (isDark ? themeColors.surfaceSubtle : '#F8FAFC'),
+                        borderWidth: 1,
+                        borderColor: p.isPaid
+                          ? (isDark ? 'rgba(52, 211, 153, 0.25)' : '#DCFCE7')
+                          : (isDark ? themeColors.cardBorder : '#E2E8F0'),
+                      }}
+                    >
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                        <View
+                          style={{
+                            width: 28,
+                            height: 28,
+                            borderRadius: 14,
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            backgroundColor: p.isPaid
+                              ? (isDark ? 'rgba(52, 211, 153, 0.2)' : '#DCFCE7')
+                              : (isDark ? 'rgba(255, 255, 255, 0.08)' : '#E2E8F0'),
+                          }}
+                        >
+                          {p.isPaid ? (
+                            <FinanceIcon name="check" size={14} color={isDark ? themeColors.accentGreen : '#059669'} />
+                          ) : (
+                            <Text style={{ fontSize: 12, fontWeight: '800', color: isDark ? themeColors.textMuted : '#64748B' }}>
+                              {p.periodNumber}
+                            </Text>
+                          )}
+                        </View>
+                        <View>
+                          <Text style={{ fontSize: 13, fontWeight: '700', color: isDark ? themeColors.textPrimary : '#0F172A' }}>
+                            Kỳ {p.periodNumber} • {formatVND(p.amount)}
+                          </Text>
+                          <Text style={{ fontSize: 11.5, color: isDark ? themeColors.textSecondary : '#64748B', marginTop: 1 }}>
+                            Hạn trả: {p.dueDate}
+                          </Text>
+                        </View>
+                      </View>
+
+                      {/* Huy hiệu trạng thái ĐÃ TRẢ / CHƯA TRẢ */}
+                      <View
+                        style={{
+                          paddingHorizontal: 8,
+                          paddingVertical: 3,
+                          borderRadius: 6,
+                          backgroundColor: p.isPaid
+                            ? (isDark ? 'rgba(52, 211, 153, 0.2)' : '#DCFCE7')
+                            : (isDark ? 'rgba(245, 158, 11, 0.15)' : '#FEF3C7'),
+                        }}
+                      >
+                        <Text
+                          style={{
+                            fontSize: 11,
+                            fontWeight: '700',
+                            color: p.isPaid
+                              ? (isDark ? themeColors.accentGreen : '#059669')
+                              : (isDark ? '#FBBF24' : '#D97706'),
+                          }}
+                        >
+                          {p.isPaid ? 'Đã trả' : 'Chưa trả'}
+                        </Text>
+                      </View>
+                    </View>
+                  ))}
+                </ScrollView>
+              </View>
+            );
+          })()}
+
+          {/* 5. Khối Thao tác: [Thanh toán] [Cập nhật] [Xóa nợ] */}
+          <View
+            style={[
+              styles.detailSectionCard,
+              isDark && { backgroundColor: themeColors.surface, borderColor: themeColors.cardBorder },
+            ]}
+          >
+            <View style={styles.detailSectionTitleRow}>
+              <View
+                style={[
+                  styles.sectionHeaderIconCircle,
+                  isDark && { backgroundColor: 'rgba(52, 211, 153, 0.15)' },
+                ]}
+              >
+                <FinanceIcon name="zap" size={18} color={isDark ? themeColors.accentGreen : '#16A34A'} />
+              </View>
+              <Text style={[styles.detailSectionTitleText, isDark && { color: themeColors.textPrimary }]}>
+                Thao tác
+              </Text>
+            </View>
+
+            <View style={[styles.detailSectionDivider, isDark && { backgroundColor: themeColors.cardBorder }]} />
+
+            <View style={styles.detailActionButtonsRow}>
+              {/* Nút 1: Thanh toán (Nền xanh đậm, icon ví trắng) */}
+              <Pressable
+                onPress={() => {
+                  setSelectedDebtForPay(selectedDebtDetail);
+                  const isInstallment = selectedDebtDetail.paymentFrequency && selectedDebtDetail.paymentFrequency !== 'ONE_TIME';
+                  const periodic = selectedDebtDetail.monthlyPayment || selectedDebtDetail.paymentAmount || 0;
+                  // Tính kỳ tiếp theo chưa thanh toán
+                  const paid = selectedDebtDetail.paidAmount || 0;
+                  const nextPeriodIdx = periodic > 0 ? Math.floor(paid / periodic) + 1 : 1;
+                  setPaySelectedPeriod(isInstallment ? nextPeriodIdx : null);
+
+                  const defaultPayAmt = isInstallment && periodic > 0
+                    ? Math.min(periodic, displayRemaining)
+                    : displayRemaining;
+                  setPayAmount(defaultPayAmt > 0 ? new Intl.NumberFormat('vi-VN').format(defaultPayAmt) : '');
+                  setPayAccountId(selectedDebtDetail.accountId || (accounts[0]?.id || ''));
+                  setPayNote(isInstallment ? `Thanh toán kỳ ${nextPeriodIdx}` : '');
+                  setPayModalVisible(true);
+                }}
+                style={({ pressed }) => [
+                  styles.actionBtnPay,
+                  isDark && { backgroundColor: '#10B981', shadowColor: '#10B981' },
+                  pressed && styles.cardPressed,
+                ]}
+              >
+                <FinanceIcon name="wallet" size={20} color="#FFFFFF" />
+                <Text style={styles.actionBtnPayText}>Thanh toán</Text>
+              </Pressable>
+
+              {/* Nút 2: Sửa khoản nợ (Thiết kế hiện đại, tinh tế) */}
+              <Pressable
+                onPress={handleOpenEditModal}
+                style={({ pressed }) => [
+                  styles.actionBtnUpdate,
+                  isDark && {
+                    backgroundColor: 'rgba(37, 99, 235, 0.12)',
+                    borderColor: 'rgba(37, 99, 235, 0.3)',
+                  },
+                  pressed && styles.cardPressed,
+                ]}
+              >
+                <FinanceIcon name="edit" size={17} color={isDark ? '#60A5FA' : '#2563EB'} />
+                <Text style={[styles.actionBtnUpdateText, isDark && { color: '#60A5FA' }]}>Sửa khoản nợ</Text>
+              </Pressable>
+
+              {/* Nút 3: Xóa nợ (Nền hồng pastel viền mỏng, icon thùng rác đỏ) */}
+              <Pressable
+                onPress={() => handleDeleteDebt(selectedDebtDetail)}
+                style={({ pressed }) => [
+                  styles.actionBtnDelete,
+                  isDark && {
+                    backgroundColor: 'rgba(239, 68, 68, 0.12)',
+                    borderColor: 'rgba(239, 68, 68, 0.3)',
+                  },
+                  pressed && styles.cardPressed,
+                ]}
+              >
+                <FinanceIcon name="trash" size={19} color="#EF4444" />
+                <Text style={styles.actionBtnDeleteText}>Xóa nợ</Text>
+              </Pressable>
+            </View>
+          </View>
+
+          {/* 6. Khối Lịch sử thanh toán */}
+          <View
+            style={[
+              styles.detailSectionCard,
+              isDark && { backgroundColor: themeColors.surface, borderColor: themeColors.cardBorder },
+            ]}
+          >
+            <View style={styles.detailHistoryHeaderRow}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <View
+                  style={[
+                    styles.sectionHeaderIconCircle,
+                    isDark && { backgroundColor: 'rgba(52, 211, 153, 0.15)' },
+                  ]}
+                >
+                  <FinanceIcon name="rotate-ccw" size={17} color={isDark ? themeColors.accentGreen : '#16A34A'} />
+                </View>
+                <Text style={[styles.detailSectionTitleText, isDark && { color: themeColors.textPrimary }]}>
+                  Lịch sử thanh toán
+                </Text>
+              </View>
+            </View>
+
+            <View style={[styles.detailSectionDivider, isDark && { backgroundColor: themeColors.cardBorder }]} />
+
+            {historyList.length === 0 ? (
+              <View style={styles.detailHistoryEmptyWrap}>
+                <Text style={[styles.detailHistoryEmptyText, isDark && { color: themeColors.textMuted }]}>
+                  Chưa có lịch sử thanh toán nào cho khoản nợ này.
+                </Text>
+              </View>
+            ) : (
+              historyList.map((item, idx) => (
+                <Pressable
+                  key={item.id}
+                  onPress={() => setSelectedPaymentDetail(item)}
+                  style={({ pressed }) => [
+                    styles.historyPaymentRowItem,
+                    isDark && { borderBottomColor: themeColors.cardBorder },
+                    pressed && (isDark ? { backgroundColor: themeColors.surfaceSubtle } : { backgroundColor: '#F8FAFC' }),
+                    idx === historyList.length - 1 && { borderBottomWidth: 0, paddingBottom: 0 },
+                  ]}
+                >
+                  {/* Vòng tròn xanh lá có dấu tick trắng */}
+                  <View
+                    style={[
+                      styles.historyCheckGreenCircle,
+                      isDark && { backgroundColor: 'rgba(52, 211, 153, 0.15)' },
+                    ]}
+                  >
+                    <FinanceIcon name="check" size={13} color={isDark ? themeColors.accentGreen : '#0E964E'} />
+                  </View>
+
+                  {/* Cột thông tin: 'Thanh toán' & Giờ + Ngày tháng */}
+                  <View style={{ flex: 1 }}>
+                    <Text style={[styles.historyPaymentTitleText, isDark && { color: themeColors.textPrimary }]}>
+                      Thanh toán
+                    </Text>
+                    <Text style={[styles.historyPaymentDateText, isDark && { color: themeColors.textSecondary }]}>
+                      {item.date}
+                    </Text>
+                  </View>
+
+                  {/* Số tiền thanh toán màu xanh lá: +1.500.000 đ */}
+                  <View style={{ alignItems: 'flex-end', justifyContent: 'center' }}>
+                    <Text style={[styles.historyPaymentAmountGreen, isDark && { color: themeColors.accentGreen }]}>
+                      +{formatVND(item.amount)}
+                    </Text>
+                  </View>
+                </Pressable>
+              ))
+            )}
+          </View>
+        </ScrollView>
+
+        {/* MODAL POPUP CHI TIẾT ĐỢT THANH TOÁN (KHI ẤN VÀO DÒNG LỊCH SỬ) */}
+        <Modal
+          visible={!!selectedPaymentDetail}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setSelectedPaymentDetail(null)}
+        >
+          <View style={styles.paymentDetailModalCenterOverlay}>
+            <Pressable
+              style={styles.modalBackdrop}
+              onPress={() => setSelectedPaymentDetail(null)}
+            />
+            <View
+              style={[
+                styles.paymentDetailPopupBox,
+                isDark && { backgroundColor: themeColors.surface, borderColor: themeColors.cardBorder, borderWidth: 1 },
+              ]}
+            >
+              {/* Header */}
+              <View
+                style={[
+                  styles.paymentDetailPopupHeader,
+                  isDark && { borderBottomColor: themeColors.cardBorder },
+                ]}
+              >
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                  <View
+                    style={[
+                      styles.historyCheckGreenCircle,
+                      isDark && { backgroundColor: 'rgba(52, 211, 153, 0.15)' },
+                    ]}
+                  >
+                    <FinanceIcon name="check" size={14} color={isDark ? themeColors.accentGreen : '#0E964E'} />
+                  </View>
+                  <Text
+                    style={[
+                      styles.paymentDetailPopupTitle,
+                      isDark && { color: themeColors.textPrimary },
+                    ]}
+                  >
+                    Chi tiết đợt thanh toán
+                  </Text>
+                </View>
+                <Pressable
+                  onPress={() => setSelectedPaymentDetail(null)}
+                  hitSlop={10}
+                >
+                  <FinanceIcon name="close" size={18} color={isDark ? themeColors.textMuted : '#64748B'} />
+                </Pressable>
+              </View>
+
+              {/* Số tiền thanh toán to nổi bật */}
+              <View
+                style={[
+                  styles.paymentDetailAmountCard,
+                  isDark && { backgroundColor: 'rgba(52, 211, 153, 0.12)', borderColor: 'rgba(52, 211, 153, 0.25)' },
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.paymentDetailAmountLabel,
+                    isDark && { color: themeColors.accentGreen },
+                  ]}
+                >
+                  SỐ TIỀN ĐÃ THANH TOÁN
+                </Text>
+                <Text
+                  style={[
+                    styles.paymentDetailAmountValue,
+                    isDark && { color: themeColors.accentGreen },
+                  ]}
+                >
+                  +{formatVND(selectedPaymentDetail?.amount || 0)}
+                </Text>
+              </View>
+
+              {/* Các dòng thông tin chi tiết */}
+              <View style={styles.paymentDetailRowsWrap}>
+                <View
+                  style={[
+                    styles.paymentDetailRowItem,
+                    isDark && { borderBottomColor: themeColors.cardBorder },
+                  ]}
+                >
+                  <Text style={[styles.paymentDetailRowLabel, isDark && { color: themeColors.textSecondary }]}>
+                    Thời gian:
+                  </Text>
+                  <Text
+                    style={[
+                      styles.paymentDetailRowValBold,
+                      isDark && { color: themeColors.textPrimary },
+                    ]}
+                  >
+                    {selectedPaymentDetail?.date}
+                  </Text>
+                </View>
+
+                <View
+                  style={[
+                    styles.paymentDetailRowItem,
+                    isDark && { borderBottomColor: themeColors.cardBorder },
+                  ]}
+                >
+                  <Text style={[styles.paymentDetailRowLabel, isDark && { color: themeColors.textSecondary }]}>
+                    Khoản nợ:
+                  </Text>
+                  <Text
+                    style={[
+                      styles.paymentDetailRowValBold,
+                      isDark && { color: themeColors.textPrimary },
+                    ]}
+                    numberOfLines={1}
+                  >
+                    {selectedDebtDetail.counterpartyName}
+                  </Text>
+                </View>
+
+                <View
+                  style={[
+                    styles.paymentDetailRowItem,
+                    isDark && { borderBottomColor: themeColors.cardBorder },
+                  ]}
+                >
+                  <Text style={[styles.paymentDetailRowLabel, isDark && { color: themeColors.textSecondary }]}>
+                    Nguồn tiền trích:
+                  </Text>
+                  <Text
+                    style={[
+                      styles.paymentDetailRowValGreen,
+                      isDark && { color: themeColors.accentGreen },
+                    ]}
+                  >
+                    {selectedPaymentDetail?.accountName || 'Ví tiền mặt'}
+                  </Text>
+                </View>
+
+                <View style={[styles.paymentDetailRowItem, { borderBottomWidth: 0 }]}>
+                  <Text style={[styles.paymentDetailRowLabel, isDark && { color: themeColors.textSecondary }]}>
+                    Ghi chú:
+                  </Text>
+                  <Text
+                    style={[
+                      styles.paymentDetailRowValRegular,
+                      isDark && { color: themeColors.textPrimary },
+                    ]}
+                    numberOfLines={2}
+                  >
+                    {selectedPaymentDetail?.note || 'Không có ghi chú'}
+                  </Text>
+                </View>
+              </View>
+
+              {/* Nút Đóng */}
+              <Pressable
+                onPress={() => setSelectedPaymentDetail(null)}
+                style={[
+                  styles.paymentDetailCloseBtn,
+                  isDark && { backgroundColor: themeColors.surfaceSubtle },
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.paymentDetailCloseBtnText,
+                    isDark && { color: themeColors.textPrimary },
+                  ]}
+                >
+                  Đóng
+                </Text>
+              </Pressable>
+            </View>
+          </View>
+        </Modal>
+
+        {/* ── MODAL SỬA KHOẢN NỢ ── */}
+        <Modal
+          visible={editModalVisible}
+          transparent
+          animationType="slide"
+          onRequestClose={() => setEditModalVisible(false)}
+        >
+          <KeyboardAvoidingView
+            style={styles.modalKeyboardAvoid}
+            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          >
+            <Pressable style={styles.modalBackdrop} onPress={() => setEditModalVisible(false)} />
+            <View
+              style={[
+                styles.modalSheet,
+                isDark && { backgroundColor: themeColors.surface, borderColor: themeColors.cardBorder, borderWidth: 1 },
+              ]}
+            >
+              <View style={[styles.modalDragBar, isDark && { backgroundColor: themeColors.cardBorder }]} />
+
+              <View style={styles.modalHeaderRow}>
+                <Text style={[styles.modalHeaderTitle, isDark && { color: themeColors.textPrimary }]}>
+                  Sửa khoản nợ
+                </Text>
+                <Pressable
+                  onPress={() => setEditModalVisible(false)}
+                  hitSlop={10}
+                  style={[styles.modalCloseBtn, isDark && { backgroundColor: themeColors.surfaceSubtle }]}
+                >
+                  <FinanceIcon name="close" size={18} color={isDark ? themeColors.textMuted : '#64748B'} />
+                </Pressable>
+              </View>
+
+              <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+                <Text style={[styles.inputSectionLabel, isDark && { color: themeColors.textSecondary }]}>
+                  TÊN KHOẢN VAY *
+                </Text>
+                <TextInput
+                  value={editCounterpartyName}
+                  onChangeText={setEditCounterpartyName}
+                  placeholder="Ví dụ: Vay mua xe, Trả góp laptop, Vay anh Long..."
+                  placeholderTextColor={isDark ? '#64748B' : '#94A3B8'}
+                  style={[
+                    styles.modalTextInput,
+                    isDark && {
+                      backgroundColor: themeColors.surfaceSubtle,
+                      borderColor: themeColors.cardBorder,
+                      color: themeColors.textPrimary,
+                    },
+                  ]}
+                />
+
+                <Text style={[styles.inputSectionLabel, isDark && { color: themeColors.textSecondary }]}>
+                  SỐ ĐIỆN THOẠI LIÊN HỆ
+                </Text>
+                <TextInput
+                  value={editPartnerPhone}
+                  onChangeText={setEditPartnerPhone}
+                  placeholder="0987654321..."
+                  placeholderTextColor={isDark ? '#64748B' : '#94A3B8'}
+                  keyboardType="phone-pad"
+                  style={[
+                    styles.modalTextInput,
+                    isDark && {
+                      backgroundColor: themeColors.surfaceSubtle,
+                      borderColor: themeColors.cardBorder,
+                      color: themeColors.textPrimary,
+                    },
+                  ]}
+                />
+
+                <Text style={[styles.inputSectionLabel, isDark && { color: themeColors.textSecondary }]}>
+                  TỔNG SỐ TIỀN NỢ (VNĐ) *
+                </Text>
+                <TextInput
+                  value={editPrincipal ? new Intl.NumberFormat('vi-VN').format(parseInt(editPrincipal.replace(/\D/g, '') || '0', 10)) : ''}
+                  onChangeText={(val) => {
+                    const cleaned = val.replace(/\D/g, '');
+                    setEditPrincipal(cleaned);
+                  }}
+                  placeholder="Nhập tổng số tiền..."
+                  placeholderTextColor={isDark ? '#64748B' : '#94A3B8'}
+                  keyboardType="numeric"
+                  style={[
+                    styles.modalTextInput,
+                    isDark && {
+                      backgroundColor: themeColors.surfaceSubtle,
+                      borderColor: themeColors.cardBorder,
+                      color: themeColors.textPrimary,
+                    },
+                  ]}
+                />
+
+                <View style={{ flexDirection: 'row', gap: 12 }}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={[styles.inputSectionLabel, isDark && { color: themeColors.textSecondary }]}>
+                      NGÀY BẮT ĐẦU
+                    </Text>
+                    <TextInput
+                      value={editStartDate}
+                      onChangeText={(val) => setEditStartDate(formatInputDDMMYYYY(val))}
+                      placeholder="DD-MM-YYYY"
+                      placeholderTextColor={isDark ? '#64748B' : '#94A3B8'}
+                      keyboardType="numeric"
+                      style={[
+                        styles.modalTextInput,
+                        isDark && {
+                          backgroundColor: themeColors.surfaceSubtle,
+                          borderColor: themeColors.cardBorder,
+                          color: themeColors.textPrimary,
+                        },
+                      ]}
+                    />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={[styles.inputSectionLabel, isDark && { color: themeColors.textSecondary }]}>
+                      HẠN THANH TOÁN
+                    </Text>
+                    <TextInput
+                      value={editDueDate}
+                      onChangeText={(val) => setEditDueDate(formatInputDDMMYYYY(val))}
+                      placeholder="DD-MM-YYYY"
+                      placeholderTextColor={isDark ? '#64748B' : '#94A3B8'}
+                      keyboardType="numeric"
+                      style={[
+                        styles.modalTextInput,
+                        isDark && {
+                          backgroundColor: themeColors.surfaceSubtle,
+                          borderColor: themeColors.cardBorder,
+                          color: themeColors.textPrimary,
+                        },
+                      ]}
+                    />
+                  </View>
+                </View>
+
+                <Text style={[styles.inputSectionLabel, isDark && { color: themeColors.textSecondary }]}>
+                  TÀI KHOẢN / VÍ LIÊN KẾT
+                </Text>
+                <Pressable
+                  onPress={() => setPickerModalType('EDIT_ACCOUNT')}
+                  style={[
+                    styles.modernSelectDropdown,
+                    { marginBottom: 14 },
+                    isDark && {
+                      backgroundColor: themeColors.surfaceSubtle,
+                      borderColor: themeColors.cardBorder,
+                    },
+                  ]}
+                >
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1 }}>
+                    {(() => {
+                      const selAcc = accounts.find((a) => a.id === editAccountId);
+                      if (!selAcc) {
+                        return (
+                          <Text
+                            style={[styles.modernSelectText, isDark && { color: themeColors.textPrimary }]}
+                            numberOfLines={1}
+                          >
+                            Không gắn tài khoản (Chỉ gửi nhắc nợ)
+                          </Text>
+                        );
+                      }
+                      return (
+                        <>
+                          <AccountBadge account={selAcc} size={22} />
+                          <Text
+                            style={[styles.modernSelectText, isDark && { color: themeColors.textPrimary }]}
+                            numberOfLines={1}
+                          >
+                            {selAcc.name} (Số dư: {formatVND(selAcc.balance)})
+                          </Text>
+                        </>
+                      );
+                    })()}
+                  </View>
+                  <FinanceIcon name="chevron-down" size={16} color={isDark ? themeColors.accentGreen : '#047857'} />
+                </Pressable>
+
+                <Text style={[styles.inputSectionLabel, isDark && { color: themeColors.textSecondary }]}>
+                  GHI CHÚ / THỎA THUẬN
+                </Text>
+                <TextInput
+                  value={editNote}
+                  onChangeText={setEditNote}
+                  placeholder="Ví dụ: Vay mua đồ, thỏa thuận trả trước..."
+                  placeholderTextColor={isDark ? '#64748B' : '#94A3B8'}
+                  style={[
+                    styles.modalTextInput,
+                    isDark && {
+                      backgroundColor: themeColors.surfaceSubtle,
+                      borderColor: themeColors.cardBorder,
+                      color: themeColors.textPrimary,
+                    },
+                  ]}
+                />
+
+                <Pressable
+                  onPress={handleSaveUpdateDebt}
+                  disabled={submittingEdit}
+                  style={[
+                    styles.modalSubmitBtn,
+                    isDark && { backgroundColor: '#10B981', shadowColor: '#10B981' },
+                    submittingEdit && styles.btnDisabled,
+                  ]}
+                >
+                  {submittingEdit ? (
+                    <ActivityIndicator color="#FFFFFF" />
+                  ) : (
+                    <Text style={styles.modalSubmitBtnText}>Lưu thay đổi</Text>
+                  )}
+                </Pressable>
+                <View style={{ height: 20 }} />
+              </ScrollView>
+
+              {/* OVERLAY PICKER CHỌN TÀI KHOẢN KHI SỬA KHOẢN NỢ */}
+              {pickerModalType === 'EDIT_ACCOUNT' && (
+                <View style={[StyleSheet.absoluteFillObject, styles.pickerModalBackdrop, { zIndex: 9999, elevation: 9999 }]}>
+                  <Pressable
+                    style={StyleSheet.absoluteFillObject}
+                    onPress={() => setPickerModalType('NONE')}
+                  />
+                  <View
+                    style={[
+                      styles.pickerModalBox,
+                      isDark && { backgroundColor: themeColors.surface, borderColor: themeColors.cardBorder, borderWidth: 1 },
+                    ]}
+                  >
+                    <View
+                      style={[
+                        styles.pickerModalHeader,
+                        isDark && { borderBottomColor: themeColors.cardBorder },
+                      ]}
+                    >
+                      <Text style={[styles.pickerModalTitle, isDark && { color: themeColors.textPrimary }]}>
+                        Chọn tài khoản / ví liên kết
+                      </Text>
+                      <Pressable onPress={() => setPickerModalType('NONE')} hitSlop={10}>
+                        <FinanceIcon name="close" size={18} color={isDark ? themeColors.textMuted : '#64748B'} />
+                      </Pressable>
+                    </View>
+
+                    <ScrollView style={{ maxHeight: 340 }} showsVerticalScrollIndicator={false}>
+                      <Pressable
+                        onPress={() => {
+                          setEditAccountId('');
+                          setPickerModalType('NONE');
+                        }}
+                        style={[
+                          styles.pickerItemRow,
+                          isDark && { borderBottomColor: themeColors.cardBorder },
+                          !editAccountId && (isDark ? { backgroundColor: 'rgba(52, 211, 153, 0.15)' } : styles.pickerItemRowActive),
+                        ]}
+                      >
+                        <View style={{ flex: 1 }}>
+                          <Text
+                            style={[
+                              styles.pickerItemText,
+                              isDark && { color: themeColors.textPrimary },
+                              !editAccountId && (isDark ? { color: themeColors.accentGreen, fontWeight: '800' } : styles.pickerItemTextActive),
+                            ]}
+                          >
+                            🔔 Không gắn tài khoản
+                          </Text>
+                          <Text style={[styles.pickerItemSub, isDark && { color: themeColors.textMuted }]}>
+                            Chỉ gửi thông báo nhắc nợ đúng hạn
+                          </Text>
+                        </View>
+                        {!editAccountId && <FinanceIcon name="check" size={16} color={isDark ? themeColors.accentGreen : '#0E964E'} />}
+                      </Pressable>
+
+                      {accounts.map((acc) => (
+                        <Pressable
+                          key={acc.id}
+                          onPress={() => {
+                            setEditAccountId(acc.id);
+                            setPickerModalType('NONE');
+                          }}
+                          style={[
+                            styles.pickerItemRow,
+                            isDark && { borderBottomColor: themeColors.cardBorder },
+                            editAccountId === acc.id && (isDark ? { backgroundColor: 'rgba(52, 211, 153, 0.15)' } : styles.pickerItemRowActive),
+                          ]}
+                        >
+                          <AccountBadge account={acc} size={34} />
+                          <View style={{ flex: 1, marginLeft: 10 }}>
+                            <Text
+                              style={[
+                                styles.pickerItemText,
+                                isDark && { color: themeColors.textPrimary },
+                                editAccountId === acc.id && (isDark ? { color: themeColors.accentGreen, fontWeight: '800' } : styles.pickerItemTextActive),
+                              ]}
+                            >
+                              {acc.name}
+                            </Text>
+                            <Text style={[styles.pickerItemSub, isDark && { color: themeColors.textMuted }]}>
+                              Số dư: {formatVND(acc.balance)} · Tự động trừ khi đến hạn
+                            </Text>
+                          </View>
+                          {editAccountId === acc.id && (
+                            <FinanceIcon name="check" size={16} color={isDark ? themeColors.accentGreen : '#0E964E'} />
+                          )}
+                        </Pressable>
+                      ))}
+                    </ScrollView>
+                  </View>
+                </View>
+              )}
+            </View>
+          </KeyboardAvoidingView>
+        </Modal>
+
+        {/* ── MODAL THANH TOÁN / THU NỢ ── */}
+        <Modal
+          visible={payModalVisible}
+          transparent
+          animationType="slide"
+          onRequestClose={() => setPayModalVisible(false)}
+        >
+          <KeyboardAvoidingView
+            style={styles.modalKeyboardAvoid}
+            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          >
+            <Pressable style={styles.modalBackdrop} onPress={() => setPayModalVisible(false)} />
+            <View
+              style={[
+                styles.modalSheet,
+                isDark && { backgroundColor: themeColors.surface, borderColor: themeColors.cardBorder, borderWidth: 1 },
+              ]}
+            >
+              <View style={[styles.modalDragBar, isDark && { backgroundColor: themeColors.cardBorder }]} />
+
+              <View style={styles.modalHeaderRow}>
+                <Text style={[styles.modalHeaderTitle, isDark && { color: themeColors.textPrimary }]}>
+                  {selectedDebtForPay?.debtType === 'BORROWING' ? 'Ghi nhận trả nợ' : 'Ghi nhận thu nợ'}
+                </Text>
+                <Pressable
+                  onPress={() => setPayModalVisible(false)}
+                  hitSlop={10}
+                  style={[styles.modalCloseBtn, isDark && { backgroundColor: themeColors.surfaceSubtle }]}
+                >
+                  <FinanceIcon name="close" size={18} color={isDark ? themeColors.textMuted : '#64748B'} />
+                </Pressable>
+              </View>
+
+              {selectedDebtForPay && (
+                <View style={{ marginBottom: 14 }}>
+                  <Text style={[styles.payTargetNameText, isDark && { color: themeColors.textSecondary }]}>
+                    Đối tác:{' '}
+                    <Text style={{ fontWeight: '800', color: isDark ? themeColors.textPrimary : '#0F172A' }}>
+                      {selectedDebtForPay.counterpartyName}
+                    </Text>
+                  </Text>
+                  <Text style={[styles.payTargetRemainingText, isDark && { color: themeColors.textSecondary }]}>
+                    Số tiền còn lại:{' '}
+                    <Text style={{ fontWeight: '800', color: isDark ? themeColors.accentGreen : '#059669' }}>
+                      {formatVND(selectedDebtForPay.remainingAmount)}
+                    </Text>
+                  </Text>
+
+                  {/* CHỌN KỲ THANH TOÁN (Nếu là khoản nợ theo kỳ) */}
+                  {selectedDebtForPay.paymentFrequency && selectedDebtForPay.paymentFrequency !== 'ONE_TIME' && (() => {
+                    const periodic = selectedDebtForPay.monthlyPayment || selectedDebtForPay.paymentAmount || 0;
+                    const totalPrincipal = selectedDebtForPay.principalAmount || 0;
+                    const totalPaid = selectedDebtForPay.paidAmount || 0;
+                    const count = (periodic > 0 && totalPrincipal > 0)
+                      ? Math.max(1, Math.round(totalPrincipal / periodic))
+                      : 1;
+
+                    return (
+                      <View style={{ marginTop: 10 }}>
+                        <Text style={[styles.inputSectionLabel, { marginBottom: 6 }, isDark && { color: themeColors.textSecondary }]}>
+                          CHỌN KỲ THANH TOÁN
+                        </Text>
+                        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingVertical: 2 }}>
+                          {Array.from({ length: count }, (_, idx) => {
+                            const pNum = idx + 1;
+                            const threshold = periodic * (pNum - 0.1);
+                            const isPaid = totalPaid >= threshold || selectedDebtForPay.remainingAmount <= 0;
+                            const isSelected = paySelectedPeriod === pNum;
+
+                            return (
+                              <Pressable
+                                key={pNum}
+                                onPress={() => {
+                                  setPaySelectedPeriod(pNum);
+                                  const targetAmt = periodic > 0 ? Math.min(periodic, selectedDebtForPay.remainingAmount) : selectedDebtForPay.remainingAmount;
+                                  setPayAmount(new Intl.NumberFormat('vi-VN').format(targetAmt));
+                                  setPayNote(`Thanh toán kỳ ${pNum}`);
+                                }}
+                                style={{
+                                  paddingVertical: 7,
+                                  paddingHorizontal: 12,
+                                  borderRadius: 10,
+                                  borderWidth: 1.5,
+                                  borderColor: isSelected
+                                    ? (isDark ? themeColors.accentGreen : '#059669')
+                                    : isPaid
+                                    ? (isDark ? 'rgba(52, 211, 153, 0.3)' : '#A7F3D0')
+                                    : (isDark ? themeColors.cardBorder : '#E2E8F0'),
+                                  backgroundColor: isSelected
+                                    ? (isDark ? 'rgba(52, 211, 153, 0.25)' : '#DCFCE7')
+                                    : isPaid
+                                    ? (isDark ? 'rgba(52, 211, 153, 0.08)' : '#F0FDF4')
+                                    : (isDark ? themeColors.surfaceSubtle : '#F8FAFC'),
+                                  alignItems: 'center',
+                                }}
+                              >
+                                <Text
+                                  style={{
+                                    fontSize: 12,
+                                    fontWeight: '800',
+                                    color: isSelected
+                                      ? (isDark ? themeColors.accentGreen : '#059669')
+                                      : (isDark ? themeColors.textPrimary : '#1E293B'),
+                                  }}
+                                >
+                                  Kỳ {pNum} {isPaid ? '✓' : ''}
+                                </Text>
+                                <Text
+                                  style={{
+                                    fontSize: 10,
+                                    fontWeight: '600',
+                                    marginTop: 1,
+                                    color: isSelected
+                                      ? (isDark ? themeColors.accentGreen : '#059669')
+                                      : isPaid
+                                      ? '#10B981'
+                                      : (isDark ? themeColors.textMuted : '#64748B'),
+                                  }}
+                                >
+                                  {isPaid ? 'Đã trả' : formatVND(periodic)}
+                                </Text>
+                              </Pressable>
+                            );
+                          })}
+
+                          {/* Lựa chọn trả hết toàn bộ */}
+                          <Pressable
+                            onPress={() => {
+                              setPaySelectedPeriod(null);
+                              setPayAmount(new Intl.NumberFormat('vi-VN').format(selectedDebtForPay.remainingAmount));
+                              setPayNote('Tất toán toàn bộ khoản nợ');
+                            }}
+                            style={{
+                              paddingVertical: 7,
+                              paddingHorizontal: 12,
+                              borderRadius: 10,
+                              borderWidth: 1.5,
+                              borderColor: paySelectedPeriod === null
+                                ? (isDark ? themeColors.accentGreen : '#059669')
+                                : (isDark ? themeColors.cardBorder : '#E2E8F0'),
+                              backgroundColor: paySelectedPeriod === null
+                                ? (isDark ? 'rgba(52, 211, 153, 0.25)' : '#DCFCE7')
+                                : (isDark ? themeColors.surfaceSubtle : '#F8FAFC'),
+                              alignItems: 'center',
+                            }}
+                          >
+                            <Text
+                              style={{
+                                fontSize: 12,
+                                fontWeight: '800',
+                                color: paySelectedPeriod === null
+                                  ? (isDark ? themeColors.accentGreen : '#059669')
+                                  : (isDark ? themeColors.textPrimary : '#1E293B'),
+                              }}
+                            >
+                              Trả hết nợ
+                            </Text>
+                            <Text
+                              style={{
+                                fontSize: 10,
+                                fontWeight: '600',
+                                marginTop: 1,
+                                color: paySelectedPeriod === null
+                                  ? (isDark ? themeColors.accentGreen : '#059669')
+                                  : (isDark ? themeColors.textMuted : '#64748B'),
+                              }}
+                            >
+                              {formatVND(selectedDebtForPay.remainingAmount)}
+                            </Text>
+                          </Pressable>
+                        </ScrollView>
+                      </View>
+                    );
+                  })()}
+                </View>
+              )}
+
+              <Text style={[styles.inputSectionLabel, isDark && { color: themeColors.textSecondary }]}>
+                SỐ TIỀN THANH TOÁN (VNĐ) *
+              </Text>
+              <TextInput
+                value={payAmount}
+                onChangeText={(val) => {
+                  const cleaned = val.replace(/\D/g, '');
+                  if (!cleaned) {
+                    setPayAmount('');
+                    return;
+                  }
+                  setPayAmount(new Intl.NumberFormat('vi-VN').format(parseInt(cleaned, 10)));
+                }}
+                keyboardType="numeric"
+                placeholder="Nhập số tiền..."
+                placeholderTextColor={isDark ? '#64748B' : '#94A3B8'}
+                style={[
+                  styles.modalTextInput,
+                  isDark && {
+                    backgroundColor: themeColors.surfaceSubtle,
+                    borderColor: themeColors.cardBorder,
+                    color: themeColors.textPrimary,
+                  },
+                ]}
+                autoFocus
+              />
+
+              <Text style={[styles.inputSectionLabel, isDark && { color: themeColors.textSecondary }]}>
+                {selectedDebtForPay?.debtType === 'BORROWING' ? 'NGUỒN TIỀN TRÍCH TRẢ *' : 'TÀI KHOẢN NHẬN TIỀN *'}
+              </Text>
+              <Pressable
+                onPress={() => setPickerModalType('PAY_ACCOUNT')}
+                style={[
+                  styles.modernSelectDropdown,
+                  { marginBottom: 14 },
+                  isDark && {
+                    backgroundColor: themeColors.surfaceSubtle,
+                    borderColor: themeColors.cardBorder,
+                  },
+                ]}
+              >
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1 }}>
+                  {(() => {
+                    const chosenAcc = accounts.find((a) => a.id === payAccountId);
+                    if (!chosenAcc) {
+                      return (
+                        <Text style={[styles.modernSelectText, isDark && { color: themeColors.textPrimary }]}>
+                          Ví tiền mặt (Mặc định)
+                        </Text>
+                      );
+                    }
+                    return (
+                      <>
+                        <AccountBadge account={chosenAcc} size={22} />
+                        <Text
+                          style={[styles.modernSelectText, isDark && { color: themeColors.textPrimary }]}
+                          numberOfLines={1}
+                        >
+                          {chosenAcc.name} (Số dư: {formatVND(chosenAcc.balance)})
+                        </Text>
+                      </>
+                    );
+                  })()}
+                </View>
+                <FinanceIcon name="chevron-down" size={16} color={isDark ? themeColors.accentGreen : '#047857'} />
+              </Pressable>
+
+              <Text style={[styles.inputSectionLabel, isDark && { color: themeColors.textSecondary }]}>
+                GHI CHÚ THANH TOÁN
+              </Text>
+              <TextInput
+                value={payNote}
+                onChangeText={setPayNote}
+                placeholder="Ví dụ: Trả đợt 1, Chuyển khoản qua ngân hàng..."
+                placeholderTextColor={isDark ? '#64748B' : '#94A3B8'}
+                style={[
+                  styles.modalTextInput,
+                  isDark && {
+                    backgroundColor: themeColors.surfaceSubtle,
+                    borderColor: themeColors.cardBorder,
+                    color: themeColors.textPrimary,
+                  },
+                ]}
+              />
+
+              <Pressable
+                onPress={handleRecordPayment}
+                disabled={submittingPay}
+                style={[
+                  styles.modalSubmitBtn,
+                  isDark && { backgroundColor: '#10B981', shadowColor: '#10B981' },
+                  submittingPay && styles.btnDisabled,
+                ]}
+              >
+                {submittingPay ? (
+                  <ActivityIndicator color="#FFFFFF" />
+                ) : (
+                  <Text style={styles.modalSubmitBtnText}>Xác nhận thanh toán</Text>
+                )}
+              </Pressable>
+              <View style={{ height: 20 }} />
+
+              {/* OVERLAY PICKER CHỌN TÀI KHOẢN KHI THANH TOÁN NỢ */}
+              {pickerModalType === 'PAY_ACCOUNT' && (
+                <View style={[StyleSheet.absoluteFillObject, styles.pickerModalBackdrop, { zIndex: 9999, elevation: 9999 }]}>
+                  <Pressable
+                    style={StyleSheet.absoluteFillObject}
+                    onPress={() => setPickerModalType('NONE')}
+                  />
+                  <View
+                    style={[
+                      styles.pickerModalBox,
+                      isDark && { backgroundColor: themeColors.surface, borderColor: themeColors.cardBorder, borderWidth: 1 },
+                    ]}
+                  >
+                    <View
+                      style={[
+                        styles.pickerModalHeader,
+                        isDark && { borderBottomColor: themeColors.cardBorder },
+                      ]}
+                    >
+                      <Text style={[styles.pickerModalTitle, isDark && { color: themeColors.textPrimary }]}>
+                        Chọn nguồn tiền thanh toán
+                      </Text>
+                      <Pressable onPress={() => setPickerModalType('NONE')} hitSlop={10}>
+                        <FinanceIcon name="close" size={18} color={isDark ? themeColors.textMuted : '#64748B'} />
+                      </Pressable>
+                    </View>
+
+                    <ScrollView style={{ maxHeight: 340 }} showsVerticalScrollIndicator={false}>
+                      {accounts.map((acc) => (
+                        <Pressable
+                          key={acc.id}
+                          onPress={() => {
+                            setPayAccountId(acc.id);
+                            setPickerModalType('NONE');
+                          }}
+                          style={[
+                            styles.pickerItemRow,
+                            isDark && { borderBottomColor: themeColors.cardBorder },
+                            payAccountId === acc.id && (isDark ? { backgroundColor: 'rgba(52, 211, 153, 0.15)' } : styles.pickerItemRowActive),
+                          ]}
+                        >
+                          <AccountBadge account={acc} size={34} />
+                          <View style={{ flex: 1, marginLeft: 10 }}>
+                            <Text
+                              style={[
+                                styles.pickerItemText,
+                                isDark && { color: themeColors.textPrimary },
+                                payAccountId === acc.id && (isDark ? { color: themeColors.accentGreen, fontWeight: '800' } : styles.pickerItemTextActive),
+                              ]}
+                            >
+                              {acc.name}
+                            </Text>
+                            <Text style={[styles.pickerItemSub, isDark && { color: themeColors.textMuted }]}>
+                              Số dư: {formatVND(acc.balance)}
+                            </Text>
+                          </View>
+                          {payAccountId === acc.id && (
+                            <FinanceIcon name="check" size={16} color={isDark ? themeColors.accentGreen : '#0E964E'} />
+                          )}
+                        </Pressable>
+                      ))}
+                    </ScrollView>
+                  </View>
+                </View>
+              )}
+            </View>
+          </KeyboardAvoidingView>
+        </Modal>
+      </View>
+    );
+  }
+
+  // NẾU ĐANG CHỌN XEM CHI TIẾT KHOẢN NỢ -> RENDER TOÀN MÀN HÌNH NHƯ BÊN MỤC TIÊU & TIẾT KIỆM (GoalDetailScreen)
+  if (selectedDebtDetail) {
+    const isBorrow = selectedDebtDetail.debtType === 'BORROWING';
+    const visual = resolveDebtVisual(selectedDebtDetail.counterpartyName, selectedDebtDetail.debtType);
+    const isPaidOff = selectedDebtDetail.status === 'PAID_OFF' || selectedDebtDetail.remainingAmount <= 0;
+    const displayRemaining = selectedDebtDetail.remainingAmount;
+    const displayPaid = selectedDebtDetail.paidAmount;
+    const displayPrincipal = selectedDebtDetail.principalAmount;
+    const displayPercent = selectedDebtDetail.percentagePaid || (displayPrincipal > 0 ? Math.round((displayPaid / displayPrincipal) * 100) : 0);
+
+    // Lấy lịch sử thanh toán từ API hoặc từ mock demo
+    const rawHistory: any[] = detailFullData?.payment_history || demoPayments[selectedDebtDetail.id] || [];
+    const historyList = rawHistory.map((pm, idx) => {
+      const rawDate = pm.created_at || pm.payment_date || pm.paymentDate || selectedDebtDetail.startDate || new Date().toISOString();
+      const matchedAccount = accounts.find((a) => a.id === (pm.account_id || pm.accountId || selectedDebtDetail.accountId));
+      const accountName = pm.account_name || pm.accountName || matchedAccount?.name || detailFullData?.account?.name || 'Ví tiền mặt';
+      return {
+        id: String(pm.id || idx),
+        amount: Number(pm.amount || 0),
+        rawDate,
+        date: formatDateTime(rawDate),
+        note: pm.note || 'Thanh toán khoản nợ',
+        accountName,
+      };
+    });
+
+    const debtTypeLabel = selectedDebtDetail.paymentFrequency && selectedDebtDetail.paymentFrequency !== 'ONE_TIME'
+      ? 'Trả góp'
+      : (isBorrow ? 'Khoản đi vay' : 'Cho vay');
+
+    return (
+      <View
+        style={[
+          styles.detailScreenContainer,
+          isDark && { backgroundColor: themeColors.background },
+          { paddingTop: Math.max(insets.top, 16) },
+        ]}
+      >
+        <StatusBar
+          barStyle={isDark ? 'light-content' : 'dark-content'}
+          backgroundColor={isDark ? themeColors.background : '#FFFFFF'}
+        />
+
+        {/* 1. Header chi tiết: [<] Chi tiết khoản nợ */}
+        <View
+          style={[
+            styles.detailScreenHeaderRow,
+            isDark && { backgroundColor: themeColors.background, borderBottomColor: themeColors.cardBorder },
+          ]}
+        >
+          <Pressable
+            onPress={() => setSelectedDebtDetail(null)}
+            hitSlop={12}
+            style={[styles.detailBackCircleBtn, isDark && { backgroundColor: themeColors.surfaceSubtle }]}
+          >
+            <FinanceIcon name="chevron-left" size={22} color={isDark ? themeColors.accentGreen : '#0E964E'} />
+          </Pressable>
+
+          <Text style={[styles.detailScreenHeaderTitle, isDark && { color: themeColors.textPrimary }]}>
+            Chi tiết khoản nợ
+          </Text>
+
+          {/* Khoảng trống để cân đối header */}
+          <View style={{ width: 36, height: 36 }} />
+        </View>
+
+        <ScrollView
+          style={{ flex: 1 }}
+          contentContainerStyle={[styles.detailScreenScrollContent, { paddingBottom: Math.max(insets.bottom, 24) + 20 }]}
+          showsVerticalScrollIndicator={false}
+        >
+          {/* 2. Banner nền ảnh theo loại nợ (Đỏ: Khoản đang vay, Xanh: Khoản cho vay) */}
+          <ImageBackground
+            source={isBorrow ? DEBT_RED_BANNER_BG : BANNER_BG_IMG}
+            style={styles.detailHeroBanner}
+            imageStyle={styles.detailHeroBannerImgStyle}
+            resizeMode="cover"
+          >
+            {/* Cột chữ bên trái */}
+            <View style={styles.detailHeroTextCol}>
+              <Text style={styles.detailHeroCategoryTitle}>
+                {isBorrow ? 'Khoản đang vay' : 'Khoản cho vay'}
+              </Text>
+              <Text style={styles.detailHeroCategorySub}>
+                {isBorrow ? 'Bạn đang vay tiền' : 'Bạn đã cho người khác vay tiền'}
+              </Text>
+            </View>
+
+            {/* Icon 3D bên phải */}
+            <View style={styles.detailHero3dWrap}>
+              <Image
+                source={isBorrow ? BORROWING_WALLET_3D : LENDING_BAG_3D}
+                style={styles.detailHero3dImg}
+                resizeMode="contain"
+              />
+            </View>
+          </ImageBackground>
+
+          {/* Card tên khoản vay & Tag trạng thái */}
+          <View
+            style={[
+              styles.detailDebtNameCard,
+              isDark && { backgroundColor: themeColors.surface, borderColor: themeColors.cardBorder },
+            ]}
+          >
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 }}>
+              <View
+                style={[
+                  styles.detailDocIconWrap,
+                  { backgroundColor: isBorrow ? (isDark ? 'rgba(239, 68, 68, 0.2)' : '#FEE2E2') : (isDark ? 'rgba(52, 211, 153, 0.2)' : '#DCFCE7') },
+                ]}
+              >
+                <FinanceIcon name="file-text" size={18} color={isBorrow ? '#EF4444' : '#10B981'} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.detailDebtNameLabel, isDark && { color: themeColors.textSecondary }]}>
+                  {isBorrow ? 'TÊN KHOẢN VAY' : 'TÊN KHOẢN CHO VAY'}
+                </Text>
+                <Text style={[styles.detailDebtNameValue, isDark && { color: themeColors.textPrimary }]} numberOfLines={1}>
+                  {selectedDebtDetail.counterpartyName}
+                </Text>
+              </View>
+            </View>
+
+            <View
+              style={[
+                styles.detailDebtStatusPill,
+                { backgroundColor: isPaidOff ? (isDark ? 'rgba(52, 211, 153, 0.2)' : '#DCFCE7') : (isDark ? 'rgba(239, 68, 68, 0.2)' : '#FEE2E2') },
+              ]}
+            >
+              <Text
+                style={[
+                  styles.detailDebtStatusPillText,
+                  { color: isPaidOff ? (isDark ? themeColors.accentGreen : '#059669') : '#DC2626' },
+                ]}
+              >
+                {isPaidOff ? 'Đã hoàn thành' : 'Đang thực hiện'}
+              </Text>
+            </View>
+          </View>
+
+          {/* 3. Khối 3 cột số tiền (Tổng nợ - Đã trả - Còn lại) */}
+          <View
+            style={[
+              styles.detailBalanceCard,
+              isDark && { backgroundColor: themeColors.surface, borderColor: themeColors.cardBorder },
+            ]}
+          >
+            <View style={styles.detailBalanceThreeCols}>
+              <View style={styles.detailBalanceColItem}>
+                <Text style={[styles.detailBalanceLabel, isDark && { color: themeColors.textSecondary }]}>
+                  {isBorrow ? 'Tiền vay' : 'Cho vay'}
+                </Text>
+                <Text style={[styles.detailBalanceColPrincipal, isDark && { color: themeColors.textPrimary }]}>
+                  {formatVND(displayPrincipal)}
+                </Text>
+              </View>
+
+              <View style={[styles.detailBalanceColDivider, isDark && { backgroundColor: themeColors.cardBorder }]} />
+
+              <View style={styles.detailBalanceColItem}>
+                <Text style={[styles.detailBalanceLabel, isDark && { color: themeColors.textSecondary }]}>
+                  {isBorrow ? 'Đã trả' : 'Đã thu'}
+                </Text>
+                <Text style={[styles.detailBalanceColPaid, isDark && { color: themeColors.textSecondary }]}>
+                  {formatVND(displayPaid)}
+                </Text>
+              </View>
+
+              <View style={[styles.detailBalanceColDivider, isDark && { backgroundColor: themeColors.cardBorder }]} />
+
+              <View style={styles.detailBalanceColItem}>
+                <Text style={[styles.detailBalanceLabel, isDark && { color: themeColors.textSecondary }]}>
+                  Còn lại
+                </Text>
+                <Text
+                  style={[
+                    styles.detailBalanceColRemaining,
+                    { color: isBorrow ? '#EF4444' : (isDark ? themeColors.accentGreen : '#0E964E') },
+                  ]}
+                >
+                  {formatVND(displayRemaining)}
+                </Text>
+              </View>
+            </View>
+
+            {/* Thanh tiến trình % trả nợ */}
+            <View style={styles.detailProgressBarRow}>
+              <View style={[styles.detailProgressBarTrack, isDark && { backgroundColor: themeColors.surfaceSubtle }]}>
+                <View
+                  style={[
+                    styles.detailProgressBarFill,
+                    {
+                      width: `${displayPercent}%`,
+                      backgroundColor: isBorrow ? '#EF4444' : (isDark ? themeColors.accentGreen : '#0E964E'),
+                    },
+                  ]}
+                />
+              </View>
+              <Text
+                style={[
+                  styles.detailProgressPercentText,
+                  { color: isBorrow ? '#EF4444' : (isDark ? themeColors.accentGreen : '#0E964E') },
+                ]}
+              >
+                {displayPercent}%
+              </Text>
+            </View>
+          </View>
+
+          {/* 4. Khối Thông tin chung */}
+          <View
+            style={[
+              styles.detailSectionCard,
+              isDark && { backgroundColor: themeColors.surface, borderColor: themeColors.cardBorder },
+            ]}
+          >
+            <View style={styles.detailSectionTitleRow}>
+              <View
+                style={[
+                  styles.sectionHeaderIconCircle,
+                  isDark && { backgroundColor: 'rgba(52, 211, 153, 0.15)' },
+                ]}
+              >
+                <FinanceIcon name="file-text" size={17} color={isDark ? themeColors.accentGreen : '#16A34A'} />
+              </View>
+              <Text style={[styles.detailSectionTitleText, isDark && { color: themeColors.textPrimary }]}>
+                Thông tin chung
+              </Text>
+            </View>
+
+            <View style={[styles.detailSectionDivider, isDark && { backgroundColor: themeColors.cardBorder }]} />
+
+            {/* Dòng 1: Loại nợ */}
+            <View style={[styles.detailInfoRow, isDark && { borderBottomColor: themeColors.cardBorder }]}>
+              <View style={styles.detailInfoLeft}>
+                <FinanceIcon name="tag" size={16} color={isDark ? themeColors.textMuted : '#64748B'} />
+                <Text style={[styles.detailInfoLabelText, isDark && { color: themeColors.textSecondary }]}>
+                  Loại giao dịch
+                </Text>
+              </View>
+              <Text style={[styles.detailInfoValueBoldText, isDark && { color: themeColors.textPrimary }]}>
+                {debtTypeLabel}
+              </Text>
+            </View>
+
+            {/* Dòng 2: Người liên hệ & SĐT */}
+            <View style={[styles.detailInfoRow, isDark && { borderBottomColor: themeColors.cardBorder }]}>
+              <View style={styles.detailInfoLeft}>
+                <FinanceIcon name="user" size={16} color={isDark ? themeColors.textMuted : '#64748B'} />
+                <Text style={[styles.detailInfoLabelText, isDark && { color: themeColors.textSecondary }]}>
+                  {isBorrow ? 'Người cho vay' : 'Người vay'}
+                </Text>
+              </View>
+              <Text style={[styles.detailInfoValueBoldText, isDark && { color: themeColors.textPrimary }]}>
+                {selectedDebtDetail.counterpartyName}
+                {(selectedDebtDetail.creditorPhone || selectedDebtDetail.debtorPhone) ? ` (${selectedDebtDetail.creditorPhone || selectedDebtDetail.debtorPhone})` : ''}
+              </Text>
+            </View>
+
+            {/* Dòng 3: Thời hạn / Kỳ hạn */}
+            <View style={[styles.detailInfoRow, isDark && { borderBottomColor: themeColors.cardBorder }]}>
+              <View style={styles.detailInfoLeft}>
+                <FinanceIcon name="calendar" size={16} color={isDark ? themeColors.textMuted : '#64748B'} />
+                <Text style={[styles.detailInfoLabelText, isDark && { color: themeColors.textSecondary }]}>
+                  {selectedDebtDetail.paymentFrequency && selectedDebtDetail.paymentFrequency !== 'ONE_TIME' ? 'Kỳ hạn thanh toán' : 'Thời hạn'}
+                </Text>
+              </View>
+              <Text style={[styles.detailInfoValueBoldText, isDark && { color: themeColors.textPrimary }]}>
+                {(() => {
+                  const freq = selectedDebtDetail.paymentFrequency;
+                  if (freq && freq !== 'ONE_TIME') {
+                    const periodic = selectedDebtDetail.monthlyPayment || selectedDebtDetail.paymentAmount || 0;
+                    const count = (periodic > 0 && selectedDebtDetail.principalAmount)
+                      ? Math.max(1, Math.round(selectedDebtDetail.principalAmount / periodic))
+                      : 1;
+
+                    // Lấy ngày trong tháng hoặc thứ trong tuần từ nextPaymentDate / startDate
+                    const baseDateStr = selectedDebtDetail.nextPaymentDate || selectedDebtDetail.startDate || selectedDebtDetail.dueDate;
+                    let schedulePatternText = 'Hàng tháng';
+                    if (baseDateStr) {
+                      const d = new Date(baseDateStr);
+                      if (!isNaN(d.getTime())) {
+                        if (freq === 'WEEKLY') {
+                          const dowNames = ['Chủ nhật', 'Thứ 2', 'Thứ 3', 'Thứ 4', 'Thứ 5', 'Thứ 6', 'Thứ 7'];
+                          schedulePatternText = `${dowNames[d.getDay()]} hàng tuần`;
+                        } else if (freq === 'QUARTERLY') {
+                          schedulePatternText = `Ngày ${d.getDate()} hàng quý`;
+                        } else {
+                          schedulePatternText = `Ngày ${d.getDate()} hàng tháng`;
+                        }
+                      }
+                    } else {
+                      schedulePatternText = freq === 'WEEKLY' ? 'Hàng tuần' : freq === 'QUARTERLY' ? 'Hàng quý' : 'Hàng tháng';
+                    }
+
+                    return `${count} kỳ - ${schedulePatternText}`;
+                  }
+                  return `${formatDate(selectedDebtDetail.startDate)} → ${formatDate(selectedDebtDetail.dueDate)}`;
+                })()}
+              </Text>
+            </View>
+
+            {/* Dòng 4: Ghi chú */}
+            <View style={[styles.detailInfoRow, { borderBottomWidth: 0, paddingBottom: 0 }]}>
+              <View style={styles.detailInfoLeft}>
+                <FinanceIcon name="credit-card" size={16} color={isDark ? themeColors.textMuted : '#64748B'} />
+                <Text style={[styles.detailInfoLabelText, isDark && { color: themeColors.textSecondary }]}>
+                  Ghi chú
+                </Text>
+              </View>
+              <Text
+                style={[
+                  styles.detailInfoValueRegularText,
+                  isDark && { color: themeColors.textPrimary },
+                  { flex: 1, textAlign: 'right' },
+                ]}
+                numberOfLines={2}
+              >
+                {selectedDebtDetail.note || selectedDebtDetail.description || 'Không có ghi chú'}
+              </Text>
+            </View>
+          </View>
+
+          {/* 5. Khối Kế hoạch trả theo kỳ (Liệt kê rõ ràng từng kỳ hạn, ngày đến hạn & trạng thái đã trả / chưa trả) */}
+          {(() => {
+            const freq = selectedDebtDetail.paymentFrequency;
+            if (!freq || freq === 'ONE_TIME') return null;
+
+            const periodicAmt = selectedDebtDetail.monthlyPayment || selectedDebtDetail.paymentAmount || 0;
+            const totalPrincipal = selectedDebtDetail.principalAmount || 0;
+            const totalPaid = selectedDebtDetail.paidAmount || 0;
+            const count = (periodicAmt > 0 && totalPrincipal > 0)
+              ? Math.max(1, Math.round(totalPrincipal / periodicAmt))
+              : 1;
+
+            const baseDateStr = selectedDebtDetail.nextPaymentDate || selectedDebtDetail.startDate || selectedDebtDetail.dueDate;
+            const baseDate = baseDateStr ? new Date(baseDateStr) : new Date();
+
+            const installmentSchedule: Array<{
+              periodNumber: number;
+              dueDate: string;
+              amount: number;
+              isPaid: boolean;
+            }> = [];
+
+            let iterDate = new Date(baseDate.getFullYear(), baseDate.getMonth(), baseDate.getDate());
+            for (let i = 1; i <= count; i++) {
+              const dStr = String(iterDate.getDate()).padStart(2, '0');
+              const mStr = String(iterDate.getMonth() + 1).padStart(2, '0');
+              const yStr = iterDate.getFullYear();
+              const dateFormatted = `${dStr}/${mStr}/${yStr}`;
+
+              // Kỳ i được xem là đã trả nếu tổng số tiền đã trả >= số tiền tích lũy đến kỳ này (hoặc trả hết nợ)
+              const thresholdForPeriod = periodicAmt * (i - 0.1);
+              const isPeriodPaid = totalPaid >= thresholdForPeriod || selectedDebtDetail.remainingAmount <= 0;
+
+              installmentSchedule.push({
+                periodNumber: i,
+                dueDate: dateFormatted,
+                amount: periodicAmt,
+                isPaid: isPeriodPaid,
+              });
+
+              if (freq === 'WEEKLY') iterDate.setDate(iterDate.getDate() + 7);
+              else if (freq === 'QUARTERLY') iterDate.setMonth(iterDate.getMonth() + 3);
+              else iterDate.setMonth(iterDate.getMonth() + 1);
+            }
+
+            return (
+              <View
+                style={[
+                  styles.detailSectionCard,
+                  isDark && { backgroundColor: themeColors.surface, borderColor: themeColors.cardBorder },
+                ]}
+              >
+                <View style={styles.detailSectionTitleRow}>
+                  <View
+                    style={[
+                      styles.sectionHeaderIconCircle,
+                      isDark && { backgroundColor: 'rgba(52, 211, 153, 0.15)' },
+                    ]}
+                  >
+                    <FinanceIcon name="calendar" size={17} color={isDark ? themeColors.accentGreen : '#16A34A'} />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={[styles.detailSectionTitleText, isDark && { color: themeColors.textPrimary }]}>
+                      Kế hoạch trả theo kỳ ({count} kỳ)
+                    </Text>
+                  </View>
+                  <Text style={{ fontSize: 11.5, fontWeight: '700', color: isDark ? themeColors.accentGreen : '#059669' }}>
+                    {installmentSchedule.filter((p) => p.isPaid).length}/{count} đã trả
+                  </Text>
+                </View>
+
+                <View style={[styles.detailSectionDivider, isDark && { backgroundColor: themeColors.cardBorder }]} />
+
+                <ScrollView
+                  style={count > 3 ? { maxHeight: 195 } : undefined}
+                  nestedScrollEnabled
+                  showsVerticalScrollIndicator={count > 3}
+                  contentContainerStyle={{ gap: 10 }}
+                >
+                  {installmentSchedule.map((p) => (
+                    <View
+                      key={p.periodNumber}
+                      style={{
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        paddingVertical: 10,
+                        paddingHorizontal: 12,
+                        borderRadius: 12,
+                        backgroundColor: p.isPaid
+                          ? (isDark ? 'rgba(52, 211, 153, 0.1)' : '#F0FDF4')
+                          : (isDark ? themeColors.surfaceSubtle : '#F8FAFC'),
+                        borderWidth: 1,
+                        borderColor: p.isPaid
+                          ? (isDark ? 'rgba(52, 211, 153, 0.25)' : '#DCFCE7')
+                          : (isDark ? themeColors.cardBorder : '#E2E8F0'),
+                      }}
+                    >
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                        <View
+                          style={{
+                            width: 28,
+                            height: 28,
+                            borderRadius: 14,
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            backgroundColor: p.isPaid
+                              ? (isDark ? 'rgba(52, 211, 153, 0.2)' : '#DCFCE7')
+                              : (isDark ? 'rgba(255, 255, 255, 0.08)' : '#E2E8F0'),
+                          }}
+                        >
+                          {p.isPaid ? (
+                            <FinanceIcon name="check" size={14} color={isDark ? themeColors.accentGreen : '#059669'} />
+                          ) : (
+                            <Text style={{ fontSize: 12, fontWeight: '800', color: isDark ? themeColors.textMuted : '#64748B' }}>
+                              {p.periodNumber}
+                            </Text>
+                          )}
+                        </View>
+                        <View>
+                          <Text style={{ fontSize: 13, fontWeight: '700', color: isDark ? themeColors.textPrimary : '#0F172A' }}>
+                            Kỳ {p.periodNumber} • {formatVND(p.amount)}
+                          </Text>
+                          <Text style={{ fontSize: 11.5, color: isDark ? themeColors.textSecondary : '#64748B', marginTop: 1 }}>
+                            Hạn trả: {p.dueDate}
+                          </Text>
+                        </View>
+                      </View>
+
+                      {/* Huy hiệu trạng thái ĐÃ TRẢ / CHƯA TRẢ */}
+                      <View
+                        style={{
+                          paddingHorizontal: 8,
+                          paddingVertical: 3,
+                          borderRadius: 6,
+                          backgroundColor: p.isPaid
+                            ? (isDark ? 'rgba(52, 211, 153, 0.2)' : '#DCFCE7')
+                            : (isDark ? 'rgba(245, 158, 11, 0.15)' : '#FEF3C7'),
+                        }}
+                      >
+                        <Text
+                          style={{
+                            fontSize: 11,
+                            fontWeight: '700',
+                            color: p.isPaid
+                              ? (isDark ? themeColors.accentGreen : '#059669')
+                              : (isDark ? '#FBBF24' : '#D97706'),
+                          }}
+                        >
+                          {p.isPaid ? 'Đã trả' : 'Chưa trả'}
+                        </Text>
+                      </View>
+                    </View>
+                  ))}
+                </ScrollView>
+              </View>
+            );
+          })()}
+
+          {/* 5. Khối Thao tác: [Thanh toán] [Cập nhật] [Xóa nợ] */}
+          <View
+            style={[
+              styles.detailSectionCard,
+              isDark && { backgroundColor: themeColors.surface, borderColor: themeColors.cardBorder },
+            ]}
+          >
+            <View style={styles.detailSectionTitleRow}>
+              <View
+                style={[
+                  styles.sectionHeaderIconCircle,
+                  isDark && { backgroundColor: 'rgba(52, 211, 153, 0.15)' },
+                ]}
+              >
+                <FinanceIcon name="zap" size={18} color={isDark ? themeColors.accentGreen : '#16A34A'} />
+              </View>
+              <Text style={[styles.detailSectionTitleText, isDark && { color: themeColors.textPrimary }]}>
+                Thao tác
+              </Text>
+            </View>
+
+            <View style={[styles.detailSectionDivider, isDark && { backgroundColor: themeColors.cardBorder }]} />
+
+            <View style={styles.detailActionButtonsRow}>
+              {/* Nút 1: Thanh toán (Nền xanh đậm, icon ví trắng) */}
+              <Pressable
+                onPress={() => {
+                  setSelectedDebtForPay(selectedDebtDetail);
+                  const isInstallment = selectedDebtDetail.paymentFrequency && selectedDebtDetail.paymentFrequency !== 'ONE_TIME';
+                  const periodic = selectedDebtDetail.monthlyPayment || selectedDebtDetail.paymentAmount || 0;
+                  // Tính kỳ tiếp theo chưa thanh toán
+                  const paid = selectedDebtDetail.paidAmount || 0;
+                  const nextPeriodIdx = periodic > 0 ? Math.floor(paid / periodic) + 1 : 1;
+                  setPaySelectedPeriod(isInstallment ? nextPeriodIdx : null);
+
+                  const defaultPayAmt = isInstallment && periodic > 0
+                    ? Math.min(periodic, displayRemaining)
+                    : displayRemaining;
+                  setPayAmount(defaultPayAmt > 0 ? new Intl.NumberFormat('vi-VN').format(defaultPayAmt) : '');
+                  setPayAccountId(selectedDebtDetail.accountId || (accounts[0]?.id || ''));
+                  setPayNote(isInstallment ? `Thanh toán kỳ ${nextPeriodIdx}` : '');
+                  setPayModalVisible(true);
+                }}
+                style={({ pressed }) => [
+                  styles.actionBtnPay,
+                  isDark && { backgroundColor: '#10B981', shadowColor: '#10B981' },
+                  pressed && styles.cardPressed,
+                ]}
+              >
+                <FinanceIcon name="wallet" size={20} color="#FFFFFF" />
+                <Text style={styles.actionBtnPayText}>Thanh toán</Text>
+              </Pressable>
+
+              {/* Nút 2: Sửa khoản nợ (Thiết kế hiện đại, tinh tế) */}
+              <Pressable
+                onPress={handleOpenEditModal}
+                style={({ pressed }) => [
+                  styles.actionBtnUpdate,
+                  isDark && {
+                    backgroundColor: 'rgba(37, 99, 235, 0.12)',
+                    borderColor: 'rgba(37, 99, 235, 0.3)',
+                  },
+                  pressed && styles.cardPressed,
+                ]}
+              >
+                <FinanceIcon name="edit" size={17} color={isDark ? '#60A5FA' : '#2563EB'} />
+                <Text style={[styles.actionBtnUpdateText, isDark && { color: '#60A5FA' }]}>Sửa khoản nợ</Text>
+              </Pressable>
+
+              {/* Nút 3: Xóa nợ (Nền hồng pastel viền mỏng, icon thùng rác đỏ) */}
+              <Pressable
+                onPress={() => handleDeleteDebt(selectedDebtDetail)}
+                style={({ pressed }) => [
+                  styles.actionBtnDelete,
+                  isDark && {
+                    backgroundColor: 'rgba(239, 68, 68, 0.12)',
+                    borderColor: 'rgba(239, 68, 68, 0.3)',
+                  },
+                  pressed && styles.cardPressed,
+                ]}
+              >
+                <FinanceIcon name="trash" size={19} color="#EF4444" />
+                <Text style={styles.actionBtnDeleteText}>Xóa nợ</Text>
+              </Pressable>
+            </View>
+          </View>
+
+          {/* 6. Khối Lịch sử thanh toán */}
+          <View
+            style={[
+              styles.detailSectionCard,
+              isDark && { backgroundColor: themeColors.surface, borderColor: themeColors.cardBorder },
+            ]}
+          >
+            <View style={styles.detailHistoryHeaderRow}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <View
+                  style={[
+                    styles.sectionHeaderIconCircle,
+                    isDark && { backgroundColor: 'rgba(52, 211, 153, 0.15)' },
+                  ]}
+                >
+                  <FinanceIcon name="rotate-ccw" size={17} color={isDark ? themeColors.accentGreen : '#16A34A'} />
+                </View>
+                <Text style={[styles.detailSectionTitleText, isDark && { color: themeColors.textPrimary }]}>
+                  Lịch sử thanh toán
+                </Text>
+              </View>
+            </View>
+
+            <View style={[styles.detailSectionDivider, isDark && { backgroundColor: themeColors.cardBorder }]} />
+
+            {historyList.length === 0 ? (
+              <View style={styles.detailHistoryEmptyWrap}>
+                <Text style={[styles.detailHistoryEmptyText, isDark && { color: themeColors.textMuted }]}>
+                  Chưa có lịch sử thanh toán nào cho khoản nợ này.
+                </Text>
+              </View>
+            ) : (
+              historyList.map((item, idx) => (
+                <Pressable
+                  key={item.id}
+                  onPress={() => setSelectedPaymentDetail(item)}
+                  style={({ pressed }) => [
+                    styles.historyPaymentRowItem,
+                    isDark && { borderBottomColor: themeColors.cardBorder },
+                    pressed && (isDark ? { backgroundColor: themeColors.surfaceSubtle } : { backgroundColor: '#F8FAFC' }),
+                    idx === historyList.length - 1 && { borderBottomWidth: 0, paddingBottom: 0 },
+                  ]}
+                >
+                  {/* Vòng tròn xanh lá có dấu tick trắng */}
+                  <View
+                    style={[
+                      styles.historyCheckGreenCircle,
+                      isDark && { backgroundColor: 'rgba(52, 211, 153, 0.15)' },
+                    ]}
+                  >
+                    <FinanceIcon name="check" size={13} color={isDark ? themeColors.accentGreen : '#0E964E'} />
+                  </View>
+
+                  {/* Cột thông tin: 'Thanh toán' & Giờ + Ngày tháng */}
+                  <View style={{ flex: 1 }}>
+                    <Text style={[styles.historyPaymentTitleText, isDark && { color: themeColors.textPrimary }]}>
+                      Thanh toán
+                    </Text>
+                    <Text style={[styles.historyPaymentDateText, isDark && { color: themeColors.textSecondary }]}>
+                      {item.date}
+                    </Text>
+                  </View>
+
+                  {/* Số tiền thanh toán màu xanh lá: +1.500.000 đ */}
+                  <View style={{ alignItems: 'flex-end', justifyContent: 'center' }}>
+                    <Text style={[styles.historyPaymentAmountGreen, isDark && { color: themeColors.accentGreen }]}>
+                      +{formatVND(item.amount)}
+                    </Text>
+                  </View>
+                </Pressable>
+              ))
+            )}
+          </View>
+        </ScrollView>
+
+        {/* MODAL POPUP CHI TIẾT ĐỢT THANH TOÁN (KHI ẤN VÀO DÒNG LỊCH SỬ) */}
+        <Modal
+          visible={!!selectedPaymentDetail}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setSelectedPaymentDetail(null)}
+        >
+          <View style={styles.paymentDetailModalCenterOverlay}>
+            <Pressable
+              style={styles.modalBackdrop}
+              onPress={() => setSelectedPaymentDetail(null)}
+            />
+            <View
+              style={[
+                styles.paymentDetailPopupBox,
+                isDark && { backgroundColor: themeColors.surface, borderColor: themeColors.cardBorder, borderWidth: 1 },
+              ]}
+            >
+              {/* Header */}
+              <View
+                style={[
+                  styles.paymentDetailPopupHeader,
+                  isDark && { borderBottomColor: themeColors.cardBorder },
+                ]}
+              >
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                  <View
+                    style={[
+                      styles.historyCheckGreenCircle,
+                      isDark && { backgroundColor: 'rgba(52, 211, 153, 0.15)' },
+                    ]}
+                  >
+                    <FinanceIcon name="check" size={14} color={isDark ? themeColors.accentGreen : '#0E964E'} />
+                  </View>
+                  <Text
+                    style={[
+                      styles.paymentDetailPopupTitle,
+                      isDark && { color: themeColors.textPrimary },
+                    ]}
+                  >
+                    Chi tiết đợt thanh toán
+                  </Text>
+                </View>
+                <Pressable
+                  onPress={() => setSelectedPaymentDetail(null)}
+                  hitSlop={10}
+                >
+                  <FinanceIcon name="close" size={18} color={isDark ? themeColors.textMuted : '#64748B'} />
+                </Pressable>
+              </View>
+
+              {/* Số tiền thanh toán to nổi bật */}
+              <View
+                style={[
+                  styles.paymentDetailAmountCard,
+                  isDark && { backgroundColor: 'rgba(52, 211, 153, 0.12)', borderColor: 'rgba(52, 211, 153, 0.25)' },
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.paymentDetailAmountLabel,
+                    isDark && { color: themeColors.accentGreen },
+                  ]}
+                >
+                  SỐ TIỀN ĐÃ THANH TOÁN
+                </Text>
+                <Text
+                  style={[
+                    styles.paymentDetailAmountValue,
+                    isDark && { color: themeColors.accentGreen },
+                  ]}
+                >
+                  +{formatVND(selectedPaymentDetail?.amount || 0)}
+                </Text>
+              </View>
+
+              {/* Các dòng thông tin chi tiết */}
+              <View style={styles.paymentDetailRowsWrap}>
+                <View
+                  style={[
+                    styles.paymentDetailRowItem,
+                    isDark && { borderBottomColor: themeColors.cardBorder },
+                  ]}
+                >
+                  <Text style={[styles.paymentDetailRowLabel, isDark && { color: themeColors.textSecondary }]}>
+                    Thời gian:
+                  </Text>
+                  <Text
+                    style={[
+                      styles.paymentDetailRowValBold,
+                      isDark && { color: themeColors.textPrimary },
+                    ]}
+                  >
+                    {selectedPaymentDetail?.date}
+                  </Text>
+                </View>
+
+                <View
+                  style={[
+                    styles.paymentDetailRowItem,
+                    isDark && { borderBottomColor: themeColors.cardBorder },
+                  ]}
+                >
+                  <Text style={[styles.paymentDetailRowLabel, isDark && { color: themeColors.textSecondary }]}>
+                    Khoản nợ:
+                  </Text>
+                  <Text
+                    style={[
+                      styles.paymentDetailRowValBold,
+                      isDark && { color: themeColors.textPrimary },
+                    ]}
+                    numberOfLines={1}
+                  >
+                    {selectedDebtDetail.counterpartyName}
+                  </Text>
+                </View>
+
+                <View
+                  style={[
+                    styles.paymentDetailRowItem,
+                    isDark && { borderBottomColor: themeColors.cardBorder },
+                  ]}
+                >
+                  <Text style={[styles.paymentDetailRowLabel, isDark && { color: themeColors.textSecondary }]}>
+                    Nguồn tiền trích:
+                  </Text>
+                  <Text
+                    style={[
+                      styles.paymentDetailRowValGreen,
+                      isDark && { color: themeColors.accentGreen },
+                    ]}
+                  >
+                    {selectedPaymentDetail?.accountName || 'Ví tiền mặt'}
+                  </Text>
+                </View>
+
+                <View style={[styles.paymentDetailRowItem, { borderBottomWidth: 0 }]}>
+                  <Text style={[styles.paymentDetailRowLabel, isDark && { color: themeColors.textSecondary }]}>
+                    Ghi chú:
+                  </Text>
+                  <Text
+                    style={[
+                      styles.paymentDetailRowValRegular,
+                      isDark && { color: themeColors.textPrimary },
+                    ]}
+                    numberOfLines={2}
+                  >
+                    {selectedPaymentDetail?.note || 'Không có ghi chú'}
+                  </Text>
+                </View>
+              </View>
+
+              {/* Nút Đóng */}
+              <Pressable
+                onPress={() => setSelectedPaymentDetail(null)}
+                style={[
+                  styles.paymentDetailCloseBtn,
+                  isDark && { backgroundColor: themeColors.surfaceSubtle },
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.paymentDetailCloseBtnText,
+                    isDark && { color: themeColors.textPrimary },
+                  ]}
+                >
+                  Đóng
+                </Text>
+              </Pressable>
+            </View>
+          </View>
+        </Modal>
+
+        {/* ── MODAL SỬA KHOẢN NỢ ── */}
+        <Modal
+          visible={editModalVisible}
+          transparent
+          animationType="slide"
+          onRequestClose={() => setEditModalVisible(false)}
+        >
+          <KeyboardAvoidingView
+            style={styles.modalKeyboardAvoid}
+            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          >
+            <Pressable style={styles.modalBackdrop} onPress={() => setEditModalVisible(false)} />
+            <View
+              style={[
+                styles.modalSheet,
+                isDark && { backgroundColor: themeColors.surface, borderColor: themeColors.cardBorder, borderWidth: 1 },
+              ]}
+            >
+              <View style={[styles.modalDragBar, isDark && { backgroundColor: themeColors.cardBorder }]} />
+
+              <View style={styles.modalHeaderRow}>
+                <Text style={[styles.modalHeaderTitle, isDark && { color: themeColors.textPrimary }]}>
+                  Sửa khoản nợ
+                </Text>
+                <Pressable
+                  onPress={() => setEditModalVisible(false)}
+                  hitSlop={10}
+                  style={[styles.modalCloseBtn, isDark && { backgroundColor: themeColors.surfaceSubtle }]}
+                >
+                  <FinanceIcon name="close" size={18} color={isDark ? themeColors.textMuted : '#64748B'} />
+                </Pressable>
+              </View>
+
+              <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+                <Text style={[styles.inputSectionLabel, isDark && { color: themeColors.textSecondary }]}>
+                  TÊN KHOẢN VAY *
+                </Text>
+                <TextInput
+                  value={editCounterpartyName}
+                  onChangeText={setEditCounterpartyName}
+                  placeholder="Ví dụ: Vay mua xe, Trả góp laptop, Vay anh Long..."
+                  placeholderTextColor={isDark ? '#64748B' : '#94A3B8'}
+                  style={[
+                    styles.modalTextInput,
+                    isDark && {
+                      backgroundColor: themeColors.surfaceSubtle,
+                      borderColor: themeColors.cardBorder,
+                      color: themeColors.textPrimary,
+                    },
+                  ]}
+                />
+
+                <Text style={[styles.inputSectionLabel, isDark && { color: themeColors.textSecondary }]}>
+                  SỐ ĐIỆN THOẠI LIÊN HỆ
+                </Text>
+                <TextInput
+                  value={editPartnerPhone}
+                  onChangeText={setEditPartnerPhone}
+                  placeholder="0987654321..."
+                  placeholderTextColor={isDark ? '#64748B' : '#94A3B8'}
+                  keyboardType="phone-pad"
+                  style={[
+                    styles.modalTextInput,
+                    isDark && {
+                      backgroundColor: themeColors.surfaceSubtle,
+                      borderColor: themeColors.cardBorder,
+                      color: themeColors.textPrimary,
+                    },
+                  ]}
+                />
+
+                <Text style={[styles.inputSectionLabel, isDark && { color: themeColors.textSecondary }]}>
+                  TỔNG SỐ TIỀN NỢ (VNĐ) *
+                </Text>
+                <TextInput
+                  value={editPrincipal ? new Intl.NumberFormat('vi-VN').format(parseInt(editPrincipal.replace(/\D/g, '') || '0', 10)) : ''}
+                  onChangeText={(val) => {
+                    const cleaned = val.replace(/\D/g, '');
+                    setEditPrincipal(cleaned);
+                  }}
+                  placeholder="Nhập tổng số tiền..."
+                  placeholderTextColor={isDark ? '#64748B' : '#94A3B8'}
+                  keyboardType="numeric"
+                  style={[
+                    styles.modalTextInput,
+                    isDark && {
+                      backgroundColor: themeColors.surfaceSubtle,
+                      borderColor: themeColors.cardBorder,
+                      color: themeColors.textPrimary,
+                    },
+                  ]}
+                />
+
+                <View style={{ flexDirection: 'row', gap: 12 }}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={[styles.inputSectionLabel, isDark && { color: themeColors.textSecondary }]}>
+                      NGÀY BẮT ĐẦU
+                    </Text>
+                    <TextInput
+                      value={editStartDate}
+                      onChangeText={(val) => setEditStartDate(formatInputDDMMYYYY(val))}
+                      placeholder="DD-MM-YYYY"
+                      placeholderTextColor={isDark ? '#64748B' : '#94A3B8'}
+                      keyboardType="numeric"
+                      style={[
+                        styles.modalTextInput,
+                        isDark && {
+                          backgroundColor: themeColors.surfaceSubtle,
+                          borderColor: themeColors.cardBorder,
+                          color: themeColors.textPrimary,
+                        },
+                      ]}
+                    />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={[styles.inputSectionLabel, isDark && { color: themeColors.textSecondary }]}>
+                      HẠN THANH TOÁN
+                    </Text>
+                    <TextInput
+                      value={editDueDate}
+                      onChangeText={(val) => setEditDueDate(formatInputDDMMYYYY(val))}
+                      placeholder="DD-MM-YYYY"
+                      placeholderTextColor={isDark ? '#64748B' : '#94A3B8'}
+                      keyboardType="numeric"
+                      style={[
+                        styles.modalTextInput,
+                        isDark && {
+                          backgroundColor: themeColors.surfaceSubtle,
+                          borderColor: themeColors.cardBorder,
+                          color: themeColors.textPrimary,
+                        },
+                      ]}
+                    />
+                  </View>
+                </View>
+
+                <Text style={[styles.inputSectionLabel, isDark && { color: themeColors.textSecondary }]}>
+                  TÀI KHOẢN / VÍ LIÊN KẾT
+                </Text>
+                <Pressable
+                  onPress={() => setPickerModalType('EDIT_ACCOUNT')}
+                  style={[
+                    styles.modernSelectDropdown,
+                    { marginBottom: 14 },
+                    isDark && {
+                      backgroundColor: themeColors.surfaceSubtle,
+                      borderColor: themeColors.cardBorder,
+                    },
+                  ]}
+                >
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1 }}>
+                    {(() => {
+                      const selAcc = accounts.find((a) => a.id === editAccountId);
+                      if (!selAcc) {
+                        return (
+                          <Text
+                            style={[styles.modernSelectText, isDark && { color: themeColors.textPrimary }]}
+                            numberOfLines={1}
+                          >
+                            Không gắn tài khoản (Chỉ gửi nhắc nợ)
+                          </Text>
+                        );
+                      }
+                      return (
+                        <>
+                          <AccountBadge account={selAcc} size={22} />
+                          <Text
+                            style={[styles.modernSelectText, isDark && { color: themeColors.textPrimary }]}
+                            numberOfLines={1}
+                          >
+                            {selAcc.name} (Số dư: {formatVND(selAcc.balance)})
+                          </Text>
+                        </>
+                      );
+                    })()}
+                  </View>
+                  <FinanceIcon name="chevron-down" size={16} color={isDark ? themeColors.accentGreen : '#047857'} />
+                </Pressable>
+
+                <Text style={[styles.inputSectionLabel, isDark && { color: themeColors.textSecondary }]}>
+                  GHI CHÚ / THỎA THUẬN
+                </Text>
+                <TextInput
+                  value={editNote}
+                  onChangeText={setEditNote}
+                  placeholder="Ví dụ: Vay mua đồ, thỏa thuận trả trước..."
+                  placeholderTextColor={isDark ? '#64748B' : '#94A3B8'}
+                  style={[
+                    styles.modalTextInput,
+                    isDark && {
+                      backgroundColor: themeColors.surfaceSubtle,
+                      borderColor: themeColors.cardBorder,
+                      color: themeColors.textPrimary,
+                    },
+                  ]}
+                />
+
+                <Pressable
+                  onPress={handleSaveUpdateDebt}
+                  disabled={submittingEdit}
+                  style={[
+                    styles.modalSubmitBtn,
+                    isDark && { backgroundColor: '#10B981', shadowColor: '#10B981' },
+                    submittingEdit && styles.btnDisabled,
+                  ]}
+                >
+                  {submittingEdit ? (
+                    <ActivityIndicator color="#FFFFFF" />
+                  ) : (
+                    <Text style={styles.modalSubmitBtnText}>Lưu thay đổi</Text>
+                  )}
+                </Pressable>
+                <View style={{ height: 20 }} />
+              </ScrollView>
+
+              {/* OVERLAY PICKER CHỌN TÀI KHOẢN KHI SỬA KHOẢN NỢ */}
+              {pickerModalType === 'EDIT_ACCOUNT' && (
+                <View style={[StyleSheet.absoluteFillObject, styles.pickerModalBackdrop, { zIndex: 9999, elevation: 9999 }]}>
+                  <Pressable
+                    style={StyleSheet.absoluteFillObject}
+                    onPress={() => setPickerModalType('NONE')}
+                  />
+                  <View
+                    style={[
+                      styles.pickerModalBox,
+                      isDark && { backgroundColor: themeColors.surface, borderColor: themeColors.cardBorder, borderWidth: 1 },
+                    ]}
+                  >
+                    <View
+                      style={[
+                        styles.pickerModalHeader,
+                        isDark && { borderBottomColor: themeColors.cardBorder },
+                      ]}
+                    >
+                      <Text style={[styles.pickerModalTitle, isDark && { color: themeColors.textPrimary }]}>
+                        Chọn tài khoản / ví liên kết
+                      </Text>
+                      <Pressable onPress={() => setPickerModalType('NONE')} hitSlop={10}>
+                        <FinanceIcon name="close" size={18} color={isDark ? themeColors.textMuted : '#64748B'} />
+                      </Pressable>
+                    </View>
+
+                    <ScrollView style={{ maxHeight: 340 }} showsVerticalScrollIndicator={false}>
+                      <Pressable
+                        onPress={() => {
+                          setEditAccountId('');
+                          setPickerModalType('NONE');
+                        }}
+                        style={[
+                          styles.pickerItemRow,
+                          isDark && { borderBottomColor: themeColors.cardBorder },
+                          !editAccountId && (isDark ? { backgroundColor: 'rgba(52, 211, 153, 0.15)' } : styles.pickerItemRowActive),
+                        ]}
+                      >
+                        <View style={{ flex: 1 }}>
+                          <Text
+                            style={[
+                              styles.pickerItemText,
+                              isDark && { color: themeColors.textPrimary },
+                              !editAccountId && (isDark ? { color: themeColors.accentGreen, fontWeight: '800' } : styles.pickerItemTextActive),
+                            ]}
+                          >
+                            🔔 Không gắn tài khoản
+                          </Text>
+                          <Text style={[styles.pickerItemSub, isDark && { color: themeColors.textMuted }]}>
+                            Chỉ gửi thông báo nhắc nợ đúng hạn
+                          </Text>
+                        </View>
+                        {!editAccountId && <FinanceIcon name="check" size={16} color={isDark ? themeColors.accentGreen : '#0E964E'} />}
+                      </Pressable>
+
+                      {accounts.map((acc) => (
+                        <Pressable
+                          key={acc.id}
+                          onPress={() => {
+                            setEditAccountId(acc.id);
+                            setPickerModalType('NONE');
+                          }}
+                          style={[
+                            styles.pickerItemRow,
+                            isDark && { borderBottomColor: themeColors.cardBorder },
+                            editAccountId === acc.id && (isDark ? { backgroundColor: 'rgba(52, 211, 153, 0.15)' } : styles.pickerItemRowActive),
+                          ]}
+                        >
+                          <AccountBadge account={acc} size={34} />
+                          <View style={{ flex: 1, marginLeft: 10 }}>
+                            <Text
+                              style={[
+                                styles.pickerItemText,
+                                isDark && { color: themeColors.textPrimary },
+                                editAccountId === acc.id && (isDark ? { color: themeColors.accentGreen, fontWeight: '800' } : styles.pickerItemTextActive),
+                              ]}
+                            >
+                              {acc.name}
+                            </Text>
+                            <Text style={[styles.pickerItemSub, isDark && { color: themeColors.textMuted }]}>
+                              Số dư: {formatVND(acc.balance)} · Tự động trừ khi đến hạn
+                            </Text>
+                          </View>
+                          {editAccountId === acc.id && (
+                            <FinanceIcon name="check" size={16} color={isDark ? themeColors.accentGreen : '#0E964E'} />
+                          )}
+                        </Pressable>
+                      ))}
+                    </ScrollView>
+                  </View>
+                </View>
+              )}
+            </View>
+          </KeyboardAvoidingView>
+        </Modal>
+
+        {/* ── MODAL THANH TOÁN / THU NỢ ── */}
+        <Modal
+          visible={payModalVisible}
+          transparent
+          animationType="slide"
+          onRequestClose={() => setPayModalVisible(false)}
+        >
+          <KeyboardAvoidingView
+            style={styles.modalKeyboardAvoid}
+            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          >
+            <Pressable style={styles.modalBackdrop} onPress={() => setPayModalVisible(false)} />
+            <View
+              style={[
+                styles.modalSheet,
+                isDark && { backgroundColor: themeColors.surface, borderColor: themeColors.cardBorder, borderWidth: 1 },
+              ]}
+            >
+              <View style={[styles.modalDragBar, isDark && { backgroundColor: themeColors.cardBorder }]} />
+
+              <View style={styles.modalHeaderRow}>
+                <Text style={[styles.modalHeaderTitle, isDark && { color: themeColors.textPrimary }]}>
+                  {selectedDebtForPay?.debtType === 'BORROWING' ? 'Ghi nhận trả nợ' : 'Ghi nhận thu nợ'}
+                </Text>
+                <Pressable
+                  onPress={() => setPayModalVisible(false)}
+                  hitSlop={10}
+                  style={[styles.modalCloseBtn, isDark && { backgroundColor: themeColors.surfaceSubtle }]}
+                >
+                  <FinanceIcon name="close" size={18} color={isDark ? themeColors.textMuted : '#64748B'} />
+                </Pressable>
+              </View>
+
+              {selectedDebtForPay && (
+                <View style={{ marginBottom: 14 }}>
+                  <Text style={[styles.payTargetNameText, isDark && { color: themeColors.textSecondary }]}>
+                    Đối tác:{' '}
+                    <Text style={{ fontWeight: '800', color: isDark ? themeColors.textPrimary : '#0F172A' }}>
+                      {selectedDebtForPay.counterpartyName}
+                    </Text>
+                  </Text>
+                  <Text style={[styles.payTargetRemainingText, isDark && { color: themeColors.textSecondary }]}>
+                    Số tiền còn lại:{' '}
+                    <Text style={{ fontWeight: '800', color: isDark ? themeColors.accentGreen : '#059669' }}>
+                      {formatVND(selectedDebtForPay.remainingAmount)}
+                    </Text>
+                  </Text>
+
+                  {/* CHỌN KỲ THANH TOÁN (Nếu là khoản nợ theo kỳ) */}
+                  {selectedDebtForPay.paymentFrequency && selectedDebtForPay.paymentFrequency !== 'ONE_TIME' && (() => {
+                    const periodic = selectedDebtForPay.monthlyPayment || selectedDebtForPay.paymentAmount || 0;
+                    const totalPrincipal = selectedDebtForPay.principalAmount || 0;
+                    const totalPaid = selectedDebtForPay.paidAmount || 0;
+                    const count = (periodic > 0 && totalPrincipal > 0)
+                      ? Math.max(1, Math.round(totalPrincipal / periodic))
+                      : 1;
+
+                    return (
+                      <View style={{ marginTop: 10 }}>
+                        <Text style={[styles.inputSectionLabel, { marginBottom: 6 }, isDark && { color: themeColors.textSecondary }]}>
+                          CHỌN KỲ THANH TOÁN
+                        </Text>
+                        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingVertical: 2 }}>
+                          {Array.from({ length: count }, (_, idx) => {
+                            const pNum = idx + 1;
+                            const threshold = periodic * (pNum - 0.1);
+                            const isPaid = totalPaid >= threshold || selectedDebtForPay.remainingAmount <= 0;
+                            const isSelected = paySelectedPeriod === pNum;
+
+                            return (
+                              <Pressable
+                                key={pNum}
+                                onPress={() => {
+                                  setPaySelectedPeriod(pNum);
+                                  const targetAmt = periodic > 0 ? Math.min(periodic, selectedDebtForPay.remainingAmount) : selectedDebtForPay.remainingAmount;
+                                  setPayAmount(new Intl.NumberFormat('vi-VN').format(targetAmt));
+                                  setPayNote(`Thanh toán kỳ ${pNum}`);
+                                }}
+                                style={{
+                                  paddingVertical: 7,
+                                  paddingHorizontal: 12,
+                                  borderRadius: 10,
+                                  borderWidth: 1.5,
+                                  borderColor: isSelected
+                                    ? (isDark ? themeColors.accentGreen : '#059669')
+                                    : isPaid
+                                    ? (isDark ? 'rgba(52, 211, 153, 0.3)' : '#A7F3D0')
+                                    : (isDark ? themeColors.cardBorder : '#E2E8F0'),
+                                  backgroundColor: isSelected
+                                    ? (isDark ? 'rgba(52, 211, 153, 0.25)' : '#DCFCE7')
+                                    : isPaid
+                                    ? (isDark ? 'rgba(52, 211, 153, 0.08)' : '#F0FDF4')
+                                    : (isDark ? themeColors.surfaceSubtle : '#F8FAFC'),
+                                  alignItems: 'center',
+                                }}
+                              >
+                                <Text
+                                  style={{
+                                    fontSize: 12,
+                                    fontWeight: '800',
+                                    color: isSelected
+                                      ? (isDark ? themeColors.accentGreen : '#059669')
+                                      : (isDark ? themeColors.textPrimary : '#1E293B'),
+                                  }}
+                                >
+                                  Kỳ {pNum} {isPaid ? '✓' : ''}
+                                </Text>
+                                <Text
+                                  style={{
+                                    fontSize: 10,
+                                    fontWeight: '600',
+                                    marginTop: 1,
+                                    color: isSelected
+                                      ? (isDark ? themeColors.accentGreen : '#059669')
+                                      : isPaid
+                                      ? '#10B981'
+                                      : (isDark ? themeColors.textMuted : '#64748B'),
+                                  }}
+                                >
+                                  {isPaid ? 'Đã trả' : formatVND(periodic)}
+                                </Text>
+                              </Pressable>
+                            );
+                          })}
+
+                          {/* Lựa chọn trả hết toàn bộ */}
+                          <Pressable
+                            onPress={() => {
+                              setPaySelectedPeriod(null);
+                              setPayAmount(new Intl.NumberFormat('vi-VN').format(selectedDebtForPay.remainingAmount));
+                              setPayNote('Tất toán toàn bộ khoản nợ');
+                            }}
+                            style={{
+                              paddingVertical: 7,
+                              paddingHorizontal: 12,
+                              borderRadius: 10,
+                              borderWidth: 1.5,
+                              borderColor: paySelectedPeriod === null
+                                ? (isDark ? themeColors.accentGreen : '#059669')
+                                : (isDark ? themeColors.cardBorder : '#E2E8F0'),
+                              backgroundColor: paySelectedPeriod === null
+                                ? (isDark ? 'rgba(52, 211, 153, 0.25)' : '#DCFCE7')
+                                : (isDark ? themeColors.surfaceSubtle : '#F8FAFC'),
+                              alignItems: 'center',
+                            }}
+                          >
+                            <Text
+                              style={{
+                                fontSize: 12,
+                                fontWeight: '800',
+                                color: paySelectedPeriod === null
+                                  ? (isDark ? themeColors.accentGreen : '#059669')
+                                  : (isDark ? themeColors.textPrimary : '#1E293B'),
+                              }}
+                            >
+                              Trả hết nợ
+                            </Text>
+                            <Text
+                              style={{
+                                fontSize: 10,
+                                fontWeight: '600',
+                                marginTop: 1,
+                                color: paySelectedPeriod === null
+                                  ? (isDark ? themeColors.accentGreen : '#059669')
+                                  : (isDark ? themeColors.textMuted : '#64748B'),
+                              }}
+                            >
+                              {formatVND(selectedDebtForPay.remainingAmount)}
+                            </Text>
+                          </Pressable>
+                        </ScrollView>
+                      </View>
+                    );
+                  })()}
+                </View>
+              )}
+
+              <Text style={[styles.inputSectionLabel, isDark && { color: themeColors.textSecondary }]}>
+                SỐ TIỀN THANH TOÁN (VNĐ) *
+              </Text>
+              <TextInput
+                value={payAmount}
+                onChangeText={(val) => {
+                  const cleaned = val.replace(/\D/g, '');
+                  if (!cleaned) {
+                    setPayAmount('');
+                    return;
+                  }
+                  setPayAmount(new Intl.NumberFormat('vi-VN').format(parseInt(cleaned, 10)));
+                }}
+                keyboardType="numeric"
+                placeholder="Nhập số tiền..."
+                placeholderTextColor={isDark ? '#64748B' : '#94A3B8'}
+                style={[
+                  styles.modalTextInput,
+                  isDark && {
+                    backgroundColor: themeColors.surfaceSubtle,
+                    borderColor: themeColors.cardBorder,
+                    color: themeColors.textPrimary,
+                  },
+                ]}
+                autoFocus
+              />
+
+              <Text style={[styles.inputSectionLabel, isDark && { color: themeColors.textSecondary }]}>
+                {selectedDebtForPay?.debtType === 'BORROWING' ? 'NGUỒN TIỀN TRÍCH TRẢ *' : 'TÀI KHOẢN NHẬN TIỀN *'}
+              </Text>
+              <Pressable
+                onPress={() => setPickerModalType('PAY_ACCOUNT')}
+                style={[
+                  styles.modernSelectDropdown,
+                  { marginBottom: 14 },
+                  isDark && {
+                    backgroundColor: themeColors.surfaceSubtle,
+                    borderColor: themeColors.cardBorder,
+                  },
+                ]}
+              >
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1 }}>
+                  {(() => {
+                    const chosenAcc = accounts.find((a) => a.id === payAccountId);
+                    if (!chosenAcc) {
+                      return (
+                        <Text style={[styles.modernSelectText, isDark && { color: themeColors.textPrimary }]}>
+                          Ví tiền mặt (Mặc định)
+                        </Text>
+                      );
+                    }
+                    return (
+                      <>
+                        <AccountBadge account={chosenAcc} size={22} />
+                        <Text
+                          style={[styles.modernSelectText, isDark && { color: themeColors.textPrimary }]}
+                          numberOfLines={1}
+                        >
+                          {chosenAcc.name} (Số dư: {formatVND(chosenAcc.balance)})
+                        </Text>
+                      </>
+                    );
+                  })()}
+                </View>
+                <FinanceIcon name="chevron-down" size={16} color={isDark ? themeColors.accentGreen : '#047857'} />
+              </Pressable>
+
+              <Text style={[styles.inputSectionLabel, isDark && { color: themeColors.textSecondary }]}>
+                GHI CHÚ THANH TOÁN
+              </Text>
+              <TextInput
+                value={payNote}
+                onChangeText={setPayNote}
+                placeholder="Ví dụ: Trả đợt 1, Chuyển khoản qua ngân hàng..."
+                placeholderTextColor={isDark ? '#64748B' : '#94A3B8'}
+                style={[
+                  styles.modalTextInput,
+                  isDark && {
+                    backgroundColor: themeColors.surfaceSubtle,
+                    borderColor: themeColors.cardBorder,
+                    color: themeColors.textPrimary,
+                  },
+                ]}
+              />
+
+              <Pressable
+                onPress={handleRecordPayment}
+                disabled={submittingPay}
+                style={[
+                  styles.modalSubmitBtn,
+                  isDark && { backgroundColor: '#10B981', shadowColor: '#10B981' },
+                  submittingPay && styles.btnDisabled,
+                ]}
+              >
+                {submittingPay ? (
+                  <ActivityIndicator color="#FFFFFF" />
+                ) : (
+                  <Text style={styles.modalSubmitBtnText}>Xác nhận thanh toán</Text>
+                )}
+              </Pressable>
+              <View style={{ height: 20 }} />
+
+              {/* OVERLAY PICKER CHỌN TÀI KHOẢN KHI THANH TOÁN NỢ */}
+              {pickerModalType === 'PAY_ACCOUNT' && (
+                <View style={[StyleSheet.absoluteFillObject, styles.pickerModalBackdrop, { zIndex: 9999, elevation: 9999 }]}>
+                  <Pressable
+                    style={StyleSheet.absoluteFillObject}
+                    onPress={() => setPickerModalType('NONE')}
+                  />
+                  <View
+                    style={[
+                      styles.pickerModalBox,
+                      isDark && { backgroundColor: themeColors.surface, borderColor: themeColors.cardBorder, borderWidth: 1 },
+                    ]}
+                  >
+                    <View
+                      style={[
+                        styles.pickerModalHeader,
+                        isDark && { borderBottomColor: themeColors.cardBorder },
+                      ]}
+                    >
+                      <Text style={[styles.pickerModalTitle, isDark && { color: themeColors.textPrimary }]}>
+                        Chọn nguồn tiền thanh toán
+                      </Text>
+                      <Pressable onPress={() => setPickerModalType('NONE')} hitSlop={10}>
+                        <FinanceIcon name="close" size={18} color={isDark ? themeColors.textMuted : '#64748B'} />
+                      </Pressable>
+                    </View>
+
+                    <ScrollView style={{ maxHeight: 340 }} showsVerticalScrollIndicator={false}>
+                      {accounts.map((acc) => (
+                        <Pressable
+                          key={acc.id}
+                          onPress={() => {
+                            setPayAccountId(acc.id);
+                            setPickerModalType('NONE');
+                          }}
+                          style={[
+                            styles.pickerItemRow,
+                            isDark && { borderBottomColor: themeColors.cardBorder },
+                            payAccountId === acc.id && (isDark ? { backgroundColor: 'rgba(52, 211, 153, 0.15)' } : styles.pickerItemRowActive),
+                          ]}
+                        >
+                          <AccountBadge account={acc} size={34} />
+                          <View style={{ flex: 1, marginLeft: 10 }}>
+                            <Text
+                              style={[
+                                styles.pickerItemText,
+                                isDark && { color: themeColors.textPrimary },
+                                payAccountId === acc.id && (isDark ? { color: themeColors.accentGreen, fontWeight: '800' } : styles.pickerItemTextActive),
+                              ]}
+                            >
+                              {acc.name}
+                            </Text>
+                            <Text style={[styles.pickerItemSub, isDark && { color: themeColors.textMuted }]}>
+                              Số dư: {formatVND(acc.balance)}
+                            </Text>
+                          </View>
+                          {payAccountId === acc.id && (
+                            <FinanceIcon name="check" size={16} color={isDark ? themeColors.accentGreen : '#0E964E'} />
+                          )}
+                        </Pressable>
+                      ))}
+                    </ScrollView>
+                  </View>
+                </View>
+              )}
+            </View>
+          </KeyboardAvoidingView>
+        </Modal>
+      </View>
+    );
+  }
+
   return (
-    <View style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
+    <View style={[styles.container, isDark && { backgroundColor: themeColors.background }]}>
+      <StatusBar
+        barStyle={isDark ? 'light-content' : 'dark-content'}
+        backgroundColor={isDark ? themeColors.background : '#FFFFFF'}
+      />
 
       {/* ── HEADER ── */}
-      <View style={[styles.headerContainer, { paddingTop: Math.max(insets.top, 16) + 4 }]}>
+      <View
+        style={[
+          styles.headerContainer,
+          isDark && { backgroundColor: themeColors.background },
+          { paddingTop: Math.max(insets.top, 16) + 4 },
+        ]}
+      >
         <View style={styles.headerRow}>
           {onBack && (
-            <Pressable onPress={onBack} hitSlop={12} style={styles.backBtn}>
-              <Text style={styles.backBtnArrow}>‹</Text>
+            <Pressable
+              onPress={onBack}
+              hitSlop={12}
+              style={[styles.backBtn, isDark && { backgroundColor: themeColors.surfaceSubtle }]}
+            >
+              <Text style={[styles.backBtnArrow, isDark && { color: themeColors.textPrimary }]}>‹</Text>
             </Pressable>
           )}
           <View style={styles.headerTitleCol}>
-            <Text style={styles.headerTitle}>Quản lý nợ</Text>
+            <Text style={[styles.headerTitle, isDark && { color: themeColors.textPrimary }]}>Quản lý nợ</Text>
           </View>
         </View>
       </View>
@@ -870,26 +3853,56 @@ export function DebtScreen({ onBack }: DebtScreenProps) {
           {/* ── 2. HÀNG 2 CARD TỔNG QUAN: TÔI ĐANG NỢ & ĐANG CHO VAY ── */}
           <View style={styles.summaryTwoCardsRow}>
             {/* Card Đỏ: Tôi đang nợ */}
-            <View style={styles.debtSummaryCardPayable}>
-              <View style={styles.summaryIconCirclePayable}>
+            <View
+              style={[
+                styles.debtSummaryCardPayable,
+                isDark && {
+                  backgroundColor: 'rgba(239, 68, 68, 0.12)',
+                  borderColor: 'rgba(239, 68, 68, 0.25)',
+                },
+              ]}
+            >
+              <View
+                style={[
+                  styles.summaryIconCirclePayable,
+                  isDark && { backgroundColor: 'rgba(239, 68, 68, 0.2)' },
+                ]}
+              >
                 <FinanceIcon name="arrow-down" size={19} color="#DC2626" />
               </View>
               <View style={styles.summaryCardInfoCol}>
-                <Text style={styles.summaryCardLabel}>Tôi đang nợ</Text>
-                <Text style={styles.summaryCardAmount}>
+                <Text style={[styles.summaryCardLabel, isDark && { color: themeColors.textSecondary }]}>
+                  Tôi đang nợ
+                </Text>
+                <Text style={[styles.summaryCardAmount, isDark && { color: '#F87171' }]}>
                   {showBalance ? formatVND(totalBorrowingRemaining) : '****** đ'}
                 </Text>
               </View>
             </View>
 
             {/* Card Xanh: Đang cho vay */}
-            <View style={styles.debtSummaryCardReceivable}>
-              <View style={styles.summaryIconCircleReceivable}>
-                <FinanceIcon name="arrow-up" size={19} color="#059669" />
+            <View
+              style={[
+                styles.debtSummaryCardReceivable,
+                isDark && {
+                  backgroundColor: 'rgba(52, 211, 153, 0.12)',
+                  borderColor: 'rgba(52, 211, 153, 0.25)',
+                },
+              ]}
+            >
+              <View
+                style={[
+                  styles.summaryIconCircleReceivable,
+                  isDark && { backgroundColor: 'rgba(52, 211, 153, 0.2)' },
+                ]}
+              >
+                <FinanceIcon name="arrow-up" size={19} color={isDark ? themeColors.accentGreen : '#059669'} />
               </View>
               <View style={styles.summaryCardInfoCol}>
-                <Text style={styles.summaryCardLabel}>Đang cho vay</Text>
-                <Text style={styles.summaryCardAmount}>
+                <Text style={[styles.summaryCardLabel, isDark && { color: themeColors.textSecondary }]}>
+                  Đang cho vay
+                </Text>
+                <Text style={[styles.summaryCardAmount, isDark && { color: themeColors.accentGreen }]}>
                   {showBalance ? formatVND(totalLendingRemaining) : '****** đ'}
                 </Text>
               </View>
@@ -899,17 +3912,18 @@ export function DebtScreen({ onBack }: DebtScreenProps) {
           {/* ── 3. HÀNG BỘ LỌC VÀ NÚT THÊM KHOẢN NỢ TRÊN CÙNG 1 HÀNG ── */}
           <View style={styles.filterAndActionRow}>
             {/* Cụm 3 nút lọc nhỏ gọn: Tất cả | Đi vay | Cho nợ */}
-            <View style={styles.compactFilterGroup}>
+            <View style={[styles.compactFilterGroup, isDark && { backgroundColor: themeColors.surfaceSubtle }]}>
               <Pressable
                 onPress={() => setSelectedTab('ALL')}
                 style={[
                   styles.compactFilterPill,
-                  selectedTab === 'ALL' && styles.compactFilterPillActive,
+                  selectedTab === 'ALL' && [styles.compactFilterPillActive, isDark && { backgroundColor: '#10B981' }],
                 ]}
               >
                 <Text
                   style={[
                     styles.compactFilterText,
+                    isDark && { color: themeColors.textSecondary },
                     selectedTab === 'ALL' && styles.compactFilterTextActive,
                   ]}
                 >
@@ -921,12 +3935,13 @@ export function DebtScreen({ onBack }: DebtScreenProps) {
                 onPress={() => setSelectedTab('BORROWING')}
                 style={[
                   styles.compactFilterPill,
-                  selectedTab === 'BORROWING' && styles.compactFilterPillActive,
+                  selectedTab === 'BORROWING' && [styles.compactFilterPillActive, isDark && { backgroundColor: '#10B981' }],
                 ]}
               >
                 <Text
                   style={[
                     styles.compactFilterText,
+                    isDark && { color: themeColors.textSecondary },
                     selectedTab === 'BORROWING' && styles.compactFilterTextActive,
                   ]}
                 >
@@ -938,12 +3953,13 @@ export function DebtScreen({ onBack }: DebtScreenProps) {
                 onPress={() => setSelectedTab('LENDING')}
                 style={[
                   styles.compactFilterPill,
-                  selectedTab === 'LENDING' && styles.compactFilterPillActive,
+                  selectedTab === 'LENDING' && [styles.compactFilterPillActive, isDark && { backgroundColor: '#10B981' }],
                 ]}
               >
                 <Text
                   style={[
                     styles.compactFilterText,
+                    isDark && { color: themeColors.textSecondary },
                     selectedTab === 'LENDING' && styles.compactFilterTextActive,
                   ]}
                 >
@@ -955,7 +3971,11 @@ export function DebtScreen({ onBack }: DebtScreenProps) {
             {/* Nút Thêm khoản nợ nhỏ gọn bên cạnh cùng hàng */}
             <Pressable
               onPress={() => setCreateModalVisible(true)}
-              style={({ pressed }) => [styles.compactAddDebtBtn, pressed && styles.btnPressed]}
+              style={({ pressed }) => [
+                styles.compactAddDebtBtn,
+                isDark && { backgroundColor: '#10B981', shadowColor: '#10B981' },
+                pressed && styles.btnPressed,
+              ]}
             >
               <FinanceIcon name="plus" size={14} color="#FFFFFF" />
               <Text style={styles.compactAddDebtBtnText}>Thêm nợ</Text>
@@ -965,17 +3985,32 @@ export function DebtScreen({ onBack }: DebtScreenProps) {
           {/* ── 4. DANH SÁCH KHOẢN NỢ (CHUẨN 100% THEO ẢNH BẠN GỬI) ── */}
           <View style={styles.debtsListSection}>
             {filteredDebts.length === 0 ? (
-              <View style={styles.emptyCard}>
-                <View style={styles.emptyIconCircle}>
-                  <FinanceIcon name="wallet" size={32} color="#94A3B8" />
+              <View
+                style={[
+                  styles.emptyCard,
+                  isDark && {
+                    backgroundColor: themeColors.surface,
+                    borderColor: themeColors.cardBorder,
+                  },
+                ]}
+              >
+                <View
+                  style={[
+                    styles.emptyIconCircle,
+                    isDark && { backgroundColor: themeColors.surfaceSubtle },
+                  ]}
+                >
+                  <FinanceIcon name="wallet" size={32} color={isDark ? themeColors.textMuted : '#94A3B8'} />
                 </View>
-                <Text style={styles.emptyTitle}>Chưa có khoản nợ nào</Text>
-                <Text style={styles.emptySubText}>
+                <Text style={[styles.emptyTitle, isDark && { color: themeColors.textPrimary }]}>
+                  Chưa có khoản nợ nào
+                </Text>
+                <Text style={[styles.emptySubText, isDark && { color: themeColors.textSecondary }]}>
                   {selectedTab === 'BORROWING'
                     ? 'Bạn không có khoản đi vay nào trong danh mục này.'
                     : selectedTab === 'LENDING'
-                    ? 'Bạn không có khoản cho vay/nợ nào trong danh mục này.'
-                    : 'Bấm nút "Thêm nợ" phía trên để bắt đầu theo dõi.'}
+                      ? 'Bạn không có khoản cho vay/nợ nào trong danh mục này.'
+                      : 'Bấm nút "Thêm nợ" phía trên để bắt đầu theo dõi.'}
                 </Text>
               </View>
             ) : (
@@ -988,7 +4023,14 @@ export function DebtScreen({ onBack }: DebtScreenProps) {
                   <Pressable
                     key={item.id}
                     onPress={() => handleOpenDebtDetail(item)}
-                    style={({ pressed }) => [styles.cleanDebtRowCard, pressed && styles.cardPressed]}
+                    style={({ pressed }) => [
+                      styles.cleanDebtRowCard,
+                      isDark && {
+                        backgroundColor: themeColors.surface,
+                        borderColor: themeColors.cardBorder,
+                      },
+                      pressed && (isDark ? { backgroundColor: themeColors.surfaceSubtle } : styles.cardPressed),
+                    ]}
                   >
                     {/* 1. Icon bên trái */}
                     <View style={[styles.cleanDebtIconBox, { backgroundColor: visual.bg }]}>
@@ -1005,69 +4047,129 @@ export function DebtScreen({ onBack }: DebtScreenProps) {
 
                     {/* 2. Cột thông tin ở giữa */}
                     <View style={styles.cleanDebtCenterCol}>
-                      <Text style={styles.cleanDebtTitleText} numberOfLines={1}>
+                      <Text
+                        style={[styles.cleanDebtTitleText, isDark && { color: themeColors.textPrimary }]}
+                        numberOfLines={1}
+                      >
                         {item.counterpartyName}
                       </Text>
 
                       {/* Dòng chi tiết phụ */}
                       {item.paidAmount > 0 && item.percentagePaid > 0 && item.id === 'demo-debt-5' ? (
-                        <Text style={styles.cleanDebtSubDetailText} numberOfLines={1}>
+                        <Text
+                          style={[styles.cleanDebtSubDetailText, isDark && { color: themeColors.textSecondary }]}
+                          numberOfLines={1}
+                        >
                           Đã thu: {formatVND(item.paidAmount)} / {formatVND(item.principalAmount)}
                         </Text>
                       ) : (
                         <View style={styles.cleanDebtDueDateRow}>
-                          <FinanceIcon name="calendar" size={13} color="#64748B" />
-                          <Text style={styles.cleanDebtDueDateText}>
-                            Đến hạn: {formatDate(item.dueDate)}
+                          <FinanceIcon name="calendar" size={13} color={isDark ? themeColors.textMuted : '#64748B'} />
+                          <Text style={[styles.cleanDebtDueDateText, isDark && { color: themeColors.textSecondary }]}>
+                            {item.paymentFrequency && item.paymentFrequency !== 'ONE_TIME'
+                              ? `Kỳ tới: ${formatDate(item.nextPaymentDate || item.dueDate)}`
+                              : `Đến hạn: ${formatDate(item.dueDate)}`}
                           </Text>
                         </View>
                       )}
                     </View>
 
-                      {/* 3. Cột số tiền & Tiến trình (nhiều kỳ) / Đếm ngược ngày (trả 1 lần) ở bên phải */}
-                      {(() => {
-                        const isInstallment = item.paymentFrequency && item.paymentFrequency !== 'ONE_TIME';
-                        return (
-                          <View style={styles.cleanDebtRightCol}>
-                            <Text style={styles.cleanDebtAmountBold}>
-                              {formatVND(item.remainingAmount)}
+                    {/* 3. Cột số tiền & Tiến trình (nhiều kỳ) / Đếm ngược ngày (trả 1 lần) ở bên phải */}
+                    {(() => {
+                      const isInstallment = item.paymentFrequency && item.paymentFrequency !== 'ONE_TIME';
+                      return (
+                        <View style={styles.cleanDebtRightCol}>
+                          <Text
+                            style={[
+                              styles.cleanDebtAmountBold,
+                              isDark && { color: themeColors.textPrimary },
+                            ]}
+                          >
+                            {formatVND(item.remainingAmount)}
+                          </Text>
+                          {isInstallment && (item.monthlyPayment || item.paymentAmount) && !isPaidOff ? (
+                            <Text
+                              style={{
+                                fontSize: 11,
+                                fontWeight: '600',
+                                color: isDark ? themeColors.accentGreen : '#059669',
+                                textAlign: 'right',
+                                marginTop: -2,
+                                marginBottom: 3,
+                              }}
+                            >
+                              {formatVND(item.monthlyPayment || item.paymentAmount || 0)}/kỳ
                             </Text>
+                          ) : null}
 
-                            {/* Nếu đã thanh toán hết: Luôn hiện huy hiệu Đã hoàn thành */}
-                            {isPaidOff ? (
-                              <View style={[styles.countdownPill, { backgroundColor: '#DCFCE7' }]}>
-                                <Text style={[styles.countdownPillText, { color: '#059669' }]}>
-                                  Đã hoàn thành
-                                </Text>
+                          {/* Nếu đã thanh toán hết: Luôn hiện huy hiệu Đã hoàn thành */}
+                          {isPaidOff ? (
+                            <View
+                              style={[
+                                styles.countdownPill,
+                                { backgroundColor: isDark ? 'rgba(52, 211, 153, 0.15)' : '#DCFCE7' },
+                              ]}
+                            >
+                              <Text
+                                style={[
+                                  styles.countdownPillText,
+                                  { color: isDark ? themeColors.accentGreen : '#059669' },
+                                ]}
+                              >
+                                Đã hoàn thành
+                              </Text>
+                            </View>
+                          ) : isInstallment ? (
+                            <View style={styles.miniProgressRow}>
+                              <View
+                                style={[
+                                  styles.miniProgressBarBg,
+                                  isDark && { backgroundColor: themeColors.surfaceSubtle },
+                                ]}
+                              >
+                                <View
+                                  style={[
+                                    styles.miniProgressBarFill,
+                                    { width: `${Math.min(100, Math.max(0, item.percentagePaid))}%` },
+                                    isDark && { backgroundColor: themeColors.accentGreen },
+                                  ]}
+                                />
                               </View>
-                            ) : isInstallment ? (
-                              <View style={styles.miniProgressRow}>
-                                <View style={styles.miniProgressBarBg}>
-                                  <View
-                                    style={[
-                                      styles.miniProgressBarFill,
-                                      { width: `${Math.min(100, Math.max(0, item.percentagePaid))}%` },
-                                    ]}
-                                  />
-                                </View>
-                                <Text style={styles.miniProgressPercentText}>
-                                  {item.percentagePaid}%
-                                </Text>
-                              </View>
-                            ) : countdown ? (
-                              <View style={[styles.countdownPill, { backgroundColor: countdown.bg }]}>
-                                <Text style={[styles.countdownPillText, { color: countdown.color }]}>
-                                  {countdown.text}
-                                </Text>
-                              </View>
-                            ) : null}
-                          </View>
-                        );
-                      })()}
+                              <Text
+                                style={[
+                                  styles.miniProgressPercentText,
+                                  isDark && { color: themeColors.accentGreen },
+                                ]}
+                              >
+                                {item.percentagePaid}%
+                              </Text>
+                            </View>
+                          ) : countdown ? (
+                            <View
+                              style={[
+                                styles.countdownPill,
+                                {
+                                  backgroundColor: isDark ? 'rgba(255, 255, 255, 0.08)' : countdown.bg,
+                                },
+                              ]}
+                            >
+                              <Text
+                                style={[
+                                  styles.countdownPillText,
+                                  { color: isDark && countdown.color === '#059669' ? themeColors.accentGreen : countdown.color },
+                                ]}
+                              >
+                                {countdown.text}
+                              </Text>
+                            </View>
+                          ) : null}
+                        </View>
+                      );
+                    })()}
 
                     {/* 4. Mũi tên điều hướng > */}
                     <View style={styles.cleanDebtChevronWrap}>
-                      <FinanceIcon name="chevron-right" size={16} color="#94A3B8" />
+                      <FinanceIcon name="chevron-right" size={16} color={isDark ? themeColors.textMuted : '#94A3B8'} />
                     </View>
                   </Pressable>
                 );
@@ -1076,809 +4178,6 @@ export function DebtScreen({ onBack }: DebtScreenProps) {
           </View>
         </ScrollView>
       )}
-
-      {/* ── MODAL 1: CHI TIẾT KHOẢN NỢ (CHUẨN 100% THEO THIẾT KẾ ẢNH MẪU) ── */}
-      <Modal
-        visible={!!selectedDebtDetail}
-        animationType="slide"
-        onRequestClose={() => setSelectedDebtDetail(null)}
-      >
-        {selectedDebtDetail && (() => {
-          const isBorrow = selectedDebtDetail.debtType === 'BORROWING';
-          const visual = resolveDebtVisual(selectedDebtDetail.counterpartyName, selectedDebtDetail.debtType);
-          const isPaidOff = selectedDebtDetail.status === 'PAID_OFF' || selectedDebtDetail.remainingAmount <= 0;
-          const displayRemaining = selectedDebtDetail.remainingAmount;
-          const displayPaid = selectedDebtDetail.paidAmount;
-          const displayPrincipal = selectedDebtDetail.principalAmount;
-          const displayPercent = selectedDebtDetail.percentagePaid || (displayPrincipal > 0 ? Math.round((displayPaid / displayPrincipal) * 100) : 0);
-
-          // Lấy lịch sử thanh toán từ API hoặc từ mock demo
-          const rawHistory: any[] = detailFullData?.payment_history || demoPayments[selectedDebtDetail.id] || [];
-          const historyList = rawHistory.map((pm, idx) => {
-            const rawDate = pm.created_at || pm.payment_date || pm.paymentDate || selectedDebtDetail.startDate || new Date().toISOString();
-            const matchedAccount = accounts.find((a) => a.id === (pm.account_id || pm.accountId || selectedDebtDetail.accountId));
-            const accountName = pm.account_name || pm.accountName || matchedAccount?.name || detailFullData?.account?.name || 'Ví tiền mặt';
-            return {
-              id: String(pm.id || idx),
-              amount: Number(pm.amount || 0),
-              rawDate,
-              date: formatDateTime(rawDate),
-              note: pm.note || 'Thanh toán khoản nợ',
-              accountName,
-            };
-          });
-
-          // Loại nợ hiển thị
-          const debtTypeLabel = selectedDebtDetail.paymentFrequency && selectedDebtDetail.paymentFrequency !== 'ONE_TIME'
-            ? 'Trả góp'
-            : (isBorrow ? 'Khoản đi vay' : 'Cho vay');
-
-          return (
-            <View style={[styles.detailScreenContainer, { paddingTop: Math.max(insets.top, 16) }]}>
-              <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
-
-              {/* 1. Header chi tiết: [<] Chi tiết khoản nợ   [...] */}
-              <View style={styles.detailScreenHeaderRow}>
-                <Pressable
-                  onPress={() => setSelectedDebtDetail(null)}
-                  hitSlop={12}
-                  style={styles.detailBackCircleBtn}
-                >
-                  <FinanceIcon name="chevron-left" size={22} color="#0E964E" />
-                </Pressable>
-
-                <Text style={styles.detailScreenHeaderTitle}>Chi tiết khoản nợ</Text>
-
-                <Pressable
-                  onPress={() => {
-                    Alert.alert(
-                      'Tùy chọn khoản nợ',
-                      selectedDebtDetail.counterpartyName,
-                      [
-                        { text: 'Chỉnh sửa', onPress: handleOpenEditModal },
-                        { text: 'Xóa khoản nợ', style: 'destructive', onPress: () => handleDeleteDebt(selectedDebtDetail) },
-                        { text: 'Đóng', style: 'cancel' },
-                      ]
-                    );
-                  }}
-                  hitSlop={12}
-                  style={styles.detailMoreBtn}
-                >
-                  <FinanceIcon name="more-horizontal" size={22} color="#047857" />
-                </Pressable>
-              </View>
-
-              <ScrollView
-                style={{ flex: 1 }}
-                contentContainerStyle={[styles.detailScreenScrollContent, { paddingBottom: Math.max(insets.bottom, 24) + 20 }]}
-                showsVerticalScrollIndicator={false}
-              >
-                {/* 2. Banner nền ảnh theo loại nợ (Đỏ: Khoản đang vay, Xanh: Khoản cho vay) */}
-                <ImageBackground
-                  source={isBorrow ? DEBT_RED_BANNER_BG : BANNER_BG_IMG}
-                  style={styles.detailHeroBanner}
-                  imageStyle={styles.detailHeroBannerImgStyle}
-                  resizeMode="cover"
-                >
-                  {/* Cột chữ bên trái */}
-                  <View style={styles.detailHeroTextCol}>
-                    <Text style={styles.detailHeroCategoryTitle}>
-                      {isBorrow ? 'Khoản đang vay' : 'Khoản cho vay'}
-                    </Text>
-                    <Text style={styles.detailHeroCategorySub}>
-                      {isBorrow ? 'Bạn đang vay tiền' : 'Bạn đã cho người khác vay tiền'}
-                    </Text>
-                  </View>
-
-                  {/* Icon 3D bên phải */}
-                  <View style={styles.detailHero3dWrap}>
-                    <Image
-                      source={isBorrow ? BORROWING_WALLET_3D : LENDING_BAG_3D}
-                      style={styles.detailHero3dImg}
-                      resizeMode="contain"
-                    />
-                  </View>
-                </ImageBackground>
-
-                {/* Card tên khoản vay & Tag trạng thái */}
-                <View style={styles.detailDebtNameCard}>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 }}>
-                    <View
-                      style={[
-                        styles.detailDocIconWrap,
-                        { backgroundColor: isBorrow ? '#FEE2E2' : '#DCFCE7' },
-                      ]}
-                    >
-                      <FinanceIcon
-                        name="file-text"
-                        size={20}
-                        color={isBorrow ? '#DC2626' : '#16A34A'}
-                      />
-                    </View>
-                    <View style={{ flex: 1 }}>
-                      <Text style={styles.detailDebtNameLabel}>
-                        {isBorrow ? 'Tên khoản vay' : 'Tên khoản cho vay'}
-                      </Text>
-                      <Text style={styles.detailDebtNameValue} numberOfLines={1}>
-                        {selectedDebtDetail.counterpartyName}
-                      </Text>
-                    </View>
-                  </View>
-
-                  {/* Pill trạng thái */}
-                  <View
-                    style={[
-                      styles.detailDebtStatusPill,
-                      { backgroundColor: isPaidOff ? '#DCFCE7' : (isBorrow ? '#FFF1F2' : '#F0FDF4') },
-                    ]}
-                  >
-                    <FinanceIcon
-                      name={isPaidOff ? 'check' : 'coin-stack'}
-                      size={14}
-                      color={isPaidOff ? '#059669' : (isBorrow ? '#E11D48' : '#059669')}
-                    />
-                    <Text
-                      style={[
-                        styles.detailDebtStatusPillText,
-                        { color: isPaidOff ? '#059669' : (isBorrow ? '#E11D48' : '#059669') },
-                      ]}
-                    >
-                      {isPaidOff ? 'Đã hoàn thành' : (isBorrow ? 'Đang vay' : 'Đang cho vay')}
-                    </Text>
-                  </View>
-                </View>
-
-                {/* 3. Khối 3 cột: Số tiền vay/cho vay - Đã trả/thu - Còn lại kèm thanh tiến trình */}
-                <View style={styles.detailBalanceCard}>
-                  <View style={styles.detailBalanceThreeCols}>
-                    {/* Cột 1: Số tiền vay / Số tiền cho vay */}
-                    <View style={styles.detailBalanceColItem}>
-                      <Text style={styles.detailBalanceLabel}>
-                        {isBorrow ? 'Số tiền vay' : 'Số tiền cho vay'}
-                      </Text>
-                      <Text style={styles.detailBalanceColPrincipal}>
-                        {formatVND(displayPrincipal)}
-                      </Text>
-                    </View>
-
-                    {/* Vạch phân cách 1 */}
-                    <View style={styles.detailBalanceColDivider} />
-
-                    {/* Cột 2: Đã trả / Đã thu */}
-                    <View style={styles.detailBalanceColItem}>
-                      <Text style={styles.detailBalanceLabel}>
-                        {isBorrow ? 'Đã trả' : 'Đã thu'}
-                      </Text>
-                      <Text style={styles.detailBalanceColPaid}>
-                        {formatVND(displayPaid)}
-                      </Text>
-                    </View>
-
-                    {/* Vạch phân cách 2 */}
-                    <View style={styles.detailBalanceColDivider} />
-
-                    {/* Cột 3: Còn lại */}
-                    <View style={styles.detailBalanceColItem}>
-                      <Text style={styles.detailBalanceLabel}>Còn lại</Text>
-                      <Text
-                        style={[
-                          styles.detailBalanceColRemaining,
-                          { color: isBorrow ? '#DC2626' : '#059669' },
-                        ]}
-                      >
-                        {formatVND(displayRemaining)}
-                      </Text>
-                    </View>
-                  </View>
-
-                  {/* Thanh tiến trình % chuẩn màu đỏ khi vay hoặc xanh khi cho vay */}
-                  <View style={styles.detailProgressBarRow}>
-                    <View style={styles.detailProgressBarTrack}>
-                      <View
-                        style={[
-                          styles.detailProgressBarFill,
-                          {
-                            width: `${Math.min(100, Math.max(0, displayPercent))}%`,
-                            backgroundColor: isBorrow ? '#DC2626' : '#059669',
-                          },
-                        ]}
-                      />
-                    </View>
-                    <Text
-                      style={[
-                        styles.detailProgressPercentText,
-                        { color: isBorrow ? '#DC2626' : '#059669' },
-                      ]}
-                    >
-                      {displayPercent}%
-                    </Text>
-                  </View>
-                </View>
-
-                {/* 4. Khối Thông tin khoản nợ */}
-                <View style={styles.detailSectionCard}>
-                  {/* Tiêu đề section: Icon tài liệu xanh + 'Thông tin khoản nợ' */}
-                  <View style={styles.detailSectionTitleRow}>
-                    <View style={styles.sectionHeaderIconCircle}>
-                      <FinanceIcon name="file-text" size={18} color="#16A34A" />
-                    </View>
-                    <Text style={styles.detailSectionTitleText}>Thông tin khoản nợ</Text>
-                  </View>
-
-                  <View style={styles.detailSectionDivider} />
-
-                  {/* Dòng 1: Tổng số tiền */}
-                  <View style={styles.detailInfoRow}>
-                    <View style={styles.detailInfoLeft}>
-                      <FinanceIcon name="layers" size={16} color="#64748B" />
-                      <Text style={styles.detailInfoLabelText}>Tổng số tiền</Text>
-                    </View>
-                    <Text style={styles.detailInfoValueBoldText}>
-                      {formatVND(displayPrincipal)}
-                    </Text>
-                  </View>
-
-                  {/* Dòng 2: Ngày vay */}
-                  <View style={styles.detailInfoRow}>
-                    <View style={styles.detailInfoLeft}>
-                      <FinanceIcon name="calendar" size={16} color="#64748B" />
-                      <Text style={styles.detailInfoLabelText}>Ngày vay</Text>
-                    </View>
-                    <Text style={styles.detailInfoValueBoldText}>
-                      {formatDate(selectedDebtDetail.startDate)}
-                    </Text>
-                  </View>
-
-                  {/* Dòng 3: Hạn thanh toán */}
-                  <View style={styles.detailInfoRow}>
-                    <View style={styles.detailInfoLeft}>
-                      <FinanceIcon name="calendar" size={16} color="#64748B" />
-                      <Text style={styles.detailInfoLabelText}>Hạn thanh toán</Text>
-                    </View>
-                    <Text style={[styles.detailInfoValueBoldText, { color: '#0E964E' }]}>
-                      {formatDate(selectedDebtDetail.dueDate)}
-                    </Text>
-                  </View>
-
-                  {/* Dòng 4: Ghi chú */}
-                  <View style={[styles.detailInfoRow, { borderBottomWidth: 0, paddingBottom: 0 }]}>
-                    <View style={styles.detailInfoLeft}>
-                      <FinanceIcon name="credit-card" size={16} color="#64748B" />
-                      <Text style={styles.detailInfoLabelText}>Ghi chú</Text>
-                    </View>
-                    <Text style={[styles.detailInfoValueRegularText, { flex: 1, textAlign: 'right' }]} numberOfLines={2}>
-                      {selectedDebtDetail.note || selectedDebtDetail.description || 'Không có ghi chú'}
-                    </Text>
-                  </View>
-                </View>
-
-                {/* 5. Khối Thao tác: [Thanh toán] [Cập nhật] [Xóa nợ] */}
-                <View style={styles.detailSectionCard}>
-                  <View style={styles.detailSectionTitleRow}>
-                    <View style={styles.sectionHeaderIconCircle}>
-                      <FinanceIcon name="zap" size={18} color="#16A34A" />
-                    </View>
-                    <Text style={styles.detailSectionTitleText}>Thao tác</Text>
-                  </View>
-
-                  <View style={styles.detailSectionDivider} />
-
-                  <View style={styles.detailActionButtonsRow}>
-                    {/* Nút 1: Thanh toán (Nền xanh đậm, icon ví trắng) */}
-                    <Pressable
-                      onPress={() => {
-                        setSelectedDebtForPay(selectedDebtDetail);
-                        setPayAmount(String(displayRemaining));
-                        setPayAccountId(selectedDebtDetail.accountId || (accounts[0]?.id || ''));
-                        setPayModalVisible(true);
-                      }}
-                      style={({ pressed }) => [styles.actionBtnPay, pressed && styles.cardPressed]}
-                    >
-                      <FinanceIcon name="wallet" size={20} color="#FFFFFF" />
-                      <Text style={styles.actionBtnPayText}>Thanh toán</Text>
-                    </Pressable>
-
-                    {/* Nút 2: Sửa khoản nợ (Thiết kế hiện đại, tinh tế) */}
-                    <Pressable
-                      onPress={handleOpenEditModal}
-                      style={({ pressed }) => [styles.actionBtnUpdate, pressed && styles.cardPressed]}
-                    >
-                      <FinanceIcon name="edit" size={17} color="#2563EB" />
-                      <Text style={styles.actionBtnUpdateText}>Sửa khoản nợ</Text>
-                    </Pressable>
-
-                    {/* Nút 3: Xóa nợ (Nền hồng pastel viền mỏng, icon thùng rác đỏ) */}
-                    <Pressable
-                      onPress={() => handleDeleteDebt(selectedDebtDetail)}
-                      style={({ pressed }) => [styles.actionBtnDelete, pressed && styles.cardPressed]}
-                    >
-                      <FinanceIcon name="trash" size={19} color="#EF4444" />
-                      <Text style={styles.actionBtnDeleteText}>Xóa nợ</Text>
-                    </Pressable>
-                  </View>
-                </View>
-
-                {/* 6. Khối Lịch sử thanh toán */}
-                <View style={styles.detailSectionCard}>
-                  <View style={styles.detailHistoryHeaderRow}>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                      <View style={styles.sectionHeaderIconCircle}>
-                        <FinanceIcon name="rotate-ccw" size={17} color="#16A34A" />
-                      </View>
-                      <Text style={styles.detailSectionTitleText}>Lịch sử thanh toán</Text>
-                    </View>
-                  </View>
-
-                  <View style={styles.detailSectionDivider} />
-
-                  {historyList.length === 0 ? (
-                    <View style={styles.detailHistoryEmptyWrap}>
-                      <Text style={styles.detailHistoryEmptyText}>
-                        Chưa có lịch sử thanh toán nào cho khoản nợ này.
-                      </Text>
-                    </View>
-                  ) : (
-                    historyList.map((item, idx) => (
-                      <Pressable
-                        key={item.id}
-                        onPress={() => setSelectedPaymentDetail(item)}
-                        style={({ pressed }) => [
-                          styles.historyPaymentRowItem,
-                          pressed && { backgroundColor: '#F8FAFC' },
-                          idx === historyList.length - 1 && { borderBottomWidth: 0, paddingBottom: 0 },
-                        ]}
-                      >
-                        {/* Vòng tròn xanh lá có dấu tick trắng */}
-                        <View style={styles.historyCheckGreenCircle}>
-                          <FinanceIcon name="check" size={13} color="#0E964E" />
-                        </View>
-
-                        {/* Cột thông tin: 'Thanh toán' & Giờ + Ngày tháng */}
-                        <View style={{ flex: 1 }}>
-                          <Text style={styles.historyPaymentTitleText}>Thanh toán</Text>
-                          <Text style={styles.historyPaymentDateText}>{item.date}</Text>
-                        </View>
-
-                        {/* Số tiền thanh toán màu xanh lá: +1.500.000 đ */}
-                        <View style={{ alignItems: 'flex-end', justifyContent: 'center' }}>
-                          <Text style={styles.historyPaymentAmountGreen}>
-                            +{formatVND(item.amount)}
-                          </Text>
-                        </View>
-                      </Pressable>
-                    ))
-                  )}
-                </View>
-              </ScrollView>
-
-              {/* MODAL POPUP CHI TIẾT ĐỢT THANH TOÁN (KHI ẤN VÀO DÒNG LỊCH SỬ) */}
-              <Modal
-                visible={!!selectedPaymentDetail}
-                transparent
-                animationType="fade"
-                onRequestClose={() => setSelectedPaymentDetail(null)}
-              >
-                <View style={styles.paymentDetailModalCenterOverlay}>
-                  <Pressable
-                    style={styles.modalBackdrop}
-                    onPress={() => setSelectedPaymentDetail(null)}
-                  />
-                  <View style={styles.paymentDetailPopupBox}>
-                    {/* Header */}
-                    <View style={styles.paymentDetailPopupHeader}>
-                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-                        <View style={styles.historyCheckGreenCircle}>
-                          <FinanceIcon name="check" size={14} color="#0E964E" />
-                        </View>
-                        <Text style={styles.paymentDetailPopupTitle}>Chi tiết đợt thanh toán</Text>
-                      </View>
-                      <Pressable
-                        onPress={() => setSelectedPaymentDetail(null)}
-                        hitSlop={10}
-                      >
-                        <FinanceIcon name="close" size={18} color="#64748B" />
-                      </Pressable>
-                    </View>
-
-                    {/* Số tiền thanh toán to nổi bật */}
-                    <View style={styles.paymentDetailAmountCard}>
-                      <Text style={styles.paymentDetailAmountLabel}>SỐ TIỀN ĐÃ THANH TOÁN</Text>
-                      <Text style={styles.paymentDetailAmountValue}>
-                        +{formatVND(selectedPaymentDetail?.amount || 0)}
-                      </Text>
-                    </View>
-
-                    {/* Các dòng thông tin chi tiết */}
-                    <View style={styles.paymentDetailRowsWrap}>
-                      <View style={styles.paymentDetailRowItem}>
-                        <Text style={styles.paymentDetailRowLabel}>Thời gian:</Text>
-                        <Text style={styles.paymentDetailRowValBold}>
-                          {selectedPaymentDetail?.date}
-                        </Text>
-                      </View>
-
-                      <View style={styles.paymentDetailRowItem}>
-                        <Text style={styles.paymentDetailRowLabel}>Khoản nợ:</Text>
-                        <Text style={styles.paymentDetailRowValBold} numberOfLines={1}>
-                          {selectedDebtDetail.counterpartyName}
-                        </Text>
-                      </View>
-
-                      <View style={styles.paymentDetailRowItem}>
-                        <Text style={styles.paymentDetailRowLabel}>Nguồn tiền trích:</Text>
-                        <Text style={styles.paymentDetailRowValGreen}>
-                          {selectedPaymentDetail?.accountName || 'Ví tiền mặt'}
-                        </Text>
-                      </View>
-
-                      <View style={[styles.paymentDetailRowItem, { borderBottomWidth: 0 }]}>
-                        <Text style={styles.paymentDetailRowLabel}>Ghi chú:</Text>
-                        <Text style={styles.paymentDetailRowValRegular} numberOfLines={2}>
-                          {selectedPaymentDetail?.note || 'Không có ghi chú'}
-                        </Text>
-                      </View>
-                    </View>
-
-                    {/* Nút Đóng */}
-                    <Pressable
-                      onPress={() => setSelectedPaymentDetail(null)}
-                      style={styles.paymentDetailCloseBtn}
-                    >
-                      <Text style={styles.paymentDetailCloseBtnText}>Đóng</Text>
-                    </Pressable>
-                  </View>
-                </View>
-              </Modal>
-
-              {/* ── MODAL SỬA KHOẢN NỢ (LỒNG TRỰC TIẾP TRONG CHI TIẾT ĐỂ BẬT NGAY LẬP TỨC) ── */}
-              <Modal
-                visible={editModalVisible}
-                transparent
-                animationType="slide"
-                onRequestClose={() => setEditModalVisible(false)}
-              >
-                <KeyboardAvoidingView
-                  style={styles.modalKeyboardAvoid}
-                  behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-                >
-                  <Pressable style={styles.modalBackdrop} onPress={() => setEditModalVisible(false)} />
-                  <View style={styles.modalSheet}>
-                    <View style={styles.modalDragBar} />
-
-                    <View style={styles.modalHeaderRow}>
-                      <Text style={styles.modalHeaderTitle}>Sửa khoản nợ</Text>
-                      <Pressable
-                        onPress={() => setEditModalVisible(false)}
-                        hitSlop={10}
-                        style={styles.modalCloseBtn}
-                      >
-                        <FinanceIcon name="close" size={18} color="#64748B" />
-                      </Pressable>
-                    </View>
-
-                    <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
-                      <Text style={styles.inputSectionLabel}>TÊN KHOẢN VAY *</Text>
-                      <TextInput
-                        value={editCounterpartyName}
-                        onChangeText={setEditCounterpartyName}
-                        placeholder="Ví dụ: Vay mua xe, Trả góp laptop, Vay anh Long..."
-                        placeholderTextColor="#94A3B8"
-                        style={styles.modalTextInput}
-                      />
-
-                      <Text style={styles.inputSectionLabel}>SỐ ĐIỆN THOẠI LIÊN HỆ</Text>
-                      <TextInput
-                        value={editPartnerPhone}
-                        onChangeText={setEditPartnerPhone}
-                        placeholder="0987654321..."
-                        placeholderTextColor="#94A3B8"
-                        keyboardType="phone-pad"
-                        style={styles.modalTextInput}
-                      />
-
-                      <Text style={styles.inputSectionLabel}>TỔNG SỐ TIỀN NỢ (VNĐ) *</Text>
-                      <TextInput
-                        value={editPrincipal ? new Intl.NumberFormat('vi-VN').format(parseInt(editPrincipal.replace(/\D/g, '') || '0', 10)) : ''}
-                        onChangeText={(val) => {
-                          const cleaned = val.replace(/\D/g, '');
-                          setEditPrincipal(cleaned);
-                        }}
-                        placeholder="Nhập tổng số tiền..."
-                        placeholderTextColor="#94A3B8"
-                        keyboardType="numeric"
-                        style={styles.modalTextInput}
-                      />
-
-                      <View style={{ flexDirection: 'row', gap: 12 }}>
-                        <View style={{ flex: 1 }}>
-                          <Text style={styles.inputSectionLabel}>NGÀY BẮT ĐẦU</Text>
-                          <TextInput
-                            value={editStartDate}
-                            onChangeText={(val) => setEditStartDate(formatInputDDMMYYYY(val))}
-                            placeholder="DD-MM-YYYY"
-                            placeholderTextColor="#94A3B8"
-                            keyboardType="numeric"
-                            style={styles.modalTextInput}
-                          />
-                        </View>
-                        <View style={{ flex: 1 }}>
-                          <Text style={styles.inputSectionLabel}>HẠN THANH TOÁN</Text>
-                          <TextInput
-                            value={editDueDate}
-                            onChangeText={(val) => setEditDueDate(formatInputDDMMYYYY(val))}
-                            placeholder="DD-MM-YYYY"
-                            placeholderTextColor="#94A3B8"
-                            keyboardType="numeric"
-                            style={styles.modalTextInput}
-                          />
-                        </View>
-                      </View>
-
-                      <Text style={styles.inputSectionLabel}>TÀI KHOẢN / VÍ LIÊN KẾT</Text>
-                      <Pressable
-                        onPress={() => setPickerModalType('EDIT_ACCOUNT')}
-                        style={[styles.modernSelectDropdown, { marginBottom: 14 }]}
-                      >
-                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1 }}>
-                          {(() => {
-                            const selAcc = accounts.find((a) => a.id === editAccountId);
-                            if (!selAcc) {
-                              return (
-                                <Text style={styles.modernSelectText} numberOfLines={1}>
-                                  Không gắn tài khoản (Chỉ gửi nhắc nợ)
-                                </Text>
-                              );
-                            }
-                            return (
-                              <>
-                                <AccountBadge account={selAcc} size={22} />
-                                <Text style={styles.modernSelectText} numberOfLines={1}>
-                                  {selAcc.name} (Số dư: {formatVND(selAcc.balance)})
-                                </Text>
-                              </>
-                            );
-                          })()}
-                        </View>
-                        <FinanceIcon name="chevron-down" size={16} color="#047857" />
-                      </Pressable>
-
-                      <Text style={styles.inputSectionLabel}>GHI CHÚ / THỎA THUẬN</Text>
-                      <TextInput
-                        value={editNote}
-                        onChangeText={setEditNote}
-                        placeholder="Ví dụ: Vay mua đồ, thỏa thuận trả trước..."
-                        placeholderTextColor="#94A3B8"
-                        style={styles.modalTextInput}
-                      />
-
-                      <Pressable
-                        onPress={handleSaveUpdateDebt}
-                        disabled={submittingEdit}
-                        style={[styles.modalSubmitBtn, submittingEdit && styles.btnDisabled]}
-                      >
-                        {submittingEdit ? (
-                          <ActivityIndicator color="#FFFFFF" />
-                        ) : (
-                          <Text style={styles.modalSubmitBtnText}>Lưu thay đổi</Text>
-                        )}
-                      </Pressable>
-                      <View style={{ height: 20 }} />
-                    </ScrollView>
-
-                    {/* OVERLAY PICKER CHỌN TÀI KHOẢN KHI SỬA KHOẢN NỢ */}
-                    {pickerModalType === 'EDIT_ACCOUNT' && (
-                      <View style={[StyleSheet.absoluteFillObject, styles.pickerModalBackdrop, { zIndex: 9999, elevation: 9999 }]}>
-                        <Pressable
-                          style={StyleSheet.absoluteFillObject}
-                          onPress={() => setPickerModalType('NONE')}
-                        />
-                        <View style={styles.pickerModalBox}>
-                          <View style={styles.pickerModalHeader}>
-                            <Text style={styles.pickerModalTitle}>Chọn tài khoản / ví liên kết</Text>
-                            <Pressable onPress={() => setPickerModalType('NONE')} hitSlop={10}>
-                              <FinanceIcon name="close" size={18} color="#64748B" />
-                            </Pressable>
-                          </View>
-
-                          <ScrollView style={{ maxHeight: 340 }} showsVerticalScrollIndicator={false}>
-                            <Pressable
-                              onPress={() => {
-                                setEditAccountId('');
-                                setPickerModalType('NONE');
-                              }}
-                              style={[styles.pickerItemRow, !editAccountId && styles.pickerItemRowActive]}
-                            >
-                              <View style={{ flex: 1 }}>
-                                <Text style={[styles.pickerItemText, !editAccountId && styles.pickerItemTextActive]}>
-                                  🔔 Không gắn tài khoản
-                                </Text>
-                                <Text style={styles.pickerItemSub}>Chỉ gửi thông báo nhắc nợ đúng hạn</Text>
-                              </View>
-                              {!editAccountId && <FinanceIcon name="check" size={16} color="#0E964E" />}
-                            </Pressable>
-
-                            {accounts.map((acc) => (
-                              <Pressable
-                                key={acc.id}
-                                onPress={() => {
-                                  setEditAccountId(acc.id);
-                                  setPickerModalType('NONE');
-                                }}
-                                style={[styles.pickerItemRow, editAccountId === acc.id && styles.pickerItemRowActive]}
-                              >
-                                <AccountBadge account={acc} size={34} />
-                                <View style={{ flex: 1, marginLeft: 10 }}>
-                                  <Text style={[styles.pickerItemText, editAccountId === acc.id && styles.pickerItemTextActive]}>
-                                    {acc.name}
-                                  </Text>
-                                  <Text style={styles.pickerItemSub}>
-                                    Số dư: {formatVND(acc.balance)} · Tự động trừ khi đến hạn
-                                  </Text>
-                                </View>
-                                {editAccountId === acc.id && <FinanceIcon name="check" size={16} color="#0E964E" />}
-                              </Pressable>
-                            ))}
-                          </ScrollView>
-                        </View>
-                      </View>
-                    )}
-                  </View>
-                </KeyboardAvoidingView>
-              </Modal>
-
-              {/* ── MODAL THANH TOÁN / THU NỢ (LỒNG TRỰC TIẾP TRONG CHI TIẾT ĐỂ BẬT NGAY LẬP TỨC) ── */}
-              <Modal
-                visible={payModalVisible}
-                transparent
-                animationType="slide"
-                onRequestClose={() => setPayModalVisible(false)}
-              >
-                <KeyboardAvoidingView
-                  style={styles.modalKeyboardAvoid}
-                  behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-                >
-                  <Pressable style={styles.modalBackdrop} onPress={() => setPayModalVisible(false)} />
-                  <View style={styles.modalSheet}>
-                    <View style={styles.modalDragBar} />
-
-                    <View style={styles.modalHeaderRow}>
-                      <Text style={styles.modalHeaderTitle}>
-                        {selectedDebtForPay?.debtType === 'BORROWING' ? 'Ghi nhận trả nợ' : 'Ghi nhận thu nợ'}
-                      </Text>
-                      <Pressable
-                        onPress={() => setPayModalVisible(false)}
-                        hitSlop={10}
-                        style={styles.modalCloseBtn}
-                      >
-                        <FinanceIcon name="close" size={18} color="#64748B" />
-                      </Pressable>
-                    </View>
-
-                    {selectedDebtForPay && (
-                      <View style={{ marginBottom: 14 }}>
-                        <Text style={styles.payTargetNameText}>
-                          Đối tác: <Text style={{ fontWeight: '800', color: '#0F172A' }}>{selectedDebtForPay.counterpartyName}</Text>
-                        </Text>
-                        <Text style={styles.payTargetRemainingText}>
-                          Số tiền còn lại: <Text style={{ fontWeight: '800', color: '#059669' }}>{formatVND(selectedDebtForPay.remainingAmount)}</Text>
-                        </Text>
-                      </View>
-                    )}
-
-                    <Text style={styles.inputSectionLabel}>SỐ TIỀN THANH TOÁN (VNĐ) *</Text>
-                    <TextInput
-                      value={payAmount}
-                      onChangeText={(val) => {
-                        const cleaned = val.replace(/\D/g, '');
-                        if (!cleaned) {
-                          setPayAmount('');
-                          return;
-                        }
-                        setPayAmount(new Intl.NumberFormat('vi-VN').format(parseInt(cleaned, 10)));
-                      }}
-                      keyboardType="numeric"
-                      placeholder="Nhập số tiền..."
-                      placeholderTextColor="#94A3B8"
-                      style={styles.modalTextInput}
-                      autoFocus
-                    />
-
-                    <Text style={styles.inputSectionLabel}>
-                      {selectedDebtForPay?.debtType === 'BORROWING' ? 'NGUỒN TIỀN TRÍCH TRẢ *' : 'TÀI KHOẢN NHẬN TIỀN *'}
-                    </Text>
-                    <Pressable
-                      onPress={() => setPickerModalType('PAY_ACCOUNT')}
-                      style={[styles.modernSelectDropdown, { marginBottom: 14 }]}
-                    >
-                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1 }}>
-                        {(() => {
-                          const chosenAcc = accounts.find((a) => a.id === payAccountId);
-                          if (!chosenAcc) {
-                            return <Text style={styles.modernSelectText}>Ví tiền mặt (Mặc định)</Text>;
-                          }
-                          return (
-                            <>
-                              <AccountBadge account={chosenAcc} size={22} />
-                              <Text style={styles.modernSelectText} numberOfLines={1}>
-                                {chosenAcc.name} (Số dư: {formatVND(chosenAcc.balance)})
-                              </Text>
-                            </>
-                          );
-                        })()}
-                      </View>
-                      <FinanceIcon name="chevron-down" size={16} color="#047857" />
-                    </Pressable>
-
-                    <Text style={styles.inputSectionLabel}>GHI CHÚ THANH TOÁN</Text>
-                    <TextInput
-                      value={payNote}
-                      onChangeText={setPayNote}
-                      placeholder="Ví dụ: Trả đợt 1, Chuyển khoản qua ngân hàng..."
-                      placeholderTextColor="#94A3B8"
-                      style={styles.modalTextInput}
-                    />
-
-                    <Pressable
-                      onPress={handleRecordPayment}
-                      disabled={submittingPay}
-                      style={[styles.modalSubmitBtn, submittingPay && styles.btnDisabled]}
-                    >
-                      {submittingPay ? (
-                        <ActivityIndicator color="#FFFFFF" />
-                      ) : (
-                        <Text style={styles.modalSubmitBtnText}>Xác nhận thanh toán</Text>
-                      )}
-                    </Pressable>
-                    <View style={{ height: 20 }} />
-
-                    {/* OVERLAY PICKER CHỌN TÀI KHOẢN KHI THANH TOÁN NỢ */}
-                    {pickerModalType === 'PAY_ACCOUNT' && (
-                      <View style={[StyleSheet.absoluteFillObject, styles.pickerModalBackdrop, { zIndex: 9999, elevation: 9999 }]}>
-                        <Pressable
-                          style={StyleSheet.absoluteFillObject}
-                          onPress={() => setPickerModalType('NONE')}
-                        />
-                        <View style={styles.pickerModalBox}>
-                          <View style={styles.pickerModalHeader}>
-                            <Text style={styles.pickerModalTitle}>Chọn nguồn tiền thanh toán</Text>
-                            <Pressable onPress={() => setPickerModalType('NONE')} hitSlop={10}>
-                              <FinanceIcon name="close" size={18} color="#64748B" />
-                            </Pressable>
-                          </View>
-
-                          <ScrollView style={{ maxHeight: 340 }} showsVerticalScrollIndicator={false}>
-                            {accounts.map((acc) => (
-                              <Pressable
-                                key={acc.id}
-                                onPress={() => {
-                                  setPayAccountId(acc.id);
-                                  setPickerModalType('NONE');
-                                }}
-                                style={[styles.pickerItemRow, payAccountId === acc.id && styles.pickerItemRowActive]}
-                              >
-                                <AccountBadge account={acc} size={34} />
-                                <View style={{ flex: 1, marginLeft: 10 }}>
-                                  <Text style={[styles.pickerItemText, payAccountId === acc.id && styles.pickerItemTextActive]}>
-                                    {acc.name}
-                                  </Text>
-                                  <Text style={styles.pickerItemSub}>
-                                    Số dư: {formatVND(acc.balance)}
-                                  </Text>
-                                </View>
-                                {payAccountId === acc.id && <FinanceIcon name="check" size={16} color="#0E964E" />}
-                              </Pressable>
-                            ))}
-                          </ScrollView>
-                        </View>
-                      </View>
-                    )}
-                  </View>
-                </KeyboardAvoidingView>
-              </Modal>
-            </View>
-          );
-        })()}
-      </Modal>
 
       {/* ── MODAL 2: THÊM KHOẢN NỢ MỚI (CHUẨN 100% THEO DATABASE VÀ WEB) ── */}
       <Modal
@@ -1892,17 +4191,17 @@ export function DebtScreen({ onBack }: DebtScreenProps) {
           behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         >
           <Pressable style={styles.modalBackdrop} onPress={() => setCreateModalVisible(false)} />
-          <View style={[styles.modalSheet, { position: 'relative' }]}>
-            <View style={styles.modalDragBar} />
+          <View style={[styles.modalSheet, { position: 'relative' }, isDark && { backgroundColor: themeColors.surface, borderColor: themeColors.cardBorder, borderWidth: 1 }]}>
+            <View style={[styles.modalDragBar, isDark && { backgroundColor: themeColors.cardBorder }]} />
 
             <View style={styles.modalHeaderRow}>
-              <Text style={styles.modalHeaderTitle}>Thêm khoản nợ mới</Text>
+              <Text style={[styles.modalHeaderTitle, isDark && { color: themeColors.textPrimary }]}>Thêm khoản nợ mới</Text>
               <Pressable
                 onPress={() => setCreateModalVisible(false)}
                 hitSlop={10}
-                style={styles.modalCloseBtn}
+                style={[styles.modalCloseBtn, isDark && { backgroundColor: themeColors.surfaceSubtle }]}
               >
-                <FinanceIcon name="close" size={18} color="#64748B" />
+                <FinanceIcon name="close" size={18} color={isDark ? themeColors.textSecondary : "#64748B"} />
               </Pressable>
             </View>
 
@@ -1912,17 +4211,19 @@ export function DebtScreen({ onBack }: DebtScreenProps) {
               contentContainerStyle={{ paddingBottom: 32 }}
             >
               {/* 1. Type Switch: Khoản đi vay vs Khoản cho vay */}
-              <View style={styles.webTypeSwitchWrap}>
+              <View style={[styles.webTypeSwitchWrap, isDark && { backgroundColor: themeColors.surfaceSubtle, borderColor: themeColors.cardBorder }]}>
                 <Pressable
                   onPress={() => setFormType('BORROWING')}
                   style={[
                     styles.webTypeSwitchBtn,
                     formType === 'BORROWING' && styles.webTypeSwitchBtnActiveBorrow,
+                    isDark && formType !== 'BORROWING' && { backgroundColor: 'transparent' },
                   ]}
                 >
                   <Text
                     style={[
                       styles.webTypeSwitchBtnText,
+                      isDark && { color: themeColors.textSecondary },
                       formType === 'BORROWING' && styles.webTypeSwitchBtnTextActiveBorrow,
                     ]}
                   >
@@ -1935,11 +4236,13 @@ export function DebtScreen({ onBack }: DebtScreenProps) {
                   style={[
                     styles.webTypeSwitchBtn,
                     formType === 'LENDING' && styles.webTypeSwitchBtnActiveLend,
+                    isDark && formType !== 'LENDING' && { backgroundColor: 'transparent' },
                   ]}
                 >
                   <Text
                     style={[
                       styles.webTypeSwitchBtnText,
+                      isDark && { color: themeColors.textSecondary },
                       formType === 'LENDING' && styles.webTypeSwitchBtnTextActiveLend,
                     ]}
                   >
@@ -1949,43 +4252,47 @@ export function DebtScreen({ onBack }: DebtScreenProps) {
               </View>
 
               {/* 2. Tên khoản vay & Số điện thoại */}
-              <Text style={styles.inputSectionLabel}>
+              <Text style={[styles.inputSectionLabel, isDark && { color: themeColors.textSecondary }]}>
                 {formType === 'BORROWING' ? 'TÊN KHOẢN VAY *' : 'TÊN KHOẢN CHO VAY *'}
               </Text>
               <TextInput
                 value={formPartnerName}
                 onChangeText={setFormPartnerName}
                 placeholder={formType === 'BORROWING' ? 'Ví dụ: Vay mua xe, Mượn tiền đóng học phí, Vay anh Long...' : 'Ví dụ: Cho Nam vay, Cho mượn tiền...'}
-                placeholderTextColor="#94A3B8"
-                style={styles.modalTextInput}
+                placeholderTextColor={isDark ? themeColors.textMuted : "#94A3B8"}
+                style={[styles.modalTextInput, isDark && { backgroundColor: themeColors.surfaceSubtle, borderColor: themeColors.cardBorder, color: themeColors.textPrimary }]}
               />
 
-              <Text style={styles.inputSectionLabel}>SỐ ĐIỆN THOẠI LIÊN HỆ (TÙY CHỌN)</Text>
+              <Text style={[styles.inputSectionLabel, isDark && { color: themeColors.textSecondary }]}>SỐ ĐIỆN THOẠI LIÊN HỆ (TÙY CHỌN)</Text>
               <TextInput
                 value={formPartnerPhone}
                 onChangeText={setFormPartnerPhone}
                 keyboardType="phone-pad"
                 placeholder="Ví dụ: 0912345678"
-                placeholderTextColor="#94A3B8"
-                style={styles.modalTextInput}
+                placeholderTextColor={isDark ? themeColors.textMuted : "#94A3B8"}
+                style={[styles.modalTextInput, isDark && { backgroundColor: themeColors.surfaceSubtle, borderColor: themeColors.cardBorder, color: themeColors.textPrimary }]}
               />
 
               {/* 3. Khung Hình thức trả nợ: Trả một lần vs Trả theo kỳ */}
-              <View style={styles.webPaymentBoxWrap}>
-                <Text style={styles.webBoxTitle}>HÌNH THỨC & LỊCH TRÌNH THANH TOÁN</Text>
+              <View style={[styles.webPaymentBoxWrap, isDark && { backgroundColor: themeColors.surfaceSubtle, borderColor: themeColors.cardBorder }]}>
+                <Text style={[styles.webBoxTitle, isDark && { color: themeColors.textPrimary }]}>HÌNH THỨC & LỊCH TRÌNH THANH TOÁN</Text>
 
-                <View style={styles.webPlanSwitchRow}>
+                <View style={[styles.webPlanSwitchRow, isDark && { backgroundColor: isDark ? 'rgba(0,0,0,0.25)' : '#F1F5F9' }]}>
                   <Pressable
                     onPress={() => setPaymentPlanType('ONE_TIME')}
                     style={[
                       styles.webPlanBtn,
+                      isDark && { backgroundColor: 'transparent' },
                       paymentPlanType === 'ONE_TIME' && styles.webPlanBtnActive,
+                      paymentPlanType === 'ONE_TIME' && isDark && { backgroundColor: themeColors.surface, borderColor: themeColors.accentGreen, borderWidth: 1 },
                     ]}
                   >
                     <Text
                       style={[
                         styles.webPlanBtnText,
+                        isDark && { color: themeColors.textSecondary },
                         paymentPlanType === 'ONE_TIME' && styles.webPlanBtnTextActive,
+                        paymentPlanType === 'ONE_TIME' && isDark && { color: themeColors.accentGreen },
                       ]}
                     >
                       Trả một lần
@@ -1996,13 +4303,17 @@ export function DebtScreen({ onBack }: DebtScreenProps) {
                     onPress={() => setPaymentPlanType('INSTALLMENT')}
                     style={[
                       styles.webPlanBtn,
+                      isDark && { backgroundColor: 'transparent' },
                       paymentPlanType === 'INSTALLMENT' && styles.webPlanBtnActive,
+                      paymentPlanType === 'INSTALLMENT' && isDark && { backgroundColor: themeColors.surface, borderColor: themeColors.accentGreen, borderWidth: 1 },
                     ]}
                   >
                     <Text
                       style={[
                         styles.webPlanBtnText,
+                        isDark && { color: themeColors.textSecondary },
                         paymentPlanType === 'INSTALLMENT' && styles.webPlanBtnTextActive,
+                        paymentPlanType === 'INSTALLMENT' && isDark && { color: themeColors.accentGreen },
                       ]}
                     >
                       Trả theo kỳ
@@ -2014,38 +4325,38 @@ export function DebtScreen({ onBack }: DebtScreenProps) {
                 {paymentPlanType === 'ONE_TIME' ? (
                   <View style={{ gap: 10, marginTop: 4 }}>
                     <View>
-                      <Text style={styles.webBoxLabel}>TỔNG SỐ TIỀN NỢ (VND) *</Text>
+                      <Text style={[styles.webBoxLabel, isDark && { color: themeColors.textSecondary }]}>TỔNG SỐ TIỀN NỢ (VND) *</Text>
                       <TextInput
                         value={formPrincipal ? new Intl.NumberFormat('vi-VN').format(parseInt(formPrincipal, 10)) : ''}
                         onChangeText={(val) => setFormPrincipal(val.replace(/\D/g, ''))}
                         keyboardType="numeric"
                         placeholder="0"
-                        placeholderTextColor="#94A3B8"
-                        style={styles.webBigAmountInput}
+                        placeholderTextColor={isDark ? themeColors.textMuted : "#94A3B8"}
+                        style={[styles.webBigAmountInput, isDark && { backgroundColor: themeColors.surface, borderColor: themeColors.cardBorder, color: themeColors.textPrimary }]}
                       />
                     </View>
 
                     <View style={styles.inputTwoColsRow}>
                       <View style={{ flex: 1 }}>
-                        <Text style={styles.webBoxLabel}>NGÀY BẮT ĐẦU</Text>
+                        <Text style={[styles.webBoxLabel, isDark && { color: themeColors.textSecondary }]}>NGÀY BẮT ĐẦU</Text>
                         <TextInput
                           value={formStartDate}
                           onChangeText={(val) => setFormStartDate(formatInputDDMMYYYY(val))}
                           placeholder="DD-MM-YYYY"
-                          placeholderTextColor="#94A3B8"
+                          placeholderTextColor={isDark ? themeColors.textMuted : "#94A3B8"}
                           keyboardType="numeric"
-                          style={styles.webDateInput}
+                          style={[styles.webDateInput, isDark && { backgroundColor: themeColors.surface, borderColor: themeColors.cardBorder, color: themeColors.textPrimary }]}
                         />
                       </View>
                       <View style={{ flex: 1 }}>
-                        <Text style={styles.webBoxLabel}>NGÀY PHẢI TRẢ *</Text>
+                        <Text style={[styles.webBoxLabel, isDark && { color: themeColors.textSecondary }]}>NGÀY PHẢI TRẢ *</Text>
                         <TextInput
                           value={formDueDate}
                           onChangeText={(val) => setFormDueDate(formatInputDDMMYYYY(val))}
                           placeholder="DD-MM-YYYY"
-                          placeholderTextColor="#94A3B8"
+                          placeholderTextColor={isDark ? themeColors.textMuted : "#94A3B8"}
                           keyboardType="numeric"
-                          style={styles.webDateInput}
+                          style={[styles.webDateInput, isDark && { backgroundColor: themeColors.surface, borderColor: themeColors.cardBorder, color: themeColors.textPrimary }]}
                         />
                       </View>
                     </View>
@@ -2056,63 +4367,63 @@ export function DebtScreen({ onBack }: DebtScreenProps) {
                     <View style={styles.inputTwoColsRow}>
                       {/* Dropdown Chu kỳ trả */}
                       <View style={{ flex: 1 }}>
-                        <Text style={styles.webBoxLabel}>CHU KỲ TRẢ</Text>
+                        <Text style={[styles.webBoxLabel, isDark && { color: themeColors.textSecondary }]}>CHU KỲ TRẢ</Text>
                         <Pressable
                           onPress={() => setPickerModalType('FREQ')}
-                          style={styles.modernSelectDropdown}
+                          style={[styles.modernSelectDropdown, isDark && { backgroundColor: themeColors.surface, borderColor: themeColors.cardBorder }]}
                         >
-                          <Text style={styles.modernSelectText} numberOfLines={1}>
+                          <Text style={[styles.modernSelectText, isDark && { color: themeColors.textPrimary }]} numberOfLines={1}>
                             {formFrequency === 'MONTHLY' ? 'Hàng tháng' : formFrequency === 'WEEKLY' ? 'Hàng tuần' : 'Hàng quý (3 tháng)'}
                           </Text>
-                          <FinanceIcon name="chevron-down" size={16} color="#047857" />
+                          <FinanceIcon name="chevron-down" size={16} color={isDark ? themeColors.accentGreen : "#047857"} />
                         </Pressable>
                       </View>
 
                       {/* Số kỳ chia */}
                       <View style={{ flex: 1 }}>
-                        <Text style={styles.webBoxLabel}>SỐ KỲ CHIA</Text>
+                        <Text style={[styles.webBoxLabel, isDark && { color: themeColors.textSecondary }]}>SỐ KỲ CHIA</Text>
                         <TextInput
                           value={formInstallmentCount}
                           onChangeText={handleInstallmentCountChange}
                           keyboardType="numeric"
                           placeholder="Ví dụ: 3, 6, 12..."
-                          placeholderTextColor="#94A3B8"
-                          style={styles.webDateInput}
+                          placeholderTextColor={isDark ? themeColors.textMuted : "#94A3B8"}
+                          style={[styles.webDateInput, isDark && { backgroundColor: themeColors.surface, borderColor: themeColors.cardBorder, color: themeColors.textPrimary }]}
                         />
                       </View>
                     </View>
 
                     {/* Dropdown chọn ngày trong tháng hoặc thứ trong tuần */}
-                    <View style={styles.installmentDaySelectCard}>
+                    <View style={[styles.installmentDaySelectCard, isDark && { backgroundColor: themeColors.surface, borderColor: themeColors.cardBorder }]}>
                       {formFrequency === 'WEEKLY' ? (
                         <View>
-                          <Text style={styles.installmentDayLabel}>Trả vào thứ mấy hàng tuần?</Text>
+                          <Text style={[styles.installmentDayLabel, isDark && { color: themeColors.textSecondary }]}>Trả vào thứ mấy hàng tuần?</Text>
                           <Pressable
                             onPress={() => setPickerModalType('DAY_OF_WEEK')}
-                            style={styles.modernSelectDropdownLight}
+                            style={[styles.modernSelectDropdownLight, isDark && { backgroundColor: themeColors.surfaceSubtle, borderColor: themeColors.cardBorder }]}
                           >
-                            <Text style={styles.modernSelectTextBold}>
+                            <Text style={[styles.modernSelectTextBold, isDark && { color: themeColors.textPrimary }]}>
                               {formDayOfWeek === 1 ? 'Thứ Hai hàng tuần' :
-                               formDayOfWeek === 2 ? 'Thứ Ba hàng tuần' :
-                               formDayOfWeek === 3 ? 'Thứ Tư hàng tuần' :
-                               formDayOfWeek === 4 ? 'Thứ Năm hàng tuần' :
-                               formDayOfWeek === 5 ? 'Thứ Sáu hàng tuần' :
-                               formDayOfWeek === 6 ? 'Thứ Bảy hàng tuần' : 'Chủ Nhật hàng tuần'}
+                                formDayOfWeek === 2 ? 'Thứ Ba hàng tuần' :
+                                  formDayOfWeek === 3 ? 'Thứ Tư hàng tuần' :
+                                    formDayOfWeek === 4 ? 'Thứ Năm hàng tuần' :
+                                      formDayOfWeek === 5 ? 'Thứ Sáu hàng tuần' :
+                                        formDayOfWeek === 6 ? 'Thứ Bảy hàng tuần' : 'Chủ Nhật hàng tuần'}
                             </Text>
-                            <FinanceIcon name="chevron-down" size={16} color="#047857" />
+                            <FinanceIcon name="chevron-down" size={16} color={isDark ? themeColors.accentGreen : "#047857"} />
                           </Pressable>
                         </View>
                       ) : (
                         <View>
-                          <Text style={styles.installmentDayLabel}>Trả vào ngày mấy hàng tháng?</Text>
+                          <Text style={[styles.installmentDayLabel, isDark && { color: themeColors.textSecondary }]}>Trả vào ngày mấy hàng tháng?</Text>
                           <Pressable
                             onPress={() => setPickerModalType('DAY_OF_MONTH')}
-                            style={styles.modernSelectDropdownLight}
+                            style={[styles.modernSelectDropdownLight, isDark && { backgroundColor: themeColors.surfaceSubtle, borderColor: themeColors.cardBorder }]}
                           >
-                            <Text style={styles.modernSelectTextBold}>
+                            <Text style={[styles.modernSelectTextBold, isDark && { color: themeColors.textPrimary }]}>
                               Ngày {formDayOfMonth} hàng tháng
                             </Text>
-                            <FinanceIcon name="chevron-down" size={16} color="#047857" />
+                            <FinanceIcon name="chevron-down" size={16} color={isDark ? themeColors.accentGreen : "#047857"} />
                           </Pressable>
                         </View>
                       )}
@@ -2120,40 +4431,40 @@ export function DebtScreen({ onBack }: DebtScreenProps) {
 
                     <View style={styles.inputTwoColsRow}>
                       <View style={{ flex: 1 }}>
-                        <Text style={styles.webBoxLabel}>SỐ TIỀN MỖI KỲ (VND) *</Text>
+                        <Text style={[styles.webBoxLabel, isDark && { color: themeColors.textSecondary }]}>SỐ TIỀN MỖI KỲ (VND) *</Text>
                         <TextInput
                           value={formPeriodicAmount ? new Intl.NumberFormat('vi-VN').format(parseInt(formPeriodicAmount, 10)) : ''}
                           onChangeText={handlePeriodicAmountChange}
                           keyboardType="numeric"
                           placeholder="Ví dụ: 2.000.000"
-                          placeholderTextColor="#94A3B8"
-                          style={styles.webDateInput}
+                          placeholderTextColor={isDark ? themeColors.textMuted : "#94A3B8"}
+                          style={[styles.webDateInput, isDark && { backgroundColor: themeColors.surface, borderColor: themeColors.cardBorder, color: themeColors.textPrimary }]}
                         />
                       </View>
 
                       <View style={{ flex: 1 }}>
-                        <Text style={styles.webBoxLabel}>NGÀY TRẢ ĐẦU TIÊN</Text>
+                        <Text style={[styles.webBoxLabel, isDark && { color: themeColors.textSecondary }]}>NGÀY TRẢ ĐẦU TIÊN</Text>
                         <TextInput
                           value={formFirstPaymentDate}
                           onChangeText={(val) => setFormFirstPaymentDate(formatInputDDMMYYYY(val))}
                           placeholder="DD-MM-YYYY"
-                          placeholderTextColor="#94A3B8"
+                          placeholderTextColor={isDark ? themeColors.textMuted : "#94A3B8"}
                           keyboardType="numeric"
-                          style={styles.webDateInput}
+                          style={[styles.webDateInput, isDark && { backgroundColor: themeColors.surface, borderColor: themeColors.cardBorder, color: themeColors.textPrimary }]}
                         />
                       </View>
                     </View>
 
                     {/* Tổng số tiền nợ tự động tính */}
-                    <View style={styles.autoCalcTotalBox}>
-                      <Text style={styles.autoCalcLabel}>
+                    <View style={[styles.autoCalcTotalBox, isDark && { backgroundColor: 'rgba(52, 211, 153, 0.08)', borderColor: themeColors.cardBorder }]}>
+                      <Text style={[styles.autoCalcLabel, isDark && { color: themeColors.textSecondary }]}>
                         Tổng số tiền nợ (Tự tính theo số kỳ & tiền kỳ):
                       </Text>
-                      <Text style={styles.autoCalcValue}>
+                      <Text style={[styles.autoCalcValue, isDark && { color: themeColors.accentGreen }]}>
                         {formPrincipal ? formatVND(parseInt(formPrincipal, 10)) : '0 đ'}
                       </Text>
                       {formPeriodicAmount && (
-                        <Text style={styles.autoCalcSub}>
+                        <Text style={[styles.autoCalcSub, isDark && { color: themeColors.textMuted }]}>
                           ≈ {formatVND(parseInt(formPeriodicAmount, 10))} × {formInstallmentCount} kỳ
                         </Text>
                       )}
@@ -2163,38 +4474,38 @@ export function DebtScreen({ onBack }: DebtScreenProps) {
               </View>
 
               {/* 4. Tự động đồng bộ Lịch tài chính & Tài khoản (Chuẩn Web Dropdown) */}
-              <View style={styles.webSyncBoxWrap}>
+              <View style={[styles.webSyncBoxWrap, isDark && { backgroundColor: themeColors.surfaceSubtle, borderColor: themeColors.cardBorder }]}>
                 <View style={styles.webSyncBoxHeader}>
-                  <FinanceIcon name="calendar" size={16} color="#047857" />
+                  <FinanceIcon name="calendar" size={16} color={isDark ? themeColors.accentGreen : "#047857"} />
                   <View style={{ flex: 1 }}>
-                    <Text style={styles.webSyncBoxTitle}>Tự động đồng bộ Lịch tài chính</Text>
-                    <Text style={styles.webSyncBoxSub}>Khoản nợ luôn được theo dõi trên lịch để nhắc nhở và quản lý đúng hạn.</Text>
+                    <Text style={[styles.webSyncBoxTitle, isDark && { color: themeColors.textPrimary }]}>Tự động đồng bộ Lịch tài chính</Text>
+                    <Text style={[styles.webSyncBoxSub, isDark && { color: themeColors.textSecondary }]}>Khoản nợ luôn được theo dõi trên lịch để nhắc nhở và quản lý đúng hạn.</Text>
                   </View>
                 </View>
 
-                <View style={styles.syncCardDivider} />
+                <View style={[styles.syncCardDivider, isDark && { backgroundColor: themeColors.cardBorder }]} />
 
                 {/* Dropdown 1: Chọn tài khoản trích nợ tự động */}
                 <View style={{ marginBottom: 12 }}>
                   <View style={styles.dropdownHeaderWithBadge}>
-                    <Text style={styles.webBoxLabel}>
+                    <Text style={[styles.webBoxLabel, isDark && { color: themeColors.textSecondary }]}>
                       {formType === 'BORROWING' ? 'Tài khoản trích nợ tự động (Tùy chọn)' : 'Tài khoản nhận tiền tự động (Tùy chọn)'}
                     </Text>
-                    <Text style={styles.syncStatusBadge}>
+                    <Text style={[styles.syncStatusBadge, isDark && { backgroundColor: selectedAccountId ? 'rgba(52, 211, 153, 0.15)' : 'rgba(245, 158, 11, 0.15)', color: selectedAccountId ? themeColors.accentGreen : '#FBBF24', borderColor: themeColors.cardBorder }]}>
                       {selectedAccountId ? '⚡ Tự động trừ tiền' : '🔔 Chỉ nhắc nhở'}
                     </Text>
                   </View>
 
                   <Pressable
                     onPress={() => setPickerModalType('ACCOUNT')}
-                    style={styles.modernSelectDropdown}
+                    style={[styles.modernSelectDropdown, isDark && { backgroundColor: themeColors.surface, borderColor: themeColors.cardBorder }]}
                   >
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1 }}>
                       {(() => {
                         const selAcc = accounts.find((a) => a.id === selectedAccountId);
                         if (!selAcc) {
                           return (
-                            <Text style={styles.modernSelectText} numberOfLines={1}>
+                            <Text style={[styles.modernSelectText, isDark && { color: themeColors.textSecondary }]} numberOfLines={1}>
                               Không gắn tài khoản (Chỉ gửi thông báo nhắc nợ)
                             </Text>
                           );
@@ -2202,16 +4513,16 @@ export function DebtScreen({ onBack }: DebtScreenProps) {
                         return (
                           <>
                             <AccountBadge account={selAcc} size={22} />
-                            <Text style={styles.modernSelectText} numberOfLines={1}>
+                            <Text style={[styles.modernSelectText, isDark && { color: themeColors.textPrimary }]} numberOfLines={1}>
                               {selAcc.name} (Số dư: {formatVND(selAcc.balance)})
                             </Text>
                           </>
                         );
                       })()}
                     </View>
-                    <FinanceIcon name="chevron-down" size={16} color="#047857" />
+                    <FinanceIcon name="chevron-down" size={16} color={isDark ? themeColors.accentGreen : "#047857"} />
                   </Pressable>
-                  <Text style={styles.syncFieldNoteText}>
+                  <Text style={[styles.syncFieldNoteText, isDark && { color: themeColors.textMuted }]}>
                     {selectedAccountId
                       ? 'Khi đến hạn, hệ thống sẽ tự động trừ số dư ví đã chọn và ghi nhận lịch sử giao dịch.'
                       : 'Nếu không chọn ví, đến ngày hẹn hệ thống chỉ gửi chuông thông báo nhắc nhở mà không trừ tiền.'}
@@ -2220,30 +4531,30 @@ export function DebtScreen({ onBack }: DebtScreenProps) {
 
                 {/* Dropdown 2: Chọn thời gian gửi thông báo nhắc hẹn */}
                 <View>
-                  <Text style={styles.webBoxLabel}>THỜI GIAN GỬI THÔNG BÁO NHẮC HẸN</Text>
+                  <Text style={[styles.webBoxLabel, isDark && { color: themeColors.textSecondary }]}>THỜI GIAN GỬI THÔNG BÁO NHẮC HẸN</Text>
                   <Pressable
                     onPress={() => setPickerModalType('NOTIFY_DAYS')}
-                    style={styles.modernSelectDropdown}
+                    style={[styles.modernSelectDropdown, isDark && { backgroundColor: themeColors.surface, borderColor: themeColors.cardBorder }]}
                   >
-                    <Text style={styles.modernSelectText}>
+                    <Text style={[styles.modernSelectText, isDark && { color: themeColors.textPrimary }]}>
                       {formNotifyDaysBefore === 0 ? 'Báo đúng ngày đến hạn' :
-                       formNotifyDaysBefore === 1 ? 'Nhắc trước 1 ngày (Khuyên dùng)' :
-                       formNotifyDaysBefore === 2 ? 'Nhắc trước 2 ngày' :
-                       formNotifyDaysBefore === 3 ? 'Nhắc trước 3 ngày' : 'Nhắc trước 1 tuần (7 ngày)'}
+                        formNotifyDaysBefore === 1 ? 'Nhắc trước 1 ngày (Khuyên dùng)' :
+                          formNotifyDaysBefore === 2 ? 'Nhắc trước 2 ngày' :
+                            formNotifyDaysBefore === 3 ? 'Nhắc trước 3 ngày' : 'Nhắc trước 1 tuần (7 ngày)'}
                     </Text>
-                    <FinanceIcon name="chevron-down" size={16} color="#047857" />
+                    <FinanceIcon name="chevron-down" size={16} color={isDark ? themeColors.accentGreen : "#047857"} />
                   </Pressable>
                 </View>
               </View>
 
               {/* 5. Ghi chú / Thỏa thuận */}
-              <Text style={styles.inputSectionLabel}>GHI CHÚ / THỎA THUẬN</Text>
+              <Text style={[styles.inputSectionLabel, isDark && { color: themeColors.textSecondary }]}>GHI CHÚ / THỎA THUẬN</Text>
               <TextInput
                 value={formNote}
                 onChangeText={setFormNote}
                 placeholder="Ghi chú về mục đích vay hoặc điều khoản hẹn trả..."
-                placeholderTextColor="#94A3B8"
-                style={[styles.modalTextInput, { minHeight: 70, textAlignVertical: 'top' }]}
+                placeholderTextColor={isDark ? themeColors.textMuted : "#94A3B8"}
+                style={[styles.modalTextInput, { minHeight: 70, textAlignVertical: 'top' }, isDark && { backgroundColor: themeColors.surfaceSubtle, borderColor: themeColors.cardBorder, color: themeColors.textPrimary }]}
                 multiline
               />
 
@@ -2268,9 +4579,9 @@ export function DebtScreen({ onBack }: DebtScreenProps) {
                   style={StyleSheet.absoluteFillObject}
                   onPress={() => setPickerModalType('NONE')}
                 />
-                <View style={styles.pickerModalBox}>
-                  <View style={styles.pickerModalHeader}>
-                    <Text style={styles.pickerModalTitle}>
+                <View style={[styles.pickerModalBox, isDark && { backgroundColor: themeColors.surface, borderColor: themeColors.cardBorder, borderWidth: 1 }]}>
+                  <View style={[styles.pickerModalHeader, isDark && { borderBottomColor: themeColors.cardBorder }]}>
+                    <Text style={[styles.pickerModalTitle, isDark && { color: themeColors.textPrimary }]}>
                       {pickerModalType === 'FREQ' && 'Chọn chu kỳ trả nợ'}
                       {pickerModalType === 'DAY_OF_MONTH' && 'Chọn ngày trả trong tháng'}
                       {pickerModalType === 'DAY_OF_WEEK' && 'Chọn thứ trả trong tuần'}
@@ -2278,7 +4589,7 @@ export function DebtScreen({ onBack }: DebtScreenProps) {
                       {pickerModalType === 'NOTIFY_DAYS' && 'Thời gian gửi thông báo nhắc hẹn'}
                     </Text>
                     <Pressable onPress={() => setPickerModalType('NONE')} hitSlop={10}>
-                      <FinanceIcon name="close" size={18} color="#64748B" />
+                      <FinanceIcon name="close" size={18} color={isDark ? themeColors.textSecondary : "#64748B"} />
                     </Pressable>
                   </View>
 
@@ -2297,12 +4608,16 @@ export function DebtScreen({ onBack }: DebtScreenProps) {
                               handleSelectFrequency(it.key as PaymentFrequency);
                               setPickerModalType('NONE');
                             }}
-                            style={[styles.pickerItemRow, formFrequency === it.key && styles.pickerItemRowActive]}
+                            style={[
+                              styles.pickerItemRow,
+                              isDark && { borderBottomColor: themeColors.cardBorder },
+                              formFrequency === it.key && (isDark ? { backgroundColor: themeColors.surfaceSubtle } : styles.pickerItemRowActive),
+                            ]}
                           >
-                            <Text style={[styles.pickerItemText, formFrequency === it.key && styles.pickerItemTextActive]}>
+                            <Text style={[styles.pickerItemText, isDark && { color: themeColors.textPrimary }, formFrequency === it.key && (isDark ? { color: themeColors.accentGreen, fontWeight: '700' } : styles.pickerItemTextActive)]}>
                               {it.label}
                             </Text>
-                            {formFrequency === it.key && <FinanceIcon name="check" size={16} color="#0E964E" />}
+                            {formFrequency === it.key && <FinanceIcon name="check" size={16} color={isDark ? themeColors.accentGreen : "#0E964E"} />}
                           </Pressable>
                         ))}
                       </>
@@ -2318,12 +4633,16 @@ export function DebtScreen({ onBack }: DebtScreenProps) {
                               handleSelectDayOfMonth(d);
                               setPickerModalType('NONE');
                             }}
-                            style={[styles.pickerItemRow, formDayOfMonth === d && styles.pickerItemRowActive]}
+                            style={[
+                              styles.pickerItemRow,
+                              isDark && { borderBottomColor: themeColors.cardBorder },
+                              formDayOfMonth === d && (isDark ? { backgroundColor: themeColors.surfaceSubtle } : styles.pickerItemRowActive),
+                            ]}
                           >
-                            <Text style={[styles.pickerItemText, formDayOfMonth === d && styles.pickerItemTextActive]}>
+                            <Text style={[styles.pickerItemText, isDark && { color: themeColors.textPrimary }, formDayOfMonth === d && (isDark ? { color: themeColors.accentGreen, fontWeight: '700' } : styles.pickerItemTextActive)]}>
                               Ngày {d} hàng tháng
                             </Text>
-                            {formDayOfMonth === d && <FinanceIcon name="check" size={16} color="#0E964E" />}
+                            {formDayOfMonth === d && <FinanceIcon name="check" size={16} color={isDark ? themeColors.accentGreen : "#0E964E"} />}
                           </Pressable>
                         ))}
                       </>
@@ -2347,12 +4666,16 @@ export function DebtScreen({ onBack }: DebtScreenProps) {
                               handleSelectDayOfWeek(it.key);
                               setPickerModalType('NONE');
                             }}
-                            style={[styles.pickerItemRow, formDayOfWeek === it.key && styles.pickerItemRowActive]}
+                            style={[
+                              styles.pickerItemRow,
+                              isDark && { borderBottomColor: themeColors.cardBorder },
+                              formDayOfWeek === it.key && (isDark ? { backgroundColor: themeColors.surfaceSubtle } : styles.pickerItemRowActive),
+                            ]}
                           >
-                            <Text style={[styles.pickerItemText, formDayOfWeek === it.key && styles.pickerItemTextActive]}>
+                            <Text style={[styles.pickerItemText, isDark && { color: themeColors.textPrimary }, formDayOfWeek === it.key && (isDark ? { color: themeColors.accentGreen, fontWeight: '700' } : styles.pickerItemTextActive)]}>
                               {it.label}
                             </Text>
-                            {formDayOfWeek === it.key && <FinanceIcon name="check" size={16} color="#0E964E" />}
+                            {formDayOfWeek === it.key && <FinanceIcon name="check" size={16} color={isDark ? themeColors.accentGreen : "#0E964E"} />}
                           </Pressable>
                         ))}
                       </>
@@ -2366,15 +4689,19 @@ export function DebtScreen({ onBack }: DebtScreenProps) {
                             setSelectedAccountId('');
                             setPickerModalType('NONE');
                           }}
-                          style={[styles.pickerItemRow, !selectedAccountId && styles.pickerItemRowActive]}
+                          style={[
+                            styles.pickerItemRow,
+                            isDark && { borderBottomColor: themeColors.cardBorder },
+                            !selectedAccountId && (isDark ? { backgroundColor: themeColors.surfaceSubtle } : styles.pickerItemRowActive),
+                          ]}
                         >
                           <View style={{ flex: 1 }}>
-                            <Text style={[styles.pickerItemText, !selectedAccountId && styles.pickerItemTextActive]}>
+                            <Text style={[styles.pickerItemText, isDark && { color: themeColors.textPrimary }, !selectedAccountId && (isDark ? { color: themeColors.accentGreen, fontWeight: '700' } : styles.pickerItemTextActive)]}>
                               🔔 Không gắn tài khoản
                             </Text>
-                            <Text style={styles.pickerItemSub}>Chỉ gửi thông báo nhắc nợ đúng hạn</Text>
+                            <Text style={[styles.pickerItemSub, isDark && { color: themeColors.textMuted }]}>Chỉ gửi thông báo nhắc nợ đúng hạn</Text>
                           </View>
-                          {!selectedAccountId && <FinanceIcon name="check" size={16} color="#0E964E" />}
+                          {!selectedAccountId && <FinanceIcon name="check" size={16} color={isDark ? themeColors.accentGreen : "#0E964E"} />}
                         </Pressable>
 
                         {accounts.map((acc) => (
@@ -2384,18 +4711,22 @@ export function DebtScreen({ onBack }: DebtScreenProps) {
                               setSelectedAccountId(acc.id);
                               setPickerModalType('NONE');
                             }}
-                            style={[styles.pickerItemRow, selectedAccountId === acc.id && styles.pickerItemRowActive]}
+                            style={[
+                              styles.pickerItemRow,
+                              isDark && { borderBottomColor: themeColors.cardBorder },
+                              selectedAccountId === acc.id && (isDark ? { backgroundColor: themeColors.surfaceSubtle } : styles.pickerItemRowActive),
+                            ]}
                           >
                             <AccountBadge account={acc} size={34} />
                             <View style={{ flex: 1, marginLeft: 10 }}>
-                              <Text style={[styles.pickerItemText, selectedAccountId === acc.id && styles.pickerItemTextActive]}>
+                              <Text style={[styles.pickerItemText, isDark && { color: themeColors.textPrimary }, selectedAccountId === acc.id && (isDark ? { color: themeColors.accentGreen, fontWeight: '700' } : styles.pickerItemTextActive)]}>
                                 {acc.name}
                               </Text>
-                              <Text style={styles.pickerItemSub}>
+                              <Text style={[styles.pickerItemSub, isDark && { color: themeColors.textMuted }]}>
                                 Số dư: {formatVND(acc.balance)} · Tự động trừ khi đến hạn
                               </Text>
                             </View>
-                            {selectedAccountId === acc.id && <FinanceIcon name="check" size={16} color="#0E964E" />}
+                            {selectedAccountId === acc.id && <FinanceIcon name="check" size={16} color={isDark ? themeColors.accentGreen : "#0E964E"} />}
                           </Pressable>
                         ))}
                       </>
@@ -2417,12 +4748,16 @@ export function DebtScreen({ onBack }: DebtScreenProps) {
                               setFormNotifyDaysBefore(it.days);
                               setPickerModalType('NONE');
                             }}
-                            style={[styles.pickerItemRow, formNotifyDaysBefore === it.days && styles.pickerItemRowActive]}
+                            style={[
+                              styles.pickerItemRow,
+                              isDark && { borderBottomColor: themeColors.cardBorder },
+                              formNotifyDaysBefore === it.days && (isDark ? { backgroundColor: themeColors.surfaceSubtle } : styles.pickerItemRowActive),
+                            ]}
                           >
-                            <Text style={[styles.pickerItemText, formNotifyDaysBefore === it.days && styles.pickerItemTextActive]}>
+                            <Text style={[styles.pickerItemText, isDark && { color: themeColors.textPrimary }, formNotifyDaysBefore === it.days && (isDark ? { color: themeColors.accentGreen, fontWeight: '700' } : styles.pickerItemTextActive)]}>
                               {it.label}
                             </Text>
-                            {formNotifyDaysBefore === it.days && <FinanceIcon name="check" size={16} color="#0E964E" />}
+                            {formNotifyDaysBefore === it.days && <FinanceIcon name="check" size={16} color={isDark ? themeColors.accentGreen : "#0E964E"} />}
                           </Pressable>
                         ))}
                       </>
@@ -2461,8 +4796,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     paddingHorizontal: 20,
     paddingBottom: 14,
-    borderBottomWidth: 1,
-    borderBottomColor: '#F1F5F9',
   },
   headerRow: {
     flexDirection: 'row',

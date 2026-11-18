@@ -28,4 +28,12 @@ public interface ChildWalletRepository extends JpaRepository<ChildWallet, UUID> 
     @Query("SELECT COUNT(cw) FROM ChildWallet cw " +
            "WHERE cw.groupId = :groupId AND cw.deletedAt IS NULL")
     long countByGroupId(@Param("groupId") UUID groupId);
+    
+    @Query("SELECT cw FROM ChildWallet cw " +
+           "WHERE cw.weeklyAllowance IS NOT NULL " +
+           "AND cw.weeklyAllowance > 0 " +
+           "AND (cw.nextAllowanceDate IS NULL OR cw.nextAllowanceDate <= CURRENT_DATE) " +
+           "AND cw.deletedAt IS NULL " +
+           "ORDER BY cw.nextAllowanceDate ASC")
+    List<ChildWallet> findWalletsDueForAllowance();
 }

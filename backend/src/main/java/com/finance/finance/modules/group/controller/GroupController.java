@@ -24,6 +24,7 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
@@ -42,6 +43,7 @@ public class GroupController {
     private final GroupMessageService messageService;
     private final ChildWalletService childWalletService;
     private final ChildManagementService childManagementService;
+    private final ChildDataSharingService childDataSharingService;
     private final GroupActivityService activityService;
     private final GroupFundService groupFundService;
 
@@ -593,15 +595,54 @@ public class GroupController {
         return ResponseEntity.ok(response);
     }
 
-    @PostMapping("/{groupId}/child-wallets/{walletId}/withdraw")
-    public ResponseEntity<ChildWalletResponse> withdrawFromWallet(
+    @PutMapping("/{groupId}/child-wallets/{walletId}/reset-password")
+    public ResponseEntity<Void> resetChildPassword(
             @PathVariable UUID groupId,
             @PathVariable UUID walletId,
-            @Valid @RequestBody WithdrawWalletRequest request,
+            @Valid @RequestBody ResetChildPasswordRequest request,
             @AuthenticationPrincipal User currentUser) {
-        ChildWalletResponse response = childWalletService.withdraw(groupId, walletId, request, currentUser.getId());
+        childWalletService.resetChildPassword(groupId, walletId, request.getNewPassword(), currentUser.getId());
+        return ResponseEntity.ok().build();
+    }
+
+    @PostMapping("/{groupId}/members/{memberId}/link-child-wallet")
+    public ResponseEntity<ChildWalletResponse> linkChildWallet(
+            @PathVariable UUID groupId,
+            @PathVariable UUID memberId,
+            @Valid @RequestBody LinkChildWalletRequest request,
+            @AuthenticationPrincipal User currentUser) {
+        ChildWalletResponse response = childWalletService.linkChildWallet(groupId, memberId, request, currentUser.getId());
+        return ResponseEntity.status(HttpStatus.CREATED).body(response);
+    }
+
+    @PostMapping("/{groupId}/child-wallets/{walletId}/request-data-sharing")
+    public ResponseEntity<DataSharingRequestResponse> requestDataSharing(
+            @PathVariable UUID groupId,
+            @PathVariable UUID walletId,
+            @Valid @RequestBody RequestDataSharingRequest request,
+            @AuthenticationPrincipal User currentUser) {
+        DataSharingRequestResponse response = childDataSharingService.requestDataSharing(
+                groupId, walletId, request, currentUser.getId());
+        return ResponseEntity.status(HttpStatus.CREATED).body(response);
+    }
+
+    @GetMapping("/{groupId}/child-wallets/{walletId}/transactions/summary")
+    public ResponseEntity<ChildTransactionSummaryResponse> getChildTransactionSummary(
+            @PathVariable UUID groupId,
+            @PathVariable UUID walletId,
+            @RequestParam(required = false) LocalDate startDate,
+            @RequestParam(required = false) LocalDate endDate,
+            @AuthenticationPrincipal User currentUser) {
+        ChildTransactionSummaryResponse response = childDataSharingService.getTransactionSummary(
+                groupId, walletId, startDate, endDate, currentUser.getId());
         return ResponseEntity.ok(response);
     }
+
+    /**
+     * Rút tiền từ ví con (child wallet)
+     * POST /api/v1/groups/{groupId}/child-wallets/{walletId}/withdraw
+     * Idempotent: Prevent duplicate withdrawal
+     */
 
     // ============================================================
     // 7. SPEND REQUESTS (5 endpoints)

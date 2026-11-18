@@ -1,19 +1,9 @@
 import React, { useState } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  Modal,
-  TextInput,
-  Pressable,
-  ScrollView,
-  KeyboardAvoidingView,
-  Platform,
-  Alert,
-  ActivityIndicator,
-} from 'react-native';
+import { View, Text, StyleSheet, Modal, TextInput, Pressable, ScrollView, KeyboardAvoidingView, Platform, ActivityIndicator } from 'react-native';
+import { AppAlert as Alert } from '../../../context/DialogContext';
 import { FinanceIcon } from '../../core/components/FinanceIcon';
 import { goalsApi, GoalDetailData } from '../api/goalsApi';
+import { useAppTheme } from '../../../context/ThemeContext';
 
 type Props = {
   visible: boolean;
@@ -23,6 +13,7 @@ type Props = {
 };
 
 export function EditSavingModal({ visible, saving, onClose, onSuccess }: Props) {
+  const { isDark, colors: themeColors } = useAppTheme();
   const [name, setName] = useState(saving.title);
   const [description, setDescription] = useState(saving.description);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -71,23 +62,43 @@ export function EditSavingModal({ visible, saving, onClose, onSuccess }: Props) 
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         style={styles.backdrop}
       >
-        <View style={styles.sheet}>
+        <View
+          style={[
+            styles.sheet,
+            isDark && { backgroundColor: themeColors.surface, borderColor: themeColors.cardBorder, borderWidth: 1 },
+          ]}
+        >
           {/* Header */}
-          <View style={styles.header}>
-            <Text style={styles.headerTitle}>Chỉnh sửa khoản tiết kiệm</Text>
-            <Pressable onPress={onClose} hitSlop={10} style={styles.closeBtn}>
-              <FinanceIcon name="close" size={20} color="#64748B" />
+          <View style={[styles.header, isDark && { borderBottomColor: themeColors.cardBorder }]}>
+            <Text style={[styles.headerTitle, isDark && { color: themeColors.textPrimary }]}>
+              Chỉnh sửa khoản tiết kiệm
+            </Text>
+            <Pressable
+              onPress={onClose}
+              hitSlop={10}
+              style={[styles.closeBtn, isDark && { backgroundColor: themeColors.surfaceSubtle }]}
+            >
+              <FinanceIcon name="close" size={20} color={isDark ? themeColors.textSecondary : '#64748B'} />
             </Pressable>
           </View>
 
           <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scroll}>
             {/* Tên khoản tiết kiệm */}
             <View style={styles.field}>
-              <Text style={styles.label}>Tên khoản tiết kiệm *</Text>
+              <Text style={[styles.label, isDark && { color: themeColors.textSecondary }]}>
+                Tên khoản tiết kiệm *
+              </Text>
               <TextInput
-                style={styles.input}
+                style={[
+                  styles.input,
+                  isDark && {
+                    backgroundColor: themeColors.surfaceSubtle,
+                    borderColor: themeColors.cardBorder,
+                    color: themeColors.textPrimary,
+                  },
+                ]}
                 placeholder="VD: Quỹ dự phòng cá nhân, Tiết kiệm tự do..."
-                placeholderTextColor="#94A3B8"
+                placeholderTextColor={isDark ? '#64748B' : '#94A3B8'}
                 value={name}
                 onChangeText={setName}
               />
@@ -95,11 +106,19 @@ export function EditSavingModal({ visible, saving, onClose, onSuccess }: Props) 
 
             {/* Mô tả */}
             <View style={styles.field}>
-              <Text style={styles.label}>Mô tả ghi chú</Text>
+              <Text style={[styles.label, isDark && { color: themeColors.textSecondary }]}>Mô tả ghi chú</Text>
               <TextInput
-                style={[styles.input, styles.textArea]}
+                style={[
+                  styles.input,
+                  styles.textArea,
+                  isDark && {
+                    backgroundColor: themeColors.surfaceSubtle,
+                    borderColor: themeColors.cardBorder,
+                    color: themeColors.textPrimary,
+                  },
+                ]}
                 placeholder="Nhập ghi chú cho khoản tiết kiệm..."
-                placeholderTextColor="#94A3B8"
+                placeholderTextColor={isDark ? '#64748B' : '#94A3B8'}
                 multiline
                 numberOfLines={3}
                 value={description}
@@ -109,7 +128,11 @@ export function EditSavingModal({ visible, saving, onClose, onSuccess }: Props) 
 
             {/* Submit Button */}
             <Pressable
-              style={[styles.submitBtn, isSubmitting && { opacity: 0.7 }]}
+              style={[
+                styles.submitBtn,
+                isDark && { backgroundColor: '#10B981', shadowColor: '#10B981' },
+                isSubmitting && { opacity: 0.7 },
+              ]}
               onPress={handleSubmit}
               disabled={isSubmitting}
             >

@@ -39,5 +39,7 @@ public class SendMessageRequest {
         private String mimeType;
         private Long fileSize;
         private String thumbnailKey;
+        private Integer width;
+        private Integer height;
     }
 }

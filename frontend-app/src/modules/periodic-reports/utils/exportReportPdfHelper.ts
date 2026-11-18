@@ -1,5 +1,6 @@
 import * as FileSystem from 'expo-file-system/legacy';
-import { Share, Platform, Alert } from 'react-native';
+import { Share, Platform } from 'react-native';
+import { AppAlert as Alert } from '../../../context/DialogContext';
 import type { ReportSummaryData } from '../api/periodicReportsApi';
 import { API_BASE_URL, authStorage } from '../../auth/api/authApi';
 

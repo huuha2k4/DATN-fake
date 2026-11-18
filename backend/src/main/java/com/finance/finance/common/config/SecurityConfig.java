@@ -35,6 +35,7 @@ public class SecurityConfig {
     
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
     private final UserDetailsService userDetailsService;
+    private final com.finance.finance.common.filter.IdempotencyRateLimitFilter idempotencyRateLimitFilter;
     
     @Value("${app.security.allowed-origins}")
     private String allowedOrigins;
@@ -64,6 +65,7 @@ public class SecurityConfig {
                         .anyRequest().authenticated()
                 )
                 .authenticationProvider(authenticationProvider())
+                .addFilterBefore(idempotencyRateLimitFilter, UsernamePasswordAuthenticationFilter.class)
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
         
         return http.build();

@@ -1,20 +1,11 @@
 import React, { useState } from 'react';
-import {
-  ActivityIndicator,
-  Alert,
-  Image,
-  Modal,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from 'react-native';
+import { ActivityIndicator, Image, Modal, Pressable, ScrollView, StatusBar, StyleSheet, Text, TextInput, View } from 'react-native';
+import { AppAlert as Alert } from '../../../context/DialogContext';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { FinanceIcon } from '../../core/components/FinanceIcon';
 import { userProfileApi, type UserProfileResponse } from '../api/userProfileApi';
 import { AvatarPickerModal } from './AvatarPickerModal';
+import { useAppTheme } from '../../../context/ThemeContext';
 
 interface AccountInfoModalProps {
   visible: boolean;
@@ -30,13 +21,10 @@ export function AccountInfoModal({
   onUpdated,
 }: AccountInfoModalProps) {
   const insets = useSafeAreaInsets();
+  const { isDark, colors: themeColors } = useAppTheme();
   const [fullName, setFullName] = useState(profile?.fullName || '');
   const [phone, setPhone] = useState(profile?.phone || '');
-  const [preferredCurrency, setPreferredCurrency] = useState('VND');
-  const [timezone, setTimezone] = useState('Asia/Ho_Chi_Minh');
-  const [language, setLanguage] = useState('vi-VN');
   const [loading, setLoading] = useState(false);
-  const [activeTab, setActiveTab] = useState<'INFO' | 'PREFERENCES'>('INFO');
   const [showAvatarPicker, setShowAvatarPicker] = useState(false);
 
   // Sync khi mở modal
@@ -50,16 +38,6 @@ export function AccountInfoModal({
   const rawAvatar = profile?.avatarUrl;
   const avatarUri = userProfileApi.formatAvatarUrl(rawAvatar);
 
-  const handleReset = () => {
-    if (profile) {
-      setFullName(profile.fullName || '');
-      setPhone(profile.phone || '');
-      setPreferredCurrency('VND');
-      setTimezone('Asia/Ho_Chi_Minh');
-      setLanguage('vi-VN');
-    }
-  };
-
   const handleSave = async () => {
     if (!fullName.trim()) {
       Alert.alert('Thông báo', 'Họ và tên không được để trống.');
@@ -71,9 +49,6 @@ export function AccountInfoModal({
       const updated = await userProfileApi.updateProfile({
         fullName: fullName.trim(),
         phone: phone.trim() || undefined,
-        preferredCurrency,
-        timezone,
-        language,
       });
 
       Alert.alert('Thành công', 'Đã lưu thay đổi hồ sơ tài khoản thành công!');
@@ -88,39 +63,35 @@ export function AccountInfoModal({
 
   return (
     <Modal visible={visible} animationType="slide" transparent={false} onRequestClose={onClose}>
-      <View style={[styles.screen, { paddingTop: Math.max(insets.top, 14) + 4 }]}>
+      <StatusBar
+        barStyle={isDark ? 'light-content' : 'dark-content'}
+        backgroundColor={isDark ? themeColors.background : '#FFFFFF'}
+      />
+      <View
+        style={[
+          styles.screen,
+          {
+            paddingTop: Math.max(insets.top, 14) + 4,
+            backgroundColor: isDark ? themeColors.background : '#FFFFFF',
+          },
+        ]}
+      >
         {/* Top Header */}
-        <View style={styles.topHeader}>
+        <View
+          style={[
+            styles.topHeader,
+            {
+              backgroundColor: isDark ? themeColors.background : '#FFFFFF',
+              borderBottomColor: isDark ? themeColors.cardBorder : '#E2E8F0',
+            },
+          ]}
+        >
           <Pressable onPress={onClose} hitSlop={12} style={[styles.backBtn, { flexDirection: 'row', alignItems: 'center', gap: 2 }]}>
-            <FinanceIcon name="chevron-left" size={18} color="#074838" />
-            <Text style={styles.backBtnText}>Quay lại</Text>
+            <FinanceIcon name="chevron-left" size={18} color={isDark ? themeColors.accentGreen : '#074838'} />
+            <Text style={[styles.backBtnText, isDark && { color: themeColors.accentGreen }]}>Quay lại</Text>
           </Pressable>
-          <Text style={styles.headerTitle}>Hồ sơ tài khoản</Text>
-          <Pressable onPress={handleReset} hitSlop={12} style={styles.resetBtn}>
-            <Text style={styles.resetBtnText}>Đặt lại</Text>
-          </Pressable>
-        </View>
-
-        {/* Tab switch kiểu Web */}
-        <View style={styles.tabBar}>
-          <Pressable
-            onPress={() => setActiveTab('INFO')}
-            style={[styles.tabItem, activeTab === 'INFO' && styles.tabItemActive]}
-          >
-            <FinanceIcon name="user" size={14} color={activeTab === 'INFO' ? '#074838' : '#64748B'} />
-            <Text style={[styles.tabItemText, activeTab === 'INFO' && styles.tabItemTextActive]}>
-              Thông tin cá nhân
-            </Text>
-          </Pressable>
-          <Pressable
-            onPress={() => setActiveTab('PREFERENCES')}
-            style={[styles.tabItem, activeTab === 'PREFERENCES' && styles.tabItemActive]}
-          >
-            <FinanceIcon name="settings" size={14} color={activeTab === 'PREFERENCES' ? '#074838' : '#64748B'} />
-            <Text style={[styles.tabItemText, activeTab === 'PREFERENCES' && styles.tabItemTextActive]}>
-              Tùy chọn hiển thị
-            </Text>
-          </Pressable>
+          <Text style={[styles.headerTitle, isDark && { color: themeColors.textPrimary }]}>Hồ sơ tài khoản</Text>
+          <View style={{ width: 60 }} />
         </View>
 
         <ScrollView
@@ -131,9 +102,9 @@ export function AccountInfoModal({
           ]}
         >
           {/* Card Hero Avatar */}
-          <View style={styles.heroProfileCard}>
+          <View style={[styles.heroProfileCard, isDark && { backgroundColor: themeColors.surface, borderColor: themeColors.cardBorder }]}>
             <View style={styles.avatarWrap}>
-              <View style={styles.avatarImgCircle}>
+              <View style={[styles.avatarImgCircle, isDark && { backgroundColor: themeColors.surfaceSubtle, borderColor: themeColors.accentGreen }]}>
                 {avatarUri ? (
                   <Image source={{ uri: avatarUri }} style={styles.avatarImg} />
                 ) : (
@@ -145,197 +116,109 @@ export function AccountInfoModal({
               </View>
               <Pressable
                 onPress={() => setShowAvatarPicker(true)}
-                style={styles.avatarCameraBadge}
+                style={[styles.avatarCameraBadge, isDark && { backgroundColor: themeColors.primary, borderColor: themeColors.surface }]}
               >
                 <FinanceIcon name="camera" size={14} color="#FFFFFF" />
               </Pressable>
             </View>
 
             <View style={styles.heroMetaWrap}>
-              <Text style={styles.heroNameText}>{fullName || 'Người dùng Finora'}</Text>
+              <Text style={[styles.heroNameText, isDark && { color: themeColors.textPrimary }]}>{fullName || 'Người dùng Finora'}</Text>
               <View style={styles.heroBadgeRow}>
-                <View style={styles.verifiedTag}>
-                  <FinanceIcon name="shield" size={12} color="#059669" />
-                  <Text style={styles.verifiedTagText}>Đã xác thực</Text>
+                <View style={[styles.verifiedTag, isDark && { backgroundColor: '#064E3B', borderColor: '#059669' }]}>
+                  <FinanceIcon name="shield" size={12} color={isDark ? themeColors.accentGreen : '#059669'} />
+                  <Text style={[styles.verifiedTagText, isDark && { color: themeColors.accentGreen }]}>Đã xác thực</Text>
                 </View>
-                <View style={styles.tierTag}>
-                  <Text style={styles.tierTagText}>
+                <View style={[styles.tierTag, isDark && { backgroundColor: themeColors.surfaceSubtle, borderColor: themeColors.cardBorder }]}>
+                  <Text style={[styles.tierTagText, isDark && { color: themeColors.accentGreen }]}>
                     ⭐ {profile?.subscriptionTier || 'Gói Tiêu Chuẩn'}
                   </Text>
                 </View>
               </View>
-              <Text style={styles.heroIdText}>
-                ID: {profile?.id ? `${profile.id.slice(0, 8)}...` : 'N/A'}
-              </Text>
             </View>
           </View>
 
-          {activeTab === 'INFO' ? (
-            /* ── TAB 1: THÔNG TIN CÁ NHÂN ── */
-            <View style={styles.formCard}>
-              {/* Họ và tên */}
-              <View style={styles.fieldGroup}>
-                <Text style={styles.fieldLabel}>Họ và tên *</Text>
-                <TextInput
-                  style={styles.textInput}
-                  value={fullName}
-                  onChangeText={setFullName}
-                  placeholder="Nhập họ và tên đầy đủ..."
-                  placeholderTextColor="#94A3B8"
-                />
-              </View>
-
-              {/* Tên đăng nhập (Username) */}
-              <View style={styles.fieldGroup}>
-                <View style={styles.fieldLabelRow}>
-                  <Text style={styles.fieldLabel}>Tên đăng nhập (Username)</Text>
-                  <View style={styles.lockBadge}>
-                    <FinanceIcon name="lock" size={10} color="#64748B" />
-                    <Text style={styles.lockBadgeText}>Cố định</Text>
-                  </View>
-                </View>
-                <TextInput
-                  style={[styles.textInput, styles.readonlyInput]}
-                  value={profile?.username || (profile?.email ? profile.email.split('@')[0] : '')}
-                  editable={false}
-                />
-                <Text style={styles.fieldHelpText}>
-                  Tên đăng nhập dùng cho định danh hệ thống và không thể thay đổi sau khi tạo.
-                </Text>
-              </View>
-
-              {/* Email (Readonly) */}
-              <View style={styles.fieldGroup}>
-                <View style={styles.fieldLabelRow}>
-                  <Text style={styles.fieldLabel}>Địa chỉ Email</Text>
-                  <View style={styles.lockBadge}>
-                    <FinanceIcon name="lock" size={10} color="#64748B" />
-                    <Text style={styles.lockBadgeText}>Đã liên kết</Text>
-                  </View>
-                </View>
-                <TextInput
-                  style={[styles.textInput, styles.readonlyInput]}
-                  value={profile?.email || ''}
-                  editable={false}
-                  placeholder="email@domain.com"
-                  placeholderTextColor="#94A3B8"
-                />
-                <Text style={styles.fieldHelpText}>
-                  Email dùng để đăng nhập và nhận mã OTP xác thực 2 bước.
-                </Text>
-              </View>
-
-              {/* Số điện thoại */}
-              <View style={styles.fieldGroup}>
-                <Text style={styles.fieldLabel}>Số điện thoại liên lạc</Text>
-                <TextInput
-                  style={styles.textInput}
-                  value={phone}
-                  onChangeText={setPhone}
-                  keyboardType="phone-pad"
-                  placeholder="0912 345 678"
-                  placeholderTextColor="#94A3B8"
-                />
-              </View>
+          {/* ── FORM THÔNG TIN ── */}
+          <View style={[styles.formCard, isDark && { backgroundColor: themeColors.surface, borderColor: themeColors.cardBorder }]}>
+            {/* Họ và tên */}
+            <View style={styles.fieldGroup}>
+              <Text style={[styles.fieldLabel, isDark && { color: themeColors.textSecondary }]}>Họ và tên *</Text>
+              <TextInput
+                style={[
+                  styles.textInput,
+                  isDark && { backgroundColor: themeColors.surfaceSubtle, borderColor: themeColors.cardBorder, color: themeColors.textPrimary },
+                ]}
+                value={fullName}
+                onChangeText={setFullName}
+                placeholder="Nhập họ và tên đầy đủ..."
+                placeholderTextColor={isDark ? themeColors.textMuted : '#94A3B8'}
+              />
             </View>
-          ) : (
-            /* ── TAB 2: TÙY CHỌN HIỂN THỊ (CHUẨN WEB) ── */
-            <View style={styles.formCard}>
-              {/* Tiền tệ mặc định */}
-              <View style={styles.fieldGroup}>
-                <Text style={styles.fieldLabel}>Đơn vị tiền tệ hiển thị</Text>
-                <View style={styles.currencySelectCol}>
-                  {[
-                    { key: 'VND', label: 'VND (₫) - Việt Nam Đồng' },
-                    { key: 'USD', label: 'USD ($) - Đô la Mỹ' },
-                    { key: 'EUR', label: 'EUR (€) - Đồng Euro' },
-                    { key: 'JPY', label: 'JPY (¥) - Yên Nhật' },
-                  ].map((curr) => {
-                    const isSel = preferredCurrency === curr.key;
-                    return (
-                      <Pressable
-                        key={curr.key}
-                        onPress={() => setPreferredCurrency(curr.key)}
-                        style={[styles.selectOptionPill, isSel && styles.selectOptionPillActive]}
-                      >
-                        <Text
-                          style={[
-                            styles.selectOptionText,
-                            isSel && styles.selectOptionTextActive,
-                          ]}
-                        >
-                          {curr.label}
-                        </Text>
-                        {isSel && <FinanceIcon name="check" size={14} color="#074838" />}
-                      </Pressable>
-                    );
-                  })}
-                </View>
-              </View>
 
-              {/* Múi giờ hệ thống */}
-              <View style={styles.fieldGroup}>
-                <Text style={styles.fieldLabel}>Múi giờ hệ thống</Text>
-                <View style={styles.currencySelectCol}>
-                  {[
-                    { key: 'Asia/Ho_Chi_Minh', label: 'Việt Nam (GMT+7)' },
-                    { key: 'Asia/Bangkok', label: 'Bangkok (GMT+7)' },
-                    { key: 'Asia/Singapore', label: 'Singapore (GMT+8)' },
-                    { key: 'Asia/Tokyo', label: 'Tokyo (GMT+9)' },
-                  ].map((tz) => {
-                    const isSel = timezone === tz.key;
-                    return (
-                      <Pressable
-                        key={tz.key}
-                        onPress={() => setTimezone(tz.key)}
-                        style={[styles.selectOptionPill, isSel && styles.selectOptionPillActive]}
-                      >
-                        <Text
-                          style={[
-                            styles.selectOptionText,
-                            isSel && styles.selectOptionTextActive,
-                          ]}
-                        >
-                          {tz.label}
-                        </Text>
-                        {isSel && <FinanceIcon name="check" size={14} color="#074838" />}
-                      </Pressable>
-                    );
-                  })}
+            {/* Tên đăng nhập (Username) */}
+            <View style={styles.fieldGroup}>
+              <View style={styles.fieldLabelRow}>
+                <Text style={[styles.fieldLabel, isDark && { color: themeColors.textSecondary }]}>Tên đăng nhập (Username)</Text>
+                <View style={[styles.lockBadge, isDark && { backgroundColor: themeColors.surfaceSubtle, borderColor: themeColors.cardBorder }]}>
+                  <FinanceIcon name="lock" size={10} color={isDark ? themeColors.textMuted : '#64748B'} />
+                  <Text style={[styles.lockBadgeText, isDark && { color: themeColors.textMuted }]}>Cố định</Text>
                 </View>
               </View>
-
-              {/* Ngôn ngữ */}
-              <View style={styles.fieldGroup}>
-                <Text style={styles.fieldLabel}>Ngôn ngữ giao diện</Text>
-                <View style={styles.currencySelectCol}>
-                  {[
-                    { key: 'vi-VN', label: 'Tiếng Việt (vi-VN)' },
-                    { key: 'en-US', label: 'English (en-US)' },
-                  ].map((lang) => {
-                    const isSel = language === lang.key;
-                    return (
-                      <Pressable
-                        key={lang.key}
-                        onPress={() => setLanguage(lang.key)}
-                        style={[styles.selectOptionPill, isSel && styles.selectOptionPillActive]}
-                      >
-                        <Text
-                          style={[
-                            styles.selectOptionText,
-                            isSel && styles.selectOptionTextActive,
-                          ]}
-                        >
-                          {lang.label}
-                        </Text>
-                        {isSel && <FinanceIcon name="check" size={14} color="#074838" />}
-                      </Pressable>
-                    );
-                  })}
-                </View>
-              </View>
+              <TextInput
+                style={[
+                  styles.textInput,
+                  styles.readonlyInput,
+                  isDark && { backgroundColor: themeColors.surfaceSubtle, borderColor: themeColors.cardBorder, color: themeColors.textSecondary },
+                ]}
+                value={profile?.username || (profile?.email ? profile.email.split('@')[0] : '')}
+                editable={false}
+              />
+              <Text style={[styles.fieldHelpText, isDark && { color: themeColors.textMuted }]}>
+                Tên đăng nhập dùng cho định danh hệ thống và không thể thay đổi sau khi tạo.
+              </Text>
             </View>
-          )}
+
+            {/* Email (Readonly) */}
+            <View style={styles.fieldGroup}>
+              <View style={styles.fieldLabelRow}>
+                <Text style={[styles.fieldLabel, isDark && { color: themeColors.textSecondary }]}>Địa chỉ Email</Text>
+                <View style={[styles.lockBadge, isDark && { backgroundColor: themeColors.surfaceSubtle, borderColor: themeColors.cardBorder }]}>
+                  <FinanceIcon name="lock" size={10} color={isDark ? themeColors.textMuted : '#64748B'} />
+                  <Text style={[styles.lockBadgeText, isDark && { color: themeColors.textMuted }]}>Đã liên kết</Text>
+                </View>
+              </View>
+              <TextInput
+                style={[
+                  styles.textInput,
+                  styles.readonlyInput,
+                  isDark && { backgroundColor: themeColors.surfaceSubtle, borderColor: themeColors.cardBorder, color: themeColors.textSecondary },
+                ]}
+                value={profile?.email || ''}
+                editable={false}
+                placeholder="email@domain.com"
+                placeholderTextColor={isDark ? themeColors.textMuted : '#94A3B8'}
+              />
+              <Text style={[styles.fieldHelpText, isDark && { color: themeColors.textMuted }]}>
+                Email dùng để đăng nhập và nhận mã OTP xác thực 2 bước.
+              </Text>
+            </View>
+
+            {/* Số điện thoại */}
+            <View style={styles.fieldGroup}>
+              <Text style={[styles.fieldLabel, isDark && { color: themeColors.textSecondary }]}>Số điện thoại liên lạc</Text>
+              <TextInput
+                style={[
+                  styles.textInput,
+                  isDark && { backgroundColor: themeColors.surfaceSubtle, borderColor: themeColors.cardBorder, color: themeColors.textPrimary },
+                ]}
+                value={phone}
+                onChangeText={setPhone}
+                keyboardType="phone-pad"
+                placeholder="0912 345 678"
+                placeholderTextColor={isDark ? themeColors.textMuted : '#94A3B8'}
+              />
+            </View>
+          </View>
 
           {/* Nút Lưu thay đổi */}
           <Pressable
@@ -343,6 +226,7 @@ export function AccountInfoModal({
             disabled={loading}
             style={({ pressed }) => [
               styles.saveBtn,
+              isDark && { backgroundColor: themeColors.primary },
               loading && styles.disabled,
               pressed && styles.pressed,
             ]}
@@ -375,7 +259,7 @@ export function AccountInfoModal({
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
-    backgroundColor: '#F8FAFC',
+    backgroundColor: '#FFFFFF',
   },
   topHeader: {
     flexDirection: 'row',

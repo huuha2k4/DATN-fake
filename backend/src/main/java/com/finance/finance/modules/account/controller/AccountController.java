@@ -144,7 +144,7 @@ public class AccountController {
     public ResponseEntity<Map<String, Object>> deleteAccount(
             @AuthenticationPrincipal User user,
             @PathVariable UUID id,
-            @RequestParam Integer version,
+            @RequestParam(required = false, defaultValue = "0") Integer version,
             @RequestParam(required = false) UUID moveTransactionsTo) {
         log.info("Delete account: {} for user: {}", id, user.getId());
 

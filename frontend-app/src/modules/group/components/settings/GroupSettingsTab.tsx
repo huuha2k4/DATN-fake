@@ -1,3 +1,4 @@
+import { AppAlert as Alert } from '../../../../context/DialogContext';
 import React, { useState, useEffect } from 'react';
 import {
   View,
@@ -6,7 +7,6 @@ import {
   Pressable,
   TextInput,
   Switch,
-  Alert,
   ActivityIndicator,
   ScrollView,
   Platform,
@@ -14,6 +14,7 @@ import {
 } from 'react-native';
 import { FinanceIcon } from '../../../core/components/FinanceIcon';
 import { GroupResponse, GroupType, groupApi } from '../../api/groupApi';
+import { useAppTheme } from '../../../../context/ThemeContext';
 
 export interface GroupSettingsTabProps {
   group: GroupResponse;
@@ -45,6 +46,7 @@ export const GroupSettingsTab: React.FC<GroupSettingsTabProps> = ({
   onGroupDeleted,
   onLeaveGroup,
 }) => {
+  const { isDark, colors: themeColors } = useAppTheme();
   const isLeader = isOwner || isAdmin;
 
   const [name, setName] = useState(group.name || '');
@@ -141,44 +143,81 @@ export const GroupSettingsTab: React.FC<GroupSettingsTabProps> = ({
   };
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, isDark && { backgroundColor: themeColors.background }]}>
       {/* 1. THÔNG TIN CHUNG CỦA NHÓM */}
-      <View style={styles.cardContainer}>
+      <View
+        style={[
+          styles.cardContainer,
+          isDark && {
+            backgroundColor: themeColors.surface,
+            borderColor: themeColors.cardBorder,
+          },
+        ]}
+      >
         <View style={styles.sectionHeaderRow}>
           <View style={styles.headerTitleWrap}>
-            <View style={styles.iconCircle}>
-              <FinanceIcon name="edit" size={16} color="#059669" />
+            <View
+              style={[
+                styles.iconCircle,
+                isDark && { backgroundColor: 'rgba(52, 211, 153, 0.16)' },
+              ]}
+            >
+              <FinanceIcon name="edit" size={16} color={isDark ? themeColors.accentGreen : '#059669'} />
             </View>
-            <Text style={styles.sectionTitle}>Thông tin nhóm</Text>
+            <Text style={[styles.sectionTitle, isDark && { color: themeColors.textPrimary }]}>Thông tin nhóm</Text>
           </View>
           {!isLeader && (
-            <View style={styles.readOnlyBadge}>
-              <Text style={styles.readOnlyBadgeText}>Chỉ xem</Text>
+            <View
+              style={[
+                styles.readOnlyBadge,
+                isDark && {
+                  backgroundColor: themeColors.surfaceSubtle,
+                  borderColor: themeColors.cardBorder,
+                },
+              ]}
+            >
+              <Text style={[styles.readOnlyBadgeText, isDark && { color: themeColors.textMuted }]}>Chỉ xem</Text>
             </View>
           )}
         </View>
 
         <View style={styles.formCol}>
           <View style={styles.fieldGroup}>
-            <Text style={styles.fieldLabel}>Tên nhóm *</Text>
+            <Text style={[styles.fieldLabel, isDark && { color: themeColors.textSecondary }]}>Tên nhóm *</Text>
             <TextInput
-              style={[styles.textInput, !isLeader && styles.textInputDisabled]}
+              style={[
+                styles.textInput,
+                isDark && {
+                  backgroundColor: themeColors.surfaceSubtle,
+                  borderColor: themeColors.cardBorder,
+                  color: themeColors.textPrimary,
+                },
+                !isLeader && styles.textInputDisabled,
+              ]}
               value={name}
               onChangeText={setName}
               placeholder="Nhập tên nhóm..."
-              placeholderTextColor="#94A3B8"
+              placeholderTextColor={isDark ? '#64748B' : '#94A3B8'}
               editable={isLeader}
             />
           </View>
 
           <View style={styles.fieldGroup}>
-            <Text style={styles.fieldLabel}>Mô tả mục đích nhóm</Text>
+            <Text style={[styles.fieldLabel, isDark && { color: themeColors.textSecondary }]}>Mô tả mục đích nhóm</Text>
             <TextInput
-              style={[styles.textArea, !isLeader && styles.textInputDisabled]}
+              style={[
+                styles.textArea,
+                isDark && {
+                  backgroundColor: themeColors.surfaceSubtle,
+                  borderColor: themeColors.cardBorder,
+                  color: themeColors.textPrimary,
+                },
+                !isLeader && styles.textInputDisabled,
+              ]}
               value={description}
               onChangeText={setDescription}
               placeholder="Ví dụ: Cùng nhau chia sẻ tiền trọ và chi tiêu gia đình..."
-              placeholderTextColor="#94A3B8"
+              placeholderTextColor={isDark ? '#64748B' : '#94A3B8'}
               multiline
               numberOfLines={3}
               editable={isLeader}
@@ -187,7 +226,7 @@ export const GroupSettingsTab: React.FC<GroupSettingsTabProps> = ({
 
           {/* Chọn loại nhóm (Dạng Thả Xuống / Dropdown) */}
           <View style={styles.fieldGroup}>
-            <Text style={styles.fieldLabel}>Phân loại nhóm</Text>
+            <Text style={[styles.fieldLabel, isDark && { color: themeColors.textSecondary }]}>Phân loại nhóm</Text>
             {(() => {
               const currentTypeOpt = GROUP_TYPE_OPTIONS.find((o) => o.key === groupType) || GROUP_TYPE_OPTIONS[0];
               return (
@@ -198,17 +237,45 @@ export const GroupSettingsTab: React.FC<GroupSettingsTabProps> = ({
                     onPress={() => setTypeDropdownOpen(true)}
                     style={({ pressed }) => [
                       styles.dropdownTrigger,
+                      isDark && {
+                        backgroundColor: themeColors.surfaceSubtle,
+                        borderColor: themeColors.cardBorder,
+                      },
                       !isLeader && styles.dropdownTriggerDisabled,
                       pressed && isLeader && { opacity: 0.85 },
                     ]}
                   >
                     <View style={styles.dropdownSelectedLeft}>
-                      <View style={[styles.typeIconCircle, { backgroundColor: '#ECFDF5' }]}>
-                        <FinanceIcon name={currentTypeOpt.icon as any} size={18} color="#059669" />
+                      <View
+                        style={[
+                          styles.typeIconCircle,
+                          {
+                            backgroundColor: isDark ? 'rgba(52, 211, 153, 0.16)' : '#ECFDF5',
+                          },
+                        ]}
+                      >
+                        <FinanceIcon
+                          name={currentTypeOpt.icon as any}
+                          size={18}
+                          color={isDark ? themeColors.accentGreen : '#059669'}
+                        />
                       </View>
                       <View style={{ flex: 1 }}>
-                        <Text style={styles.dropdownSelectedLabel}>{currentTypeOpt.label}</Text>
-                        <Text style={styles.dropdownSelectedDesc} numberOfLines={1}>
+                        <Text
+                          style={[
+                            styles.dropdownSelectedLabel,
+                            isDark && { color: themeColors.textPrimary },
+                          ]}
+                        >
+                          {currentTypeOpt.label}
+                        </Text>
+                        <Text
+                          style={[
+                            styles.dropdownSelectedDesc,
+                            isDark && { color: themeColors.textSecondary },
+                          ]}
+                          numberOfLines={1}
+                        >
                           {currentTypeOpt.desc}
                         </Text>
                       </View>
@@ -217,7 +284,7 @@ export const GroupSettingsTab: React.FC<GroupSettingsTabProps> = ({
                       <FinanceIcon
                         name="chevron-down"
                         size={18}
-                        color="#059669"
+                        color={isDark ? themeColors.accentGreen : '#059669'}
                       />
                     )}
                   </Pressable>
@@ -233,14 +300,38 @@ export const GroupSettingsTab: React.FC<GroupSettingsTabProps> = ({
                       style={styles.modalBackdrop}
                       onPress={() => setTypeDropdownOpen(false)}
                     >
-                      <View style={styles.modalSheetBox}>
-                        <View style={styles.modalSheetHeader}>
-                          <Text style={styles.modalSheetTitle}>Chọn phân loại nhóm</Text>
+                      <View
+                        style={[
+                          styles.modalSheetBox,
+                          isDark && {
+                            backgroundColor: themeColors.surface,
+                            borderColor: themeColors.cardBorder,
+                          },
+                        ]}
+                      >
+                        <View
+                          style={[
+                            styles.modalSheetHeader,
+                            isDark && { borderBottomColor: themeColors.cardBorder },
+                          ]}
+                        >
+                          <Text
+                            style={[
+                              styles.modalSheetTitle,
+                              isDark && { color: themeColors.textPrimary },
+                            ]}
+                          >
+                            Chọn phân loại nhóm
+                          </Text>
                           <Pressable
                             onPress={() => setTypeDropdownOpen(false)}
                             hitSlop={10}
                           >
-                            <FinanceIcon name="close" size={18} color="#64748B" />
+                            <FinanceIcon
+                              name="close"
+                              size={18}
+                              color={isDark ? themeColors.textSecondary : '#64748B'}
+                            />
                           </Pressable>
                         </View>
 
@@ -256,37 +347,51 @@ export const GroupSettingsTab: React.FC<GroupSettingsTabProps> = ({
                                 }}
                                 style={({ pressed }) => [
                                   styles.modalSheetItemRow,
-                                  isSelected && styles.modalSheetItemRowActive,
-                                  pressed && { backgroundColor: '#F1F5F9' },
+                                  isDark && { borderBottomColor: themeColors.divider },
+                                  isSelected && (isDark ? { backgroundColor: 'rgba(52, 211, 153, 0.15)' } : styles.modalSheetItemRowActive),
+                                  pressed && (isDark ? { backgroundColor: 'rgba(255, 255, 255, 0.05)' } : { backgroundColor: '#F1F5F9' }),
                                 ]}
                               >
                                 <View
                                   style={[
                                     styles.typeIconCircle,
-                                    isSelected ? { backgroundColor: '#D1FAE5' } : { backgroundColor: '#F8FAFC' },
+                                    isSelected
+                                      ? (isDark ? { backgroundColor: 'rgba(52, 211, 153, 0.25)' } : { backgroundColor: '#D1FAE5' })
+                                      : (isDark ? { backgroundColor: themeColors.surfaceSubtle } : { backgroundColor: '#F8FAFC' }),
                                   ]}
                                 >
                                   <FinanceIcon
                                     name={opt.icon as any}
                                     size={18}
-                                    color={isSelected ? '#059669' : '#64748B'}
+                                    color={isSelected ? (isDark ? themeColors.accentGreen : '#059669') : (isDark ? themeColors.textMuted : '#64748B')}
                                   />
                                 </View>
                                 <View style={{ flex: 1 }}>
                                   <Text
                                     style={[
                                       styles.menuItemLabel,
-                                      isSelected && styles.menuItemLabelActive,
+                                      isDark && { color: themeColors.textPrimary },
+                                      isSelected && (isDark ? { color: themeColors.accentGreen, fontWeight: '800' } : styles.menuItemLabelActive),
                                     ]}
                                   >
                                     {opt.label}
                                   </Text>
-                                  <Text style={styles.menuItemDesc} numberOfLines={1}>
+                                  <Text
+                                    style={[
+                                      styles.menuItemDesc,
+                                      isDark && { color: themeColors.textSecondary },
+                                    ]}
+                                    numberOfLines={1}
+                                  >
                                     {opt.desc}
                                   </Text>
                                 </View>
                                 {isSelected && (
-                                  <FinanceIcon name="check" size={16} color="#059669" />
+                                  <FinanceIcon
+                                    name="check"
+                                    size={16}
+                                    color={isDark ? themeColors.accentGreen : '#059669'}
+                                  />
                                 )}
                               </Pressable>
                             );
@@ -321,13 +426,26 @@ export const GroupSettingsTab: React.FC<GroupSettingsTabProps> = ({
       </View>
 
       {/* 2. CẤU HÌNH THÔNG BÁO & TÍNH NĂNG */}
-      <View style={styles.cardContainer}>
+      <View
+        style={[
+          styles.cardContainer,
+          isDark && {
+            backgroundColor: themeColors.surface,
+            borderColor: themeColors.cardBorder,
+          },
+        ]}
+      >
         <View style={styles.sectionHeaderRow}>
           <View style={styles.headerTitleWrap}>
-            <View style={styles.iconCircle}>
-              <FinanceIcon name="bell" size={16} color="#059669" />
+            <View
+              style={[
+                styles.iconCircle,
+                isDark && { backgroundColor: 'rgba(52, 211, 153, 0.16)' },
+              ]}
+            >
+              <FinanceIcon name="bell" size={16} color={isDark ? themeColors.accentGreen : '#059669'} />
             </View>
-            <Text style={styles.sectionTitle}>Thông báo & Tính năng</Text>
+            <Text style={[styles.sectionTitle, isDark && { color: themeColors.textPrimary }]}>Thông báo & Tính năng</Text>
           </View>
         </View>
 
@@ -335,26 +453,26 @@ export const GroupSettingsTab: React.FC<GroupSettingsTabProps> = ({
           {/* Nhận thông báo giao dịch & tin nhắn */}
           <View style={styles.optionRow}>
             <View style={styles.optionInfo}>
-              <Text style={styles.optionTitle}>Thông báo nhóm</Text>
-              <Text style={styles.optionDesc}>
+              <Text style={[styles.optionTitle, isDark && { color: themeColors.textPrimary }]}>Thông báo nhóm</Text>
+              <Text style={[styles.optionDesc, isDark && { color: themeColors.textSecondary }]}>
                 Nhận thông báo khi có giao dịch mới, tin nhắn hoặc yêu cầu quỹ
               </Text>
             </View>
             <Switch
               value={notificationEnabled}
               onValueChange={onToggleNotification}
-              trackColor={{ false: '#E2E8F0', true: '#10B981' }}
+              trackColor={{ false: isDark ? themeColors.cardBorder : '#E2E8F0', true: '#10B981' }}
               thumbColor={Platform.OS === 'android' ? '#FFFFFF' : undefined}
             />
           </View>
 
-          <View style={styles.optionDivider} />
+          <View style={[styles.optionDivider, isDark && { backgroundColor: themeColors.divider }]} />
 
           {/* Kênh trò chuyện nhóm */}
           <View style={styles.optionRow}>
             <View style={styles.optionInfo}>
-              <Text style={styles.optionTitle}>Trò chuyện nội bộ</Text>
-              <Text style={styles.optionDesc}>
+              <Text style={[styles.optionTitle, isDark && { color: themeColors.textPrimary }]}>Trò chuyện nội bộ</Text>
+              <Text style={[styles.optionDesc, isDark && { color: themeColors.textSecondary }]}>
                 Bật phòng chat riêng để các thành viên trao đổi hóa đơn
               </Text>
             </View>
@@ -362,7 +480,7 @@ export const GroupSettingsTab: React.FC<GroupSettingsTabProps> = ({
               value={enableChat}
               onValueChange={isLeader ? setEnableChat : undefined}
               disabled={!isLeader}
-              trackColor={{ false: '#E2E8F0', true: '#10B981' }}
+              trackColor={{ false: isDark ? themeColors.cardBorder : '#E2E8F0', true: '#10B981' }}
               thumbColor={Platform.OS === 'android' ? '#FFFFFF' : undefined}
             />
           </View>
@@ -370,11 +488,11 @@ export const GroupSettingsTab: React.FC<GroupSettingsTabProps> = ({
           {/* Hỗ trợ ví trẻ em */}
           {groupType === 'FAMILY' && (
             <>
-              <View style={styles.optionDivider} />
+              <View style={[styles.optionDivider, isDark && { backgroundColor: themeColors.divider }]} />
               <View style={styles.optionRow}>
                 <View style={styles.optionInfo}>
-                  <Text style={styles.optionTitle}>Quản lý ví trẻ em</Text>
-                  <Text style={styles.optionDesc}>
+                  <Text style={[styles.optionTitle, isDark && { color: themeColors.textPrimary }]}>Quản lý ví trẻ em</Text>
+                  <Text style={[styles.optionDesc, isDark && { color: themeColors.textSecondary }]}>
                     Cấp tiền tiêu vặt, theo dõi chi tiêu và nhiệm vụ học tập cho bé
                   </Text>
                 </View>
@@ -382,7 +500,7 @@ export const GroupSettingsTab: React.FC<GroupSettingsTabProps> = ({
                   value={enableChildWallets}
                   onValueChange={isLeader ? setEnableChildWallets : undefined}
                   disabled={!isLeader}
-                  trackColor={{ false: '#E2E8F0', true: '#10B981' }}
+                  trackColor={{ false: isDark ? themeColors.cardBorder : '#E2E8F0', true: '#10B981' }}
                   thumbColor={Platform.OS === 'android' ? '#FFFFFF' : undefined}
                 />
               </View>
@@ -392,10 +510,24 @@ export const GroupSettingsTab: React.FC<GroupSettingsTabProps> = ({
       </View>
 
       {/* 3. KHU VỰC NGUY HIỂM: RỜI NHÓM HOẶC GIẢI TÁN NHÓM */}
-      <View style={[styles.cardContainer, styles.dangerCard]}>
+      <View
+        style={[
+          styles.cardContainer,
+          styles.dangerCard,
+          isDark && {
+            backgroundColor: themeColors.surface,
+            borderColor: 'rgba(239, 68, 68, 0.3)',
+          },
+        ]}
+      >
         <View style={styles.sectionHeaderRow}>
           <View style={styles.headerTitleWrap}>
-            <View style={[styles.iconCircle, { backgroundColor: '#FEE2E2' }]}>
+            <View
+              style={[
+                styles.iconCircle,
+                { backgroundColor: isDark ? 'rgba(239, 68, 68, 0.16)' : '#FEE2E2' },
+              ]}
+            >
               <FinanceIcon name="alert-circle" size={16} color="#DC2626" />
             </View>
             <Text style={[styles.sectionTitle, { color: '#DC2626' }]}>Vùng nguy hiểm</Text>
@@ -407,8 +539,8 @@ export const GroupSettingsTab: React.FC<GroupSettingsTabProps> = ({
           {isOwner ? (
             <View style={styles.dangerActionItem}>
               <View style={{ flex: 1 }}>
-                <Text style={styles.dangerActionTitle}>Giải tán nhóm này</Text>
-                <Text style={styles.dangerActionDesc}>
+                <Text style={[styles.dangerActionTitle, isDark && { color: themeColors.textPrimary }]}>Giải tán nhóm này</Text>
+                <Text style={[styles.dangerActionDesc, isDark && { color: themeColors.textSecondary }]}>
                   Xóa toàn bộ dữ liệu giao dịch, quỹ và lịch sử chi tiêu của nhóm. Hành động này không thể hoàn tác.
                 </Text>
               </View>
@@ -431,8 +563,8 @@ export const GroupSettingsTab: React.FC<GroupSettingsTabProps> = ({
             /* Thành viên / Quản trị viên: Nút Rời nhóm */
             <View style={styles.dangerActionItem}>
               <View style={{ flex: 1 }}>
-                <Text style={styles.dangerActionTitle}>Rời khỏi nhóm</Text>
-                <Text style={styles.dangerActionDesc}>
+                <Text style={[styles.dangerActionTitle, isDark && { color: themeColors.textPrimary }]}>Rời khỏi nhóm</Text>
+                <Text style={[styles.dangerActionDesc, isDark && { color: themeColors.textSecondary }]}>
                   Bạn sẽ không còn truy cập được các khoản chi tiêu và quỹ chung của nhóm này nữa.
                 </Text>
               </View>

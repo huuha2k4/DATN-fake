@@ -8,6 +8,7 @@ import {
   GroupResponse,
   SimplifiedDebt,
 } from '../../api/groupApi';
+import { useAppTheme } from '../../../../context/ThemeContext';
 
 export interface GroupBalancesTabProps {
   balanceData: GroupBalanceResponse | null;
@@ -28,6 +29,7 @@ export const GroupBalancesTab: React.FC<GroupBalancesTabProps> = ({
   onSettleDebt,
   onRemindDebt,
 }) => {
+  const { isDark, colors: themeColors } = useAppTheme();
   const currentUserIdStr = currentUser?.id ? String(currentUser.id).toLowerCase() : '';
 
   // Lấy tên hiển thị của thành viên
@@ -77,30 +79,68 @@ export const GroupBalancesTab: React.FC<GroupBalancesTabProps> = ({
   );
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, isDark && { backgroundColor: themeColors.background }]}>
       {/* 1. HAI THẺ THỐNG KÊ TỔNG NỢ & ĐƯỢC NHẬN (CHUẨN ẢNH MẪU) */}
       <View style={styles.summaryRow}>
         {/* Thẻ Bạn đang nợ (Nền hồng nhạt #FFF1F2, viền hồng #FFE4E6) */}
-        <View style={styles.debtBox}>
-          <View style={styles.debtIconCircle}>
-            <FinanceIcon name="borrowing" size={22} color="#E11D48" />
+        <View
+          style={[
+            styles.debtBox,
+            isDark && {
+              backgroundColor: 'rgba(239, 68, 68, 0.12)',
+              borderColor: 'rgba(239, 68, 68, 0.25)',
+            },
+          ]}
+        >
+          <View
+            style={[
+              styles.debtIconCircle,
+              isDark && { backgroundColor: 'rgba(239, 68, 68, 0.2)' },
+            ]}
+          >
+            <FinanceIcon name="borrowing" size={22} color={isDark ? '#F87171' : '#E11D48'} />
           </View>
           <View style={styles.summaryTextCol}>
-            <Text style={styles.debtBoxLabel}>Bạn đang nợ</Text>
-            <Text style={styles.debtBoxAmount} numberOfLines={1}>
+            <Text style={[styles.debtBoxLabel, isDark && { color: themeColors.textSecondary }]}>Bạn đang nợ</Text>
+            <Text
+              style={[
+                styles.debtBoxAmount,
+                isDark && { color: '#F87171' },
+              ]}
+              numberOfLines={1}
+            >
               {formatVND(myTotalDebt)} đ
             </Text>
           </View>
         </View>
 
         {/* Thẻ Bạn được nhận (Nền xanh nhạt #F0FDF4, viền xanh #DCFCE7) */}
-        <View style={styles.receiveBox}>
-          <View style={styles.receiveIconCircle}>
-            <FinanceIcon name="lending" size={22} color="#059669" />
+        <View
+          style={[
+            styles.receiveBox,
+            isDark && {
+              backgroundColor: 'rgba(52, 211, 153, 0.12)',
+              borderColor: 'rgba(52, 211, 153, 0.25)',
+            },
+          ]}
+        >
+          <View
+            style={[
+              styles.receiveIconCircle,
+              isDark && { backgroundColor: 'rgba(52, 211, 153, 0.2)' },
+            ]}
+          >
+            <FinanceIcon name="lending" size={22} color={isDark ? themeColors.accentGreen : '#059669'} />
           </View>
           <View style={styles.summaryTextCol}>
-            <Text style={styles.receiveBoxLabel}>Bạn được nhận</Text>
-            <Text style={styles.receiveBoxAmount} numberOfLines={1}>
+            <Text style={[styles.receiveBoxLabel, isDark && { color: themeColors.textSecondary }]}>Bạn được nhận</Text>
+            <Text
+              style={[
+                styles.receiveBoxAmount,
+                isDark && { color: themeColors.accentGreen },
+              ]}
+              numberOfLines={1}
+            >
               {formatVND(myTotalReceivable)} đ
             </Text>
           </View>
@@ -108,14 +148,30 @@ export const GroupBalancesTab: React.FC<GroupBalancesTabProps> = ({
       </View>
 
       {/* 2. CARD: CÂN ĐỐI GIỮA CÁC THÀNH VIÊN (CHUẨN ẢNH MẪU) */}
-      <View style={styles.cardContainer}>
-        <Text style={styles.sectionTitle}>Cân đối giữa các thành viên</Text>
+      <View
+        style={[
+          styles.cardContainer,
+          isDark && {
+            backgroundColor: themeColors.surface,
+            borderColor: themeColors.cardBorder,
+          },
+        ]}
+      >
+        <Text style={[styles.sectionTitle, isDark && { color: themeColors.textPrimary }]}>Cân đối giữa các thành viên</Text>
 
         {simplifiedDebts.length === 0 ? (
-          <View style={styles.emptyCard}>
+          <View
+            style={[
+              styles.emptyCard,
+              isDark && {
+                backgroundColor: themeColors.surfaceSubtle,
+                borderColor: themeColors.cardBorder,
+              },
+            ]}
+          >
             <Text style={{ fontSize: 30, marginBottom: 6 }}>⚖️</Text>
-            <Text style={styles.emptyTitle}>Tất cả đã cân bằng</Text>
-            <Text style={styles.emptySub}>
+            <Text style={[styles.emptyTitle, isDark && { color: themeColors.textPrimary }]}>Tất cả đã cân bằng</Text>
+            <Text style={[styles.emptySub, isDark && { color: themeColors.textSecondary }]}>
               Hiện tại không có thành viên nào nợ tiền nhau trong nhóm.
             </Text>
           </View>
@@ -134,7 +190,10 @@ export const GroupBalancesTab: React.FC<GroupBalancesTabProps> = ({
                   key={index}
                   style={[
                     styles.debtRowItem,
-                    index < simplifiedDebts.length - 1 && styles.debtRowBorder,
+                    index < simplifiedDebts.length - 1 && [
+                      styles.debtRowBorder,
+                      isDark && { borderBottomColor: themeColors.divider },
+                    ],
                   ]}
                 >
                   {/* Avatar người nợ */}
@@ -153,9 +212,9 @@ export const GroupBalancesTab: React.FC<GroupBalancesTabProps> = ({
                   {/* Thông tin nợ A -> B (Chiếm trọn không gian, hiển thị tên đầy đủ và rõ ràng) */}
                   <View style={styles.debtInfoCol}>
                     <Text style={styles.debtRelationText}>
-                      <Text style={{ fontWeight: '700', color: '#0F172A' }}>{fromName}</Text>
-                      <Text style={{ color: '#94A3B8', fontWeight: '500' }}> → </Text>
-                      <Text style={{ fontWeight: '700', color: '#0F172A' }}>{toName}</Text>
+                      <Text style={[{ fontWeight: '700', color: '#0F172A' }, isDark && { color: themeColors.textPrimary }]}>{fromName}</Text>
+                      <Text style={[{ color: '#94A3B8', fontWeight: '500' }, isDark && { color: themeColors.textMuted }]}> → </Text>
+                      <Text style={[{ fontWeight: '700', color: '#0F172A' }, isDark && { color: themeColors.textPrimary }]}>{toName}</Text>
                     </Text>
                   </View>
 
@@ -225,7 +284,7 @@ export const GroupBalancesTab: React.FC<GroupBalancesTabProps> = ({
       {/* 3. CARD: GỢI Ý THANH TOÁN (CHUẨN ẢNH MẪU) */}
       {firstDebtOfMine && (
         <View style={styles.suggestionSection}>
-          <Text style={styles.sectionTitle}>Gợi ý thanh toán</Text>
+          <Text style={[styles.sectionTitle, isDark && { color: themeColors.textPrimary }]}>Gợi ý thanh toán</Text>
           <Pressable
             onPress={() =>
               onSettleDebt({
@@ -236,22 +295,26 @@ export const GroupBalancesTab: React.FC<GroupBalancesTabProps> = ({
             }
             style={({ pressed }) => [
               styles.suggestionCard,
+              isDark && {
+                backgroundColor: themeColors.surface,
+                borderColor: themeColors.cardBorder,
+              },
               pressed && { opacity: 0.85 },
             ]}
           >
-            <View style={styles.suggestionIconBox}>
+            <View style={[styles.suggestionIconBox, isDark && { backgroundColor: 'rgba(245, 158, 11, 0.15)' }]}>
               <FinanceIcon name="coin-stack" size={24} color="#F59E0B" />
             </View>
             <View style={styles.suggestionTextCol}>
-              <Text style={styles.suggestionTitle}>
-                Thanh toán <Text style={{ color: '#059669', fontWeight: '800' }}>{formatVND(firstDebtOfMine.amount)} đ</Text> cho{' '}
+              <Text style={[styles.suggestionTitle, isDark && { color: themeColors.textPrimary }]}>
+                Thanh toán <Text style={{ color: isDark ? themeColors.accentGreen : '#059669', fontWeight: '800' }}>{formatVND(firstDebtOfMine.amount)} đ</Text> cho{' '}
                 {getMemberDisplayName(firstDebtOfMine.toUserId, firstDebtOfMine.toUser?.fullName)}
               </Text>
-              <Text style={styles.suggestionSub}>
+              <Text style={[styles.suggestionSub, isDark && { color: themeColors.textSecondary }]}>
                 để cân bằng công nợ trong nhóm.
               </Text>
             </View>
-            <FinanceIcon name="chevron-right" size={18} color="#059669" />
+            <FinanceIcon name="chevron-right" size={18} color={isDark ? themeColors.accentGreen : '#059669'} />
           </Pressable>
         </View>
       )}

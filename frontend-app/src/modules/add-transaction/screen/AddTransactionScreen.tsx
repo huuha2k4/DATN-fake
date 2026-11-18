@@ -1,20 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import {
-  ActivityIndicator,
-  Alert,
-  Image,
-  KeyboardAvoidingView,
-  Modal,
-  Platform,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Switch,
-  Text,
-  TextInput,
-  useWindowDimensions,
-  View,
-} from 'react-native';
+import { ActivityIndicator, Image, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, useWindowDimensions, View } from 'react-native';
+import { AppAlert as Alert } from '../../../context/DialogContext';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   ChevronLeft,
@@ -41,6 +27,7 @@ import {
 import { findBankOrWalletPreset } from '../../accounts/constants/banksData';
 import { authStorage } from '../../auth/api/authApi';
 import { groupApi } from '../../group/api/groupApi';
+import { useAppTheme } from '../../../context/ThemeContext';
 
 // Danh mục thu nhập đặc thù cho bé (giống hệt bản Web)
 const KID_INCOME_CATEGORIES: CategoryItem[] = [
@@ -73,6 +60,7 @@ const presets = [
 ];
 
 export function AddTransactionScreen({ onBack, onSaved, onOpenInvoiceScanner }: Props) {
+  const { isDark, colors: themeColors } = useAppTheme();
   const insets = useSafeAreaInsets();
   const { width: screenWidth } = useWindowDimensions();
   const cardWidth = Math.max(300, screenWidth - 32);
@@ -371,30 +359,34 @@ export function AddTransactionScreen({ onBack, onSaved, onOpenInvoiceScanner }: 
 
   return (
     <KeyboardAvoidingView
-      style={styles.screen}
+      style={[styles.screen, isDark && { backgroundColor: themeColors.background }]}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
       {/* Dải sóng trang trí mờ ở đáy màn hình đúng theo ảnh mẫu */}
       <Image
         source={themeByTab.bgWave}
-        style={styles.bottomWaveDecor}
+        style={[styles.bottomWaveDecor, isDark && { opacity: 0.1 }]}
         resizeMode="cover"
       />
 
       {/* ── 1. HEADER SÁNG TRẮNG GỌN GÀNG: < Thêm giao dịch | [Quét] ── */}
-      <View style={[styles.header, { paddingTop: Math.max(insets.top, 10) + 4 }]}>
+      <View style={[styles.header, { paddingTop: Math.max(insets.top, 10) + 4 }, isDark && { backgroundColor: themeColors.background, borderBottomColor: themeColors.cardBorder }]}>
         <View style={styles.headerLeftCol}>
-          <Pressable onPress={onBack} hitSlop={12} style={styles.headerIconBtn}>
-            <FinanceIcon name="chevron-left" size={22} color="#047857" />
+          <Pressable
+            onPress={onBack}
+            hitSlop={12}
+            style={[styles.headerIconBtn, isDark && { backgroundColor: themeColors.surfaceSubtle }]}
+          >
+            <FinanceIcon name="chevron-left" size={22} color={isDark ? themeColors.textPrimary : '#047857'} />
           </Pressable>
-          <Text style={styles.headerTitle} numberOfLines={1}>Thêm giao dịch</Text>
+          <Text style={[styles.headerTitle, isDark && { color: themeColors.textPrimary }]} numberOfLines={1}>Thêm giao dịch</Text>
         </View>
 
         {onOpenInvoiceScanner ? (
           <Pressable
             onPress={onOpenInvoiceScanner}
             hitSlop={10}
-            style={({ pressed }) => [styles.scanBtn, pressed && styles.pressed]}
+            style={({ pressed }) => [styles.scanBtn, isDark && { backgroundColor: '#059669' }, pressed && styles.pressed]}
           >
             <ScanText size={20} color="#FFFFFF" strokeWidth={2.4} />
             <Text style={styles.scanBtnText}>Quét</Text>
@@ -413,17 +405,17 @@ export function AddTransactionScreen({ onBack, onSaved, onOpenInvoiceScanner }: 
         showsVerticalScrollIndicator={false}
       >
         {/* ── 2. THANH 3 TAB VIÊN THUỐC KÈM ICON: Chi tiêu | Thu nhập | Chuyển khoản ── */}
-        <View style={styles.pillTabGroup}>
+        <View style={[styles.pillTabGroup, isDark && { backgroundColor: themeColors.surface, borderColor: themeColors.cardBorder, borderWidth: 1 }]}>
           <Pressable
             onPress={() => setType('EXPENSE')}
             style={[styles.pillBtn, type === 'EXPENSE' && styles.pillBtnExpense]}
           >
             <ShoppingCart
               size={18}
-              color={type === 'EXPENSE' ? '#FFFFFF' : '#475569'}
+              color={type === 'EXPENSE' ? '#FFFFFF' : (isDark ? themeColors.textMuted : '#475569')}
               strokeWidth={2.4}
             />
-            <Text style={[styles.pillText, type === 'EXPENSE' && styles.pillTextActive]}>
+            <Text style={[styles.pillText, isDark && { color: themeColors.textSecondary }, type === 'EXPENSE' && styles.pillTextActive]}>
               Chi tiêu
             </Text>
           </Pressable>
@@ -434,10 +426,10 @@ export function AddTransactionScreen({ onBack, onSaved, onOpenInvoiceScanner }: 
           >
             <BarChart3
               size={18}
-              color={type === 'INCOME' ? '#FFFFFF' : '#475569'}
+              color={type === 'INCOME' ? '#FFFFFF' : (isDark ? themeColors.textMuted : '#475569')}
               strokeWidth={2.4}
             />
-            <Text style={[styles.pillText, type === 'INCOME' && styles.pillTextActive]}>
+            <Text style={[styles.pillText, isDark && { color: themeColors.textSecondary }, type === 'INCOME' && styles.pillTextActive]}>
               Thu nhập
             </Text>
           </Pressable>
@@ -450,10 +442,10 @@ export function AddTransactionScreen({ onBack, onSaved, onOpenInvoiceScanner }: 
             >
               <ArrowLeftRight
                 size={18}
-                color={type === 'TRANSFER' ? '#FFFFFF' : '#475569'}
+                color={type === 'TRANSFER' ? '#FFFFFF' : (isDark ? themeColors.textMuted : '#475569')}
                 strokeWidth={2.4}
               />
-              <Text style={[styles.pillText, type === 'TRANSFER' && styles.pillTextActive]}>
+              <Text style={[styles.pillText, isDark && { color: themeColors.textSecondary }, type === 'TRANSFER' && styles.pillTextActive]}>
                 Chuyển khoản
               </Text>
             </Pressable>
@@ -476,54 +468,42 @@ export function AddTransactionScreen({ onBack, onSaved, onOpenInvoiceScanner }: 
           />
 
           <View style={styles.heroInnerContent}>
+            {/* Hình 3D minh họa đặt vị trí absolute góc phải thẻ */}
+            <Image
+              source={themeByTab.hero3D}
+              style={[
+                styles.hero3DIllustrationAbsolute,
+                type === 'TRANSFER' && styles.hero3DTransferAbsoluteSize,
+              ]}
+              resizeMode="contain"
+            />
+
             <View style={styles.heroTopContent}>
-              {/* Cột trái: SỐ TIỀN GIAO DỊCH & Ô nhập số tiền lớn (tự co cỡ chữ khi nhập số dài) */}
               <View style={styles.heroLeftCol}>
                 <Text style={styles.heroLabel}>SỐ TIỀN GIAO DỊCH</Text>
 
-                {(() => {
-                  const len = (amount || '0').length;
-                  const dynamicFontSize =
-                    len > 13 ? 22 : len > 11 ? 26 : len > 9 ? 30 : len > 7 ? 34 : 38;
-                  const dynamicCurrencySize = Math.round(dynamicFontSize * 0.82);
-
-                  return (
-                    <View style={styles.heroAmountInputRow}>
-                      <TextInput
-                        ref={amountInputRef}
-                        value={amount}
-                        onChangeText={handleAmountChange}
-                        placeholder="0"
-                        placeholderTextColor="rgba(255, 255, 255, 0.92)"
-                        keyboardType="numeric"
-                        selectionColor="#FFFFFF"
-                        style={[
-                          styles.heroAmountInput,
-                          { fontSize: dynamicFontSize },
-                        ]}
-                      />
-                      <Text
-                        style={[
-                          styles.heroCurrencyUnit,
-                          { fontSize: dynamicCurrencySize },
-                        ]}
-                      >
-                        đ
-                      </Text>
-                    </View>
-                  );
-                })()}
+                <View style={styles.heroAmountInputRow}>
+                  <View style={styles.inputMeasureWrap}>
+                    <TextInput
+                      ref={amountInputRef}
+                      value={amount}
+                      onChangeText={handleAmountChange}
+                      placeholder="0"
+                      placeholderTextColor="rgba(255, 255, 255, 0.92)"
+                      keyboardType="numeric"
+                      selectionColor="#FFFFFF"
+                      multiline={false}
+                      style={styles.heroAmountInput}
+                    />
+                    <Text style={styles.heroMeasureHiddenText}>
+                      {amount || '0'}
+                    </Text>
+                  </View>
+                  <Text style={styles.heroCurrencyUnit}>
+                    đ
+                  </Text>
+                </View>
               </View>
-
-              {/* Cột phải: Hình 3D minh họa theo tab */}
-              <Image
-                source={themeByTab.hero3D}
-                style={[
-                  styles.hero3DIllustration,
-                  type === 'TRANSFER' && styles.hero3DTransferSize,
-                ]}
-                resizeMode="contain"
-              />
             </View>
 
             {/* Hàng nút cộng tiền nhanh (+10k, +20k, +50k, +100k, +200k) */}
@@ -556,20 +536,24 @@ export function AddTransactionScreen({ onBack, onSaved, onOpenInvoiceScanner }: 
                   <Wallet size={14} color="#059669" strokeWidth={2.5} />
                 </View>
               )}
-              <Text style={styles.sectionHeaderText}>
+              <Text style={[styles.sectionHeaderText, isDark && { color: themeColors.textPrimary }]}>
                 {type === 'EXPENSE' ? 'Danh mục chi tiêu' : 'Danh mục thu nhập'}
               </Text>
             </View>
 
             <Pressable
               onPress={() => setCategoryModalVisible(true)}
-              style={({ pressed }) => [styles.selectCard, pressed && styles.pressed]}
+              style={({ pressed }) => [
+                styles.selectCard,
+                isDark && { backgroundColor: themeColors.surface, borderColor: themeColors.cardBorder },
+                pressed && styles.pressed,
+              ]}
             >
               <View style={styles.selectCardLeft}>
                 <View
                   style={[
                     styles.categoryIconCircle,
-                    { backgroundColor: themeByTab.catIconBg },
+                    { backgroundColor: isDark ? (type === 'EXPENSE' ? 'rgba(239, 68, 68, 0.16)' : 'rgba(16, 185, 129, 0.16)') : themeByTab.catIconBg },
                   ]}
                 >
                   <FinanceIcon
@@ -579,14 +563,14 @@ export function AddTransactionScreen({ onBack, onSaved, onOpenInvoiceScanner }: 
                       selectedCategoryObj?.name || themeByTab.defaultCatName
                     )}
                     size={22}
-                    color={themeByTab.catIconColor}
+                    color={isDark ? (type === 'EXPENSE' ? '#F87171' : '#34D399') : themeByTab.catIconColor}
                   />
                 </View>
-                <Text style={styles.selectCardTitle} numberOfLines={1}>
+                <Text style={[styles.selectCardTitle, isDark && { color: themeColors.textPrimary }]} numberOfLines={1}>
                   {selectedCategoryObj?.name || themeByTab.defaultCatName}
                 </Text>
               </View>
-              <ChevronDown size={21} color="#334155" strokeWidth={2.4} />
+              <ChevronDown size={21} color={isDark ? themeColors.textMuted : '#334155'} strokeWidth={2.4} />
             </Pressable>
           </View>
         )}
@@ -607,7 +591,7 @@ export function AddTransactionScreen({ onBack, onSaved, onOpenInvoiceScanner }: 
                 <Text style={styles.sectionBadgeSymbol}>→</Text>
               </View>
             )}
-            <Text style={styles.sectionHeaderText}>
+            <Text style={[styles.sectionHeaderText, isDark && { color: themeColors.textPrimary }]}>
               {type === 'TRANSFER' ? 'Từ tài khoản (Nguồn)' : 'Tài khoản thanh toán'}
             </Text>
           </View>
@@ -620,7 +604,11 @@ export function AddTransactionScreen({ onBack, onSaved, onOpenInvoiceScanner }: 
               }
             }}
             disabled={isChildAccount}
-            style={({ pressed }) => [styles.accountCard, !isChildAccount && pressed && styles.pressed]}
+            style={({ pressed }) => [
+              styles.accountCard,
+              isDark && { backgroundColor: themeColors.surface, borderColor: themeColors.cardBorder },
+              !isChildAccount && pressed && styles.pressed,
+            ]}
           >
             <View style={styles.accountCardTop}>
               <View style={styles.selectCardLeft}>
@@ -644,24 +632,24 @@ export function AddTransactionScreen({ onBack, onSaved, onOpenInvoiceScanner }: 
                   );
                 })()}
                 <View style={{ marginLeft: 12 }}>
-                  <Text style={styles.accountNameText}>
+                  <Text style={[styles.accountNameText, isDark && { color: themeColors.textPrimary }]}>
                     {selectedAccountObj?.name || 'Tiền mặt'}
                   </Text>
-                  <Text style={styles.accountTypeSub}>
+                  <Text style={[styles.accountTypeSub, isDark && { color: themeColors.textSecondary }]}>
                     {selectedAccountObj?.accountType || 'CASH'}
                   </Text>
                 </View>
               </View>
               {/* Nếu không phải tài khoản trẻ em thì mới hiện mũi tên chọn ví */}
               {!isChildAccount && (
-                <ChevronDown size={21} color="#334155" strokeWidth={2.4} />
+                <ChevronDown size={21} color={isDark ? themeColors.textMuted : '#334155'} strokeWidth={2.4} />
               )}
             </View>
 
             {/* Dải hiển thị số dư khả dụng màu xanh mint nhạt */}
-            <View style={styles.balanceStrip}>
-              <Text style={styles.balanceStripLabel}>Số dư khả dụng:</Text>
-              <Text style={styles.balanceStripValue}>
+            <View style={[styles.balanceStrip, isDark && { backgroundColor: themeColors.surfaceSubtle }]}>
+              <Text style={[styles.balanceStripLabel, isDark && { color: themeColors.textSecondary }]}>Số dư khả dụng:</Text>
+              <Text style={[styles.balanceStripValue, isDark && { color: themeColors.accentGreen }]}>
                 {formatVND(selectedAccountObj?.balance ?? 8362520)}
                 <Text style={styles.balanceStripCurrency}>₫</Text>
               </Text>
@@ -676,12 +664,16 @@ export function AddTransactionScreen({ onBack, onSaved, onOpenInvoiceScanner }: 
               <View style={styles.sectionBadgeTealSolid}>
                 <Wallet size={13} color="#FFFFFF" strokeWidth={2.5} />
               </View>
-              <Text style={styles.sectionHeaderText}>Đến tài khoản (Đích)</Text>
+              <Text style={[styles.sectionHeaderText, isDark && { color: themeColors.textPrimary }]}>Đến tài khoản (Đích)</Text>
             </View>
 
             <Pressable
               onPress={() => setToAccountModalVisible(true)}
-              style={({ pressed }) => [styles.accountCard, pressed && styles.pressed]}
+              style={({ pressed }) => [
+                styles.accountCard,
+                isDark && { backgroundColor: themeColors.surface, borderColor: themeColors.cardBorder },
+                pressed && styles.pressed,
+              ]}
             >
               <View style={styles.accountCardTop}>
                 <View style={styles.selectCardLeft}>
@@ -707,20 +699,20 @@ export function AddTransactionScreen({ onBack, onSaved, onOpenInvoiceScanner }: 
                     );
                   })()}
                   <View style={{ marginLeft: 12 }}>
-                    <Text style={styles.accountNameText}>
+                    <Text style={[styles.accountNameText, isDark && { color: themeColors.textPrimary }]}>
                       {toAccountObj?.name || 'Ngân hàng Vietcombank'}
                     </Text>
-                    <Text style={styles.accountTypeSub}>
+                    <Text style={[styles.accountTypeSub, isDark && { color: themeColors.textSecondary }]}>
                       {toAccountObj?.accountType || 'BANK_ACCOUNT'}
                     </Text>
                   </View>
                 </View>
-                <ChevronDown size={21} color="#334155" strokeWidth={2.4} />
+                <ChevronDown size={21} color={isDark ? themeColors.textMuted : '#334155'} strokeWidth={2.4} />
               </View>
 
-              <View style={styles.balanceStrip}>
-                <Text style={styles.balanceStripLabel}>Số dư hiện tại:</Text>
-                <Text style={styles.balanceStripValue}>
+              <View style={[styles.balanceStrip, isDark && { backgroundColor: themeColors.surfaceSubtle }]}>
+                <Text style={[styles.balanceStripLabel, isDark && { color: themeColors.textSecondary }]}>Số dư hiện tại:</Text>
+                <Text style={[styles.balanceStripValue, isDark && { color: themeColors.accentGreen }]}>
                   {formatVND(toAccountObj?.balance ?? 8494713)}
                   <Text style={styles.balanceStripCurrency}>₫</Text>
                 </Text>
@@ -731,14 +723,14 @@ export function AddTransactionScreen({ onBack, onSaved, onOpenInvoiceScanner }: 
 
         {/* ── 6. THỜI GIAN GIAO DỊCH ── */}
         <View style={styles.formSection}>
-          <View style={styles.timeCard}>
+          <View style={[styles.timeCard, isDark && { backgroundColor: themeColors.surface, borderColor: themeColors.cardBorder }]}>
             <View style={styles.timeCardLeft}>
-              <View style={styles.calendarIconBox}>
-                <Calendar size={22} color="#15803D" strokeWidth={2.3} />
+              <View style={[styles.calendarIconBox, isDark && { backgroundColor: 'rgba(16, 185, 129, 0.16)' }]}>
+                <Calendar size={22} color={isDark ? '#34D399' : '#15803D'} strokeWidth={2.3} />
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={styles.timeTitleText}>Thời gian giao dịch</Text>
-                <Text style={styles.timeSubText}>
+                <Text style={[styles.timeTitleText, isDark && { color: themeColors.textPrimary }]}>Thời gian giao dịch</Text>
+                <Text style={[styles.timeSubText, isDark && { color: themeColors.textSecondary }]}>
                   {isCustomDateTime
                     ? `Thủ công: ${time} · ${date}`
                     : `Tự động: ${time} hôm nay`}
@@ -749,29 +741,37 @@ export function AddTransactionScreen({ onBack, onSaved, onOpenInvoiceScanner }: 
             <Switch
               value={isCustomDateTime}
               onValueChange={setIsCustomDateTime}
-              trackColor={{ false: '#CBD5E1', true: '#16A34A' }}
-              thumbColor="#FFFFFF"
+              trackColor={{ false: isDark ? '#334155' : '#CBD5E1', true: isDark ? '#059669' : '#16A34A' }}
+              thumbColor={isCustomDateTime ? (isDark ? '#34D399' : '#FFFFFF') : (isDark ? '#64748B' : '#FFFFFF')}
             />
           </View>
 
           {isCustomDateTime && (
             <View style={styles.timeDateInputsRow}>
               <View style={styles.timeCol}>
-                <Text style={styles.microLabel}>Giờ thực hiện</Text>
+                <Text style={[styles.microLabel, isDark && { color: themeColors.textSecondary }]}>Giờ thực hiện</Text>
                 <TextInput
                   value={time}
                   onChangeText={setTime}
                   placeholder="HH:mm"
-                  style={styles.timeDateInput}
+                  placeholderTextColor={isDark ? '#64748B' : '#94A3B8'}
+                  style={[
+                    styles.timeDateInput,
+                    isDark && { backgroundColor: themeColors.surfaceSubtle, borderColor: themeColors.cardBorder, color: themeColors.textPrimary },
+                  ]}
                 />
               </View>
               <View style={styles.dateCol}>
-                <Text style={styles.microLabel}>Ngày giao dịch</Text>
+                <Text style={[styles.microLabel, isDark && { color: themeColors.textSecondary }]}>Ngày giao dịch</Text>
                 <TextInput
                   value={date}
                   onChangeText={setDate}
                   placeholder="DD/MM/YYYY"
-                  style={styles.timeDateInput}
+                  placeholderTextColor={isDark ? '#64748B' : '#94A3B8'}
+                  style={[
+                    styles.timeDateInput,
+                    isDark && { backgroundColor: themeColors.surfaceSubtle, borderColor: themeColors.cardBorder, color: themeColors.textPrimary },
+                  ]}
                 />
               </View>
             </View>
@@ -781,13 +781,13 @@ export function AddTransactionScreen({ onBack, onSaved, onOpenInvoiceScanner }: 
         {/* ── 7. GHI CHÚ (TÙY CHỌN) ── */}
         <View style={styles.formSection}>
           <View style={styles.sectionHeaderRow}>
-            <Clock size={17} color="#15803D" strokeWidth={2.4} />
-            <Text style={styles.sectionHeaderText}>Ghi chú (Tùy chọn)</Text>
+            <Clock size={17} color={isDark ? themeColors.accentGreen : '#15803D'} strokeWidth={2.4} />
+            <Text style={[styles.sectionHeaderText, isDark && { color: themeColors.textPrimary }]}>Ghi chú (Tùy chọn)</Text>
           </View>
 
-          <View style={styles.noteInputContainer}>
-            <View style={styles.noteDocIconBox}>
-              <FileText size={20} color="#15803D" strokeWidth={2.3} />
+          <View style={[styles.noteInputContainer, isDark && { backgroundColor: themeColors.surface, borderColor: themeColors.cardBorder }]}>
+            <View style={[styles.noteDocIconBox, isDark && { backgroundColor: 'rgba(16, 185, 129, 0.16)' }]}>
+              <FileText size={20} color={isDark ? '#34D399' : '#15803D'} strokeWidth={2.3} />
             </View>
             <TextInput
               value={description}
@@ -799,8 +799,8 @@ export function AddTransactionScreen({ onBack, onSaved, onOpenInvoiceScanner }: 
                   ? 'Ví dụ: Lương tháng, thưởng...'
                   : 'Ví dụ: Chuyển tiền tiết kiệm...'
               }
-              placeholderTextColor="#64748B"
-              style={styles.noteTextInput}
+              placeholderTextColor={isDark ? '#64748B' : '#94A3B8'}
+              style={[styles.noteTextInput, isDark && { color: themeColors.textPrimary }]}
             />
           </View>
         </View>
@@ -830,13 +830,17 @@ export function AddTransactionScreen({ onBack, onSaved, onOpenInvoiceScanner }: 
       {/* ── MODAL CHỌN DANH MỤC ── */}
       <Modal visible={categoryModalVisible} transparent animationType="slide">
         <View style={styles.modalOverlay}>
-          <View style={styles.modalSheet}>
-            <View style={styles.modalTop}>
-              <Text style={styles.modalSheetTitle}>
+          <View style={[styles.modalSheet, isDark && { backgroundColor: themeColors.surface, borderColor: themeColors.cardBorder, borderWidth: 1 }]}>
+            <View style={[styles.modalTop, isDark && { borderBottomColor: themeColors.divider }]}>
+              <Text style={[styles.modalSheetTitle, isDark && { color: themeColors.textPrimary }]}>
                 Chọn danh mục {type === 'EXPENSE' ? 'chi tiêu' : 'thu nhập'}
               </Text>
-              <Pressable onPress={() => setCategoryModalVisible(false)} hitSlop={10}>
-                <X size={20} color="#64748B" />
+              <Pressable
+                onPress={() => setCategoryModalVisible(false)}
+                hitSlop={10}
+                style={[isDark && { backgroundColor: themeColors.surfaceSubtle, padding: 4, borderRadius: 12 }]}
+              >
+                <X size={20} color={isDark ? themeColors.textSecondary : '#64748B'} />
               </Pressable>
             </View>
             <ScrollView style={styles.verticalModalList} showsVerticalScrollIndicator={false}>
@@ -851,23 +855,28 @@ export function AddTransactionScreen({ onBack, onSaved, onOpenInvoiceScanner }: 
                     }}
                     style={[
                       styles.categoryVerticalItem,
-                      isSelected && styles.categoryVerticalItemSelected,
+                      isDark && { borderBottomColor: themeColors.divider },
+                      isSelected && (isDark ? { backgroundColor: themeColors.surfaceSubtle } : styles.categoryVerticalItemSelected),
                     ]}
                   >
                     <View
                       style={[
                         styles.catVerticalIconWrap,
-                        { backgroundColor: type === 'EXPENSE' ? '#FEE2E2' : '#DCFCE7' },
+                        {
+                          backgroundColor: isDark
+                            ? (type === 'EXPENSE' ? 'rgba(239, 68, 68, 0.16)' : 'rgba(16, 185, 129, 0.16)')
+                            : (type === 'EXPENSE' ? '#FEE2E2' : '#DCFCE7'),
+                        },
                       ]}
                     >
                       <FinanceIcon
                         name={resolveCategoryIconName(cat.icon, type, cat.name)}
                         size={19}
-                        color={type === 'EXPENSE' ? '#E11D48' : '#15803D'}
+                        color={isDark ? (type === 'EXPENSE' ? '#F87171' : '#34D399') : (type === 'EXPENSE' ? '#E11D48' : '#15803D')}
                       />
                     </View>
-                    <Text style={styles.catVerticalName}>{cat.name}</Text>
-                    {isSelected && <Check size={18} color="#15803D" strokeWidth={2.8} />}
+                    <Text style={[styles.catVerticalName, isDark && { color: themeColors.textPrimary }]}>{cat.name}</Text>
+                    {isSelected && <Check size={18} color={isDark ? themeColors.accentGreen : '#15803D'} strokeWidth={2.8} />}
                   </Pressable>
                 );
               })}
@@ -879,11 +888,15 @@ export function AddTransactionScreen({ onBack, onSaved, onOpenInvoiceScanner }: 
       {/* ── MODAL CHỌN TÀI KHOẢN NGUỒN ── */}
       <Modal visible={accountModalVisible} transparent animationType="slide">
         <View style={styles.modalOverlay}>
-          <View style={styles.modalSheet}>
-            <View style={styles.modalTop}>
-              <Text style={styles.modalSheetTitle}>Chọn tài khoản thanh toán</Text>
-              <Pressable onPress={() => setAccountModalVisible(false)} hitSlop={10}>
-                <X size={20} color="#64748B" />
+          <View style={[styles.modalSheet, isDark && { backgroundColor: themeColors.surface, borderColor: themeColors.cardBorder, borderWidth: 1 }]}>
+            <View style={[styles.modalTop, isDark && { borderBottomColor: themeColors.divider }]}>
+              <Text style={[styles.modalSheetTitle, isDark && { color: themeColors.textPrimary }]}>Chọn tài khoản thanh toán</Text>
+              <Pressable
+                onPress={() => setAccountModalVisible(false)}
+                hitSlop={10}
+                style={[isDark && { backgroundColor: themeColors.surfaceSubtle, padding: 4, borderRadius: 12 }]}
+              >
+                <X size={20} color={isDark ? themeColors.textSecondary : '#64748B'} />
               </Pressable>
             </View>
             <ScrollView style={styles.verticalModalList} showsVerticalScrollIndicator={false}>
@@ -901,7 +914,11 @@ export function AddTransactionScreen({ onBack, onSaved, onOpenInvoiceScanner }: 
                       }
                       setAccountModalVisible(false);
                     }}
-                    style={[styles.accountItemRow, isSelected && styles.accountItemRowActive]}
+                    style={[
+                      styles.accountItemRow,
+                      isDark && { borderBottomColor: themeColors.divider },
+                      isSelected && (isDark ? { backgroundColor: themeColors.surfaceSubtle } : styles.accountItemRowActive),
+                    ]}
                   >
                     {preset?.logoUrl ? (
                       <View style={styles.modalAccountBrandLogo}>
@@ -917,10 +934,10 @@ export function AddTransactionScreen({ onBack, onSaved, onOpenInvoiceScanner }: 
                       </View>
                     )}
                     <View style={{ flex: 1, marginLeft: 12 }}>
-                      <Text style={styles.accName}>{acc.name}</Text>
-                      <Text style={styles.accSub}>Số dư: {formatVND(acc.balance)} ₫</Text>
+                      <Text style={[styles.accName, isDark && { color: themeColors.textPrimary }]}>{acc.name}</Text>
+                      <Text style={[styles.accSub, isDark && { color: themeColors.textSecondary }]}>Số dư: {formatVND(acc.balance)} ₫</Text>
                     </View>
-                    {isSelected && <Check size={18} color="#15803D" strokeWidth={2.8} />}
+                    {isSelected && <Check size={18} color={isDark ? themeColors.accentGreen : '#15803D'} strokeWidth={2.8} />}
                   </Pressable>
                 );
               })}
@@ -932,11 +949,15 @@ export function AddTransactionScreen({ onBack, onSaved, onOpenInvoiceScanner }: 
       {/* ── MODAL CHỌN TÀI KHOẢN ĐÍCH (TRANSFER) ── */}
       <Modal visible={toAccountModalVisible} transparent animationType="slide">
         <View style={styles.modalOverlay}>
-          <View style={styles.modalSheet}>
-            <View style={styles.modalTop}>
-              <Text style={styles.modalSheetTitle}>Chọn tài khoản nhận tiền</Text>
-              <Pressable onPress={() => setToAccountModalVisible(false)} hitSlop={10}>
-                <X size={20} color="#64748B" />
+          <View style={[styles.modalSheet, isDark && { backgroundColor: themeColors.surface, borderColor: themeColors.cardBorder, borderWidth: 1 }]}>
+            <View style={[styles.modalTop, isDark && { borderBottomColor: themeColors.divider }]}>
+              <Text style={[styles.modalSheetTitle, isDark && { color: themeColors.textPrimary }]}>Chọn tài khoản nhận tiền</Text>
+              <Pressable
+                onPress={() => setToAccountModalVisible(false)}
+                hitSlop={10}
+                style={[isDark && { backgroundColor: themeColors.surfaceSubtle, padding: 4, borderRadius: 12 }]}
+              >
+                <X size={20} color={isDark ? themeColors.textSecondary : '#64748B'} />
               </Pressable>
             </View>
             <ScrollView style={styles.verticalModalList} showsVerticalScrollIndicator={false}>
@@ -952,7 +973,11 @@ export function AddTransactionScreen({ onBack, onSaved, onOpenInvoiceScanner }: 
                         setToAccountId(acc.id);
                         setToAccountModalVisible(false);
                       }}
-                      style={[styles.accountItemRow, isSelected && styles.accountItemRowActive]}
+                      style={[
+                        styles.accountItemRow,
+                        isDark && { borderBottomColor: themeColors.divider },
+                        isSelected && (isDark ? { backgroundColor: themeColors.surfaceSubtle } : styles.accountItemRowActive),
+                      ]}
                     >
                       {preset?.logoUrl ? (
                         <View style={styles.modalAccountBrandLogo}>
@@ -973,10 +998,10 @@ export function AddTransactionScreen({ onBack, onSaved, onOpenInvoiceScanner }: 
                         </View>
                       )}
                       <View style={{ flex: 1, marginLeft: 12 }}>
-                        <Text style={styles.accName}>{acc.name}</Text>
-                        <Text style={styles.accSub}>Số dư: {formatVND(acc.balance)} ₫</Text>
+                        <Text style={[styles.accName, isDark && { color: themeColors.textPrimary }]}>{acc.name}</Text>
+                        <Text style={[styles.accSub, isDark && { color: themeColors.textSecondary }]}>Số dư: {formatVND(acc.balance)} ₫</Text>
                       </View>
-                      {isSelected && <Check size={18} color="#15803D" strokeWidth={2.8} />}
+                      {isSelected && <Check size={18} color={isDark ? themeColors.accentGreen : '#15803D'} strokeWidth={2.8} />}
                     </Pressable>
                   );
                 })}
@@ -1136,16 +1161,31 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingTop: 14,
     paddingBottom: 13,
+    position: 'relative',
+  },
+  hero3DIllustrationAbsolute: {
+    position: 'absolute',
+    right: 8,
+    top: 4,
+    width: 136,
+    height: 116,
+    zIndex: 1,
+  },
+  hero3DTransferAbsoluteSize: {
+    width: 142,
+    height: 112,
+    right: 8,
+    top: 4,
   },
   heroTopContent: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
     height: 96,
+    zIndex: 2,
   },
   heroLeftCol: {
     flex: 1,
-    paddingRight: 8,
+    paddingRight: 100,
   },
   heroLabel: {
     fontSize: 12,
@@ -1156,35 +1196,43 @@ const styles = StyleSheet.create({
   },
   heroAmountInputRow: {
     flexDirection: 'row',
-    alignItems: 'baseline',
-    flexWrap: 'nowrap',
+    alignItems: 'center',
+    minHeight: 46,
+  },
+  inputMeasureWrap: {
+    position: 'relative',
+    justifyContent: 'center',
+    minHeight: 46,
+  },
+  heroMeasureHiddenText: {
+    fontSize: 32,
+    fontWeight: '800',
+    lineHeight: 38,
+    letterSpacing: -0.3,
+    opacity: 0,
+    padding: 0,
+    margin: 0,
   },
   heroAmountInput: {
-    fontSize: 38,
-    fontWeight: '700',
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    fontSize: 32,
+    fontWeight: '800',
+    lineHeight: 38,
     color: '#FFFFFF',
     padding: 0,
     margin: 0,
-    minWidth: 24,
-    flexShrink: 1,
-    letterSpacing: -0.5,
+    letterSpacing: -0.3,
   },
   heroCurrencyUnit: {
-    fontSize: 30,
-    fontWeight: '700',
+    fontSize: 25,
+    fontWeight: '800',
     color: '#FFFFFF',
-    marginLeft: 5,
+    marginLeft: 6,
     textDecorationLine: 'underline',
-  },
-  hero3DIllustration: {
-    width: 146,
-    height: 118,
-    marginRight: -6,
-    marginTop: -6,
-  },
-  hero3DTransferSize: {
-    width: 154,
-    height: 114,
   },
   presetPillsRow: {
     flexDirection: 'row',

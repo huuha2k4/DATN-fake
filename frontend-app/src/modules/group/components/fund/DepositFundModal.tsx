@@ -1,21 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import {
-  Modal,
-  View,
-  Text,
-  StyleSheet,
-  Pressable,
-  TextInput,
-  ActivityIndicator,
-  KeyboardAvoidingView,
-  Platform,
-  Alert,
-  ScrollView,
-} from 'react-native';
+import { Modal, View, Text, StyleSheet, Pressable, TextInput, ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
+import { AppAlert as Alert } from '../../../../context/DialogContext';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { FinanceIcon } from '../../../core/components/FinanceIcon';
 import type { AccountItem } from '../../../add-transaction/api/transactionApi';
 import { AccountBadge } from '../../../accounts/components/AccountBadge';
+import { useAppTheme } from '../../../../context/ThemeContext';
 
 export interface DepositFundModalProps {
   visible: boolean;
@@ -41,6 +31,7 @@ export const DepositFundModal: React.FC<DepositFundModalProps> = ({
   onSubmit,
 }) => {
   const insets = useSafeAreaInsets();
+  const { isDark, colors: themeColors } = useAppTheme();
   const [amount, setAmount] = useState('');
   const [selectedAccountId, setSelectedAccountId] = useState<string>('');
   const [note, setNote] = useState('');
@@ -94,20 +85,30 @@ export const DepositFundModal: React.FC<DepositFundModalProps> = ({
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
         <Pressable style={styles.backdrop} onPress={onClose} />
-        <View style={[styles.sheet, { paddingBottom: Math.max(insets.bottom, 12), position: 'relative' }]}>
+        <View
+          style={[
+            styles.sheet,
+            { paddingBottom: Math.max(insets.bottom, 12), position: 'relative' },
+            isDark && { backgroundColor: themeColors.surface },
+          ]}
+        >
           {/* Thanh gạch nhỏ kéo modal */}
-          <View style={styles.dragBar} />
+          <View style={[styles.dragBar, isDark && { backgroundColor: themeColors.cardBorder }]} />
 
           {/* Header */}
           <View style={styles.header}>
             <View>
-              <Text style={styles.title}>Nộp quỹ nhóm</Text>
-              <Text style={styles.subtitle}>
+              <Text style={[styles.title, isDark && { color: themeColors.textPrimary }]}>Nộp quỹ nhóm</Text>
+              <Text style={[styles.subtitle, isDark && { color: themeColors.textSecondary }]}>
                 Góp thêm tiền vào quỹ chung {groupName}
               </Text>
             </View>
-            <Pressable onPress={onClose} hitSlop={10} style={styles.closeBtn}>
-              <FinanceIcon name="close" size={16} color="#64748B" />
+            <Pressable
+              onPress={onClose}
+              hitSlop={10}
+              style={[styles.closeBtn, isDark && { backgroundColor: themeColors.surfaceSubtle }]}
+            >
+              <FinanceIcon name="close" size={16} color={isDark ? themeColors.textSecondary : '#64748B'} />
             </Pressable>
           </View>
 
@@ -118,19 +119,45 @@ export const DepositFundModal: React.FC<DepositFundModalProps> = ({
             contentContainerStyle={{ paddingBottom: 20 }}
           >
             {/* Banner tóm tắt số dư hiện tại */}
-            <View style={styles.currentFundBox}>
-              <View style={styles.currentFundIconWrap}>
-                <FinanceIcon name="piggy-bank" size={20} color="#059669" />
+            <View
+              style={[
+                styles.currentFundBox,
+                isDark && {
+                  backgroundColor: 'rgba(16, 185, 129, 0.12)',
+                  borderColor: themeColors.cardBorder,
+                },
+              ]}
+            >
+              <View
+                style={[
+                  styles.currentFundIconWrap,
+                  isDark && { backgroundColor: themeColors.surfaceSubtle },
+                ]}
+              >
+                <FinanceIcon name="piggy-bank" size={20} color={isDark ? themeColors.accentGreen : '#059669'} />
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={styles.currentFundLabel}>Quỹ hiện tại của nhóm</Text>
-                <Text style={styles.currentFundVal}>{formatVND(currentFundAmount)} đ</Text>
+                <Text style={[styles.currentFundLabel, isDark && { color: themeColors.accentGreen }]}>Quỹ hiện tại của nhóm</Text>
+                <Text style={[styles.currentFundVal, isDark && { color: themeColors.accentGreen }]}>{formatVND(currentFundAmount)} đ</Text>
               </View>
             </View>
 
             {/* Ô nhập số tiền lớn hiện đại */}
-            <View style={[styles.amountInputCard, isAmountFocused && styles.amountInputCardFocused]}>
-              <Text style={styles.amountInputLabel}>SỐ TIỀN MUỐN NỘP</Text>
+            <View
+              style={[
+                styles.amountInputCard,
+                isDark && {
+                  backgroundColor: themeColors.surfaceSubtle,
+                  borderColor: themeColors.cardBorder,
+                },
+                isAmountFocused && styles.amountInputCardFocused,
+                isDark && isAmountFocused && {
+                  backgroundColor: 'rgba(16, 185, 129, 0.12)',
+                  borderColor: themeColors.accentGreen,
+                },
+              ]}
+            >
+              <Text style={[styles.amountInputLabel, isDark && { color: themeColors.textSecondary }]}>SỐ TIỀN MUỐN NỘP</Text>
               <View style={styles.amountInputRow}>
                 <TextInput
                   value={
@@ -147,13 +174,16 @@ export const DepositFundModal: React.FC<DepositFundModalProps> = ({
                   }}
                   onBlur={() => setIsAmountFocused(false)}
                   placeholder="0"
-                  placeholderTextColor="#CBD5E1"
-                  cursorColor="#059669"
-                  selectionColor="#059669"
+                  placeholderTextColor={isDark ? '#475569' : '#CBD5E1'}
+                  cursorColor={isDark ? themeColors.accentGreen : '#059669'}
+                  selectionColor={isDark ? themeColors.accentGreen : '#059669'}
                   keyboardType="numeric"
-                  style={styles.amountTextInput}
+                  style={[
+                    styles.amountTextInput,
+                    isDark && { color: themeColors.accentGreen },
+                  ]}
                 />
-                <Text style={styles.amountCurrency}>đ</Text>
+                <Text style={[styles.amountCurrency, isDark && { color: themeColors.accentGreen }]}>đ</Text>
               </View>
 
               {/* Các nút chọn nhanh mức tiền */}
@@ -162,9 +192,15 @@ export const DepositFundModal: React.FC<DepositFundModalProps> = ({
                   <Pressable
                     key={val}
                     onPress={() => handleSelectQuickAmount(val)}
-                    style={styles.quickAmountBtn}
+                    style={[
+                      styles.quickAmountBtn,
+                      isDark && {
+                        backgroundColor: themeColors.surface,
+                        borderColor: themeColors.cardBorder,
+                      },
+                    ]}
                   >
-                    <Text style={styles.quickAmountBtnText}>+{formatVND(val / 1000)}k</Text>
+                    <Text style={[styles.quickAmountBtnText, isDark && { color: themeColors.textPrimary }]}>+{formatVND(val / 1000)}k</Text>
                   </Pressable>
                 ))}
               </View>
@@ -172,26 +208,32 @@ export const DepositFundModal: React.FC<DepositFundModalProps> = ({
 
             {/* Chọn nguồn trích tiền (Thả xuống chuẩn Quản lý nợ) */}
             <View style={styles.sectionBox}>
-              <Text style={styles.sectionLabel}>Nguồn tiền trích</Text>
+              <Text style={[styles.sectionLabel, isDark && { color: themeColors.textSecondary }]}>Nguồn tiền trích</Text>
               {(() => {
                 const selAcc = accounts.find((a) => a.id === selectedAccountId) || accounts[0];
                 return (
                   <Pressable
                     onPress={() => setShowAccountDropdown(true)}
-                    style={styles.dropdownSelectorCard}
+                    style={[
+                      styles.dropdownSelectorCard,
+                      isDark && {
+                        backgroundColor: themeColors.surfaceSubtle,
+                        borderColor: themeColors.cardBorder,
+                      },
+                    ]}
                   >
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 }}>
                       <AccountBadge account={selAcc} size={28} />
                       <View style={{ flex: 1 }}>
-                        <Text style={styles.dropdownTitle} numberOfLines={1}>
+                        <Text style={[styles.dropdownTitle, isDark && { color: themeColors.textPrimary }]} numberOfLines={1}>
                           {selAcc?.name || 'Chọn ví thanh toán'}
                         </Text>
-                        <Text style={styles.dropdownSub}>
-                          Số dư: <Text style={{ color: '#059669', fontWeight: '800' }}>{formatVND(selAcc?.balance || 0)} đ</Text>
+                        <Text style={[styles.dropdownSub, isDark && { color: themeColors.textSecondary }]}>
+                          Số dư: <Text style={{ color: isDark ? themeColors.accentGreen : '#059669', fontWeight: '800' }}>{formatVND(selAcc?.balance || 0)} đ</Text>
                         </Text>
                       </View>
                     </View>
-                    <FinanceIcon name="chevron-down" size={18} color="#059669" />
+                    <FinanceIcon name="chevron-down" size={18} color={isDark ? themeColors.accentGreen : '#059669'} />
                   </Pressable>
                 );
               })()}
@@ -199,13 +241,20 @@ export const DepositFundModal: React.FC<DepositFundModalProps> = ({
 
             {/* Ghi chú */}
             <View style={styles.sectionBox}>
-              <Text style={styles.sectionLabel}>Ghi chú nộp tiền</Text>
+              <Text style={[styles.sectionLabel, isDark && { color: themeColors.textSecondary }]}>Ghi chú nộp tiền</Text>
               <TextInput
                 value={note}
                 onChangeText={setNote}
                 placeholder="VD: Đóng quỹ tháng này, Tiền ăn chung..."
-                placeholderTextColor="#94A3B8"
-                style={styles.noteInput}
+                placeholderTextColor={isDark ? '#64748B' : '#94A3B8'}
+                style={[
+                  styles.noteInput,
+                  isDark && {
+                    backgroundColor: themeColors.surfaceSubtle,
+                    borderColor: themeColors.cardBorder,
+                    color: themeColors.textPrimary,
+                  },
+                ]}
               />
             </View>
 
@@ -213,6 +262,7 @@ export const DepositFundModal: React.FC<DepositFundModalProps> = ({
             <Pressable
               style={({ pressed }) => [
                 styles.submitBtn,
+                isDark && { backgroundColor: '#10B981' },
                 pressed && { opacity: 0.85 },
                 submitting && { opacity: 0.6 },
               ]}
@@ -237,11 +287,25 @@ export const DepositFundModal: React.FC<DepositFundModalProps> = ({
                 style={StyleSheet.absoluteFillObject}
                 onPress={() => setShowAccountDropdown(false)}
               />
-              <View style={styles.pickerModalBox}>
-                <View style={styles.pickerModalHeader}>
-                  <Text style={styles.pickerModalTitle}>Chọn ví thanh toán</Text>
+              <View
+                style={[
+                  styles.pickerModalBox,
+                  isDark && {
+                    backgroundColor: themeColors.surface,
+                    borderColor: themeColors.cardBorder,
+                    borderWidth: 1,
+                  },
+                ]}
+              >
+                <View
+                  style={[
+                    styles.pickerModalHeader,
+                    isDark && { borderBottomColor: themeColors.divider },
+                  ]}
+                >
+                  <Text style={[styles.pickerModalTitle, isDark && { color: themeColors.textPrimary }]}>Chọn ví thanh toán</Text>
                   <Pressable onPress={() => setShowAccountDropdown(false)} hitSlop={10}>
-                    <FinanceIcon name="close" size={18} color="#64748B" />
+                    <FinanceIcon name="close" size={18} color={isDark ? themeColors.textSecondary : '#64748B'} />
                   </Pressable>
                 </View>
 
@@ -255,20 +319,30 @@ export const DepositFundModal: React.FC<DepositFundModalProps> = ({
                           setSelectedAccountId(acc.id);
                           setShowAccountDropdown(false);
                         }}
-                        style={[styles.pickerItemRow, isSelected && styles.pickerItemRowActive]}
+                        style={[
+                          styles.pickerItemRow,
+                          isDark && { borderBottomColor: themeColors.divider },
+                          isSelected && (isDark ? { backgroundColor: themeColors.surfaceSubtle } : styles.pickerItemRowActive),
+                        ]}
                       >
                         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 }}>
                           <AccountBadge account={acc} size={34} />
                           <View style={{ flex: 1 }}>
-                            <Text style={[styles.pickerItemText, isSelected && styles.pickerItemTextActive]}>
+                            <Text
+                              style={[
+                                styles.pickerItemText,
+                                isDark && { color: themeColors.textPrimary },
+                                isSelected && (isDark ? { color: themeColors.accentGreen, fontWeight: '800' } : styles.pickerItemTextActive),
+                              ]}
+                            >
                               {acc.name}
                             </Text>
-                            <Text style={styles.pickerItemSub}>
+                            <Text style={[styles.pickerItemSub, isDark && { color: themeColors.textSecondary }]}>
                               Số dư: {formatVND(acc.balance || 0)} đ
                             </Text>
                           </View>
                         </View>
-                        {isSelected && <FinanceIcon name="check" size={16} color="#059669" />}
+                        {isSelected && <FinanceIcon name="check" size={16} color={isDark ? themeColors.accentGreen : '#059669'} />}
                       </Pressable>
                     );
                   })}
