@@ -20,9 +20,7 @@ public class UpdateProfileRequest {
     @Pattern(regexp = "^[0-9+\\-\\s()]*$", message = "Invalid phone number format")
     private String phone;
     
-    @Size(min = 3, max = 3, message = "Currency code must be exactly 3 characters")
-    @Pattern(regexp = "^[A-Z]{3}$", message = "Currency code must be in ISO 4217 format (e.g., USD, VND)")
-    private String preferredCurrency;
+    // Currency fixed to VND for Vietnam market - removed preferredCurrency field
     
     @Size(max = 50, message = "Timezone must not exceed 50 characters")
     private String timezone;

@@ -14,9 +14,10 @@ import {
 import Svg, { Path } from 'react-native-svg';
 import { Eye, EyeOff, ChevronLeft, AlertTriangle } from 'lucide-react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import { authApi, API_BASE_URL } from '../api/authApi';
+import { authApi } from '../api/authApi';
 import { styles } from './LoginScreen.styles';
 import { ForgotPasswordModal } from '../components/ForgotPasswordModal';
+import { useAppTheme } from '../../../context/ThemeContext';
 
 const heroImage = require('../../../assets/login-hero.jpg');
 
@@ -33,6 +34,7 @@ export function LoginScreen({
   onSwitchToRegister,
   onForgotPassword,
 }: Props) {
+  const { isDark, colors: themeColors } = useAppTheme();
   const [identity, setIdentity] = React.useState('');
   const [password, setPassword] = React.useState('');
   const [showPassword, setShowPassword] = React.useState(false);
@@ -69,27 +71,27 @@ export function LoginScreen({
       });
       onSuccess();
     } catch (err: any) {
-      setError(`[${API_BASE_URL}] ${err?.message || 'Lỗi kết nối máy chủ'}`);
+      setError(err?.message || 'Lỗi kết nối máy chủ');
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <View style={styles.loginPage}>
+    <View style={[styles.loginPage, isDark && { backgroundColor: themeColors.background }]}>
       <SafeAreaView style={styles.flexOne} edges={['bottom']}>
         <KeyboardAvoidingView
           style={styles.flexOne}
           behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         >
           <ScrollView
-            contentContainerStyle={styles.scrollContent}
+            contentContainerStyle={[styles.scrollContent, isDark && { backgroundColor: themeColors.background }]}
             keyboardShouldPersistTaps="handled"
             showsVerticalScrollIndicator={false}
             bounces={false}
           >
             {/* .login-hero: Phần đầu màu xanh */}
-            <View style={[styles.loginHero, { height: heroHeight }]}>
+            <View style={[styles.loginHero, { height: heroHeight }, isDark && { backgroundColor: '#022C22' }]}>
               {/* .login-back: Nút quay lại */}
               <Pressable
                 onPress={onBack}
@@ -115,21 +117,30 @@ export function LoginScreen({
               />
             </View>
 
-            {/* .login-card: Form trắng bo góc */}
-            <View style={[styles.loginCard, { paddingHorizontal: cardPadding }]}>
+            {/* .login-card: Form bo góc */}
+            <View style={[
+              styles.loginCard,
+              { paddingHorizontal: cardPadding },
+              isDark && {
+                backgroundColor: themeColors.surface,
+                borderColor: themeColors.cardBorder,
+                borderTopWidth: 1,
+              },
+            ]}>
               {/* .login-title: Tiêu đề */}
               <Text
                 style={[
                   styles.loginTitle,
                   isSmallScreen && { fontSize: 24 },
+                  isDark && { color: themeColors.textPrimary },
                 ]}
               >
                 Đăng nhập vào{' '}
-                <Text style={styles.loginTitleSpan}>Finora</Text>
+                <Text style={[styles.loginTitleSpan, isDark && { color: themeColors.accentGreen }]}>Finora</Text>
               </Text>
 
               {/* .login-subtitle */}
-              <Text style={styles.loginSubtitle}>
+              <Text style={[styles.loginSubtitle, isDark && { color: themeColors.textSecondary }]}>
                 Truy cập không gian quản lý tài chính và trợ lý AI của bạn.
               </Text>
 
@@ -143,12 +154,17 @@ export function LoginScreen({
 
               {/* Form group: Email / Tên tài khoản */}
               <View style={styles.formGroup}>
-                <Text style={styles.formLabel}>Email hoặc Tên tài khoản</Text>
+                <Text style={[styles.formLabel, isDark && { color: themeColors.textSecondary }]}>Email hoặc Tên tài khoản</Text>
                 <View
                   style={[
                     styles.formInputWrap,
                     { height: inputHeight },
+                    isDark && {
+                      backgroundColor: themeColors.surfaceSubtle,
+                      borderColor: themeColors.cardBorder,
+                    },
                     identityFocused && styles.formInputWrapFocused,
+                    identityFocused && isDark && { borderColor: themeColors.accentGreen },
                   ]}
                 >
                   <TextInput
@@ -163,8 +179,8 @@ export function LoginScreen({
                     autoCorrect={false}
                     keyboardType="email-address"
                     placeholder="nguyenvan@gmail.com"
-                    placeholderTextColor="#9ca3af"
-                    style={styles.formInput}
+                    placeholderTextColor={isDark ? themeColors.textMuted : '#9ca3af'}
+                    style={[styles.formInput, isDark && { color: themeColors.textPrimary }]}
                     returnKeyType="next"
                   />
                 </View>
@@ -173,7 +189,7 @@ export function LoginScreen({
               {/* Form group: Mật khẩu */}
               <View style={styles.formGroup}>
                 <View style={styles.formLabelRow}>
-                  <Text style={styles.formLabel}>Mật khẩu</Text>
+                  <Text style={[styles.formLabel, isDark && { color: themeColors.textSecondary }]}>Mật khẩu</Text>
                   <Pressable
                     onPress={() => {
                       if (onForgotPassword) {
@@ -185,14 +201,19 @@ export function LoginScreen({
                     hitSlop={8}
                     style={styles.forgotBtn}
                   >
-                    <Text style={styles.forgotText}>Quên mật khẩu?</Text>
+                    <Text style={[styles.forgotText, isDark && { color: themeColors.accentGreen }]}>Quên mật khẩu?</Text>
                   </Pressable>
                 </View>
                 <View
                   style={[
                     styles.formInputWrap,
                     { height: inputHeight },
+                    isDark && {
+                      backgroundColor: themeColors.surfaceSubtle,
+                      borderColor: themeColors.cardBorder,
+                    },
                     passwordFocused && styles.formInputWrapFocused,
+                    passwordFocused && isDark && { borderColor: themeColors.accentGreen },
                   ]}
                 >
                   <TextInput
@@ -205,8 +226,8 @@ export function LoginScreen({
                     onBlur={() => setPasswordFocused(false)}
                     secureTextEntry={!showPassword}
                     placeholder="Nhập mật khẩu của bạn"
-                    placeholderTextColor="#9ca3af"
-                    style={styles.formInput}
+                    placeholderTextColor={isDark ? themeColors.textMuted : '#9ca3af'}
+                    style={[styles.formInput, isDark && { color: themeColors.textPrimary }]}
                     returnKeyType="done"
                     onSubmitEditing={handleLogin}
                   />
@@ -218,9 +239,9 @@ export function LoginScreen({
                     accessibilityLabel={showPassword ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'}
                   >
                     {showPassword ? (
-                      <Eye size={20} color="#6b7571" strokeWidth={1.8} />
+                      <Eye size={20} color={isDark ? themeColors.accentGreen : '#6b7571'} strokeWidth={1.8} />
                     ) : (
-                      <EyeOff size={20} color="#8c9c93" strokeWidth={1.8} />
+                      <EyeOff size={20} color={isDark ? themeColors.textSecondary : '#8c9c93'} strokeWidth={1.8} />
                     )}
                   </Pressable>
                 </View>
@@ -232,6 +253,7 @@ export function LoginScreen({
                 disabled={loading}
                 style={({ pressed }) => [
                   styles.loginButton,
+                  isDark && { backgroundColor: themeColors.primaryDark },
                   loading && styles.loginButtonDisabled,
                   pressed && styles.pressed,
                 ]}
@@ -247,9 +269,9 @@ export function LoginScreen({
 
               {/* Divider */}
               <View style={styles.dividerBox}>
-                <View style={styles.dividerLine} />
-                <Text style={styles.dividerText}>HOẶC</Text>
-                <View style={styles.dividerLine} />
+                <View style={[styles.dividerLine, isDark && { backgroundColor: themeColors.cardBorder }]} />
+                <Text style={[styles.dividerText, isDark && { color: themeColors.textSecondary }]}>HOẶC</Text>
+                <View style={[styles.dividerLine, isDark && { backgroundColor: themeColors.cardBorder }]} />
               </View>
 
               {/* .google-button: Nút Google với chuẩn Logo 4 màu sắc nét */}
@@ -257,6 +279,10 @@ export function LoginScreen({
                 onPress={() => {}}
                 style={({ pressed }) => [
                   styles.googleButton,
+                  isDark && {
+                    backgroundColor: themeColors.surfaceSubtle,
+                    borderColor: themeColors.cardBorder,
+                  },
                   pressed && styles.pressed,
                 ]}
                 accessibilityRole="button"
@@ -280,21 +306,21 @@ export function LoginScreen({
                     d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"
                   />
                 </Svg>
-                <Text style={styles.googleButtonText}>Tiếp tục với Google</Text>
+                <Text style={[styles.googleButtonText, isDark && { color: themeColors.textPrimary }]}>Tiếp tục với Google</Text>
               </Pressable>
 
               {/* .login-footer: Chuyển tiếp Đăng ký */}
               <View style={styles.loginFooter}>
-                <Text style={styles.loginFooterText}>
+                <Text style={[styles.loginFooterText, isDark && { color: themeColors.textSecondary }]}>
                   Chưa có tài khoản Finora?{' '}
                   <Text
-                    style={styles.loginFooterLink}
+                    style={[styles.loginFooterLink, isDark && { color: themeColors.accentGreen }]}
                     onPress={onSwitchToRegister}
                   >
                     Đăng ký tài khoản mới
                   </Text>
                 </Text>
-                <Text style={styles.copyrightText}>
+                <Text style={[styles.copyrightText, isDark && { color: themeColors.textMuted }]}>
                   🛡️ 2026 Finora Intelligence · Bảo mật & Riêng tư
                 </Text>
               </View>

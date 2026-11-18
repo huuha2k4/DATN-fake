@@ -1,7 +1,7 @@
+import { AppAlert as Alert } from '../../../context/DialogContext';
 import React, { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   Dimensions,
   Image,
   ImageBackground,
@@ -31,6 +31,7 @@ import {
   type ScheduleType,
   type TransactionType,
 } from '../api/scheduleApi';
+import { useAppTheme } from '../../../context/ThemeContext';
 
 interface RemindersScreenProps {
   onBack: () => void;
@@ -138,6 +139,7 @@ const DAY_OF_WEEKS = ['CN', 'Thứ 2', 'Thứ 3', 'Thứ 4', 'Thứ 5', 'Thứ 6
 
 export function RemindersScreen({ onBack, onNavigateToDebts }: RemindersScreenProps) {
   const insets = useSafeAreaInsets();
+  const { isDark, colors: themeColors } = useAppTheme();
 
   // Tab chính: Lịch tháng vs Danh sách
   const [activeMainTab, setActiveMainTab] = useState<'CALENDAR' | 'LIST'>('CALENDAR');
@@ -295,30 +297,106 @@ export function RemindersScreen({ onBack, onNavigateToDebts }: RemindersScreenPr
     if (Array.isArray(debts)) {
       debts.forEach((debt) => {
         const isLend = debt.debtType === 'LENDING';
-        // Ưu tiên dueDate (ngày hẹn trả), sau đó đến nextPaymentDate và startDate
-        let dDate = debt.dueDate || (debt as any)?.due_date || debt.nextPaymentDate || (debt as any)?.next_payment_date || debt.startDate || (debt as any)?.start_date || '';
-        if (typeof dDate === 'string' && dDate.includes('T')) dDate = dDate.split('T')[0];
-
-        const isMonthly = debt.paymentFrequency === 'MONTHLY';
         const isPaid = debt.status === 'PAID' || debt.status === 'PAID_OFF' || debt.remainingAmount === 0;
-        // Dù đã trả xong hay chưa, giá trị của khoản nợ/thu nợ phải là số tiền gốc (hoặc tiền góp hàng tháng)
-        const debtAmount = isMonthly
-          ? (debt.monthlyPayment || debt.principalAmount || debt.remainingAmount || 0)
-          : (debt.principalAmount || debt.paidAmount || debt.remainingAmount || 0);
-
         const iconName = isLend ? 'lending' : 'borrowing';
+        const partnerName = debt.counterpartyName || debt.creditorName || debt.debtorName || (debt as any)?.creditor_name || (debt as any)?.debtor_name || 'Khoản nợ';
 
-        events.push({
-          id: `debt_${debt.id}`,
-          title: `${isLend ? 'Thu nợ' : 'Trả nợ'}: ${debt.counterpartyName || debt.creditorName || debt.debtorName || (debt as any)?.creditor_name || (debt as any)?.debtor_name || 'Khoản nợ'}`,
-          subtitle: isMonthly ? 'Hàng tháng' : 'Một lần',
-          amount: debtAmount,
-          type: isLend ? 'INCOME' : 'EXPENSE',
-          date: String(dDate),
-          status: isPaid ? 'COMPLETED' : debt.status,
-          icon: iconName,
-          rawItem: debt,
-        });
+        const freq = (debt.paymentFrequency || (debt as any)?.payment_frequency || 'ONE_TIME').toUpperCase();
+        const isPeriodic = freq === 'MONTHLY' || freq === 'WEEKLY' || freq === 'QUARTERLY' || freq === 'BIWEEKLY' || freq === 'YEARLY';
+
+        let startDateStr = debt.startDate || (debt as any)?.start_date || '';
+        if (typeof startDateStr === 'string' && startDateStr.includes('T')) startDateStr = startDateStr.split('T')[0];
+
+        let dueDateStr = debt.dueDate || (debt as any)?.due_date || '';
+        if (typeof dueDateStr === 'string' && dueDateStr.includes('T')) dueDateStr = dueDateStr.split('T')[0];
+
+        let nextPaymentDateStr = debt.nextPaymentDate || (debt as any)?.next_payment_date || '';
+        if (typeof nextPaymentDateStr === 'string' && nextPaymentDateStr.includes('T')) nextPaymentDateStr = nextPaymentDateStr.split('T')[0];
+
+        const periodicAmt = debt.monthlyPayment || debt.paymentAmount || (debt as any)?.monthly_payment || (debt as any)?.payment_amount || (debt.remainingAmount || debt.principalAmount || 0);
+
+        if (isPeriodic) {
+          // Xác định ngày bắt đầu kỳ trả đầu tiên
+          const startPeriodDateStr = nextPaymentDateStr || startDateStr || dueDateStr;
+          if (!startPeriodDateStr) return;
+
+          let subtitleText = 'Hàng tháng';
+          if (freq === 'WEEKLY') subtitleText = 'Hàng tuần';
+          else if (freq === 'QUARTERLY') subtitleText = 'Hàng quý';
+          else if (freq === 'BIWEEKLY') subtitleText = '2 tuần một lần';
+          else if (freq === 'YEARLY') subtitleText = 'Hàng năm';
+
+          // Nếu có dueDate và startPeriodDate, ta có thể sinh chuỗi các kỳ từ startPeriodDate đến dueDate
+          // Hoặc sinh các kỳ hiển thị cho khoảng thời gian hợp lý (tối đa 36 kỳ)
+          const baseDate = new Date(startPeriodDateStr);
+          const limitDate = dueDateStr ? new Date(dueDateStr) : null;
+          let iterDate = new Date(baseDate.getFullYear(), baseDate.getMonth(), baseDate.getDate());
+          let count = 0;
+
+          // Tính số kỳ ước tính nếu có tổng số tiền và tiền mỗi kỳ
+          const maxAllowedPeriods = (periodicAmt > 0 && debt.principalAmount)
+            ? Math.max(1, Math.round(debt.principalAmount / periodicAmt))
+            : 60;
+
+          while (count < maxAllowedPeriods) {
+            // Nếu đã vượt dueDate (nếu có dueDate) thì dừng
+            if (limitDate && iterDate.getTime() > limitDate.getTime()) {
+              break;
+            }
+
+            const yStr = iterDate.getFullYear();
+            const mStr = String(iterDate.getMonth() + 1).padStart(2, '0');
+            const dStr = String(iterDate.getDate()).padStart(2, '0');
+            const currentPeriodDate = `${yStr}-${mStr}-${dStr}`;
+
+            events.push({
+              id: `debt_${debt.id}_p${count}`,
+              title: `${isLend ? 'Thu nợ' : 'Trả nợ'}: ${partnerName} (Kỳ ${count + 1})`,
+              subtitle: subtitleText,
+              amount: periodicAmt,
+              type: isLend ? 'INCOME' : 'EXPENSE',
+              date: currentPeriodDate,
+              status: isPaid ? 'COMPLETED' : debt.status,
+              icon: iconName,
+              rawItem: debt,
+            });
+
+            count++;
+            // Tăng ngày theo tần suất
+            if (freq === 'WEEKLY') {
+              iterDate.setDate(iterDate.getDate() + 7);
+            } else if (freq === 'BIWEEKLY') {
+              iterDate.setDate(iterDate.getDate() + 14);
+            } else if (freq === 'QUARTERLY') {
+              iterDate.setMonth(iterDate.getMonth() + 3);
+            } else if (freq === 'YEARLY') {
+              iterDate.setFullYear(iterDate.getFullYear() + 1);
+            } else {
+              // Mặc định MONTHLY
+              iterDate.setMonth(iterDate.getMonth() + 1);
+            }
+
+            // Nếu không có dueDate thì chỉ sinh 12 kỳ tiếp theo
+            if (!limitDate && count >= 12) break;
+          }
+        } else {
+          // Trả một lần
+          let dDate = dueDateStr || nextPaymentDateStr || startDateStr;
+          if (!dDate) return;
+
+          const debtAmount = debt.principalAmount || debt.remainingAmount || debt.paidAmount || 0;
+          events.push({
+            id: `debt_${debt.id}`,
+            title: `${isLend ? 'Thu nợ' : 'Trả nợ'}: ${partnerName}`,
+            subtitle: 'Một lần',
+            amount: debtAmount,
+            type: isLend ? 'INCOME' : 'EXPENSE',
+            date: String(dDate),
+            status: isPaid ? 'COMPLETED' : debt.status,
+            icon: iconName,
+            rawItem: debt,
+          });
+        }
       });
     }
 
@@ -350,12 +428,18 @@ export function RemindersScreen({ onBack, onNavigateToDebts }: RemindersScreenPr
           const evMonth = parseInt(parts[1], 10);
           const evDay = parseInt(parts[2], 10);
 
-          // Nếu là lịch định kỳ HÀNG THÁNG: chỉ lặp khi ngày trong tháng khớp
-          const isMonthly = (ev.subtitle || '').toLowerCase().includes('hàng tháng') || (ev.subtitle || '').toLowerCase().includes('monthly');
-          if (isMonthly && evDay === dayNum) return true;
+          // Nếu là sự kiện phát sinh từ nợ (đã được tính toán chính xác ngày date theo chuỗi kỳ)
+          const isDebtEvent = ev.id.startsWith('debt_');
+          if (isDebtEvent) {
+            if (evYear === selYear && evMonth === selMonth && evDay === dayNum) return true;
+          } else {
+            // Nếu là lịch định kỳ HÀNG THÁNG từ schedule: chỉ lặp khi ngày trong tháng khớp
+            const isMonthly = (ev.subtitle || '').toLowerCase().includes('hàng tháng') || (ev.subtitle || '').toLowerCase().includes('monthly');
+            if (isMonthly && evDay === dayNum) return true;
 
-          // Nếu là khoản nợ / thanh toán 1 LẦN: bắt buộc phải đúng Năm, Tháng và Ngày
-          if (!isMonthly && evYear === selYear && evMonth === selMonth && evDay === dayNum) return true;
+            // Nếu là sự kiện 1 LẦN: bắt buộc phải đúng Năm, Tháng và Ngày
+            if (!isMonthly && evYear === selYear && evMonth === selMonth && evDay === dayNum) return true;
+          }
         }
 
         // Hoặc kiểm tra qua Date object
@@ -450,10 +534,11 @@ export function RemindersScreen({ onBack, onNavigateToDebts }: RemindersScreenPr
               }
             }
 
-            const isMonthly = (ev.subtitle || '').toLowerCase().includes('hàng tháng') || (ev.subtitle || '').toLowerCase().includes('monthly');
+            const isDebtEvent = ev.id.startsWith('debt_');
+            const isMonthly = !isDebtEvent && ((ev.subtitle || '').toLowerCase().includes('hàng tháng') || (ev.subtitle || '').toLowerCase().includes('monthly'));
             const isMatchMonthYear = evYear === year && evMonth === month;
 
-            // Nếu là hàng tháng thì hiện đúng ngày i; nếu là 1 lần thì bắt buộc phải đúng tháng & năm
+            // Nếu là nợ hoặc 1 lần thì bắt buộc phải đúng tháng & năm; nếu là lịch hàng tháng thì hiện đúng ngày i
             if ((isMonthly && evDay === i) || (!isMonthly && isMatchMonthYear && evDay === i)) {
               if (ev.type === 'INCOME') hasIncome = true;
               else if (ev.type === 'EXPENSE') hasExpense = true;
@@ -715,21 +800,21 @@ export function RemindersScreen({ onBack, onNavigateToDebts }: RemindersScreenPr
   };
 
   return (
-    <View style={styles.screen}>
-      <StatusBar barStyle="dark-content" backgroundColor="#FAFCFB" />
+    <View style={[styles.screen, isDark && { backgroundColor: themeColors.background }]}>
+      <StatusBar barStyle={isDark ? "light-content" : "dark-content"} backgroundColor={isDark ? themeColors.background : "#FAFCFB"} />
 
       {/* TOP HEADER: Tiêu đề lệch trái + Nút Thêm lịch bên phải */}
-      <View style={[styles.headerContainer, { paddingTop: Math.max(insets.top + 6, 16) }]}>
+      <View style={[styles.headerContainer, { paddingTop: Math.max(insets.top + 6, 16) }, isDark && { backgroundColor: themeColors.background }]}>
         <Pressable
           onPress={onBack}
-          style={styles.headerIconButton}
+          style={[styles.headerIconButton, isDark && { backgroundColor: themeColors.surfaceSubtle }]}
           hitSlop={12}
           accessibilityLabel="Quay lại"
         >
-          <FinanceIcon name="chevron-left" size={24} color="#0F172A" />
+          <FinanceIcon name="chevron-left" size={24} color={isDark ? themeColors.textPrimary : "#0F172A"} />
         </Pressable>
 
-        <Text style={styles.headerTitleLeft}>Lịch tài chính</Text>
+        <Text style={[styles.headerTitleLeft, isDark && { color: themeColors.textPrimary }]}>Lịch tài chính</Text>
 
         <Pressable
           onPress={() => {
@@ -751,21 +836,27 @@ export function RemindersScreen({ onBack, onNavigateToDebts }: RemindersScreenPr
       </View>
 
       {/* TAB SELECTOR (Lịch tháng vs Danh sách) */}
-      <View style={styles.tabBarWrapper}>
-        <View style={styles.tabBarPill}>
+      <View style={[styles.tabBarWrapper, isDark && { backgroundColor: themeColors.background }]}>
+        <View style={[styles.tabBarPill, isDark && { backgroundColor: themeColors.surfaceSubtle, borderColor: themeColors.cardBorder, borderWidth: 1 }]}>
           <Pressable
-            style={[styles.tabButton, activeMainTab === 'CALENDAR' && styles.tabButtonActive]}
+            style={[
+              styles.tabButton,
+              activeMainTab === 'CALENDAR' && styles.tabButtonActive,
+              activeMainTab === 'CALENDAR' && isDark && { backgroundColor: themeColors.surface, shadowOpacity: 0 },
+            ]}
             onPress={() => setActiveMainTab('CALENDAR')}
           >
             <FinanceIcon
               name="calendar"
               size={18}
-              color={activeMainTab === 'CALENDAR' ? '#0F172A' : '#64748B'}
+              color={activeMainTab === 'CALENDAR' ? (isDark ? themeColors.textPrimary : '#0F172A') : (isDark ? themeColors.textMuted : '#64748B')}
             />
             <Text
               style={[
                 styles.tabButtonText,
+                isDark && { color: themeColors.textSecondary },
                 activeMainTab === 'CALENDAR' && styles.tabButtonTextActive,
+                activeMainTab === 'CALENDAR' && isDark && { color: themeColors.textPrimary },
               ]}
             >
               Lịch tháng
@@ -773,18 +864,22 @@ export function RemindersScreen({ onBack, onNavigateToDebts }: RemindersScreenPr
           </Pressable>
 
           <Pressable
-            style={[styles.tabButton, activeMainTab === 'LIST' && styles.tabButtonActiveDark]}
+            style={[
+              styles.tabButton,
+              activeMainTab === 'LIST' && (isDark ? { backgroundColor: themeColors.surface, shadowOpacity: 0 } : styles.tabButtonActiveDark),
+            ]}
             onPress={() => setActiveMainTab('LIST')}
           >
             <FinanceIcon
               name="grid"
               size={18}
-              color={activeMainTab === 'LIST' ? '#FFFFFF' : '#64748B'}
+              color={activeMainTab === 'LIST' ? (isDark ? themeColors.textPrimary : '#FFFFFF') : (isDark ? themeColors.textMuted : '#64748B')}
             />
             <Text
               style={[
                 styles.tabButtonText,
-                activeMainTab === 'LIST' && styles.tabButtonTextActiveDark,
+                isDark && { color: themeColors.textSecondary },
+                activeMainTab === 'LIST' && (isDark ? { color: themeColors.textPrimary } : styles.tabButtonTextActiveDark),
               ]}
             >
               Danh sách
@@ -795,16 +890,16 @@ export function RemindersScreen({ onBack, onNavigateToDebts }: RemindersScreenPr
 
       {/* NỘI DUNG CHÍNH */}
       {loading ? (
-        <View style={styles.centerLoading}>
-          <ActivityIndicator size="large" color="#00875A" />
-          <Text style={styles.loadingText}>Đang tải lịch tài chính...</Text>
+        <View style={[styles.centerLoading, isDark && { backgroundColor: themeColors.background }]}>
+          <ActivityIndicator size="large" color={themeColors.accentGreen} />
+          <Text style={[styles.loadingText, isDark && { color: themeColors.textSecondary }]}>Đang tải lịch tài chính...</Text>
         </View>
       ) : (
         <ScrollView
-          style={styles.scrollContent}
+          style={[styles.scrollContent, isDark && { backgroundColor: themeColors.background }]}
           contentContainerStyle={{ paddingBottom: insets.bottom + 100 }}
           showsVerticalScrollIndicator={false}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={isDark ? themeColors.accentGreen : undefined} />}
         >
           {/* 4 CARD THỐNG KÊ TỔNG QUAN (Chỉ hiển thị ở tab Danh sách định kỳ) */}
           {activeMainTab === 'LIST' && (
@@ -813,21 +908,21 @@ export function RemindersScreen({ onBack, onNavigateToDebts }: RemindersScreenPr
                 {/* Hàng 1: Đang theo dõi + Dòng tiền dự kiến */}
                 <View style={styles.summaryGridRow}>
                   {/* Card 1: Số lịch */}
-                  <View style={[styles.statCardGrid, { backgroundColor: '#F0F9FF' }]}>
+                  <View style={[styles.statCardGrid, { backgroundColor: isDark ? 'rgba(2, 132, 199, 0.12)' : '#F0F9FF', borderColor: isDark ? themeColors.cardBorder : '#E0F2FE' }]}>
                     <View style={styles.statCardHeader}>
-                      <FinanceIcon name="calendar" size={18} color="#0284C7" />
-                      <Text style={styles.statCardLabel}>Đang theo dõi</Text>
+                      <FinanceIcon name="calendar" size={18} color="#38BDF8" />
+                      <Text style={[styles.statCardLabel, isDark && { color: themeColors.textSecondary }]}>Đang theo dõi</Text>
                     </View>
-                    <Text style={styles.statCardNumber}>{stats.count} lịch</Text>
+                    <Text style={[styles.statCardNumber, isDark && { color: themeColors.textPrimary }]}>{stats.count} lịch</Text>
                   </View>
 
-                  {/* Card 2: Dòng tiền dự kiến (Nền tím pastel nhẹ, chữ tím thanh lịch) */}
-                  <View style={[styles.statCardGrid, { backgroundColor: '#FAF5FF', borderColor: '#F3E8FF' }]}>
+                  {/* Card 2: Dòng tiền dự kiến */}
+                  <View style={[styles.statCardGrid, { backgroundColor: isDark ? 'rgba(147, 51, 234, 0.12)' : '#FAF5FF', borderColor: isDark ? themeColors.cardBorder : '#F3E8FF' }]}>
                     <View style={styles.statCardHeader}>
-                      <FinanceIcon name="spark" size={18} color="#9333EA" />
-                      <Text style={styles.statCardLabel}>Dòng tiền dự kiến</Text>
+                      <FinanceIcon name="spark" size={18} color="#C084FC" />
+                      <Text style={[styles.statCardLabel, isDark && { color: themeColors.textSecondary }]}>Dòng tiền dự kiến</Text>
                     </View>
-                    <Text style={[styles.statCardNumber, { color: stats.cashflow >= 0 ? '#9333EA' : '#DC2626' }]} numberOfLines={1}>
+                    <Text style={[styles.statCardNumber, { color: stats.cashflow >= 0 ? (isDark ? '#C084FC' : '#9333EA') : '#F87171' }]} numberOfLines={1}>
                       {stats.cashflow >= 0 ? '+' : ''}{formatVND(stats.cashflow)}
                     </Text>
                   </View>
@@ -836,23 +931,23 @@ export function RemindersScreen({ onBack, onNavigateToDebts }: RemindersScreenPr
                 {/* Hàng 2: Thu nhập dự kiến + Chi tiêu cố định */}
                 <View style={styles.summaryGridRow}>
                   {/* Card 3: Thu nhập dự kiến */}
-                  <View style={[styles.statCardGrid, { backgroundColor: '#F0FDF4' }]}>
+                  <View style={[styles.statCardGrid, { backgroundColor: isDark ? 'rgba(16, 185, 129, 0.12)' : '#F0FDF4', borderColor: isDark ? themeColors.cardBorder : '#DCFCE7' }]}>
                     <View style={styles.statCardHeader}>
-                      <FinanceIcon name="arrow-up" size={18} color="#10B981" />
-                      <Text style={styles.statCardLabel}>Thu nhập dự kiến</Text>
+                      <FinanceIcon name="arrow-up" size={18} color="#34D399" />
+                      <Text style={[styles.statCardLabel, isDark && { color: themeColors.textSecondary }]}>Thu nhập dự kiến</Text>
                     </View>
-                    <Text style={[styles.statCardNumber, { color: '#059669' }]} numberOfLines={1}>
+                    <Text style={[styles.statCardNumber, { color: isDark ? '#34D399' : '#059669' }]} numberOfLines={1}>
                       +{formatVND(stats.income)}
                     </Text>
                   </View>
 
                   {/* Card 4: Chi tiêu cố định */}
-                  <View style={[styles.statCardGrid, { backgroundColor: '#FEF2F2' }]}>
+                  <View style={[styles.statCardGrid, { backgroundColor: isDark ? 'rgba(239, 68, 68, 0.12)' : '#FEF2F2', borderColor: isDark ? themeColors.cardBorder : '#FEE2E2' }]}>
                     <View style={styles.statCardHeader}>
-                      <FinanceIcon name="arrow-down" size={18} color="#EF4444" />
-                      <Text style={styles.statCardLabel}>Chi tiêu cố định</Text>
+                      <FinanceIcon name="arrow-down" size={18} color="#F87171" />
+                      <Text style={[styles.statCardLabel, isDark && { color: themeColors.textSecondary }]}>Chi tiêu cố định</Text>
                     </View>
-                    <Text style={[styles.statCardNumber, { color: '#DC2626' }]} numberOfLines={1}>
+                    <Text style={[styles.statCardNumber, { color: isDark ? '#F87171' : '#DC2626' }]} numberOfLines={1}>
                       -{formatVND(stats.expense)}
                     </Text>
                   </View>
@@ -888,28 +983,28 @@ export function RemindersScreen({ onBack, onNavigateToDebts }: RemindersScreenPr
               </ImageBackground>
 
               {/* CARD CALENDAR VIEW */}
-              <View style={styles.calendarCard}>
+              <View style={[styles.calendarCard, isDark && { backgroundColor: themeColors.surface, borderColor: themeColors.cardBorder }]}>
                 {/* Thanh chuyển tháng */}
                 <View style={styles.monthSelectorRow}>
-                  <Pressable onPress={prevMonth} hitSlop={12} style={styles.monthNavBtn}>
-                    <FinanceIcon name="chevron-left" size={20} color="#334155" />
+                  <Pressable onPress={prevMonth} hitSlop={12} style={[styles.monthNavBtn, isDark && { backgroundColor: themeColors.surfaceSubtle }]}>
+                    <FinanceIcon name="chevron-left" size={20} color={isDark ? themeColors.textPrimary : "#334155"} />
                   </Pressable>
 
                   <View style={styles.monthDisplayWrap}>
-                    <Text style={styles.monthYearTitle}>
+                    <Text style={[styles.monthYearTitle, isDark && { color: themeColors.textPrimary }]}>
                       {MONTH_NAMES[currentDate.getMonth()]}, {currentDate.getFullYear()}
                     </Text>
                   </View>
 
-                  <Pressable onPress={nextMonth} hitSlop={12} style={styles.monthNavBtn}>
-                    <FinanceIcon name="chevron-right" size={20} color="#334155" />
+                  <Pressable onPress={nextMonth} hitSlop={12} style={[styles.monthNavBtn, isDark && { backgroundColor: themeColors.surfaceSubtle }]}>
+                    <FinanceIcon name="chevron-right" size={20} color={isDark ? themeColors.textPrimary : "#334155"} />
                   </Pressable>
                 </View>
 
                 {/* Thứ trong tuần */}
-                <View style={styles.weekDaysHeader}>
+                <View style={[styles.weekDaysHeader, isDark && { borderBottomColor: themeColors.cardBorder }]}>
                   {['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'].map((w, idx) => (
-                    <Text key={idx} style={styles.weekDayText}>
+                    <Text key={idx} style={[styles.weekDayText, isDark && { color: themeColors.textMuted }]}>
                       {w}
                     </Text>
                   ))}
@@ -925,14 +1020,16 @@ export function RemindersScreen({ onBack, onNavigateToDebts }: RemindersScreenPr
                         style={[
                           styles.dayCell,
                           item.isSelected && styles.dayCellSelected,
+                          item.isToday && !item.isSelected && isDark && { backgroundColor: themeColors.surfaceSubtle, borderRadius: 10 },
                         ]}
                       >
                         <Text
                           style={[
                             styles.dayNumberText,
-                            !item.isCurrentMonth && styles.dayNumberDimmed,
+                            isDark && { color: themeColors.textPrimary },
+                            !item.isCurrentMonth && (isDark ? { color: 'rgba(255, 255, 255, 0.2)' } : styles.dayNumberDimmed),
                             item.isSelected && styles.dayNumberSelected,
-                            item.isToday && !item.isSelected && styles.dayNumberToday,
+                            item.isToday && !item.isSelected && (isDark ? { color: themeColors.accentGreen, fontWeight: '800' } : styles.dayNumberToday),
                           ]}
                         >
                           {item.dayNumber}
@@ -971,18 +1068,18 @@ export function RemindersScreen({ onBack, onNavigateToDebts }: RemindersScreenPr
                 </View>
 
                 {/* Ghi chú màu (Legend) */}
-                <View style={styles.legendRow}>
+                <View style={[styles.legendRow, isDark && { borderTopColor: themeColors.cardBorder }]}>
                   <View style={styles.legendItem}>
                     <View style={[styles.legendDot, { backgroundColor: '#10B981' }]} />
-                    <Text style={styles.legendText}>Thu nhập</Text>
+                    <Text style={[styles.legendText, isDark && { color: themeColors.textSecondary }]}>Thu nhập</Text>
                   </View>
                   <View style={styles.legendItem}>
                     <View style={[styles.legendDot, { backgroundColor: '#EF4444' }]} />
-                    <Text style={styles.legendText}>Chi tiêu / Hóa đơn</Text>
+                    <Text style={[styles.legendText, isDark && { color: themeColors.textSecondary }]}>Chi tiêu / Hóa đơn</Text>
                   </View>
                   <View style={styles.legendItem}>
                     <View style={[styles.legendDot, { backgroundColor: '#F59E0B' }]} />
-                    <Text style={styles.legendText}>Sự kiện / Mục tiêu</Text>
+                    <Text style={[styles.legendText, isDark && { color: themeColors.textSecondary }]}>Sự kiện / Mục tiêu</Text>
                   </View>
                 </View>
               </View>
@@ -990,30 +1087,44 @@ export function RemindersScreen({ onBack, onNavigateToDebts }: RemindersScreenPr
               {/* DANH SÁCH SỰ KIỆN TRONG NGÀY */}
               <View style={styles.dayEventsSection}>
                 <View style={styles.dayEventsHeaderRow}>
-                  <Text style={styles.dayEventsTitle}>Các sự kiện trong ngày</Text>
-                  <Text style={styles.dayEventsDateSub}>{formatDayTitle(selectedDay)}</Text>
+                  <Text style={[styles.dayEventsTitle, isDark && { color: themeColors.textPrimary }]}>Các sự kiện trong ngày</Text>
+                  <Text style={[styles.dayEventsDateSub, isDark && { color: themeColors.textSecondary }]}>{formatDayTitle(selectedDay)}</Text>
                 </View>
 
                 {eventsOnSelectedDay.length === 0 ? (
-                  <View style={styles.emptyDayWrap}>
-                    <FinanceIcon name="calendar" size={40} color="#94A3B8" />
-                    <Text style={styles.emptyDayTitle}>Không có lịch nào cho ngày này</Text>
-                    <Text style={styles.emptyDaySub}>Bấm "+ Thêm sự kiện" bên dưới để tạo mới.</Text>
+                  <View style={[styles.emptyDayWrap, isDark && { backgroundColor: themeColors.surface, borderColor: themeColors.cardBorder }]}>
+                    <FinanceIcon name="calendar" size={40} color={isDark ? themeColors.textMuted : "#94A3B8"} />
+                    <Text style={[styles.emptyDayTitle, isDark && { color: themeColors.textPrimary }]}>Không có lịch nào cho ngày này</Text>
+                    <Text style={[styles.emptyDaySub, isDark && { color: themeColors.textSecondary }]}>Bấm "+ Thêm sự kiện" bên dưới để tạo mới.</Text>
                   </View>
                 ) : (
                   <View style={styles.dayEventsList}>
                     {eventsOnSelectedDay.map((ev) => {
                       const isIncome = ev.type === 'INCOME';
                       const isGoal = ev.type === 'GOAL';
-                      const bgCard = isIncome ? '#ECFDF5' : isGoal ? '#FFFBEB' : '#FEF2F2';
-                      const iconBg = isIncome ? '#D1FAE5' : isGoal ? '#FEF3C7' : '#FEE2E2';
-                      const iconColor = isIncome ? '#059669' : isGoal ? '#D97706' : '#DC2626';
-                      const amountColor = isIncome ? '#059669' : '#DC2626';
+                      const bgCard = isDark
+                        ? (isIncome ? 'rgba(16, 185, 129, 0.12)' : isGoal ? 'rgba(245, 158, 11, 0.12)' : 'rgba(239, 68, 68, 0.12)')
+                        : (isIncome ? '#ECFDF5' : isGoal ? '#FFFBEB' : '#FEF2F2');
+                      const iconBg = isDark
+                        ? (isIncome ? 'rgba(16, 185, 129, 0.22)' : isGoal ? 'rgba(245, 158, 11, 0.22)' : 'rgba(239, 68, 68, 0.22)')
+                        : (isIncome ? '#D1FAE5' : isGoal ? '#FEF3C7' : '#FEE2E2');
+                      const iconColor = isDark
+                        ? (isIncome ? '#34D399' : isGoal ? '#FBBF24' : '#F87171')
+                        : (isIncome ? '#059669' : isGoal ? '#D97706' : '#DC2626');
+                      const amountColor = isDark
+                        ? (isIncome ? '#34D399' : '#F87171')
+                        : (isIncome ? '#059669' : '#DC2626');
+                      const cardBorderColor = isDark
+                        ? (isIncome ? 'rgba(52, 211, 153, 0.35)' : isGoal ? 'rgba(251, 191, 36, 0.35)' : 'rgba(239, 68, 68, 0.4)')
+                        : (isIncome ? '#A7F3D0' : isGoal ? '#FDE68A' : '#FECACA');
 
                       return (
                         <Pressable
                           key={ev.id}
-                          style={[styles.eventCard, { backgroundColor: bgCard }]}
+                          style={[
+                            styles.eventCard,
+                            { backgroundColor: bgCard, borderColor: cardBorderColor, borderWidth: 1 },
+                          ]}
                           onPress={() => setSelectedDetailItem(ev)}
                         >
                           <View style={[styles.eventIconBox, { backgroundColor: iconBg }]}>
@@ -1025,10 +1136,10 @@ export function RemindersScreen({ onBack, onNavigateToDebts }: RemindersScreenPr
                           </View>
 
                           <View style={styles.eventInfoBox}>
-                            <Text style={styles.eventTitle}>
+                            <Text style={[styles.eventTitle, isDark && { color: themeColors.textPrimary }]}>
                               {ev.title}
                             </Text>
-                            <Text style={styles.eventSubtitle}>
+                            <Text style={[styles.eventSubtitle, isDark && { color: themeColors.textSecondary }]}>
                               {ev.subtitle}
                             </Text>
                           </View>
@@ -1062,18 +1173,30 @@ export function RemindersScreen({ onBack, onNavigateToDebts }: RemindersScreenPr
                 contentContainerStyle={styles.filterChipsRow}
               >
                 <Pressable
-                  style={[styles.chipButton, listFilter === 'ALL' && styles.chipButtonActive]}
+                  style={[
+                    styles.chipButton,
+                    isDark && { backgroundColor: themeColors.surfaceSubtle, borderColor: themeColors.cardBorder },
+                    listFilter === 'ALL' && styles.chipButtonActive,
+                  ]}
                   onPress={() => setListFilter('ALL')}
                 >
                   <Text
-                    style={[styles.chipText, listFilter === 'ALL' && styles.chipTextActive]}
+                    style={[
+                      styles.chipText,
+                      isDark && { color: themeColors.textSecondary },
+                      listFilter === 'ALL' && styles.chipTextActive,
+                    ]}
                   >
                     Tất cả
                   </Text>
                 </Pressable>
 
                 <Pressable
-                  style={[styles.chipButton, listFilter === 'INCOME' && styles.chipButtonActive]}
+                  style={[
+                    styles.chipButton,
+                    isDark && { backgroundColor: themeColors.surfaceSubtle, borderColor: themeColors.cardBorder },
+                    listFilter === 'INCOME' && styles.chipButtonActive,
+                  ]}
                   onPress={() => setListFilter('INCOME')}
                 >
                   <FinanceIcon
@@ -1082,14 +1205,22 @@ export function RemindersScreen({ onBack, onNavigateToDebts }: RemindersScreenPr
                     color={listFilter === 'INCOME' ? '#FFFFFF' : '#10B981'}
                   />
                   <Text
-                    style={[styles.chipText, listFilter === 'INCOME' && styles.chipTextActive]}
+                    style={[
+                      styles.chipText,
+                      isDark && { color: themeColors.textSecondary },
+                      listFilter === 'INCOME' && styles.chipTextActive,
+                    ]}
                   >
                     Thu nhập
                   </Text>
                 </Pressable>
 
                 <Pressable
-                  style={[styles.chipButton, listFilter === 'EXPENSE' && styles.chipButtonActive]}
+                  style={[
+                    styles.chipButton,
+                    isDark && { backgroundColor: themeColors.surfaceSubtle, borderColor: themeColors.cardBorder },
+                    listFilter === 'EXPENSE' && styles.chipButtonActive,
+                  ]}
                   onPress={() => setListFilter('EXPENSE')}
                 >
                   <FinanceIcon
@@ -1098,14 +1229,22 @@ export function RemindersScreen({ onBack, onNavigateToDebts }: RemindersScreenPr
                     color={listFilter === 'EXPENSE' ? '#FFFFFF' : '#EF4444'}
                   />
                   <Text
-                    style={[styles.chipText, listFilter === 'EXPENSE' && styles.chipTextActive]}
+                    style={[
+                      styles.chipText,
+                      isDark && { color: themeColors.textSecondary },
+                      listFilter === 'EXPENSE' && styles.chipTextActive,
+                    ]}
                   >
                     Chi tiêu
                   </Text>
                 </Pressable>
 
                 <Pressable
-                  style={[styles.chipButton, listFilter === 'GOAL' && styles.chipButtonActive]}
+                  style={[
+                    styles.chipButton,
+                    isDark && { backgroundColor: themeColors.surfaceSubtle, borderColor: themeColors.cardBorder },
+                    listFilter === 'GOAL' && styles.chipButtonActive,
+                  ]}
                   onPress={() => setListFilter('GOAL')}
                 >
                   <FinanceIcon
@@ -1114,14 +1253,22 @@ export function RemindersScreen({ onBack, onNavigateToDebts }: RemindersScreenPr
                     color={listFilter === 'GOAL' ? '#FFFFFF' : '#A855F7'}
                   />
                   <Text
-                    style={[styles.chipText, listFilter === 'GOAL' && styles.chipTextActive]}
+                    style={[
+                      styles.chipText,
+                      isDark && { color: themeColors.textSecondary },
+                      listFilter === 'GOAL' && styles.chipTextActive,
+                    ]}
                   >
                     Mục tiêu
                   </Text>
                 </Pressable>
 
                 <Pressable
-                  style={[styles.chipButton, listFilter === 'REMINDER' && styles.chipButtonActive]}
+                  style={[
+                    styles.chipButton,
+                    isDark && { backgroundColor: themeColors.surfaceSubtle, borderColor: themeColors.cardBorder },
+                    listFilter === 'REMINDER' && styles.chipButtonActive,
+                  ]}
                   onPress={() => setListFilter('REMINDER')}
                 >
                   <FinanceIcon
@@ -1130,7 +1277,11 @@ export function RemindersScreen({ onBack, onNavigateToDebts }: RemindersScreenPr
                     color={listFilter === 'REMINDER' ? '#FFFFFF' : '#F59E0B'}
                   />
                   <Text
-                    style={[styles.chipText, listFilter === 'REMINDER' && styles.chipTextActive]}
+                    style={[
+                      styles.chipText,
+                      isDark && { color: themeColors.textSecondary },
+                      listFilter === 'REMINDER' && styles.chipTextActive,
+                    ]}
                   >
                     Nhắc hẹn
                   </Text>
@@ -1139,31 +1290,31 @@ export function RemindersScreen({ onBack, onNavigateToDebts }: RemindersScreenPr
 
               {/* HEADER DANH SÁCH ĐỊNH KỲ + BỘ LỌC THEO THÁNG */}
               <View style={styles.listSectionHeader}>
-                <Text style={styles.listSectionTitle}>
+                <Text style={[styles.listSectionTitle, isDark && { color: themeColors.textPrimary }]}>
                   Danh sách lịch định kỳ
                 </Text>
 
                 <Pressable
-                  style={styles.monthFilterButton}
+                  style={[styles.monthFilterButton, isDark && { backgroundColor: themeColors.surface, borderColor: themeColors.cardBorder }]}
                   onPress={() => setShowMonthPickerModal(true)}
                 >
-                  <FinanceIcon name="calendar" size={14} color="#00875A" />
-                  <Text style={styles.monthFilterText}>
+                  <FinanceIcon name="calendar" size={14} color={isDark ? themeColors.accentGreen : "#00875A"} />
+                  <Text style={[styles.monthFilterText, isDark && { color: themeColors.textPrimary }]}>
                     {(() => {
                       const parts = listSelectedMonth.split('-');
                       return `Tháng ${parts[1]}/${parts[0]}`;
                     })()}
                   </Text>
-                  <FinanceIcon name="chevron-down" size={14} color="#64748B" />
+                  <FinanceIcon name="chevron-down" size={14} color={isDark ? themeColors.textMuted : "#64748B"} />
                 </Pressable>
               </View>
 
               {/* ITEMS DANH SÁCH */}
               {filteredList.length === 0 ? (
-                <View style={styles.emptyDayWrap}>
-                  <FinanceIcon name="bell" size={40} color="#94A3B8" />
-                  <Text style={styles.emptyDayTitle}>Chưa có lịch định kỳ nào</Text>
-                  <Text style={styles.emptyDaySub}>
+                <View style={[styles.emptyDayWrap, isDark && { backgroundColor: themeColors.surface, borderColor: themeColors.cardBorder }]}>
+                  <FinanceIcon name="bell" size={40} color={isDark ? themeColors.textMuted : "#94A3B8"} />
+                  <Text style={[styles.emptyDayTitle, isDark && { color: themeColors.textPrimary }]}>Chưa có lịch định kỳ nào</Text>
+                  <Text style={[styles.emptyDaySub, isDark && { color: themeColors.textSecondary }]}>
                     Bấm "+ Thêm lịch mới" để lên kế hoạch thu chi định kỳ.
                   </Text>
                 </View>
@@ -1173,9 +1324,6 @@ export function RemindersScreen({ onBack, onNavigateToDebts }: RemindersScreenPr
                     const isIncome = item.type === 'INCOME';
 
                     // Tính trạng thái theo tháng đang xem:
-                    // Đã hoàn thành khi:
-                    // 1. Khoản nợ/sự kiện 1 lần đã thanh toán xong (PAID, PAID_OFF, COMPLETED)
-                    // 2. HOẶC trong tháng đang xem (listSelectedMonth), ngày diễn ra đã trôi qua so với hôm nay
                     const isMonthly =
                       (item.subtitle || '').toLowerCase().includes('hàng tháng') ||
                       (item.subtitle || '').toLowerCase().includes('monthly');
@@ -1199,26 +1347,31 @@ export function RemindersScreen({ onBack, onNavigateToDebts }: RemindersScreenPr
                     const isPaidOffDebt = item.status === 'COMPLETED' || item.status === 'PAID' || item.status === 'PAID_OFF';
                     const isCompleted = isPaidOffDebt || Boolean(isPast);
 
+                    const iconBg = isDark
+                      ? (item.type === 'INCOME'
+                          ? 'rgba(16, 185, 129, 0.16)'
+                          : item.type === 'REMINDER'
+                            ? 'rgba(245, 158, 11, 0.16)'
+                            : 'rgba(239, 68, 68, 0.16)')
+                      : (item.type === 'INCOME'
+                          ? '#ECFDF5'
+                          : item.type === 'REMINDER'
+                            ? '#FFF8E6'
+                            : (item.icon === 'borrowing' || item.icon === 'lending')
+                              ? '#FEF2F2'
+                              : '#F8FAFC');
+
                     return (
                       <Pressable
                         key={item.id}
-                        style={styles.recurringItemCard}
+                        style={[styles.recurringItemCard, isDark && { backgroundColor: themeColors.surface, borderColor: themeColors.cardBorder }]}
                         onPress={() => setSelectedDetailItem(item)}
                       >
                         {/* Icon nhận diện trực quan theo loại sự kiện */}
                         <View
                           style={[
                             styles.recurringIconBox,
-                            {
-                              backgroundColor:
-                                item.type === 'INCOME'
-                                  ? '#ECFDF5'
-                                  : item.type === 'REMINDER'
-                                    ? '#FFF8E6'
-                                    : (item.icon === 'borrowing' || item.icon === 'lending')
-                                      ? '#FEF2F2'
-                                      : '#F8FAFC',
-                            },
+                            { backgroundColor: iconBg },
                           ]}
                         >
                           <FinanceIcon
@@ -1226,10 +1379,10 @@ export function RemindersScreen({ onBack, onNavigateToDebts }: RemindersScreenPr
                             size={20}
                             color={
                               item.type === 'INCOME'
-                                ? '#059669'
+                                ? (isDark ? '#34D399' : '#059669')
                                 : item.type === 'REMINDER'
-                                  ? '#D97706'
-                                  : '#DC2626'
+                                  ? (isDark ? '#FBBF24' : '#D97706')
+                                  : (isDark ? '#F87171' : '#DC2626')
                             }
                           />
                         </View>
@@ -1237,14 +1390,14 @@ export function RemindersScreen({ onBack, onNavigateToDebts }: RemindersScreenPr
                         {/* Thông tin chính */}
                         <View style={styles.recurringMainInfo}>
                           <View style={styles.recurringTitleRow}>
-                            <Text style={styles.recurringTitle}>
+                            <Text style={[styles.recurringTitle, isDark && { color: themeColors.textPrimary }]}>
                               {item.title}
                             </Text>
                           </View>
 
                           <View style={styles.recurringMetaRow}>
-                            <Text style={styles.recurringSubtitle}>{item.subtitle}</Text>
-                            <Text style={styles.recurringDot}>•</Text>
+                            <Text style={[styles.recurringSubtitle, isDark && { color: themeColors.textSecondary }]}>{item.subtitle}</Text>
+                            <Text style={[styles.recurringDot, isDark && { color: themeColors.textMuted }]}>•</Text>
                             {(() => {
                               if (isMonthly) {
                                 let dayDisplay = 'Hàng tháng';
@@ -1256,16 +1409,16 @@ export function RemindersScreen({ onBack, onNavigateToDebts }: RemindersScreenPr
                                   }
                                 }
                                 return (
-                                  <Text style={styles.recurringNextDate}>
-                                    Kế tiếp: <Text style={{ fontWeight: '700' }}>{dayDisplay}</Text>
+                                  <Text style={[styles.recurringNextDate, isDark && { color: themeColors.textSecondary }]}>
+                                    Kế tiếp: <Text style={{ fontWeight: '700', color: isDark ? themeColors.textPrimary : undefined }}>{dayDisplay}</Text>
                                   </Text>
                                 );
                               }
 
                               // Khoản nợ hoặc giao dịch 1 lần
                               return (
-                                <Text style={styles.recurringNextDate}>
-                                  Ngày: <Text style={{ fontWeight: '700' }}>{formatDDMMYYYY(item.date) || '—'}</Text>
+                                <Text style={[styles.recurringNextDate, isDark && { color: themeColors.textSecondary }]}>
+                                  Ngày: <Text style={{ fontWeight: '700', color: isDark ? themeColors.textPrimary : undefined }}>{formatDDMMYYYY(item.date) || '—'}</Text>
                                 </Text>
                               );
                             })()}
@@ -1278,7 +1431,9 @@ export function RemindersScreen({ onBack, onNavigateToDebts }: RemindersScreenPr
                             style={[
                               styles.statusBadge,
                               {
-                                backgroundColor: isCompleted ? '#F1F5F9' : '#ECFDF5',
+                                backgroundColor: isCompleted
+                                  ? (isDark ? themeColors.surfaceSubtle : '#F1F5F9')
+                                  : (isDark ? 'rgba(16, 185, 129, 0.16)' : '#ECFDF5'),
                                 marginBottom: 4,
                               },
                             ]}
@@ -1286,7 +1441,11 @@ export function RemindersScreen({ onBack, onNavigateToDebts }: RemindersScreenPr
                             <Text
                               style={[
                                 styles.statusBadgeText,
-                                { color: isCompleted ? '#64748B' : '#059669' },
+                                {
+                                  color: isCompleted
+                                    ? (isDark ? themeColors.textMuted : '#64748B')
+                                    : (isDark ? '#34D399' : '#059669'),
+                                },
                               ]}
                             >
                               {isCompleted ? 'Đã hoàn thành' : 'Đang hoạt động'}
@@ -1296,14 +1455,14 @@ export function RemindersScreen({ onBack, onNavigateToDebts }: RemindersScreenPr
                             <Text
                               style={[
                                 styles.recurringAmountText,
-                                { color: isIncome ? '#059669' : '#DC2626' },
+                                { color: isIncome ? (isDark ? '#34D399' : '#059669') : (isDark ? '#F87171' : '#DC2626') },
                               ]}
                             >
                               {isIncome ? '+' : '-'}{formatVND(item.amount)}
                             </Text>
                           )}
                         </View>
-                        <FinanceIcon name="chevron-right" size={18} color="#94A3B8" />
+                        <FinanceIcon name="chevron-right" size={18} color={isDark ? themeColors.textMuted : "#94A3B8"} />
                       </Pressable>
                     );
                   })}
@@ -1342,31 +1501,32 @@ export function RemindersScreen({ onBack, onNavigateToDebts }: RemindersScreenPr
           behavior={Platform.OS === 'ios' ? 'padding' : undefined}
           style={styles.modalOverlay}
         >
-          <View style={[styles.modalSheet, { paddingBottom: insets.bottom + 20 }]}>
+          <View style={[styles.modalSheet, { paddingBottom: insets.bottom + 20 }, isDark && { backgroundColor: themeColors.surface, borderColor: themeColors.cardBorder, borderWidth: 1 }]}>
             {/* Header Modal */}
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalHeaderTitle}>
+            <View style={[styles.modalHeader, isDark && { borderBottomColor: themeColors.cardBorder }]}>
+              <Text style={[styles.modalHeaderTitle, isDark && { color: themeColors.textPrimary }]}>
                 {editingScheduleId ? 'Chỉnh sửa lịch tài chính' : 'Tạo lịch tài chính mới'}
               </Text>
               <Pressable
                 onPress={() => setShowAddModal(false)}
                 hitSlop={12}
-                style={styles.modalCloseBtn}
+                style={[styles.modalCloseBtn, isDark && { backgroundColor: themeColors.surfaceSubtle }]}
               >
-                <FinanceIcon name="close" size={20} color="#64748B" />
+                <FinanceIcon name="close" size={20} color={isDark ? themeColors.textSecondary : "#64748B"} />
               </Pressable>
             </View>
 
             <ScrollView style={styles.modalBody} showsVerticalScrollIndicator={false}>
               {/* 1. Loại lịch: 2 nút Pill to */}
               <View style={styles.webFormGroup}>
-                <Text style={styles.webFormLabel}>Loại lịch</Text>
-                <View style={styles.webTypePillRow}>
+                <Text style={[styles.webFormLabel, isDark && { color: themeColors.textSecondary }]}>Loại lịch</Text>
+                <View style={[styles.webTypePillRow, isDark && { backgroundColor: themeColors.surfaceSubtle, borderColor: themeColors.cardBorder }]}>
                   <Pressable
                     style={[
                       styles.webTypePillBtn,
+                      isDark && { backgroundColor: 'transparent' },
                       formScheduleType === 'TRANSACTION'
-                        ? styles.webTypePillBtnTxActive
+                        ? (isDark ? { backgroundColor: themeColors.surface, borderColor: themeColors.accentGreen, borderWidth: 1 } : styles.webTypePillBtnTxActive)
                         : styles.webTypePillBtnInactive,
                     ]}
                     onPress={() => setFormScheduleType('TRANSACTION')}
@@ -1374,13 +1534,14 @@ export function RemindersScreen({ onBack, onNavigateToDebts }: RemindersScreenPr
                     <FinanceIcon
                       name="arrows"
                       size={16}
-                      color={formScheduleType === 'TRANSACTION' ? '#07543F' : '#64748B'}
+                      color={formScheduleType === 'TRANSACTION' ? (isDark ? themeColors.accentGreen : '#07543F') : (isDark ? themeColors.textMuted : '#64748B')}
                     />
                     <Text
                       style={[
                         styles.webTypePillText,
+                        isDark && { color: themeColors.textSecondary },
                         formScheduleType === 'TRANSACTION'
-                          ? styles.webTypePillTextTxActive
+                          ? (isDark ? { color: themeColors.accentGreen, fontWeight: '700' } : styles.webTypePillTextTxActive)
                           : styles.webTypePillTextInactive,
                       ]}
                     >
@@ -1391,8 +1552,9 @@ export function RemindersScreen({ onBack, onNavigateToDebts }: RemindersScreenPr
                   <Pressable
                     style={[
                       styles.webTypePillBtn,
+                      isDark && { backgroundColor: 'transparent' },
                       formScheduleType === 'REMINDER'
-                        ? styles.webTypePillBtnRemActive
+                        ? (isDark ? { backgroundColor: themeColors.surface, borderColor: '#F59E0B', borderWidth: 1 } : styles.webTypePillBtnRemActive)
                         : styles.webTypePillBtnInactive,
                     ]}
                     onPress={() => setFormScheduleType('REMINDER')}
@@ -1400,13 +1562,14 @@ export function RemindersScreen({ onBack, onNavigateToDebts }: RemindersScreenPr
                     <FinanceIcon
                       name="bell"
                       size={16}
-                      color={formScheduleType === 'REMINDER' ? '#B45309' : '#64748B'}
+                      color={formScheduleType === 'REMINDER' ? '#F59E0B' : (isDark ? themeColors.textMuted : '#64748B')}
                     />
                     <Text
                       style={[
                         styles.webTypePillText,
+                        isDark && { color: themeColors.textSecondary },
                         formScheduleType === 'REMINDER'
-                          ? styles.webTypePillTextRemActive
+                          ? (isDark ? { color: '#F59E0B', fontWeight: '700' } : styles.webTypePillTextRemActive)
                           : styles.webTypePillTextInactive,
                       ]}
                     >
@@ -1418,11 +1581,11 @@ export function RemindersScreen({ onBack, onNavigateToDebts }: RemindersScreenPr
 
               {/* 2. Tên khoản / Nhắc hẹn * */}
               <View style={styles.webFormGroup}>
-                <Text style={styles.webFormLabel}>Tên khoản / Nhắc hẹn *</Text>
+                <Text style={[styles.webFormLabel, isDark && { color: themeColors.textSecondary }]}>Tên khoản / Nhắc hẹn *</Text>
                 <TextInput
-                  style={styles.webFormInput}
+                  style={[styles.webFormInput, isDark && { backgroundColor: themeColors.surfaceSubtle, borderColor: themeColors.cardBorder, color: themeColors.textPrimary }]}
                   placeholder="Ví dụ: Tiền lương, Tiền nhà tháng 10, Đóng bảo hiểm..."
-                  placeholderTextColor="#94A3B8"
+                  placeholderTextColor={isDark ? themeColors.textMuted : "#94A3B8"}
                   value={formName}
                   onChangeText={setFormName}
                 />
@@ -1432,12 +1595,12 @@ export function RemindersScreen({ onBack, onNavigateToDebts }: RemindersScreenPr
               <View style={styles.webTwoColRow}>
                 {/* Cột trái: Tần suất (Dropdown Thả Xuống) */}
                 <View style={styles.webColHalf}>
-                  <Text style={styles.webFormLabel}>Tần suất lặp lại</Text>
+                  <Text style={[styles.webFormLabel, isDark && { color: themeColors.textSecondary }]}>Tần suất lặp lại</Text>
                   <Pressable
                     onPress={() => setSchedulePickerType('FREQ')}
-                    style={styles.modernSelectDropdownLight}
+                    style={[styles.modernSelectDropdownLight, isDark && { backgroundColor: themeColors.surfaceSubtle, borderColor: themeColors.cardBorder }]}
                   >
-                    <Text style={styles.modernSelectTextBold} numberOfLines={1}>
+                    <Text style={[styles.modernSelectTextBold, isDark && { color: themeColors.textPrimary }]} numberOfLines={1}>
                       {formFreq === 'DAILY'
                         ? 'Hàng ngày'
                         : formFreq === 'WEEKLY'
@@ -1446,20 +1609,20 @@ export function RemindersScreen({ onBack, onNavigateToDebts }: RemindersScreenPr
                             ? 'Hàng tháng'
                             : 'Hàng năm'}
                     </Text>
-                    <FinanceIcon name="chevron-down" size={16} color="#047857" />
+                    <FinanceIcon name="chevron-down" size={16} color={isDark ? themeColors.accentGreen : "#047857"} />
                   </Pressable>
                 </View>
 
-                {/* Cột phải: Nếu Tuần -> Chọn Thứ; Nếu Tháng -> Chọn Ngày; Nếu Ngày/Năm -> Bắt đầu từ ngày */}
+                {/* Cột phải */}
                 <View style={styles.webColHalf}>
                   {formFreq === 'WEEKLY' ? (
                     <>
-                      <Text style={styles.webFormLabel}>Vào thứ trong tuần *</Text>
+                      <Text style={[styles.webFormLabel, isDark && { color: themeColors.textSecondary }]}>Vào thứ trong tuần *</Text>
                       <Pressable
                         onPress={() => setSchedulePickerType('DAY_OF_WEEK')}
-                        style={styles.modernSelectDropdownLight}
+                        style={[styles.modernSelectDropdownLight, isDark && { backgroundColor: themeColors.surfaceSubtle, borderColor: themeColors.cardBorder }]}
                       >
-                        <Text style={styles.modernSelectTextBold} numberOfLines={1}>
+                        <Text style={[styles.modernSelectTextBold, isDark && { color: themeColors.textPrimary }]} numberOfLines={1}>
                           {formDayOfWeek === 1
                             ? 'Thứ Hai hàng tuần'
                             : formDayOfWeek === 2
@@ -1474,34 +1637,34 @@ export function RemindersScreen({ onBack, onNavigateToDebts }: RemindersScreenPr
                                       ? 'Thứ Bảy hàng tuần'
                                       : 'Chủ Nhật hàng tuần'}
                         </Text>
-                        <FinanceIcon name="chevron-down" size={16} color="#047857" />
+                        <FinanceIcon name="chevron-down" size={16} color={isDark ? themeColors.accentGreen : "#047857"} />
                       </Pressable>
                     </>
                   ) : formFreq === 'MONTHLY' ? (
                     <>
-                      <Text style={styles.webFormLabel}>Vào ngày trong tháng *</Text>
+                      <Text style={[styles.webFormLabel, isDark && { color: themeColors.textSecondary }]}>Vào ngày trong tháng *</Text>
                       <Pressable
                         onPress={() => setSchedulePickerType('DAY_OF_MONTH')}
-                        style={styles.modernSelectDropdownLight}
+                        style={[styles.modernSelectDropdownLight, isDark && { backgroundColor: themeColors.surfaceSubtle, borderColor: themeColors.cardBorder }]}
                       >
-                        <Text style={styles.modernSelectTextBold} numberOfLines={1}>
+                        <Text style={[styles.modernSelectTextBold, isDark && { color: themeColors.textPrimary }]} numberOfLines={1}>
                           Ngày {formDayOfMonth} hàng tháng
                         </Text>
-                        <FinanceIcon name="chevron-down" size={16} color="#047857" />
+                        <FinanceIcon name="chevron-down" size={16} color={isDark ? themeColors.accentGreen : "#047857"} />
                       </Pressable>
                     </>
                   ) : (
                     <>
-                      <Text style={styles.webFormLabel}>Bắt đầu từ ngày *</Text>
-                      <View style={styles.webDateInputWrap}>
+                      <Text style={[styles.webFormLabel, isDark && { color: themeColors.textSecondary }]}>Bắt đầu từ ngày *</Text>
+                      <View style={[styles.webDateInputWrap, isDark && { backgroundColor: themeColors.surfaceSubtle, borderColor: themeColors.cardBorder }]}>
                         <TextInput
-                          style={styles.webDateInput}
+                          style={[styles.webDateInput, isDark && { color: themeColors.textPrimary }]}
                           value={formStartDate}
                           onChangeText={setFormStartDate}
                           placeholder="dd/mm/yyyy"
-                          placeholderTextColor="#94A3B8"
+                          placeholderTextColor={isDark ? themeColors.textMuted : "#94A3B8"}
                         />
-                        <FinanceIcon name="calendar" size={18} color="#94A3B8" />
+                        <FinanceIcon name="calendar" size={18} color={isDark ? themeColors.textMuted : "#94A3B8"} />
                       </View>
                     </>
                   )}
@@ -1510,9 +1673,9 @@ export function RemindersScreen({ onBack, onNavigateToDebts }: RemindersScreenPr
 
               {/* 4. Khối giao dịch định kỳ (nếu là TRANSACTION) */}
               {formScheduleType === 'TRANSACTION' ? (
-                <View style={styles.webTxCardBox}>
+                <View style={[styles.webTxCardBox, isDark && { backgroundColor: themeColors.surfaceSubtle, borderColor: themeColors.cardBorder }]}>
                   {/* 3 Tabs: Chi tiêu | Thu nhập | Chuyển tiền */}
-                  <View style={styles.webTxTabRow}>
+                  <View style={[styles.webTxTabRow, isDark && { backgroundColor: themeColors.surface, borderColor: themeColors.cardBorder }]}>
                     {[
                       { key: 'EXPENSE' as TransactionType, label: 'Chi tiêu' },
                       { key: 'INCOME' as TransactionType, label: 'Thu nhập' },
@@ -1522,7 +1685,9 @@ export function RemindersScreen({ onBack, onNavigateToDebts }: RemindersScreenPr
                         key={t.key}
                         style={[
                           styles.webTxTabBtn,
+                          isDark && { backgroundColor: 'transparent' },
                           formType === t.key && styles.webTxTabBtnActive,
+                          formType === t.key && isDark && { backgroundColor: themeColors.surfaceSubtle, shadowOpacity: 0 },
                         ]}
                         onPress={() => {
                           setFormType(t.key);
@@ -1533,7 +1698,9 @@ export function RemindersScreen({ onBack, onNavigateToDebts }: RemindersScreenPr
                         <Text
                           style={[
                             styles.webTxTabBtnText,
+                            isDark && { color: themeColors.textSecondary },
                             formType === t.key && styles.webTxTabBtnTextActive,
+                            formType === t.key && isDark && { color: themeColors.accentGreen, fontWeight: '700' },
                           ]}
                         >
                           {t.label}
@@ -1544,11 +1711,11 @@ export function RemindersScreen({ onBack, onNavigateToDebts }: RemindersScreenPr
 
                   {/* Số tiền (VNĐ) * */}
                   <View style={{ marginTop: 12 }}>
-                    <Text style={styles.webFormLabel}>Số tiền (VNĐ) *</Text>
+                    <Text style={[styles.webFormLabel, isDark && { color: themeColors.textSecondary }]}>Số tiền (VNĐ) *</Text>
                     <TextInput
-                      style={styles.webAmountInput}
+                      style={[styles.webAmountInput, isDark && { backgroundColor: themeColors.surface, borderColor: themeColors.cardBorder, color: themeColors.textPrimary }]}
                       placeholder="0"
-                      placeholderTextColor="#94A3B8"
+                      placeholderTextColor={isDark ? themeColors.textMuted : "#94A3B8"}
                       keyboardType="numeric"
                       value={formAmount}
                       onChangeText={(val) => {
@@ -1561,69 +1728,69 @@ export function RemindersScreen({ onBack, onNavigateToDebts }: RemindersScreenPr
                   {/* Ví / Tài khoản & Danh mục (2 cột - Chọn bằng Dropdown thả xuống) */}
                   <View style={[styles.webTwoColRow, { marginTop: 12 }]}>
                     <View style={styles.webColHalf}>
-                      <Text style={styles.webFormLabel}>Ví / Tài khoản</Text>
+                      <Text style={[styles.webFormLabel, isDark && { color: themeColors.textSecondary }]}>Ví / Tài khoản</Text>
                       <Pressable
                         onPress={() => setSchedulePickerType('ACCOUNT')}
-                        style={styles.modernSelectDropdown}
+                        style={[styles.modernSelectDropdown, isDark && { backgroundColor: themeColors.surface, borderColor: themeColors.cardBorder }]}
                       >
                         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flex: 1 }}>
                           {(() => {
                             const selAcc = accounts.find((a) => a.id === formAccountId);
-                            if (!selAcc) return <Text style={styles.modernSelectText}>Chọn ví tài khoản</Text>;
+                            if (!selAcc) return <Text style={[styles.modernSelectText, isDark && { color: themeColors.textSecondary }]}>Chọn ví tài khoản</Text>;
                             return (
                               <>
                                 <AccountBadge account={selAcc} size={20} />
-                                <Text style={styles.modernSelectText} numberOfLines={1}>
+                                <Text style={[styles.modernSelectText, isDark && { color: themeColors.textPrimary }]} numberOfLines={1}>
                                   {selAcc.name}
                                 </Text>
                               </>
                             );
                           })()}
                         </View>
-                        <FinanceIcon name="chevron-down" size={16} color="#047857" />
+                        <FinanceIcon name="chevron-down" size={16} color={isDark ? themeColors.accentGreen : "#047857"} />
                       </Pressable>
                     </View>
 
                     <View style={styles.webColHalf}>
                       {formType === 'TRANSFER' ? (
                         <>
-                          <Text style={styles.webFormLabel}>Đến ví / TK</Text>
+                          <Text style={[styles.webFormLabel, isDark && { color: themeColors.textSecondary }]}>Đến ví / TK</Text>
                           <Pressable
                             onPress={() => setSchedulePickerType('TO_ACCOUNT')}
-                            style={styles.modernSelectDropdown}
+                            style={[styles.modernSelectDropdown, isDark && { backgroundColor: themeColors.surface, borderColor: themeColors.cardBorder }]}
                           >
                             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flex: 1 }}>
                               {(() => {
                                 const selAcc = accounts.find((a) => a.id === formToAccountId);
-                                if (!selAcc) return <Text style={styles.modernSelectText}>Chọn ví đích</Text>;
+                                if (!selAcc) return <Text style={[styles.modernSelectText, isDark && { color: themeColors.textSecondary }]}>Chọn ví đích</Text>;
                                 return (
                                   <>
                                     <AccountBadge account={selAcc} size={20} />
-                                    <Text style={styles.modernSelectText} numberOfLines={1}>
+                                    <Text style={[styles.modernSelectText, isDark && { color: themeColors.textPrimary }]} numberOfLines={1}>
                                       {selAcc.name}
                                     </Text>
                                   </>
                                 );
                               })()}
                             </View>
-                            <FinanceIcon name="chevron-down" size={16} color="#047857" />
+                            <FinanceIcon name="chevron-down" size={16} color={isDark ? themeColors.accentGreen : "#047857"} />
                           </Pressable>
                         </>
                       ) : (
                         <>
-                          <Text style={styles.webFormLabel}>Danh mục</Text>
+                          <Text style={[styles.webFormLabel, isDark && { color: themeColors.textSecondary }]}>Danh mục</Text>
                           <Pressable
                             onPress={() => setSchedulePickerType('CATEGORY')}
-                            style={styles.modernSelectDropdown}
+                            style={[styles.modernSelectDropdown, isDark && { backgroundColor: themeColors.surface, borderColor: themeColors.cardBorder }]}
                           >
-                            <Text style={styles.modernSelectText} numberOfLines={1}>
+                            <Text style={[styles.modernSelectText, isDark && { color: themeColors.textPrimary }]} numberOfLines={1}>
                               {(() => {
                                 const selCat = categories.find((c) => c.id === formCategoryId);
                                 if (!selCat) return 'Chọn danh mục';
                                 return selCat.name;
                               })()}
                             </Text>
-                            <FinanceIcon name="chevron-down" size={16} color="#047857" />
+                            <FinanceIcon name="chevron-down" size={16} color={isDark ? themeColors.accentGreen : "#047857"} />
                           </Pressable>
                         </>
                       )}
@@ -1633,11 +1800,11 @@ export function RemindersScreen({ onBack, onNavigateToDebts }: RemindersScreenPr
               ) : (
                 /* NỘI DUNG CHỈ NHẮC NHỞ */
                 <View style={styles.webFormGroup}>
-                  <Text style={styles.webFormLabel}>Nội dung chuông nhắc *</Text>
+                  <Text style={[styles.webFormLabel, isDark && { color: themeColors.textSecondary }]}>Nội dung chuông nhắc *</Text>
                   <TextInput
-                    style={[styles.webFormInput, { height: 74, textAlignVertical: 'top' }]}
+                    style={[styles.webFormInput, { height: 74, textAlignVertical: 'top' }, isDark && { backgroundColor: themeColors.surfaceSubtle, borderColor: themeColors.cardBorder, color: themeColors.textPrimary }]}
                     placeholder="Ví dụ: Nhớ thanh toán nợ trước hạn để tránh bị phạt phí trễ..."
-                    placeholderTextColor="#94A3B8"
+                    placeholderTextColor={isDark ? themeColors.textMuted : "#94A3B8"}
                     multiline
                     value={formNote}
                     onChangeText={setFormNote}
@@ -1646,10 +1813,10 @@ export function RemindersScreen({ onBack, onNavigateToDebts }: RemindersScreenPr
               )}
 
               {/* 5. Khối Thông báo đẩy trước hạn (Dropdown Thả Xuống) */}
-              <View style={styles.webNotifyCard}>
+              <View style={[styles.webNotifyCard, isDark && { backgroundColor: themeColors.surfaceSubtle, borderColor: themeColors.cardBorder }]}>
                 <View style={{ flex: 1, paddingRight: 8 }}>
-                  <Text style={styles.webNotifyTitle}>Thông báo đẩy trước hạn</Text>
-                  <Text style={styles.webNotifySub}>
+                  <Text style={[styles.webNotifyTitle, isDark && { color: themeColors.textPrimary }]}>Thông báo đẩy trước hạn</Text>
+                  <Text style={[styles.webNotifySub, isDark && { color: themeColors.textSecondary }]}>
                     Nhắc nhở qua app trước khi tới ngày thanh toán
                   </Text>
                 </View>
@@ -1661,10 +1828,11 @@ export function RemindersScreen({ onBack, onNavigateToDebts }: RemindersScreenPr
                     style={[
                       styles.modernSelectDropdownLight,
                       { height: 36, minWidth: 120, paddingHorizontal: 10 },
+                      isDark && { backgroundColor: themeColors.surface, borderColor: themeColors.cardBorder },
                       !formNotificationEnabled && { opacity: 0.5 },
                     ]}
                   >
-                    <Text style={styles.modernSelectText} numberOfLines={1}>
+                    <Text style={[styles.modernSelectText, isDark && { color: themeColors.textPrimary }]} numberOfLines={1}>
                       {formNotifyBeforeHours === '0'
                         ? 'Đúng ngày'
                         : formNotifyBeforeHours === '24'
@@ -1675,13 +1843,14 @@ export function RemindersScreen({ onBack, onNavigateToDebts }: RemindersScreenPr
                               ? 'Trước 3 ngày'
                               : 'Trước 1 tuần'}
                     </Text>
-                    <FinanceIcon name="chevron-down" size={14} color="#047857" />
+                    <FinanceIcon name="chevron-down" size={14} color={isDark ? themeColors.accentGreen : "#047857"} />
                   </Pressable>
 
                   {/* Checkbox toggle */}
                   <Pressable
                     style={[
                       styles.webCheckbox,
+                      isDark && { borderColor: themeColors.cardBorder, backgroundColor: themeColors.surface },
                       formNotificationEnabled && styles.webCheckboxActive,
                     ]}
                     onPress={() => setFormNotificationEnabled(!formNotificationEnabled)}
@@ -1695,7 +1864,7 @@ export function RemindersScreen({ onBack, onNavigateToDebts }: RemindersScreenPr
             </ScrollView>
 
             {/* Nút lưu */}
-            <View style={styles.modalFooter}>
+            <View style={[styles.modalFooter, isDark && { borderTopColor: themeColors.cardBorder }]}>
               <Pressable
                 style={[styles.webModalSubmitBtn, isSubmitting && { opacity: 0.7 }]}
                 onPress={handleSaveSchedule}
@@ -1716,10 +1885,10 @@ export function RemindersScreen({ onBack, onNavigateToDebts }: RemindersScreenPr
                ======================================================== */}
             {schedulePickerType !== 'NONE' && (
               <View style={[StyleSheet.absoluteFillObject, styles.pickerModalBackdrop]}>
-                <View style={styles.pickerModalBox}>
+                <View style={[styles.pickerModalBox, isDark && { backgroundColor: themeColors.surface, borderColor: themeColors.cardBorder, borderWidth: 1 }]}>
                   {/* Header Picker */}
-                  <View style={styles.pickerModalHeader}>
-                    <Text style={styles.pickerModalTitle}>
+                  <View style={[styles.pickerModalHeader, isDark && { borderBottomColor: themeColors.cardBorder }]}>
+                    <Text style={[styles.pickerModalTitle, isDark && { color: themeColors.textPrimary }]}>
                       {schedulePickerType === 'FREQ' && 'Chọn tần suất lặp lại'}
                       {schedulePickerType === 'DAY_OF_WEEK' && 'Chọn thứ lặp lại hàng tuần'}
                       {schedulePickerType === 'DAY_OF_MONTH' && 'Chọn ngày lặp lại trong tháng'}
@@ -1732,7 +1901,7 @@ export function RemindersScreen({ onBack, onNavigateToDebts }: RemindersScreenPr
                       onPress={() => setSchedulePickerType('NONE')}
                       hitSlop={12}
                     >
-                      <FinanceIcon name="close" size={20} color="#64748B" />
+                      <FinanceIcon name="close" size={20} color={isDark ? themeColors.textSecondary : "#64748B"} />
                     </Pressable>
                   </View>
 
@@ -1754,19 +1923,21 @@ export function RemindersScreen({ onBack, onNavigateToDebts }: RemindersScreenPr
                             }}
                             style={[
                               styles.pickerItemRow,
-                              formFreq === item.key && styles.pickerItemRowActive,
+                              isDark && { borderBottomColor: themeColors.cardBorder },
+                              formFreq === item.key && (isDark ? { backgroundColor: themeColors.surfaceSubtle } : styles.pickerItemRowActive),
                             ]}
                           >
                             <Text
                               style={[
                                 styles.pickerItemText,
-                                formFreq === item.key && styles.pickerItemTextActive,
+                                isDark && { color: themeColors.textPrimary },
+                                formFreq === item.key && (isDark ? { color: themeColors.accentGreen, fontWeight: '700' } : styles.pickerItemTextActive),
                               ]}
                             >
                               {item.label}
                             </Text>
                             {formFreq === item.key && (
-                              <FinanceIcon name="check" size={16} color="#0E964E" />
+                              <FinanceIcon name="check" size={16} color={isDark ? themeColors.accentGreen : "#0E964E"} />
                             )}
                           </Pressable>
                         ))}
@@ -1793,19 +1964,21 @@ export function RemindersScreen({ onBack, onNavigateToDebts }: RemindersScreenPr
                             }}
                             style={[
                               styles.pickerItemRow,
-                              formDayOfWeek === it.key && styles.pickerItemRowActive,
+                              isDark && { borderBottomColor: themeColors.cardBorder },
+                              formDayOfWeek === it.key && (isDark ? { backgroundColor: themeColors.surfaceSubtle } : styles.pickerItemRowActive),
                             ]}
                           >
                             <Text
                               style={[
                                 styles.pickerItemText,
-                                formDayOfWeek === it.key && styles.pickerItemTextActive,
+                                isDark && { color: themeColors.textPrimary },
+                                formDayOfWeek === it.key && (isDark ? { color: themeColors.accentGreen, fontWeight: '700' } : styles.pickerItemTextActive),
                               ]}
                             >
                               {it.label}
                             </Text>
                             {formDayOfWeek === it.key && (
-                              <FinanceIcon name="check" size={16} color="#0E964E" />
+                              <FinanceIcon name="check" size={16} color={isDark ? themeColors.accentGreen : "#0E964E"} />
                             )}
                           </Pressable>
                         ))}
@@ -1824,19 +1997,21 @@ export function RemindersScreen({ onBack, onNavigateToDebts }: RemindersScreenPr
                             }}
                             style={[
                               styles.pickerItemRow,
-                              formDayOfMonth === d && styles.pickerItemRowActive,
+                              isDark && { borderBottomColor: themeColors.cardBorder },
+                              formDayOfMonth === d && (isDark ? { backgroundColor: themeColors.surfaceSubtle } : styles.pickerItemRowActive),
                             ]}
                           >
                             <Text
                               style={[
                                 styles.pickerItemText,
-                                formDayOfMonth === d && styles.pickerItemTextActive,
+                                isDark && { color: themeColors.textPrimary },
+                                formDayOfMonth === d && (isDark ? { color: themeColors.accentGreen, fontWeight: '700' } : styles.pickerItemTextActive),
                               ]}
                             >
                               Ngày {d} hàng tháng
                             </Text>
                             {formDayOfMonth === d && (
-                              <FinanceIcon name="check" size={16} color="#0E964E" />
+                              <FinanceIcon name="check" size={16} color={isDark ? themeColors.accentGreen : "#0E964E"} />
                             )}
                           </Pressable>
                         ))}
@@ -1855,7 +2030,8 @@ export function RemindersScreen({ onBack, onNavigateToDebts }: RemindersScreenPr
                             }}
                             style={[
                               styles.pickerItemRow,
-                              formAccountId === acc.id && styles.pickerItemRowActive,
+                              isDark && { borderBottomColor: themeColors.cardBorder },
+                              formAccountId === acc.id && (isDark ? { backgroundColor: themeColors.surfaceSubtle } : styles.pickerItemRowActive),
                             ]}
                           >
                             <AccountBadge account={acc} size={34} />
@@ -1863,17 +2039,18 @@ export function RemindersScreen({ onBack, onNavigateToDebts }: RemindersScreenPr
                               <Text
                                 style={[
                                   styles.pickerItemText,
-                                  formAccountId === acc.id && styles.pickerItemTextActive,
+                                  isDark && { color: themeColors.textPrimary },
+                                  formAccountId === acc.id && (isDark ? { color: themeColors.accentGreen, fontWeight: '700' } : styles.pickerItemTextActive),
                                 ]}
                               >
                                 {acc.name}
                               </Text>
-                              <Text style={styles.pickerItemSub}>
+                              <Text style={[styles.pickerItemSub, isDark && { color: themeColors.textMuted }]}>
                                 Số dư: {formatVND(acc.balance)}
                               </Text>
                             </View>
                             {formAccountId === acc.id && (
-                              <FinanceIcon name="check" size={16} color="#0E964E" />
+                              <FinanceIcon name="check" size={16} color={isDark ? themeColors.accentGreen : "#0E964E"} />
                             )}
                           </Pressable>
                         ))}
@@ -1894,7 +2071,8 @@ export function RemindersScreen({ onBack, onNavigateToDebts }: RemindersScreenPr
                               }}
                               style={[
                                 styles.pickerItemRow,
-                                formToAccountId === acc.id && styles.pickerItemRowActive,
+                                isDark && { borderBottomColor: themeColors.cardBorder },
+                                formToAccountId === acc.id && (isDark ? { backgroundColor: themeColors.surfaceSubtle } : styles.pickerItemRowActive),
                               ]}
                             >
                               <AccountBadge account={acc} size={34} />
@@ -1902,17 +2080,18 @@ export function RemindersScreen({ onBack, onNavigateToDebts }: RemindersScreenPr
                                 <Text
                                   style={[
                                     styles.pickerItemText,
-                                    formToAccountId === acc.id && styles.pickerItemTextActive,
+                                    isDark && { color: themeColors.textPrimary },
+                                    formToAccountId === acc.id && (isDark ? { color: themeColors.accentGreen, fontWeight: '700' } : styles.pickerItemTextActive),
                                   ]}
                                 >
                                   {acc.name}
                                 </Text>
-                                <Text style={styles.pickerItemSub}>
+                                <Text style={[styles.pickerItemSub, isDark && { color: themeColors.textMuted }]}>
                                   Số dư: {formatVND(acc.balance)}
                                 </Text>
                               </View>
                               {formToAccountId === acc.id && (
-                                <FinanceIcon name="check" size={16} color="#0E964E" />
+                                <FinanceIcon name="check" size={16} color={isDark ? themeColors.accentGreen : "#0E964E"} />
                               )}
                             </Pressable>
                           ))}
@@ -1933,19 +2112,21 @@ export function RemindersScreen({ onBack, onNavigateToDebts }: RemindersScreenPr
                               }}
                               style={[
                                 styles.pickerItemRow,
-                                formCategoryId === cat.id && styles.pickerItemRowActive,
+                                isDark && { borderBottomColor: themeColors.cardBorder },
+                                formCategoryId === cat.id && (isDark ? { backgroundColor: themeColors.surfaceSubtle } : styles.pickerItemRowActive),
                               ]}
                             >
                               <Text
                                 style={[
                                   styles.pickerItemText,
-                                  formCategoryId === cat.id && styles.pickerItemTextActive,
+                                  isDark && { color: themeColors.textPrimary },
+                                  formCategoryId === cat.id && (isDark ? { color: themeColors.accentGreen, fontWeight: '700' } : styles.pickerItemTextActive),
                                 ]}
                               >
                                 {cat.name}
                               </Text>
                               {formCategoryId === cat.id && (
-                                <FinanceIcon name="check" size={16} color="#0E964E" />
+                                <FinanceIcon name="check" size={16} color={isDark ? themeColors.accentGreen : "#0E964E"} />
                               )}
                             </Pressable>
                           ))}
@@ -1970,19 +2151,21 @@ export function RemindersScreen({ onBack, onNavigateToDebts }: RemindersScreenPr
                             }}
                             style={[
                               styles.pickerItemRow,
-                              formNotifyBeforeHours === it.val && styles.pickerItemRowActive,
+                              isDark && { borderBottomColor: themeColors.cardBorder },
+                              formNotifyBeforeHours === it.val && (isDark ? { backgroundColor: themeColors.surfaceSubtle } : styles.pickerItemRowActive),
                             ]}
                           >
                             <Text
                               style={[
                                 styles.pickerItemText,
-                                formNotifyBeforeHours === it.val && styles.pickerItemTextActive,
+                                isDark && { color: themeColors.textPrimary },
+                                formNotifyBeforeHours === it.val && (isDark ? { color: themeColors.accentGreen, fontWeight: '700' } : styles.pickerItemTextActive),
                               ]}
                             >
                               {it.label}
                             </Text>
                             {formNotifyBeforeHours === it.val && (
-                              <FinanceIcon name="check" size={16} color="#0E964E" />
+                              <FinanceIcon name="check" size={16} color={isDark ? themeColors.accentGreen : "#0E964E"} />
                             )}
                           </Pressable>
                         ))}
@@ -2007,14 +2190,15 @@ export function RemindersScreen({ onBack, onNavigateToDebts }: RemindersScreenPr
           style={styles.monthPickerOverlay}
           onPress={() => setShowMonthPickerModal(false)}
         >
-          <View style={styles.monthPickerCard}>
-            <View style={styles.monthPickerHeader}>
-              <Text style={styles.monthPickerTitle}>Chọn tháng hiển thị</Text>
+          <View style={[styles.monthPickerCard, isDark && { backgroundColor: themeColors.surface, borderColor: themeColors.cardBorder, borderWidth: 1 }]}>
+            <View style={[styles.monthPickerHeader, isDark && { borderBottomColor: themeColors.cardBorder }]}>
+              <Text style={[styles.monthPickerTitle, isDark && { color: themeColors.textPrimary }]}>Chọn tháng hiển thị</Text>
               <Pressable
                 onPress={() => setShowMonthPickerModal(false)}
                 hitSlop={8}
+                style={[styles.modalCloseBtn, isDark && { backgroundColor: themeColors.surfaceSubtle }]}
               >
-                <FinanceIcon name="close" size={18} color="#64748B" />
+                <FinanceIcon name="close" size={18} color={isDark ? themeColors.textSecondary : "#64748B"} />
               </Pressable>
             </View>
 
@@ -2026,7 +2210,8 @@ export function RemindersScreen({ onBack, onNavigateToDebts }: RemindersScreenPr
                     key={m.key}
                     style={[
                       styles.monthPickerItem,
-                      isSelected && styles.monthPickerItemActive,
+                      isDark && { borderBottomColor: themeColors.cardBorder },
+                      isSelected && (isDark ? { backgroundColor: themeColors.surfaceSubtle } : styles.monthPickerItemActive),
                     ]}
                     onPress={() => {
                       setListSelectedMonth(m.key);
@@ -2036,13 +2221,14 @@ export function RemindersScreen({ onBack, onNavigateToDebts }: RemindersScreenPr
                     <Text
                       style={[
                         styles.monthPickerItemText,
-                        isSelected && styles.monthPickerItemTextActive,
+                        isDark && { color: themeColors.textPrimary },
+                        isSelected && (isDark ? { color: themeColors.accentGreen, fontWeight: '700' } : styles.monthPickerItemTextActive),
                       ]}
                     >
                       {m.label}
                     </Text>
                     {isSelected && (
-                      <FinanceIcon name="check" size={18} color="#00875A" />
+                      <FinanceIcon name="check" size={18} color={isDark ? themeColors.accentGreen : "#00875A"} />
                     )}
                   </Pressable>
                 );
@@ -2063,16 +2249,16 @@ export function RemindersScreen({ onBack, onNavigateToDebts }: RemindersScreenPr
           behavior={Platform.OS === 'ios' ? 'padding' : undefined}
           style={styles.modalOverlay}
         >
-          <View style={[styles.modalSheet, { paddingBottom: insets.bottom + 20 }]}>
+          <View style={[styles.modalSheet, { paddingBottom: insets.bottom + 20 }, isDark && { backgroundColor: themeColors.surface, borderColor: themeColors.cardBorder, borderWidth: 1 }]}>
             {/* Header Modal Chi tiết */}
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalHeaderTitle}>Chi tiết lịch tài chính</Text>
+            <View style={[styles.modalHeader, isDark && { borderBottomColor: themeColors.cardBorder }]}>
+              <Text style={[styles.modalHeaderTitle, isDark && { color: themeColors.textPrimary }]}>Chi tiết lịch tài chính</Text>
               <Pressable
                 onPress={() => setSelectedDetailItem(null)}
                 hitSlop={12}
-                style={styles.modalCloseBtn}
+                style={[styles.modalCloseBtn, isDark && { backgroundColor: themeColors.surfaceSubtle }]}
               >
-                <FinanceIcon name="close" size={20} color="#64748B" />
+                <FinanceIcon name="close" size={20} color={isDark ? themeColors.textSecondary : "#64748B"} />
               </Pressable>
             </View>
 
@@ -2082,27 +2268,47 @@ export function RemindersScreen({ onBack, onNavigateToDebts }: RemindersScreenPr
                 <View
                   style={[
                     styles.detailHeroBox,
-                    {
-                      backgroundColor:
-                        selectedDetailItem.type === 'INCOME'
-                          ? '#ECFDF5'
-                          : selectedDetailItem.type === 'REMINDER'
-                            ? '#FFF8E6'
-                            : '#FEF2F2',
-                    },
+                    isDark
+                      ? {
+                          backgroundColor:
+                            selectedDetailItem.type === 'INCOME'
+                              ? 'rgba(16, 185, 129, 0.12)'
+                              : selectedDetailItem.type === 'REMINDER'
+                                ? 'rgba(245, 158, 11, 0.12)'
+                                : 'rgba(239, 68, 68, 0.12)',
+                          borderColor: themeColors.cardBorder,
+                          borderWidth: 1,
+                        }
+                      : {
+                          backgroundColor:
+                            selectedDetailItem.type === 'INCOME'
+                              ? '#ECFDF5'
+                              : selectedDetailItem.type === 'REMINDER'
+                                ? '#FFF8E6'
+                                : '#FEF2F2',
+                        },
                   ]}
                 >
                   <View
                     style={[
                       styles.detailHeroIcon,
-                      {
-                        backgroundColor:
-                          selectedDetailItem.type === 'INCOME'
-                            ? '#D1FAE5'
-                            : selectedDetailItem.type === 'REMINDER'
-                              ? '#FEF3C7'
-                              : '#FEE2E2',
-                      },
+                      isDark
+                        ? {
+                            backgroundColor:
+                              selectedDetailItem.type === 'INCOME'
+                                ? 'rgba(16, 185, 129, 0.22)'
+                                : selectedDetailItem.type === 'REMINDER'
+                                  ? 'rgba(245, 158, 11, 0.22)'
+                                  : 'rgba(239, 68, 68, 0.22)',
+                          }
+                        : {
+                            backgroundColor:
+                              selectedDetailItem.type === 'INCOME'
+                                ? '#D1FAE5'
+                                : selectedDetailItem.type === 'REMINDER'
+                                  ? '#FEF3C7'
+                                  : '#FEE2E2',
+                          },
                     ]}
                   >
                     <FinanceIcon
@@ -2110,15 +2316,15 @@ export function RemindersScreen({ onBack, onNavigateToDebts }: RemindersScreenPr
                       size={28}
                       color={
                         selectedDetailItem.type === 'INCOME'
-                          ? '#059669'
+                          ? (isDark ? '#34D399' : '#059669')
                           : selectedDetailItem.type === 'REMINDER'
-                            ? '#D97706'
-                            : '#DC2626'
+                            ? (isDark ? '#FBBF24' : '#D97706')
+                            : (isDark ? '#F87171' : '#DC2626')
                       }
                     />
                   </View>
 
-                  <Text style={styles.detailHeroTitle}>{selectedDetailItem.title}</Text>
+                  <Text style={[styles.detailHeroTitle, isDark && { color: themeColors.textPrimary }]}>{selectedDetailItem.title}</Text>
 
                   {selectedDetailItem.amount > 0 ? (
                     <Text
@@ -2126,7 +2332,9 @@ export function RemindersScreen({ onBack, onNavigateToDebts }: RemindersScreenPr
                         styles.detailHeroAmount,
                         {
                           color:
-                            selectedDetailItem.type === 'INCOME' ? '#059669' : '#DC2626',
+                            selectedDetailItem.type === 'INCOME'
+                              ? (isDark ? '#34D399' : '#059669')
+                              : (isDark ? '#F87171' : '#DC2626'),
                         },
                       ]}
                     >
@@ -2134,7 +2342,7 @@ export function RemindersScreen({ onBack, onNavigateToDebts }: RemindersScreenPr
                       {formatVND(selectedDetailItem.amount)}
                     </Text>
                   ) : (
-                    <Text style={[styles.detailHeroAmount, { color: '#B45309', fontSize: 18 }]}>
+                    <Text style={[styles.detailHeroAmount, { color: isDark ? '#FBBF24' : '#B45309', fontSize: 18 }]}>
                       Chỉ gửi thông báo nhắc nhở
                     </Text>
                   )}
@@ -2148,8 +2356,8 @@ export function RemindersScreen({ onBack, onNavigateToDebts }: RemindersScreenPr
                           selectedDetailItem.status === 'COMPLETED' ||
                           selectedDetailItem.status === 'PAID' ||
                           selectedDetailItem.status === 'PAID_OFF'
-                            ? '#F1F5F9'
-                            : '#D1FAE5',
+                            ? (isDark ? themeColors.surfaceSubtle : '#F1F5F9')
+                            : (isDark ? 'rgba(16, 185, 129, 0.18)' : '#D1FAE5'),
                       },
                     ]}
                   >
@@ -2161,8 +2369,8 @@ export function RemindersScreen({ onBack, onNavigateToDebts }: RemindersScreenPr
                             selectedDetailItem.status === 'COMPLETED' ||
                             selectedDetailItem.status === 'PAID' ||
                             selectedDetailItem.status === 'PAID_OFF'
-                              ? '#64748B'
-                              : '#059669',
+                              ? (isDark ? themeColors.textMuted : '#64748B')
+                              : (isDark ? '#34D399' : '#059669'),
                         },
                       ]}
                     >
@@ -2176,10 +2384,10 @@ export function RemindersScreen({ onBack, onNavigateToDebts }: RemindersScreenPr
                 </View>
 
                 {/* Danh sách thông tin chi tiết */}
-                <View style={styles.detailInfoCard}>
-                  <View style={styles.detailInfoRow}>
-                    <Text style={styles.detailInfoLabel}>Hình thức:</Text>
-                    <Text style={styles.detailInfoValue}>
+                <View style={[styles.detailInfoCard, isDark && { backgroundColor: themeColors.surfaceSubtle, borderColor: themeColors.cardBorder }]}>
+                  <View style={[styles.detailInfoRow, isDark && { borderBottomColor: themeColors.cardBorder }]}>
+                    <Text style={[styles.detailInfoLabel, isDark && { color: themeColors.textSecondary }]}>Hình thức:</Text>
+                    <Text style={[styles.detailInfoValue, isDark && { color: themeColors.textPrimary }]}>
                       {selectedDetailItem.type === 'INCOME'
                         ? 'Thu nhập định kỳ'
                         : selectedDetailItem.type === 'EXPENSE'
@@ -2188,30 +2396,30 @@ export function RemindersScreen({ onBack, onNavigateToDebts }: RemindersScreenPr
                     </Text>
                   </View>
 
-                  <View style={styles.detailInfoRow}>
-                    <Text style={styles.detailInfoLabel}>Chu kỳ lặp:</Text>
-                    <Text style={[styles.detailInfoValue, { color: '#07543F' }]}>
+                  <View style={[styles.detailInfoRow, isDark && { borderBottomColor: themeColors.cardBorder }]}>
+                    <Text style={[styles.detailInfoLabel, isDark && { color: themeColors.textSecondary }]}>Chu kỳ lặp:</Text>
+                    <Text style={[styles.detailInfoValue, { color: isDark ? themeColors.accentGreen : '#07543F' }]}>
                       {selectedDetailItem.subtitle || 'Định kỳ'}
                     </Text>
                   </View>
 
-                  <View style={styles.detailInfoRow}>
-                    <Text style={styles.detailInfoLabel}>Ngày đến hạn / Kế tiếp:</Text>
-                    <Text style={[styles.detailInfoValue, { fontWeight: '800' }]}>
+                  <View style={[styles.detailInfoRow, isDark && { borderBottomColor: themeColors.cardBorder }]}>
+                    <Text style={[styles.detailInfoLabel, isDark && { color: themeColors.textSecondary }]}>Ngày đến hạn / Kế tiếp:</Text>
+                    <Text style={[styles.detailInfoValue, { fontWeight: '800', color: isDark ? themeColors.textPrimary : undefined }]}>
                       {formatDDMMYYYY(selectedDetailItem.date) || selectedDetailItem.date || 'Không xác định'}
                     </Text>
                   </View>
 
                   {/* Nếu là lịch từ backend schedules */}
                   {selectedDetailItem.rawItem?.transaction_template?.account && (
-                    <View style={styles.detailInfoRow}>
-                      <Text style={styles.detailInfoLabel}>Ví / Tài khoản:</Text>
+                    <View style={[styles.detailInfoRow, isDark && { borderBottomColor: themeColors.cardBorder }]}>
+                      <Text style={[styles.detailInfoLabel, isDark && { color: themeColors.textSecondary }]}>Ví / Tài khoản:</Text>
                       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                         <AccountBadge
                           account={{ name: selectedDetailItem.rawItem.transaction_template.account }}
                           size={18}
                         />
-                        <Text style={styles.detailInfoValue}>
+                        <Text style={[styles.detailInfoValue, isDark && { color: themeColors.textPrimary }]}>
                           {selectedDetailItem.rawItem.transaction_template.account}
                         </Text>
                       </View>
@@ -2219,9 +2427,9 @@ export function RemindersScreen({ onBack, onNavigateToDebts }: RemindersScreenPr
                   )}
 
                   {selectedDetailItem.rawItem?.transaction_template?.category && (
-                    <View style={styles.detailInfoRow}>
-                      <Text style={styles.detailInfoLabel}>Danh mục:</Text>
-                      <Text style={styles.detailInfoValue}>
+                    <View style={[styles.detailInfoRow, isDark && { borderBottomColor: themeColors.cardBorder }]}>
+                      <Text style={[styles.detailInfoLabel, isDark && { color: themeColors.textSecondary }]}>Danh mục:</Text>
+                      <Text style={[styles.detailInfoValue, isDark && { color: themeColors.textPrimary }]}>
                         {selectedDetailItem.rawItem.transaction_template.category}
                       </Text>
                     </View>
@@ -2229,9 +2437,9 @@ export function RemindersScreen({ onBack, onNavigateToDebts }: RemindersScreenPr
 
                   {/* Nếu có ghi chú hoặc reminder_message */}
                   {(selectedDetailItem.rawItem?.reminder_message || selectedDetailItem.rawItem?.note || selectedDetailItem.rawItem?.description) && (
-                    <View style={[styles.detailInfoRow, { flexDirection: 'column', gap: 4 }]}>
-                      <Text style={styles.detailInfoLabel}>Ghi chú / Nội dung chuông nhắc:</Text>
-                      <Text style={[styles.detailInfoValue, { fontWeight: '400', color: '#475569', marginTop: 2 }]}>
+                    <View style={[styles.detailInfoRow, { flexDirection: 'column', gap: 4 }, isDark && { borderBottomColor: themeColors.cardBorder }]}>
+                      <Text style={[styles.detailInfoLabel, isDark && { color: themeColors.textSecondary }]}>Ghi chú / Nội dung chuông nhắc:</Text>
+                      <Text style={[styles.detailInfoValue, { fontWeight: '400', color: isDark ? themeColors.textPrimary : '#475569', marginTop: 2 }]}>
                         {selectedDetailItem.rawItem?.reminder_message || selectedDetailItem.rawItem?.note || selectedDetailItem.rawItem?.description}
                       </Text>
                     </View>
@@ -2240,13 +2448,13 @@ export function RemindersScreen({ onBack, onNavigateToDebts }: RemindersScreenPr
 
                 {/* Hộp chỉ dẫn nếu là khoản nợ từ Quản lý nợ */}
                 {selectedDetailItem.id.startsWith('debt_') && (
-                  <View style={styles.debtGuideBox}>
+                  <View style={[styles.debtGuideBox, isDark && { backgroundColor: 'rgba(2, 132, 199, 0.12)', borderColor: themeColors.cardBorder }]}>
                     <View style={styles.debtGuideIconWrap}>
-                      <FinanceIcon name="info" size={18} color="#0284C7" />
+                      <FinanceIcon name="info" size={18} color="#38BDF8" />
                     </View>
                     <View style={{ flex: 1 }}>
-                      <Text style={styles.debtGuideTitle}>Khoản nợ liên kết</Text>
-                      <Text style={styles.debtGuideDesc}>
+                      <Text style={[styles.debtGuideTitle, isDark && { color: '#38BDF8' }]}>Khoản nợ liên kết</Text>
+                      <Text style={[styles.debtGuideDesc, isDark && { color: themeColors.textSecondary }]}>
                         Lịch này được tự động đồng bộ từ mục Quản lý nợ. Để chỉnh sửa số tiền, hạn trả hoặc xóa khoản nợ, vui lòng vào màn hình Quản lý nợ.
                       </Text>
                       {onNavigateToDebts && (
@@ -2257,8 +2465,8 @@ export function RemindersScreen({ onBack, onNavigateToDebts }: RemindersScreenPr
                             onNavigateToDebts();
                           }}
                         >
-                          <Text style={styles.debtGuideActionText}>Mở Quản lý nợ</Text>
-                          <FinanceIcon name="arrow-right" size={14} color="#0284C7" />
+                          <Text style={[styles.debtGuideActionText, isDark && { color: '#38BDF8' }]}>Mở Quản lý nợ</Text>
+                          <FinanceIcon name="arrow-right" size={14} color="#38BDF8" />
                         </Pressable>
                       )}
                     </View>
@@ -2269,7 +2477,7 @@ export function RemindersScreen({ onBack, onNavigateToDebts }: RemindersScreenPr
                 <View style={styles.detailActionButtonsRow}>
                   {/* Nút XÓA */}
                   <Pressable
-                    style={[styles.detailActionBtn, styles.detailBtnDelete]}
+                    style={[styles.detailActionBtn, styles.detailBtnDelete, isDark && { backgroundColor: 'rgba(239, 68, 68, 0.16)' }]}
                     onPress={async () => {
                       if (selectedDetailItem.id.startsWith('debt_')) {
                         Alert.alert(
@@ -2311,13 +2519,13 @@ export function RemindersScreen({ onBack, onNavigateToDebts }: RemindersScreenPr
                       ]);
                     }}
                   >
-                    <FinanceIcon name="trash" size={16} color="#DC2626" />
-                    <Text style={styles.detailBtnDeleteText}>Xóa</Text>
+                    <FinanceIcon name="trash" size={16} color="#EF4444" />
+                    <Text style={[styles.detailBtnDeleteText, isDark && { color: '#EF4444' }]}>Xóa</Text>
                   </Pressable>
 
                   {/* Nút SỬA */}
                   <Pressable
-                    style={[styles.detailActionBtn, styles.detailBtnEdit]}
+                    style={[styles.detailActionBtn, styles.detailBtnEdit, isDark && { backgroundColor: 'rgba(13, 148, 136, 0.16)' }]}
                     onPress={() => {
                       if (selectedDetailItem.id.startsWith('debt_')) {
                         Alert.alert(
@@ -2383,17 +2591,17 @@ export function RemindersScreen({ onBack, onNavigateToDebts }: RemindersScreenPr
                       setShowAddModal(true);
                     }}
                   >
-                    <FinanceIcon name="edit" size={16} color="#0D9488" />
-                    <Text style={styles.detailBtnEditText}>Sửa</Text>
+                    <FinanceIcon name="edit" size={16} color={isDark ? '#2DD4BF' : "#0D9488"} />
+                    <Text style={[styles.detailBtnEditText, isDark && { color: '#2DD4BF' }]}>Sửa</Text>
                   </Pressable>
 
                   {/* Nút ĐÓNG */}
                   <Pressable
-                    style={[styles.detailActionBtn, styles.detailBtnClose]}
+                    style={[styles.detailActionBtn, styles.detailBtnClose, isDark && { backgroundColor: themeColors.surfaceSubtle }]}
                     onPress={() => setSelectedDetailItem(null)}
                   >
-                    <FinanceIcon name="close" size={16} color="#475569" />
-                    <Text style={styles.detailBtnCloseText}>Đóng</Text>
+                    <FinanceIcon name="close" size={16} color={isDark ? themeColors.textSecondary : "#475569"} />
+                    <Text style={[styles.detailBtnCloseText, isDark && { color: themeColors.textSecondary }]}>Đóng</Text>
                   </Pressable>
                 </View>
               </ScrollView>

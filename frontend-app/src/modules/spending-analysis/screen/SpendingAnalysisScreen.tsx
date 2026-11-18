@@ -13,6 +13,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { FinanceIcon, IconName } from '../../core/components/FinanceIcon';
+import { useAppTheme } from '../../../context/ThemeContext';
 import {
   fetchBehaviorProfile,
   fetchSpendingAnomalies,
@@ -47,6 +48,7 @@ function formatVND(amount: number): string {
 
 export function SpendingAnalysisScreen({ onBack, onNavigateToTab }: Props) {
   const insets = useSafeAreaInsets();
+  const { isDark, colors: themeColors } = useAppTheme();
   const [activeTab, setActiveTab] = useState<AnalysisTabType>('overview');
   const [selectedMonth, setSelectedMonth] = useState('Tháng 11/2026');
   const [isLoading, setIsLoading] = useState(true);
@@ -119,41 +121,47 @@ export function SpendingAnalysisScreen({ onBack, onNavigateToTab }: Props) {
   const categories = profile?.top_categories || [];
 
   return (
-    <View style={styles.screen}>
+    <View style={[styles.screen, isDark && { backgroundColor: themeColors.background }]}>
       {/* 1. TOP HEADER */}
-      <View style={styles.topHeader}>
+      <View
+        style={[
+          styles.topHeader,
+          { paddingTop: Math.max(insets.top + 6, 16) },
+          isDark && { backgroundColor: themeColors.background },
+        ]}
+      >
         <View style={styles.headerLeftCol}>
           <Pressable
             onPress={onBack}
             hitSlop={12}
-            style={styles.backBtn}
+            style={[styles.backBtn, isDark && { backgroundColor: themeColors.surfaceSubtle }]}
             accessibilityRole="button"
             accessibilityLabel="Quay lại"
           >
-            <FinanceIcon name="chevron-left" size={24} color="#087557" />
+            <FinanceIcon name="chevron-left" size={24} color={isDark ? themeColors.accentGreen : "#087557"} />
           </Pressable>
-          <Text style={styles.screenTitle}>Phân tích chi tiêu</Text>
+          <Text style={[styles.screenTitle, isDark && { color: themeColors.textPrimary }]}>Phân tích chi tiêu</Text>
         </View>
 
         <Pressable
           onPress={loadData}
           hitSlop={12}
-          style={styles.refreshHeaderBtn}
+          style={[styles.refreshHeaderBtn, isDark && { backgroundColor: themeColors.surfaceSubtle }]}
           accessibilityRole="button"
           accessibilityLabel="Làm mới phân tích"
           disabled={isLoading}
         >
           {isLoading ? (
-            <ActivityIndicator size="small" color="#087557" />
+            <ActivityIndicator size="small" color={isDark ? themeColors.accentGreen : "#087557"} />
           ) : (
-            <FinanceIcon name="refresh" size={19} color="#087557" />
+            <FinanceIcon name="refresh" size={19} color={isDark ? themeColors.accentGreen : "#087557"} />
           )}
         </Pressable>
       </View>
 
       {/* 2. 4-SEGMENT NAVIGATION TAB BAR */}
-      <View style={styles.tabBarWrapper}>
-        <View style={styles.tabBar}>
+      <View style={[styles.tabBarWrapper, isDark && { backgroundColor: themeColors.background }]}>
+        <View style={[styles.tabBar, isDark && { backgroundColor: themeColors.surfaceSubtle, borderColor: themeColors.cardBorder }]}>
           {TABS.map((tab) => {
             const isActive = activeTab === tab.id;
             return (
@@ -167,12 +175,20 @@ export function SpendingAnalysisScreen({ onBack, onNavigateToTab }: Props) {
                 <FinanceIcon
                   name={tab.icon}
                   size={14}
-                  color={isActive ? '#087557' : '#64748B'}
+                  color={isActive ? (isDark ? themeColors.accentGreen : '#087557') : (isDark ? themeColors.textMuted : '#64748B')}
                 />
-                <Text style={[styles.tabLabel, isActive && styles.tabLabelActive]} numberOfLines={1}>
+                <Text
+                  style={[
+                    styles.tabLabel,
+                    isDark && { color: themeColors.textSecondary },
+                    isActive && styles.tabLabelActive,
+                    isActive && isDark && { color: themeColors.accentGreen },
+                  ]}
+                  numberOfLines={1}
+                >
                   {tab.label}
                 </Text>
-                {isActive && <View style={styles.activeTabIndicator} />}
+                {isActive && <View style={[styles.activeTabIndicator, isDark && { backgroundColor: themeColors.accentGreen }]} />}
               </Pressable>
             );
           })}
@@ -182,11 +198,11 @@ export function SpendingAnalysisScreen({ onBack, onNavigateToTab }: Props) {
       {/* MAIN CONTENT AREA */}
       {isLoading || !profile || !recommendations ? (
         <View style={styles.loadingContainer}>
-          <View style={styles.loadingIconBox}>
-            <ActivityIndicator size="large" color="#087557" />
+          <View style={[styles.loadingIconBox, isDark && { backgroundColor: themeColors.surfaceSubtle }]}>
+            <ActivityIndicator size="large" color={isDark ? themeColors.accentGreen : "#087557"} />
           </View>
-          <Text style={styles.loadingTitle}>FinAI đang phân tích chi tiêu...</Text>
-          <Text style={styles.loadingSubtitle}>
+          <Text style={[styles.loadingTitle, isDark && { color: themeColors.textPrimary }]}>FinAI đang phân tích chi tiêu...</Text>
+          <Text style={[styles.loadingSubtitle, isDark && { color: themeColors.textSecondary }]}>
             Hệ thống đang trích xuất dữ liệu giao dịch thực tế, đối soát quy tắc 50/30/20 và quét phát hiện bất thường qua Isolation Forest.
           </Text>
         </View>
@@ -228,19 +244,19 @@ export function SpendingAnalysisScreen({ onBack, onNavigateToTab }: Props) {
             </ImageBackground>
 
             {/* ĐẶC TRƯNG THÓI QUEN CHI TIÊU CARD */}
-            <View style={styles.cardBox}>
+            <View style={[styles.cardBox, isDark && { backgroundColor: themeColors.surface, borderColor: themeColors.cardBorder }]}>
               <View style={styles.cardHeaderRow}>
-                <View style={styles.sparkleIconBox}>
-                  <FinanceIcon name="spark" size={16} color="#087557" />
+                <View style={[styles.sparkleIconBox, isDark && { backgroundColor: 'rgba(52, 211, 153, 0.15)' }]}>
+                  <FinanceIcon name="spark" size={16} color={isDark ? themeColors.accentGreen : "#087557"} />
                 </View>
-                <Text style={styles.cardTitle}>Đặc trưng thói quen chi tiêu</Text>
+                <Text style={[styles.cardTitle, isDark && { color: themeColors.textPrimary }]}>Đặc trưng thói quen chi tiêu</Text>
               </View>
 
               <View style={styles.findingsList}>
                 {findings.map((item, idx) => (
-                  <View key={idx} style={styles.findingPill}>
-                    <View style={styles.findingDot} />
-                    <Text style={styles.findingText}>{item}</Text>
+                  <View key={idx} style={[styles.findingPill, isDark && { backgroundColor: themeColors.surfaceSubtle }]}>
+                    <View style={[styles.findingDot, isDark && { backgroundColor: themeColors.accentGreen }]} />
+                    <Text style={[styles.findingText, isDark && { color: themeColors.textPrimary }]}>{item}</Text>
                   </View>
                 ))}
               </View>
@@ -249,17 +265,17 @@ export function SpendingAnalysisScreen({ onBack, onNavigateToTab }: Props) {
             {/* 3 KPI METRIC CARDS ROW */}
             <View style={styles.kpiRow}>
               {/* Thẻ 1: Chi tiêu ăn uống */}
-              <View style={styles.kpiCard}>
-                <View style={[styles.kpiIconBox, { backgroundColor: '#FEE2E2' }]}>
+              <View style={[styles.kpiCard, isDark && { backgroundColor: themeColors.surface, borderColor: themeColors.cardBorder }]}>
+                <View style={[styles.kpiIconBox, { backgroundColor: isDark ? 'rgba(239, 68, 68, 0.16)' : '#FEE2E2' }]}>
                   <FinanceIcon name="utensils" size={16} color="#EF4444" />
                 </View>
-                <Text style={styles.kpiLabel}>Chi tiêu ăn uống</Text>
-                <Text style={styles.kpiMainValue}>{formatVND(dining.dining_amount)}</Text>
+                <Text style={[styles.kpiLabel, isDark && { color: themeColors.textSecondary }]}>Chi tiêu ăn uống</Text>
+                <Text style={[styles.kpiMainValue, isDark && { color: themeColors.textPrimary }]}>{formatVND(dining.dining_amount)}</Text>
                 <View style={styles.kpiBottomArea}>
-                  <Text style={styles.kpiSubText}>
+                  <Text style={[styles.kpiSubText, isDark && { color: themeColors.textMuted }]}>
                     Chiếm <Text style={{ color: '#EF4444', fontWeight: '700' }}>{dining.dining_percentage}%</Text> tổng chi tiêu
                   </Text>
-                  <View style={styles.kpiProgressBarTrack}>
+                  <View style={[styles.kpiProgressBarTrack, isDark && { backgroundColor: themeColors.surfaceSubtle }]}>
                     <View
                       style={[
                         styles.kpiProgressBarFill,
@@ -274,14 +290,14 @@ export function SpendingAnalysisScreen({ onBack, onNavigateToTab }: Props) {
               </View>
 
               {/* Thẻ 2: Quy tắc 50/30/20 */}
-              <View style={styles.kpiCard}>
-                <View style={[styles.kpiIconBox, { backgroundColor: '#E0F2FE' }]}>
-                  <FinanceIcon name="bolt" size={16} color="#0284C7" />
+              <View style={[styles.kpiCard, isDark && { backgroundColor: themeColors.surface, borderColor: themeColors.cardBorder }]}>
+                <View style={[styles.kpiIconBox, { backgroundColor: isDark ? 'rgba(2, 132, 199, 0.16)' : '#E0F2FE' }]}>
+                  <FinanceIcon name="bolt" size={16} color="#38BDF8" />
                 </View>
-                <Text style={styles.kpiLabel}>Quy tắc 50/30/20</Text>
+                <Text style={[styles.kpiLabel, isDark && { color: themeColors.textSecondary }]}>Quy tắc 50/30/20</Text>
                 <View style={styles.kpiValueWithUnit}>
-                  <Text style={styles.kpiMainValue}>{r50.savings_pct}%</Text>
-                  <Text style={styles.kpiValueUnit}>Tích lũy</Text>
+                  <Text style={[styles.kpiMainValue, isDark && { color: themeColors.textPrimary }]}>{r50.savings_pct}%</Text>
+                  <Text style={[styles.kpiValueUnit, isDark && { color: themeColors.textMuted }]}>Tích lũy</Text>
                 </View>
                 <View style={styles.kpiBottomArea}>
                   <View style={styles.multiSegmentBar}>
@@ -293,17 +309,17 @@ export function SpendingAnalysisScreen({ onBack, onNavigateToTab }: Props) {
               </View>
 
               {/* Thẻ 3: Sức khỏe tài chính */}
-              <View style={styles.kpiCard}>
-                <View style={[styles.kpiIconBox, { backgroundColor: '#DCFCE7' }]}>
-                  <FinanceIcon name="shield" size={16} color="#087557" />
+              <View style={[styles.kpiCard, isDark && { backgroundColor: themeColors.surface, borderColor: themeColors.cardBorder }]}>
+                <View style={[styles.kpiIconBox, { backgroundColor: isDark ? 'rgba(16, 185, 129, 0.16)' : '#DCFCE7' }]}>
+                  <FinanceIcon name="shield" size={16} color={isDark ? themeColors.accentGreen : "#087557"} />
                 </View>
-                <Text style={styles.kpiLabel}>Sức khỏe tài chính</Text>
-                <Text style={[styles.kpiMainValue, { color: '#087557' }]}>
+                <Text style={[styles.kpiLabel, isDark && { color: themeColors.textSecondary }]}>Sức khỏe tài chính</Text>
+                <Text style={[styles.kpiMainValue, { color: isDark ? themeColors.accentGreen : '#087557' }]}>
                   {recommendations.health_score}/100
                 </Text>
                 <View style={styles.kpiBottomArea}>
-                  <Text style={styles.kpiRatingText}>
-                    Đánh giá: <Text style={{ fontWeight: '700' }}>{recommendations.health_rating || 'Rất Tốt ☀️'}</Text>
+                  <Text style={[styles.kpiRatingText, isDark && { color: themeColors.textMuted }]}>
+                    Đánh giá: <Text style={{ fontWeight: '700', color: isDark ? themeColors.textPrimary : undefined }}>{recommendations.health_rating || 'Rất Tốt ☀️'}</Text>
                   </Text>
                 </View>
               </View>
@@ -311,19 +327,19 @@ export function SpendingAnalysisScreen({ onBack, onNavigateToTab }: Props) {
 
             {/* TỔNG QUAN TỪ FINAI BANNER AT BOTTOM */}
             <Pressable
-              style={styles.finaiBannerCard}
+              style={[styles.finaiBannerCard, isDark && { backgroundColor: themeColors.surface, borderColor: themeColors.cardBorder }]}
               onPress={() => setActiveTab('finai')}
             >
-              <View style={styles.finaiBotIconBox}>
-                <FinanceIcon name="spark" size={18} color="#087557" />
+              <View style={[styles.finaiBotIconBox, isDark && { backgroundColor: 'rgba(52, 211, 153, 0.15)' }]}>
+                <FinanceIcon name="spark" size={18} color={isDark ? themeColors.accentGreen : "#087557"} />
               </View>
               <View style={styles.finaiBannerBody}>
-                <Text style={styles.finaiBannerTitle}>Tổng quan từ FinAI</Text>
-                <Text style={styles.finaiBannerDesc}>
+                <Text style={[styles.finaiBannerTitle, isDark && { color: themeColors.textPrimary }]}>Tổng quan từ FinAI</Text>
+                <Text style={[styles.finaiBannerDesc, isDark && { color: themeColors.textSecondary }]}>
                   {recommendations.overall_advice || 'Bạn đang duy trì thói quen chi tiêu kỷ luật, tỷ lệ tiết kiệm tốt và ít rủi ro tài chính.'}
                 </Text>
               </View>
-              <FinanceIcon name="chevron-right" size={18} color="#94A3B8" />
+              <FinanceIcon name="chevron-right" size={18} color={isDark ? themeColors.textMuted : "#94A3B8"} />
             </Pressable>
           </View>
         )}
@@ -331,13 +347,13 @@ export function SpendingAnalysisScreen({ onBack, onNavigateToTab }: Props) {
         {/* ==================== TAB 2: DANH MỤC ==================== */}
         {activeTab === 'spending' && (
           <View style={styles.tabContentContainer}>
-            <View style={styles.cardBox}>
+            <View style={[styles.cardBox, isDark && { backgroundColor: themeColors.surface, borderColor: themeColors.cardBorder }]}>
               {/* Category section title */}
               <View style={styles.categoryHeader}>
-                <View style={styles.trendIconBox}>
-                  <FinanceIcon name="trend" size={18} color="#087557" />
+                <View style={[styles.trendIconBox, isDark && { backgroundColor: 'rgba(52, 211, 153, 0.15)' }]}>
+                  <FinanceIcon name="trend" size={18} color={isDark ? themeColors.accentGreen : "#087557"} />
                 </View>
-                <Text style={styles.categoryHeaderTitle}>
+                <Text style={[styles.categoryHeaderTitle, isDark && { color: themeColors.textPrimary }]}>
                   Phân bổ chi tiêu theo{'\n'}danh mục thực tế
                 </Text>
               </View>
@@ -346,50 +362,50 @@ export function SpendingAnalysisScreen({ onBack, onNavigateToTab }: Props) {
               <View style={styles.categoryList}>
                 {categories.map((cat, idx) => {
                   let iconName: IconName = 'wallet';
-                  let iconBg = '#ECFDF5';
-                  let iconColor = '#087557';
+                  let iconBg = isDark ? 'rgba(52, 211, 153, 0.16)' : '#ECFDF5';
+                  let iconColor = isDark ? themeColors.accentGreen : '#087557';
 
                   if (cat.category_name.includes('Ăn uống')) {
                     iconName = 'utensils';
-                    iconBg = '#FEF3C7';
-                    iconColor = '#D97706';
+                    iconBg = isDark ? 'rgba(245, 158, 11, 0.16)' : '#FEF3C7';
+                    iconColor = isDark ? '#FBBF24' : '#D97706';
                   } else if (cat.category_name.includes('Tiết kiệm') || cat.category_name.includes('đầu tư')) {
                     iconName = 'piggy-bank';
-                    iconBg = '#FEF9C3';
-                    iconColor = '#CA8A04';
+                    iconBg = isDark ? 'rgba(234, 179, 8, 0.16)' : '#FEF9C3';
+                    iconColor = isDark ? '#FACC15' : '#CA8A04';
                   } else if (cat.category_name.includes('Trả nợ') || cat.category_name.includes('xe')) {
                     iconName = 'car';
-                    iconBg = '#E0F2FE';
-                    iconColor = '#0284C7';
+                    iconBg = isDark ? 'rgba(2, 132, 199, 0.16)' : '#E0F2FE';
+                    iconColor = isDark ? '#38BDF8' : '#0284C7';
                   } else if (cat.category_name.includes('Gia đình') || cat.category_name.includes('Con')) {
                     iconName = 'users';
-                    iconBg = '#F3E8FF';
-                    iconColor = '#9333EA';
+                    iconBg = isDark ? 'rgba(147, 51, 234, 0.16)' : '#F3E8FF';
+                    iconColor = isDark ? '#C084FC' : '#9333EA';
                   }
 
                   return (
-                    <View key={idx} style={styles.categoryItem}>
+                    <View key={idx} style={[styles.categoryItem, isDark && { borderBottomColor: themeColors.cardBorder }]}>
                       <View style={[styles.categoryIconSquare, { backgroundColor: iconBg }]}>
                         <FinanceIcon name={iconName} size={22} color={iconColor} />
                       </View>
 
                       <View style={styles.categoryInfo}>
                         <View style={styles.categoryTopRow}>
-                          <Text style={styles.categoryNameText}>{cat.category_name}</Text>
+                          <Text style={[styles.categoryNameText, isDark && { color: themeColors.textPrimary }]}>{cat.category_name}</Text>
                           <View style={styles.categoryValuesRow}>
-                            <Text style={styles.categoryPctText}>{cat.percentage}%</Text>
-                            <Text style={styles.categoryAmountText}>{formatVND(cat.total_amount)}</Text>
+                            <Text style={[styles.categoryPctText, isDark && { color: themeColors.textSecondary }]}>{cat.percentage}%</Text>
+                            <Text style={[styles.categoryAmountText, isDark && { color: themeColors.textPrimary }]}>{formatVND(cat.total_amount)}</Text>
                           </View>
                         </View>
 
                         {/* Progress Bar */}
-                        <View style={styles.categoryTrack}>
+                        <View style={[styles.categoryTrack, isDark && { backgroundColor: themeColors.surfaceSubtle }]}>
                           <View
                             style={[
                               styles.categoryFill,
                               {
                                 width: `${Math.min(100, Math.max(8, cat.percentage * 2.2))}%`,
-                                backgroundColor: '#087557',
+                                backgroundColor: isDark ? themeColors.accentGreen : '#087557',
                               },
                             ]}
                           />
@@ -407,15 +423,15 @@ export function SpendingAnalysisScreen({ onBack, onNavigateToTab }: Props) {
         {activeTab === 'anomalies' && (
           <View style={styles.tabContentContainer}>
             {/* Header info card */}
-            <View style={styles.anomalyHeaderRow}>
-              <View style={styles.anomalyRedIconBox}>
-                <FinanceIcon name="arrow-down" size={18} color="#DC2626" />
+            <View style={[styles.anomalyHeaderRow, isDark && { backgroundColor: themeColors.surface, borderColor: themeColors.cardBorder }]}>
+              <View style={[styles.anomalyRedIconBox, isDark && { backgroundColor: 'rgba(239, 68, 68, 0.2)' }]}>
+                <FinanceIcon name="arrow-down" size={18} color="#F87171" />
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={styles.anomalyMainTitle}>
+                <Text style={[styles.anomalyMainTitle, isDark && { color: themeColors.textPrimary }]}>
                   Phát hiện giao dịch bất thường (Isolation Forest)
                 </Text>
-                <Text style={styles.anomalySubTitle}>
+                <Text style={[styles.anomalySubTitle, isDark && { color: themeColors.textSecondary }]}>
                   Quét toàn bộ lịch sử chi tiêu để phát hiện giao dịch đột biến.
                 </Text>
               </View>
@@ -423,74 +439,72 @@ export function SpendingAnalysisScreen({ onBack, onNavigateToTab }: Props) {
 
             {/* Anomaly Alerts List */}
             {anomalies.map((anom, idx) => {
-              // Định dạng ngày giờ: đổi dạng (16/08/2026 11:02) thành (11:02 16/08/2026) theo yêu cầu
               let formattedDate = anom.date;
               if (anom.date && anom.date.includes(' ')) {
                 const parts = anom.date.split(' ');
                 if (parts.length >= 2) {
-                  // parts[0] là ngày (16/08/2026), parts[1] là giờ (11:02)
                   formattedDate = `${parts[1]} ${parts[0]}`;
                 }
               }
 
               return (
-                <View key={anom.transaction_id || idx} style={styles.anomalyCard}>
+                <View key={anom.transaction_id || idx} style={[styles.anomalyCard, isDark && { backgroundColor: 'rgba(239, 68, 68, 0.12)', borderColor: 'rgba(239, 68, 68, 0.35)' }]}>
                   <View style={styles.anomalyCardTop}>
                     <View style={styles.severityBadge}>
                       <Text style={styles.severityBadgeText}>{anom.severity}</Text>
                     </View>
-                    <Text style={styles.anomalyAmountHead}>
+                    <Text style={[styles.anomalyAmountHead, isDark && { color: themeColors.textPrimary }]}>
                       {anom.category}: {formatVND(anom.amount)}
                     </Text>
                     {formattedDate ? (
-                      <Text style={styles.anomalyDateInlineText}>({formattedDate})</Text>
+                      <Text style={[styles.anomalyDateInlineText, isDark && { color: themeColors.textMuted }]}>({formattedDate})</Text>
                     ) : null}
                   </View>
 
-                  <Text style={styles.anomalyExplText}>{anom.explanation}</Text>
+                  <Text style={[styles.anomalyExplText, isDark && { color: themeColors.textSecondary }]}>{anom.explanation}</Text>
                 </View>
               );
             })}
 
             {/* Summary Box: Tóm tắt phát hiện */}
-            <View style={styles.summaryBox}>
-              <View style={styles.summaryTitlePill}>
-                <Text style={styles.summaryTitleText}>Tóm tắt phát hiện</Text>
+            <View style={[styles.summaryBox, isDark && { backgroundColor: themeColors.surface, borderColor: themeColors.cardBorder }]}>
+              <View style={[styles.summaryTitlePill, isDark && { backgroundColor: themeColors.surfaceSubtle }]}>
+                <Text style={[styles.summaryTitleText, isDark && { color: themeColors.accentGreen }]}>Tóm tắt phát hiện</Text>
               </View>
 
               <View style={styles.summaryRow}>
                 <View style={styles.summaryItemLeft}>
-                  <View style={[styles.summaryItemIcon, { backgroundColor: '#ECFDF5' }]}>
-                    <FinanceIcon name="calendar" size={15} color="#087557" />
+                  <View style={[styles.summaryItemIcon, { backgroundColor: isDark ? 'rgba(52, 211, 153, 0.16)' : '#ECFDF5' }]}>
+                    <FinanceIcon name="calendar" size={15} color={isDark ? themeColors.accentGreen : "#087557"} />
                   </View>
-                  <Text style={styles.summaryItemLabel}>Tổng giao dịch quét</Text>
+                  <Text style={[styles.summaryItemLabel, isDark && { color: themeColors.textSecondary }]}>Tổng giao dịch quét</Text>
                 </View>
-                <Text style={styles.summaryItemValue}>{totalScanned}</Text>
+                <Text style={[styles.summaryItemValue, isDark && { color: themeColors.textPrimary }]}>{totalScanned}</Text>
               </View>
 
-              <View style={styles.summaryDivider} />
+              <View style={[styles.summaryDivider, isDark && { backgroundColor: themeColors.cardBorder }]} />
 
               <View style={styles.summaryRow}>
                 <View style={styles.summaryItemLeft}>
-                  <View style={[styles.summaryItemIcon, { backgroundColor: '#FEE2E2' }]}>
-                    <FinanceIcon name="alert-circle" size={15} color="#DC2626" />
+                  <View style={[styles.summaryItemIcon, { backgroundColor: isDark ? 'rgba(239, 68, 68, 0.16)' : '#FEE2E2' }]}>
+                    <FinanceIcon name="alert-circle" size={15} color="#EF4444" />
                   </View>
-                  <Text style={styles.summaryItemLabel}>Giao dịch bất thường</Text>
+                  <Text style={[styles.summaryItemLabel, isDark && { color: themeColors.textSecondary }]}>Giao dịch bất thường</Text>
                 </View>
-                <Text style={styles.summaryItemValue}>{anomalies.length}</Text>
+                <Text style={[styles.summaryItemValue, isDark && { color: themeColors.textPrimary }]}>{anomalies.length}</Text>
               </View>
 
-              <View style={styles.summaryDivider} />
+              <View style={[styles.summaryDivider, isDark && { backgroundColor: themeColors.cardBorder }]} />
 
               <View style={styles.summaryRow}>
                 <View style={styles.summaryItemLeft}>
-                  <View style={[styles.summaryItemIcon, { backgroundColor: '#E0F2FE' }]}>
-                    <FinanceIcon name="info" size={15} color="#0284C7" />
+                  <View style={[styles.summaryItemIcon, { backgroundColor: isDark ? 'rgba(2, 132, 199, 0.16)' : '#E0F2FE' }]}>
+                    <FinanceIcon name="info" size={15} color="#38BDF8" />
                   </View>
-                  <Text style={styles.summaryItemLabel}>Mức độ rủi ro</Text>
+                  <Text style={[styles.summaryItemLabel, isDark && { color: themeColors.textSecondary }]}>Mức độ rủi ro</Text>
                 </View>
-                <View style={[styles.riskPill, riskLevel !== 'Thấp' && { backgroundColor: '#FEF3C7' }]}>
-                  <Text style={[styles.riskPillText, riskLevel !== 'Thấp' && { color: '#D97706' }]}>
+                <View style={[styles.riskPill, riskLevel !== 'Thấp' && { backgroundColor: isDark ? 'rgba(245, 158, 11, 0.2)' : '#FEF3C7' }, isDark && riskLevel === 'Thấp' && { backgroundColor: 'rgba(52, 211, 153, 0.16)' }]}>
+                  <Text style={[styles.riskPillText, riskLevel !== 'Thấp' && { color: '#FBBF24' }, isDark && riskLevel === 'Thấp' && { color: themeColors.accentGreen }]}>
                     {riskLevel}
                   </Text>
                 </View>
@@ -529,50 +543,50 @@ export function SpendingAnalysisScreen({ onBack, onNavigateToTab }: Props) {
             </ImageBackground>
 
             {/* SAVINGS POTENTIAL ESTIMATION CARD */}
-            <View style={styles.potentialCard}>
+            <View style={[styles.potentialCard, isDark && { backgroundColor: themeColors.surface, borderColor: themeColors.cardBorder }]}>
               <View style={styles.potentialLeft}>
-                <View style={styles.potentialIconBox}>
-                  <FinanceIcon name="wallet" size={20} color="#087557" />
+                <View style={[styles.potentialIconBox, isDark && { backgroundColor: 'rgba(52, 211, 153, 0.12)' }]}>
+                  <FinanceIcon name="wallet" size={20} color={isDark ? themeColors.accentGreen : "#087557"} />
                 </View>
                 <View>
-                  <Text style={styles.potentialLabel}>Tiềm năng tiết kiệm ước tính</Text>
-                  <Text style={styles.potentialAmount}>
+                  <Text style={[styles.potentialLabel, isDark && { color: themeColors.textSecondary }]}>Tiềm năng tiết kiệm ước tính</Text>
+                  <Text style={[styles.potentialAmount, isDark && { color: themeColors.accentGreen }]}>
                     +{formatVND(recommendations.total_monthly_potential_savings)}/tháng
                   </Text>
                 </View>
               </View>
 
-              <View style={styles.potentialBadge}>
-                <FinanceIcon name="trend" size={12} color="#087557" />
-                <Text style={styles.potentialBadgeText}>+3.1%</Text>
+              <View style={[styles.potentialBadge, isDark && { backgroundColor: 'rgba(52, 211, 153, 0.16)' }]}>
+                <FinanceIcon name="trend" size={12} color={isDark ? themeColors.accentGreen : "#087557"} />
+                <Text style={[styles.potentialBadgeText, isDark && { color: themeColors.accentGreen }]}>+3.1%</Text>
               </View>
             </View>
 
             {/* SECTION TITLE: CÁC KHUYẾN NGHỊ CHÍNH */}
-            <Text style={styles.recSectionTitle}>Các khuyến nghị chính</Text>
+            <Text style={[styles.recSectionTitle, isDark && { color: themeColors.textPrimary }]}>Các khuyến nghị chính</Text>
 
             {/* RECOMMENDATION CARDS */}
             {recommendations.recommendations.map((rec, rIdx) => (
-              <View key={rec.id || rIdx} style={styles.recCard}>
+              <View key={rec.id || rIdx} style={[styles.recCard, isDark && { backgroundColor: themeColors.surface, borderColor: themeColors.cardBorder }]}>
                 <View style={styles.recHeaderRow}>
-                  <View style={styles.recChipIconBox}>
-                    <FinanceIcon name="spark" size={18} color="#087557" />
+                  <View style={[styles.recChipIconBox, isDark && { backgroundColor: 'rgba(52, 211, 153, 0.12)' }]}>
+                    <FinanceIcon name="spark" size={18} color={isDark ? themeColors.accentGreen : "#087557"} />
                   </View>
                   <View style={{ flex: 1 }}>
                     <View style={styles.recTitleLine}>
-                      <Text style={styles.recCardTitle}>{rec.title}</Text>
+                      <Text style={[styles.recCardTitle, isDark && { color: themeColors.textPrimary }]}>{rec.title}</Text>
                       {rec.priority && (
-                        <View style={styles.recPriorityBadge}>
-                          <Text style={styles.recPriorityBadgeText}>{rec.priority}</Text>
+                        <View style={[styles.recPriorityBadge, isDark && { backgroundColor: 'rgba(52, 211, 153, 0.16)', borderColor: 'rgba(52, 211, 153, 0.25)' }]}>
+                          <Text style={[styles.recPriorityBadgeText, isDark && { color: themeColors.accentGreen }]}>{rec.priority}</Text>
                         </View>
                       )}
-                      <FinanceIcon name="chevron-right" size={16} color="#94A3B8" />
+                      <FinanceIcon name="chevron-right" size={16} color={isDark ? themeColors.textMuted : "#94A3B8"} />
                     </View>
                   </View>
                 </View>
 
                 {rec.explanation ? (
-                  <Text style={styles.recExplanationText}>{rec.explanation}</Text>
+                  <Text style={[styles.recExplanationText, isDark && { color: themeColors.textSecondary }]}>{rec.explanation}</Text>
                 ) : null}
 
                 {/* Action bullet steps */}
@@ -580,8 +594,8 @@ export function SpendingAnalysisScreen({ onBack, onNavigateToTab }: Props) {
                   <View style={styles.recStepsList}>
                     {rec.action_steps.map((step, sIdx) => (
                       <View key={sIdx} style={styles.recStepItem}>
-                        <View style={styles.recStepGreenDot} />
-                        <Text style={styles.recStepText}>{step}</Text>
+                        <View style={[styles.recStepGreenDot, isDark && { backgroundColor: themeColors.accentGreen }]} />
+                        <Text style={[styles.recStepText, isDark && { color: themeColors.textPrimary }]}>{step}</Text>
                       </View>
                     ))}
                   </View>
@@ -589,11 +603,11 @@ export function SpendingAnalysisScreen({ onBack, onNavigateToTab }: Props) {
 
                 {/* Footer Quote Pill */}
                 {rec.summary ? (
-                  <View style={styles.recFooterPill}>
-                    <View style={styles.targetIconBox}>
-                      <FinanceIcon name="target" size={16} color="#087557" />
+                  <View style={[styles.recFooterPill, isDark && { backgroundColor: themeColors.surfaceSubtle, borderColor: themeColors.cardBorder }]}>
+                    <View style={[styles.targetIconBox, isDark && { backgroundColor: 'rgba(52, 211, 153, 0.15)' }]}>
+                      <FinanceIcon name="target" size={16} color={isDark ? themeColors.accentGreen : "#087557"} />
                     </View>
-                    <Text style={styles.recFooterText}>{rec.summary}</Text>
+                    <Text style={[styles.recFooterText, isDark && { color: themeColors.accentGreen }]}>{rec.summary}</Text>
                   </View>
                 ) : null}
               </View>

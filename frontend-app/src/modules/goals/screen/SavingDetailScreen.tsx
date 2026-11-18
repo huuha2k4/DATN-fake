@@ -1,3 +1,4 @@
+import { AppAlert as Alert, useAppDialog } from '../../../context/DialogContext';
 import React, { useState, useEffect } from 'react';
 import {
   View,
@@ -8,7 +9,6 @@ import {
   Image,
   Dimensions,
   ActivityIndicator,
-  Alert,
   StatusBar,
   Modal,
 } from 'react-native';
@@ -22,6 +22,7 @@ import {
 import { ContributeGoalModal } from './ContributeGoalModal';
 import { EditSavingModal } from './EditSavingModal';
 import { WithdrawGoalModal } from './WithdrawGoalModal';
+import { useAppTheme } from '../../../context/ThemeContext';
 
 const { width } = Dimensions.get('window');
 
@@ -52,6 +53,7 @@ function getSavingCategoryIcon(iconKey?: string, categoryName?: string) {
 }
 
 export function SavingDetailScreen({ savingId, onBack }: Props) {
+  const { isDark, colors: themeColors } = useAppTheme();
   const insets = useSafeAreaInsets();
   const [isLoading, setIsLoading] = useState(false);
   const [saving, setSaving] = useState<GoalDetailData | null>(null);
@@ -107,21 +109,24 @@ export function SavingDetailScreen({ savingId, onBack }: Props) {
   }
 
   return (
-    <View style={[styles.screen, { paddingTop: Math.max(insets.top, 16) }]}>
-      <StatusBar barStyle="dark-content" />
+    <View style={[styles.screen, isDark && { backgroundColor: themeColors.background }, { paddingTop: Math.max(insets.top, 16) }]}>
+      <StatusBar
+        barStyle={isDark ? 'light-content' : 'dark-content'}
+        backgroundColor={isDark ? themeColors.background : '#F7FBF9'}
+      />
 
       {/* TOP HEADER */}
-      <View style={styles.topHeader}>
+      <View style={[styles.topHeader, isDark && { backgroundColor: themeColors.background }]}>
         <Pressable
           onPress={onBack}
           hitSlop={12}
-          style={styles.backBtn}
+          style={[styles.backBtn, isDark && { backgroundColor: themeColors.surfaceSubtle, borderColor: themeColors.cardBorder }]}
           accessibilityRole="button"
           accessibilityLabel="Quay lại"
         >
-          <FinanceIcon name="chevron-left" size={24} color="#006747" />
+          <FinanceIcon name="chevron-left" size={24} color={isDark ? themeColors.accentGreen : '#006747'} />
         </Pressable>
-        <Text style={styles.headerTitle}>Chi tiết khoản tiết kiệm</Text>
+        <Text style={[styles.headerTitle, isDark && { color: themeColors.textPrimary }]}>Chi tiết khoản tiết kiệm</Text>
         <View style={{ width: 40 }} />
       </View>
 
@@ -133,7 +138,7 @@ export function SavingDetailScreen({ savingId, onBack }: Props) {
         showsVerticalScrollIndicator={false}
       >
         {/* CARD 1: THÔNG TIN KHOẢN TIẾT KIỆM (Loại tiết kiệm ngang hàng với tên ở cuối) */}
-        <View style={styles.card}>
+        <View style={[styles.card, isDark && { backgroundColor: themeColors.surface, borderColor: themeColors.cardBorder }]}>
           <View style={styles.topInfoRow}>
             {/* 3D CATEGORY ICON */}
             <View style={styles.icon3dBox}>
@@ -147,21 +152,21 @@ export function SavingDetailScreen({ savingId, onBack }: Props) {
             {/* TEXT INFO */}
             <View style={styles.topTextCol}>
               <View style={styles.titleCategoryRow}>
-                <Text style={styles.savingTitle} numberOfLines={2}>
+                <Text style={[styles.savingTitle, isDark && { color: themeColors.textPrimary }]} numberOfLines={2}>
                   {saving.title}
                 </Text>
                 
                 {/* Loại tiết kiệm đưa lên ngang hàng ở cuối */}
-                <View style={styles.tagPillInline}>
-                  <FinanceIcon name="wallet" size={12} color="#16A34A" />
-                  <Text style={styles.tagPillInlineText}>
+                <View style={[styles.tagPillInline, isDark && { backgroundColor: 'rgba(52, 211, 153, 0.16)' }]}>
+                  <FinanceIcon name="wallet" size={12} color={isDark ? themeColors.accentGreen : '#16A34A'} />
+                  <Text style={[styles.tagPillInlineText, isDark && { color: themeColors.accentGreen }]}>
                     {saving.category || 'Tiết kiệm'}
                   </Text>
                 </View>
               </View>
 
               {/* Description */}
-              <Text style={styles.descriptionText}>
+              <Text style={[styles.descriptionText, isDark && { color: themeColors.textSecondary }]}>
                 {saving.description || 'Tích lũy tài chính tự do, linh hoạt rút nộp khi cần.'}
               </Text>
             </View>
@@ -169,38 +174,38 @@ export function SavingDetailScreen({ savingId, onBack }: Props) {
         </View>
 
         {/* CARD 2: TỔNG SỐ TIỀN TIẾT KIỆM HIỆN CÓ (KHÔNG CÓ MỤC TIÊU HAY THỜI HẠN) */}
-        <View style={styles.card}>
+        <View style={[styles.card, isDark && { backgroundColor: themeColors.surface, borderColor: themeColors.cardBorder }]}>
           <View style={styles.balanceHeaderRow}>
             <View>
-              <Text style={styles.balanceLabel}>Tổng số tiền đã tích lũy</Text>
-              <Text style={styles.balanceAmountText}>{formatVND(saving.currentAmount)}</Text>
+              <Text style={[styles.balanceLabel, isDark && { color: themeColors.textMuted }]}>Tổng số tiền đã tích lũy</Text>
+              <Text style={[styles.balanceAmountText, isDark && { color: themeColors.accentGreen }]}>{formatVND(saving.currentAmount)}</Text>
             </View>
-            <View style={styles.statusBadge}>
-              <FinanceIcon name="check-circle" size={14} color="#16A34A" />
-              <Text style={styles.statusBadgeText}>Đang tích lũy</Text>
+            <View style={[styles.statusBadge, isDark && { backgroundColor: 'rgba(52, 211, 153, 0.16)' }]}>
+              <FinanceIcon name="check-circle" size={14} color={isDark ? themeColors.accentGreen : '#16A34A'} />
+              <Text style={[styles.statusBadgeText, isDark && { color: themeColors.accentGreen }]}>Đang tích lũy</Text>
             </View>
           </View>
 
-          <View style={styles.divider} />
+          <View style={[styles.divider, isDark && { backgroundColor: themeColors.divider }]} />
 
           <View style={styles.statInfoRow}>
             <View style={styles.statItem}>
-              <View style={styles.statIconSquircle}>
-                <FinanceIcon name="calendar" size={16} color="#006747" />
+              <View style={[styles.statIconSquircle, isDark && { backgroundColor: themeColors.surfaceSubtle }]}>
+                <FinanceIcon name="calendar" size={16} color={isDark ? themeColors.accentGreen : '#006747'} />
               </View>
               <View>
-                <Text style={styles.statItemLabel}>Hình thức</Text>
-                <Text style={styles.statItemValue}>Linh hoạt tự do</Text>
+                <Text style={[styles.statItemLabel, isDark && { color: themeColors.textMuted }]}>Hình thức</Text>
+                <Text style={[styles.statItemValue, isDark && { color: themeColors.textPrimary }]}>Linh hoạt tự do</Text>
               </View>
             </View>
 
             <View style={styles.statItem}>
-              <View style={styles.statIconSquircle}>
-                <FinanceIcon name="file-text" size={16} color="#006747" />
+              <View style={[styles.statIconSquircle, isDark && { backgroundColor: themeColors.surfaceSubtle }]}>
+                <FinanceIcon name="file-text" size={16} color={isDark ? themeColors.accentGreen : '#006747'} />
               </View>
               <View>
-                <Text style={styles.statItemLabel}>Giao dịch</Text>
-                <Text style={styles.statItemValue}>{saving.history?.length || 0} lần nộp/rút</Text>
+                <Text style={[styles.statItemLabel, isDark && { color: themeColors.textMuted }]}>Giao dịch</Text>
+                <Text style={[styles.statItemValue, isDark && { color: themeColors.textPrimary }]}>{saving.history?.length || 0} lần nộp/rút</Text>
               </View>
             </View>
           </View>
@@ -215,6 +220,7 @@ export function SavingDetailScreen({ savingId, onBack }: Props) {
               style={({ pressed }) => [
                 styles.primaryActionBtn,
                 styles.mainActionBtnHalf,
+                isDark && { backgroundColor: '#059669', shadowColor: '#059669' },
                 pressed && { opacity: 0.9 },
               ]}
               onPress={() => setShowContributeModal(true)}
@@ -228,14 +234,15 @@ export function SavingDetailScreen({ savingId, onBack }: Props) {
               style={({ pressed }) => [
                 styles.withdrawActionBtn,
                 styles.mainActionBtnHalf,
+                isDark && { backgroundColor: 'rgba(239, 68, 68, 0.15)', borderColor: 'rgba(239, 68, 68, 0.3)' },
                 pressed && { opacity: 0.88, transform: [{ scale: 0.99 }] },
               ]}
               onPress={() => setShowWithdrawModal(true)}
             >
-              <View style={styles.withdrawIconSquircle}>
-                <FinanceIcon name="arrow-up" size={15} color="#DC2626" />
+              <View style={[styles.withdrawIconSquircle, isDark && { backgroundColor: 'rgba(239, 68, 68, 0.2)' }]}>
+                <FinanceIcon name="arrow-up" size={15} color="#EF4444" />
               </View>
-              <Text style={styles.withdrawActionBtnText}>Rút tiền</Text>
+              <Text style={[styles.withdrawActionBtnText, isDark && { color: '#F87171' }]}>Rút tiền</Text>
             </Pressable>
           </View>
 
@@ -246,12 +253,13 @@ export function SavingDetailScreen({ savingId, onBack }: Props) {
               style={({ pressed }) => [
                 styles.secondaryActionBtn,
                 styles.editBtn,
+                isDark && { backgroundColor: themeColors.surfaceSubtle, borderColor: themeColors.cardBorder },
                 pressed && { opacity: 0.8 },
               ]}
               onPress={() => setShowEditModal(true)}
             >
-              <FinanceIcon name="edit" size={16} color="#006747" />
-              <Text style={styles.editBtnText}>Chỉnh sửa</Text>
+              <FinanceIcon name="edit" size={16} color={isDark ? themeColors.accentGreen : '#006747'} />
+              <Text style={[styles.editBtnText, isDark && { color: themeColors.accentGreen }]}>Chỉnh sửa</Text>
             </Pressable>
 
             {/* Xóa khoản tiết kiệm */}
@@ -259,22 +267,23 @@ export function SavingDetailScreen({ savingId, onBack }: Props) {
               style={({ pressed }) => [
                 styles.secondaryActionBtn,
                 styles.deleteBtn,
+                isDark && { backgroundColor: 'rgba(239, 68, 68, 0.1)', borderColor: 'rgba(239, 68, 68, 0.25)' },
                 pressed && { opacity: 0.8 },
               ]}
               onPress={handleDelete}
             >
-              <FinanceIcon name="trash" size={16} color="#DC2626" />
-              <Text style={styles.deleteBtnText}>Xóa khoản tiết kiệm</Text>
+              <FinanceIcon name="trash" size={16} color="#EF4444" />
+              <Text style={[styles.deleteBtnText, isDark && { color: '#F87171' }]}>Xóa khoản tiết kiệm</Text>
             </Pressable>
           </View>
         </View>
 
         {/* CARD 3: LỊCH SỬ NỘP / RÚT TIỀN TÍCH LŨY */}
-        <View style={styles.card}>
+        <View style={[styles.card, isDark && { backgroundColor: themeColors.surface, borderColor: themeColors.cardBorder }]}>
           <View style={styles.historyHeaderRow}>
             <View style={styles.historyTitleWrap}>
-              <FinanceIcon name="file-text" size={18} color="#006747" />
-              <Text style={styles.cardSectionTitle}>Lịch sử tích lũy</Text>
+              <FinanceIcon name="file-text" size={18} color={isDark ? themeColors.accentGreen : '#006747'} />
+              <Text style={[styles.cardSectionTitle, isDark && { color: themeColors.textPrimary }]}>Lịch sử tích lũy</Text>
             </View>
           </View>
 
@@ -288,7 +297,8 @@ export function SavingDetailScreen({ savingId, onBack }: Props) {
                     key={hist.id}
                     style={({ pressed }) => [
                       styles.historyItemRowWrap,
-                      pressed && { backgroundColor: '#F8FAFC' },
+                      isDark && { borderBottomColor: themeColors.divider },
+                      pressed && { backgroundColor: isDark ? themeColors.surfaceSubtle : '#F8FAFC' },
                       index === saving.history.length - 1 && { borderBottomWidth: 0, paddingBottom: 0 },
                     ]}
                     onPress={() => setSelectedContribution(hist)}
@@ -297,22 +307,23 @@ export function SavingDetailScreen({ savingId, onBack }: Props) {
                     <View
                       style={[
                         styles.historyIconCircle,
-                        isWithdraw && { backgroundColor: '#FEE2E2' },
+                        isDark && { backgroundColor: 'rgba(52, 211, 153, 0.16)' },
+                        isWithdraw && (isDark ? { backgroundColor: 'rgba(239, 68, 68, 0.2)' } : { backgroundColor: '#FEE2E2' }),
                       ]}
                     >
                       <FinanceIcon
                         name={isWithdraw ? 'arrow-down' : 'arrow-up'}
                         size={14}
-                        color={isWithdraw ? '#DC2626' : '#16A34A'}
+                        color={isWithdraw ? '#EF4444' : (isDark ? themeColors.accentGreen : '#16A34A')}
                       />
                     </View>
 
                     {/* Text info */}
                     <View style={styles.historyInfoCol}>
-                      <Text style={styles.historyItemTitle} numberOfLines={1}>
+                      <Text style={[styles.historyItemTitle, isDark && { color: themeColors.textPrimary }]} numberOfLines={1}>
                         {hist.title || (isWithdraw ? 'Rút tiền' : 'Nộp tiền tích lũy')}
                       </Text>
-                      <Text style={styles.historyDateText}>{hist.date}</Text>
+                      <Text style={[styles.historyDateText, isDark && { color: themeColors.textMuted }]}>{hist.date}</Text>
                     </View>
 
                     {/* Amount */}
@@ -320,20 +331,20 @@ export function SavingDetailScreen({ savingId, onBack }: Props) {
                       <Text
                         style={[
                           styles.historyAmountText,
-                          isWithdraw ? styles.historyAmountMinus : styles.historyAmountPlus,
+                          isWithdraw ? (isDark ? { color: '#F87171' } : styles.historyAmountMinus) : (isDark ? { color: themeColors.accentGreen } : styles.historyAmountPlus),
                         ]}
                       >
                         {isWithdraw ? '-' : '+'}
                         {formatVND(hist.amount)}
                       </Text>
-                      <FinanceIcon name="chevron-right" size={14} color="#CBD5E1" />
+                      <FinanceIcon name="chevron-right" size={14} color={isDark ? themeColors.textSecondary : '#CBD5E1'} />
                     </View>
                   </Pressable>
                 );
               })
             ) : (
               <View style={styles.emptyHistoryWrap}>
-                <Text style={styles.emptyHistoryText}>Chưa có giao dịch tích lũy nào</Text>
+                <Text style={[styles.emptyHistoryText, isDark && { color: themeColors.textMuted }]}>Chưa có giao dịch tích lũy nào</Text>
               </View>
             )}
           </View>
@@ -353,27 +364,27 @@ export function SavingDetailScreen({ savingId, onBack }: Props) {
               style={StyleSheet.absoluteFillObject}
               onPress={() => setSelectedContribution(null)}
             />
-            <View style={styles.modalCard}>
-              <View style={styles.modalHeader}>
-                <Text style={styles.modalTitle}>Chi tiết giao dịch</Text>
+            <View style={[styles.modalCard, isDark && { backgroundColor: themeColors.surface, borderColor: themeColors.cardBorder, borderWidth: 1 }]}>
+              <View style={[styles.modalHeader, isDark && { borderBottomColor: themeColors.divider }]}>
+                <Text style={[styles.modalTitle, isDark && { color: themeColors.textPrimary }]}>Chi tiết giao dịch</Text>
                 <Pressable
                   onPress={() => setSelectedContribution(null)}
                   hitSlop={10}
-                  style={styles.modalCloseBtn}
+                  style={[styles.modalCloseBtn, isDark && { backgroundColor: themeColors.surfaceSubtle }]}
                 >
-                  <FinanceIcon name="close" size={20} color="#64748B" />
+                  <FinanceIcon name="close" size={20} color={isDark ? themeColors.textSecondary : '#64748B'} />
                 </Pressable>
               </View>
 
               {/* Amount badge */}
-              <View style={styles.modalAmountBox}>
-                <Text style={styles.modalAmountLabel}>Số tiền giao dịch</Text>
+              <View style={[styles.modalAmountBox, isDark && { backgroundColor: themeColors.surfaceSubtle }]}>
+                <Text style={[styles.modalAmountLabel, isDark && { color: themeColors.textMuted }]}>Số tiền giao dịch</Text>
                 <Text
                   style={[
                     styles.modalAmountValue,
                     selectedContribution.type === 'withdraw'
-                      ? { color: '#DC2626' }
-                      : { color: '#006747' },
+                      ? { color: '#EF4444' }
+                      : { color: isDark ? themeColors.accentGreen : '#006747' },
                   ]}
                 >
                   {selectedContribution.type === 'withdraw' ? '-' : '+'}
@@ -383,34 +394,34 @@ export function SavingDetailScreen({ savingId, onBack }: Props) {
 
               <View style={styles.modalInfoList}>
                 <View style={styles.modalInfoRow}>
-                  <Text style={styles.modalInfoKey}>Loại giao dịch</Text>
-                  <Text style={styles.modalInfoVal}>
+                  <Text style={[styles.modalInfoKey, isDark && { color: themeColors.textMuted }]}>Loại giao dịch</Text>
+                  <Text style={[styles.modalInfoVal, isDark && { color: themeColors.textPrimary }]}>
                     {selectedContribution.type === 'withdraw' ? 'Rút tiền' : 'Nộp tiền tích lũy'}
                   </Text>
                 </View>
 
                 <View style={styles.modalInfoRow}>
-                  <Text style={styles.modalInfoKey}>Thời gian</Text>
-                  <Text style={styles.modalInfoVal}>{selectedContribution.date}</Text>
+                  <Text style={[styles.modalInfoKey, isDark && { color: themeColors.textMuted }]}>Thời gian</Text>
+                  <Text style={[styles.modalInfoVal, isDark && { color: themeColors.textPrimary }]}>{selectedContribution.date}</Text>
                 </View>
 
                 <View style={styles.modalInfoRow}>
-                  <Text style={styles.modalInfoKey}>Tài khoản</Text>
-                  <Text style={styles.modalInfoVal}>
+                  <Text style={[styles.modalInfoKey, isDark && { color: themeColors.textMuted }]}>Tài khoản</Text>
+                  <Text style={[styles.modalInfoVal, isDark && { color: themeColors.textPrimary }]}>
                     {selectedContribution.accountName || 'Ví của em'}
                   </Text>
                 </View>
 
                 <View style={styles.modalInfoRow}>
-                  <Text style={styles.modalInfoKey}>Ghi chú</Text>
-                  <Text style={styles.modalInfoVal}>
+                  <Text style={[styles.modalInfoKey, isDark && { color: themeColors.textMuted }]}>Ghi chú</Text>
+                  <Text style={[styles.modalInfoVal, isDark && { color: themeColors.textPrimary }]}>
                     {selectedContribution.note || selectedContribution.title || 'Không có ghi chú'}
                   </Text>
                 </View>
               </View>
 
               <Pressable
-                style={styles.modalCloseConfirmBtn}
+                style={[styles.modalCloseConfirmBtn, isDark && { backgroundColor: '#059669' }]}
                 onPress={() => setSelectedContribution(null)}
               >
                 <Text style={styles.modalCloseConfirmText}>Đóng</Text>
@@ -470,10 +481,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 16,
-    paddingVertical: 12,
-    backgroundColor: '#FFFFFF',
-    borderBottomWidth: 1,
-    borderBottomColor: '#F1F5F9',
+    paddingVertical: 10,
+    backgroundColor: '#F8FAF9',
   },
   backBtn: {
     width: 40,
@@ -481,28 +490,36 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#F8FAF9',
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    shadowColor: '#000',
+    shadowOpacity: 0.04,
+    shadowOffset: { width: 0, height: 1 },
+    shadowRadius: 3,
+    elevation: 1,
   },
   headerTitle: {
     fontSize: 17,
-    fontWeight: '700',
+    fontWeight: '800',
     color: '#0F172A',
   },
   contentScroll: {
-    padding: 16,
-    gap: 16,
+    paddingHorizontal: 16,
+    paddingTop: 8,
+    gap: 12,
   },
   card: {
     backgroundColor: '#FFFFFF',
     borderRadius: 20,
     padding: 16,
-    shadowColor: '#000',
-    shadowOpacity: 0.04,
-    shadowOffset: { width: 0, height: 2 },
-    shadowRadius: 8,
-    elevation: 2,
     borderWidth: 1,
-    borderColor: '#F1F5F9',
+    borderColor: '#E2E8F0',
+    shadowColor: '#000',
+    shadowOpacity: 0.03,
+    shadowOffset: { width: 0, height: 2 },
+    shadowRadius: 6,
+    elevation: 2,
   },
   topInfoRow: {
     flexDirection: 'row',

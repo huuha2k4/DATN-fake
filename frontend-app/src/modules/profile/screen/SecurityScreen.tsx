@@ -1,21 +1,11 @@
 import React, { useEffect, useState } from 'react';
-import {
-  ActivityIndicator,
-  Alert,
-  KeyboardAvoidingView,
-  Platform,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Switch,
-  Text,
-  TextInput,
-  View,
-} from 'react-native';
+import { ActivityIndicator, KeyboardAvoidingView, Platform, Pressable, ScrollView, StatusBar, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
+import { AppAlert as Alert } from '../../../context/DialogContext';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { FinanceIcon } from '../../core/components/FinanceIcon';
 import { userProfileApi } from '../api/userProfileApi';
 import { authStorage } from '../../auth/api/authApi';
+import { useAppTheme } from '../../../context/ThemeContext';
 
 interface SecurityScreenProps {
   onBack: () => void;
@@ -29,6 +19,7 @@ export function SecurityScreen({
   onLogoutRequested,
 }: SecurityScreenProps) {
   const insets = useSafeAreaInsets();
+  const { isDark, colors: themeColors } = useAppTheme();
 
   // Trạng thái màn hình bên trong: 'OVERVIEW' | 'CHANGE_PASSWORD'
   const [currentView, setCurrentView] = useState<'OVERVIEW' | 'CHANGE_PASSWORD'>('OVERVIEW');
@@ -192,9 +183,14 @@ export function SecurityScreen({
   };
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, isDark && { backgroundColor: themeColors.background }]}>
+      <StatusBar
+        barStyle={isDark ? 'light-content' : 'dark-content'}
+        backgroundColor={isDark ? themeColors.surface : '#FFFFFF'}
+        animated
+      />
       {/* ── HEADER THANH ĐIỀU HƯỚNG TRANG ── */}
-      <View style={[styles.headerBar, { paddingTop: Math.max(insets.top, 14) + 4 }]}>
+      <View style={[styles.headerBar, { paddingTop: Math.max(insets.top, 14) + 4 }, isDark && { backgroundColor: themeColors.surface, borderBottomColor: themeColors.cardBorder }]}>
         <Pressable
           onPress={() => {
             if (currentView === 'CHANGE_PASSWORD') {
@@ -204,13 +200,17 @@ export function SecurityScreen({
               onBack();
             }
           }}
-          style={({ pressed }) => [styles.backBtn, pressed && styles.pressed]}
+          style={({ pressed }) => [
+            styles.backBtn,
+            isDark && { backgroundColor: themeColors.surfaceSubtle },
+            pressed && styles.pressed,
+          ]}
           hitSlop={10}
         >
-          <FinanceIcon name="chevron-left" size={20} color="#0F172A" />
+          <FinanceIcon name="chevron-left" size={20} color={isDark ? themeColors.textPrimary : "#0F172A"} />
         </Pressable>
 
-        <Text style={styles.headerTitle}>
+        <Text style={[styles.headerTitle, isDark && { color: themeColors.textPrimary }]}>
           {currentView === 'CHANGE_PASSWORD' ? 'Đổi mật khẩu' : 'Đăng nhập & Bảo mật'}
         </Text>
 
@@ -229,13 +229,13 @@ export function SecurityScreen({
           {currentView === 'OVERVIEW' ? (
             <>
               {/* 1. KHỐI TÀI KHOẢN ĐĂNG NHẬP */}
-              <View style={styles.infoBannerCard}>
-                <View style={styles.infoBannerIcon}>
-                  <FinanceIcon name="user" size={19} color="#059669" />
+              <View style={[styles.infoBannerCard, isDark && { backgroundColor: themeColors.surface, borderColor: themeColors.cardBorder }]}>
+                <View style={[styles.infoBannerIcon, isDark && { backgroundColor: 'rgba(16, 185, 129, 0.16)' }]}>
+                  <FinanceIcon name="user" size={19} color={isDark ? '#34D399' : '#059669'} />
                 </View>
                 <View style={{ flex: 1 }}>
-                  <Text style={styles.infoBannerLabel}>Tài khoản liên kết</Text>
-                  <Text style={styles.infoBannerValue} numberOfLines={1}>
+                  <Text style={[styles.infoBannerLabel, isDark && { color: themeColors.textSecondary }]}>Tài khoản liên kết</Text>
+                  <Text style={[styles.infoBannerValue, isDark && { color: themeColors.textPrimary }]} numberOfLines={1}>
                     {userEmail || authStorage.getUser()?.email || 'Chưa cập nhật email'}
                   </Text>
                 </View>
@@ -245,31 +245,31 @@ export function SecurityScreen({
               </View>
 
               {/* 2. NHÓM BẢO MẬT MẬT KHẨU */}
-              <Text style={styles.sectionTitle}>MẬT KHẨU & ĐĂNG NHẬP</Text>
-              <View style={styles.menuCard}>
+              <Text style={[styles.sectionTitle, isDark && { color: themeColors.accentGreen }]}>MẬT KHẨU & ĐĂNG NHẬP</Text>
+              <View style={[styles.menuCard, isDark && { backgroundColor: themeColors.surface, borderColor: themeColors.cardBorder }]}>
                 <Pressable
                   onPress={() => setCurrentView('CHANGE_PASSWORD')}
                   style={({ pressed }) => [styles.menuRow, pressed && styles.pressed]}
                 >
-                  <View style={[styles.menuIconWrap, { backgroundColor: '#E8F8F0' }]}>
-                    <FinanceIcon name="shield" size={17} color="#059669" />
+                  <View style={[styles.menuIconWrap, { backgroundColor: isDark ? 'rgba(59, 130, 246, 0.16)' : '#EFF6FF' }]}>
+                    <FinanceIcon name="shield" size={17} color={isDark ? '#60A5FA' : '#2563EB'} />
                   </View>
                   <View style={styles.menuTextWrap}>
-                    <Text style={styles.menuRowTitle}>Đổi mật khẩu</Text>
-                    <Text style={styles.menuRowSub}>Cập nhật mật khẩu định kỳ để an toàn</Text>
+                    <Text style={[styles.menuRowTitle, isDark && { color: themeColors.textPrimary }]}>Đổi mật khẩu</Text>
+                    <Text style={[styles.menuRowSub, isDark && { color: themeColors.textSecondary }]}>Cập nhật mật khẩu định kỳ để an toàn</Text>
                   </View>
                   <Text style={styles.menuRowChevron}>›</Text>
                 </Pressable>
 
-                <View style={styles.rowDivider} />
+                <View style={[styles.rowDivider, isDark && { backgroundColor: themeColors.cardBorder }]} />
 
                 <View style={styles.menuRow}>
-                  <View style={[styles.menuIconWrap, { backgroundColor: '#ECFDF5' }]}>
-                    <FinanceIcon name="scan" size={17} color="#059669" />
+                  <View style={[styles.menuIconWrap, { backgroundColor: isDark ? 'rgba(16, 185, 129, 0.16)' : '#ECFDF5' }]}>
+                    <FinanceIcon name="scan" size={17} color={isDark ? '#34D399' : '#059669'} />
                   </View>
                   <View style={styles.menuTextWrap}>
-                    <Text style={styles.menuRowTitle}>Mở khóa sinh trắc học</Text>
-                    <Text style={styles.menuRowSub}>Vân tay / FaceID khi mở Finora</Text>
+                    <Text style={[styles.menuRowTitle, isDark && { color: themeColors.textPrimary }]}>Mở khóa sinh trắc học</Text>
+                    <Text style={[styles.menuRowSub, isDark && { color: themeColors.textSecondary }]}>Vân tay / FaceID khi mở Finora</Text>
                   </View>
                   <Switch
                     value={biometricEnabled}
@@ -281,15 +281,15 @@ export function SecurityScreen({
               </View>
 
               {/* 3. NHÓM BẢO VỆ NÂNG CAO */}
-              <Text style={styles.sectionTitle}>BẢO VỆ NÂNG CAO</Text>
-              <View style={styles.menuCard}>
+              <Text style={[styles.sectionTitle, isDark && { color: themeColors.accentGreen }]}>BẢO VỆ NÂNG CAO</Text>
+              <View style={[styles.menuCard, isDark && { backgroundColor: themeColors.surface, borderColor: themeColors.cardBorder }]}>
                 <View style={styles.menuRow}>
-                  <View style={[styles.menuIconWrap, { backgroundColor: '#EFF6FF' }]}>
-                    <FinanceIcon name="shield" size={17} color="#2563EB" />
+                  <View style={[styles.menuIconWrap, { backgroundColor: isDark ? 'rgba(99, 102, 241, 0.16)' : '#EEF2FF' }]}>
+                    <FinanceIcon name="shield" size={17} color={isDark ? '#818CF8' : '#4F46E5'} />
                   </View>
                   <View style={styles.menuTextWrap}>
-                    <Text style={styles.menuRowTitle}>Xác thực 2 yếu tố (2FA)</Text>
-                    <Text style={styles.menuRowSub}>Yêu cầu mã OTP qua Email khi đăng nhập máy lạ</Text>
+                    <Text style={[styles.menuRowTitle, isDark && { color: themeColors.textPrimary }]}>Xác thực 2 yếu tố (2FA)</Text>
+                    <Text style={[styles.menuRowSub, isDark && { color: themeColors.textSecondary }]}>Yêu cầu mã OTP qua Email khi đăng nhập máy lạ</Text>
                   </View>
                   <Switch
                     value={twoFactorEnabled}
@@ -313,15 +313,15 @@ export function SecurityScreen({
                   />
                 </View>
 
-                <View style={styles.rowDivider} />
+                <View style={[styles.rowDivider, isDark && { backgroundColor: themeColors.cardBorder }]} />
 
                 <View style={styles.menuRow}>
-                  <View style={[styles.menuIconWrap, { backgroundColor: '#FEF3C7' }]}>
-                    <FinanceIcon name="bell" size={17} color="#D97706" />
+                  <View style={[styles.menuIconWrap, { backgroundColor: isDark ? 'rgba(245, 158, 11, 0.16)' : '#FEF3C7' }]}>
+                    <FinanceIcon name="bell" size={17} color={isDark ? '#FBBF24' : '#D97706'} />
                   </View>
                   <View style={styles.menuTextWrap}>
-                    <Text style={styles.menuRowTitle}>Cảnh báo đăng nhập lạ</Text>
-                    <Text style={styles.menuRowSub}>Gửi thông báo khi có thiết bị mới truy cập</Text>
+                    <Text style={[styles.menuRowTitle, isDark && { color: themeColors.textPrimary }]}>Cảnh báo đăng nhập lạ</Text>
+                    <Text style={[styles.menuRowSub, isDark && { color: themeColors.textSecondary }]}>Gửi thông báo khi có thiết bị mới truy cập</Text>
                   </View>
                   <Switch
                     value={loginAlertEnabled}
@@ -342,23 +342,23 @@ export function SecurityScreen({
 
               {/* 4. PHIÊN ĐĂNG NHẬP HIỆN TẠI & CÁC THIẾT BỊ KHÁC */}
               <View style={styles.sectionHeaderRow}>
-                <Text style={styles.sectionTitle}>
+                <Text style={[styles.sectionTitle, isDark && { color: themeColors.accentGreen }]}>
                   THIẾT BỊ ĐÃ ĐĂNG NHẬP ({Math.max(deviceList.length, 1)})
                 </Text>
                 {isLoadingDevices && <ActivityIndicator size="small" color="#059669" />}
               </View>
 
-              <View style={styles.menuCard}>
+              <View style={[styles.menuCard, isDark && { backgroundColor: themeColors.surface, borderColor: themeColors.cardBorder }]}>
                 {/* Thiết bị hiện tại */}
                 <View style={styles.deviceRow}>
-                  <View style={styles.deviceIconCircle}>
+                  <View style={[styles.deviceIconCircle, isDark && { backgroundColor: themeColors.surfaceSubtle }]}>
                     <Text style={{ fontSize: 18 }}>{Platform.OS === 'ios' ? '📱' : '📱'}</Text>
                   </View>
                   <View style={{ flex: 1 }}>
-                    <Text style={styles.deviceName}>
+                    <Text style={[styles.deviceName, isDark && { color: themeColors.textPrimary }]}>
                       {Platform.OS === 'ios' ? 'Điện thoại Apple iPhone (iOS)' : 'Điện thoại Android'}
                     </Text>
-                    <Text style={styles.deviceSub}>Thiết bị này • Đang trực tuyến</Text>
+                    <Text style={[styles.deviceSub, isDark && { color: themeColors.textSecondary }]}>Thiết bị này • Đang trực tuyến</Text>
                   </View>
                   <View style={styles.currentDeviceBadge}>
                     <Text style={styles.currentDeviceBadgeText}>Hiện tại</Text>
@@ -379,14 +379,14 @@ export function SecurityScreen({
 
                   return (
                     <React.Fragment key={dev.id || idx}>
-                      <View style={styles.rowDivider} />
+                      <View style={[styles.rowDivider, isDark && { backgroundColor: themeColors.cardBorder }]} />
                       <View style={styles.deviceRow}>
-                        <View style={[styles.deviceIconCircle, { backgroundColor: '#F1F5F9' }]}>
+                        <View style={[styles.deviceIconCircle, { backgroundColor: isDark ? themeColors.surfaceSubtle : '#F1F5F9' }]}>
                           <Text style={{ fontSize: 18 }}>{dev.icon || '💻'}</Text>
                         </View>
                         <View style={{ flex: 1 }}>
-                          <Text style={styles.deviceName}>{dev.displayName}</Text>
-                          <Text style={styles.deviceSub}>
+                          <Text style={[styles.deviceName, isDark && { color: themeColors.textPrimary }]}>{dev.displayName}</Text>
+                          <Text style={[styles.deviceSub, isDark && { color: themeColors.textSecondary }]}>
                             Truy cập lần cuối: {timeFormatted}
                             {dev.sessionCount > 1 ? ` (${dev.sessionCount} phiên)` : ''}
                           </Text>
@@ -401,9 +401,9 @@ export function SecurityScreen({
               </View>
 
               {/* Thông báo cơ chế duy trì phiên */}
-              <View style={styles.sessionPolicyNotice}>
+              <View style={[styles.sessionPolicyNotice, isDark && { backgroundColor: themeColors.surface, borderColor: themeColors.cardBorder }]}>
                 <FinanceIcon name="leaf" size={14} color="#059669" />
-                <Text style={styles.sessionPolicyText}>
+                <Text style={[styles.sessionPolicyText, isDark && { color: themeColors.textSecondary }]}>
                   Finora duy trì phiên đăng nhập tự động. Tài khoản chỉ tự động đăng xuất nếu không truy cập app trong vòng 3 ngày liên tục.
                 </Text>
               </View>
@@ -426,7 +426,11 @@ export function SecurityScreen({
                     ]
                   );
                 }}
-                style={({ pressed }) => [styles.logoutCardBtn, pressed && styles.pressed]}
+                style={({ pressed }) => [
+                  styles.logoutCardBtn,
+                  isDark && { backgroundColor: themeColors.surface, borderColor: '#EF4444' },
+                  pressed && styles.pressed,
+                ]}
               >
                 <Text style={styles.logoutCardBtnText}>Đăng xuất khỏi thiết bị này</Text>
               </Pressable>
@@ -434,16 +438,16 @@ export function SecurityScreen({
           ) : (
             /* VIEW: ĐỔI MẬT KHẨU */
             <View style={styles.formContainer}>
-              <Text style={styles.formGuideText}>
+              <Text style={[styles.formGuideText, isDark && { color: themeColors.textSecondary }]}>
                 Mật khẩu mới cần dài ít nhất 6 ký tự, kết hợp chữ cái và số để đảm bảo độ an toàn cao nhất cho tài khoản của bạn.
               </Text>
 
               {/* Mật khẩu hiện tại */}
               <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>Mật khẩu hiện tại *</Text>
-                <View style={styles.inputWrap}>
+                <Text style={[styles.inputLabel, isDark && { color: themeColors.textSecondary }]}>Mật khẩu hiện tại *</Text>
+                <View style={[styles.inputWrap, isDark && { backgroundColor: themeColors.surface, borderColor: themeColors.cardBorder }]}>
                   <TextInput
-                    style={styles.textInput}
+                    style={[styles.textInput, isDark && { color: themeColors.textPrimary }]}
                     placeholder="Nhập mật khẩu đang sử dụng"
                     placeholderTextColor="#94A3B8"
                     secureTextEntry={!showCurrentPass}
@@ -465,10 +469,10 @@ export function SecurityScreen({
 
               {/* Mật khẩu mới */}
               <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>Mật khẩu mới *</Text>
-                <View style={styles.inputWrap}>
+                <Text style={[styles.inputLabel, isDark && { color: themeColors.textSecondary }]}>Mật khẩu mới *</Text>
+                <View style={[styles.inputWrap, isDark && { backgroundColor: themeColors.surface, borderColor: themeColors.cardBorder }]}>
                   <TextInput
-                    style={styles.textInput}
+                    style={[styles.textInput, isDark && { color: themeColors.textPrimary }]}
                     placeholder="Tối thiểu 6 ký tự"
                     placeholderTextColor="#94A3B8"
                     secureTextEntry={!showNewPass}
@@ -490,10 +494,10 @@ export function SecurityScreen({
 
               {/* Xác nhận mật khẩu mới */}
               <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>Xác nhận mật khẩu mới *</Text>
-                <View style={styles.inputWrap}>
+                <Text style={[styles.inputLabel, isDark && { color: themeColors.textSecondary }]}>Xác nhận mật khẩu mới *</Text>
+                <View style={[styles.inputWrap, isDark && { backgroundColor: themeColors.surface, borderColor: themeColors.cardBorder }]}>
                   <TextInput
-                    style={styles.textInput}
+                    style={[styles.textInput, isDark && { color: themeColors.textPrimary }]}
                     placeholder="Nhập lại mật khẩu mới"
                     placeholderTextColor="#94A3B8"
                     secureTextEntry={!showConfirmPass}
@@ -730,13 +734,13 @@ const styles = StyleSheet.create({
     color: '#475569',
   },
   logoutCardBtn: {
-    backgroundColor: '#FEF2F2',
+    backgroundColor: '#FFFFFF',
     borderRadius: 16,
     paddingVertical: 13,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
-    borderColor: '#FEE2E2',
+    borderColor: '#EF4444',
     marginBottom: 10,
   },
   logoutCardBtnText: {

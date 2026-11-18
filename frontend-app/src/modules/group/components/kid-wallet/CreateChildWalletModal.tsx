@@ -1,18 +1,6 @@
 import React, { useState } from 'react';
-import {
-  Modal,
-  View,
-  Text,
-  StyleSheet,
-  Pressable,
-  TextInput,
-  ActivityIndicator,
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
-  Alert,
-  Image,
-} from 'react-native';
+import { Modal, View, Text, StyleSheet, Pressable, TextInput, ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView, Image } from 'react-native';
+import { AppAlert as Alert } from '../../../../context/DialogContext';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
 import { FinanceIcon } from '../../../core/components/FinanceIcon';
@@ -24,6 +12,7 @@ import {
   BOY_AVATAR_IMAGE,
   GIRL_AVATAR_IMAGE,
 } from './kidAvatarPresets';
+import { useAppTheme } from '../../../../context/ThemeContext';
 
 export interface CreateChildWalletModalProps {
   visible: boolean;
@@ -42,6 +31,7 @@ export const CreateChildWalletModal: React.FC<CreateChildWalletModalProps> = ({
   onClose,
   onSubmit,
 }) => {
+  const { isDark, colors: themeColors } = useAppTheme();
   const insets = useSafeAreaInsets();
 
   // 2 CHẾ ĐỘ VÍ CHUẨN BẢN WEB:
@@ -178,34 +168,73 @@ export const CreateChildWalletModal: React.FC<CreateChildWalletModalProps> = ({
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       >
         <Pressable style={styles.backdrop} onPress={onClose} />
-        <View style={[styles.sheet, { paddingBottom: Math.max(insets.bottom, 16) + 12 }]}>
+        <View
+          style={[
+            styles.sheet,
+            isDark && { backgroundColor: themeColors.surface },
+            { paddingBottom: Math.max(insets.bottom, 16) + 12 },
+          ]}
+        >
           {/* Header */}
           <View style={styles.header}>
             <View>
-              <Text style={styles.title}>Tạo ví trẻ em 👶</Text>
-              <Text style={styles.subtitle}>Quản lý tiền tiêu vặt và giáo dục tài chính cho con</Text>
+              <Text style={[styles.title, isDark && { color: themeColors.textPrimary }]}>Tạo ví trẻ em 👶</Text>
+              <Text style={[styles.subtitle, isDark && { color: themeColors.textSecondary }]}>
+                Quản lý tiền tiêu vặt và giáo dục tài chính cho con
+              </Text>
             </View>
-            <Pressable onPress={onClose} hitSlop={10} style={styles.closeBtn}>
-              <FinanceIcon name="close" size={16} color="#64748B" />
+            <Pressable
+              onPress={onClose}
+              hitSlop={10}
+              style={[
+                styles.closeBtn,
+                isDark && { backgroundColor: themeColors.surfaceSubtle },
+              ]}
+            >
+              <FinanceIcon name="close" size={16} color={isDark ? themeColors.textSecondary : '#64748B'} />
             </Pressable>
           </View>
 
           {/* CHỌN LOẠI VÍ (2 CHẾ ĐỘ CHUẨN BẢN WEB) */}
-          <View style={styles.modeSelectorCard}>
+          <View style={[styles.modeSelectorCard, isDark && { backgroundColor: themeColors.surfaceSubtle }]}>
             <Pressable
               onPress={() => setWalletMode('MODE_2')}
-              style={[styles.modeTab, walletMode === 'MODE_2' && styles.modeTabActive]}
+              style={[
+                styles.modeTab,
+                walletMode === 'MODE_2' && [
+                  styles.modeTabActive,
+                  isDark && { backgroundColor: themeColors.accentGreen },
+                ],
+              ]}
             >
-              <Text style={[styles.modeTabText, walletMode === 'MODE_2' && styles.modeTabTextActive]}>
+              <Text
+                style={[
+                  styles.modeTabText,
+                  isDark && { color: themeColors.textSecondary },
+                  walletMode === 'MODE_2' && styles.modeTabTextActive,
+                ]}
+              >
                 Tài khoản cho bé tự ghi
               </Text>
             </Pressable>
 
             <Pressable
               onPress={() => setWalletMode('MODE_1')}
-              style={[styles.modeTab, walletMode === 'MODE_1' && styles.modeTabActive]}
+              style={[
+                styles.modeTab,
+                walletMode === 'MODE_1' && [
+                  styles.modeTabActive,
+                  isDark && { backgroundColor: themeColors.accentGreen },
+                ],
+              ]}
             >
-              <Text style={[styles.modeTabText, walletMode === 'MODE_1' && styles.modeTabTextActive]}>
+              <Text
+                style={[
+                  styles.modeTabText,
+                  isDark && { color: themeColors.textSecondary },
+                  walletMode === 'MODE_1' && styles.modeTabTextActive,
+                ]}
+              >
                 Bố mẹ tự quản lý
               </Text>
             </Pressable>
@@ -214,7 +243,7 @@ export const CreateChildWalletModal: React.FC<CreateChildWalletModalProps> = ({
           <ScrollView style={styles.formScroll} showsVerticalScrollIndicator={false}>
             {/* PHẦN CHỌN VÀ HIỂN THỊ AVATAR CỦA BÉ */}
             <View style={styles.avatarSection}>
-              <Text style={styles.label}>Ảnh đại diện của bé</Text>
+              <Text style={[styles.label, isDark && { color: themeColors.textPrimary }]}>Ảnh đại diện của bé</Text>
               
               <View style={styles.avatarPreviewRow}>
                 <View style={styles.avatarCircleWrap}>
@@ -227,18 +256,32 @@ export const CreateChildWalletModal: React.FC<CreateChildWalletModalProps> = ({
                 </View>
 
                 <View style={{ flex: 1, gap: 6 }}>
-                  <Text style={styles.avatarHintTitle}>Chọn avatar cho bé</Text>
-                  <Text style={styles.avatarHintSub}>
+                  <Text style={[styles.avatarHintTitle, isDark && { color: themeColors.textPrimary }]}>
+                    Chọn avatar cho bé
+                  </Text>
+                  <Text style={[styles.avatarHintSub, isDark && { color: themeColors.textSecondary }]}>
                     Chọn ảnh bé trai, bé gái hoặc tải ảnh riêng của con từ máy.
                   </Text>
 
                   <Pressable
                     onPress={handlePickCustomImage}
                     disabled={uploadingAvatar}
-                    style={({ pressed }) => [styles.btnUploadImage, pressed && { opacity: 0.85 }]}
+                    style={({ pressed }) => [
+                      styles.btnUploadImage,
+                      isDark && {
+                        backgroundColor: 'rgba(52, 211, 153, 0.15)',
+                        borderColor: 'rgba(52, 211, 153, 0.3)',
+                      },
+                      pressed && { opacity: 0.85 },
+                    ]}
                   >
-                    <FinanceIcon name="camera" size={14} color="#059669" />
-                    <Text style={styles.btnUploadImageText}>
+                    <FinanceIcon name="camera" size={14} color={isDark ? themeColors.accentGreen : '#059669'} />
+                    <Text
+                      style={[
+                        styles.btnUploadImageText,
+                        isDark && { color: themeColors.accentGreen },
+                      ]}
+                    >
                       {uploadingAvatar ? 'Đang tải ảnh...' : 'Tải ảnh khác từ máy'}
                     </Text>
                   </Pressable>
@@ -246,7 +289,9 @@ export const CreateChildWalletModal: React.FC<CreateChildWalletModalProps> = ({
               </View>
 
               {/* Danh sách Avatar Bé Trai / Bé Gái chuẩn ảnh */}
-              <Text style={styles.presetListTitle}>Chọn mẫu ảnh có sẵn:</Text>
+              <Text style={[styles.presetListTitle, isDark && { color: themeColors.textPrimary }]}>
+                Chọn mẫu ảnh có sẵn:
+              </Text>
               <View style={styles.officialAvatarRow}>
                 {OFFICIAL_KID_AVATARS.map((preset) => {
                   const isSelected = selectedAvatarKey === preset.key;
@@ -254,17 +299,44 @@ export const CreateChildWalletModal: React.FC<CreateChildWalletModalProps> = ({
                     <Pressable
                       key={preset.id}
                       onPress={() => setSelectedAvatarKey(preset.key)}
-                      style={[styles.officialAvatarCard, isSelected && styles.officialAvatarCardActive]}
+                      style={[
+                        styles.officialAvatarCard,
+                        isDark && {
+                          backgroundColor: themeColors.surfaceSubtle,
+                          borderColor: themeColors.cardBorder,
+                        },
+                        isSelected && [
+                          styles.officialAvatarCardActive,
+                          isDark && {
+                            borderColor: themeColors.accentGreen,
+                            backgroundColor: 'rgba(52, 211, 153, 0.15)',
+                          },
+                        ],
+                      ]}
                     >
                       <View style={styles.officialAvatarWrap}>
                         <Image source={preset.localSource} style={styles.officialAvatarImg} />
                         {isSelected && (
-                          <View style={styles.presetCheckBadge}>
+                          <View
+                            style={[
+                              styles.presetCheckBadge,
+                              isDark && { backgroundColor: themeColors.accentGreen },
+                            ]}
+                          >
                             <FinanceIcon name="check" size={11} color="#FFFFFF" />
                           </View>
                         )}
                       </View>
-                      <Text style={[styles.officialAvatarName, isSelected && styles.officialAvatarNameActive]}>
+                      <Text
+                        style={[
+                          styles.officialAvatarName,
+                          isDark && { color: themeColors.textSecondary },
+                          isSelected && [
+                            styles.officialAvatarNameActive,
+                            isDark && { color: themeColors.accentGreen },
+                          ],
+                        ]}
+                      >
                         {preset.name}
                       </Text>
                     </Pressable>
@@ -275,49 +347,84 @@ export const CreateChildWalletModal: React.FC<CreateChildWalletModalProps> = ({
 
             {/* Tên bé */}
             <View style={styles.formGroup}>
-              <Text style={styles.label}>Tên của bé *</Text>
+              <Text style={[styles.label, isDark && { color: themeColors.textPrimary }]}>Tên của bé *</Text>
               <TextInput
                 value={childName}
                 onChangeText={setChildName}
                 placeholder="VD: Bé Bo, Minh Đức, Gia Hân..."
-                placeholderTextColor="#94A3B8"
-                style={styles.input}
+                placeholderTextColor={isDark ? themeColors.textMuted : '#94A3B8'}
+                style={[
+                  styles.input,
+                  isDark && {
+                    backgroundColor: themeColors.surfaceSubtle,
+                    borderColor: themeColors.cardBorder,
+                    color: themeColors.textPrimary,
+                  },
+                ]}
               />
             </View>
 
             {/* Mode 2: Thông tin đăng nhập cho bé (Kids Mode) */}
             {walletMode === 'MODE_2' && (
-              <View style={styles.kidsModeBox}>
+              <View
+                style={[
+                  styles.kidsModeBox,
+                  isDark && {
+                    backgroundColor: themeColors.surfaceSubtle,
+                    borderColor: themeColors.cardBorder,
+                  },
+                ]}
+              >
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                   <Text style={{ fontSize: 15 }}>🔑</Text>
-                  <Text style={styles.kidsModeTitle}>Tài khoản đăng nhập của bé (Kids Mode)</Text>
+                  <Text style={[styles.kidsModeTitle, isDark && { color: themeColors.textPrimary }]}>
+                    Tài khoản đăng nhập của bé (Kids Mode)
+                  </Text>
                 </View>
-                <Text style={styles.kidsModeSub}>
+                <Text style={[styles.kidsModeSub, isDark && { color: themeColors.textSecondary }]}>
                   Bé có thể tự đăng nhập trên máy riêng để xem số dư, xin tiền và ghi chép chi tiêu.
                 </Text>
 
                 <View style={{ gap: 8, marginTop: 4 }}>
                   <View>
-                    <Text style={styles.labelSmall}>Tên đăng nhập của bé *</Text>
+                    <Text style={[styles.labelSmall, isDark && { color: themeColors.textSecondary }]}>
+                      Tên đăng nhập của bé *
+                    </Text>
                     <TextInput
                       value={childUsername}
                       onChangeText={setChildUsername}
                       placeholder="VD: bebo2015, minhduc"
-                      placeholderTextColor="#94A3B8"
+                      placeholderTextColor={isDark ? themeColors.textMuted : '#94A3B8'}
                       autoCapitalize="none"
-                      style={styles.inputSmall}
+                      style={[
+                        styles.inputSmall,
+                        isDark && {
+                          backgroundColor: themeColors.surface,
+                          borderColor: themeColors.cardBorder,
+                          color: themeColors.textPrimary,
+                        },
+                      ]}
                     />
                   </View>
 
                   <View>
-                    <Text style={styles.labelSmall}>Mật khẩu của bé * (tối thiểu 6 ký tự)</Text>
+                    <Text style={[styles.labelSmall, isDark && { color: themeColors.textSecondary }]}>
+                      Mật khẩu của bé * (tối thiểu 6 ký tự)
+                    </Text>
                     <TextInput
                       value={childPassword}
                       onChangeText={setChildPassword}
                       placeholder="••••••"
-                      placeholderTextColor="#94A3B8"
+                      placeholderTextColor={isDark ? themeColors.textMuted : '#94A3B8'}
                       secureTextEntry
-                      style={styles.inputSmall}
+                      style={[
+                        styles.inputSmall,
+                        isDark && {
+                          backgroundColor: themeColors.surface,
+                          borderColor: themeColors.cardBorder,
+                          color: themeColors.textPrimary,
+                        },
+                      ]}
                     />
                   </View>
                 </View>
@@ -327,39 +434,62 @@ export const CreateChildWalletModal: React.FC<CreateChildWalletModalProps> = ({
             {/* Ngày sinh & Số dư ban đầu */}
             <View style={{ flexDirection: 'row', gap: 10 }}>
               <View style={[styles.formGroup, { flex: 1 }]}>
-                <Text style={styles.label}>Năm sinh / Tuổi</Text>
+                <Text style={[styles.label, isDark && { color: themeColors.textPrimary }]}>Năm sinh / Tuổi</Text>
                 <TextInput
                   value={dateOfBirth}
                   onChangeText={setDateOfBirth}
                   placeholder="VD: 2014"
-                  placeholderTextColor="#94A3B8"
-                  style={styles.input}
+                  placeholderTextColor={isDark ? themeColors.textMuted : '#94A3B8'}
+                  style={[
+                    styles.input,
+                    isDark && {
+                      backgroundColor: themeColors.surfaceSubtle,
+                      borderColor: themeColors.cardBorder,
+                      color: themeColors.textPrimary,
+                    },
+                  ]}
                 />
               </View>
 
               <View style={[styles.formGroup, { flex: 1.2 }]}>
-                <Text style={styles.label}>Tiền ban đầu (₫)</Text>
+                <Text style={[styles.label, isDark && { color: themeColors.textPrimary }]}>Tiền ban đầu (₫)</Text>
                 <TextInput
                   value={initialBalance ? formatVND(Number(initialBalance.replace(/\D/g, ''))) : ''}
                   onChangeText={(t) => setInitialBalance(t.replace(/\D/g, ''))}
                   placeholder="0 ₫"
-                  placeholderTextColor="#94A3B8"
+                  placeholderTextColor={isDark ? themeColors.textMuted : '#94A3B8'}
                   keyboardType="numeric"
-                  style={styles.input}
+                  style={[
+                    styles.input,
+                    isDark && {
+                      backgroundColor: themeColors.surfaceSubtle,
+                      borderColor: themeColors.cardBorder,
+                      color: themeColors.textPrimary,
+                    },
+                  ]}
                 />
               </View>
             </View>
 
             {/* Tiền tiêu vặt định kỳ */}
             <View style={styles.formGroup}>
-              <Text style={styles.label}>Tiền tiêu vặt định kỳ hàng tuần (₫)</Text>
+              <Text style={[styles.label, isDark && { color: themeColors.textPrimary }]}>
+                Tiền tiêu vặt định kỳ hàng tuần (₫)
+              </Text>
               <TextInput
                 value={weeklyAllowance ? formatVND(Number(weeklyAllowance.replace(/\D/g, ''))) : ''}
                 onChangeText={(t) => setWeeklyAllowance(t.replace(/\D/g, ''))}
                 placeholder="VD: 50.000, 100.000 ₫"
-                placeholderTextColor="#94A3B8"
+                placeholderTextColor={isDark ? themeColors.textMuted : '#94A3B8'}
                 keyboardType="numeric"
-                style={styles.input}
+                style={[
+                  styles.input,
+                  isDark && {
+                    backgroundColor: themeColors.surfaceSubtle,
+                    borderColor: themeColors.cardBorder,
+                    color: themeColors.textPrimary,
+                  },
+                ]}
               />
             </View>
 
@@ -367,15 +497,26 @@ export const CreateChildWalletModal: React.FC<CreateChildWalletModalProps> = ({
             {walletMode === 'MODE_1' && (
               <Pressable
                 onPress={() => setShareBalance(!shareBalance)}
-                style={styles.toggleRow}
+                style={[styles.toggleRow, isDark && { borderTopColor: themeColors.divider }]}
               >
                 <View style={{ flex: 1 }}>
-                  <Text style={styles.toggleTitle}>Chia sẻ số dư với nhóm</Text>
-                  <Text style={styles.toggleSub}>
+                  <Text style={[styles.toggleTitle, isDark && { color: themeColors.textPrimary }]}>
+                    Chia sẻ số dư với nhóm
+                  </Text>
+                  <Text style={[styles.toggleSub, isDark && { color: themeColors.textSecondary }]}>
                     Cho phép mọi thành viên trong nhóm nhìn thấy số dư của bé
                   </Text>
                 </View>
-                <View style={[styles.toggleCheckbox, shareBalance && styles.toggleCheckboxActive]}>
+                <View
+                  style={[
+                    styles.toggleCheckbox,
+                    isDark && { borderColor: themeColors.cardBorder },
+                    shareBalance && [
+                      styles.toggleCheckboxActive,
+                      isDark && { backgroundColor: themeColors.accentGreen, borderColor: themeColors.accentGreen },
+                    ],
+                  ]}
+                >
                   {shareBalance && <FinanceIcon name="check" size={12} color="#FFFFFF" />}
                 </View>
               </Pressable>
@@ -384,6 +525,7 @@ export const CreateChildWalletModal: React.FC<CreateChildWalletModalProps> = ({
             <Pressable
               style={({ pressed }) => [
                 styles.submitBtn,
+                isDark && { backgroundColor: themeColors.accentGreen },
                 pressed && { opacity: 0.85 },
                 submitting && { opacity: 0.6 },
               ]}
@@ -410,7 +552,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(15, 23, 42, 0.45)',
   },
   backdrop: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
   },
   sheet: {
     backgroundColor: '#FFFFFF',
@@ -508,7 +650,7 @@ const styles = StyleSheet.create({
     resizeMode: 'cover',
   },
   uploadingOverlay: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     backgroundColor: 'rgba(0,0,0,0.4)',
     alignItems: 'center',
     justifyContent: 'center',

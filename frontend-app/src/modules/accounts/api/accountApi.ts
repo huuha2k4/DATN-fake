@@ -99,6 +99,15 @@ export const accountApi = {
     accountType: AccountTypeCode;
     initialBalance: number;
     currencyCode?: string;
+    accountNumber?: string;
+    phoneNumber?: string;
+    cardNumberLast4?: string;
+    creditLimit?: number;
+    billingCycleDay?: number;
+    paymentDueDay?: number;
+    bankId?: string;
+    description?: string;
+    isIncludedInTotal?: boolean;
   }): Promise<{ success: boolean; data?: any; message?: string }> {
     const token = authStorage.getToken();
     try {
@@ -111,10 +120,11 @@ export const accountApi = {
         body: JSON.stringify({
           ...payload,
           currencyCode: payload.currencyCode || 'VND',
+          isIncludedInTotal: payload.isIncludedInTotal ?? true,
         }),
       });
 
-      const json = await res.json();
+      const json = await res.json().catch(() => ({}));
       if (!res.ok) {
         return {
           success: false,
@@ -123,7 +133,7 @@ export const accountApi = {
       }
       return { success: true, data: json?.data };
     } catch (err: any) {
-      return { success: false, message: err?.message || 'Lỗi mạng.' };
+      return { success: false, message: err?.message || 'Lỗi mạng hoặc không thể kết nối máy chủ.' };
     }
   },
 
@@ -138,6 +148,11 @@ export const accountApi = {
       isActive?: boolean;
       isIncludedInTotal?: boolean;
       accountNumber?: string;
+      balance?: number;
+      creditLimit?: number;
+      billingCycleDay?: number;
+      paymentDueDay?: number;
+      version?: number;
     }
   ): Promise<{ success: boolean; data?: any; message?: string }> {
     const token = authStorage.getToken();
@@ -151,7 +166,7 @@ export const accountApi = {
         body: JSON.stringify(payload),
       });
 
-      const json = await res.json();
+      const json = await res.json().catch(() => ({}));
       if (!res.ok) {
         return {
           success: false,
@@ -160,7 +175,7 @@ export const accountApi = {
       }
       return { success: true, data: json?.data };
     } catch (err: any) {
-      return { success: false, message: err?.message || 'Lỗi mạng.' };
+      return { success: false, message: err?.message || 'Lỗi mạng hoặc không thể kết nối máy chủ.' };
     }
   },
 
@@ -192,7 +207,7 @@ export const accountApi = {
         }),
       });
 
-      const json = await res.json();
+      const json = await res.json().catch(() => ({}));
       if (!res.ok) {
         return {
           success: false,
@@ -201,17 +216,17 @@ export const accountApi = {
       }
       return { success: true, data: json?.data };
     } catch (err: any) {
-      return { success: false, message: err?.message || 'Lỗi mạng.' };
+      return { success: false, message: err?.message || 'Lỗi mạng hoặc không thể kết nối máy chủ.' };
     }
   },
 
   /**
-   * Xóa ví / tài khoản (DELETE /api/v1/accounts/:id)
+   * Xóa ví / tài khoản (DELETE /api/v1/accounts/:id?version=...)
    */
-  async deleteAccount(id: string): Promise<{ success: boolean; message?: string }> {
+  async deleteAccount(id: string, version: number = 0): Promise<{ success: boolean; message?: string }> {
     const token = authStorage.getToken();
     try {
-      const res = await fetch(`${API_BASE_URL}/accounts/${id}`, {
+      const res = await fetch(`${API_BASE_URL}/accounts/${id}?version=${version}`, {
         method: 'DELETE',
         headers: {
           'Content-Type': 'application/json',

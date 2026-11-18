@@ -1,16 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import {
-  Alert,
-  Modal,
-  Platform,
-  Pressable,
-  ScrollView,
-  StatusBar,
-  StyleSheet,
-  Switch,
-  Text,
-  View,
-} from 'react-native';
+import { Modal, Platform, Pressable, ScrollView, StatusBar, StyleSheet, Switch, Text, View } from 'react-native';
+import { AppAlert as Alert } from '../../../context/DialogContext';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { FinanceIcon } from '../../core/components/FinanceIcon';
 import {
@@ -18,10 +8,8 @@ import {
   type AppSystemSettingsState,
   DEFAULT_APP_SETTINGS,
   type AppTheme,
-  type AppLanguage,
-  type PrimaryCurrency,
-  type DateFormat,
 } from '../api/appSettingsApi';
+import { useAppTheme } from '../../../context/ThemeContext';
 
 interface SystemSettingsScreenProps {
   onBack: () => void;
@@ -29,14 +17,12 @@ interface SystemSettingsScreenProps {
 
 export function SystemSettingsScreen({ onBack }: SystemSettingsScreenProps) {
   const insets = useSafeAreaInsets();
+  const { isDark, colors: themeColors, setTheme } = useAppTheme();
   const [settings, setSettings] = useState<AppSystemSettingsState>(DEFAULT_APP_SETTINGS);
   const [loaded, setLoaded] = useState(false);
 
   // Modal selector states
   const [themeModalVisible, setThemeModalVisible] = useState(false);
-  const [langModalVisible, setLangModalVisible] = useState(false);
-  const [currencyModalVisible, setCurrencyModalVisible] = useState(false);
-  const [dateFormatModalVisible, setDateFormatModalVisible] = useState(false);
 
   useEffect(() => {
     appSettingsStorage.getSettings().then((s) => {
@@ -51,7 +37,11 @@ export function SystemSettingsScreen({ onBack }: SystemSettingsScreenProps) {
   ) => {
     const updated = { ...settings, [key]: value };
     setSettings(updated);
-    appSettingsStorage.saveSettings(updated);
+    if (key === 'theme') {
+      setTheme(value as AppTheme);
+    } else {
+      appSettingsStorage.saveSettings(updated);
+    }
   };
 
   const handleResetDefaults = () => {
@@ -96,36 +86,18 @@ export function SystemSettingsScreen({ onBack }: SystemSettingsScreenProps) {
     SYSTEM: 'Tự động theo hệ thống',
   };
 
-  const langLabels: Record<AppLanguage, string> = {
-    vi: 'Tiếng Việt (Mặc định)',
-    en: 'English (US)',
-  };
-
-  const currencyLabels: Record<PrimaryCurrency, string> = {
-    VND: '₫ (VNĐ) - Đồng Việt Nam',
-    USD: '$ (USD) - Đô la Mỹ',
-    EUR: '€ (EUR) - Đồng Euro',
-    JPY: '¥ (JPY) - Yên Nhật',
-  };
-
-  const dateFormatLabels: Record<DateFormat, string> = {
-    'DD/MM/YYYY': 'DD/MM/YYYY (31/12/2026)',
-    'MM/DD/YYYY': 'MM/DD/YYYY (12/31/2026)',
-    'YYYY-MM-DD': 'YYYY-MM-DD (2026-12-31)',
-  };
-
   return (
-    <View style={styles.screen}>
-      <StatusBar barStyle="dark-content" backgroundColor="#FAFCFB" />
+    <View style={[styles.screen, isDark && { backgroundColor: themeColors.background }]}>
+      <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} backgroundColor={isDark ? themeColors.background : '#FAFCFB'} />
 
       {/* ── 1. HEADER ── */}
-      <View style={[styles.headerContainer, { paddingTop: Math.max(insets.top + 6, 16) }]}>
-        <Pressable onPress={onBack} style={styles.headerIconButton} hitSlop={12}>
-          <FinanceIcon name="chevron-left" size={24} color="#0F172A" />
+      <View style={[styles.headerContainer, { paddingTop: Math.max(insets.top + 6, 16) }, isDark && { backgroundColor: themeColors.surface, borderBottomColor: themeColors.cardBorder }]}>
+        <Pressable onPress={onBack} style={[styles.headerIconButton, isDark && { backgroundColor: themeColors.surfaceSubtle }]} hitSlop={12}>
+          <FinanceIcon name="chevron-left" size={24} color={isDark ? themeColors.textPrimary : '#0F172A'} />
         </Pressable>
-        <Text style={styles.headerTitle}>Cài đặt hệ thống</Text>
-        <Pressable onPress={handleResetDefaults} style={styles.headerResetButton} hitSlop={8}>
-          <FinanceIcon name="refresh" size={17} color="#047857" />
+        <Text style={[styles.headerTitle, isDark && { color: themeColors.textPrimary }]}>Cài đặt hệ thống</Text>
+        <Pressable onPress={handleResetDefaults} style={[styles.headerResetButton, isDark && { backgroundColor: themeColors.surfaceSubtle }]} hitSlop={8}>
+          <FinanceIcon name="refresh" size={17} color={isDark ? themeColors.accentGreen : '#047857'} />
         </Pressable>
       </View>
 
@@ -135,25 +107,25 @@ export function SystemSettingsScreen({ onBack }: SystemSettingsScreenProps) {
         showsVerticalScrollIndicator={false}
       >
         {/* Banner thông báo trạng thái */}
-        <View style={styles.introCard}>
-          <View style={styles.introIconCircle}>
-            <FinanceIcon name="settings" size={20} color="#059669" />
+        <View style={[styles.introCard, isDark && { backgroundColor: themeColors.surface, borderColor: themeColors.cardBorder }]}>
+          <View style={[styles.introIconCircle, isDark && { backgroundColor: themeColors.surfaceSubtle }]}>
+            <FinanceIcon name="settings" size={20} color={isDark ? themeColors.accentGreen : '#059669'} />
           </View>
           <View style={styles.introTextWrap}>
-            <Text style={styles.introTitle}>Tùy chỉnh trải nghiệm Finora</Text>
-            <Text style={styles.introDesc}>
-              Cá nhân hóa giao diện hiển thị, đơn vị tiền tệ, định dạng ngày và bảo mật ứng dụng theo thói quen của bạn.
+            <Text style={[styles.introTitle, isDark && { color: themeColors.accentGreen }]}>Tùy chỉnh trải nghiệm Finora</Text>
+            <Text style={[styles.introDesc, isDark && { color: themeColors.textSecondary }]}>
+              Cá nhân hóa giao diện hiển thị, ngôn ngữ và bảo mật ứng dụng theo thói quen của bạn.
             </Text>
           </View>
         </View>
 
         {/* ── NHÓM 1: GIAO DIỆN & HIỂN THỊ ── */}
-        <View style={styles.sectionCard}>
+        <View style={[styles.sectionCard, isDark && { backgroundColor: themeColors.surface, borderColor: themeColors.cardBorder }]}>
           <View style={styles.sectionHeaderRow}>
-            <View style={[styles.sectionBadge, { backgroundColor: '#ECFDF5' }]}>
-              <FinanceIcon name="spark" size={15} color="#059669" />
+            <View style={[styles.sectionBadge, { backgroundColor: isDark ? themeColors.surfaceSubtle : '#ECFDF5' }]}>
+              <FinanceIcon name="spark" size={15} color={isDark ? themeColors.accentGreen : '#059669'} />
             </View>
-            <Text style={styles.sectionHeaderTitle}>Giao diện & Hiển thị</Text>
+            <Text style={[styles.sectionHeaderTitle, isDark && { color: themeColors.textPrimary }]}>Giao diện & Hiển thị</Text>
           </View>
 
           {/* Chọn Giao diện */}
@@ -162,125 +134,67 @@ export function SystemSettingsScreen({ onBack }: SystemSettingsScreenProps) {
             onPress={() => setThemeModalVisible(true)}
           >
             <View style={styles.itemTextWrap}>
-              <Text style={styles.itemTitle}>Chủ đề giao diện</Text>
-              <Text style={styles.itemValueText}>{themeLabels[settings.theme]}</Text>
+              <Text style={[styles.itemTitle, isDark && { color: themeColors.textPrimary }]}>Chủ đề giao diện</Text>
+              <Text style={[styles.itemValueText, isDark && { color: themeColors.accentGreen }]}>{themeLabels[settings.theme]}</Text>
             </View>
-            <FinanceIcon name="chevron-right" size={18} color="#94A3B8" />
+            <FinanceIcon name="chevron-right" size={18} color={isDark ? themeColors.textSecondary : '#94A3B8'} />
           </Pressable>
 
-          <View style={styles.divider} />
+          <View style={[styles.divider, isDark && { backgroundColor: themeColors.cardBorder }]} />
 
-          {/* Chọn Ngôn ngữ */}
-          <Pressable
-            style={styles.menuItemRow}
-            onPress={() => setLangModalVisible(true)}
-          >
+          {/* Ngôn ngữ hiển thị (Mặc định Tiếng Việt, cố định) */}
+          <View style={styles.menuItemRow}>
             <View style={styles.itemTextWrap}>
-              <Text style={styles.itemTitle}>Ngôn ngữ hiển thị</Text>
-              <Text style={styles.itemValueText}>{langLabels[settings.language]}</Text>
+              <Text style={[styles.itemTitle, isDark && { color: themeColors.textPrimary }]}>Ngôn ngữ hiển thị</Text>
+              <Text style={[styles.itemValueText, isDark && { color: themeColors.accentGreen }]}>Tiếng Việt (Mặc định)</Text>
             </View>
-            <FinanceIcon name="chevron-right" size={18} color="#94A3B8" />
-          </Pressable>
-        </View>
-
-        {/* ── NHÓM 2: TIỀN TỆ & ĐỊNH DẠNG TÀI CHÍNH ── */}
-        <View style={styles.sectionCard}>
-          <View style={styles.sectionHeaderRow}>
-            <View style={[styles.sectionBadge, { backgroundColor: '#FEF3C7' }]}>
-              <FinanceIcon name="wallet" size={15} color="#D97706" />
-            </View>
-            <Text style={styles.sectionHeaderTitle}>Định dạng tài chính</Text>
-          </View>
-
-          {/* Đơn vị tiền tệ chính */}
-          <Pressable
-            style={styles.menuItemRow}
-            onPress={() => setCurrencyModalVisible(true)}
-          >
-            <View style={styles.itemTextWrap}>
-              <Text style={styles.itemTitle}>Đơn vị tiền tệ mặc định</Text>
-              <Text style={styles.itemValueText}>{currencyLabels[settings.primaryCurrency]}</Text>
-            </View>
-            <FinanceIcon name="chevron-right" size={18} color="#94A3B8" />
-          </Pressable>
-
-          <View style={styles.divider} />
-
-          {/* Định dạng ngày tháng */}
-          <Pressable
-            style={styles.menuItemRow}
-            onPress={() => setDateFormatModalVisible(true)}
-          >
-            <View style={styles.itemTextWrap}>
-              <Text style={styles.itemTitle}>Định dạng ngày tháng</Text>
-              <Text style={styles.itemValueText}>{dateFormatLabels[settings.dateFormat]}</Text>
-            </View>
-            <FinanceIcon name="chevron-right" size={18} color="#94A3B8" />
-          </Pressable>
-
-          <View style={styles.divider} />
-
-          {/* Ẩn số dư khi vừa mở app */}
-          <View style={styles.itemRow}>
-            <View style={styles.itemTextWrap}>
-              <Text style={styles.itemTitle}>Ẩn số dư khi khởi động</Text>
-              <Text style={styles.itemDesc}>
-                Tự động che số tiền tài khoản (****) khi mở app ở nơi công cộng
-              </Text>
-            </View>
-            <Switch
-              value={settings.hideBalanceOnLaunch}
-              onValueChange={(val) => updateSetting('hideBalanceOnLaunch', val)}
-              trackColor={{ false: '#E2E8F0', true: '#10B981' }}
-              thumbColor={Platform.OS === 'android' ? '#FFFFFF' : undefined}
-            />
           </View>
         </View>
 
-        {/* ── NHÓM 3: KHÓA BẢO VỆ ỨNG DỤNG ── */}
-        <View style={styles.sectionCard}>
+        {/* ── NHÓM 2: KHÓA BẢO VỆ ỨNG DỤNG ── */}
+        <View style={[styles.sectionCard, isDark && { backgroundColor: themeColors.surface, borderColor: themeColors.cardBorder }]}>
           <View style={styles.sectionHeaderRow}>
-            <View style={[styles.sectionBadge, { backgroundColor: '#E0F2FE' }]}>
-              <FinanceIcon name="shield" size={15} color="#0284C7" />
+            <View style={[styles.sectionBadge, { backgroundColor: isDark ? '#082F49' : '#E0F2FE' }]}>
+              <FinanceIcon name="shield" size={15} color={isDark ? '#38BDF8' : '#0284C7'} />
             </View>
-            <Text style={styles.sectionHeaderTitle}>Khóa bảo mật ứng dụng</Text>
+            <Text style={[styles.sectionHeaderTitle, isDark && { color: themeColors.textPrimary }]}>Khóa bảo mật ứng dụng</Text>
           </View>
 
           {/* Bật khóa App */}
           <View style={styles.itemRow}>
             <View style={styles.itemTextWrap}>
-              <Text style={styles.itemTitle}>Khóa ứng dụng Finora</Text>
-              <Text style={styles.itemDesc}>
+              <Text style={[styles.itemTitle, isDark && { color: themeColors.textPrimary }]}>Khóa ứng dụng Finora</Text>
+              <Text style={[styles.itemDesc, isDark && { color: themeColors.textSecondary }]}>
                 Yêu cầu xác thực khi mở lại Finora để tránh người khác xem trộm
               </Text>
             </View>
             <Switch
               value={settings.appLockEnabled}
               onValueChange={(val) => updateSetting('appLockEnabled', val)}
-              trackColor={{ false: '#E2E8F0', true: '#10B981' }}
+              trackColor={{ false: isDark ? '#334155' : '#E2E8F0', true: '#10B981' }}
               thumbColor={Platform.OS === 'android' ? '#FFFFFF' : undefined}
             />
           </View>
 
           {settings.appLockEnabled && (
             <>
-              <View style={styles.divider} />
+              <View style={[styles.divider, isDark && { backgroundColor: themeColors.cardBorder }]} />
               <View style={styles.itemRow}>
                 <View style={styles.itemTextWrap}>
-                  <Text style={styles.itemTitle}>Xác thực sinh trắc học</Text>
-                  <Text style={styles.itemDesc}>Mở khóa nhanh bằng Face ID hoặc Vân tay</Text>
+                  <Text style={[styles.itemTitle, isDark && { color: themeColors.textPrimary }]}>Xác thực sinh trắc học</Text>
+                  <Text style={[styles.itemDesc, isDark && { color: themeColors.textSecondary }]}>Mở khóa nhanh bằng Face ID hoặc Vân tay</Text>
                 </View>
                 <Switch
                   value={settings.biometricEnabled}
                   onValueChange={(val) => updateSetting('biometricEnabled', val)}
-                  trackColor={{ false: '#E2E8F0', true: '#10B981' }}
+                  trackColor={{ false: isDark ? '#334155' : '#E2E8F0', true: '#10B981' }}
                   thumbColor={Platform.OS === 'android' ? '#FFFFFF' : undefined}
                 />
               </View>
 
-              <View style={styles.divider} />
+              <View style={[styles.divider, isDark && { backgroundColor: themeColors.cardBorder }]} />
               <View style={styles.itemTextWrap}>
-                <Text style={styles.itemTitle}>Thời gian tự động khóa</Text>
+                <Text style={[styles.itemTitle, isDark && { color: themeColors.textPrimary }]}>Thời gian tự động khóa</Text>
                 <View style={styles.chipsRow}>
                   {[
                     { label: 'Ngay lập tức', val: 0 },
@@ -292,10 +206,20 @@ export function SystemSettingsScreen({ onBack }: SystemSettingsScreenProps) {
                     return (
                       <Pressable
                         key={chip.val}
-                        style={[styles.chipButton, isSelected && styles.chipButtonActive]}
+                        style={[
+                          styles.chipButton,
+                          isDark && { backgroundColor: themeColors.surfaceSubtle, borderColor: themeColors.cardBorder },
+                          isSelected && styles.chipButtonActive,
+                          isSelected && isDark && { backgroundColor: '#064E3B', borderColor: themeColors.accentGreen },
+                        ]}
                         onPress={() => updateSetting('autoLockMinutes', chip.val)}
                       >
-                        <Text style={[styles.chipText, isSelected && styles.chipTextActive]}>
+                        <Text style={[
+                          styles.chipText,
+                          isDark && { color: themeColors.textSecondary },
+                          isSelected && styles.chipTextActive,
+                          isSelected && isDark && { color: themeColors.accentGreen },
+                        ]}>
                           {chip.label}
                         </Text>
                       </Pressable>
@@ -307,53 +231,56 @@ export function SystemSettingsScreen({ onBack }: SystemSettingsScreenProps) {
           )}
         </View>
 
-        {/* ── NHÓM 4: BỘ NHỚ & TỐI ƯU HIỆU NĂNG ── */}
-        <View style={styles.sectionCard}>
+        {/* ── NHÓM 3: BỘ NHỚ & TỐI ƯU HIỆU NĂNG ── */}
+        <View style={[styles.sectionCard, isDark && { backgroundColor: themeColors.surface, borderColor: themeColors.cardBorder }]}>
           <View style={styles.sectionHeaderRow}>
-            <View style={[styles.sectionBadge, { backgroundColor: '#F3E8FF' }]}>
-              <FinanceIcon name="refresh" size={15} color="#9333EA" />
+            <View style={[styles.sectionBadge, { backgroundColor: isDark ? '#3B0764' : '#F3E8FF' }]}>
+              <FinanceIcon name="refresh" size={15} color={isDark ? '#C084FC' : '#9333EA'} />
             </View>
-            <Text style={styles.sectionHeaderTitle}>Hiệu năng & Bộ nhớ máy</Text>
+            <Text style={[styles.sectionHeaderTitle, isDark && { color: themeColors.textPrimary }]}>Hiệu năng & Bộ nhớ máy</Text>
           </View>
 
           {/* Rung phản hồi xúc giác */}
           <View style={styles.itemRow}>
             <View style={styles.itemTextWrap}>
-              <Text style={styles.itemTitle}>Rung phản hồi xúc giác (Haptics)</Text>
-              <Text style={styles.itemDesc}>
+              <Text style={[styles.itemTitle, isDark && { color: themeColors.textPrimary }]}>Rung phản hồi xúc giác (Haptics)</Text>
+              <Text style={[styles.itemDesc, isDark && { color: themeColors.textSecondary }]}>
                 Rung nhẹ khi thao tác nhập số tiền, chọn danh mục, gạt toggle
               </Text>
             </View>
             <Switch
               value={settings.hapticFeedback}
               onValueChange={(val) => updateSetting('hapticFeedback', val)}
-              trackColor={{ false: '#E2E8F0', true: '#10B981' }}
+              trackColor={{ false: isDark ? '#334155' : '#E2E8F0', true: '#10B981' }}
               thumbColor={Platform.OS === 'android' ? '#FFFFFF' : undefined}
             />
           </View>
 
-          <View style={styles.divider} />
+          <View style={[styles.divider, isDark && { backgroundColor: themeColors.cardBorder }]} />
 
           {/* Tự động dọn dẹp cache sau 30 ngày */}
           <View style={styles.itemRow}>
             <View style={styles.itemTextWrap}>
-              <Text style={styles.itemTitle}>Tự động dọn ảnh quét hóa đơn</Text>
-              <Text style={styles.itemDesc}>
+              <Text style={[styles.itemTitle, isDark && { color: themeColors.textPrimary }]}>Tự động dọn ảnh quét hóa đơn</Text>
+              <Text style={[styles.itemDesc, isDark && { color: themeColors.textSecondary }]}>
                 Tự động xóa các file ảnh scan tạm cũ hơn 30 ngày để tiết kiệm bộ nhớ
               </Text>
             </View>
             <Switch
               value={settings.autoCacheClean}
               onValueChange={(val) => updateSetting('autoCacheClean', val)}
-              trackColor={{ false: '#E2E8F0', true: '#10B981' }}
+              trackColor={{ false: isDark ? '#334155' : '#E2E8F0', true: '#10B981' }}
               thumbColor={Platform.OS === 'android' ? '#FFFFFF' : undefined}
             />
           </View>
 
-          <View style={styles.divider} />
+          <View style={[styles.divider, isDark && { backgroundColor: themeColors.cardBorder }]} />
 
           {/* Nút xóa cache thủ công */}
-          <Pressable style={styles.clearCacheBtn} onPress={handleClearCache}>
+          <Pressable
+            style={[styles.clearCacheBtn, isDark && { backgroundColor: '#450A0A' }]}
+            onPress={handleClearCache}
+          >
             <FinanceIcon name="trash" size={16} color="#DC2626" />
             <Text style={styles.clearCacheText}>Xóa bộ nhớ đệm cache ứng dụng (38.5 MB)</Text>
           </Pressable>
@@ -363,93 +290,28 @@ export function SystemSettingsScreen({ onBack }: SystemSettingsScreenProps) {
       {/* ── MODAL CHỌN CHỦ ĐỀ ── */}
       <Modal visible={themeModalVisible} transparent animationType="fade">
         <Pressable style={styles.modalBackdrop} onPress={() => setThemeModalVisible(false)}>
-          <View style={styles.modalSheet}>
-            <Text style={styles.modalTitle}>Chọn chủ đề giao diện</Text>
+          <View style={[styles.modalSheet, isDark && { backgroundColor: themeColors.surface }]}>
+            <Text style={[styles.modalTitle, isDark && { color: themeColors.textPrimary }]}>Chọn chủ đề giao diện</Text>
             {(['LIGHT', 'DARK', 'SYSTEM'] as AppTheme[]).map((t) => (
               <Pressable
                 key={t}
-                style={[styles.modalOptionRow, settings.theme === t && styles.modalOptionActive]}
+                style={[
+                  styles.modalOptionRow,
+                  settings.theme === t && (isDark ? { backgroundColor: themeColors.surfaceSubtle } : styles.modalOptionActive),
+                ]}
                 onPress={() => {
                   updateSetting('theme', t);
                   setThemeModalVisible(false);
                 }}
               >
-                <Text style={[styles.modalOptionText, settings.theme === t && styles.modalOptionTextActive]}>
+                <Text style={[
+                  styles.modalOptionText,
+                  isDark && { color: themeColors.textPrimary },
+                  settings.theme === t && (isDark ? { color: themeColors.accentGreen, fontWeight: '700' } : styles.modalOptionTextActive),
+                ]}>
                   {themeLabels[t]}
                 </Text>
-                {settings.theme === t && <FinanceIcon name="check" size={18} color="#059669" />}
-              </Pressable>
-            ))}
-          </View>
-        </Pressable>
-      </Modal>
-
-      {/* ── MODAL CHỌN NGÔN NGỮ ── */}
-      <Modal visible={langModalVisible} transparent animationType="fade">
-        <Pressable style={styles.modalBackdrop} onPress={() => setLangModalVisible(false)}>
-          <View style={styles.modalSheet}>
-            <Text style={styles.modalTitle}>Chọn ngôn ngữ hiển thị</Text>
-            {(['vi', 'en'] as AppLanguage[]).map((l) => (
-              <Pressable
-                key={l}
-                style={[styles.modalOptionRow, settings.language === l && styles.modalOptionActive]}
-                onPress={() => {
-                  updateSetting('language', l);
-                  setLangModalVisible(false);
-                }}
-              >
-                <Text style={[styles.modalOptionText, settings.language === l && styles.modalOptionTextActive]}>
-                  {langLabels[l]}
-                </Text>
-                {settings.language === l && <FinanceIcon name="check" size={18} color="#059669" />}
-              </Pressable>
-            ))}
-          </View>
-        </Pressable>
-      </Modal>
-
-      {/* ── MODAL CHỌN TIỀN TỆ ── */}
-      <Modal visible={currencyModalVisible} transparent animationType="fade">
-        <Pressable style={styles.modalBackdrop} onPress={() => setCurrencyModalVisible(false)}>
-          <View style={styles.modalSheet}>
-            <Text style={styles.modalTitle}>Chọn đơn vị tiền tệ mặc định</Text>
-            {(['VND', 'USD', 'EUR', 'JPY'] as PrimaryCurrency[]).map((c) => (
-              <Pressable
-                key={c}
-                style={[styles.modalOptionRow, settings.primaryCurrency === c && styles.modalOptionActive]}
-                onPress={() => {
-                  updateSetting('primaryCurrency', c);
-                  setCurrencyModalVisible(false);
-                }}
-              >
-                <Text style={[styles.modalOptionText, settings.primaryCurrency === c && styles.modalOptionTextActive]}>
-                  {currencyLabels[c]}
-                </Text>
-                {settings.primaryCurrency === c && <FinanceIcon name="check" size={18} color="#059669" />}
-              </Pressable>
-            ))}
-          </View>
-        </Pressable>
-      </Modal>
-
-      {/* ── MODAL CHỌN ĐỊNH DẠNG NGÀY ── */}
-      <Modal visible={dateFormatModalVisible} transparent animationType="fade">
-        <Pressable style={styles.modalBackdrop} onPress={() => setDateFormatModalVisible(false)}>
-          <View style={styles.modalSheet}>
-            <Text style={styles.modalTitle}>Chọn định dạng ngày tháng</Text>
-            {(['DD/MM/YYYY', 'MM/DD/YYYY', 'YYYY-MM-DD'] as DateFormat[]).map((d) => (
-              <Pressable
-                key={d}
-                style={[styles.modalOptionRow, settings.dateFormat === d && styles.modalOptionActive]}
-                onPress={() => {
-                  updateSetting('dateFormat', d);
-                  setDateFormatModalVisible(false);
-                }}
-              >
-                <Text style={[styles.modalOptionText, settings.dateFormat === d && styles.modalOptionTextActive]}>
-                  {dateFormatLabels[d]}
-                </Text>
-                {settings.dateFormat === d && <FinanceIcon name="check" size={18} color="#059669" />}
+                {settings.theme === t && <FinanceIcon name="check" size={18} color={isDark ? themeColors.accentGreen : '#059669'} />}
               </Pressable>
             ))}
           </View>

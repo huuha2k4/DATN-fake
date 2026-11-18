@@ -173,7 +173,7 @@ public class AccountService {
                 .userId(userId)
                 .name(request.getName())
                 .accountType(request.getAccountType())
-                .currencyCode(request.getCurrencyCode())
+                .currencyCode("VND") // Fixed to VND for Vietnam market
                 .balance(request.getInitialBalance())
                 .bankId(bankUuid)
                 .accountNumber(request.getAccountNumber())

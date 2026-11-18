@@ -47,6 +47,8 @@ NGUYÊN TẮC HOẠT ĐỘNG:
 """
 
 def get_agent():
+    env_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), '.env')
+    load_dotenv(env_file, override=True)
     use_local = os.getenv("USE_LOCAL_LLM", "false").lower() == "true"
     
     if use_local:

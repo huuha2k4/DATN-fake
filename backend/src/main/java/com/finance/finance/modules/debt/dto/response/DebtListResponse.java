@@ -65,6 +65,15 @@ public class DebtListResponse {
 
         @JsonProperty("next_payment_amount")
         private java.math.BigDecimal nextPaymentAmount;
+
+        @JsonProperty("payment_frequency")
+        private com.finance.finance.common.enums.PaymentFrequency paymentFrequency;
+
+        @JsonProperty("monthly_payment")
+        private java.math.BigDecimal monthlyPayment;
+
+        @JsonProperty("payment_amount")
+        private java.math.BigDecimal paymentAmount;
     }
 
     @Data

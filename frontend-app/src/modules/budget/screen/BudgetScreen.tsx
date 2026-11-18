@@ -1,7 +1,7 @@
+import { AppAlert as Alert, useAppDialog } from '../../../context/DialogContext';
 import React, { useEffect, useState, useMemo } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   Dimensions,
   FlatList,
   Image,
@@ -21,6 +21,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { FinanceIcon, resolveCategoryIconName } from '../../core/components/FinanceIcon';
 import { budgetApi, type BudgetItem, type BudgetOverviewResponse } from '../api';
 import { type CategoryItem } from '../../add-transaction/api/transactionApi';
+import { useAppTheme } from '../../../context/ThemeContext';
 
 interface BudgetScreenProps {
   onBack?: () => void;
@@ -40,11 +41,35 @@ export function BudgetScreen({
   onNavigateToReports,
   onNavigateToSettings,
 }: BudgetScreenProps) {
+  const { isDark, colors: themeColors } = useAppTheme();
+  const { confirmDelete, showSuccess, showError } = useAppDialog();
   const insets = useSafeAreaInsets();
   const now = new Date();
   const [selectedMonth, setSelectedMonth] = useState(now.getMonth() + 1);
   const [selectedYear, setSelectedYear] = useState(now.getFullYear());
   const [isMonthPickerVisible, setIsMonthPickerVisible] = useState(false);
+
+  // Danh sách các tháng để chọn dạng dropdown danh sách (tháng hiện tại, 3 tháng tương lai, 12 tháng quá khứ)
+  const availableMonthsList = useMemo(() => {
+    const list: { month: number; year: number; label: string; isCurrent: boolean }[] = [];
+    const currentDate = new Date();
+    const curM = currentDate.getMonth() + 1;
+    const curY = currentDate.getFullYear();
+
+    for (let i = -3; i <= 12; i++) {
+      const d = new Date(curY, curM - 1 - i, 1);
+      const m = d.getMonth() + 1;
+      const y = d.getFullYear();
+      const isCur = m === curM && y === curY;
+      list.push({
+        month: m,
+        year: y,
+        label: isCur ? `Tháng ${m}/${y} (Tháng này)` : `Tháng ${m}/${y}`,
+        isCurrent: isCur,
+      });
+    }
+    return list;
+  }, []);
 
   const currentMonth = selectedMonth;
   const currentYear = selectedYear;
@@ -66,7 +91,7 @@ export function BudgetScreen({
   // Dữ liệu cho Chế độ B (YNAB/Spendee Batch Setup: nhập số tiền riêng từng danh mục)
   const [batchAmounts, setBatchAmounts] = useState<{ [catId: string]: string }>({});
 
-// Modal Chi tiết item ngân sách
+  // Modal Chi tiết item ngân sách
   const [selectedBudgetItem, setSelectedBudgetItem] = useState<BudgetItem | null>(null);
 
   // Modal Sửa hạn mức danh mục
@@ -156,7 +181,7 @@ export function BudgetScreen({
 
       for (const catId of selectedCatIds) {
         const cat = availableCategories.find((c) => c.id === catId);
-        const itemName = budgetNameInput.trim() 
+        const itemName = budgetNameInput.trim()
           ? (selectedCatIds.length > 1 ? `${budgetNameInput.trim()} - ${cat?.name}` : budgetNameInput.trim())
           : (cat?.name || 'Ngân sách danh mục');
 
@@ -256,28 +281,22 @@ export function BudgetScreen({
   // Xóa toàn bộ ngân sách tháng
   const handleDeleteTotalBudget = async () => {
     if (!budgetOverview?.currentBudget?.id) return;
-    Alert.alert(
-      'Xóa ngân sách tháng',
-      `Bạn có chắc chắn muốn xóa toàn bộ ngân sách tháng ${currentMonth} và tất cả các danh mục chi tiêu bên trong?`,
-      [
-        { text: 'Hủy', style: 'cancel' },
-        {
-          text: 'Xóa ngân sách',
-          style: 'destructive',
-          onPress: async () => {
-            const budgetId = budgetOverview.currentBudget!.id;
-            const version = budgetOverview.currentBudget!.version ?? 0;
-            const ok = await budgetApi.deleteBudget(budgetId, version);
-            if (ok) {
-              Alert.alert('Thành công', 'Đã xóa ngân sách tháng!');
-              loadData(false);
-            } else {
-              Alert.alert('Thông báo', 'Không thể xóa ngân sách.');
-            }
-          },
-        },
-      ]
-    );
+    confirmDelete({
+      title: 'Xóa ngân sách tháng',
+      message: `Bạn có chắc chắn muốn xóa toàn bộ ngân sách tháng ${currentMonth} và tất cả các danh mục chi tiêu bên trong?\nHành động này không thể hoàn tác.`,
+      itemName: `Ngân sách tháng ${currentMonth}`,
+      onConfirm: async () => {
+        const budgetId = budgetOverview.currentBudget!.id;
+        const version = budgetOverview.currentBudget!.version ?? 0;
+        const ok = await budgetApi.deleteBudget(budgetId, version);
+        if (ok) {
+          showSuccess('Thành công', 'Đã xóa ngân sách tháng thành công!');
+          loadData(false);
+        } else {
+          showError('Thông báo', 'Không thể xóa ngân sách.');
+        }
+      },
+    });
   };
 
   // Mở modal sửa hạn mức danh mục
@@ -365,20 +384,24 @@ export function BudgetScreen({
   };
 
   // Xóa 1 hạn mức danh mục
-  const handleDeleteBudgetItem = async (itemId: string) => {
+  const handleDeleteBudgetItem = async (item: BudgetItem) => {
     if (!budgetOverview?.currentBudget?.id) return;
-    Alert.alert('Xác nhận', 'Bạn có chắc chắn muốn xóa hạn mức danh mục này?', [
-      { text: 'Hủy', style: 'cancel' },
-      {
-        text: 'Xóa',
-        style: 'destructive',
-        onPress: async () => {
-          setSelectedBudgetItem(null);
-          await budgetApi.deleteBudgetItem(budgetOverview.currentBudget!.id, itemId);
+    const catName = item.categoryName || item.name || 'danh mục này';
+    setSelectedBudgetItem(null); // Đóng modal chi tiết ngay để modal xác nhận nổi lên
+    confirmDelete({
+      title: 'Xóa hạn mức danh mục',
+      message: `Bạn có chắc chắn muốn xóa hạn mức "${catName}" khỏi ngân sách tháng ${currentMonth} không?\nHành động này không thể hoàn tác.`,
+      itemName: catName,
+      onConfirm: async () => {
+        const ok = await budgetApi.deleteBudgetItem(budgetOverview.currentBudget!.id, item.id);
+        if (ok) {
+          showSuccess('Thành công', `Đã xóa hạn mức "${catName}" thành công!`);
           loadData(false);
-        },
+        } else {
+          showError('Lỗi', 'Không thể xóa hạn mức danh mục này.');
+        }
       },
-    ]);
+    });
   };
 
   // Tính toán phân bổ hạn mức theo thu nhập nhập vào
@@ -511,37 +534,48 @@ export function BudgetScreen({
   const items = budgetOverview?.items || [];
 
   return (
-    <View style={styles.screen}>
-      <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
-      {/* ── HEADER THANH LỊCH NỀN TRẮNG ── */}
-      <View style={[styles.header, { paddingTop }]}>
+    <View style={[styles.screen, isDark && { backgroundColor: themeColors.background }]}>
+      <StatusBar
+        barStyle={isDark ? 'light-content' : 'dark-content'}
+        backgroundColor={isDark ? themeColors.background : '#FFFFFF'}
+      />
+      {/* ── HEADER THANH LỊCH NỀN TRẮNG / NỀN TỐI ── */}
+      <View style={[styles.header, { paddingTop }, isDark && { backgroundColor: themeColors.background }]}>
         <View style={styles.headerTop}>
           <View style={styles.headerLeft}>
             {onBack ? (
               <Pressable
                 onPress={onBack}
-                style={({ pressed }) => [styles.circleBackBtn, pressed && styles.pressed]}
+                style={({ pressed }) => [
+                  styles.circleBackBtn,
+                  isDark && { backgroundColor: themeColors.surfaceSubtle },
+                  pressed && styles.pressed,
+                ]}
                 hitSlop={8}
                 accessibilityLabel="Quay lại"
               >
-                <FinanceIcon name="chevron-left" size={20} color="#047857" />
+                <FinanceIcon name="chevron-left" size={20} color={isDark ? themeColors.accentGreen : '#047857'} />
               </Pressable>
             ) : (
               <View style={styles.circleBackBtnPlaceholder} />
             )}
-            <Text style={styles.headerTitle}>Ngân sách</Text>
+            <Text style={[styles.headerTitle, isDark && { color: themeColors.textPrimary }]}>Ngân sách</Text>
           </View>
 
           {/* Nút lọc tháng thanh lịch thay cho nút cộng */}
           <Pressable
             onPress={() => setIsMonthPickerVisible(true)}
-            style={({ pressed }) => [styles.monthFilterBtn, pressed && styles.pressed]}
+            style={({ pressed }) => [
+              styles.monthFilterBtn,
+              isDark && { backgroundColor: themeColors.surfaceSubtle, borderColor: themeColors.cardBorder },
+              pressed && styles.pressed,
+            ]}
             hitSlop={8}
             accessibilityLabel="Chọn tháng"
           >
-            <FinanceIcon name="calendar" size={16} color="#047857" />
-            <Text style={styles.monthFilterText}>Tháng {selectedMonth}/{selectedYear}</Text>
-            <FinanceIcon name="chevron-down" size={14} color="#047857" />
+            <FinanceIcon name="calendar" size={16} color={isDark ? themeColors.accentGreen : '#047857'} />
+            <Text style={[styles.monthFilterText, isDark && { color: themeColors.textPrimary }]}>Tháng {selectedMonth}/{selectedYear}</Text>
+            <FinanceIcon name="chevron-down" size={14} color={isDark ? themeColors.accentGreen : '#047857'} />
           </Pressable>
         </View>
       </View>
@@ -549,8 +583,8 @@ export function BudgetScreen({
       {/* ── NỘI DUNG CUỘN ── */}
       {loading ? (
         <View style={styles.centerContainer}>
-          <ActivityIndicator size="large" color="#047857" />
-          <Text style={styles.loadingText}>Đang tải ngân sách...</Text>
+          <ActivityIndicator size="large" color={isDark ? themeColors.primary : '#047857'} />
+          <Text style={[styles.loadingText, isDark && { color: themeColors.textSecondary }]}>Đang tải ngân sách...</Text>
         </View>
       ) : (
         <ScrollView
@@ -560,15 +594,15 @@ export function BudgetScreen({
             <RefreshControl
               refreshing={refreshing}
               onRefresh={onRefresh}
-              colors={['#047857']}
-              tintColor="#047857"
+              colors={[isDark ? themeColors.primary : '#047857']}
+              tintColor={isDark ? themeColors.primary : '#047857'}
             />
           }
         >
           {/* ── 1. THẺ BANNER HERO TỔNG NGÂN SÁCH (DÙNG NỀN BANNER NHÓM VÀ ICON LỊCH 3D ĐÃ TÁCH NỀN) ── */}
           <ImageBackground
             source={BANNER_BG_IMG}
-            style={styles.heroCard}
+            style={[styles.heroCard, isDark && { backgroundColor: '#064E3B' }]}
             imageStyle={styles.heroCardBgImage}
             resizeMode="cover"
           >
@@ -608,76 +642,90 @@ export function BudgetScreen({
             </View>
           </ImageBackground>
 
-          {/* ── 2. HÀNG 2 NÚT TIỆN ÍCH VUÔNG BO TRÒN: THÊM NGÂN SÁCH & MẪU NGÂN SÁCH ── */}
+          {/* ── 2. HÀNG NÚT TIỆN ÍCH VUÔNG BO TRÒN: THÊM, MẪU & XÓA NGÂN SÁCH ── */}
           <View style={styles.actionRow}>
             {/* 1. Thêm ngân sách */}
             <Pressable
               onPress={() => setCreateModalVisible(true)}
-              style={({ pressed }) => [styles.actionBtn, pressed && styles.pressed]}
+              style={({ pressed }) => [
+                styles.actionBtn,
+                isDark && { backgroundColor: themeColors.surface, borderColor: themeColors.cardBorder },
+                pressed && styles.pressed,
+              ]}
             >
-              <View style={[styles.actionIconBox, { backgroundColor: '#ECFDF5' }]}>
-                <FinanceIcon name="target" size={24} color="#059669" />
+              <View style={[styles.actionIconBox, isDark ? { backgroundColor: 'rgba(5, 150, 105, 0.16)' } : { backgroundColor: '#ECFDF5' }]}>
+                <FinanceIcon name="target" size={22} color={isDark ? themeColors.accentGreen : '#059669'} />
               </View>
-              <Text style={styles.actionLabel}>Thêm ngân sách</Text>
+              <Text style={[styles.actionLabel, isDark && { color: themeColors.textPrimary }]}>Thêm</Text>
             </Pressable>
 
             {/* 2. Mẫu ngân sách */}
             <Pressable
               onPress={() => setTemplateModalVisible(true)}
-              style={({ pressed }) => [styles.actionBtn, pressed && styles.pressed]}
+              style={({ pressed }) => [
+                styles.actionBtn,
+                isDark && { backgroundColor: themeColors.surface, borderColor: themeColors.cardBorder },
+                pressed && styles.pressed,
+              ]}
             >
-              <View style={[styles.actionIconBox, { backgroundColor: '#E0F2FE' }]}>
-                <FinanceIcon name="refresh" size={24} color="#0284C7" />
+              <View style={[styles.actionIconBox, isDark ? { backgroundColor: 'rgba(2, 132, 199, 0.16)' } : { backgroundColor: '#E0F2FE' }]}>
+                <FinanceIcon name="refresh" size={22} color={isDark ? '#38BDF8' : '#0284C7'} />
               </View>
-              <Text style={styles.actionLabel}>Mẫu ngân sách</Text>
+              <Text style={[styles.actionLabel, isDark && { color: themeColors.textPrimary }]}>Mẫu</Text>
             </Pressable>
           </View>
 
           {/* ── 3. TIÊU ĐỀ: NGÂN SÁCH CHI TIÊU (ĐÃ XÓA NÚT XEM TẤT CẢ) ── */}
           <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Ngân sách chi tiêu</Text>
+            <Text style={[styles.sectionTitle, isDark && { color: themeColors.textPrimary }]}>Ngân sách chi tiêu</Text>
           </View>
 
           {/* ── 4. DANH SÁCH TỪNG DANH MỤC (CHUẨN ẢNH THIẾT KẾ) ── */}
-          <View style={styles.categoryCardList}>
+          <View style={[styles.categoryCardList, isDark && { backgroundColor: themeColors.surface, borderColor: themeColors.cardBorder }]}>
             {items.map((item) => {
               const itemPercent = item.percentageUsed;
               const isHigh = itemPercent >= 80;
               const percentColor = isHigh ? '#EF4444' : itemPercent >= 70 ? '#8B5CF6' : itemPercent >= 50 ? '#0EA5E9' : '#10B981';
-              const percentBg = isHigh ? '#FEE2E2' : itemPercent >= 70 ? '#F3E8FF' : itemPercent >= 50 ? '#E0F2FE' : '#ECFDF5';
+              const percentBg = isDark
+                ? (isHigh ? 'rgba(239, 68, 68, 0.16)' : itemPercent >= 70 ? 'rgba(139, 92, 246, 0.16)' : itemPercent >= 50 ? 'rgba(14, 165, 233, 0.16)' : 'rgba(16, 185, 129, 0.16)')
+                : (isHigh ? '#FEE2E2' : itemPercent >= 70 ? '#F3E8FF' : itemPercent >= 50 ? '#E0F2FE' : '#ECFDF5');
 
               // Icon & màu sắc danh mục chuẩn đồng bộ 100% với Web
               const rawName = item.categoryName || item.name || '';
               const iconName = resolveCategoryIconName(item.categoryIcon, 'EXPENSE', rawName);
               const catColor = item.categoryColor || (
                 rawName.includes('Ăn uống') ? '#EF4444' :
-                rawName.includes('Di chuyển') ? '#0EA5E9' :
-                rawName.includes('Mua sắm') ? '#8B5CF6' :
-                rawName.includes('Sinh hoạt') ? '#10B981' : '#047857'
+                  rawName.includes('Di chuyển') ? '#0EA5E9' :
+                    rawName.includes('Mua sắm') ? '#8B5CF6' :
+                      rawName.includes('Sinh hoạt') ? '#10B981' : '#047857'
               );
 
               return (
                 <Pressable
                   key={item.id}
                   onPress={() => setSelectedBudgetItem(item)}
-                  style={({ pressed }) => [styles.categoryItemRow, pressed && styles.pressed]}
+                  style={({ pressed }) => [
+                    styles.categoryItemRow,
+                    isDark && { borderBottomColor: themeColors.divider },
+                    pressed && styles.pressed,
+                  ]}
                 >
                   {/* Icon vuông bo góc nền pastel */}
-                  <View style={[styles.catIconSquare, { backgroundColor: `${catColor}15` }]}>
+                  <View style={[styles.catIconSquare, { backgroundColor: isDark ? `${catColor}25` : `${catColor}15` }]}>
                     <FinanceIcon name={iconName} size={22} color={catColor} />
                   </View>
 
                   {/* Cụm thông tin giữa: Tên + Số tiền + Progress bar */}
                   <View style={styles.catInfoCol}>
                     <View style={styles.catTopLine}>
-                      <Text style={styles.catNameText}>{item.categoryName || item.name}</Text>
+                      <Text style={[styles.catNameText, isDark && { color: themeColors.textPrimary }]}>{item.categoryName || item.name}</Text>
                     </View>
-                    <Text style={styles.catAmountText}>
+                    <Text style={[styles.catAmountText, isDark && { color: themeColors.textSecondary }]}>
                       {formatCurrency(item.spentAmount).replace(' đ', '')} / {formatCurrency(item.amount)}
                     </Text>
 
                     {/* Progress Bar mỏng */}
-                    <View style={styles.catTrackBg}>
+                    <View style={[styles.catTrackBg, isDark && { backgroundColor: themeColors.surfaceSubtle }]}>
                       {itemPercent > 0 && (
                         <View
                           style={[
@@ -699,7 +747,7 @@ export function BudgetScreen({
                         {itemPercent}%
                       </Text>
                     </View>
-                    <FinanceIcon name="chevron-right" size={16} color="#94A3B8" />
+                    <FinanceIcon name="chevron-right" size={16} color={isDark ? themeColors.textSecondary : '#94A3B8'} />
                   </View>
                 </Pressable>
               );
@@ -717,15 +765,15 @@ export function BudgetScreen({
       >
         <View style={styles.modalOverlay}>
           <Pressable style={styles.modalBackdrop} onPress={() => setCreateModalVisible(false)} />
-          <View style={styles.modalSheet}>
+          <View style={[styles.modalSheet, isDark && { backgroundColor: themeColors.surface, borderColor: themeColors.cardBorder, borderWidth: 1 }]}>
             <View style={styles.modalSheetHeader}>
-              <Text style={styles.modalSheetTitle}>Thêm ngân sách</Text>
+              <Text style={[styles.modalSheetTitle, isDark && { color: themeColors.textPrimary }]}>Thêm ngân sách</Text>
               <Pressable
                 onPress={() => setCreateModalVisible(false)}
                 hitSlop={8}
-                style={styles.modalCloseBtn}
+                style={[styles.modalCloseBtn, isDark && { backgroundColor: themeColors.surfaceSubtle, borderRadius: 12 }]}
               >
-                <FinanceIcon name="close" size={20} color="#64748B" />
+                <FinanceIcon name="close" size={20} color={isDark ? themeColors.textSecondary : '#64748B'} />
               </Pressable>
             </View>
 
@@ -733,7 +781,7 @@ export function BudgetScreen({
             <View
               style={{
                 flexDirection: 'row',
-                backgroundColor: '#F1F5F9',
+                backgroundColor: isDark ? themeColors.surfaceSubtle : '#F1F5F9',
                 borderRadius: 14,
                 padding: 4,
                 marginBottom: 16,
@@ -751,7 +799,7 @@ export function BudgetScreen({
                     justifyContent: 'center',
                     paddingVertical: 10,
                     borderRadius: 10,
-                    backgroundColor: createMode === 'grouped' ? '#FFFFFF' : 'transparent',
+                    backgroundColor: createMode === 'grouped' ? (isDark ? themeColors.surface : '#FFFFFF') : 'transparent',
                     shadowColor: createMode === 'grouped' ? '#000' : 'transparent',
                     shadowOpacity: createMode === 'grouped' ? 0.08 : 0,
                     shadowRadius: 4,
@@ -765,13 +813,13 @@ export function BudgetScreen({
                 <FinanceIcon
                   name="target"
                   size={16}
-                  color={createMode === 'grouped' ? '#047857' : '#64748B'}
+                  color={createMode === 'grouped' ? (isDark ? themeColors.accentGreen : '#047857') : (isDark ? themeColors.textSecondary : '#64748B')}
                 />
                 <Text
                   style={{
                     fontSize: 13,
                     fontWeight: createMode === 'grouped' ? '700' : '600',
-                    color: createMode === 'grouped' ? '#047857' : '#64748B',
+                    color: createMode === 'grouped' ? (isDark ? themeColors.accentGreen : '#047857') : (isDark ? themeColors.textSecondary : '#64748B'),
                   }}
                 >
                   Gộp danh mục
@@ -789,7 +837,7 @@ export function BudgetScreen({
                     justifyContent: 'center',
                     paddingVertical: 10,
                     borderRadius: 10,
-                    backgroundColor: createMode === 'batch' ? '#FFFFFF' : 'transparent',
+                    backgroundColor: createMode === 'batch' ? (isDark ? themeColors.surface : '#FFFFFF') : 'transparent',
                     shadowColor: createMode === 'batch' ? '#000' : 'transparent',
                     shadowOpacity: createMode === 'batch' ? 0.08 : 0,
                     shadowRadius: 4,
@@ -803,13 +851,13 @@ export function BudgetScreen({
                 <FinanceIcon
                   name="grid"
                   size={16}
-                  color={createMode === 'batch' ? '#047857' : '#64748B'}
+                  color={createMode === 'batch' ? (isDark ? themeColors.accentGreen : '#047857') : (isDark ? themeColors.textSecondary : '#64748B')}
                 />
                 <Text
                   style={{
                     fontSize: 13,
                     fontWeight: createMode === 'batch' ? '700' : '600',
-                    color: createMode === 'batch' ? '#047857' : '#64748B',
+                    color: createMode === 'batch' ? (isDark ? themeColors.accentGreen : '#047857') : (isDark ? themeColors.textSecondary : '#64748B'),
                   }}
                 >
                   Bảng cả tháng
@@ -822,16 +870,16 @@ export function BudgetScreen({
               /* ── CÁCH 1 (MONEY LOVER STYLE): CHỌN NHIỀU DANH MỤC GỘP CHUNG VÀO 1 NGÂN SÁCH ── */
               <ScrollView showsVerticalScrollIndicator={false} style={{ maxHeight: Dimensions.get('window').height * 0.72 }}>
                 {/* Tên ngân sách / mục đích (tùy chọn khi chọn nhiều danh mục) */}
-                <Text style={styles.inputLabel}>Tên ngân sách (Tùy chọn)</Text>
-                <View style={styles.inputBox}>
+                <Text style={[styles.inputLabel, isDark && { color: themeColors.textSecondary }]}>Tên ngân sách (Tùy chọn)</Text>
+                <View style={[styles.inputBox, isDark && { backgroundColor: themeColors.surfaceSubtle, borderColor: themeColors.cardBorder }]}>
                   <TextInput
-                    style={styles.textInput}
+                    style={[styles.textInput, isDark && { color: themeColors.textPrimary }]}
                     placeholder={
                       selectedCatIds.length > 1
                         ? 'VD: Chi tiêu gia đình, Ăn chơi cuối tuần...'
                         : 'VD: Hạn mức cá nhân'
                     }
-                    placeholderTextColor="#94A3B8"
+                    placeholderTextColor={isDark ? '#64748B' : '#94A3B8'}
                     value={budgetNameInput}
                     onChangeText={setBudgetNameInput}
                   />
@@ -839,38 +887,38 @@ export function BudgetScreen({
 
                 {/* Tiêu đề & nút chọn tất cả */}
                 <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 14, marginBottom: 6 }}>
-                  <Text style={[styles.inputLabel, { marginTop: 0, marginBottom: 0 }]}>
+                  <Text style={[styles.inputLabel, isDark && { color: themeColors.textSecondary }, { marginTop: 0, marginBottom: 0 }]}>
                     Chọn danh mục áp dụng ({selectedCatIds.length}/{availableCategories.length})
                   </Text>
                   <Pressable onPress={handleSelectAllCategories} hitSlop={6}>
-                    <Text style={{ fontSize: 13, fontWeight: '700', color: '#047857' }}>
+                    <Text style={{ fontSize: 13, fontWeight: '700', color: isDark ? themeColors.accentGreen : '#047857' }}>
                       {selectedCatIds.length === availableCategories.length ? 'Bỏ chọn hết' : 'Chọn tất cả'}
                     </Text>
                   </Pressable>
                 </View>
 
-                <Text style={{ fontSize: 12, color: '#64748B', marginBottom: 12 }}>
+                <Text style={{ fontSize: 12, color: isDark ? themeColors.textSecondary : '#64748B', marginBottom: 12 }}>
                   Chạm vào từng danh mục bên dưới để thêm/bớt vào ngân sách này.
                 </Text>
 
-                {/* Danh sách danh mục: Khung cuộn cao thoáng (hiển thị rõ 3 mục trọn vẹn + lướt xem tiếp) */}
+                {/* Danh sách danh mục: Khung cuộn cao thoáng */}
                 <View
                   style={{
-                    height: 220, // Chiều cao vừa vặn xem khoảng 3 danh mục
+                    height: 220,
                     borderWidth: 1,
-                    borderColor: '#E2E8F0',
+                    borderColor: isDark ? themeColors.cardBorder : '#E2E8F0',
                     borderRadius: 16,
                     paddingLeft: 8,
-                    paddingRight: 4, // Rút ngắn đệm để thanh trượt nằm sát mép phải
+                    paddingRight: 4,
                     paddingVertical: 8,
-                    backgroundColor: '#F8FAFC',
+                    backgroundColor: isDark ? themeColors.surfaceSubtle : '#F8FAFC',
                     marginBottom: 14,
                   }}
                 >
                   <ScrollView
                     nestedScrollEnabled
                     showsVerticalScrollIndicator={true}
-                    contentContainerStyle={{ paddingRight: 8 }} // Nội dung vẫn giữ khoảng cách an toàn với thanh trượt
+                    contentContainerStyle={{ paddingRight: 8 }}
                   >
                     <View style={{ gap: 8 }}>
                       {availableCategories.map((cat) => {
@@ -887,9 +935,13 @@ export function BudgetScreen({
                                 flexDirection: 'row',
                                 alignItems: 'center',
                                 justifyContent: 'space-between',
-                                backgroundColor: isSelected ? '#ECFDF5' : '#FFFFFF',
+                                backgroundColor: isSelected
+                                  ? (isDark ? 'rgba(5, 150, 105, 0.22)' : '#ECFDF5')
+                                  : (isDark ? themeColors.surface : '#FFFFFF'),
                                 borderWidth: 1.5,
-                                borderColor: isSelected ? '#059669' : '#E2E8F0',
+                                borderColor: isSelected
+                                  ? (isDark ? themeColors.accentGreen : '#059669')
+                                  : (isDark ? themeColors.cardBorder : '#E2E8F0'),
                                 borderRadius: 14,
                                 paddingVertical: 10,
                                 paddingHorizontal: 12,
@@ -903,7 +955,9 @@ export function BudgetScreen({
                                   width: 36,
                                   height: 36,
                                   borderRadius: 10,
-                                  backgroundColor: isSelected ? '#D1FAE5' : `${catColor}15`,
+                                  backgroundColor: isSelected
+                                    ? (isDark ? 'rgba(5, 150, 105, 0.35)' : '#D1FAE5')
+                                    : `${catColor}15`,
                                   alignItems: 'center',
                                   justifyContent: 'center',
                                 }}
@@ -911,14 +965,16 @@ export function BudgetScreen({
                                 <FinanceIcon
                                   name={iconName}
                                   size={18}
-                                  color={isSelected ? '#059669' : catColor}
+                                  color={isSelected ? (isDark ? themeColors.accentGreen : '#059669') : catColor}
                                 />
                               </View>
                               <Text
                                 style={{
                                   fontSize: 14,
                                   fontWeight: isSelected ? '700' : '600',
-                                  color: isSelected ? '#065F46' : '#1E293B',
+                                  color: isSelected
+                                    ? (isDark ? themeColors.accentGreen : '#065F46')
+                                    : (isDark ? themeColors.textPrimary : '#1E293B'),
                                 }}
                               >
                                 {cat.name}
@@ -931,11 +987,11 @@ export function BudgetScreen({
                                 width: 22,
                                 height: 22,
                                 borderRadius: 11,
-                                backgroundColor: isSelected ? '#059669' : '#F1F5F9',
+                                backgroundColor: isSelected ? (isDark ? themeColors.accentGreen : '#059669') : (isDark ? themeColors.surfaceSubtle : '#F1F5F9'),
                                 alignItems: 'center',
                                 justifyContent: 'center',
                                 borderWidth: isSelected ? 0 : 1.5,
-                                borderColor: '#CBD5E1',
+                                borderColor: isDark ? themeColors.cardBorder : '#CBD5E1',
                               }}
                             >
                               {isSelected && <FinanceIcon name="check" size={13} color="#FFFFFF" />}
@@ -947,16 +1003,16 @@ export function BudgetScreen({
                   </ScrollView>
                 </View>
 
-                <Text style={styles.inputLabel}>
+                <Text style={[styles.inputLabel, isDark && { color: themeColors.textSecondary }]}>
                   {selectedCatIds.length > 1
                     ? `Tổng hạn mức cho ${selectedCatIds.length} danh mục (VNĐ)`
                     : `Hạn mức chi tiêu tháng ${currentMonth} (VNĐ)`}
                 </Text>
-                <View style={styles.inputBox}>
+                <View style={[styles.inputBox, isDark && { backgroundColor: themeColors.surfaceSubtle, borderColor: themeColors.cardBorder }]}>
                   <TextInput
-                    style={styles.textInput}
+                    style={[styles.textInput, isDark && { color: themeColors.textPrimary }]}
                     placeholder="Ví dụ: 3.000.000"
-                    placeholderTextColor="#94A3B8"
+                    placeholderTextColor={isDark ? '#64748B' : '#94A3B8'}
                     keyboardType="numeric"
                     value={amountInput}
                     onChangeText={(val) => {
@@ -964,11 +1020,11 @@ export function BudgetScreen({
                       setAmountInput(num ? new Intl.NumberFormat('vi-VN').format(num) : '');
                     }}
                   />
-                  <Text style={styles.inputSuffix}>đ</Text>
+                  <Text style={[styles.inputSuffix, isDark && { color: themeColors.textSecondary }]}>đ</Text>
                 </View>
 
                 {selectedCatIds.length > 1 && amountInput ? (
-                  <Text style={{ fontSize: 12, color: '#059669', marginTop: 4, marginBottom: 10 }}>
+                  <Text style={{ fontSize: 12, color: isDark ? themeColors.accentGreen : '#059669', marginTop: 4, marginBottom: 10 }}>
                     ≈ Phân bổ bình quân ~
                     {new Intl.NumberFormat('vi-VN').format(
                       Math.round(Number(amountInput.replace(/\D/g, '')) / selectedCatIds.length)
@@ -977,23 +1033,27 @@ export function BudgetScreen({
                   </Text>
                 ) : null}
 
-                <Text style={styles.inputLabel}>Ngưỡng cảnh báo khi chạm (%)</Text>
-                <View style={styles.inputBox}>
+                <Text style={[styles.inputLabel, isDark && { color: themeColors.textSecondary }]}>Ngưỡng cảnh báo khi chạm (%)</Text>
+                <View style={[styles.inputBox, isDark && { backgroundColor: themeColors.surfaceSubtle, borderColor: themeColors.cardBorder }]}>
                   <TextInput
-                    style={styles.textInput}
+                    style={[styles.textInput, isDark && { color: themeColors.textPrimary }]}
                     placeholder="80"
-                    placeholderTextColor="#94A3B8"
+                    placeholderTextColor={isDark ? '#64748B' : '#94A3B8'}
                     keyboardType="numeric"
                     value={thresholdInput}
                     onChangeText={setThresholdInput}
                   />
-                  <Text style={styles.inputSuffix}>%</Text>
+                  <Text style={[styles.inputSuffix, isDark && { color: themeColors.textSecondary }]}>%</Text>
                 </View>
 
                 <Pressable
                   onPress={handleCreateCategoryBudget}
                   disabled={isSubmitting}
-                  style={({ pressed }) => [styles.submitBtn, pressed && styles.pressed]}
+                  style={({ pressed }) => [
+                    styles.submitBtn,
+                    isDark && { backgroundColor: '#059669' },
+                    pressed && styles.pressed,
+                  ]}
                 >
                   {isSubmitting ? (
                     <ActivityIndicator color="#FFFFFF" />
@@ -1009,35 +1069,35 @@ export function BudgetScreen({
             ) : (
               /* ── CÁCH 2 (YNAB / SPENDEE STYLE): BẢNG PHÂN BỔ NHANH TỪNG DANH MỤC CẢ THÁNG ── */
               <ScrollView showsVerticalScrollIndicator={false} style={{ maxHeight: Dimensions.get('window').height * 0.72 }}>
-                <View style={{ backgroundColor: '#F8FAFC', padding: 12, borderRadius: 12, marginBottom: 14 }}>
-                  <Text style={{ fontSize: 13, color: '#475569', marginBottom: 4 }}>
+                <View style={[{ backgroundColor: isDark ? themeColors.surfaceSubtle : '#F8FAFC', padding: 12, borderRadius: 12, marginBottom: 14 }]}>
+                  <Text style={{ fontSize: 13, color: isDark ? themeColors.textSecondary : '#475569', marginBottom: 4 }}>
                     Tổng số tiền phân bổ cho tháng {currentMonth}:
                   </Text>
-                  <Text style={{ fontSize: 20, fontWeight: '800', color: '#047857' }}>
+                  <Text style={{ fontSize: 20, fontWeight: '800', color: isDark ? themeColors.accentGreen : '#047857' }}>
                     {formatCurrency(totalBatchAmount)}
                   </Text>
-                  <Text style={{ fontSize: 11, color: '#64748B', marginTop: 2 }}>
+                  <Text style={{ fontSize: 11, color: isDark ? themeColors.textMuted : '#64748B', marginTop: 2 }}>
                     Nhập trực tiếp số tiền cho các danh mục bạn muốn quản lý bên dưới.
                   </Text>
                 </View>
 
-                {/* Khung cuộn hiển thị 8-9 danh mục cao ráo, cân bằng chiều cao với tab Gộp danh mục */}
+                {/* Khung cuộn hiển thị danh mục */}
                 <View
                   style={{
-                    height: 440, // Chiều cao tăng lên hiển thị trọn vẹn 8-9 danh mục, khớp hoàn hảo với chiều cao tab Gộp danh mục
+                    height: 440,
                     borderWidth: 1,
-                    borderColor: '#E2E8F0',
+                    borderColor: isDark ? themeColors.cardBorder : '#E2E8F0',
                     borderRadius: 16,
                     paddingLeft: 10,
-                    paddingRight: 4, // Đưa thanh trượt ép sát mép phải
+                    paddingRight: 4,
                     paddingVertical: 4,
-                    backgroundColor: '#FFFFFF',
+                    backgroundColor: isDark ? themeColors.surface : '#FFFFFF',
                   }}
                 >
                   <ScrollView
                     nestedScrollEnabled
                     showsVerticalScrollIndicator={true}
-                    contentContainerStyle={{ paddingRight: 8 }} // Nội dung giữ khoảng cách với thanh trượt
+                    contentContainerStyle={{ paddingRight: 8 }}
                   >
                     {availableCategories.map((cat, index) => {
                       const iconName = resolveCategoryIconName(cat.icon, 'EXPENSE', cat.name);
@@ -1053,7 +1113,7 @@ export function BudgetScreen({
                             justifyContent: 'space-between',
                             paddingVertical: 10,
                             borderBottomWidth: isLast ? 0 : 1,
-                            borderBottomColor: '#F1F5F9',
+                            borderBottomColor: isDark ? themeColors.divider : '#F1F5F9',
                           }}
                         >
                           <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1, marginRight: 12 }}>
@@ -1062,7 +1122,7 @@ export function BudgetScreen({
                                 width: 34,
                                 height: 34,
                                 borderRadius: 8,
-                                backgroundColor: `${catColor}15`,
+                                backgroundColor: isDark ? `${catColor}25` : `${catColor}15`,
                                 alignItems: 'center',
                                 justifyContent: 'center',
                                 marginRight: 10,
@@ -1071,10 +1131,10 @@ export function BudgetScreen({
                               <FinanceIcon name={iconName} size={16} color={catColor} />
                             </View>
                             <View style={{ flex: 1 }}>
-                              <Text style={{ fontSize: 13.5, fontWeight: '600', color: '#0F172A' }} numberOfLines={1}>
+                              <Text style={{ fontSize: 13.5, fontWeight: '600', color: isDark ? themeColors.textPrimary : '#0F172A' }} numberOfLines={1}>
                                 {cat.name}
                               </Text>
-                              <Text style={{ fontSize: 11, color: '#94A3B8' }}>Hạn mức tháng {currentMonth}</Text>
+                              <Text style={{ fontSize: 11, color: isDark ? themeColors.textMuted : '#94A3B8' }}>Hạn mức tháng {currentMonth}</Text>
                             </View>
                           </View>
 
@@ -1083,23 +1143,23 @@ export function BudgetScreen({
                               width: 135,
                               flexDirection: 'row',
                               alignItems: 'center',
-                              backgroundColor: '#F8FAFC',
+                              backgroundColor: isDark ? themeColors.surfaceSubtle : '#F8FAFC',
                               borderRadius: 8,
                               borderWidth: 1,
-                              borderColor: batchAmounts[cat.id] ? '#059669' : '#CBD5E1',
+                              borderColor: batchAmounts[cat.id] ? (isDark ? themeColors.accentGreen : '#059669') : (isDark ? themeColors.cardBorder : '#CBD5E1'),
                               paddingHorizontal: 8,
                               height: 38,
                             }}
                           >
                             <TextInput
-                              style={{ flex: 1, fontSize: 13, fontWeight: '600', color: '#0F172A', textAlign: 'right', padding: 0 }}
+                              style={{ flex: 1, fontSize: 13, fontWeight: '600', color: isDark ? themeColors.textPrimary : '#0F172A', textAlign: 'right', padding: 0 }}
                               placeholder="0"
-                              placeholderTextColor="#94A3B8"
+                              placeholderTextColor={isDark ? '#64748B' : '#94A3B8'}
                               keyboardType="numeric"
                               value={batchAmounts[cat.id] || ''}
                               onChangeText={(val) => handleBatchAmountChange(cat.id, val)}
                             />
-                            <Text style={{ fontSize: 11, color: '#64748B', marginLeft: 4 }}>đ</Text>
+                            <Text style={{ fontSize: 11, color: isDark ? themeColors.textSecondary : '#64748B', marginLeft: 4 }}>đ</Text>
                           </View>
                         </View>
                       );
@@ -1110,7 +1170,12 @@ export function BudgetScreen({
                 <Pressable
                   onPress={handleSaveBatchBudgets}
                   disabled={isSubmitting}
-                  style={({ pressed }) => [styles.submitBtn, { marginTop: 16 }, pressed && styles.pressed]}
+                  style={({ pressed }) => [
+                    styles.submitBtn,
+                    { marginTop: 16 },
+                    isDark && { backgroundColor: '#059669' },
+                    pressed && styles.pressed,
+                  ]}
                 >
                   {isSubmitting ? (
                     <ActivityIndicator color="#FFFFFF" />
@@ -1136,47 +1201,52 @@ export function BudgetScreen({
         <View style={styles.modalOverlay}>
           <Pressable style={styles.modalBackdrop} onPress={() => setSelectedBudgetItem(null)} />
           {selectedBudgetItem && (
-            <View style={styles.modalDetailContainer}>
+            <View style={[styles.modalDetailContainer, isDark && { backgroundColor: themeColors.surface, borderColor: themeColors.cardBorder, borderWidth: 1 }]}>
               <View style={styles.detailHeader}>
-                <View style={[styles.detailIconBox, { backgroundColor: '#ECFDF5' }]}>
-                  <FinanceIcon name="wallet" size={26} color="#047857" />
+                <View style={[styles.detailIconBox, isDark ? { backgroundColor: 'rgba(5, 150, 105, 0.2)' } : { backgroundColor: '#ECFDF5' }]}>
+                  <FinanceIcon name="wallet" size={26} color={isDark ? themeColors.accentGreen : '#047857'} />
                 </View>
                 <View style={{ flex: 1 }}>
-                  <Text style={styles.detailTitle}>{selectedBudgetItem.categoryName || selectedBudgetItem.name}</Text>
-                  <Text style={styles.detailSub}>Hạn mức chi tiêu tháng {currentMonth}</Text>
+                  <Text style={[styles.detailTitle, isDark && { color: themeColors.textPrimary }]}>{selectedBudgetItem.categoryName || selectedBudgetItem.name}</Text>
+                  <Text style={[styles.detailSub, isDark && { color: themeColors.textMuted }]}>Hạn mức chi tiêu tháng {currentMonth}</Text>
                 </View>
                 <Pressable onPress={() => setSelectedBudgetItem(null)} hitSlop={8}>
-                  <FinanceIcon name="close" size={20} color="#64748B" />
+                  <FinanceIcon name="close" size={20} color={isDark ? themeColors.textSecondary : '#64748B'} />
                 </Pressable>
               </View>
 
-              <View style={styles.detailBodyBox}>
+              <View style={[styles.detailBodyBox, isDark && { backgroundColor: themeColors.surfaceSubtle }]}>
                 <View style={styles.detailRow}>
-                  <Text style={styles.detailLabel}>Hạn mức thiết lập:</Text>
-                  <Text style={styles.detailValBold}>{formatCurrency(selectedBudgetItem.amount)}</Text>
+                  <Text style={[styles.detailLabel, isDark && { color: themeColors.textSecondary }]}>Hạn mức thiết lập:</Text>
+                  <Text style={[styles.detailValBold, isDark && { color: themeColors.textPrimary }]}>{formatCurrency(selectedBudgetItem.amount)}</Text>
                 </View>
                 <View style={styles.detailRow}>
-                  <Text style={styles.detailLabel}>Đã chi tiêu:</Text>
+                  <Text style={[styles.detailLabel, isDark && { color: themeColors.textSecondary }]}>Đã chi tiêu:</Text>
                   <Text style={[styles.detailValBold, { color: '#EF4444' }]}>
                     {formatCurrency(selectedBudgetItem.spentAmount)}
                   </Text>
                 </View>
                 <View style={styles.detailRow}>
-                  <Text style={styles.detailLabel}>Còn lại có thể dùng:</Text>
-                  <Text style={[styles.detailValBold, { color: '#10B981' }]}>
+                  <Text style={[styles.detailLabel, isDark && { color: themeColors.textSecondary }]}>Còn lại có thể dùng:</Text>
+                  <Text style={[styles.detailValBold, { color: isDark ? themeColors.accentGreen : '#10B981' }]}>
                     {formatCurrency(selectedBudgetItem.remaining)}
                   </Text>
                 </View>
                 <View style={styles.detailRow}>
-                  <Text style={styles.detailLabel}>Tỷ lệ đã sử dụng:</Text>
-                  <Text style={styles.detailValBold}>{selectedBudgetItem.percentageUsed}%</Text>
+                  <Text style={[styles.detailLabel, isDark && { color: themeColors.textSecondary }]}>Tỷ lệ đã sử dụng:</Text>
+                  <Text style={[styles.detailValBold, isDark && { color: themeColors.textPrimary }]}>{selectedBudgetItem.percentageUsed}%</Text>
                 </View>
               </View>
 
               <View style={styles.detailFooter}>
                 <Pressable
-                  onPress={() => handleDeleteBudgetItem(selectedBudgetItem.id)}
-                  style={({ pressed }) => [styles.detailBtnItem, styles.deleteActionBtn, pressed && styles.pressed]}
+                  onPress={() => handleDeleteBudgetItem(selectedBudgetItem)}
+                  style={({ pressed }) => [
+                    styles.detailBtnItem,
+                    styles.deleteActionBtn,
+                    isDark && { backgroundColor: 'rgba(239, 68, 68, 0.16)', borderColor: 'rgba(239, 68, 68, 0.3)' },
+                    pressed && styles.pressed,
+                  ]}
                 >
                   <FinanceIcon name="trash" size={16} color="#EF4444" />
                   <Text style={styles.deleteActionText}>Xóa</Text>
@@ -1190,17 +1260,27 @@ export function BudgetScreen({
                       setSelectedBudgetItem(null);
                     }
                   }}
-                  style={({ pressed }) => [styles.detailBtnItem, styles.editActionBtn, pressed && styles.pressed]}
+                  style={({ pressed }) => [
+                    styles.detailBtnItem,
+                    styles.editActionBtn,
+                    isDark && { backgroundColor: 'rgba(5, 150, 105, 0.2)', borderColor: 'rgba(5, 150, 105, 0.35)' },
+                    pressed && styles.pressed,
+                  ]}
                 >
-                  <FinanceIcon name="edit" size={16} color="#047857" />
-                  <Text style={styles.editActionText}>Sửa</Text>
+                  <FinanceIcon name="edit" size={16} color={isDark ? themeColors.accentGreen : '#047857'} />
+                  <Text style={[styles.editActionText, isDark && { color: themeColors.accentGreen }]}>Sửa</Text>
                 </Pressable>
 
                 <Pressable
                   onPress={() => setSelectedBudgetItem(null)}
-                  style={({ pressed }) => [styles.detailBtnItem, styles.closeActionBtn, pressed && styles.pressed]}
+                  style={({ pressed }) => [
+                    styles.detailBtnItem,
+                    styles.closeActionBtn,
+                    isDark && { backgroundColor: themeColors.surfaceSubtle, borderColor: themeColors.cardBorder },
+                    pressed && styles.pressed,
+                  ]}
                 >
-                  <Text style={styles.closeActionText}>Đóng</Text>
+                  <Text style={[styles.closeActionText, isDark && { color: themeColors.textSecondary }]}>Đóng</Text>
                 </Pressable>
               </View>
             </View>
@@ -1217,30 +1297,30 @@ export function BudgetScreen({
       >
         <View style={styles.modalOverlay}>
           <Pressable style={styles.modalBackdrop} onPress={() => setEditItemModalVisible(false)} />
-          <View style={styles.modalSheet}>
+          <View style={[styles.modalSheet, isDark && { backgroundColor: themeColors.surface, borderColor: themeColors.cardBorder, borderWidth: 1 }]}>
             <View style={styles.modalSheetHeader}>
-              <Text style={styles.modalSheetTitle}>Sửa hạn mức danh mục</Text>
+              <Text style={[styles.modalSheetTitle, isDark && { color: themeColors.textPrimary }]}>Sửa hạn mức danh mục</Text>
               <Pressable onPress={() => setEditItemModalVisible(false)} hitSlop={8}>
-                <FinanceIcon name="close" size={20} color="#64748B" />
+                <FinanceIcon name="close" size={20} color={isDark ? themeColors.textSecondary : '#64748B'} />
               </Pressable>
             </View>
 
             <View style={{ paddingTop: 8 }}>
-              <Text style={styles.inputLabel}>Tên danh mục / Hạn mức</Text>
-              <View style={styles.inputBox}>
+              <Text style={[styles.inputLabel, isDark && { color: themeColors.textSecondary }]}>Tên danh mục / Hạn mức</Text>
+              <View style={[styles.inputBox, isDark && { backgroundColor: themeColors.surfaceSubtle, borderColor: themeColors.cardBorder }]}>
                 <TextInput
-                  style={styles.textInput}
+                  style={[styles.textInput, isDark && { color: themeColors.textPrimary }]}
                   value={editItemName}
                   onChangeText={setEditItemName}
                   placeholder="Tên danh mục..."
-                  placeholderTextColor="#94A3B8"
+                  placeholderTextColor={isDark ? '#64748B' : '#94A3B8'}
                 />
               </View>
 
-              <Text style={[styles.inputLabel, { marginTop: 14 }]}>Số tiền hạn mức (VNĐ)</Text>
-              <View style={styles.inputBox}>
+              <Text style={[styles.inputLabel, isDark && { color: themeColors.textSecondary }, { marginTop: 14 }]}>Số tiền hạn mức (VNĐ)</Text>
+              <View style={[styles.inputBox, isDark && { backgroundColor: themeColors.surfaceSubtle, borderColor: themeColors.cardBorder }]}>
                 <TextInput
-                  style={styles.textInput}
+                  style={[styles.textInput, isDark && { color: themeColors.textPrimary }]}
                   value={editItemAmount}
                   onChangeText={(val) => {
                     const num = Number(val.replace(/\D/g, ''));
@@ -1248,28 +1328,33 @@ export function BudgetScreen({
                   }}
                   keyboardType="numeric"
                   placeholder="0"
-                  placeholderTextColor="#94A3B8"
+                  placeholderTextColor={isDark ? '#64748B' : '#94A3B8'}
                 />
-                <Text style={styles.inputSuffix}>đ</Text>
+                <Text style={[styles.inputSuffix, isDark && { color: themeColors.textSecondary }]}>đ</Text>
               </View>
 
-              <Text style={[styles.inputLabel, { marginTop: 14 }]}>Ngưỡng cảnh báo chi tiêu (%)</Text>
-              <View style={styles.inputBox}>
+              <Text style={[styles.inputLabel, isDark && { color: themeColors.textSecondary }, { marginTop: 14 }]}>Ngưỡng cảnh báo chi tiêu (%)</Text>
+              <View style={[styles.inputBox, isDark && { backgroundColor: themeColors.surfaceSubtle, borderColor: themeColors.cardBorder }]}>
                 <TextInput
-                  style={styles.textInput}
+                  style={[styles.textInput, isDark && { color: themeColors.textPrimary }]}
                   value={editItemThreshold}
                   onChangeText={setEditItemThreshold}
                   keyboardType="numeric"
                   placeholder="80"
-                  placeholderTextColor="#94A3B8"
+                  placeholderTextColor={isDark ? '#64748B' : '#94A3B8'}
                 />
-                <Text style={styles.inputSuffix}>%</Text>
+                <Text style={[styles.inputSuffix, isDark && { color: themeColors.textSecondary }]}>%</Text>
               </View>
 
               <Pressable
                 onPress={handleSaveEditBudgetItem}
                 disabled={isSubmitting}
-                style={({ pressed }) => [styles.submitBtn, pressed && styles.pressed, { marginTop: 24 }]}
+                style={({ pressed }) => [
+                  styles.submitBtn,
+                  isDark && { backgroundColor: '#059669' },
+                  pressed && styles.pressed,
+                  { marginTop: 24 },
+                ]}
               >
                 {isSubmitting ? (
                   <ActivityIndicator color="#FFFFFF" />
@@ -1291,42 +1376,60 @@ export function BudgetScreen({
       >
         <View style={styles.modalOverlay}>
           <Pressable style={styles.modalBackdrop} onPress={() => setTemplateModalVisible(false)} />
-          <View style={styles.modalSheet}>
+          <View style={[styles.modalSheet, isDark && { backgroundColor: themeColors.surface, borderColor: themeColors.cardBorder, borderWidth: 1 }]}>
             <View style={styles.modalSheetHeader}>
-              <Text style={styles.modalSheetTitle}>Mẫu phân bổ ngân sách danh mục</Text>
+              <Text style={[styles.modalSheetTitle, isDark && { color: themeColors.textPrimary }]}>Mẫu phân bổ ngân sách danh mục</Text>
               <Pressable onPress={() => setTemplateModalVisible(false)} hitSlop={8}>
-                <FinanceIcon name="close" size={20} color="#64748B" />
+                <FinanceIcon name="close" size={20} color={isDark ? themeColors.textSecondary : '#64748B'} />
               </Pressable>
             </View>
 
             <ScrollView showsVerticalScrollIndicator={false} style={{ maxHeight: Dimensions.get('window').height * 0.76 }}>
               {/* Chọn mô hình */}
-              <View style={styles.tabToggleRow}>
+              <View style={[styles.tabToggleRow, isDark && { backgroundColor: themeColors.surfaceSubtle }]}>
                 <Pressable
                   onPress={() => setSelectedTemplateKey('50_30_20')}
-                  style={[styles.tabToggleBtn, selectedTemplateKey === '50_30_20' && styles.tabToggleBtnActive]}
+                  style={[
+                    styles.tabToggleBtn,
+                    selectedTemplateKey === '50_30_20' && (isDark ? { backgroundColor: themeColors.surface } : styles.tabToggleBtnActive),
+                  ]}
                 >
-                  <Text style={[styles.tabToggleText, selectedTemplateKey === '50_30_20' && styles.tabToggleTextActive]}>
+                  <Text
+                    style={[
+                      styles.tabToggleText,
+                      isDark && { color: themeColors.textSecondary },
+                      selectedTemplateKey === '50_30_20' && (isDark ? { color: themeColors.accentGreen, fontWeight: '700' } : styles.tabToggleTextActive),
+                    ]}
+                  >
                     Mô hình 50 / 30 / 20
                   </Text>
                 </Pressable>
                 <Pressable
                   onPress={() => setSelectedTemplateKey('6_JARS')}
-                  style={[styles.tabToggleBtn, selectedTemplateKey === '6_JARS' && styles.tabToggleBtnActive]}
+                  style={[
+                    styles.tabToggleBtn,
+                    selectedTemplateKey === '6_JARS' && (isDark ? { backgroundColor: themeColors.surface } : styles.tabToggleBtnActive),
+                  ]}
                 >
-                  <Text style={[styles.tabToggleText, selectedTemplateKey === '6_JARS' && styles.tabToggleTextActive]}>
+                  <Text
+                    style={[
+                      styles.tabToggleText,
+                      isDark && { color: themeColors.textSecondary },
+                      selectedTemplateKey === '6_JARS' && (isDark ? { color: themeColors.accentGreen, fontWeight: '700' } : styles.tabToggleTextActive),
+                    ]}
+                  >
                     Quy tắc 6 Hũ
                   </Text>
                 </Pressable>
               </View>
 
               {/* Nhập thu nhập dự kiến */}
-              <Text style={styles.inputLabel}>Thu nhập dự kiến tháng {currentMonth} (VNĐ)</Text>
-              <View style={styles.inputBox}>
+              <Text style={[styles.inputLabel, isDark && { color: themeColors.textSecondary }]}>Thu nhập dự kiến tháng {currentMonth} (VNĐ)</Text>
+              <View style={[styles.inputBox, isDark && { backgroundColor: themeColors.surfaceSubtle, borderColor: themeColors.cardBorder }]}>
                 <TextInput
-                  style={styles.textInput}
+                  style={[styles.textInput, isDark && { color: themeColors.textPrimary }]}
                   placeholder="15.000.000"
-                  placeholderTextColor="#94A3B8"
+                  placeholderTextColor={isDark ? '#64748B' : '#94A3B8'}
                   keyboardType="numeric"
                   value={templateIncome}
                   onChangeText={(val) => {
@@ -1334,23 +1437,23 @@ export function BudgetScreen({
                     setTemplateIncome(num ? new Intl.NumberFormat('vi-VN').format(num) : '');
                   }}
                 />
-                <Text style={styles.inputSuffix}>đ</Text>
+                <Text style={[styles.inputSuffix, isDark && { color: themeColors.textSecondary }]}>đ</Text>
               </View>
 
               {/* Danh sách danh mục được tự động phân bổ hạn mức */}
-              <Text style={[styles.inputLabel, { marginTop: 14 }]}>
+              <Text style={[styles.inputLabel, isDark && { color: themeColors.textSecondary }, { marginTop: 14 }]}>
                 Hạn mức tự động tính cho từng danh mục:
               </Text>
-              <View style={styles.allocList}>
+              <View style={[styles.allocList, isDark && { backgroundColor: themeColors.surfaceSubtle, borderColor: themeColors.cardBorder }]}>
                 {categoryAllocations.map((alloc, idx) => (
-                  <View key={idx} style={styles.allocRow}>
+                  <View key={idx} style={[styles.allocRow, isDark && { borderBottomColor: themeColors.divider }]}>
                     <View style={styles.allocLeft}>
-                      <Text style={styles.allocName}>{alloc.name}</Text>
-                      <Text style={styles.allocGroup}>({alloc.group})</Text>
+                      <Text style={[styles.allocName, isDark && { color: themeColors.textPrimary }]}>{alloc.name}</Text>
+                      <Text style={[styles.allocGroup, isDark && { color: themeColors.textMuted }]}>({alloc.group})</Text>
                     </View>
                     <View style={styles.allocRight}>
-                      <Text style={styles.allocAmount}>{formatCurrency(alloc.amount)}</Text>
-                      <Text style={styles.allocPercent}>{alloc.percent}%</Text>
+                      <Text style={[styles.allocAmount, isDark && { color: themeColors.accentGreen }]}>{formatCurrency(alloc.amount)}</Text>
+                      <Text style={[styles.allocPercent, isDark && { color: themeColors.textMuted }]}>{alloc.percent}%</Text>
                     </View>
                   </View>
                 ))}
@@ -1359,7 +1462,11 @@ export function BudgetScreen({
               <Pressable
                 onPress={handleApplyTemplateAllocations}
                 disabled={isApplyingTemplate}
-                style={({ pressed }) => [styles.applyTemplateBtn, pressed && styles.pressed]}
+                style={({ pressed }) => [
+                  styles.applyTemplateBtn,
+                  isDark && { backgroundColor: '#059669' },
+                  pressed && styles.pressed,
+                ]}
               >
                 {isApplyingTemplate ? (
                   <ActivityIndicator color="#FFFFFF" />
@@ -1372,62 +1479,171 @@ export function BudgetScreen({
         </View>
       </Modal>
 
-      {/* ── MODAL: CHỌN THÁNG LỌC NGÂN SÁCH ── */}
+      {/* ── MODAL: CHỌN THÁNG LỌC NGÂN SÁCH (DẠNG THẢ XUỐNG / BOTTOM SHEET DROPDOWN) ── */}
       <Modal
         visible={isMonthPickerVisible}
         transparent
-        animationType="fade"
+        animationType="slide"
         onRequestClose={() => setIsMonthPickerVisible(false)}
       >
         <View style={styles.modalOverlay}>
           <Pressable style={styles.modalBackdrop} onPress={() => setIsMonthPickerVisible(false)} />
-          <View style={styles.monthPickerContainer}>
-            <View style={styles.monthPickerHeader}>
-              <Text style={styles.monthPickerTitle}>Chọn thời gian ngân sách</Text>
-              <Pressable onPress={() => setIsMonthPickerVisible(false)} hitSlop={8}>
-                <FinanceIcon name="close" size={20} color="#64748B" />
+          <View
+            style={[
+              styles.dropdownSheet,
+              isDark && {
+                backgroundColor: themeColors.surface,
+                borderColor: themeColors.cardBorder,
+                borderWidth: 1,
+              },
+            ]}
+          >
+            {/* Thanh kéo nhỏ phong cách Bottom Sheet */}
+            <View style={styles.dropdownHandleWrap}>
+              <View
+                style={[
+                  styles.dropdownHandle,
+                  isDark && { backgroundColor: themeColors.cardBorder },
+                ]}
+              />
+            </View>
+
+            {/* Header Dropdown */}
+            <View
+              style={[
+                styles.dropdownHeader,
+                isDark && { borderBottomColor: themeColors.divider },
+              ]}
+            >
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <View
+                  style={[
+                    styles.dropdownIconCircle,
+                    isDark
+                      ? { backgroundColor: 'rgba(5, 150, 105, 0.2)' }
+                      : { backgroundColor: '#ECFDF5' },
+                  ]}
+                >
+                  <FinanceIcon
+                    name="calendar"
+                    size={18}
+                    color={isDark ? themeColors.accentGreen : '#047857'}
+                  />
+                </View>
+                <View>
+                  <Text
+                    style={[
+                      styles.dropdownTitle,
+                      isDark && { color: themeColors.textPrimary },
+                    ]}
+                  >
+                    Kỳ ngân sách
+                  </Text>
+                  <Text
+                    style={[
+                      styles.dropdownSubTitle,
+                      isDark && { color: themeColors.textMuted },
+                    ]}
+                  >
+                    Chọn tháng cần quản lý chi tiêu
+                  </Text>
+                </View>
+              </View>
+
+              <Pressable
+                onPress={() => setIsMonthPickerVisible(false)}
+                hitSlop={10}
+                style={[
+                  styles.dropdownCloseBtn,
+                  isDark && { backgroundColor: themeColors.surfaceSubtle },
+                ]}
+              >
+                <FinanceIcon
+                  name="close"
+                  size={18}
+                  color={isDark ? themeColors.textSecondary : '#64748B'}
+                />
               </Pressable>
             </View>
 
-            {/* Chọn năm */}
-            <View style={styles.yearRow}>
-              <Pressable
-                onPress={() => setSelectedYear((y) => y - 1)}
-                style={styles.yearChangeBtn}
-                hitSlop={8}
-              >
-                <FinanceIcon name="chevron-left" size={18} color="#047857" />
-              </Pressable>
-              <Text style={styles.yearText}>Năm {selectedYear}</Text>
-              <Pressable
-                onPress={() => setSelectedYear((y) => y + 1)}
-                style={styles.yearChangeBtn}
-                hitSlop={8}
-              >
-                <FinanceIcon name="chevron-right" size={18} color="#047857" />
-              </Pressable>
-            </View>
-
-            {/* Lưới 12 tháng */}
-            <View style={styles.monthGrid}>
-              {Array.from({ length: 12 }, (_, i) => i + 1).map((m) => {
-                const isSelected = selectedMonth === m;
+            {/* Danh sách các tháng cuộn thả xuống thanh lịch */}
+            <ScrollView
+              showsVerticalScrollIndicator={true}
+              style={styles.dropdownListScroll}
+              contentContainerStyle={{ paddingVertical: 6 }}
+            >
+              {availableMonthsList.map((item) => {
+                const isSelected = selectedMonth === item.month && selectedYear === item.year;
                 return (
                   <Pressable
-                    key={m}
+                    key={`${item.year}-${item.month}`}
                     onPress={() => {
-                      setSelectedMonth(m);
+                      setSelectedMonth(item.month);
+                      setSelectedYear(item.year);
                       setIsMonthPickerVisible(false);
                     }}
-                    style={[styles.monthGridItem, isSelected && styles.monthGridItemSelected]}
+                    style={({ pressed }) => [
+                      styles.dropdownItemRow,
+                      isDark && { borderBottomColor: themeColors.divider },
+                      isSelected && (isDark ? styles.dropdownItemRowActiveDark : styles.dropdownItemRowActive),
+                      pressed && styles.pressed,
+                    ]}
                   >
-                    <Text style={[styles.monthGridText, isSelected && styles.monthGridTextSelected]}>
-                      Th {m}
-                    </Text>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                      <View
+                        style={[
+                          styles.dropdownItemIconBox,
+                          isDark
+                            ? { backgroundColor: themeColors.surfaceSubtle }
+                            : { backgroundColor: '#F8FAFC' },
+                          isSelected && (isDark
+                            ? { backgroundColor: 'rgba(52, 211, 153, 0.25)' }
+                            : { backgroundColor: '#D1FAE5' }),
+                        ]}
+                      >
+                        <FinanceIcon
+                          name="calendar"
+                          size={16}
+                          color={
+                            isSelected
+                              ? (isDark ? themeColors.accentGreen : '#047857')
+                              : (isDark ? themeColors.textSecondary : '#64748B')
+                          }
+                        />
+                      </View>
+                      <Text
+                        style={[
+                          styles.dropdownItemLabel,
+                          isDark && { color: themeColors.textPrimary },
+                          isSelected && (isDark
+                            ? { color: themeColors.accentGreen, fontWeight: '800' }
+                            : { color: '#047857', fontWeight: '800' }),
+                        ]}
+                      >
+                        {item.label}
+                      </Text>
+                    </View>
+
+                    {isSelected && (
+                      <View
+                        style={[
+                          styles.dropdownCheckBadge,
+                          isDark
+                            ? { backgroundColor: 'rgba(52, 211, 153, 0.2)' }
+                            : { backgroundColor: '#ECFDF5' },
+                        ]}
+                      >
+                        <FinanceIcon
+                          name="check"
+                          size={14}
+                          color={isDark ? themeColors.accentGreen : '#047857'}
+                        />
+                      </View>
+                    )}
                   </Pressable>
                 );
               })}
-            </View>
+            </ScrollView>
           </View>
         </View>
       </Modal>
@@ -1443,8 +1659,6 @@ const styles = StyleSheet.create({
   header: {
     backgroundColor: '#FFFFFF',
     paddingBottom: 14,
-    borderBottomWidth: 1,
-    borderBottomColor: '#F1F5F9',
   },
   headerTop: {
     flexDirection: 'row',
@@ -2013,79 +2227,102 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#047857',
   },
-  monthPickerContainer: {
+
+  /* ── DROPDOWN BOTTOM SHEET THẢ XUỐNG ── */
+  dropdownSheet: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 24,
-    padding: 20,
-    marginHorizontal: 24,
-    marginBottom: 'auto',
-    marginTop: 'auto',
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    paddingHorizontal: 20,
+    paddingBottom: Platform.OS === 'ios' ? 36 : 24,
+    maxHeight: '68%',
     shadowColor: '#000',
-    shadowOpacity: 0.15,
-    shadowRadius: 20,
-    shadowOffset: { width: 0, height: 6 },
-    elevation: 8,
+    shadowOpacity: 0.16,
+    shadowRadius: 18,
+    shadowOffset: { width: 0, height: -4 },
+    elevation: 10,
   },
-  monthPickerHeader: {
+  dropdownHandleWrap: {
+    alignItems: 'center',
+    paddingVertical: 10,
+  },
+  dropdownHandle: {
+    width: 44,
+    height: 4.5,
+    borderRadius: 3,
+    backgroundColor: '#CBD5E1',
+  },
+  dropdownHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 16,
+    paddingBottom: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F1F5F9',
   },
-  monthPickerTitle: {
+  dropdownIconCircle: {
+    width: 36,
+    height: 36,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  dropdownTitle: {
     fontSize: 16,
     fontWeight: '700',
     color: '#0F172A',
   },
-  yearRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 16,
-    paddingVertical: 8,
-    marginBottom: 12,
+  dropdownSubTitle: {
+    fontSize: 12,
+    color: '#64748B',
+    marginTop: 1,
   },
-  yearChangeBtn: {
+  dropdownCloseBtn: {
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: '#ECFDF5',
+    backgroundColor: '#F1F5F9',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  yearText: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#047857',
+  dropdownListScroll: {
+    maxHeight: 380,
   },
-  monthGrid: {
+  dropdownItemRow: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
+    alignItems: 'center',
     justifyContent: 'space-between',
+    paddingVertical: 12,
+    paddingHorizontal: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F8FAFC',
+    borderRadius: 12,
+    marginVertical: 1,
   },
-  monthGridItem: {
-    width: '22%',
-    paddingVertical: 10,
+  dropdownItemRowActive: {
+    backgroundColor: '#ECFDF5',
+  },
+  dropdownItemRowActiveDark: {
+    backgroundColor: 'rgba(5, 150, 105, 0.18)',
+  },
+  dropdownItemIconBox: {
+    width: 32,
+    height: 32,
+    borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#F8FAFC',
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
   },
-  monthGridItemSelected: {
-    backgroundColor: '#047857',
-    borderColor: '#047857',
-  },
-  monthGridText: {
-    fontSize: 13,
+  dropdownItemLabel: {
+    fontSize: 14.5,
     fontWeight: '600',
-    color: '#475569',
+    color: '#1E293B',
   },
-  monthGridTextSelected: {
-    color: '#FFFFFF',
-    fontWeight: '700',
+  dropdownCheckBadge: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   pressed: {
     opacity: 0.7,

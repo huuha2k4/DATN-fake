@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, Pressable, Switch, Image, Platform, Modal } fro
 import { FinanceIcon } from '../../../core/components/FinanceIcon';
 import { userProfileApi } from '../../../profile/api/userProfileApi';
 import { GroupInvitationResponse, GroupMemberResponse, GroupResponse } from '../../api/groupApi';
+import { useAppTheme } from '../../../../context/ThemeContext';
 
 export interface GroupMembersTabProps {
   members: GroupMemberResponse[];
@@ -37,6 +38,7 @@ export const GroupMembersTab: React.FC<GroupMembersTabProps> = ({
   notificationEnabled = true,
   onOpenPermissions,
 }) => {
+  const { isDark, colors: themeColors } = useAppTheme();
   // Trạng thái modal dropdown phân quyền
   const [dropdownMember, setDropdownMember] = useState<GroupMemberResponse | null>(null);
   const [permissionsModalVisible, setPermissionsModalVisible] = useState(false);
@@ -49,26 +51,48 @@ export const GroupMembersTab: React.FC<GroupMembersTabProps> = ({
   const isCoupleMaxed = isCoupleGroup && totalCoupleCount >= 2;
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, isDark && { backgroundColor: themeColors.background }]}>
       {/* KHỐI 1: THÀNH VIÊN NHÓM */}
-      <View style={styles.cardContainer}>
+      <View
+        style={[
+          styles.cardContainer,
+          isDark && {
+            backgroundColor: themeColors.surface,
+            borderColor: themeColors.cardBorder,
+          },
+        ]}
+      >
         {/* Header thành viên */}
         <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>
+          <Text style={[styles.sectionTitle, isDark && { color: themeColors.textPrimary }]}>
             Thành viên nhóm ({members.length}{isCoupleGroup ? '/2' : ''})
           </Text>
           {isChildAccount ? null : isCoupleMaxed ? (
-            <View style={[styles.inviteBtn, { backgroundColor: '#F1F5F9', borderColor: '#E2E8F0' }]}>
-              <FinanceIcon name="check" size={14} color="#64748B" />
-              <Text style={[styles.inviteBtnText, { color: '#64748B' }]}>Đã đủ 2 người</Text>
+            <View
+              style={[
+                styles.inviteBtn,
+                isDark
+                  ? { backgroundColor: themeColors.surfaceSubtle, borderColor: themeColors.cardBorder }
+                  : { backgroundColor: '#F1F5F9', borderColor: '#E2E8F0' },
+              ]}
+            >
+              <FinanceIcon name="check" size={14} color={isDark ? themeColors.textMuted : '#64748B'} />
+              <Text style={[styles.inviteBtnText, isDark && { color: themeColors.textMuted }]}>Đã đủ 2 người</Text>
             </View>
           ) : (
             <Pressable
               onPress={onInvitePress}
-              style={({ pressed }) => [styles.inviteBtn, pressed && { opacity: 0.8 }]}
+              style={({ pressed }) => [
+                styles.inviteBtn,
+                isDark && {
+                  backgroundColor: 'rgba(52, 211, 153, 0.15)',
+                  borderColor: 'rgba(52, 211, 153, 0.3)',
+                },
+                pressed && { opacity: 0.8 },
+              ]}
             >
-              <FinanceIcon name="plus" size={14} color="#059669" />
-              <Text style={styles.inviteBtnText}>Mời thêm</Text>
+              <FinanceIcon name="plus" size={14} color={isDark ? themeColors.accentGreen : '#059669'} />
+              <Text style={[styles.inviteBtnText, isDark && { color: themeColors.accentGreen }]}>Mời thêm</Text>
             </Pressable>
           )}
         </View>
@@ -111,7 +135,10 @@ export const GroupMembersTab: React.FC<GroupMembersTabProps> = ({
                 key={m.id || m.userId || index}
                 style={[
                   styles.memberRow,
-                  index < members.length - 1 && styles.memberRowBorder,
+                  index < members.length - 1 && [
+                    styles.memberRowBorder,
+                    isDark && { borderBottomColor: themeColors.divider },
+                  ],
                 ]}
               >
                 {/* Avatar */}
@@ -137,37 +164,49 @@ export const GroupMembersTab: React.FC<GroupMembersTabProps> = ({
                 {/* Info */}
                 <View style={styles.infoCol}>
                   <View style={styles.nameRow}>
-                    <Text style={styles.memberName} numberOfLines={1}>
+                    <Text
+                      style={[
+                        styles.memberName,
+                        isDark && { color: themeColors.textPrimary },
+                      ]}
+                      numberOfLines={1}
+                    >
                       {displayName}
                     </Text>
-                    {isSelf && <Text style={styles.selfLabel}> (Bạn)</Text>}
+                    {isSelf && <Text style={[styles.selfLabel, isDark && { color: themeColors.accentGreen }]}> (Bạn)</Text>}
                   </View>
                   {!!email && (
-                    <Text style={styles.memberEmail} numberOfLines={1}>
+                    <Text
+                      style={[
+                        styles.memberEmail,
+                        isDark && { color: themeColors.textMuted },
+                      ]}
+                      numberOfLines={1}
+                    >
                       {email}
                     </Text>
                   )}
                 </View>
 
-                {/* Badge vai trò cố định: Trưởng nhóm / Quản trị viên / Thành viên (chỉ xem, không sửa trực tiếp ở đây) */}
+                {/* Badge vai trò cố định: Trưởng nhóm / Quản trị viên / Thành viên */}
                 <View
                   style={[
                     styles.roleBadge,
                     isOwner
-                      ? styles.ownerBadge
+                      ? (isDark ? { backgroundColor: 'rgba(245, 158, 11, 0.18)' } : styles.ownerBadge)
                       : isAdmin
-                      ? styles.adminBadge
-                      : styles.normalBadge,
+                      ? (isDark ? { backgroundColor: 'rgba(99, 102, 241, 0.18)' } : styles.adminBadge)
+                      : (isDark ? { backgroundColor: 'rgba(56, 189, 248, 0.18)' } : styles.normalBadge),
                   ]}
                 >
                   <Text
                     style={[
                       styles.roleBadgeText,
                       isOwner
-                        ? styles.ownerBadgeText
+                        ? (isDark ? { color: '#FBBF24' } : styles.ownerBadgeText)
                         : isAdmin
-                        ? styles.adminBadgeText
-                        : styles.normalBadgeText,
+                        ? (isDark ? { color: '#818CF8' } : styles.adminBadgeText)
+                        : (isDark ? { color: '#38BDF8' } : styles.normalBadgeText),
                     ]}
                   >
                     {isOwner ? 'Trưởng nhóm' : isAdmin ? 'Quản trị viên' : 'Thành viên'}
@@ -186,7 +225,7 @@ export const GroupMembersTab: React.FC<GroupMembersTabProps> = ({
                   }}
                   style={({ pressed }) => [styles.dotsBtn, pressed && { opacity: 0.6 }]}
                 >
-                  <FinanceIcon name="more-horizontal" size={18} color="#94A3B8" />
+                  <FinanceIcon name="more-horizontal" size={18} color={isDark ? themeColors.textMuted : '#94A3B8'} />
                 </Pressable>
               </View>
             );
@@ -195,15 +234,15 @@ export const GroupMembersTab: React.FC<GroupMembersTabProps> = ({
 
         {/* ── DANH SÁCH LỜI MỜI CHƯA XÁC NHẬN (CÓ NÚT HỦY) ── */}
         {sentPendingInvitations.length > 0 && (
-          <View style={styles.pendingInvitationsSection}>
+          <View style={[styles.pendingInvitationsSection, isDark && { borderTopColor: themeColors.divider }]}>
             <View style={styles.pendingHeaderRow}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                 <Text style={{ fontSize: 14 }}>⏳</Text>
-                <Text style={styles.pendingSectionTitle}>
+                <Text style={[styles.pendingSectionTitle, isDark && { color: '#FBBF24' }]}>
                   Lời mời đang chờ ({sentPendingInvitations.length})
                 </Text>
               </View>
-              <Text style={styles.pendingSectionSub}>Chờ người dùng xác nhận</Text>
+              <Text style={[styles.pendingSectionSub, isDark && { color: themeColors.textMuted }]}>Chờ người dùng xác nhận</Text>
             </View>
 
             <View style={styles.pendingList}>
@@ -214,30 +253,44 @@ export const GroupMembersTab: React.FC<GroupMembersTabProps> = ({
                 const invLetter = invName.slice(0, 1).toUpperCase();
 
                 return (
-                  <View key={inv.id} style={styles.pendingItemCard}>
+                  <View
+                    key={inv.id}
+                    style={[
+                      styles.pendingItemCard,
+                      isDark && {
+                        backgroundColor: 'rgba(245, 158, 11, 0.1)',
+                        borderColor: 'rgba(245, 158, 11, 0.35)',
+                      },
+                    ]}
+                  >
                     <View style={styles.pendingLeftInfo}>
                       <View style={styles.pendingAvatarWrapper}>
                         {avatarUri ? (
                           <Image source={{ uri: avatarUri }} style={styles.avatarImg} />
                         ) : (
-                          <View style={styles.pendingAvatarPlaceholder}>
-                            <Text style={styles.pendingAvatarText}>{invLetter}</Text>
+                          <View
+                            style={[
+                              styles.pendingAvatarPlaceholder,
+                              isDark && { backgroundColor: 'rgba(245, 158, 11, 0.25)' },
+                            ]}
+                          >
+                            <Text style={[styles.pendingAvatarText, isDark && { color: '#FBBF24' }]}>{invLetter}</Text>
                           </View>
                         )}
                       </View>
 
                       <View style={{ flex: 1, minWidth: 0 }}>
                         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                          <Text style={styles.pendingName} numberOfLines={1}>
+                          <Text style={[styles.pendingName, isDark && { color: themeColors.textPrimary }]} numberOfLines={1}>
                             {invName}
                           </Text>
-                          <View style={styles.pendingBadge}>
-                            <Text style={styles.pendingBadgeText}>
+                          <View style={[styles.pendingBadge, isDark && { backgroundColor: 'rgba(245, 158, 11, 0.2)' }]}>
+                            <Text style={[styles.pendingBadgeText, isDark && { color: '#FBBF24' }]}>
                               {inv.role === 'ADMIN' ? 'Quản trị' : 'Thành viên'}
                             </Text>
                           </View>
                         </View>
-                        <Text style={styles.pendingEmail} numberOfLines={1}>
+                        <Text style={[styles.pendingEmail, isDark && { color: themeColors.textMuted }]} numberOfLines={1}>
                           {inv.inviteeEmail || 'Đã gửi lời mời tham gia'}
                         </Text>
                       </View>
@@ -247,11 +300,18 @@ export const GroupMembersTab: React.FC<GroupMembersTabProps> = ({
                     {onCancelInvitation && (
                       <Pressable
                         onPress={() => onCancelInvitation(inv.id, invName)}
-                        style={({ pressed }) => [styles.cancelInviteBtn, pressed && { opacity: 0.75 }]}
+                        style={({ pressed }) => [
+                          styles.cancelInviteBtn,
+                          isDark && {
+                            backgroundColor: 'rgba(239, 68, 68, 0.15)',
+                            borderColor: 'rgba(239, 68, 68, 0.35)',
+                          },
+                          pressed && { opacity: 0.75 },
+                        ]}
                         hitSlop={6}
                       >
-                        <FinanceIcon name="close" size={13} color="#DC2626" />
-                        <Text style={styles.cancelInviteBtnText}>Hủy</Text>
+                        <FinanceIcon name="close" size={13} color={isDark ? '#F87171' : '#DC2626'} />
+                        <Text style={[styles.cancelInviteBtnText, isDark && { color: '#F87171' }]}>Hủy</Text>
                       </Pressable>
                     )}
                   </View>
@@ -264,9 +324,17 @@ export const GroupMembersTab: React.FC<GroupMembersTabProps> = ({
 
       {/* KHỐI 2: QUẢN LÝ NHÓM (ẨN ĐỐI VỚI TÀI KHOẢN TRẺ EM) */}
       {!isChildAccount && (
-        <View style={styles.cardContainer}>
+        <View
+          style={[
+            styles.cardContainer,
+            isDark && {
+              backgroundColor: themeColors.surface,
+              borderColor: themeColors.cardBorder,
+            },
+          ]}
+        >
           <View style={styles.sectionHeaderNoBtn}>
-            <Text style={styles.sectionTitle}>Quản lý nhóm</Text>
+            <Text style={[styles.sectionTitle, isDark && { color: themeColors.textPrimary }]}>Quản lý nhóm</Text>
           </View>
 
           <View style={styles.manageList}>
@@ -276,35 +344,45 @@ export const GroupMembersTab: React.FC<GroupMembersTabProps> = ({
               onPress={onOpenGroupSettings}
             >
               <View style={styles.manageRowLeft}>
-                <View style={styles.manageIconWrap}>
-                  <FinanceIcon name="settings" size={18} color="#059669" />
+                <View
+                  style={[
+                    styles.manageIconWrap,
+                    isDark && { backgroundColor: 'rgba(52, 211, 153, 0.15)' },
+                  ]}
+                >
+                  <FinanceIcon name="settings" size={18} color={isDark ? themeColors.accentGreen : '#059669'} />
                 </View>
-                <Text style={styles.manageRowText}>Cài đặt nhóm</Text>
+                <Text style={[styles.manageRowText, isDark && { color: themeColors.textPrimary }]}>Cài đặt nhóm</Text>
               </View>
-              <FinanceIcon name="chevron-right" size={16} color="#94A3B8" />
+              <FinanceIcon name="chevron-right" size={16} color={isDark ? themeColors.textMuted : '#94A3B8'} />
             </Pressable>
 
-            <View style={styles.manageDivider} />
+            <View style={[styles.manageDivider, isDark && { backgroundColor: themeColors.divider }]} />
 
             {/* Thông báo nhóm */}
             <View style={styles.manageRow}>
               <View style={styles.manageRowLeft}>
-                <View style={styles.manageIconWrap}>
-                  <FinanceIcon name="bell" size={18} color="#059669" />
+                <View
+                  style={[
+                    styles.manageIconWrap,
+                    isDark && { backgroundColor: 'rgba(52, 211, 153, 0.15)' },
+                  ]}
+                >
+                  <FinanceIcon name="bell" size={18} color={isDark ? themeColors.accentGreen : '#059669'} />
                 </View>
-                <Text style={styles.manageRowText}>Thông báo nhóm</Text>
+                <Text style={[styles.manageRowText, isDark && { color: themeColors.textPrimary }]}>Thông báo nhóm</Text>
               </View>
               <Switch
                 value={notificationEnabled}
                 onValueChange={onToggleNotification}
-                trackColor={{ false: '#E2E8F0', true: '#10B981' }}
+                trackColor={{ false: isDark ? themeColors.cardBorder : '#E2E8F0', true: '#10B981' }}
                 thumbColor={Platform.OS === 'android' ? '#FFFFFF' : undefined}
-                ios_backgroundColor="#E2E8F0"
+                ios_backgroundColor={isDark ? themeColors.cardBorder : '#E2E8F0'}
                 style={{ transform: [{ scaleX: 0.9 }, { scaleY: 0.9 }] }}
               />
             </View>
 
-            <View style={styles.manageDivider} />
+            <View style={[styles.manageDivider, isDark && { backgroundColor: themeColors.divider }]} />
 
             {/* Phân quyền */}
             <Pressable
@@ -312,12 +390,17 @@ export const GroupMembersTab: React.FC<GroupMembersTabProps> = ({
               onPress={() => setPermissionsModalVisible(true)}
             >
               <View style={styles.manageRowLeft}>
-                <View style={styles.manageIconWrap}>
-                  <FinanceIcon name="shield" size={18} color="#059669" />
+                <View
+                  style={[
+                    styles.manageIconWrap,
+                    isDark && { backgroundColor: 'rgba(52, 211, 153, 0.15)' },
+                  ]}
+                >
+                  <FinanceIcon name="shield" size={18} color={isDark ? themeColors.accentGreen : '#059669'} />
                 </View>
-                <Text style={styles.manageRowText}>Phân quyền</Text>
+                <Text style={[styles.manageRowText, isDark && { color: themeColors.textPrimary }]}>Phân quyền</Text>
               </View>
-              <FinanceIcon name="chevron-right" size={16} color="#94A3B8" />
+              <FinanceIcon name="chevron-right" size={16} color={isDark ? themeColors.textMuted : '#94A3B8'} />
             </Pressable>
           </View>
         </View>
@@ -331,16 +414,26 @@ export const GroupMembersTab: React.FC<GroupMembersTabProps> = ({
         onRequestClose={() => setPermissionsModalVisible(false)}
       >
         <Pressable style={styles.dropdownBackdrop} onPress={() => setPermissionsModalVisible(false)}>
-          <Pressable style={[styles.dropdownSheet, { maxHeight: '80%' }]} onPress={(e) => e.stopPropagation()}>
-            <View style={styles.dropdownHeader}>
+          <Pressable
+            style={[
+              styles.dropdownSheet,
+              isDark && {
+                backgroundColor: themeColors.surface,
+                borderColor: themeColors.cardBorder,
+              },
+              { maxHeight: '80%' },
+            ]}
+            onPress={(e) => e.stopPropagation()}
+          >
+            <View style={[styles.dropdownHeader, isDark && { borderBottomColor: themeColors.cardBorder }]}>
               <View style={{ flex: 1 }}>
-                <Text style={styles.dropdownTitle}>Phân quyền nhóm</Text>
-                <Text style={styles.dropdownSubtitle}>
+                <Text style={[styles.dropdownTitle, isDark && { color: themeColors.textPrimary }]}>Phân quyền nhóm</Text>
+                <Text style={[styles.dropdownSubtitle, isDark && { color: themeColors.textMuted }]}>
                   Chạm vào vai trò của thành viên để thay đổi
                 </Text>
               </View>
               <Pressable hitSlop={10} onPress={() => setPermissionsModalVisible(false)} style={styles.dropdownCloseBtn}>
-                <FinanceIcon name="close" size={16} color="#64748B" />
+                <FinanceIcon name="close" size={16} color={isDark ? themeColors.textSecondary : '#64748B'} />
               </Pressable>
             </View>
 
@@ -362,22 +455,22 @@ export const GroupMembersTab: React.FC<GroupMembersTabProps> = ({
                       justifyContent: 'space-between',
                       paddingVertical: 10,
                       borderBottomWidth: mIdx < members.length - 1 ? 1 : 0,
-                      borderBottomColor: '#F1F5F9',
+                      borderBottomColor: isDark ? themeColors.divider : '#F1F5F9',
                     }}
                   >
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1, marginRight: 8 }}>
-                      <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: '#E2E8F0', overflow: 'hidden', justifyContent: 'center', alignItems: 'center' }}>
+                      <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: isDark ? themeColors.surfaceSubtle : '#E2E8F0', overflow: 'hidden', justifyContent: 'center', alignItems: 'center' }}>
                         {memAvatar ? (
                           <Image source={{ uri: memAvatar }} style={{ width: '100%', height: '100%' }} />
                         ) : (
-                          <Text style={{ fontSize: 13, fontWeight: '700', color: '#475569' }}>{memLetter}</Text>
+                          <Text style={{ fontSize: 13, fontWeight: '700', color: isDark ? themeColors.textPrimary : '#475569' }}>{memLetter}</Text>
                         )}
                       </View>
                       <View style={{ flex: 1 }}>
-                        <Text style={{ fontSize: 13, fontWeight: '700', color: '#1E293B' }} numberOfLines={1}>
+                        <Text style={{ fontSize: 13, fontWeight: '700', color: isDark ? themeColors.textPrimary : '#1E293B' }} numberOfLines={1}>
                           {memName}{isMemSelf && ' (Bạn)'}
                         </Text>
-                        <Text style={{ fontSize: 11, color: '#64748B' }}>
+                        <Text style={{ fontSize: 11, color: isDark ? themeColors.textMuted : '#64748B' }}>
                           {isMemOwner ? 'Toàn quyền nhóm' : isMemAdmin ? 'Quản lý & Duyệt' : 'Thành viên'}
                         </Text>
                       </View>
@@ -392,13 +485,17 @@ export const GroupMembersTab: React.FC<GroupMembersTabProps> = ({
                         }}
                         style={[
                           styles.roleDropdownBtn,
+                          isDark && {
+                            backgroundColor: themeColors.surfaceSubtle,
+                            borderColor: themeColors.cardBorder,
+                          },
                           isMemAdmin ? styles.adminDropdownBtn : styles.memberDropdownBtn,
                         ]}
                       >
                         <Text style={[styles.roleBadgeText, isMemAdmin ? styles.adminBadgeText : styles.normalBadgeText]}>
                           {isMemAdmin ? 'Quản trị' : 'Thành viên'}
                         </Text>
-                        <FinanceIcon name="chevron-down" size={12} color={isMemAdmin ? '#6366F1' : '#64748B'} />
+                        <FinanceIcon name="chevron-down" size={12} color={isMemAdmin ? '#6366F1' : (isDark ? themeColors.textMuted : '#64748B')} />
                       </Pressable>
                     ) : (
                       <View style={[styles.roleBadge, isMemOwner ? styles.ownerBadge : isMemAdmin ? styles.adminBadge : styles.normalBadge]}>
@@ -423,16 +520,25 @@ export const GroupMembersTab: React.FC<GroupMembersTabProps> = ({
         onRequestClose={() => setDropdownMember(null)}
       >
         <Pressable style={styles.dropdownBackdrop} onPress={() => setDropdownMember(null)}>
-          <Pressable style={styles.dropdownSheet} onPress={(e) => e.stopPropagation()}>
-            <View style={styles.dropdownHeader}>
+          <Pressable
+            style={[
+              styles.dropdownSheet,
+              isDark && {
+                backgroundColor: themeColors.surface,
+                borderColor: themeColors.cardBorder,
+              },
+            ]}
+            onPress={(e) => e.stopPropagation()}
+          >
+            <View style={[styles.dropdownHeader, isDark && { borderBottomColor: themeColors.cardBorder }]}>
               <View style={{ flex: 1 }}>
-                <Text style={styles.dropdownTitle}>Phân quyền thành viên</Text>
-                <Text style={styles.dropdownSubtitle} numberOfLines={1}>
+                <Text style={[styles.dropdownTitle, isDark && { color: themeColors.textPrimary }]}>Phân quyền thành viên</Text>
+                <Text style={[styles.dropdownSubtitle, isDark && { color: themeColors.textMuted }]} numberOfLines={1}>
                   {dropdownMember?.user?.fullName || dropdownMember?.nickname || dropdownMember?.fullName || 'Thành viên'}
                 </Text>
               </View>
               <Pressable hitSlop={10} onPress={() => setDropdownMember(null)} style={styles.dropdownCloseBtn}>
-                <FinanceIcon name="close" size={16} color="#64748B" />
+                <FinanceIcon name="close" size={16} color={isDark ? themeColors.textSecondary : '#64748B'} />
               </Pressable>
             </View>
 
@@ -441,7 +547,11 @@ export const GroupMembersTab: React.FC<GroupMembersTabProps> = ({
               <Pressable
                 style={({ pressed }) => [
                   styles.dropdownOptionItem,
-                  dropdownMember?.role === 'MEMBER' && styles.dropdownOptionItemActive,
+                  isDark && {
+                    backgroundColor: themeColors.surfaceSubtle,
+                    borderColor: themeColors.cardBorder,
+                  },
+                  dropdownMember?.role === 'MEMBER' && (isDark ? { borderColor: themeColors.accentGreen, backgroundColor: 'rgba(52, 211, 153, 0.15)' } : styles.dropdownOptionItemActive),
                   pressed && { opacity: 0.8 },
                 ]}
                 onPress={() => {
@@ -451,19 +561,30 @@ export const GroupMembersTab: React.FC<GroupMembersTabProps> = ({
                   setDropdownMember(null);
                 }}
               >
-                <View style={[styles.dropdownIconCircle, { backgroundColor: '#F1F5F9' }]}>
-                  <FinanceIcon name="user" size={16} color="#64748B" />
+                <View
+                  style={[
+                    styles.dropdownIconCircle,
+                    { backgroundColor: isDark ? 'rgba(255, 255, 255, 0.08)' : '#F1F5F9' },
+                  ]}
+                >
+                  <FinanceIcon name="user" size={16} color={isDark ? themeColors.textSecondary : '#64748B'} />
                 </View>
                 <View style={{ flex: 1 }}>
-                  <Text style={[styles.dropdownOptionName, dropdownMember?.role === 'MEMBER' && styles.dropdownOptionNameActive]}>
+                  <Text
+                    style={[
+                      styles.dropdownOptionName,
+                      isDark && { color: themeColors.textPrimary },
+                      dropdownMember?.role === 'MEMBER' && (isDark ? { color: themeColors.accentGreen } : styles.dropdownOptionNameActive),
+                    ]}
+                  >
                     Thành viên
                   </Text>
-                  <Text style={styles.dropdownOptionDesc}>
+                  <Text style={[styles.dropdownOptionDesc, isDark && { color: themeColors.textSecondary }]}>
                     Ghi nhận chi tiêu và thanh toán nợ cá nhân
                   </Text>
                 </View>
                 {dropdownMember?.role === 'MEMBER' && (
-                  <FinanceIcon name="check" size={16} color="#059669" />
+                  <FinanceIcon name="check" size={16} color={isDark ? themeColors.accentGreen : '#059669'} />
                 )}
               </Pressable>
 
@@ -471,7 +592,11 @@ export const GroupMembersTab: React.FC<GroupMembersTabProps> = ({
               <Pressable
                 style={({ pressed }) => [
                   styles.dropdownOptionItem,
-                  dropdownMember?.role === 'ADMIN' && styles.dropdownOptionItemActive,
+                  isDark && {
+                    backgroundColor: themeColors.surfaceSubtle,
+                    borderColor: themeColors.cardBorder,
+                  },
+                  dropdownMember?.role === 'ADMIN' && (isDark ? { borderColor: '#818CF8', backgroundColor: 'rgba(99, 102, 241, 0.15)' } : styles.dropdownOptionItemActive),
                   pressed && { opacity: 0.8 },
                 ]}
                 onPress={() => {
@@ -481,14 +606,19 @@ export const GroupMembersTab: React.FC<GroupMembersTabProps> = ({
                   setDropdownMember(null);
                 }}
               >
-                <View style={[styles.dropdownIconCircle, { backgroundColor: '#EEF2FF' }]}>
+                <View
+                  style={[
+                    styles.dropdownIconCircle,
+                    { backgroundColor: isDark ? 'rgba(99, 102, 241, 0.15)' : '#EEF2FF' },
+                  ]}
+                >
                   <FinanceIcon name="shield" size={16} color="#6366F1" />
                 </View>
                 <View style={{ flex: 1 }}>
                   <Text style={[styles.dropdownOptionName, dropdownMember?.role === 'ADMIN' && { color: '#6366F1' }]}>
                     Quản trị viên
                   </Text>
-                  <Text style={styles.dropdownOptionDesc}>
+                  <Text style={[styles.dropdownOptionDesc, isDark && { color: themeColors.textSecondary }]}>
                     Quản lý thành viên, xét duyệt chi phí và quỹ nhóm
                   </Text>
                 </View>
@@ -678,7 +808,9 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   manageIconWrap: {
-    width: 28,
+    width: 32,
+    height: 32,
+    borderRadius: 8,
     alignItems: 'center',
     justifyContent: 'center',
   },

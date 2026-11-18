@@ -461,7 +461,7 @@ export function AddTransactionScreen({ onCancel, onNotify, onOpenInvoiceScanner 
                     : '/bg-transfer-wave.jpg'
               }
               alt="Background wave"
-              className="absolute inset-0 size-full object-cover opacity-35 mix-blend-overlay pointer-events-none"
+              className="absolute inset-0 size-full object-cover opacity-90 pointer-events-none"
             />
 
             {/* Top Bar: 3-Way Toggle on the Left, OCR Scanner on the Right */}
@@ -570,7 +570,13 @@ export function AddTransactionScreen({ onCancel, onNotify, onOpenInvoiceScanner 
                     key={preset.value}
                     type="button"
                     onClick={() => setAmount(String((Number(amount) || 0) + preset.value))}
-                    className="rounded-full border border-white/25 bg-white/20 px-3 py-1 text-xs font-bold text-white backdrop-blur-md hover:bg-white/35 hover:scale-105 active:scale-95 transition shadow-2xs cursor-pointer"
+                    className={`rounded-full bg-white px-3.5 py-1 text-xs font-black shadow-md hover:scale-105 active:scale-95 transition cursor-pointer ${
+                      type === 'EXPENSE'
+                        ? 'text-rose-600 hover:bg-rose-50'
+                        : type === 'INCOME'
+                          ? 'text-emerald-700 hover:bg-emerald-50'
+                          : 'text-sky-700 hover:bg-sky-50'
+                    }`}
                   >
                     {preset.label}
                   </button>
@@ -579,7 +585,7 @@ export function AddTransactionScreen({ onCancel, onNotify, onOpenInvoiceScanner 
                   <button
                     type="button"
                     onClick={() => setAmount('')}
-                    className="rounded-full border border-white/30 bg-black/25 px-3 py-1 text-xs font-bold text-white hover:bg-black/40 transition cursor-pointer"
+                    className="rounded-full border border-white/40 bg-black/30 hover:bg-black/45 px-3 py-1 text-xs font-bold text-white hover:scale-105 active:scale-95 transition shadow-sm cursor-pointer"
                   >
                     Xóa
                   </button>

@@ -1,6 +1,5 @@
-import { StatusBar } from 'expo-status-bar';
 import React, { useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { StatusBar, StyleSheet, View } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { BottomNav, TabKey } from './src/components/BottomNav';
 import { AddTransactionScreen } from './src/modules/add-transaction/screen/AddTransactionScreen';
@@ -29,18 +28,22 @@ import { ChildChoresScreen } from './src/modules/child-wallet/screen/ChildChores
 import { ChildMoneyRequestsScreen } from './src/modules/child-wallet/screen/ChildMoneyRequestsScreen';
 import { colors } from './src/theme';
 import { ThemeProvider, useAppTheme } from './src/context/ThemeContext';
+import { DialogProvider } from './src/context/DialogContext';
 
 export default function App() {
   return (
     <SafeAreaProvider>
       <ThemeProvider>
-        <AppContent />
+        <DialogProvider>
+          <AppContent />
+        </DialogProvider>
       </ThemeProvider>
     </SafeAreaProvider>
   );
 }
 
 function AppContent() {
+  const { isDark, colors: themeColors } = useAppTheme();
   const [hasStarted, setHasStarted] = React.useState(false);
   const [showLogin, setShowLogin] = React.useState(false);
   const [showRegister, setShowRegister] = React.useState(false);
@@ -93,52 +96,70 @@ function AppContent() {
 
   if (showRegister) {
     return (
-      <RegisterScreen
-        onBack={() => setShowRegister(false)}
-        onSuccess={() => {
-          setShowRegister(false);
-          setHasStarted(true);
-        }}
-        onSwitchToLogin={() => {
-          setShowRegister(false);
-          setShowLogin(true);
-        }}
-      />
+      <View style={{ flex: 1, backgroundColor: isDark ? themeColors.background : '#ffffff' }}>
+        <StatusBar
+          barStyle={isDark ? 'light-content' : 'dark-content'}
+          backgroundColor={isDark ? themeColors.background : '#ffffff'}
+        />
+        <RegisterScreen
+          onBack={() => setShowRegister(false)}
+          onSuccess={() => {
+            setShowRegister(false);
+            setHasStarted(true);
+          }}
+          onSwitchToLogin={() => {
+            setShowRegister(false);
+            setShowLogin(true);
+          }}
+        />
+      </View>
     );
   }
 
   if (showLogin) {
     return (
-      <LoginScreen
-        onBack={() => setShowLogin(false)}
-        onSuccess={() => {
-          setShowLogin(false);
-          setHasStarted(true);
-        }}
-        onSwitchToRegister={() => {
-          setShowLogin(false);
-          setShowRegister(true);
-        }}
-      />
+      <View style={{ flex: 1, backgroundColor: isDark ? themeColors.background : '#ffffff' }}>
+        <StatusBar
+          barStyle={isDark ? 'light-content' : 'dark-content'}
+          backgroundColor={isDark ? themeColors.background : '#ffffff'}
+        />
+        <LoginScreen
+          onBack={() => setShowLogin(false)}
+          onSuccess={() => {
+            setShowLogin(false);
+            setHasStarted(true);
+          }}
+          onSwitchToRegister={() => {
+            setShowLogin(false);
+            setShowRegister(true);
+          }}
+        />
+      </View>
     );
   }
 
   if (!hasStarted) {
     return (
-      <View style={{ flex: 1, backgroundColor: "#FAFCFB" }}>
+      <View style={{ flex: 1, backgroundColor: isDark ? themeColors.background : '#FAFCFB' }}>
+        <StatusBar
+          barStyle={isDark ? 'light-content' : 'dark-content'}
+          backgroundColor={isDark ? themeColors.background : '#FAFCFB'}
+        />
         <SplashScreen
           onStart={() => setShowRegister(true)}
           onLogin={() => setShowLogin(true)}
         />
-        <StatusBar style="dark" />
       </View>
     );
   }
 
   if (showChildWallet) {
     return (
-      <View style={{ flex: 1, backgroundColor: '#F8FAFC' }}>
-        <StatusBar style="dark" />
+      <View style={{ flex: 1, backgroundColor: isDark ? themeColors.background : '#F8FAFC' }}>
+        <StatusBar
+          barStyle={isDark ? 'light-content' : 'dark-content'}
+          backgroundColor={isDark ? themeColors.background : '#F8FAFC'}
+        />
         <ChildWalletScreen
           onBack={() => setShowChildWallet(false)}
           onAddTransaction={() => {
@@ -165,7 +186,7 @@ function AppContent() {
   if (showChildChores) {
     return (
       <View style={{ flex: 1, backgroundColor: '#F8FAFC' }}>
-        <StatusBar style="dark" />
+        <StatusBar style={isDark ? 'light' : 'dark'} />
         <ChildChoresScreen onBack={() => setShowChildChores(false)} />
       </View>
     );
@@ -174,7 +195,7 @@ function AppContent() {
   if (showChildRequests) {
     return (
       <View style={{ flex: 1, backgroundColor: '#F8FAFC' }}>
-        <StatusBar style="dark" />
+        <StatusBar style={isDark ? 'light' : 'dark'} />
         <ChildMoneyRequestsScreen onBack={() => setShowChildRequests(false)} />
       </View>
     );
@@ -182,8 +203,8 @@ function AppContent() {
 
   if (showAddTransaction) {
     return (
-      <View style={{ flex: 1, backgroundColor: '#F6F8FA' }}>
-        <StatusBar style="dark" />
+      <View style={{ flex: 1, backgroundColor: isDark ? themeColors.background : '#F6F8FA' }}>
+        <StatusBar style={isDark ? 'light' : 'dark'} />
         <AddTransactionScreen
           onBack={() => setShowAddTransaction(false)}
           onSaved={() => {
@@ -215,7 +236,7 @@ function AppContent() {
             setActiveTab('transactions');
           }}
         />
-        <StatusBar style="dark" />
+        <StatusBar style={isDark ? 'light' : 'dark'} />
       </View>
     );
   }
@@ -230,15 +251,15 @@ function AppContent() {
             setShowDebts(true);
           }}
         />
-        <StatusBar style="dark" />
+        <StatusBar style={isDark ? 'light' : 'dark'} />
       </View>
     );
   }
 
   if (showAiAssistant) {
     return (
-      <View style={{ flex: 1, backgroundColor: '#FAFCFB' }}>
-        <StatusBar style="dark" />
+      <View style={{ flex: 1, backgroundColor: isDark ? themeColors.background : '#FAFCFB' }}>
+        <StatusBar style={isDark ? 'light' : 'dark'} />
         <AiAssistantScreen onBack={() => setShowAiAssistant(false)} />
       </View>
     );
@@ -246,8 +267,8 @@ function AppContent() {
 
   if (showAccounts) {
     return (
-      <View style={{ flex: 1, backgroundColor: '#F6F8FA' }}>
-        <StatusBar style="dark" />
+      <View style={{ flex: 1, backgroundColor: isDark ? themeColors.background : '#F6F8FA' }}>
+        <StatusBar style={isDark ? 'light' : 'dark'} />
         <AccountsScreen
           onBack={() => setShowAccounts(false)}
           onAddTransaction={() => {
@@ -261,23 +282,25 @@ function AppContent() {
 
   if (showDebts) {
     return (
-      <View style={{ flex: 1, backgroundColor: '#FFFFFF' }}>
+      <View style={{ flex: 1, backgroundColor: isDark ? themeColors.background : '#FFFFFF' }}>
         <DebtScreen onBack={() => setShowDebts(false)} />
-        <StatusBar style="dark" />
+        <StatusBar style={isDark ? 'light' : 'dark'} />
       </View>
     );
   }
 
   if (showSpendingAnalysis) {
-    return <SafeAreaView style={styles.container}>
-      <SpendingAnalysisScreen onBack={() => setShowSpendingAnalysis(false)} />
-      <StatusBar style="dark" />
-    </SafeAreaView>;
+    return (
+      <View style={{ flex: 1, backgroundColor: isDark ? themeColors.background : '#F7FBF9' }}>
+        <SpendingAnalysisScreen onBack={() => setShowSpendingAnalysis(false)} />
+        <StatusBar style={isDark ? 'light' : 'dark'} />
+      </View>
+    );
   }
 
   if (showPeriodicReports) {
     return (
-      <View style={{ flex: 1, backgroundColor: '#FFFFFF' }}>
+      <View style={{ flex: 1, backgroundColor: isDark ? themeColors.background : '#FFFFFF' }}>
         <PeriodicReportsScreen
           onBack={() => {
             setShowPeriodicReports(false);
@@ -287,16 +310,18 @@ function AppContent() {
           initialFromDate={periodicReportsInitialParams?.fromDate}
           initialToDate={periodicReportsInitialParams?.toDate}
         />
-        <StatusBar style="dark" />
+        <StatusBar style={isDark ? 'light' : 'dark'} />
       </View>
     );
   }
 
   if (showBalanceForecast) {
-    return <SafeAreaView style={styles.container}>
-      <BalanceForecastScreen onBack={() => setShowBalanceForecast(false)} />
-      <StatusBar style="dark" />
-    </SafeAreaView>;
+    return (
+      <View style={{ flex: 1, backgroundColor: isDark ? themeColors.background : '#F7FBF9' }}>
+        <BalanceForecastScreen onBack={() => setShowBalanceForecast(false)} />
+        <StatusBar style={isDark ? 'light' : 'dark'} />
+      </View>
+    );
   }
 
   if (showNotifications) {
@@ -332,14 +357,14 @@ function AppContent() {
             }
           }}
         />
-        <StatusBar style="dark" />
+        <StatusBar style={isDark ? 'light' : 'dark'} />
       </View>
     );
   }
 
   if (showProfile) {
     return (
-      <View style={{ flex: 1, backgroundColor: '#FFFFFF' }}>
+      <View style={{ flex: 1, backgroundColor: isDark ? themeColors.background : '#FFFFFF' }}>
         <View style={styles.content}>
           <ProfileScreen
             onLogout={async () => {
@@ -394,7 +419,7 @@ function AppContent() {
             isProfileActive
           />
         )}
-        <StatusBar style="dark" />
+        <StatusBar style={isDark ? 'light' : 'dark'} />
       </View>
     );
   }
@@ -461,8 +486,6 @@ function AppContent() {
     ),
     goals: <GoalsScreen onBack={() => setActiveTab('home')} />,
   }[activeTab];
-
-  const { isDark, colors: themeColors } = useAppTheme();
 
   const isDarkStatusBar = isDark ? false : ((activeTab === 'group') || activeTab === 'budget' || activeTab === 'goals');
 

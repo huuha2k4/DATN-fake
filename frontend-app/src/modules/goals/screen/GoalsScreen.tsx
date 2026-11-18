@@ -25,6 +25,7 @@ import { GoalDetailScreen } from './GoalDetailScreen';
 import { SavingDetailScreen } from './SavingDetailScreen';
 import { CreateGoalModal } from './CreateGoalModal';
 import { CreateSavingModal } from './CreateSavingModal';
+import { useAppTheme } from '../../../context/ThemeContext';
 
 const { width } = Dimensions.get('window');
 
@@ -81,6 +82,7 @@ function getSavingCategoryIcon(iconKey?: string, categoryName?: string) {
 }
 
 export function GoalsScreen({ onBack }: Props) {
+  const { isDark, colors: themeColors } = useAppTheme();
   const insets = useSafeAreaInsets();
   const [activeTab, setActiveTab] = useState<GoalTabType>('goals');
   const [isLoading, setIsLoading] = useState(false);
@@ -148,21 +150,24 @@ export function GoalsScreen({ onBack }: Props) {
   }
 
   return (
-    <View style={[styles.screen, { paddingTop: Math.max(insets.top, 16) }]}>
-      <StatusBar barStyle="dark-content" />
+    <View style={[styles.screen, isDark && { backgroundColor: themeColors.background }, { paddingTop: Math.max(insets.top, 16) }]}>
+      <StatusBar
+        barStyle={isDark ? 'light-content' : 'dark-content'}
+        backgroundColor={isDark ? themeColors.background : '#F7FBF9'}
+      />
       {/* 1. TOP HEADER */}
-      <View style={styles.topHeader}>
+      <View style={[styles.topHeader, isDark && { backgroundColor: themeColors.background }]}>
         <View style={styles.headerLeftCol}>
           <Pressable
             onPress={onBack}
             hitSlop={12}
-            style={styles.backBtn}
+            style={[styles.backBtn, isDark && { backgroundColor: themeColors.surfaceSubtle }]}
             accessibilityRole="button"
             accessibilityLabel="Quay lại"
           >
-            <FinanceIcon name="chevron-left" size={24} color="#006747" />
+            <FinanceIcon name="chevron-left" size={24} color={isDark ? themeColors.accentGreen : '#006747'} />
           </Pressable>
-          <Text style={styles.screenTitle}>Mục tiêu & Tiết kiệm</Text>
+          <Text style={[styles.screenTitle, isDark && { color: themeColors.textPrimary }]}>Mục tiêu & Tiết kiệm</Text>
         </View>
       </View>
 
@@ -176,7 +181,7 @@ export function GoalsScreen({ onBack }: Props) {
         {/* 2. HERO BANNER: TỔNG TIỀN ĐÃ TÍCH LŨY */}
         <ImageBackground
           source={require('../../../assets/icons/goals_banner_bg_neon.jpg')}
-          style={styles.heroBanner}
+          style={[styles.heroBanner, isDark && { backgroundColor: '#064E3B' }]}
           imageStyle={styles.heroBannerBgImage}
           resizeMode="cover"
         >
@@ -232,19 +237,23 @@ export function GoalsScreen({ onBack }: Props) {
         </ImageBackground>
 
         {/* 3. SEGMENTED TAB SWITCH: Mục tiêu vs Tiết kiệm */}
-        <View style={styles.tabSwitchContainer}>
+        <View style={[styles.tabSwitchContainer, isDark && { backgroundColor: themeColors.surfaceSubtle, borderColor: themeColors.cardBorder }]}>
           <Pressable
             onPress={() => setActiveTab('goals')}
-            style={[styles.switchTabBtn, activeTab === 'goals' && styles.switchTabBtnActive]}
+            style={[
+              styles.switchTabBtn,
+              activeTab === 'goals' && (isDark ? { backgroundColor: themeColors.primary } : styles.switchTabBtnActive),
+            ]}
           >
             <FinanceIcon
               name="target"
               size={18}
-              color={activeTab === 'goals' ? '#FFFFFF' : '#006747'}
+              color={activeTab === 'goals' ? '#FFFFFF' : (isDark ? themeColors.textSecondary : '#006747')}
             />
             <Text
               style={[
                 styles.switchTabText,
+                isDark && { color: themeColors.textSecondary },
                 activeTab === 'goals' && styles.switchTabTextActive,
               ]}
             >
@@ -254,16 +263,20 @@ export function GoalsScreen({ onBack }: Props) {
 
           <Pressable
             onPress={() => setActiveTab('savings')}
-            style={[styles.switchTabBtn, activeTab === 'savings' && styles.switchTabBtnActive]}
+            style={[
+              styles.switchTabBtn,
+              activeTab === 'savings' && (isDark ? { backgroundColor: themeColors.primary } : styles.switchTabBtnActive),
+            ]}
           >
             <FinanceIcon
               name="piggy-bank"
               size={18}
-              color={activeTab === 'savings' ? '#FFFFFF' : '#006747'}
+              color={activeTab === 'savings' ? '#FFFFFF' : (isDark ? themeColors.textSecondary : '#006747')}
             />
             <Text
               style={[
                 styles.switchTabText,
+                isDark && { color: themeColors.textSecondary },
                 activeTab === 'savings' && styles.switchTabTextActive,
               ]}
             >
@@ -276,9 +289,9 @@ export function GoalsScreen({ onBack }: Props) {
         {activeTab === 'goals' ? (
           <View style={styles.tabSection}>
             <View style={styles.sectionHeaderRow}>
-              <Text style={styles.sectionTitle}>Mục tiêu của bạn</Text>
-              <View style={styles.countBadge}>
-                <Text style={styles.countBadgeText}>{goals.length} mục tiêu</Text>
+              <Text style={[styles.sectionTitle, isDark && { color: themeColors.textPrimary }]}>Mục tiêu của bạn</Text>
+              <View style={[styles.countBadge, isDark && { backgroundColor: 'rgba(52, 211, 153, 0.16)' }]}>
+                <Text style={[styles.countBadgeText, isDark && { color: themeColors.accentGreen }]}>{goals.length} mục tiêu</Text>
               </View>
             </View>
 
@@ -289,7 +302,7 @@ export function GoalsScreen({ onBack }: Props) {
                 return (
                   <Pressable
                     key={item.id}
-                    style={styles.goalCard}
+                    style={[styles.goalCard, isDark && { backgroundColor: themeColors.surface, borderColor: themeColors.cardBorder }]}
                     onPress={() => setSelectedGoalId(item.id)}
                   >
                     <View style={styles.goalCardRow}>
@@ -299,33 +312,34 @@ export function GoalsScreen({ onBack }: Props) {
 
                       <View style={styles.goalInfoCol}>
                         <View style={styles.goalTopLine}>
-                          <Text style={styles.goalTitleText}>{item.title}</Text>
-                          <View style={styles.goalPctBadge}>
-                            <Text style={styles.goalPctBadgeText}>{item.percentage}%</Text>
+                          <Text style={[styles.goalTitleText, isDark && { color: themeColors.textPrimary }]}>{item.title}</Text>
+                          <View style={[styles.goalPctBadge, isDark && { backgroundColor: 'rgba(52, 211, 153, 0.16)' }]}>
+                            <Text style={[styles.goalPctBadgeText, isDark && { color: themeColors.accentGreen }]}>{item.percentage}%</Text>
                           </View>
-                          <FinanceIcon name="chevron-right" size={16} color="#94A3B8" />
+                          <FinanceIcon name="chevron-right" size={16} color={isDark ? themeColors.textSecondary : '#94A3B8'} />
                         </View>
 
                         {item.deadline && (
                           <View style={styles.deadlineToRow}>
-                            <FinanceIcon name="calendar" size={13} color="#64748B" />
-                            <Text style={styles.deadlineText}>Hạn: {item.deadline}</Text>
+                            <FinanceIcon name="calendar" size={13} color={isDark ? themeColors.textMuted : '#64748B'} />
+                            <Text style={[styles.deadlineText, isDark && { color: themeColors.textMuted }]}>Hạn: {item.deadline}</Text>
                           </View>
                         )}
 
                         {/* Progress Bar */}
-                        <View style={styles.progressBarTrack}>
+                        <View style={[styles.progressBarTrack, isDark && { backgroundColor: themeColors.surfaceSubtle }]}>
                           <View
                             style={[
                               styles.progressBarFill,
+                              isDark && { backgroundColor: themeColors.accentGreen },
                               { width: `${Math.min(100, item.percentage)}%` },
                             ]}
                           />
                         </View>
 
                         {/* Amounts */}
-                        <Text style={styles.goalAmountsText}>
-                          <Text style={styles.currentAmountGreen}>
+                        <Text style={[styles.goalAmountsText, isDark && { color: themeColors.textSecondary }]}>
+                          <Text style={[styles.currentAmountGreen, isDark && { color: themeColors.accentGreen }]}>
                             {formatVND(item.currentAmount)}
                           </Text>{' '}
                           / {formatVND(item.targetAmount)}
@@ -340,9 +354,9 @@ export function GoalsScreen({ onBack }: Props) {
         ) : (
           <View style={styles.tabSection}>
             <View style={styles.sectionHeaderRow}>
-              <Text style={styles.sectionTitle}>Các khoản tiết kiệm của bạn</Text>
-              <View style={styles.countBadge}>
-                <Text style={styles.countBadgeText}>{savings.length} khoản</Text>
+              <Text style={[styles.sectionTitle, isDark && { color: themeColors.textPrimary }]}>Các khoản tiết kiệm của bạn</Text>
+              <View style={[styles.countBadge, isDark && { backgroundColor: 'rgba(52, 211, 153, 0.16)' }]}>
+                <Text style={[styles.countBadgeText, isDark && { color: themeColors.accentGreen }]}>{savings.length} khoản</Text>
               </View>
             </View>
 
@@ -353,7 +367,7 @@ export function GoalsScreen({ onBack }: Props) {
                 return (
                   <Pressable
                     key={item.id}
-                    style={styles.savingCard}
+                    style={[styles.savingCard, isDark && { backgroundColor: themeColors.surface, borderColor: themeColors.cardBorder }]}
                     onPress={() => setSelectedSavingId(item.id)}
                   >
                     <View style={styles.savingCardRow}>
@@ -363,12 +377,12 @@ export function GoalsScreen({ onBack }: Props) {
 
                       <View style={styles.savingInfoCol}>
                         <View style={styles.savingTopLine}>
-                          <Text style={styles.savingTitleText}>{item.title}</Text>
-                          <FinanceIcon name="chevron-right" size={16} color="#94A3B8" />
+                          <Text style={[styles.savingTitleText, isDark && { color: themeColors.textPrimary }]}>{item.title}</Text>
+                          <FinanceIcon name="chevron-right" size={16} color={isDark ? themeColors.textSecondary : '#94A3B8'} />
                         </View>
 
-                        <Text style={styles.savingSubtitleText}>{item.subtitle || item.category}</Text>
-                        <Text style={styles.savingAmountText}>
+                        <Text style={[styles.savingSubtitleText, isDark && { color: themeColors.textMuted }]}>{item.subtitle || item.category}</Text>
+                        <Text style={[styles.savingAmountText, isDark && { color: themeColors.accentGreen }]}>
                           {formatVND(item.currentAmount)}
                         </Text>
                       </View>
@@ -384,7 +398,7 @@ export function GoalsScreen({ onBack }: Props) {
       {/* 5. BOTTOM FLOATING ACTION BUTTON */}
       <View style={[styles.bottomBarContainer, { paddingBottom: Math.max(insets.bottom, 14) }]}>
         <Pressable
-          style={styles.mainActionBtn}
+          style={[styles.mainActionBtn, isDark && { backgroundColor: '#059669', shadowColor: '#059669' }]}
           onPress={handleAdd}
           accessibilityRole="button"
           accessibilityLabel={activeTab === 'goals' ? 'Thêm mục tiêu' : 'Thêm khoản tiết kiệm'}

@@ -1,18 +1,6 @@
 import React, { useEffect, useRef, useState, useMemo } from 'react';
-import {
-  ActivityIndicator,
-  Alert,
-  Image,
-  KeyboardAvoidingView,
-  Modal,
-  Platform,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from 'react-native';
+import { ActivityIndicator, Image, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { AppAlert as Alert } from '../../../context/DialogContext';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { FinanceIcon } from '../../core/components/FinanceIcon';
 import { authStorage } from '../../auth/api/authApi';
@@ -21,6 +9,7 @@ import {
   type ChatMessage,
   type ChatSessionItem,
 } from '../api/aiChatApi';
+import { useAppTheme } from '../../../context/ThemeContext';
 
 const finAiAvatarImg = require('../../../assets/finai-avatar.png');
 const finAiBannerHeroImg = require('../../../assets/icons/finai_banner_hero.png');
@@ -59,6 +48,7 @@ const QUICK_QUESTIONS = [
 
 export function AiAssistantScreen({ onBack }: Props) {
   const insets = useSafeAreaInsets();
+  const { isDark, colors: themeColors } = useAppTheme();
   const user = authStorage.getUser();
   const isChildAccount = Boolean(user?.childAccount && user?.childWalletGroupId);
 
@@ -205,22 +195,37 @@ export function AiAssistantScreen({ onBack }: Props) {
 
   return (
     <KeyboardAvoidingView
-      style={styles.screen}
+      style={[styles.screen, isDark && { backgroundColor: themeColors.background }]}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
       {/* ── 1. HEADER NỀN TRẮNG TINH TẾ ĐỒNG BỘ MẪU ── */}
-      <View style={[styles.header, { paddingTop: Math.max(insets.top, 12) + 4 }]}>
+      <View
+        style={[
+          styles.header,
+          { paddingTop: Math.max(insets.top, 12) + 4 },
+          isDark && { backgroundColor: themeColors.background, borderBottomColor: themeColors.cardBorder },
+        ]}
+      >
         <View style={styles.headerLeft}>
-          <Pressable onPress={onBack} hitSlop={12} style={styles.backBtn}>
-            <FinanceIcon name="chevron-left" size={22} color="#064E3B" />
+          <Pressable
+            onPress={onBack}
+            hitSlop={12}
+            style={[styles.backBtn, isDark && { backgroundColor: themeColors.surfaceSubtle }]}
+          >
+            <FinanceIcon name="chevron-left" size={22} color={isDark ? themeColors.accentGreen : "#064E3B"} />
           </Pressable>
           <View style={styles.copilotBadge}>
-            <View style={styles.avatarMiniWrap}>
+            <View
+              style={[
+                styles.avatarMiniWrap,
+                isDark && { backgroundColor: themeColors.surfaceSubtle, borderColor: themeColors.cardBorder },
+              ]}
+            >
               <Image source={finAiAvatarImg} style={styles.avatarMiniImg} resizeMode="cover" />
             </View>
             <View>
-              <Text style={styles.headerTitle}>FinAI Copilot</Text>
-              <Text style={styles.headerSubtitle}>Trợ lý tài chính thông minh</Text>
+              <Text style={[styles.headerTitle, isDark && { color: themeColors.textPrimary }]}>FinAI Copilot</Text>
+              <Text style={[styles.headerSubtitle, isDark && { color: themeColors.textSecondary }]}>Trợ lý tài chính thông minh</Text>
             </View>
           </View>
         </View>
@@ -228,10 +233,14 @@ export function AiAssistantScreen({ onBack }: Props) {
         <View style={styles.headerRightActions}>
           <Pressable
             onPress={handleOpenHistory}
-            style={({ pressed }) => [styles.headerBtn, pressed && styles.pressed]}
+            style={({ pressed }) => [
+              styles.headerBtn,
+              isDark && { backgroundColor: themeColors.surfaceSubtle },
+              pressed && styles.pressed,
+            ]}
             hitSlop={8}
           >
-            <FinanceIcon name="clock" size={20} color="#064E3B" />
+            <FinanceIcon name="clock" size={20} color={isDark ? themeColors.accentGreen : "#064E3B"} />
           </Pressable>
 
           <Pressable
@@ -255,15 +264,6 @@ export function AiAssistantScreen({ onBack }: Props) {
         {/* Banner giới thiệu FinAI khi chưa có tin nhắn */}
         {messages.length === 0 && (
           <View style={styles.welcomeIntroBox}>
-            {/* Nút cài đặt nhỏ tròn góc phải */}
-            <Pressable
-              style={styles.settingFloatBtn}
-              hitSlop={10}
-              onPress={() => Alert.alert('FinAI Settings', 'FinAI Copilot kết nối trực tiếp với dữ liệu dòng tiền và tài khoản của bạn để phân tích và tối ưu hóa ngân sách.')}
-            >
-              <FinanceIcon name="settings" size={18} color="#059669" />
-            </Pressable>
-
             {/* Banner Robot FinAI sóng xanh lượn ngang */}
             <View style={styles.heroBannerWrapper}>
               <Image
@@ -274,13 +274,13 @@ export function AiAssistantScreen({ onBack }: Props) {
             </View>
 
             {/* Tiêu đề chào mừng */}
-            <Text style={styles.welcomeMainTitle}>
+            <Text style={[styles.welcomeMainTitle, isDark && { color: themeColors.textPrimary }]}>
               Xin chào! Tôi có thể giúp gì cho{' '}
-              <Text style={styles.welcomeHighlightTitle}>tài chính</Text> của bạn?
+              <Text style={[styles.welcomeHighlightTitle, isDark && { color: themeColors.accentGreen }]}>tài chính</Text> của bạn?
             </Text>
-            <View style={styles.titleUnderline} />
+            <View style={[styles.titleUnderline, isDark && { backgroundColor: themeColors.accentGreen }]} />
 
-            <Text style={styles.welcomeSubDesc}>
+            <Text style={[styles.welcomeSubDesc, isDark && { color: themeColors.textSecondary }]}>
               Tôi được kết nối trực tiếp với dòng tiền, ngân sách và lịch sử giao dịch của bạn để phân tích và đưa ra tư vấn chính xác.
             </Text>
 
@@ -290,15 +290,20 @@ export function AiAssistantScreen({ onBack }: Props) {
                 <Pressable
                   key={idx}
                   onPress={() => handleSend(q.prompt)}
-                  style={({ pressed }) => [styles.quickCard, pressed && styles.quickCardPressed]}
+                  style={({ pressed }) => [
+                    styles.quickCard,
+                    isDark && { backgroundColor: themeColors.surface, borderColor: themeColors.cardBorder },
+                    pressed && styles.quickCardPressed,
+                    pressed && isDark && { backgroundColor: themeColors.surfaceSubtle, borderColor: themeColors.accentGreen },
+                  ]}
                 >
                   <View style={styles.quickCardHeader}>
-                    <View style={styles.quickIconWrap}>
-                      <FinanceIcon name={q.icon as any} size={16} color="#059669" />
+                    <View style={[styles.quickIconWrap, isDark && { backgroundColor: 'rgba(52, 211, 153, 0.16)' }]}>
+                      <FinanceIcon name={q.icon as any} size={16} color={isDark ? themeColors.accentGreen : "#059669"} />
                     </View>
-                    <Text style={styles.quickCardTitle}>{q.title}</Text>
+                    <Text style={[styles.quickCardTitle, isDark && { color: themeColors.textPrimary }]}>{q.title}</Text>
                   </View>
-                  <Text style={styles.quickCardDesc} numberOfLines={2}>
+                  <Text style={[styles.quickCardDesc, isDark && { color: themeColors.textSecondary }]} numberOfLines={2}>
                     {q.desc}
                   </Text>
                 </Pressable>
@@ -319,7 +324,12 @@ export function AiAssistantScreen({ onBack }: Props) {
               ]}
             >
               {!isUser && (
-                <View style={styles.messageAiAvatar}>
+                <View
+                  style={[
+                    styles.messageAiAvatar,
+                    isDark && { backgroundColor: themeColors.surfaceSubtle, borderColor: themeColors.cardBorder },
+                  ]}
+                >
                   <Image source={finAiAvatarImg} style={styles.finAiAvatarImg} resizeMode="cover" />
                 </View>
               )}
@@ -328,17 +338,20 @@ export function AiAssistantScreen({ onBack }: Props) {
                 style={[
                   styles.bubble,
                   isUser ? styles.bubbleUser : styles.bubbleAi,
+                  isUser && isDark && { backgroundColor: '#064E3B' },
+                  !isUser && isDark && { backgroundColor: themeColors.surface, borderColor: themeColors.cardBorder },
                 ]}
               >
                 {!isUser && (
                   <View style={styles.aiTagRow}>
-                    <Text style={styles.aiTagText}>✦ FinAI Advisor</Text>
+                    <Text style={[styles.aiTagText, isDark && { color: themeColors.accentGreen }]}>✦ FinAI Advisor</Text>
                   </View>
                 )}
                 <Text
                   style={[
                     styles.messageText,
                     isUser ? styles.messageTextUser : styles.messageTextAi,
+                    !isUser && isDark && { color: themeColors.textPrimary },
                   ]}
                 >
                   {renderFormattedText(m.text)}
@@ -351,26 +364,49 @@ export function AiAssistantScreen({ onBack }: Props) {
         {/* Loading Indicator khi AI đang suy nghĩ */}
         {isLoading && (
           <View style={[styles.messageRow, styles.messageRowAi]}>
-            <View style={styles.messageAiAvatar}>
+            <View
+              style={[
+                styles.messageAiAvatar,
+                isDark && { backgroundColor: themeColors.surfaceSubtle, borderColor: themeColors.cardBorder },
+              ]}
+            >
               <Image source={finAiAvatarImg} style={styles.finAiAvatarImg} resizeMode="cover" />
             </View>
-            <View style={[styles.bubble, styles.bubbleAi, styles.typingBubble]}>
-              <ActivityIndicator size="small" color="#059669" />
-              <Text style={styles.typingText}>FinAI đang phân tích tài chính của bạn...</Text>
+            <View
+              style={[
+                styles.bubble,
+                styles.bubbleAi,
+                styles.typingBubble,
+                isDark && { backgroundColor: themeColors.surface, borderColor: themeColors.cardBorder },
+              ]}
+            >
+              <ActivityIndicator size="small" color={isDark ? themeColors.accentGreen : "#059669"} />
+              <Text style={[styles.typingText, isDark && { color: themeColors.accentGreen }]}>FinAI đang phân tích tài chính của bạn...</Text>
             </View>
           </View>
         )}
       </ScrollView>
 
       {/* ── 3. KHUNG NHẬP TIN NHẮN (COMPOSER) ── */}
-      <View style={[styles.composerContainer, { paddingBottom: Math.max(insets.bottom, 12) }]}>
-        <View style={styles.composerBar}>
+      <View
+        style={[
+          styles.composerContainer,
+          { paddingBottom: Math.max(insets.bottom, 12) },
+          isDark && { backgroundColor: themeColors.background, borderTopColor: themeColors.cardBorder },
+        ]}
+      >
+        <View
+          style={[
+            styles.composerBar,
+            isDark && { backgroundColor: themeColors.surface, borderColor: themeColors.cardBorder },
+          ]}
+        >
           <TextInput
             value={inputQuery}
             onChangeText={setInputQuery}
             placeholder="Hỏi FinAI về chi tiêu, ngân sách, số dư..."
-            placeholderTextColor="#94A3B8"
-            style={styles.composerInput}
+            placeholderTextColor={isDark ? themeColors.textMuted : "#94A3B8"}
+            style={[styles.composerInput, isDark && { color: themeColors.textPrimary }]}
             multiline
             maxLength={500}
             editable={!isLoading}
@@ -381,6 +417,8 @@ export function AiAssistantScreen({ onBack }: Props) {
             style={({ pressed }) => [
               styles.sendBtn,
               inputQuery.trim() && !isLoading ? styles.sendBtnActive : styles.sendBtnDisabled,
+              inputQuery.trim() && !isLoading && isDark && { backgroundColor: themeColors.accentGreen },
+              !inputQuery.trim() && isDark && { backgroundColor: themeColors.surfaceSubtle },
               pressed && styles.pressed,
             ]}
           >
@@ -396,28 +434,28 @@ export function AiAssistantScreen({ onBack }: Props) {
       {/* ── MODAL LỊCH SỬ HỘI THOẠI (CHAT SESSIONS) ── */}
       <Modal visible={isHistoryModalVisible} transparent animationType="slide">
         <View style={styles.modalOverlay}>
-          <View style={styles.modalSheet}>
-            <View style={styles.modalHeader}>
+          <View style={[styles.modalSheet, isDark && { backgroundColor: themeColors.surface }]}>
+            <View style={[styles.modalHeader, isDark && { borderBottomColor: themeColors.cardBorder }]}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                <FinanceIcon name="clock" size={20} color="#059669" />
-                <Text style={styles.modalTitle}>Lịch sử hội thoại</Text>
+                <FinanceIcon name="clock" size={20} color={isDark ? themeColors.accentGreen : "#059669"} />
+                <Text style={[styles.modalTitle, isDark && { color: themeColors.textPrimary }]}>Lịch sử hội thoại</Text>
               </View>
               <Pressable onPress={() => setIsHistoryModalVisible(false)} hitSlop={10}>
-                <Text style={styles.modalCloseText}>Đóng</Text>
+                <Text style={[styles.modalCloseText, isDark && { color: themeColors.textSecondary }]}>Đóng</Text>
               </Pressable>
             </View>
 
             <ScrollView style={styles.sessionsList} showsVerticalScrollIndicator={false}>
               {loadingSessions ? (
                 <View style={styles.sessionsLoadingBox}>
-                  <ActivityIndicator size="small" color="#00A86B" />
-                  <Text style={styles.sessionsLoadingText}>Đang nạp lịch sử...</Text>
+                  <ActivityIndicator size="small" color={isDark ? themeColors.accentGreen : "#00A86B"} />
+                  <Text style={[styles.sessionsLoadingText, isDark && { color: themeColors.textSecondary }]}>Đang nạp lịch sử...</Text>
                 </View>
               ) : sessions.length === 0 ? (
                 <View style={styles.emptySessionsBox}>
                   <Text style={styles.emptySessionsEmoji}>💬</Text>
-                  <Text style={styles.emptySessionsTitle}>Chưa có cuộc trò chuyện nào</Text>
-                  <Text style={styles.emptySessionsDesc}>
+                  <Text style={[styles.emptySessionsTitle, isDark && { color: themeColors.textPrimary }]}>Chưa có cuộc trò chuyện nào</Text>
+                  <Text style={[styles.emptySessionsDesc, isDark && { color: themeColors.textSecondary }]}>
                     Bắt đầu nhắn tin với FinAI để lưu lại lịch sử tư vấn tài chính.
                   </Text>
                 </View>
@@ -430,24 +468,54 @@ export function AiAssistantScreen({ onBack }: Props) {
                       onPress={() => handleSelectSession(sess)}
                       style={({ pressed }) => [
                         styles.sessionItemRow,
+                        isDark && { backgroundColor: themeColors.surfaceSubtle, borderColor: themeColors.cardBorder },
                         isCurrent && styles.sessionItemRowActive,
+                        isCurrent && isDark && { borderColor: themeColors.accentGreen, backgroundColor: 'rgba(52, 211, 153, 0.12)' },
                         pressed && styles.pressed,
                       ]}
                     >
                       <View style={styles.sessionItemLeft}>
-                        <View style={[styles.sessionIconBox, isCurrent && styles.sessionIconBoxActive]}>
-                          <FinanceIcon name="spark" size={16} color={isCurrent ? '#059669' : '#64748B'} />
+                        <View
+                          style={[
+                            styles.sessionIconBox,
+                            isDark && { backgroundColor: themeColors.surface },
+                            isCurrent && styles.sessionIconBoxActive,
+                            isCurrent && isDark && { backgroundColor: 'rgba(52, 211, 153, 0.16)' },
+                          ]}
+                        >
+                          <FinanceIcon
+                            name="spark"
+                            size={16}
+                            color={isCurrent ? (isDark ? themeColors.accentGreen : '#059669') : isDark ? themeColors.textMuted : '#64748B'}
+                          />
                         </View>
                         <View style={{ flex: 1 }}>
-                          <Text style={[styles.sessionTitle, isCurrent && styles.sessionTitleActive]} numberOfLines={1}>
+                          <Text
+                            style={[
+                              styles.sessionTitle,
+                              isDark && { color: themeColors.textPrimary },
+                              isCurrent && styles.sessionTitleActive,
+                              isCurrent && isDark && { color: themeColors.accentGreen },
+                            ]}
+                            numberOfLines={1}
+                          >
                             {sess.title || 'Cuộc hội thoại tài chính'}
                           </Text>
-                          <Text style={styles.sessionDate}>
+                          <Text style={[styles.sessionDate, isDark && { color: themeColors.textMuted }]}>
                             {sess.created_at ? new Date(sess.created_at).toLocaleDateString('vi-VN') : 'Gần đây'}
                           </Text>
                         </View>
                       </View>
-                      {isCurrent && <Text style={styles.currentSessionTag}>Đang mở</Text>}
+                      {isCurrent && (
+                        <Text
+                          style={[
+                            styles.currentSessionTag,
+                            isDark && { backgroundColor: 'rgba(52, 211, 153, 0.2)', color: themeColors.accentGreen },
+                          ]}
+                        >
+                          Đang mở
+                        </Text>
+                      )}
                     </Pressable>
                   );
                 })
@@ -579,25 +647,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 10,
     paddingHorizontal: 12,
-    position: 'relative',
-  },
-  settingFloatBtn: {
-    position: 'absolute',
-    top: 60,
-    right: 8,
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    backgroundColor: '#FFFFFF',
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    shadowColor: '#000',
-    shadowOpacity: 0.05,
-    shadowRadius: 5,
-    elevation: 2,
-    zIndex: 10,
   },
   heroBannerWrapper: {
     width: '100%',

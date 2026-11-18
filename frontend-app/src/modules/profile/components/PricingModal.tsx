@@ -1,16 +1,9 @@
 import React, { useState } from 'react';
-import {
-  ActivityIndicator,
-  Alert,
-  Modal,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
+import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { AppAlert as Alert } from '../../../context/DialogContext';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { FinanceIcon } from '../../core/components/FinanceIcon';
+import { useAppTheme } from '../../../context/ThemeContext';
 
 export interface PlanFeature {
   text: string;
@@ -42,6 +35,7 @@ export function PricingModal({
   onSelectPlan,
 }: PricingModalProps) {
   const insets = useSafeAreaInsets();
+  const { isDark, colors: themeColors } = useAppTheme();
   const [billingCycle, setBillingCycle] = useState<'monthly' | 'yearly'>('monthly');
   const [processingPlanId, setProcessingPlanId] = useState<string | null>(null);
 
@@ -125,15 +119,37 @@ export function PricingModal({
 
   return (
     <Modal visible={visible} animationType="slide" transparent={false} onRequestClose={onClose}>
-      <View style={[styles.modalScreen, { paddingTop: Math.max(insets.top, 16) + 4 }]}>
+      <View
+        style={[
+          styles.modalScreen,
+          {
+            paddingTop: Math.max(insets.top, 16) + 4,
+            backgroundColor: isDark ? themeColors.surface : '#FFFFFF',
+          },
+        ]}
+      >
         {/* Header với nút đóng */}
-        <View style={styles.topHeaderBar}>
-          <Pressable onPress={onClose} hitSlop={12} style={[styles.closeBtn, { flexDirection: 'row', alignItems: 'center', gap: 2 }]}>
-            <FinanceIcon name="chevron-left" size={18} color="#074838" />
-            <Text style={styles.closeBtnText}>Quay lại</Text>
+        <View
+          style={[
+            styles.topHeaderBar,
+            {
+              backgroundColor: isDark ? themeColors.surface : '#FFFFFF',
+              borderBottomColor: isDark ? themeColors.cardBorder : '#E2E8F0',
+            },
+          ]}
+        >
+          <Pressable
+            onPress={onClose}
+            hitSlop={12}
+            style={[
+              styles.backIconBtn,
+              isDark && { backgroundColor: themeColors.surfaceSubtle },
+            ]}
+          >
+            <FinanceIcon name="chevron-left" size={24} color={isDark ? themeColors.textPrimary : "#0F172A"} />
           </Pressable>
-          <Text style={styles.topHeaderTitle}>Gói hội viên Finora</Text>
-          <View style={{ width: 60 }} />
+          <Text style={[styles.topHeaderTitle, isDark && { color: themeColors.textPrimary }]}>Gói hội viên Finora</Text>
+          <View style={{ width: 38 }} />
         </View>
 
         <ScrollView
@@ -149,21 +165,25 @@ export function PricingModal({
               <FinanceIcon name="spark" size={13} color="#059669" />
               <Text style={styles.badgePillText}>BẢNG GIÁ DỊCH VỤ FINORA INTELLIGENCE</Text>
             </View>
-            <Text style={styles.heroTitle}>Đầu Tư Xứng Đáng Cho Tương Lai Tài Chính Của Bạn</Text>
-            <Text style={styles.heroDesc}>
+            <Text style={[styles.heroTitle, isDark && { color: themeColors.textPrimary }]}>Đầu Tư Xứng Đáng Cho Tương Lai Tài Chính Của Bạn</Text>
+            <Text style={[styles.heroDesc, isDark && { color: themeColors.textSecondary }]}>
               Linh hoạt nâng cấp hoặc thay đổi gói cước bất kỳ lúc nào. Không ràng buộc, minh bạch chi phí 100%.
             </Text>
 
             {/* Switch Hàng tháng / Hàng năm */}
-            <View style={styles.switchWrapper}>
+            <View style={[styles.switchWrapper, isDark && { backgroundColor: themeColors.surfaceSubtle, borderColor: themeColors.cardBorder, borderWidth: 1 }]}>
               <Pressable
                 onPress={() => setBillingCycle('monthly')}
-                style={[styles.switchTab, billingCycle === 'monthly' && styles.switchTabActive]}
+                style={[
+                  styles.switchTab,
+                  billingCycle === 'monthly' && (isDark ? { backgroundColor: themeColors.accentGreen } : styles.switchTabActive),
+                ]}
               >
                 <Text
                   style={[
                     styles.switchTabText,
-                    billingCycle === 'monthly' && styles.switchTabTextActive,
+                    isDark && { color: themeColors.textSecondary },
+                    billingCycle === 'monthly' && (isDark ? { color: '#0F172A', fontWeight: '800' } : styles.switchTabTextActive),
                   ]}
                 >
                   Hàng tháng
@@ -171,12 +191,16 @@ export function PricingModal({
               </Pressable>
               <Pressable
                 onPress={() => setBillingCycle('yearly')}
-                style={[styles.switchTab, billingCycle === 'yearly' && styles.switchTabActive]}
+                style={[
+                  styles.switchTab,
+                  billingCycle === 'yearly' && (isDark ? { backgroundColor: themeColors.accentGreen } : styles.switchTabActive),
+                ]}
               >
                 <Text
                   style={[
                     styles.switchTabText,
-                    billingCycle === 'yearly' && styles.switchTabTextActive,
+                    isDark && { color: themeColors.textSecondary },
+                    billingCycle === 'yearly' && (isDark ? { color: '#0F172A', fontWeight: '800' } : styles.switchTabTextActive),
                   ]}
                 >
                   Hàng năm
@@ -199,8 +223,9 @@ export function PricingModal({
                   key={plan.id}
                   style={[
                     styles.planCard,
-                    isPopular && styles.planCardPopular,
-                    isCurrent && styles.planCardCurrent,
+                    isDark && { backgroundColor: themeColors.surface, borderColor: themeColors.cardBorder },
+                    isPopular && (isDark ? { borderColor: themeColors.accentGreen, borderWidth: 2 } : styles.planCardPopular),
+                    isCurrent && (isDark ? { borderColor: '#38BDF8', borderWidth: 2 } : styles.planCardCurrent),
                   ]}
                 >
                   {/* Top Badge */}
@@ -208,29 +233,31 @@ export function PricingModal({
                     <View
                       style={[
                         styles.planBadgeWrap,
-                        isPopular ? { backgroundColor: '#074838' } : { backgroundColor: '#7C3AED' },
+                        isPopular
+                          ? { backgroundColor: isDark ? '#059669' : '#074838' }
+                          : { backgroundColor: isDark ? '#8B5CF6' : '#7C3AED' },
                       ]}
                     >
                       <Text style={styles.planBadgeText}>{plan.badge}</Text>
                     </View>
                   )}
 
-                  <Text style={styles.planNameText}>{plan.name}</Text>
-                  <Text style={styles.planTaglineText}>{plan.tagline}</Text>
+                  <Text style={[styles.planNameText, isDark && { color: themeColors.textPrimary }]}>{plan.name}</Text>
+                  <Text style={[styles.planTaglineText, isDark && { color: themeColors.textSecondary }]}>{plan.tagline}</Text>
 
                   {/* Giá tiền */}
                   <View style={styles.priceRow}>
-                    <Text style={styles.priceAmountText}>
+                    <Text style={[styles.priceAmountText, isDark && { color: themeColors.textPrimary }]}>
                       {plan.price === 0 ? 'Miễn phí' : `${plan.price.toLocaleString('vi-VN')} ₫`}
                     </Text>
                     {plan.price > 0 && (
-                      <Text style={styles.pricePeriodText}>
+                      <Text style={[styles.pricePeriodText, isDark && { color: themeColors.textSecondary }]}>
                         {billingCycle === 'yearly' ? '/năm' : '/tháng'}
                       </Text>
                     )}
                   </View>
 
-                  <View style={styles.dividerLine} />
+                  <View style={[styles.dividerLine, isDark && { backgroundColor: themeColors.divider }]} />
 
                   {/* Danh sách tính năng */}
                   <View style={styles.featuresList}>
@@ -240,21 +267,22 @@ export function PricingModal({
                           style={[
                             styles.featureIconWrap,
                             feat.included
-                              ? { backgroundColor: '#E8F8F0' }
-                              : { backgroundColor: '#F1F5F9' },
+                              ? { backgroundColor: isDark ? 'rgba(16, 185, 129, 0.16)' : '#E8F8F0' }
+                              : { backgroundColor: isDark ? themeColors.surfaceSubtle : '#F1F5F9' },
                           ]}
                         >
                           <FinanceIcon
                             name={feat.included ? 'check' : 'close'}
                             size={12}
-                            color={feat.included ? '#059669' : '#94A3B8'}
+                            color={feat.included ? (isDark ? themeColors.accentGreen : '#059669') : (isDark ? themeColors.textMuted : '#94A3B8')}
                           />
                         </View>
                         <Text
                           style={[
                             styles.featureItemText,
-                            !feat.included && styles.featureExcludedText,
-                            feat.highlight && styles.featureHighlightText,
+                            isDark && { color: themeColors.textPrimary },
+                            !feat.included && (isDark ? { color: themeColors.textMuted } : styles.featureExcludedText),
+                            feat.highlight && (isDark ? { color: themeColors.accentGreen, fontWeight: '800' } : styles.featureHighlightText),
                           ]}
                         >
                           {feat.text}
@@ -270,10 +298,10 @@ export function PricingModal({
                     style={({ pressed }) => [
                       styles.planActionBtn,
                       isCurrent
-                        ? styles.btnCurrentPlan
+                        ? (isDark ? { backgroundColor: 'rgba(56, 189, 248, 0.16)', borderWidth: 1, borderColor: '#38BDF8' } : styles.btnCurrentPlan)
                         : isPopular
-                        ? styles.btnPrimaryPlan
-                        : styles.btnSecondaryPlan,
+                        ? (isDark ? { backgroundColor: '#059669' } : styles.btnPrimaryPlan)
+                        : (isDark ? { backgroundColor: themeColors.surfaceSubtle, borderWidth: 1, borderColor: themeColors.cardBorder } : styles.btnSecondaryPlan),
                       pressed && styles.pressed,
                     ]}
                   >
@@ -284,10 +312,10 @@ export function PricingModal({
                         style={[
                           styles.planActionBtnText,
                           isCurrent
-                            ? styles.btnCurrentPlanText
+                            ? (isDark ? { color: '#38BDF8', fontWeight: '800' } : styles.btnCurrentPlanText)
                             : isPopular
                             ? styles.btnPrimaryPlanText
-                            : styles.btnSecondaryPlanText,
+                            : (isDark ? { color: themeColors.textPrimary, fontWeight: '700' } : styles.btnSecondaryPlanText),
                         ]}
                       >
                         {isCurrent
@@ -320,10 +348,19 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 16,
-    paddingBottom: 14,
+    paddingBottom: 12,
     borderBottomWidth: 1,
     borderBottomColor: '#E2E8F0',
     backgroundColor: '#FFFFFF',
+    minHeight: 52,
+  },
+  backIconBtn: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: '#F1F5F9',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   closeBtn: {
     paddingVertical: 6,

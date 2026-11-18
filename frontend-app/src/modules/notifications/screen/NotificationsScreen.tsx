@@ -6,6 +6,7 @@ import {
   Platform,
   Pressable,
   RefreshControl,
+  StatusBar,
   StyleSheet,
   Text,
   View,
@@ -13,6 +14,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { FinanceIcon } from '../../core/components/FinanceIcon';
 import { notificationApi, type AppNotification } from '../api';
+import { useAppTheme } from '../../../context/ThemeContext';
 
 interface NotificationsScreenProps {
   onBack?: () => void;
@@ -26,14 +28,14 @@ interface NotificationsScreenProps {
       kidSubTab?: 'REQUESTS' | 'SPENDS' | 'CHORES' | 'DEPOSIT' | 'SETTINGS';
     };
     action?:
-      | 'periodic-reports'
-      | 'reminders'
-      | 'spending-analysis'
-      | 'security'
-      | 'debts'
-      | 'add-transaction'
-      | 'balance-forecast'
-      | string;
+    | 'periodic-reports'
+    | 'reminders'
+    | 'spending-analysis'
+    | 'security'
+    | 'debts'
+    | 'add-transaction'
+    | 'balance-forecast'
+    | string;
     params?: any;
   }) => void;
 }
@@ -54,6 +56,7 @@ interface NotificationSection {
 
 export function NotificationsScreen({ onBack, onNavigate }: NotificationsScreenProps) {
   const insets = useSafeAreaInsets();
+  const { isDark, colors: themeColors } = useAppTheme();
   const [activeTab, setActiveTab] = useState<TabType>('ALL');
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -570,8 +573,8 @@ export function NotificationsScreen({ onBack, onNavigate }: NotificationsScreenP
     ) {
       return {
         icon: 'hand-coins' as const,
-        iconBg: '#FEF3C7',
-        iconColor: '#D97706',
+        iconBg: isDark ? '#451A03' : '#FEF3C7',
+        iconColor: isDark ? '#FCD34D' : '#D97706',
       };
     }
 
@@ -584,8 +587,8 @@ export function NotificationsScreen({ onBack, onNavigate }: NotificationsScreenP
     ) {
       return {
         icon: 'award' as const,
-        iconBg: '#DCFCE7',
-        iconColor: '#15803D',
+        iconBg: isDark ? '#064E3B' : '#DCFCE7',
+        iconColor: isDark ? '#34D399' : '#15803D',
       };
     }
 
@@ -593,8 +596,8 @@ export function NotificationsScreen({ onBack, onNavigate }: NotificationsScreenP
     if (type.includes('MONEY_RECEIVED') || title.includes('cộng tiền vào ví')) {
       return {
         icon: 'gift' as const,
-        iconBg: '#DCFCE7',
-        iconColor: '#059669',
+        iconBg: isDark ? '#064E3B' : '#DCFCE7',
+        iconColor: isDark ? '#34D399' : '#059669',
       };
     }
 
@@ -607,8 +610,8 @@ export function NotificationsScreen({ onBack, onNavigate }: NotificationsScreenP
     ) {
       return {
         icon: 'clock' as const,
-        iconBg: '#FEF3C7',
-        iconColor: '#D97706',
+        iconBg: isDark ? '#451A03' : '#FEF3C7',
+        iconColor: isDark ? '#FCD34D' : '#D97706',
       };
     }
 
@@ -616,8 +619,8 @@ export function NotificationsScreen({ onBack, onNavigate }: NotificationsScreenP
     if (type.includes('FUND') || title.includes('nộp quỹ') || title.includes('quỹ')) {
       return {
         icon: 'coin-stack' as const,
-        iconBg: '#DCFCE7',
-        iconColor: '#15803D',
+        iconBg: isDark ? '#064E3B' : '#DCFCE7',
+        iconColor: isDark ? '#34D399' : '#15803D',
       };
     }
 
@@ -630,8 +633,8 @@ export function NotificationsScreen({ onBack, onNavigate }: NotificationsScreenP
     ) {
       return {
         icon: 'user-plus' as const,
-        iconBg: '#E0F2FE',
-        iconColor: '#0284C7',
+        iconBg: isDark ? '#082F49' : '#E0F2FE',
+        iconColor: isDark ? '#38BDF8' : '#0284C7',
       };
     }
 
@@ -639,8 +642,8 @@ export function NotificationsScreen({ onBack, onNavigate }: NotificationsScreenP
     if (type.includes('COMMENT') || title.includes('bình luận') || title.includes('thảo luận')) {
       return {
         icon: 'message-square' as const,
-        iconBg: '#E0E7FF',
-        iconColor: '#4F46E5',
+        iconBg: isDark ? '#1E1B4B' : '#E0E7FF',
+        iconColor: isDark ? '#818CF8' : '#4F46E5',
       };
     }
 
@@ -653,8 +656,8 @@ export function NotificationsScreen({ onBack, onNavigate }: NotificationsScreenP
     ) {
       return {
         icon: 'alert-triangle' as const,
-        iconBg: '#FEE2E2',
-        iconColor: '#DC2626',
+        iconBg: isDark ? '#450A0A' : '#FEE2E2',
+        iconColor: isDark ? '#F87171' : '#DC2626',
       };
     }
 
@@ -667,8 +670,8 @@ export function NotificationsScreen({ onBack, onNavigate }: NotificationsScreenP
     ) {
       return {
         icon: 'handshake' as const,
-        iconBg: '#FCE7F3',
-        iconColor: '#DB2777',
+        iconBg: isDark ? '#500724' : '#FCE7F3',
+        iconColor: isDark ? '#F472B6' : '#DB2777',
       };
     }
 
@@ -676,8 +679,8 @@ export function NotificationsScreen({ onBack, onNavigate }: NotificationsScreenP
     if (type.includes('GOAL') || title.includes('mục tiêu') || title.includes('tiết kiệm')) {
       return {
         icon: 'target' as const,
-        iconBg: '#DCFCE7',
-        iconColor: '#059669',
+        iconBg: isDark ? '#064E3B' : '#DCFCE7',
+        iconColor: isDark ? '#34D399' : '#059669',
       };
     }
 
@@ -689,8 +692,8 @@ export function NotificationsScreen({ onBack, onNavigate }: NotificationsScreenP
     ) {
       return {
         icon: 'users' as const,
-        iconBg: '#CCFBF1',
-        iconColor: '#0D9488',
+        iconBg: isDark ? '#042F2E' : '#CCFBF1',
+        iconColor: isDark ? '#2DD4BF' : '#0D9488',
       };
     }
 
@@ -705,14 +708,14 @@ export function NotificationsScreen({ onBack, onNavigate }: NotificationsScreenP
       if (type.includes('INCOME') || title.includes('thu nhập') || title.includes('nhận tiền')) {
         return {
           icon: 'wallet' as const,
-          iconBg: '#DCFCE7',
-          iconColor: '#059669',
+          iconBg: isDark ? '#064E3B' : '#DCFCE7',
+          iconColor: isDark ? '#34D399' : '#059669',
         };
       }
       return {
         icon: 'receipt' as const,
-        iconBg: '#FFE4E6',
-        iconColor: '#E11D48',
+        iconBg: isDark ? '#4C0519' : '#FFE4E6',
+        iconColor: isDark ? '#FB7185' : '#E11D48',
       };
     }
 
@@ -726,8 +729,8 @@ export function NotificationsScreen({ onBack, onNavigate }: NotificationsScreenP
     ) {
       return {
         icon: 'analytics' as const,
-        iconBg: '#F3E8FF',
-        iconColor: '#9333EA',
+        iconBg: isDark ? '#3B0764' : '#F3E8FF',
+        iconColor: isDark ? '#C084FC' : '#9333EA',
       };
     }
 
@@ -741,8 +744,8 @@ export function NotificationsScreen({ onBack, onNavigate }: NotificationsScreenP
     ) {
       return {
         icon: 'shield' as const,
-        iconBg: '#DBEAFE',
-        iconColor: '#2563EB',
+        iconBg: isDark ? '#082F49' : '#DBEAFE',
+        iconColor: isDark ? '#38BDF8' : '#2563EB',
       };
     }
 
@@ -759,16 +762,16 @@ export function NotificationsScreen({ onBack, onNavigate }: NotificationsScreenP
     ) {
       return {
         icon: 'megaphone' as const,
-        iconBg: '#E0F2FE',
-        iconColor: '#0284C7',
+        iconBg: isDark ? '#082F49' : '#E0F2FE',
+        iconColor: isDark ? '#38BDF8' : '#0284C7',
       };
     }
 
     // Mặc định: Hình cái chuông (bell)
     return {
       icon: 'bell' as const,
-      iconBg: '#E8F5E9',
-      iconColor: '#047857',
+      iconBg: isDark ? '#064E3B' : '#E8F5E9',
+      iconColor: isDark ? '#34D399' : '#047857',
     };
   };
 
@@ -875,177 +878,208 @@ export function NotificationsScreen({ onBack, onNavigate }: NotificationsScreenP
   const paddingBottom = Math.max(insets.bottom, 16);
 
   return (
-    <View style={styles.screen}>
+    <View style={[styles.screen, isDark && { backgroundColor: themeColors.background }]}>
+      <StatusBar
+        barStyle={isDark ? 'light-content' : 'dark-content'}
+        backgroundColor={isDark ? themeColors.background : '#FFFFFF'}
+      />
       {/* Làm mờ toàn bộ nội dung xung quanh khi đang mở Modal chi tiết thông báo để người dùng tập trung tối đa */}
       <View
         style={[
           styles.backgroundContentWrap,
+          isDark && { backgroundColor: themeColors.background },
           Boolean(selectedNotif) && styles.backgroundDimmedWhenModalOpen,
         ]}
         pointerEvents={selectedNotif ? 'none' : 'auto'}
       >
         {/* Header thanh lịch nền trắng tràn chuẩn tai thỏ/status bar */}
-        <View style={[styles.header, { paddingTop }]}>
-        <View style={styles.headerTop}>
-          <View style={styles.headerLeft}>
-            {onBack && (
-              <Pressable
-                onPress={onBack}
-                style={({ pressed }) => [styles.backBtn, pressed && styles.pressed]}
-                hitSlop={8}
-                accessibilityLabel="Quay lại"
-              >
-                <FinanceIcon name="chevron-left" size={20} color="#047857" />
-              </Pressable>
-            )}
-            <Text style={styles.headerTitle}>Thông báo</Text>
+        <View style={[styles.header, { paddingTop }, isDark && { backgroundColor: themeColors.surface, borderBottomColor: themeColors.cardBorder }]}>
+          <View style={styles.headerTop}>
+            <View style={styles.headerLeft}>
+              {onBack && (
+                <Pressable
+                  onPress={onBack}
+                  style={({ pressed }) => [
+                    styles.backBtn,
+                    isDark && { backgroundColor: themeColors.surfaceSubtle },
+                    pressed && styles.pressed,
+                  ]}
+                  hitSlop={8}
+                  accessibilityLabel="Quay lại"
+                >
+                  <FinanceIcon name="chevron-left" size={20} color={isDark ? themeColors.accentGreen : '#047857'} />
+                </Pressable>
+              )}
+              <Text style={[styles.headerTitle, isDark && { color: themeColors.textPrimary }]}>Thông báo</Text>
+            </View>
+
+            <Pressable
+              onPress={handleMarkAllRead}
+              style={({ pressed }) => [
+                styles.markAllBtn,
+                isDark && { backgroundColor: themeColors.surfaceSubtle },
+                pressed && styles.pressed,
+              ]}
+              hitSlop={8}
+            >
+              <FinanceIcon name="check" size={15} color={isDark ? themeColors.accentGreen : '#059669'} />
+              <Text style={[styles.markAllText, isDark && { color: themeColors.accentGreen }]}>Đánh dấu đã đọc</Text>
+            </Pressable>
           </View>
 
-          <Pressable
-            onPress={handleMarkAllRead}
-            style={({ pressed }) => [styles.markAllBtn, pressed && styles.pressed]}
-            hitSlop={8}
-          >
-            <FinanceIcon name="check" size={15} color="#059669" />
-            <Text style={styles.markAllText}>Đánh dấu đã đọc</Text>
-          </Pressable>
-        </View>
-
-        {/* Thanh tab bộ lọc */}
-        <View style={styles.tabBar}>
-          {TABS.map((tab) => {
-            const isActive = activeTab === tab.key;
-            return (
-              <Pressable
-                key={tab.key}
-                onPress={() => setActiveTab(tab.key)}
-                style={[styles.tabItem, isActive && styles.tabItemActive]}
-              >
-                <Text style={[styles.tabLabel, isActive && styles.tabLabelActive]}>
-                  {tab.label}
-                </Text>
-              </Pressable>
-            );
-          })}
-        </View>
-      </View>
-
-      {/* Danh sách thông báo chia theo phần (Section) */}
-      {isLoading ? (
-        <View style={styles.centerContainer}>
-          <ActivityIndicator size="large" color="#047857" />
-          <Text style={styles.loadingText}>Đang tải thông báo...</Text>
-        </View>
-      ) : sections.length === 0 ? (
-        <View style={styles.centerContainer}>
-          <View style={styles.emptyIconCircle}>
-            <FinanceIcon name="bell" size={40} color="#94A3B8" />
+          {/* Thanh tab bộ lọc */}
+          <View style={styles.tabBar}>
+            {TABS.map((tab) => {
+              const isActive = activeTab === tab.key;
+              return (
+                <Pressable
+                  key={tab.key}
+                  onPress={() => setActiveTab(tab.key)}
+                  style={[
+                    styles.tabItem,
+                    isDark && { backgroundColor: themeColors.surfaceSubtle },
+                    isActive && styles.tabItemActive,
+                    isActive && isDark && { backgroundColor: themeColors.accentGreen },
+                  ]}
+                >
+                  <Text style={[
+                    styles.tabLabel,
+                    isDark && { color: themeColors.textSecondary },
+                    isActive && styles.tabLabelActive,
+                    isActive && isDark && { color: '#FFFFFF' },
+                  ]}>
+                    {tab.label}
+                  </Text>
+                </Pressable>
+              );
+            })}
           </View>
-          <Text style={styles.emptyTitle}>Chưa có thông báo</Text>
-          <Text style={styles.emptySubtitle}>
-            Các tin tức, lời nhắc và biến động sẽ xuất hiện tại đây khi phát sinh.
-          </Text>
         </View>
-      ) : (
-        <FlatList
-          data={sections}
-          keyExtractor={(item) => item.title}
-          contentContainerStyle={[styles.listContent, { paddingBottom: paddingBottom + 20 }]}
-          showsVerticalScrollIndicator={false}
-          refreshControl={
-            <RefreshControl
-              refreshing={isRefreshing}
-              onRefresh={onRefresh}
-              colors={['#047857']}
-              tintColor="#047857"
-            />
-          }
-          renderItem={({ item: section }) => (
-            <View style={styles.sectionWrap}>
-              <Text style={styles.sectionTitle}>{section.title}</Text>
-              {section.data.map((item) => {
-                const visual = getVisual(item);
-                const timeStr = formatItemTime(item.createdAt);
 
-                return (
-                  <Pressable
-                    key={item.id}
-                    onPress={() => handleItemPress(item)}
-                    style={({ pressed }) => [
-                      styles.itemCard,
-                      pressed && styles.pressed,
-                    ]}
-                  >
-                    {/* Dấu chấm xanh unread nếu chưa đọc */}
-                    <View style={styles.statusCol}>
-                      {!item.isRead ? (
-                        <View style={styles.greenDot} />
-                      ) : (
-                        <View style={styles.emptyDot} />
-                      )}
-                    </View>
+        {/* Danh sách thông báo chia theo phần (Section) */}
+        {isLoading ? (
+          <View style={styles.centerContainer}>
+            <ActivityIndicator size="large" color={isDark ? themeColors.accentGreen : '#047857'} />
+            <Text style={[styles.loadingText, isDark && { color: themeColors.textSecondary }]}>Đang tải thông báo...</Text>
+          </View>
+        ) : sections.length === 0 ? (
+          <View style={styles.centerContainer}>
+            <View style={[styles.emptyIconCircle, isDark && { backgroundColor: themeColors.surfaceSubtle }]}>
+              <FinanceIcon name="bell" size={40} color={isDark ? themeColors.textSecondary : '#94A3B8'} />
+            </View>
+            <Text style={[styles.emptyTitle, isDark && { color: themeColors.textPrimary }]}>Chưa có thông báo</Text>
+            <Text style={[styles.emptySubtitle, isDark && { color: themeColors.textSecondary }]}>
+              Các tin tức, lời nhắc và biến động sẽ xuất hiện tại đây khi phát sinh.
+            </Text>
+          </View>
+        ) : (
+          <FlatList
+            data={sections}
+            keyExtractor={(item) => item.title}
+            contentContainerStyle={[styles.listContent, { paddingBottom: paddingBottom + 20 }]}
+            showsVerticalScrollIndicator={false}
+            refreshControl={
+              <RefreshControl
+                refreshing={isRefreshing}
+                onRefresh={onRefresh}
+                colors={[isDark ? themeColors.accentGreen : '#047857']}
+                tintColor={isDark ? themeColors.accentGreen : '#047857'}
+              />
+            }
+            renderItem={({ item: section }) => (
+              <View style={styles.sectionWrap}>
+                <Text style={[styles.sectionTitle, isDark && { color: themeColors.textSecondary }]}>{section.title}</Text>
+                {section.data.map((item) => {
+                  const visual = getVisual(item);
+                  const timeStr = formatItemTime(item.createdAt);
 
-                    {/* Khung Icon bo tròn màu pastel */}
-                    <View
-                      style={[
-                        styles.iconBox,
-                        { backgroundColor: visual.iconBg },
+                  return (
+                    <Pressable
+                      key={item.id}
+                      onPress={() => handleItemPress(item)}
+                      style={({ pressed }) => [
+                        styles.itemCard,
+                        isDark && {
+                          backgroundColor: themeColors.surface,
+                          borderColor: themeColors.cardBorder,
+                        },
+                        pressed && styles.pressed,
                       ]}
                     >
-                      <FinanceIcon
-                        name={visual.icon}
-                        size={22}
-                        color={visual.iconColor}
-                      />
-                    </View>
-
-                    {/* Nội dung thông báo */}
-                    <View style={styles.itemContent}>
-                      <View style={styles.itemHeader}>
-                        <Text style={styles.itemTitle} numberOfLines={1}>
-                          {item.title}
-                        </Text>
-                        {!!timeStr && (
-                          <Text style={styles.itemTime}>{timeStr}</Text>
+                      {/* Dấu chấm xanh unread nếu chưa đọc */}
+                      <View style={styles.statusCol}>
+                        {!item.isRead ? (
+                          <View style={styles.greenDot} />
+                        ) : (
+                          <View style={styles.emptyDot} />
                         )}
                       </View>
-                      <Text style={styles.itemBody} numberOfLines={2}>
-                        {item.body}
-                      </Text>
-                      {Boolean(item.actionText) && (
-                        <Pressable
-                          onPress={() => {
-                            if (!item.isRead) {
-                              setNotifications((prev) =>
-                                prev.map((n) => (n.id === item.id ? { ...n, isRead: true } : n))
-                              );
-                              notificationApi.markAsRead(item.id);
-                            }
-                            handleNavigateFromNotif(item);
-                          }}
-                          style={({ pressed }) => [
-                            styles.inlineActionChip,
-                            pressed && styles.pressed,
-                          ]}
-                        >
-                          <Text style={styles.inlineActionChipText}>
-                            {item.actionText} →
-                          </Text>
-                        </Pressable>
-                      )}
-                    </View>
 
-                    {/* Mũi tên dẫn tới xem chi tiết */}
-                    <View style={styles.arrowBox}>
-                      <FinanceIcon name="chevron-right" size={16} color="#94A3B8" />
-                    </View>
-                  </Pressable>
-                );
-              })}
-            </View>
-          )}
-        />
-      )}
+                      {/* Khung Icon bo tròn màu pastel */}
+                      <View
+                        style={[
+                          styles.iconBox,
+                          { backgroundColor: visual.iconBg },
+                        ]}
+                      >
+                        <FinanceIcon
+                          name={visual.icon}
+                          size={22}
+                          color={visual.iconColor}
+                        />
+                      </View>
+
+                      {/* Nội dung thông báo */}
+                      <View style={styles.itemContent}>
+                        <View style={styles.itemHeader}>
+                          <Text style={[styles.itemTitle, isDark && { color: themeColors.textPrimary }]} numberOfLines={1}>
+                            {item.title}
+                          </Text>
+                          {!!timeStr && (
+                            <Text style={[styles.itemTime, isDark && { color: themeColors.textSecondary }]}>{timeStr}</Text>
+                          )}
+                        </View>
+                        <Text style={[styles.itemBody, isDark && { color: themeColors.textSecondary }]} numberOfLines={2}>
+                          {item.body}
+                        </Text>
+                        {Boolean(item.actionText) && (
+                          <Pressable
+                            onPress={() => {
+                              if (!item.isRead) {
+                                setNotifications((prev) =>
+                                  prev.map((n) => (n.id === item.id ? { ...n, isRead: true } : n))
+                                );
+                                notificationApi.markAsRead(item.id);
+                              }
+                              handleNavigateFromNotif(item);
+                            }}
+                            style={({ pressed }) => [
+                              styles.inlineActionChip,
+                              isDark && {
+                                backgroundColor: themeColors.surfaceSubtle,
+                                borderColor: themeColors.cardBorder,
+                              },
+                              pressed && styles.pressed,
+                            ]}
+                          >
+                            <Text style={[styles.inlineActionChipText, isDark && { color: themeColors.accentGreen }]}>
+                              {item.actionText} →
+                            </Text>
+                          </Pressable>
+                        )}
+                      </View>
+
+                      {/* Mũi tên dẫn tới xem chi tiết */}
+                      <View style={styles.arrowBox}>
+                        <FinanceIcon name="chevron-right" size={16} color={isDark ? themeColors.textSecondary : '#94A3B8'} />
+                      </View>
+                    </Pressable>
+                  );
+                })}
+              </View>
+            )}
+          />
+        )}
       </View>
 
       {/* Modal xem chi tiết thông báo với lớp nền làm mờ sâu toàn bộ xung quanh */}
@@ -1064,9 +1098,9 @@ export function NotificationsScreen({ onBack, onNavigate }: NotificationsScreenP
             <View style={styles.modalBackdropDimLayer} />
           </Pressable>
           {selectedNotif && (
-            <View style={styles.modalContainer}>
+            <View style={[styles.modalContainer, isDark && { backgroundColor: themeColors.surface, borderColor: themeColors.cardBorder }]}>
               {/* Header loại thông báo */}
-              <View style={styles.modalHeader}>
+              <View style={[styles.modalHeader, isDark && { borderBottomColor: themeColors.cardBorder }]}>
                 <View
                   style={[
                     styles.modalIconBox,
@@ -1080,10 +1114,10 @@ export function NotificationsScreen({ onBack, onNavigate }: NotificationsScreenP
                   />
                 </View>
                 <View style={styles.modalHeaderInfo}>
-                  <Text style={styles.modalCategoryLabel}>
+                  <Text style={[styles.modalCategoryLabel, isDark && { color: themeColors.accentGreen }]}>
                     {getCategoryLabel(selectedNotif)}
                   </Text>
-                  <Text style={styles.modalHeaderSubTitle}>
+                  <Text style={[styles.modalHeaderSubTitle, isDark && { color: themeColors.textPrimary }]}>
                     Chi tiết thông báo
                   </Text>
                 </View>
@@ -1091,42 +1125,43 @@ export function NotificationsScreen({ onBack, onNavigate }: NotificationsScreenP
                   onPress={() => setSelectedNotif(null)}
                   style={({ pressed }) => [
                     styles.modalCloseBtn,
+                    isDark && { backgroundColor: themeColors.surfaceSubtle },
                     pressed && styles.pressed,
                   ]}
                   hitSlop={8}
                 >
-                  <FinanceIcon name="close" size={18} color="#64748B" />
+                  <FinanceIcon name="close" size={18} color={isDark ? themeColors.textSecondary : '#64748B'} />
                 </Pressable>
               </View>
 
               {/* Dòng thời gian & nhãn trạng thái */}
               <View style={styles.modalMetaRow}>
                 <View style={styles.modalTimeWrap}>
-                  <FinanceIcon name="clock" size={13} color="#64748B" />
-                  <Text style={styles.modalTime}>
+                  <FinanceIcon name="clock" size={13} color={isDark ? themeColors.textSecondary : '#64748B'} />
+                  <Text style={[styles.modalTime, isDark && { color: themeColors.textSecondary }]}>
                     {formatFullDateTime(selectedNotif.createdAt)}
                   </Text>
                 </View>
                 <View style={styles.modalBadgesWrap}>
                   {(selectedNotif.priority === 'HIGH' || selectedNotif.priority === 'URGENT') && (
-                    <View style={styles.modalUrgentBadge}>
-                      <Text style={styles.modalUrgentBadgeText}>Quan trọng</Text>
+                    <View style={[styles.modalUrgentBadge, isDark && { backgroundColor: '#450A0A' }]}>
+                      <Text style={[styles.modalUrgentBadgeText, isDark && { color: '#F87171' }]}>Quan trọng</Text>
                     </View>
                   )}
-                  <View style={styles.modalReadBadge}>
-                    <Text style={styles.modalReadBadgeText}>Đã xem</Text>
+                  <View style={[styles.modalReadBadge, isDark && { backgroundColor: themeColors.surfaceSubtle }]}>
+                    <Text style={[styles.modalReadBadgeText, isDark && { color: themeColors.accentGreen }]}>Đã xem</Text>
                   </View>
                 </View>
               </View>
 
               {/* Tiêu đề chính của thông báo */}
-              <Text style={styles.modalSubjectTitle}>
+              <Text style={[styles.modalSubjectTitle, isDark && { color: themeColors.textPrimary }]}>
                 {selectedNotif.title}
               </Text>
 
               {/* Khung nội dung chi tiết */}
-              <View style={styles.modalBody}>
-                <Text style={styles.modalText}>{selectedNotif.body}</Text>
+              <View style={[styles.modalBody, isDark && { backgroundColor: themeColors.surfaceSubtle, borderColor: themeColors.cardBorder }]}>
+                <Text style={[styles.modalText, isDark && { color: themeColors.textPrimary }]}>{selectedNotif.body}</Text>
               </View>
 
               {/* Chân modal: Nút Đóng & Nút Hành động chính */}
@@ -1135,10 +1170,11 @@ export function NotificationsScreen({ onBack, onNavigate }: NotificationsScreenP
                   onPress={() => setSelectedNotif(null)}
                   style={({ pressed }) => [
                     styles.modalCloseAction,
+                    isDark && { backgroundColor: themeColors.surfaceSubtle, borderColor: themeColors.cardBorder },
                     pressed && styles.pressed,
                   ]}
                 >
-                  <Text style={styles.modalCloseActionText}>Đóng</Text>
+                  <Text style={[styles.modalCloseActionText, isDark && { color: themeColors.textSecondary }]}>Đóng</Text>
                 </Pressable>
 
                 {/* Nút hành động chính: Đi đến tính năng tương ứng */}
@@ -1386,11 +1422,11 @@ const styles = StyleSheet.create({
     padding: 20,
   },
   modalBackdrop: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     backgroundColor: 'rgba(6, 16, 13, 0.78)',
   },
   modalBackdropDimLayer: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     backgroundColor: 'rgba(15, 23, 42, 0.35)',
   },
   modalContainer: {

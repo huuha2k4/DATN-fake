@@ -108,6 +108,8 @@ class Transaction(Base):
     occurred_at = Column(DateTime(timezone=True), nullable=False, default=datetime.utcnow)
     occurred_date = Column(Date, nullable=True)
     note = Column(Text, nullable=True)
+    description_raw = Column(String(500), nullable=True)
+    deleted_at = Column(DateTime(timezone=True), nullable=True)
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)

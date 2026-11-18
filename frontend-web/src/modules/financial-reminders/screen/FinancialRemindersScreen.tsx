@@ -317,28 +317,95 @@ export function FinancialRemindersScreen({ onNotify }: Props) {
         return false;
       });
 
-      // 2. Lọc từ debts (hiển thị khoản nợ đúng ngày hẹn)
+      // 2. Lọc từ debts (hiển thị khoản nợ đúng ngày hẹn hoặc theo từng kỳ hạn)
       const dayDebtItems: ScheduleListItem[] = [];
       debts.forEach((debt) => {
-        const dDate = debt.due_date || debt.next_payment_date || '';
-        const dateOnly = dDate.includes('T') ? dDate.split('T')[0] : dDate;
-        if (dateOnly === dateStr) {
-          const isLend = debt.debt_type === 'LENDING';
-          const isPaid = debt.status === 'PAID' || debt.status === 'PAID_OFF' || debt.remaining === 0;
-          dayDebtItems.push({
-            id: Number(debt.id) || 999000 + Math.floor(Math.random() * 1000),
-            schedule_type: 'TRANSACTION',
-            name: `${isLend ? 'Thu nợ' : 'Trả nợ'}: ${debt.debtor_name || debt.creditor_name || 'Khoản nợ'}`,
-            recurrence_text: 'Một lần',
-            next_occurrence: dateStr,
-            status: isPaid ? 'COMPLETED' : 'ACTIVE',
-            transaction_template: {
-              type: isLend ? 'INCOME' : 'EXPENSE',
-              amount: String(debt.remaining || debt.principal_amount || 0),
-              category: isLend ? 'Thu nợ' : 'Trả nợ',
-            },
-            _rawDebtId: debt.id,
-          } as any);
+        const isLend = debt.debt_type === 'LENDING';
+        const isPaid = debt.status === 'PAID' || debt.status === 'PAID_OFF' || debt.remaining === 0;
+        const partnerName = debt.debtor_name || debt.creditor_name || 'Khoản nợ';
+
+        const freq = (debt.payment_frequency || 'ONE_TIME').toUpperCase();
+        const isPeriodic = freq === 'MONTHLY' || freq === 'WEEKLY' || freq === 'QUARTERLY' || freq === 'BIWEEKLY' || freq === 'YEARLY';
+
+        let startDateStr = debt.start_date ? debt.start_date.split('T')[0] : '';
+        let dueDateStr = debt.due_date ? debt.due_date.split('T')[0] : '';
+        let nextPaymentDateStr = debt.next_payment_date ? debt.next_payment_date.split('T')[0] : '';
+
+        const periodicAmt = debt.monthly_payment || debt.payment_amount || debt.next_payment_amount || debt.remaining || debt.principal_amount || 0;
+
+        if (isPeriodic) {
+          const startPeriodDateStr = nextPaymentDateStr || startDateStr || dueDateStr;
+          if (!startPeriodDateStr) return;
+
+          let recurrenceText = 'Hàng tháng';
+          if (freq === 'WEEKLY') recurrenceText = 'Hàng tuần';
+          else if (freq === 'QUARTERLY') recurrenceText = 'Hàng quý';
+          else if (freq === 'BIWEEKLY') recurrenceText = '2 tuần một lần';
+          else if (freq === 'YEARLY') recurrenceText = 'Hàng năm';
+
+          const baseDate = new Date(startPeriodDateStr);
+          const limitDate = dueDateStr ? new Date(dueDateStr) : null;
+          let iterDate = new Date(baseDate.getFullYear(), baseDate.getMonth(), baseDate.getDate());
+          let count = 0;
+
+          const maxAllowedPeriods = (periodicAmt > 0 && (debt.principal_amount || debt.remaining))
+            ? Math.max(1, Math.round(((debt.principal_amount || debt.remaining) as number) / periodicAmt))
+            : 60;
+
+          while (count < maxAllowedPeriods) {
+            if (limitDate && iterDate.getTime() > limitDate.getTime()) break;
+
+            const yStr = iterDate.getFullYear();
+            const mStr = String(iterDate.getMonth() + 1).padStart(2, '0');
+            const dStrVal = String(iterDate.getDate()).padStart(2, '0');
+            const currentPeriodDate = `${yStr}-${mStr}-${dStrVal}`;
+
+            if (currentPeriodDate === dateStr) {
+              dayDebtItems.push({
+                id: (Number(debt.id) || 999000) * 100 + count,
+                schedule_type: 'TRANSACTION',
+                name: `${isLend ? 'Thu nợ' : 'Trả nợ'}: ${partnerName} (Kỳ ${count + 1})`,
+                recurrence_text: recurrenceText,
+                next_occurrence: dateStr,
+                status: isPaid ? 'COMPLETED' : 'ACTIVE',
+                transaction_template: {
+                  type: isLend ? 'INCOME' : 'EXPENSE',
+                  amount: String(periodicAmt),
+                  category: isLend ? 'Thu nợ' : 'Trả nợ',
+                },
+                _rawDebtId: debt.id,
+              } as any);
+              break;
+            }
+
+            count++;
+            if (freq === 'WEEKLY') iterDate.setDate(iterDate.getDate() + 7);
+            else if (freq === 'BIWEEKLY') iterDate.setDate(iterDate.getDate() + 14);
+            else if (freq === 'QUARTERLY') iterDate.setMonth(iterDate.getMonth() + 3);
+            else if (freq === 'YEARLY') iterDate.setFullYear(iterDate.getFullYear() + 1);
+            else iterDate.setMonth(iterDate.getMonth() + 1);
+
+            if (!limitDate && count >= 12) break;
+          }
+        } else {
+          // 1 lần
+          const dDate = dueDateStr || nextPaymentDateStr || startDateStr;
+          if (dDate === dateStr) {
+            dayDebtItems.push({
+              id: Number(debt.id) || 999000 + Math.floor(Math.random() * 1000),
+              schedule_type: 'TRANSACTION',
+              name: `${isLend ? 'Thu nợ' : 'Trả nợ'}: ${partnerName}`,
+              recurrence_text: 'Một lần',
+              next_occurrence: dateStr,
+              status: isPaid ? 'COMPLETED' : 'ACTIVE',
+              transaction_template: {
+                type: isLend ? 'INCOME' : 'EXPENSE',
+                amount: String(debt.remaining || debt.principal_amount || 0),
+                category: isLend ? 'Thu nợ' : 'Trả nợ',
+              },
+              _rawDebtId: debt.id,
+            } as any);
+          }
         }
       });
 
@@ -391,18 +458,55 @@ export function FinancialRemindersScreen({ onNotify }: Props) {
     });
 
     debts.forEach((debt) => {
-      const dDate = debt.due_date || debt.next_payment_date || '';
-      if (dDate) {
-        const parts = dDate.split('T')[0].split('-');
-        if (parts.length === 3) {
-          const dy = parseInt(parts[0], 10);
-          const dm = parseInt(parts[1], 10);
+      const isPaid = debt.status === 'PAID' || debt.status === 'PAID_OFF' || debt.remaining === 0;
+      if (isPaid) return;
+
+      const freq = (debt.payment_frequency || 'ONE_TIME').toUpperCase();
+      const isPeriodic = freq === 'MONTHLY' || freq === 'WEEKLY' || freq === 'QUARTERLY' || freq === 'BIWEEKLY' || freq === 'YEARLY';
+      const isLend = debt.debt_type === 'LENDING';
+
+      if (isPeriodic) {
+        let startDateStr = debt.start_date ? debt.start_date.split('T')[0] : '';
+        let dueDateStr = debt.due_date ? debt.due_date.split('T')[0] : '';
+        let nextPaymentDateStr = debt.next_payment_date ? debt.next_payment_date.split('T')[0] : '';
+        const startPeriodDateStr = nextPaymentDateStr || startDateStr || dueDateStr;
+        if (!startPeriodDateStr) return;
+
+        const periodicAmt = debt.monthly_payment || debt.payment_amount || debt.next_payment_amount || debt.remaining || debt.principal_amount || 0;
+        const baseDate = new Date(startPeriodDateStr);
+        const limitDate = dueDateStr ? new Date(dueDateStr) : null;
+        let iterDate = new Date(baseDate.getFullYear(), baseDate.getMonth(), baseDate.getDate());
+        let count = 0;
+
+        while (count < 60) {
+          if (limitDate && iterDate.getTime() > limitDate.getTime()) break;
+          const dy = iterDate.getFullYear();
+          const dm = iterDate.getMonth() + 1;
           if (dy === curYear && dm === curMonth) {
-            const isPaid = debt.status === 'PAID' || debt.status === 'PAID_OFF' || debt.remaining === 0;
-            if (!isPaid) {
+            activeCount++;
+            if (isLend) incomeMonth += periodicAmt;
+            else expenseMonth += periodicAmt;
+          }
+          count++;
+          if (freq === 'WEEKLY') iterDate.setDate(iterDate.getDate() + 7);
+          else if (freq === 'BIWEEKLY') iterDate.setDate(iterDate.getDate() + 14);
+          else if (freq === 'QUARTERLY') iterDate.setMonth(iterDate.getMonth() + 3);
+          else if (freq === 'YEARLY') iterDate.setFullYear(iterDate.getFullYear() + 1);
+          else iterDate.setMonth(iterDate.getMonth() + 1);
+
+          if (!limitDate && count >= 12) break;
+        }
+      } else {
+        const dDate = debt.due_date || debt.next_payment_date || debt.start_date || '';
+        if (dDate) {
+          const parts = dDate.split('T')[0].split('-');
+          if (parts.length === 3) {
+            const dy = parseInt(parts[0], 10);
+            const dm = parseInt(parts[1], 10);
+            if (dy === curYear && dm === curMonth) {
               activeCount++;
               const amt = debt.remaining || debt.principal_amount || 0;
-              if (debt.debt_type === 'LENDING') incomeMonth += amt;
+              if (isLend) incomeMonth += amt;
               else expenseMonth += amt;
             }
           }
@@ -431,27 +535,89 @@ export function FinancialRemindersScreen({ onNotify }: Props) {
       list.push(s);
     });
 
-    // 2. Thêm từ debts
+    // 2. Thêm từ debts (hiển thị kỳ hạn hoặc trả 1 lần)
     debts.forEach((debt) => {
       const isLend = debt.debt_type === 'LENDING';
       const isPaid = debt.status === 'PAID' || debt.status === 'PAID_OFF' || debt.remaining === 0;
-      const dDate = debt.due_date || debt.next_payment_date || '';
-      const dateOnly = dDate.includes('T') ? dDate.split('T')[0] : dDate;
+      const partnerName = debt.debtor_name || debt.creditor_name || 'Khoản nợ';
 
-      list.push({
-        id: Number(debt.id) || 999000 + Math.floor(Math.random() * 1000),
-        schedule_type: 'TRANSACTION',
-        name: `${isLend ? 'Thu nợ' : 'Trả nợ'}: ${debt.debtor_name || debt.creditor_name || 'Khoản nợ'}`,
-        recurrence_text: 'Một lần',
-        next_occurrence: dateOnly,
-        status: isPaid ? 'COMPLETED' : 'ACTIVE',
-        transaction_template: {
-          type: isLend ? 'INCOME' : 'EXPENSE',
-          amount: String(debt.remaining || debt.principal_amount || 0),
-          category: isLend ? 'Thu nợ' : 'Trả nợ',
-        },
-        _rawDebtId: debt.id,
-      } as any);
+      const freq = (debt.payment_frequency || 'ONE_TIME').toUpperCase();
+      const isPeriodic = freq === 'MONTHLY' || freq === 'WEEKLY' || freq === 'QUARTERLY' || freq === 'BIWEEKLY' || freq === 'YEARLY';
+
+      let startDateStr = debt.start_date ? debt.start_date.split('T')[0] : '';
+      let dueDateStr = debt.due_date ? debt.due_date.split('T')[0] : '';
+      let nextPaymentDateStr = debt.next_payment_date ? debt.next_payment_date.split('T')[0] : '';
+
+      const periodicAmt = debt.monthly_payment || debt.payment_amount || debt.next_payment_amount || debt.remaining || debt.principal_amount || 0;
+
+      if (isPeriodic) {
+        const startPeriodDateStr = nextPaymentDateStr || startDateStr || dueDateStr;
+        if (!startPeriodDateStr) return;
+
+        let recurrenceText = 'Hàng tháng';
+        if (freq === 'WEEKLY') recurrenceText = 'Hàng tuần';
+        else if (freq === 'QUARTERLY') recurrenceText = 'Hàng quý';
+        else if (freq === 'BIWEEKLY') recurrenceText = '2 tuần một lần';
+        else if (freq === 'YEARLY') recurrenceText = 'Hàng năm';
+
+        const baseDate = new Date(startPeriodDateStr);
+        const limitDate = dueDateStr ? new Date(dueDateStr) : null;
+        let iterDate = new Date(baseDate.getFullYear(), baseDate.getMonth(), baseDate.getDate());
+        let count = 0;
+
+        const maxAllowedPeriods = (periodicAmt > 0 && (debt.principal_amount || debt.remaining))
+          ? Math.max(1, Math.round(((debt.principal_amount || debt.remaining) as number) / periodicAmt))
+          : 60;
+
+        while (count < maxAllowedPeriods) {
+          if (limitDate && iterDate.getTime() > limitDate.getTime()) break;
+
+          const yStr = iterDate.getFullYear();
+          const mStr = String(iterDate.getMonth() + 1).padStart(2, '0');
+          const dStrVal = String(iterDate.getDate()).padStart(2, '0');
+          const currentPeriodDate = `${yStr}-${mStr}-${dStrVal}`;
+
+          list.push({
+            id: (Number(debt.id) || 999000) * 100 + count,
+            schedule_type: 'TRANSACTION',
+            name: `${isLend ? 'Thu nợ' : 'Trả nợ'}: ${partnerName} (Kỳ ${count + 1})`,
+            recurrence_text: recurrenceText,
+            next_occurrence: currentPeriodDate,
+            status: isPaid ? 'COMPLETED' : 'ACTIVE',
+            transaction_template: {
+              type: isLend ? 'INCOME' : 'EXPENSE',
+              amount: String(periodicAmt),
+              category: isLend ? 'Thu nợ' : 'Trả nợ',
+            },
+            _rawDebtId: debt.id,
+          } as any);
+
+          count++;
+          if (freq === 'WEEKLY') iterDate.setDate(iterDate.getDate() + 7);
+          else if (freq === 'BIWEEKLY') iterDate.setDate(iterDate.getDate() + 14);
+          else if (freq === 'QUARTERLY') iterDate.setMonth(iterDate.getMonth() + 3);
+          else if (freq === 'YEARLY') iterDate.setFullYear(iterDate.getFullYear() + 1);
+          else iterDate.setMonth(iterDate.getMonth() + 1);
+
+          if (!limitDate && count >= 12) break;
+        }
+      } else {
+        const dDate = dueDateStr || nextPaymentDateStr || startDateStr;
+        list.push({
+          id: Number(debt.id) || 999000 + Math.floor(Math.random() * 1000),
+          schedule_type: 'TRANSACTION',
+          name: `${isLend ? 'Thu nợ' : 'Trả nợ'}: ${partnerName}`,
+          recurrence_text: 'Một lần',
+          next_occurrence: dDate,
+          status: isPaid ? 'COMPLETED' : 'ACTIVE',
+          transaction_template: {
+            type: isLend ? 'INCOME' : 'EXPENSE',
+            amount: String(debt.remaining || debt.principal_amount || 0),
+            category: isLend ? 'Thu nợ' : 'Trả nợ',
+          },
+          _rawDebtId: debt.id,
+        } as any);
+      }
     });
 
     return list;

@@ -1,17 +1,9 @@
 import React, { useState } from 'react';
-import {
-  ActivityIndicator,
-  Alert,
-  Image,
-  Modal,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
+import { ActivityIndicator, Image, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { AppAlert as Alert, useAppDialog } from '../../../context/DialogContext';
 import * as ImagePicker from 'expo-image-picker';
 import { FinanceIcon } from '../../core/components/FinanceIcon';
+import { useAppTheme } from '../../../context/ThemeContext';
 import { userProfileApi } from '../api/userProfileApi';
 import { API_BASE_URL, authStorage } from '../../auth/api/authApi';
 
@@ -80,6 +72,8 @@ export function AvatarPickerModal({
   currentAvatarUrl,
   onAvatarUpdated,
 }: AvatarPickerModalProps) {
+  const { isDark, colors: themeColors } = useAppTheme();
+  const { confirmDelete, showSuccess, showError } = useAppDialog();
   const [selectedPreset, setSelectedPreset] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [loadingText, setLoadingText] = useState('Đang xử lý...');
@@ -296,24 +290,24 @@ export function AvatarPickerModal({
       <View style={styles.overlay}>
         <Pressable style={styles.backdrop} onPress={onClose} />
 
-        <View style={styles.modalCard}>
+        <View style={[styles.modalCard, isDark && { backgroundColor: themeColors.surface, borderColor: themeColors.cardBorder }]}>
           {/* Header */}
-          <View style={styles.modalHeader}>
+          <View style={[styles.modalHeader, isDark && { borderBottomColor: themeColors.cardBorder }]}>
             <View style={styles.headerLeft}>
-              <View style={styles.iconCircle}>
-                <FinanceIcon name="camera" size={16} color="#047857" />
+              <View style={[styles.iconCircle, isDark && { backgroundColor: 'rgba(52, 211, 153, 0.16)' }]}>
+                <FinanceIcon name="camera" size={16} color={isDark ? themeColors.accentGreen : "#047857"} />
               </View>
-              <Text style={styles.modalTitle}>Cập nhật ảnh đại diện</Text>
+              <Text style={[styles.modalTitle, isDark && { color: themeColors.textPrimary }]}>Cập nhật ảnh đại diện</Text>
             </View>
-            <Pressable onPress={onClose} hitSlop={10} style={styles.closeBtn}>
-              <FinanceIcon name="close" size={16} color="#64748B" />
+            <Pressable onPress={onClose} hitSlop={10} style={[styles.closeBtn, isDark && { backgroundColor: themeColors.surfaceSubtle }]}>
+              <FinanceIcon name="close" size={16} color={isDark ? themeColors.textSecondary : "#64748B"} />
             </Pressable>
           </View>
 
           <ScrollView showsVerticalScrollIndicator={false} style={styles.modalBody}>
             {/* Thẻ hiển thị avatar hiện tại */}
-            <View style={styles.previewBox}>
-              <View style={styles.previewAvatarCircle}>
+            <View style={[styles.previewBox, isDark && { backgroundColor: themeColors.surfaceSubtle, borderColor: themeColors.cardBorder }]}>
+              <View style={[styles.previewAvatarCircle, isDark && { borderColor: themeColors.accentGreen, backgroundColor: themeColors.surface }]}>
                 {formattedCurrent ? (
                   <Image source={{ uri: formattedCurrent }} style={styles.previewImg} />
                 ) : (
@@ -324,8 +318,8 @@ export function AvatarPickerModal({
                 )}
               </View>
               <View style={styles.previewInfo}>
-                <Text style={styles.previewTitle}>Ảnh đại diện hiện tại</Text>
-                <Text style={styles.previewSub}>
+                <Text style={[styles.previewTitle, isDark && { color: themeColors.textPrimary }]}>Ảnh đại diện hiện tại</Text>
+                <Text style={[styles.previewSub, isDark && { color: themeColors.textSecondary }]}>
                   Chụp ảnh trực tiếp hoặc tải ảnh từ thiết bị lên máy chủ backend
                 </Text>
               </View>
@@ -337,32 +331,40 @@ export function AvatarPickerModal({
               <Pressable
                 onPress={handleTakePhoto}
                 disabled={loading}
-                style={({ pressed }) => [styles.primaryOptionBtn, pressed && styles.pressed]}
+                style={({ pressed }) => [
+                  styles.primaryOptionBtn,
+                  isDark && { backgroundColor: themeColors.surfaceSubtle, borderColor: themeColors.cardBorder },
+                  pressed && styles.pressed,
+                ]}
               >
-                <View style={[styles.optionIconBox, { backgroundColor: '#E8F8F0' }]}>
-                  <FinanceIcon name="camera" size={22} color="#047857" />
+                <View style={[styles.optionIconBox, { backgroundColor: isDark ? 'rgba(52, 211, 153, 0.16)' : '#E8F8F0' }]}>
+                  <FinanceIcon name="camera" size={22} color={isDark ? themeColors.accentGreen : "#047857"} />
                 </View>
                 <View style={{ flex: 1 }}>
-                  <Text style={styles.optionTitle}>Chụp ảnh mới</Text>
-                  <Text style={styles.optionDesc}>Mở camera chụp và tải lên máy chủ</Text>
+                  <Text style={[styles.optionTitle, isDark && { color: themeColors.textPrimary }]}>Chụp ảnh mới</Text>
+                  <Text style={[styles.optionDesc, isDark && { color: themeColors.textSecondary }]}>Mở camera chụp và tải lên máy chủ</Text>
                 </View>
-                <FinanceIcon name="chevron-right" size={18} color="#94A3B8" />
+                <FinanceIcon name="chevron-right" size={18} color={isDark ? themeColors.textMuted : "#94A3B8"} />
               </Pressable>
 
               {/* Nút 2: Tải lên từ bộ sưu tập thiết bị */}
               <Pressable
                 onPress={handlePickFromGallery}
                 disabled={loading}
-                style={({ pressed }) => [styles.primaryOptionBtn, pressed && styles.pressed]}
+                style={({ pressed }) => [
+                  styles.primaryOptionBtn,
+                  isDark && { backgroundColor: themeColors.surfaceSubtle, borderColor: themeColors.cardBorder },
+                  pressed && styles.pressed,
+                ]}
               >
-                <View style={[styles.optionIconBox, { backgroundColor: '#EFF6FF' }]}>
-                  <FinanceIcon name="cloud" size={22} color="#2563EB" />
+                <View style={[styles.optionIconBox, { backgroundColor: isDark ? 'rgba(56, 189, 248, 0.16)' : '#EFF6FF' }]}>
+                  <FinanceIcon name="cloud" size={22} color={isDark ? '#38BDF8' : "#2563EB"} />
                 </View>
                 <View style={{ flex: 1 }}>
-                  <Text style={styles.optionTitle}>Tải ảnh từ thiết bị lên</Text>
-                  <Text style={styles.optionDesc}>Chọn từ thư viện ảnh máy và tải lên</Text>
+                  <Text style={[styles.optionTitle, isDark && { color: themeColors.textPrimary }]}>Tải ảnh từ thiết bị lên</Text>
+                  <Text style={[styles.optionDesc, isDark && { color: themeColors.textSecondary }]}>Chọn từ thư viện ảnh máy và tải lên</Text>
                 </View>
-                <FinanceIcon name="chevron-right" size={18} color="#94A3B8" />
+                <FinanceIcon name="chevron-right" size={18} color={isDark ? themeColors.textMuted : "#94A3B8"} />
               </Pressable>
             </View>
 
@@ -372,17 +374,21 @@ export function AvatarPickerModal({
                 <Pressable
                   onPress={handleDeleteAvatar}
                   disabled={loading}
-                  style={[styles.actionBtn, styles.deleteBtn]}
+                  style={[
+                    styles.actionBtn,
+                    styles.deleteBtn,
+                    isDark && { backgroundColor: 'rgba(239, 68, 68, 0.16)', borderColor: 'rgba(239, 68, 68, 0.35)' },
+                  ]}
                 >
                   <FinanceIcon name="trash" size={15} color="#EF4444" />
-                  <Text style={styles.deleteBtnText}>Xóa ảnh đại diện hiện tại</Text>
+                  <Text style={[styles.deleteBtnText, isDark && { color: '#F87171' }]}>Xóa ảnh đại diện hiện tại</Text>
                 </Pressable>
               </View>
             )}
 
             {/* Bộ sưu tập Avatar có sẵn */}
-            <Text style={styles.sectionHeading}>Hoặc chọn nhanh ảnh đại diện mẫu</Text>
-            <Text style={styles.sectionSubtitle}>
+            <Text style={[styles.sectionHeading, isDark && { color: themeColors.accentGreen }]}>Hoặc chọn nhanh ảnh đại diện mẫu</Text>
+            <Text style={[styles.sectionSubtitle, isDark && { color: themeColors.textSecondary }]}>
               Chạm vào bất kỳ ảnh mẫu nào để cập nhật hồ sơ
             </Text>
 
@@ -396,15 +402,24 @@ export function AvatarPickerModal({
                     key={avatar.id}
                     onPress={() => handleSelectPreset(avatar.url)}
                     disabled={loading}
-                    style={[styles.presetCard, isSelected && styles.presetCardSelected]}
+                    style={[
+                      styles.presetCard,
+                      isSelected && styles.presetCardSelected,
+                    ]}
                   >
-                    <Image source={{ uri: avatar.url }} style={styles.presetImage} />
+                    <Image
+                      source={{ uri: avatar.url }}
+                      style={[
+                        styles.presetImage,
+                        isDark && { borderColor: isSelected ? themeColors.accentGreen : themeColors.cardBorder, backgroundColor: themeColors.surfaceSubtle },
+                      ]}
+                    />
                     {isSelected && (
-                      <View style={styles.selectedTick}>
+                      <View style={[styles.selectedTick, isDark && { backgroundColor: themeColors.accentGreen, borderColor: themeColors.surface }]}>
                         <FinanceIcon name="check" size={11} color="#FFFFFF" />
                       </View>
                     )}
-                    <Text style={styles.presetName} numberOfLines={1}>
+                    <Text style={[styles.presetName, isDark && { color: isSelected ? themeColors.accentGreen : themeColors.textSecondary }]} numberOfLines={1}>
                       {avatar.title}
                     </Text>
                   </Pressable>
@@ -414,9 +429,9 @@ export function AvatarPickerModal({
           </ScrollView>
 
           {loading && (
-            <View style={styles.loadingOverlay}>
-              <ActivityIndicator size="large" color="#047857" />
-              <Text style={styles.loadingText}>{loadingText}</Text>
+            <View style={[styles.loadingOverlay, isDark && { backgroundColor: 'rgba(11, 19, 16, 0.92)' }]}>
+              <ActivityIndicator size="large" color={isDark ? themeColors.accentGreen : "#047857"} />
+              <Text style={[styles.loadingText, isDark && { color: themeColors.accentGreen }]}>{loadingText}</Text>
             </View>
           )}
         </View>

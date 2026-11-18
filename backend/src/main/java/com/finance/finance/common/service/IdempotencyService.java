@@ -304,4 +304,24 @@ public class IdempotencyService {
             super(message);
         }
     }
+
+
+    // ==================== Additional Helper Classes ====================
+    
+    @lombok.Data
+    @lombok.Builder
+    public static class CleanupStats {
+        private final int expiredDeleted;
+        private final int stuckMarkedFailed;
+    }
+    
+    @lombok.Data
+    @lombok.Builder
+    public static class IdempotencyStats {
+        private final long totalKeys;
+        private final long processingCount;
+        private final long completedCount;
+        private final long failedCount;
+        private final long keysLastHour;
+    }
 }

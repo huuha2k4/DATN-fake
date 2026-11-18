@@ -1,20 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import {
-  ActivityIndicator,
-  Alert,
-  Animated,
-  Easing,
-  Image,
-  KeyboardAvoidingView,
-  Modal,
-  Platform,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from 'react-native';
+import { ActivityIndicator, Animated, Easing, Image, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { AppAlert as Alert } from '../../../context/DialogContext';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Circle, Defs, LinearGradient, Path, Rect, Stop } from 'react-native-svg';
 import * as ImagePicker from 'expo-image-picker';
@@ -52,6 +38,7 @@ import {
   type CategoryItem,
 } from '../../add-transaction/api/transactionApi';
 import { ocrApi, type OcrReceiptResult } from '../api';
+import { useAppTheme } from '../../../context/ThemeContext';
 
 type StepMode = 'HOME' | 'CAMERA' | 'RESULT';
 
@@ -137,7 +124,9 @@ function formatDisplayDateTime(isoDate?: string, timeStr?: string): string {
 /**
  * Minh họa SVG Hóa đơn được quét bằng tia Laser xanh và 2 chiếc lá hai bên (chuẩn ảnh thiết kế 1)
  */
-function OcrHeroIllustration() {
+function OcrHeroIllustration({ isDark: propIsDark }: { isDark?: boolean }) {
+  const { isDark: themeIsDark, colors: themeColors } = useAppTheme();
+  const isDark = propIsDark ?? themeIsDark;
   const laserY = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
@@ -169,8 +158,8 @@ function OcrHeroIllustration() {
       <Svg width={296} height={212} viewBox="0 0 250 175" fill="none">
         <Defs>
           <LinearGradient id="bgBlob" x1="0" y1="0" x2="1" y2="1">
-            <Stop offset="0" stopColor="#DCFCE7" stopOpacity="0.85" />
-            <Stop offset="1" stopColor="#ECFDF5" stopOpacity="0.35" />
+            <Stop offset="0" stopColor={isDark ? '#10B981' : '#DCFCE7'} stopOpacity={isDark ? '0.18' : '0.85'} />
+            <Stop offset="1" stopColor={isDark ? '#059669' : '#ECFDF5'} stopOpacity={isDark ? '0.04' : '0.35'} />
           </LinearGradient>
           <LinearGradient id="leafGrad1" x1="0" y1="0" x2="1" y2="1">
             <Stop offset="0" stopColor="#4ADE80" />
@@ -182,7 +171,7 @@ function OcrHeroIllustration() {
           </LinearGradient>
         </Defs>
 
-        {/* Đám mây nền xanh mint mềm mại */}
+        {/* Đám mây nền xanh mint mềm mại / Hào quang ngọc bích sang trọng */}
         <Path
           d="M36 96C18 76 28 38 64 34C92 31 116 18 148 22C186 26 226 52 220 92C215 126 184 146 138 148C86 150 52 114 36 96Z"
           fill="url(#bgBlob)"
@@ -193,7 +182,7 @@ function OcrHeroIllustration() {
           d="M65 130C42 126 25 106 23 82C46 84 64 102 65 130Z"
           fill="url(#leafGrad1)"
         />
-        <Path d="M25 84C42 98 54 112 64 129" stroke="#DCFCE7" strokeWidth="1.5" strokeLinecap="round" />
+        <Path d="M25 84C42 98 54 112 64 129" stroke={isDark ? '#059669' : '#DCFCE7'} strokeWidth="1.5" strokeLinecap="round" />
         <Path
           d="M72 135C56 142 38 136 28 122C45 114 62 120 72 135Z"
           fill="url(#leafGrad2)"
@@ -204,13 +193,13 @@ function OcrHeroIllustration() {
           d="M185 130C208 126 225 106 227 82C204 84 186 102 185 130Z"
           fill="url(#leafGrad1)"
         />
-        <Path d="M225 84C208 98 196 112 186 129" stroke="#DCFCE7" strokeWidth="1.5" strokeLinecap="round" />
+        <Path d="M225 84C208 98 196 112 186 129" stroke={isDark ? '#059669' : '#DCFCE7'} strokeWidth="1.5" strokeLinecap="round" />
         <Path
           d="M178 135C194 142 212 136 222 122C205 114 188 120 178 135Z"
           fill="url(#leafGrad2)"
         />
 
-        {/* Tờ hóa đơn trắng hơi nghiêng nhẹ */}
+        {/* Tờ hóa đơn trắng sáng sạch sẽ chuẩn giấy hóa đơn thanh lịch */}
         <Rect
           x="80"
           y="22"
@@ -218,43 +207,57 @@ function OcrHeroIllustration() {
           height="114"
           rx="8"
           fill="#FFFFFF"
-          stroke="#E2E8F0"
-          strokeWidth="1.5"
+          stroke={isDark ? '#34D399' : '#E2E8F0'}
+          strokeWidth={1.5}
         />
-        {/* Các dòng chữ trên tờ hóa đơn */}
-        <Rect x="96" y="38" width="46" height="6" rx="3" fill="#CBD5E1" />
-        <Rect x="94" y="54" width="62" height="5" rx="2.5" fill="#E2E8F0" />
-        <Rect x="94" y="66" width="54" height="5" rx="2.5" fill="#E2E8F0" />
-        <Rect x="94" y="78" width="62" height="5" rx="2.5" fill="#E2E8F0" />
-        <Rect x="94" y="92" width="42" height="5" rx="2.5" fill="#CBD5E1" />
-        <Rect x="94" y="104" width="58" height="5" rx="2.5" fill="#E2E8F0" />
+        {/* Tiêu đề hóa đơn / Logo nhỏ xinh màu xanh ngọc */}
+        <Rect x="100" y="32" width="50" height="6" rx="3" fill="#10B981" />
+        {/* Các dòng chữ chi tiết hóa đơn */}
+        <Rect x="92" y="46" width="66" height="4" rx="2" fill="#E2E8F0" />
+        <Rect x="92" y="55" width="54" height="4" rx="2" fill="#E2E8F0" />
+        <Rect x="92" y="64" width="66" height="4" rx="2" fill="#CBD5E1" />
+        <Rect x="92" y="73" width="48" height="4" rx="2" fill="#E2E8F0" />
+        {/* Dòng phân cách nét đứt */}
+        <Path d="M92 84 H158" stroke="#CBD5E1" strokeWidth="1.2" strokeDasharray="3 3" />
+        {/* Dòng tổng tiền */}
+        <Rect x="92" y="91" width="38" height="5" rx="2.5" fill="#94A3B8" />
+        <Rect x="134" y="91" width="24" height="5" rx="2.5" fill="#10B981" />
+        {/* Mã vạch nhỏ ở chân hóa đơn */}
+        <Rect x="96" y="103" width="3" height="11" fill="#94A3B8" />
+        <Rect x="102" y="103" width="5" height="11" fill="#94A3B8" />
+        <Rect x="110" y="103" width="2" height="11" fill="#94A3B8" />
+        <Rect x="115" y="103" width="4" height="11" fill="#94A3B8" />
+        <Rect x="122" y="103" width="6" height="11" fill="#94A3B8" />
+        <Rect x="131" y="103" width="3" height="11" fill="#94A3B8" />
+        <Rect x="137" y="103" width="5" height="11" fill="#94A3B8" />
+        <Rect x="145" y="103" width="4" height="11" fill="#94A3B8" />
 
-        {/* 4 Góc khung ngắm máy quét màu xanh đậm */}
+        {/* 4 Góc khung ngắm máy quét màu xanh sáng nổi bật */}
         {/* Top-Left */}
         <Path
           d="M66 42V26C66 20.4772 70.4772 16 76 16H92"
-          stroke="#067647"
+          stroke={isDark ? '#34D399' : '#067647'}
           strokeWidth="5"
           strokeLinecap="round"
         />
         {/* Top-Right */}
         <Path
           d="M184 42V26C184 20.4772 179.523 16 174 16H158"
-          stroke="#067647"
+          stroke={isDark ? '#34D399' : '#067647'}
           strokeWidth="5"
           strokeLinecap="round"
         />
         {/* Bottom-Left */}
         <Path
           d="M66 116V132C66 137.523 70.4772 142 76 142H92"
-          stroke="#067647"
+          stroke={isDark ? '#34D399' : '#067647'}
           strokeWidth="5"
           strokeLinecap="round"
         />
         {/* Bottom-Right */}
         <Path
           d="M184 116V132C184 137.523 179.523 142 174 142H158"
-          stroke="#067647"
+          stroke={isDark ? '#34D399' : '#067647'}
           strokeWidth="5"
           strokeLinecap="round"
         />
@@ -271,7 +274,15 @@ function OcrHeroIllustration() {
       />
 
       {/* Huy hiệu Camera tròn xanh ở đáy khung */}
-      <View style={styles.heroCameraBadge}>
+      <View
+        style={[
+          styles.heroCameraBadge,
+          isDark && {
+            backgroundColor: '#10B981',
+            borderColor: themeColors.background,
+          },
+        ]}
+      >
         <Camera size={22} color="#FFFFFF" strokeWidth={2.4} />
       </View>
     </View>
@@ -335,6 +346,7 @@ export function ScanInvoiceScreen({
   initialStep = 'HOME',
 }: Props) {
   const insets = useSafeAreaInsets();
+  const { isDark, colors: themeColors } = useAppTheme();
   const [step, setStep] = useState<StepMode>(initialStep);
 
   // States dữ liệu từ Backend (chỉ hiển thị các hóa đơn đã tạo giao dịch & trừ tiền)
@@ -699,9 +711,9 @@ export function ScanInvoiceScreen({
   // ============================================================================
   if (step === 'CAMERA') {
     return (
-      <View style={[styles.screen, { paddingTop: Math.max(insets.top, 10) }]}>
+      <View style={[styles.screen, isDark && { backgroundColor: themeColors.background }, { paddingTop: Math.max(insets.top, 10) }]}>
         {/* Header: ← Chụp hóa đơn | Flash | Scan */}
-        <View style={styles.topHeader}>
+        <View style={[styles.topHeader, isDark && { backgroundColor: themeColors.background }]}>
           <Pressable
             onPress={() => {
               if (initialStep === 'CAMERA') {
@@ -711,24 +723,24 @@ export function ScanInvoiceScreen({
               }
             }}
             hitSlop={12}
-            style={styles.iconBtn}
+            style={[styles.iconBtn, isDark && { backgroundColor: themeColors.surfaceSubtle }]}
             accessibilityRole="button"
             accessibilityLabel="Quay lại"
           >
-            <ArrowLeft size={23} color="#0F172A" strokeWidth={2.3} />
+            <ArrowLeft size={23} color={isDark ? themeColors.textPrimary : '#0F172A'} strokeWidth={2.3} />
           </Pressable>
 
-          <Text style={styles.topHeaderTitleBlack}>Chụp hóa đơn</Text>
+          <Text style={[styles.topHeaderTitleBlack, isDark && { color: themeColors.textPrimary }]}>Chụp hóa đơn</Text>
 
           <View style={styles.headerRightActions}>
             <Pressable
               onPress={() => setFlashOff(!flashOff)}
               hitSlop={10}
-              style={styles.iconBtn}
+              style={[styles.iconBtn, isDark && { backgroundColor: themeColors.surfaceSubtle }]}
               accessibilityLabel="Đèn Flash"
             >
               {flashOff ? (
-                <ZapOff size={21} color="#0F172A" strokeWidth={2.1} />
+                <ZapOff size={21} color={isDark ? themeColors.textSecondary : '#0F172A'} strokeWidth={2.1} />
               ) : (
                 <Zap size={21} color="#16A34A" strokeWidth={2.2} />
               )}
@@ -736,17 +748,17 @@ export function ScanInvoiceScreen({
             <Pressable
               onPress={() => setStep('HOME')}
               hitSlop={10}
-              style={styles.iconBtn}
+              style={[styles.iconBtn, isDark && { backgroundColor: themeColors.surfaceSubtle }]}
               accessibilityLabel="Về màn tổng quan Quét hóa đơn & lịch sử"
             >
-              <Scan size={21} color="#0F172A" strokeWidth={2.1} />
+              <Scan size={21} color={isDark ? themeColors.textPrimary : '#0F172A'} strokeWidth={2.1} />
             </Pressable>
           </View>
         </View>
 
         {/* Khung ngắm Camera thật trực tiếp (kéo dài xuống gần 3 nút dưới cùng) */}
         <View style={styles.cameraBody}>
-          <View style={styles.cameraViewportCard}>
+          <View style={[styles.cameraViewportCard, isDark && { borderColor: themeColors.cardBorder, borderWidth: 1 }]}>
             {cameraPermission?.granted && !cameraMountError ? (
               <CameraView
                 key={`live-cam-${facing}`}
@@ -795,17 +807,25 @@ export function ScanInvoiceScreen({
           <View style={[styles.cameraBottomControls, { paddingBottom: Math.max(insets.bottom, 16) }]}>
             <Pressable
               onPress={handlePickFromLibrary}
-              style={({ pressed }) => [styles.camSideCircleBtn, pressed && styles.pressed]}
+              style={({ pressed }) => [
+                styles.camSideCircleBtn,
+                isDark && { backgroundColor: themeColors.surface, borderColor: themeColors.cardBorder },
+                pressed && styles.pressed,
+              ]}
               accessibilityRole="button"
               accessibilityLabel="Chọn ảnh từ thư viện"
             >
-              <LucideImage size={24} color="#0F172A" strokeWidth={2.1} />
+              <LucideImage size={24} color={isDark ? themeColors.textPrimary : '#0F172A'} strokeWidth={2.1} />
             </Pressable>
 
             <Pressable
               onPress={handleCaptureFromLiveCamera}
               disabled={scanning}
-              style={({ pressed }) => [styles.shutterOuterRing, pressed && { transform: [{ scale: 0.95 }] }]}
+              style={({ pressed }) => [
+                styles.shutterOuterRing,
+                isDark && { backgroundColor: themeColors.surface },
+                pressed && { transform: [{ scale: 0.95 }] },
+              ]}
               accessibilityRole="button"
               accessibilityLabel="Chụp hóa đơn"
             >
@@ -814,11 +834,15 @@ export function ScanInvoiceScreen({
 
             <Pressable
               onPress={() => setFacing((prev) => (prev === 'back' ? 'front' : 'back'))}
-              style={({ pressed }) => [styles.camSideCircleBtn, pressed && styles.pressed]}
+              style={({ pressed }) => [
+                styles.camSideCircleBtn,
+                isDark && { backgroundColor: themeColors.surface, borderColor: themeColors.cardBorder },
+                pressed && styles.pressed,
+              ]}
               accessibilityRole="button"
               accessibilityLabel="Đổi camera trước/sau"
             >
-              <RefreshCw size={22} color="#0F172A" strokeWidth={2.1} />
+              <RefreshCw size={22} color={isDark ? themeColors.textPrimary : '#0F172A'} strokeWidth={2.1} />
             </Pressable>
           </View>
         </View>
@@ -832,21 +856,21 @@ export function ScanInvoiceScreen({
   if (step === 'RESULT') {
     return (
       <KeyboardAvoidingView
-        style={[styles.screen, { paddingTop: Math.max(insets.top, 10) }]}
+        style={[styles.screen, isDark && { backgroundColor: themeColors.background }, { paddingTop: Math.max(insets.top, 10) }]}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
         {/* Header: ← Kết quả quét hóa đơn */}
-        <View style={styles.topHeader}>
+        <View style={[styles.topHeader, isDark && { backgroundColor: themeColors.background }]}>
           <Pressable
             onPress={() => setStep('HOME')}
             hitSlop={12}
-            style={styles.iconBtn}
+            style={[styles.iconBtn, isDark && { backgroundColor: themeColors.surfaceSubtle }]}
             accessibilityRole="button"
             accessibilityLabel="Quay lại"
           >
-            <ArrowLeft size={23} color="#065F46" strokeWidth={2.4} />
+            <ArrowLeft size={23} color={isDark ? themeColors.accentGreen : '#065F46'} strokeWidth={2.4} />
           </Pressable>
-          <Text style={styles.topHeaderTitleGreen}>Kết quả quét hóa đơn</Text>
+          <Text style={[styles.topHeaderTitleGreen, isDark && { color: themeColors.textPrimary }]}>Kết quả quét hóa đơn</Text>
           <View style={{ width: 36 }} />
         </View>
 
@@ -859,7 +883,7 @@ export function ScanInvoiceScreen({
           keyboardShouldPersistTaps="handled"
         >
           {/* 1. Ảnh hóa đơn đã chụp kèm nút phóng to góc phải trên */}
-          <View style={styles.resultReceiptImageCard}>
+          <View style={[styles.resultReceiptImageCard, isDark && { borderColor: themeColors.cardBorder }]}>
             {previewUri ? (
               <Image source={{ uri: previewUri }} style={styles.resultReceiptImg} resizeMode="cover" />
             ) : (
@@ -877,25 +901,25 @@ export function ScanInvoiceScreen({
           </View>
 
           {/* 2. Thẻ Thông tin trích xuất (AI) */}
-          <View style={styles.extractedCard}>
+          <View style={[styles.extractedCard, isDark && { backgroundColor: themeColors.surface, borderColor: themeColors.cardBorder }]}>
             {/* Dòng tiêu đề: ✨ Thông tin trích xuất (AI) | [✓ Độ tin cậy: 98%] */}
-            <View style={styles.extractedHeaderRow}>
+            <View style={[styles.extractedHeaderRow, isDark && { borderBottomColor: themeColors.cardBorder }]}>
               <View style={styles.extractedTitleWrap}>
-                <Sparkles size={18} color="#16A34A" strokeWidth={2.3} />
-                <Text style={styles.extractedTitleText}>Thông tin trích xuất (AI)</Text>
+                <Sparkles size={18} color={isDark ? themeColors.accentGreen : '#16A34A'} strokeWidth={2.3} />
+                <Text style={[styles.extractedTitleText, isDark && { color: themeColors.textPrimary }]}>Thông tin trích xuất (AI)</Text>
               </View>
 
-              <View style={styles.confidencePill}>
-                <Check size={12} color="#15803D" strokeWidth={3} />
-                <Text style={styles.confidencePillText}>Độ tin cậy: {confidencePercent}%</Text>
+              <View style={[styles.confidencePill, isDark && { backgroundColor: themeColors.surfaceSubtle }]}>
+                <Check size={12} color={isDark ? themeColors.accentGreen : '#15803D'} strokeWidth={3} />
+                <Text style={[styles.confidencePillText, isDark && { color: themeColors.accentGreen }]}>Độ tin cậy: {confidencePercent}%</Text>
               </View>
             </View>
 
             {/* Dòng 1: Thời gian */}
-            <View style={styles.extractedFieldRow}>
+            <View style={[styles.extractedFieldRow, isDark && { borderBottomColor: themeColors.cardBorder }]}>
               <View style={styles.fieldLabelLeft}>
-                <Calendar size={18} color="#15803D" strokeWidth={2.1} />
-                <Text style={styles.fieldLabelText}>Thời gian</Text>
+                <Calendar size={18} color={isDark ? themeColors.accentGreen : '#15803D'} strokeWidth={2.1} />
+                <Text style={[styles.fieldLabelText, isDark && { color: themeColors.textSecondary }]}>Thời gian</Text>
               </View>
               {isEditingResult ? (
                 <View style={styles.inlineEditRow}>
@@ -903,48 +927,55 @@ export function ScanInvoiceScreen({
                     value={dateStr}
                     onChangeText={setDateStr}
                     placeholder="YYYY-MM-DD"
-                    style={styles.inlineSmallInput}
+                    placeholderTextColor={isDark ? themeColors.textSecondary : '#94A3B8'}
+                    style={[styles.inlineSmallInput, isDark && { backgroundColor: themeColors.surfaceSubtle, borderColor: themeColors.cardBorder, color: themeColors.textPrimary }]}
                   />
                   <TextInput
                     value={timeStr}
                     onChangeText={setTimeStr}
                     placeholder="HH:mm"
-                    style={[styles.inlineSmallInput, { width: 64 }]}
+                    placeholderTextColor={isDark ? themeColors.textSecondary : '#94A3B8'}
+                    style={[styles.inlineSmallInput, { width: 64 }, isDark && { backgroundColor: themeColors.surfaceSubtle, borderColor: themeColors.cardBorder, color: themeColors.textPrimary }]}
                   />
                 </View>
               ) : (
-                <Text style={styles.fieldValueStrong}>{formatDisplayDateTime(dateStr, timeStr)}</Text>
+                <Text style={[styles.fieldValueStrong, isDark && { color: themeColors.textPrimary }]}>{formatDisplayDateTime(dateStr, timeStr)}</Text>
               )}
             </View>
 
             {/* Dòng 2: Cửa hàng */}
-            <View style={styles.extractedFieldRow}>
+            <View style={[styles.extractedFieldRow, isDark && { borderBottomColor: themeColors.cardBorder }]}>
               <View style={styles.fieldLabelLeft}>
-                <Store size={18} color="#15803D" strokeWidth={2.1} />
-                <Text style={styles.fieldLabelText}>Cửa hàng</Text>
+                <Store size={18} color={isDark ? themeColors.accentGreen : '#15803D'} strokeWidth={2.1} />
+                <Text style={[styles.fieldLabelText, isDark && { color: themeColors.textSecondary }]}>Cửa hàng</Text>
               </View>
               {isEditingResult ? (
                 <TextInput
                   value={merchant}
                   onChangeText={setMerchant}
                   placeholder="Tên cửa hàng"
-                  style={styles.inlineTextInput}
+                  placeholderTextColor={isDark ? themeColors.textSecondary : '#94A3B8'}
+                  style={[styles.inlineTextInput, isDark && { backgroundColor: themeColors.surfaceSubtle, borderColor: themeColors.cardBorder, color: themeColors.textPrimary }]}
                 />
               ) : (
-                <Text style={styles.fieldValueStrong}>{merchant}</Text>
+                <Text style={[styles.fieldValueStrong, isDark && { color: themeColors.textPrimary }]}>{merchant}</Text>
               )}
             </View>
 
             {/* Dòng 3: Danh mục (Dropdown pill) */}
-            <View style={styles.extractedFieldRow}>
+            <View style={[styles.extractedFieldRow, isDark && { borderBottomColor: themeColors.cardBorder }]}>
               <View style={styles.fieldLabelLeft}>
-                <Tag size={18} color="#15803D" strokeWidth={2.1} />
-                <Text style={styles.fieldLabelText}>Danh mục</Text>
+                <Tag size={18} color={isDark ? themeColors.accentGreen : '#15803D'} strokeWidth={2.1} />
+                <Text style={[styles.fieldLabelText, isDark && { color: themeColors.textSecondary }]}>Danh mục</Text>
               </View>
 
               <Pressable
                 onPress={() => setCategoryPickerVisible(true)}
-                style={({ pressed }) => [styles.categorySelectPill, pressed && styles.pressed]}
+                style={({ pressed }) => [
+                  styles.categorySelectPill,
+                  isDark && { backgroundColor: themeColors.surfaceSubtle, borderColor: themeColors.cardBorder },
+                  pressed && styles.pressed,
+                ]}
               >
                 <View style={styles.categorySelectLeft}>
                   <FinanceIcon
@@ -954,19 +985,19 @@ export function ScanInvoiceScreen({
                       selectedCategoryObj.name
                     )}
                     size={15}
-                    color="#15803D"
+                    color={isDark ? themeColors.accentGreen : '#15803D'}
                   />
-                  <Text style={styles.categorySelectText}>{selectedCategoryObj.name}</Text>
+                  <Text style={[styles.categorySelectText, isDark && { color: themeColors.textPrimary }]}>{selectedCategoryObj.name}</Text>
                 </View>
-                <ChevronDown size={16} color="#334155" strokeWidth={2.2} />
+                <ChevronDown size={16} color={isDark ? themeColors.textSecondary : '#334155'} strokeWidth={2.2} />
               </Pressable>
             </View>
 
             {/* Dòng 4: Số tiền (Nền xanh nhạt nổi bật) */}
-            <View style={styles.extractedFieldRow}>
+            <View style={[styles.extractedFieldRow, isDark && { borderBottomColor: themeColors.cardBorder }]}>
               <View style={styles.fieldLabelLeft}>
-                <CircleDollarSign size={18} color="#15803D" strokeWidth={2.1} />
-                <Text style={styles.fieldLabelText}>Số tiền</Text>
+                <CircleDollarSign size={18} color={isDark ? themeColors.accentGreen : '#15803D'} strokeWidth={2.1} />
+                <Text style={[styles.fieldLabelText, isDark && { color: themeColors.textSecondary }]}>Số tiền</Text>
               </View>
 
               {isEditingResult ? (
@@ -975,31 +1006,42 @@ export function ScanInvoiceScreen({
                   onChangeText={(t) => setAmountStr(t.replace(/\D/g, ''))}
                   keyboardType="numeric"
                   placeholder="0"
-                  style={styles.amountHighlightInput}
+                  placeholderTextColor={isDark ? themeColors.textSecondary : '#94A3B8'}
+                  style={[
+                    styles.amountHighlightInput,
+                    isDark && { backgroundColor: '#064E3B', borderColor: themeColors.accentGreen, color: '#A7F3D0' },
+                  ]}
                 />
               ) : (
-                <Pressable onPress={() => setIsEditingResult(true)} style={styles.amountHighlightBadge}>
-                  <Text style={styles.amountHighlightText}>{formatVND(amountStr)}</Text>
+                <Pressable
+                  onPress={() => setIsEditingResult(true)}
+                  style={[styles.amountHighlightBadge, isDark && { backgroundColor: '#064E3B' }]}
+                >
+                  <Text style={[styles.amountHighlightText, isDark && { color: '#A7F3D0' }]}>{formatVND(amountStr)}</Text>
                 </Pressable>
               )}
             </View>
 
             {/* Dòng 4.5 (Tùy chọn Ví thanh toán nếu người dùng muốn đổi ví) */}
             {accounts.length > 0 && (
-              <View style={styles.extractedFieldRow}>
+              <View style={[styles.extractedFieldRow, isDark && { borderBottomColor: themeColors.cardBorder }]}>
                 <View style={styles.fieldLabelLeft}>
-                  <Wallet size={18} color="#15803D" strokeWidth={2.1} />
-                  <Text style={styles.fieldLabelText}>Tài khoản</Text>
+                  <Wallet size={18} color={isDark ? themeColors.accentGreen : '#15803D'} strokeWidth={2.1} />
+                  <Text style={[styles.fieldLabelText, isDark && { color: themeColors.textSecondary }]}>Tài khoản</Text>
                 </View>
 
                 <Pressable
                   onPress={() => setAccountPickerVisible(true)}
-                  style={({ pressed }) => [styles.categorySelectPill, pressed && styles.pressed]}
+                  style={({ pressed }) => [
+                    styles.categorySelectPill,
+                    isDark && { backgroundColor: themeColors.surfaceSubtle, borderColor: themeColors.cardBorder },
+                    pressed && styles.pressed,
+                  ]}
                 >
-                  <Text style={styles.categorySelectText} numberOfLines={1}>
+                  <Text style={[styles.categorySelectText, isDark && { color: themeColors.textPrimary }]} numberOfLines={1}>
                     {selectedAccountObj?.name || 'Chọn ví'}
                   </Text>
-                  <ChevronDown size={15} color="#334155" strokeWidth={2.2} />
+                  <ChevronDown size={15} color={isDark ? themeColors.textSecondary : '#334155'} strokeWidth={2.2} />
                 </Pressable>
               </View>
             )}
@@ -1007,17 +1049,20 @@ export function ScanInvoiceScreen({
             {/* Dòng 5: Ghi chú */}
             <View style={[styles.extractedFieldRow, { alignItems: 'flex-start', borderBottomWidth: 0 }]}>
               <View style={[styles.fieldLabelLeft, { marginTop: 10 }]}>
-                <FileText size={18} color="#15803D" strokeWidth={2.1} />
-                <Text style={styles.fieldLabelText}>Ghi chú</Text>
+                <FileText size={18} color={isDark ? themeColors.accentGreen : '#15803D'} strokeWidth={2.1} />
+                <Text style={[styles.fieldLabelText, isDark && { color: themeColors.textSecondary }]}>Ghi chú</Text>
               </View>
 
               <TextInput
                 value={note}
                 onChangeText={setNote}
                 placeholder="Nhập ghi chú..."
-                placeholderTextColor="#94A3B8"
+                placeholderTextColor={isDark ? themeColors.textSecondary : '#94A3B8'}
                 multiline
-                style={styles.noteInputBox}
+                style={[
+                  styles.noteInputBox,
+                  isDark && { backgroundColor: themeColors.surfaceSubtle, borderColor: themeColors.cardBorder, color: themeColors.textPrimary },
+                ]}
               />
             </View>
           </View>
@@ -1049,14 +1094,16 @@ export function ScanInvoiceScreen({
               onPress={() => setIsEditingResult((prev) => !prev)}
               style={({ pressed }) => [
                 styles.outlineActionBtn,
+                isDark && { backgroundColor: themeColors.surface, borderColor: themeColors.cardBorder },
                 isEditingResult && styles.outlineActionBtnActive,
+                isEditingResult && isDark && { backgroundColor: '#064E3B', borderColor: themeColors.accentGreen },
                 pressed && styles.pressed,
               ]}
               accessibilityRole="button"
               accessibilityLabel="Chỉnh sửa"
             >
-              <Pencil size={16} color="#065F46" strokeWidth={2.2} />
-              <Text style={styles.outlineActionBtnText}>
+              <Pencil size={16} color={isDark ? themeColors.accentGreen : '#065F46'} strokeWidth={2.2} />
+              <Text style={[styles.outlineActionBtnText, isDark && { color: themeColors.accentGreen }]}>
                 {isEditingResult ? 'Xong' : 'Chỉnh sửa'}
               </Text>
             </Pressable>
@@ -1068,12 +1115,16 @@ export function ScanInvoiceScreen({
                 setIsEditingResult(false);
                 setStep('HOME');
               }}
-              style={({ pressed }) => [styles.outlineActionBtn, pressed && styles.pressed]}
+              style={({ pressed }) => [
+                styles.outlineActionBtn,
+                isDark && { backgroundColor: themeColors.surface, borderColor: themeColors.cardBorder },
+                pressed && styles.pressed,
+              ]}
               accessibilityRole="button"
               accessibilityLabel="Hủy"
             >
-              <Trash2 size={16} color="#065F46" strokeWidth={2.2} />
-              <Text style={styles.outlineActionBtnText}>Hủy</Text>
+              <Trash2 size={16} color={isDark ? '#F87171' : '#065F46'} strokeWidth={2.2} />
+              <Text style={[styles.outlineActionBtnText, isDark && { color: '#F87171' }]}>Hủy</Text>
             </Pressable>
           </View>
         </ScrollView>
@@ -1081,11 +1132,11 @@ export function ScanInvoiceScreen({
         {/* Modal chọn Danh mục */}
         <Modal visible={categoryPickerVisible} transparent animationType="slide">
           <View style={styles.modalBackdrop}>
-            <View style={styles.modalSheet}>
-              <View style={styles.modalHeader}>
-                <Text style={styles.modalTitle}>Chọn danh mục chi tiêu</Text>
+            <View style={[styles.modalSheet, isDark && { backgroundColor: themeColors.surface }]}>
+              <View style={[styles.modalHeader, isDark && { borderBottomColor: themeColors.cardBorder }]}>
+                <Text style={[styles.modalTitle, isDark && { color: themeColors.textPrimary }]}>Chọn danh mục chi tiêu</Text>
                 <Pressable onPress={() => setCategoryPickerVisible(false)} hitSlop={10}>
-                  <X size={20} color="#64748B" />
+                  <X size={20} color={isDark ? themeColors.textSecondary : '#64748B'} />
                 </Pressable>
               </View>
               <ScrollView style={{ maxHeight: 340 }} showsVerticalScrollIndicator={false}>
@@ -1107,19 +1158,22 @@ export function ScanInvoiceScreen({
                         setSelectedCategoryId(cat.id);
                         setCategoryPickerVisible(false);
                       }}
-                      style={[styles.pickerOptionRow, active && styles.pickerOptionRowActive]}
+                      style={[
+                        styles.pickerOptionRow,
+                        active && (isDark ? { backgroundColor: themeColors.surfaceSubtle } : styles.pickerOptionRowActive),
+                      ]}
                     >
                       <View style={styles.pickerOptionLeft}>
-                        <View style={styles.pickerIconCircle}>
+                        <View style={[styles.pickerIconCircle, isDark && { backgroundColor: themeColors.surfaceSubtle }]}>
                           <FinanceIcon
                             name={resolveCategoryIconName(cat.icon, 'EXPENSE', cat.name)}
                             size={17}
-                            color="#059669"
+                            color={isDark ? themeColors.accentGreen : '#059669'}
                           />
                         </View>
-                        <Text style={styles.pickerOptionName}>{cat.name}</Text>
+                        <Text style={[styles.pickerOptionName, isDark && { color: themeColors.textPrimary }]}>{cat.name}</Text>
                       </View>
-                      {active && <Check size={18} color="#059669" strokeWidth={2.6} />}
+                      {active && <Check size={18} color={isDark ? themeColors.accentGreen : '#059669'} strokeWidth={2.6} />}
                     </Pressable>
                   );
                 })}
@@ -1131,11 +1185,11 @@ export function ScanInvoiceScreen({
         {/* Modal chọn Tài khoản thanh toán */}
         <Modal visible={accountPickerVisible} transparent animationType="slide">
           <View style={styles.modalBackdrop}>
-            <View style={styles.modalSheet}>
-              <View style={styles.modalHeader}>
-                <Text style={styles.modalTitle}>Chọn tài khoản thanh toán</Text>
+            <View style={[styles.modalSheet, isDark && { backgroundColor: themeColors.surface }]}>
+              <View style={[styles.modalHeader, isDark && { borderBottomColor: themeColors.cardBorder }]}>
+                <Text style={[styles.modalTitle, isDark && { color: themeColors.textPrimary }]}>Chọn tài khoản thanh toán</Text>
                 <Pressable onPress={() => setAccountPickerVisible(false)} hitSlop={10}>
-                  <X size={20} color="#64748B" />
+                  <X size={20} color={isDark ? themeColors.textSecondary : '#64748B'} />
                 </Pressable>
               </View>
               <ScrollView style={{ maxHeight: 320 }} showsVerticalScrollIndicator={false}>
@@ -1148,20 +1202,23 @@ export function ScanInvoiceScreen({
                         setSelectedAccountId(acc.id);
                         setAccountPickerVisible(false);
                       }}
-                      style={[styles.pickerOptionRow, active && styles.pickerOptionRowActive]}
+                      style={[
+                        styles.pickerOptionRow,
+                        active && (isDark ? { backgroundColor: themeColors.surfaceSubtle } : styles.pickerOptionRowActive),
+                      ]}
                     >
                       <View style={styles.pickerOptionLeft}>
-                        <View style={styles.pickerIconCircle}>
-                          <Wallet size={17} color="#059669" />
+                        <View style={[styles.pickerIconCircle, isDark && { backgroundColor: themeColors.surfaceSubtle }]}>
+                          <Wallet size={17} color={isDark ? themeColors.accentGreen : '#059669'} />
                         </View>
                         <View>
-                          <Text style={styles.pickerOptionName}>{acc.name}</Text>
-                          <Text style={{ fontSize: 12, color: '#64748B' }}>
+                          <Text style={[styles.pickerOptionName, isDark && { color: themeColors.textPrimary }]}>{acc.name}</Text>
+                          <Text style={{ fontSize: 12, color: isDark ? themeColors.textSecondary : '#64748B' }}>
                             Số dư: {formatVND(acc.balance)}
                           </Text>
                         </View>
                       </View>
-                      {active && <Check size={18} color="#059669" strokeWidth={2.6} />}
+                      {active && <Check size={18} color={isDark ? themeColors.accentGreen : '#059669'} strokeWidth={2.6} />}
                     </Pressable>
                   );
                 })}
@@ -1196,19 +1253,19 @@ export function ScanInvoiceScreen({
   // MÀN HÌNH 1 (MẶC ĐỊNH): QUÉT HÓA ĐƠN (OCR) (ẢNH MẪU 1 - BÊN TRÁI)
   // ============================================================================
   return (
-    <View style={[styles.screen, { paddingTop: Math.max(insets.top, 10) }]}>
+    <View style={[styles.screen, isDark && { backgroundColor: themeColors.background }, { paddingTop: Math.max(insets.top, 10) }]}>
       {/* Header: ← Quét hóa đơn (OCR) */}
-      <View style={styles.topHeader}>
+      <View style={[styles.topHeader, isDark && { backgroundColor: themeColors.background }]}>
         <Pressable
           onPress={onBack}
           hitSlop={12}
-          style={styles.iconBtn}
+          style={[styles.iconBtn, isDark && { backgroundColor: themeColors.surfaceSubtle }]}
           accessibilityRole="button"
           accessibilityLabel="Quay lại"
         >
-          <ArrowLeft size={23} color="#065F46" strokeWidth={2.4} />
+          <ArrowLeft size={23} color={isDark ? themeColors.accentGreen : '#065F46'} strokeWidth={2.4} />
         </Pressable>
-        <Text style={styles.topHeaderTitleGreen}>Quét hóa đơn (OCR)</Text>
+        <Text style={[styles.topHeaderTitleGreen, isDark && { color: themeColors.textPrimary }]}>Quét hóa đơn (OCR)</Text>
         <View style={{ width: 36 }} />
       </View>
 
@@ -1220,29 +1277,29 @@ export function ScanInvoiceScreen({
         showsVerticalScrollIndicator={false}
       >
         {/* 1. Hình minh họa Hóa đơn + Tia Laser + Lá cây + Icon Camera */}
-        <OcrHeroIllustration />
+        <OcrHeroIllustration isDark={isDark} />
 
         {/* 2. Tiêu đề & Mô tả FinAI */}
-        <Text style={styles.heroMainTitle}>Quét hóa đơn tự động</Text>
-        <Text style={styles.heroSubtitle}>
+        <Text style={[styles.heroMainTitle, isDark && { color: themeColors.textPrimary }]}>Quét hóa đơn tự động</Text>
+        <Text style={[styles.heroSubtitle, isDark && { color: themeColors.textSecondary }]}>
           Trích xuất thông tin, tạo giao dịch{'\n'}nhanh chóng và chính xác với FinAI
         </Text>
 
         {/* 3. Ba huy hiệu tính năng: ⚡ Nhanh chóng | 🎯 Chính xác | 🤖 Hỗ trợ AI */}
         <View style={styles.featureBadgesRow}>
-          <View style={styles.featureBadgePill}>
-            <Zap size={14} color="#16A34A" strokeWidth={2.4} />
-            <Text style={styles.featureBadgeText}>Nhanh chóng</Text>
+          <View style={[styles.featureBadgePill, isDark && { backgroundColor: themeColors.surface, borderColor: themeColors.cardBorder }]}>
+            <Zap size={14} color={isDark ? themeColors.accentGreen : '#16A34A'} strokeWidth={2.4} />
+            <Text style={[styles.featureBadgeText, isDark && { color: themeColors.textPrimary }]}>Nhanh chóng</Text>
           </View>
 
-          <View style={styles.featureBadgePill}>
-            <Target size={14} color="#065F46" strokeWidth={2.3} />
-            <Text style={styles.featureBadgeText}>Chính xác</Text>
+          <View style={[styles.featureBadgePill, isDark && { backgroundColor: themeColors.surface, borderColor: themeColors.cardBorder }]}>
+            <Target size={14} color={isDark ? themeColors.accentGreen : '#065F46'} strokeWidth={2.3} />
+            <Text style={[styles.featureBadgeText, isDark && { color: themeColors.textPrimary }]}>Chính xác</Text>
           </View>
 
-          <View style={styles.featureBadgePill}>
-            <Bot size={15} color="#065F46" strokeWidth={2.2} />
-            <Text style={styles.featureBadgeText}>Hỗ trợ AI</Text>
+          <View style={[styles.featureBadgePill, isDark && { backgroundColor: themeColors.surface, borderColor: themeColors.cardBorder }]}>
+            <Bot size={15} color={isDark ? themeColors.accentGreen : '#065F46'} strokeWidth={2.2} />
+            <Text style={[styles.featureBadgeText, isDark && { color: themeColors.textPrimary }]}>Hỗ trợ AI</Text>
           </View>
         </View>
 
@@ -1260,16 +1317,20 @@ export function ScanInvoiceScreen({
         <Pressable
           onPress={handlePickFromLibrary}
           disabled={scanning}
-          style={({ pressed }) => [styles.secondaryOutlinePillBtn, pressed && styles.pressed]}
+          style={({ pressed }) => [
+            styles.secondaryOutlinePillBtn,
+            isDark && { backgroundColor: themeColors.surface, borderColor: themeColors.accentGreen },
+            pressed && styles.pressed,
+          ]}
           accessibilityRole="button"
           accessibilityLabel="Chọn ảnh từ thư viện"
         >
           {scanning ? (
-            <ActivityIndicator color="#065F46" />
+            <ActivityIndicator color={isDark ? themeColors.accentGreen : '#065F46'} />
           ) : (
             <>
-              <LucideImage size={19} color="#065F46" strokeWidth={2.2} />
-              <Text style={styles.secondaryOutlinePillText}>Chọn ảnh từ thư viện</Text>
+              <LucideImage size={19} color={isDark ? themeColors.accentGreen : '#065F46'} strokeWidth={2.2} />
+              <Text style={[styles.secondaryOutlinePillText, isDark && { color: themeColors.accentGreen }]}>Chọn ảnh từ thư viện</Text>
             </>
           )}
         </Pressable>
@@ -1277,8 +1338,8 @@ export function ScanInvoiceScreen({
         {/* 5. Danh sách Hóa đơn gần đây (chỉ hiển thị hóa đơn đã tạo giao dịch & trừ tiền) */}
         <View style={styles.recentSectionHeader}>
           <View style={styles.recentHeaderLeft}>
-            <Clock size={18} color="#065F46" strokeWidth={2.3} />
-            <Text style={styles.recentHeaderTitle}>Hóa đơn gần đây</Text>
+            <Clock size={18} color={isDark ? themeColors.accentGreen : '#065F46'} strokeWidth={2.3} />
+            <Text style={[styles.recentHeaderTitle, isDark && { color: themeColors.textPrimary }]}>Hóa đơn gần đây</Text>
           </View>
 
           {recentReceipts.length > 3 && (
@@ -1287,21 +1348,21 @@ export function ScanInvoiceScreen({
               style={styles.viewAllBtn}
               hitSlop={8}
             >
-              <Text style={styles.viewAllText}>
+              <Text style={[styles.viewAllText, isDark && { color: themeColors.accentGreen }]}>
                 {showAllHistory ? 'Thu gọn' : 'Xem tất cả'}
               </Text>
-              <ChevronRight size={15} color="#15803D" strokeWidth={2.5} />
+              <ChevronRight size={15} color={isDark ? themeColors.accentGreen : '#15803D'} strokeWidth={2.5} />
             </Pressable>
           )}
         </View>
 
-        <View style={styles.recentListCard}>
+        <View style={[styles.recentListCard, isDark && { backgroundColor: themeColors.surface, borderColor: themeColors.cardBorder }]}>
           {displayedReceipts.length === 0 ? (
             <View style={{ paddingVertical: 28, paddingHorizontal: 16, alignItems: 'center' }}>
-              <Text style={{ fontSize: 13.5, fontWeight: '600', color: '#475569', textAlign: 'center' }}>
+              <Text style={[{ fontSize: 13.5, fontWeight: '600', color: '#475569', textAlign: 'center' }, isDark && { color: themeColors.textSecondary }]}>
                 Chưa có hóa đơn nào được tạo giao dịch
               </Text>
-              <Text style={{ fontSize: 12, color: '#94A3B8', textAlign: 'center', marginTop: 4 }}>
+              <Text style={[{ fontSize: 12, color: '#94A3B8', textAlign: 'center', marginTop: 4 }, isDark && { color: themeColors.textSecondary, opacity: 0.8 }]}>
                 Các hóa đơn sau khi bạn bấm "Tạo giao dịch" và trừ tiền sẽ hiển thị tại đây.
               </Text>
             </View>
@@ -1319,21 +1380,21 @@ export function ScanInvoiceScreen({
                   onPress={() => applyReceiptToResult(item)}
                   style={({ pressed }) => [
                     styles.recentItemRow,
-                    idx < displayedReceipts.length - 1 && styles.recentItemBorder,
-                    pressed && { backgroundColor: '#F8FAFC' },
+                    idx < displayedReceipts.length - 1 && [styles.recentItemBorder, isDark && { borderBottomColor: themeColors.cardBorder }],
+                    pressed && (isDark ? { backgroundColor: themeColors.surfaceSubtle } : { backgroundColor: '#F8FAFC' }),
                   ]}
                 >
                   {/* Ảnh thu nhỏ của hóa đơn */}
-                  <View style={styles.recentThumbBox}>
+                  <View style={[styles.recentThumbBox, isDark && { backgroundColor: themeColors.surfaceSubtle, borderColor: themeColors.cardBorder }]}>
                     {thumbUrl ? (
                       <Image source={{ uri: thumbUrl }} style={styles.recentThumbImg} />
                     ) : (
-                      <View style={styles.miniReceiptMock}>
-                        <Text style={styles.miniReceiptBrand} numberOfLines={1}>
+                      <View style={[styles.miniReceiptMock, isDark && { backgroundColor: themeColors.surfaceSubtle }]}>
+                        <Text style={[styles.miniReceiptBrand, isDark && { color: themeColors.textPrimary }]} numberOfLines={1}>
                           WinMart+
                         </Text>
-                        <View style={styles.miniReceiptLine} />
-                        <View style={[styles.miniReceiptLine, { width: '65%' }]} />
+                        <View style={[styles.miniReceiptLine, isDark && { backgroundColor: themeColors.cardBorder }]} />
+                        <View style={[styles.miniReceiptLine, { width: '65%' }, isDark && { backgroundColor: themeColors.cardBorder }]} />
                         <View style={[styles.miniReceiptLineGreen]} />
                       </View>
                     )}
@@ -1341,20 +1402,20 @@ export function ScanInvoiceScreen({
 
                   {/* Tên & Thời gian */}
                   <View style={styles.recentInfoMiddle}>
-                    <Text style={styles.recentItemTitle} numberOfLines={1}>
+                    <Text style={[styles.recentItemTitle, isDark && { color: themeColors.textPrimary }]} numberOfLines={1}>
                       {title}
                     </Text>
-                    <Text style={styles.recentItemTime}>
+                    <Text style={[styles.recentItemTime, isDark && { color: themeColors.textSecondary }]}>
                       {formatDateVi(item.transactionDate, item.transactionTime)}
                     </Text>
                   </View>
 
                   {/* Số tiền âm màu đỏ & Badge Đã xử lý */}
                   <View style={styles.recentInfoRight}>
-                    <Text style={styles.recentItemAmount}>-{formatVND(amountNum)}</Text>
-                    <View style={styles.processedBadge}>
-                      <Check size={11} color="#15803D" strokeWidth={3} />
-                      <Text style={styles.processedBadgeText}>Đã xử lý</Text>
+                    <Text style={[styles.recentItemAmount, isDark && { color: '#F87171' }]}>-{formatVND(amountNum)}</Text>
+                    <View style={[styles.processedBadge, isDark && { backgroundColor: '#064E3B' }]}>
+                      <Check size={11} color={isDark ? themeColors.accentGreen : '#15803D'} strokeWidth={3} />
+                      <Text style={[styles.processedBadgeText, isDark && { color: themeColors.accentGreen }]}>Đã xử lý</Text>
                     </View>
                   </View>
                 </Pressable>
@@ -1758,7 +1819,7 @@ const styles = StyleSheet.create({
     borderBottomRightRadius: 14,
   },
   scanningOverlay: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     backgroundColor: 'rgba(15, 23, 42, 0.65)',
     alignItems: 'center',
     justifyContent: 'center',

@@ -36,4 +36,10 @@ public class GroupMessageAttachment {
 
     @Column(name = "thumbnail_key")
     private String thumbnailKey;
+
+    @Column(name = "width")
+    private Integer width;
+
+    @Column(name = "height")
+    private Integer height;
 }

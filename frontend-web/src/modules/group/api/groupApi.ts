@@ -293,6 +293,8 @@ export interface MessageAttachmentItem {
   mimeType?: string;
   fileSize?: number;
   thumbnailKey?: string;
+  width?: number;
+  height?: number;
 }
 
 export interface GroupMessageReactionItem {

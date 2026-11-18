@@ -4,6 +4,7 @@ import { FinanceIcon } from '../../../core/components/FinanceIcon';
 import { userProfileApi } from '../../../profile/api/userProfileApi';
 import { ChildWalletResponse } from '../../api/groupApi';
 import { resolveKidAvatarSource } from './kidAvatarPresets';
+import { useAppTheme } from '../../../../context/ThemeContext';
 
 export interface KidWalletTabProps {
   childWallets: ChildWalletResponse[];
@@ -40,8 +41,9 @@ export const KidWalletTab: React.FC<KidWalletTabProps> = ({
   onWalletItemPress,
   onGoalPress,
 }) => {
+  const { isDark, colors: themeColors } = useAppTheme();
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, isDark && { backgroundColor: themeColors.background }]}>
       {/* 1. HERO BANNER MÀU XANH: "Quản lý tài chính cho con" (Đồng bộ kiểu dáng chuẩn như banner Quỹ nhóm ở trang Tổng quan, icon đặt phía trước) */}
       <ImageBackground
         source={KID_BANNER_BG}
@@ -64,27 +66,50 @@ export const KidWalletTab: React.FC<KidWalletTabProps> = ({
       </ImageBackground>
 
       {/* 2. CARD: DANH SÁCH VÍ TRẺ EM */}
-      <View style={styles.cardContainer}>
+      <View
+        style={[
+          styles.cardContainer,
+          isDark && {
+            backgroundColor: themeColors.surface,
+            borderColor: themeColors.cardBorder,
+          },
+        ]}
+      >
         <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>
+          <Text style={[styles.sectionTitle, isDark && { color: themeColors.textPrimary }]}>
             Danh sách ví trẻ em ({childWallets.length})
           </Text>
           <Pressable
             onPress={onAddWalletPress}
-            style={({ pressed }) => [styles.addWalletBtn, pressed && { opacity: 0.8 }]}
+            style={({ pressed }) => [
+              styles.addWalletBtn,
+              isDark && {
+                backgroundColor: 'rgba(52, 211, 153, 0.15)',
+                borderColor: 'rgba(52, 211, 153, 0.3)',
+              },
+              pressed && { opacity: 0.8 },
+            ]}
           >
-            <FinanceIcon name="plus" size={14} color="#059669" />
-            <Text style={styles.addWalletBtnText}>Thêm ví</Text>
+            <FinanceIcon name="plus" size={14} color={isDark ? themeColors.accentGreen : '#059669'} />
+            <Text style={[styles.addWalletBtnText, isDark && { color: themeColors.accentGreen }]}>Thêm ví</Text>
           </Pressable>
         </View>
 
         {/* Danh sách các ví con */}
         <View style={styles.walletList}>
           {childWallets.length === 0 ? (
-            <View style={styles.emptyBox}>
+            <View
+              style={[
+                styles.emptyBox,
+                isDark && {
+                  backgroundColor: themeColors.surfaceSubtle,
+                  borderColor: themeColors.cardBorder,
+                },
+              ]}
+            >
               <Text style={{ fontSize: 30, marginBottom: 6 }}>👛</Text>
-              <Text style={styles.emptyTitle}>Chưa có ví trẻ em nào</Text>
-              <Text style={styles.emptySub}>
+              <Text style={[styles.emptyTitle, isDark && { color: themeColors.textPrimary }]}>Chưa có ví trẻ em nào</Text>
+              <Text style={[styles.emptySub, isDark && { color: themeColors.textSecondary }]}>
                 Bấm "+ Thêm ví" ở góc trên để tạo tài khoản ví cho bé yêu của bạn.
               </Text>
             </View>
@@ -100,7 +125,10 @@ export const KidWalletTab: React.FC<KidWalletTabProps> = ({
                   onPress={() => onWalletItemPress(wallet)}
                   style={({ pressed }) => [
                     styles.walletRow,
-                    index < childWallets.length - 1 && styles.walletRowBorder,
+                    index < childWallets.length - 1 && [
+                      styles.walletRowBorder,
+                      isDark && { borderBottomColor: themeColors.divider },
+                    ],
                     pressed && { opacity: 0.75 },
                   ]}
                 >
@@ -118,18 +146,40 @@ export const KidWalletTab: React.FC<KidWalletTabProps> = ({
 
                   {/* Thông tin bé */}
                   <View style={styles.infoCol}>
-                    <Text style={styles.childName} numberOfLines={1}>
+                    <Text
+                      style={[
+                        styles.childName,
+                        isDark && { color: themeColors.textPrimary },
+                      ]}
+                      numberOfLines={1}
+                    >
                       {wallet.childName}
                     </Text>
-                    <Text style={styles.childGrade}>
+                    <Text
+                      style={[
+                        styles.childGrade,
+                        isDark && { color: themeColors.textSecondary },
+                      ]}
+                    >
                       {formatChildAge(wallet)}
                     </Text>
                   </View>
 
                   {/* Số dư ví + Mũi tên */}
                   <View style={styles.balanceCol}>
-                    <Text style={styles.balanceText}>{formatVND(wallet.balance)} đ</Text>
-                    <FinanceIcon name="chevron-right" size={16} color="#94A3B8" />
+                    <Text
+                      style={[
+                        styles.balanceText,
+                        isDark && { color: themeColors.accentGreen },
+                      ]}
+                    >
+                      {formatVND(wallet.balance)} đ
+                    </Text>
+                    <FinanceIcon
+                      name="chevron-right"
+                      size={16}
+                      color={isDark ? themeColors.textMuted : '#94A3B8'}
+                    />
                   </View>
                 </Pressable>
               );
@@ -141,25 +191,42 @@ export const KidWalletTab: React.FC<KidWalletTabProps> = ({
       {/* 3. CARD: THIẾT LẬP MỤC TIÊU CÙNG CON */}
       <Pressable
         onPress={onGoalPress}
-        style={({ pressed }) => [styles.goalCard, pressed && { opacity: 0.85 }]}
+        style={({ pressed }) => [
+          styles.goalCard,
+          isDark && {
+            backgroundColor: themeColors.surface,
+            borderColor: themeColors.cardBorder,
+          },
+          pressed && { opacity: 0.85 },
+        ]}
       >
-        <View style={styles.goalIconBox}>
+        <View
+          style={[
+            styles.goalIconBox,
+            isDark && {
+              backgroundColor: 'rgba(52, 211, 153, 0.15)',
+              borderColor: 'rgba(52, 211, 153, 0.3)',
+            },
+          ]}
+        >
           {/* Biểu tượng 3 cột tăng trưởng xanh lá chuẩn ảnh */}
           <View style={styles.barChartVector}>
-            <View style={[styles.barItem, { height: 9 }]} />
-            <View style={[styles.barItem, { height: 15 }]} />
-            <View style={[styles.barItem, { height: 22 }]} />
+            <View style={[styles.barItem, isDark && { backgroundColor: themeColors.accentGreen }, { height: 9 }]} />
+            <View style={[styles.barItem, isDark && { backgroundColor: themeColors.accentGreen }, { height: 15 }]} />
+            <View style={[styles.barItem, isDark && { backgroundColor: themeColors.accentGreen }, { height: 22 }]} />
           </View>
         </View>
 
         <View style={styles.goalInfoCol}>
-          <Text style={styles.goalTitle}>Thiết lập mục tiêu cùng con</Text>
-          <Text style={styles.goalSub}>
+          <Text style={[styles.goalTitle, isDark && { color: themeColors.textPrimary }]}>
+            Thiết lập mục tiêu cùng con
+          </Text>
+          <Text style={[styles.goalSub, isDark && { color: themeColors.textSecondary }]}>
             Ví dụ: Tiết kiệm mua sách, đồ chơi, học phí...
           </Text>
         </View>
 
-        <FinanceIcon name="chevron-right" size={16} color="#94A3B8" />
+        <FinanceIcon name="chevron-right" size={16} color={isDark ? themeColors.textMuted : '#94A3B8'} />
       </Pressable>
     </View>
   );

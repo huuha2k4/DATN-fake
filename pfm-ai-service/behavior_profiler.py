@@ -72,7 +72,7 @@ class BehaviorProfiler:
             # 1. Truy vấn toàn bộ giao dịch của người dùng
             txs = (
                 db.query(Transaction)
-                .filter(Transaction.user_id == user_id)
+                .filter(Transaction.user_id == user_id, Transaction.deleted_at.is_(None))
                 .order_by(Transaction.occurred_at.asc())
                 .all()
             )

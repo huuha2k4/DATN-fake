@@ -155,12 +155,15 @@ export interface GroupCommentResponse {
 }
 
 export interface MessageAttachmentItem {
+  id?: string;
   fileKey: string;
   fileName: string;
   mimeType: string;
   fileSize: number;
   thumbnailKey?: string;
   downloadUrl?: string;
+  width?: number;
+  height?: number;
 }
 
 export interface GroupMessageReaction {

@@ -35,8 +35,8 @@ public class RegisterRequest {
     )
     private String phone;
     
-    @Size(max = 3, message = "Mã tiền tệ không được vượt quá 3 ký tự")
-    private String preferredCurrency;
+    // Currency fixed to VND for Vietnam market
+    // preferredCurrency field removed - always VND
     
     @Size(max = 64, message = "Timezone không được vượt quá 64 ký tự")
     private String timezone;

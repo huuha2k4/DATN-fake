@@ -8,7 +8,6 @@ import {
   TextInput,
   RefreshControl,
   ActivityIndicator,
-  Alert,
   Modal,
   Image,
 } from 'react-native';
@@ -17,6 +16,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { authStorage } from '../../auth/api/authApi';
 import { groupApi } from '../../group/api/groupApi';
 import { FinanceIcon } from '../../core/components/FinanceIcon';
+import { useAppTheme } from '../../../context/ThemeContext';
+import { AppAlert as Alert } from '../../../context/DialogContext';
 
 type Props = {
   onBack: () => void;
@@ -25,6 +26,7 @@ type Props = {
 const formatVND = (val: number) => `${Number(val || 0).toLocaleString('vi-VN')} ₫`;
 
 export function ChildMoneyRequestsScreen({ onBack }: Props) {
+  const { isDark, colors: themeColors } = useAppTheme();
   const insets = useSafeAreaInsets();
   const user = authStorage.getUser();
   const groupId = user?.childWalletGroupId;
@@ -172,28 +174,60 @@ export function ChildMoneyRequestsScreen({ onBack }: Props) {
     .reduce((sum, r) => sum + (r.amount || 0), 0);
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, isDark && { backgroundColor: themeColors.background }]}>
       {/* Header */}
-      <View style={[styles.header, { paddingTop: Math.max(insets.top, 14), height: 54 + Math.max(insets.top, 14) }]}>
+      <View
+        style={[
+          styles.header,
+          { paddingTop: Math.max(insets.top, 14), height: 54 + Math.max(insets.top, 14) },
+          isDark && {
+            backgroundColor: themeColors.headerBackground,
+            borderBottomColor: themeColors.divider,
+          },
+        ]}
+      >
         <View style={styles.headerLeftCol}>
-          <Pressable onPress={onBack} hitSlop={12} style={styles.headerIconBtn}>
-            <FinanceIcon name="chevron-left" size={22} color="#047857" />
+          <Pressable
+            onPress={onBack}
+            hitSlop={12}
+            style={[
+              styles.headerIconBtn,
+              isDark && { backgroundColor: themeColors.surfaceSubtle },
+            ]}
+          >
+            <FinanceIcon name="chevron-left" size={22} color={isDark ? themeColors.textPrimary : '#047857'} />
           </Pressable>
-          <Text style={styles.headerTitle} numberOfLines={1}>Xin tiền bố mẹ</Text>
+          <Text style={[styles.headerTitle, isDark && { color: themeColors.textPrimary }]} numberOfLines={1}>
+            Xin tiền bố mẹ
+          </Text>
         </View>
 
-        {/* Nút lọc tháng nằm ở giữa chữ Xin tiền bố mẹ và nút Xin tiền */}
+        {/* Nút lọc tháng nằm ở giữa */}
         <Pressable
           onPress={() => setIsMonthPickerVisible(true)}
-          style={styles.monthFilterBtn}
+          style={[
+            styles.monthFilterBtn,
+            isDark && {
+              backgroundColor: 'rgba(52, 211, 153, 0.15)',
+              borderColor: 'rgba(52, 211, 153, 0.3)',
+            },
+          ]}
           hitSlop={8}
         >
-          <FinanceIcon name="calendar" size={14} color="#047857" />
-          <Text style={styles.monthFilterText}>{selectedMonthDisplay}</Text>
-          <FinanceIcon name="chevron-down" size={12} color="#047857" />
+          <FinanceIcon name="calendar" size={14} color={isDark ? themeColors.accentGreen : '#047857'} />
+          <Text style={[styles.monthFilterText, isDark && { color: themeColors.accentGreen }]}>
+            {selectedMonthDisplay}
+          </Text>
+          <FinanceIcon name="chevron-down" size={12} color={isDark ? themeColors.accentGreen : '#047857'} />
         </Pressable>
 
-        <Pressable onPress={() => setShowModal(true)} style={styles.headerAddBtn}>
+        <Pressable
+          onPress={() => setShowModal(true)}
+          style={[
+            styles.headerAddBtn,
+            isDark && { backgroundColor: themeColors.accentGreen },
+          ]}
+        >
           <Plus size={16} color="#FFF" />
           <Text style={styles.headerAddText}>Xin tiền</Text>
         </Pressable>
@@ -202,7 +236,16 @@ export function ChildMoneyRequestsScreen({ onBack }: Props) {
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={[styles.scrollContent, { paddingBottom: Math.max(insets.bottom, 20) + 20 }]}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); loadData(); }} />}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={() => {
+              setRefreshing(true);
+              loadData();
+            }}
+            tintColor={isDark ? themeColors.accentGreen : '#059669'}
+          />
+        }
       >
         {/* Banner Xin tiền bố mẹ */}
         <View style={styles.bannerWrapper}>
@@ -215,52 +258,110 @@ export function ChildMoneyRequestsScreen({ onBack }: Props) {
 
         {/* KPI Banner */}
         <View style={styles.kpiRow}>
-          <View style={styles.kpiCard}>
-            <View style={[styles.kpiIconWrapper, { backgroundColor: '#FFEDD5' }]}>
-              <Hourglass size={22} color="#EA580C" strokeWidth={2.3} />
+          <View
+            style={[
+              styles.kpiCard,
+              isDark && {
+                backgroundColor: themeColors.surface,
+                borderColor: themeColors.cardBorder,
+              },
+            ]}
+          >
+            <View
+              style={[
+                styles.kpiIconWrapper,
+                { backgroundColor: isDark ? 'rgba(234, 88, 12, 0.15)' : '#FFEDD5' },
+              ]}
+            >
+              <Hourglass size={22} color={isDark ? '#FB923C' : '#EA580C'} strokeWidth={2.3} />
             </View>
             <View style={styles.kpiTextCol}>
-              <Text style={styles.kpiLabel}>Chờ duyệt</Text>
-              <Text style={[styles.kpiValue, { color: '#EA580C' }]}>{pendingCount}</Text>
+              <Text style={[styles.kpiLabel, isDark && { color: themeColors.textSecondary }]}>Chờ duyệt</Text>
+              <Text style={[styles.kpiValue, { color: isDark ? '#FB923C' : '#EA580C' }]}>{pendingCount}</Text>
             </View>
           </View>
-          <View style={styles.kpiCard}>
-            <View style={[styles.kpiIconWrapper, { backgroundColor: '#DCFCE7' }]}>
-              <Wallet size={22} color="#16A34A" strokeWidth={2.3} />
+          <View
+            style={[
+              styles.kpiCard,
+              isDark && {
+                backgroundColor: themeColors.surface,
+                borderColor: themeColors.cardBorder,
+              },
+            ]}
+          >
+            <View
+              style={[
+                styles.kpiIconWrapper,
+                { backgroundColor: isDark ? 'rgba(52, 211, 153, 0.15)' : '#DCFCE7' },
+              ]}
+            >
+              <Wallet size={22} color={isDark ? themeColors.accentGreen : '#16A34A'} strokeWidth={2.3} />
             </View>
             <View style={styles.kpiTextCol}>
-              <Text style={styles.kpiLabel}>Đã được cấp</Text>
-              <Text style={[styles.kpiValue, { color: '#16A34A' }]}>+{formatVND(approvedTotal)}</Text>
+              <Text style={[styles.kpiLabel, isDark && { color: themeColors.textSecondary }]}>Đã được cấp</Text>
+              <Text style={[styles.kpiValue, { color: isDark ? themeColors.accentGreen : '#16A34A' }]}>
+                +{formatVND(approvedTotal)}
+              </Text>
             </View>
           </View>
         </View>
 
         {/* Tab Filter */}
-        <View style={styles.tabsRow}>
+        <View
+          style={[
+            styles.tabsRow,
+            isDark && {
+              backgroundColor: themeColors.surfaceSubtle,
+              borderWidth: 1,
+              borderColor: themeColors.cardBorder,
+            },
+          ]}
+        >
           {[
             { key: 'ALL', label: 'Tất cả' },
             { key: 'PENDING', label: 'Chờ duyệt' },
             { key: 'APPROVED', label: 'Đã duyệt' },
             { key: 'REJECTED', label: 'Từ chối' },
-          ].map((t) => (
-            <Pressable
-              key={t.key}
-              onPress={() => setActiveTab(t.key as any)}
-              style={[styles.tabBtn, activeTab === t.key && styles.tabBtnActive]}
-            >
-              <Text style={[styles.tabText, activeTab === t.key && styles.tabTextActive]}>{t.label}</Text>
-            </Pressable>
-          ))}
+          ].map((t) => {
+            const isActive = activeTab === t.key;
+            return (
+              <Pressable
+                key={t.key}
+                onPress={() => setActiveTab(t.key as any)}
+                style={[
+                  styles.tabBtn,
+                  isActive && [
+                    styles.tabBtnActive,
+                    isDark && { backgroundColor: themeColors.accentGreen },
+                  ],
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.tabText,
+                    isDark && { color: themeColors.textSecondary },
+                    isActive && [styles.tabTextActive, isDark && { color: '#0F172A' }],
+                  ]}
+                  numberOfLines={1}
+                  adjustsFontSizeToFit
+                >
+                  {t.label}
+                </Text>
+              </Pressable>
+            );
+          })}
         </View>
 
         {/* List */}
         {loading ? (
-          <ActivityIndicator size="small" color="#059669" style={{ marginTop: 40 }} />
+          <ActivityIndicator size="small" color={isDark ? themeColors.accentGreen : '#059669'} style={{ marginTop: 40 }} />
         ) : filtered.length === 0 ? (
           <View style={styles.emptyContainer}>
             <Text style={{ fontSize: 36, marginBottom: 8 }}>📩</Text>
-            <Text style={styles.emptyTitle}>Chưa có yêu cầu nào</Text>
-            <Text style={styles.emptySub}>Bấm "Xin tiền" ở góc trên để gửi yêu cầu xin tiền tiêu vặt tới bố mẹ nhé!</Text>
+            <Text style={[styles.emptyTitle, isDark && { color: themeColors.textPrimary }]}>Chưa có yêu cầu nào</Text>
+            <Text style={[styles.emptySub, isDark && { color: themeColors.textSecondary }]}>
+              Bấm "Xin tiền" ở góc trên để gửi yêu cầu xin tiền tiêu vặt tới bố mẹ nhé!
+            </Text>
           </View>
         ) : (
           filtered.map((item) => {
@@ -277,7 +378,14 @@ export function ChildMoneyRequestsScreen({ onBack }: Props) {
             return (
               <Pressable
                 key={item.id}
-                style={({ pressed }) => [styles.requestCard, pressed && { opacity: 0.9 }]}
+                style={({ pressed }) => [
+                  styles.requestCard,
+                  isDark && {
+                    backgroundColor: themeColors.surface,
+                    borderColor: themeColors.cardBorder,
+                  },
+                  pressed && { opacity: 0.9 },
+                ]}
                 onPress={() => setSelectedDetail(item)}
               >
                 <View style={styles.requestCardRow}>
@@ -286,41 +394,77 @@ export function ChildMoneyRequestsScreen({ onBack }: Props) {
 
                   {/* Thông tin mô tả bên giữa */}
                   <View style={styles.requestInfoCol}>
-                    <Text style={styles.requestDesc} numberOfLines={2}>
+                    <Text style={[styles.requestDesc, isDark && { color: themeColors.textPrimary }]} numberOfLines={2}>
                       {item.cleanDesc}
                     </Text>
-                    <Text style={styles.requestDate}>
+                    <Text style={[styles.requestDate, isDark && { color: themeColors.textSecondary }]}>
                       {item.createdAt ? new Date(item.createdAt).toLocaleDateString('vi-VN') : 'Gần đây'}
                     </Text>
                   </View>
 
                   {/* Cột phải: Số tiền ở trên, Trạng thái ở ngay dưới */}
                   <View style={styles.requestRightCol}>
-                    <Text style={styles.requestAmount}>+{formatVND(item.amount)}</Text>
+                    <Text style={[styles.requestAmount, isDark && { color: themeColors.accentGreen }]}>
+                      +{formatVND(item.amount)}
+                    </Text>
                     {isApproved && (
-                      <View style={[styles.statusPill, { backgroundColor: '#DCFCE7' }]}>
-                        <CheckCircle2 size={11} color="#15803D" />
-                        <Text style={[styles.statusPillText, { color: '#15803D' }]}>Đã duyệt</Text>
+                      <View
+                        style={[
+                          styles.statusPill,
+                          {
+                            backgroundColor: isDark ? 'rgba(52, 211, 153, 0.15)' : '#DCFCE7',
+                          },
+                        ]}
+                      >
+                        <CheckCircle2 size={11} color={isDark ? themeColors.accentGreen : '#15803D'} />
+                        <Text style={[styles.statusPillText, { color: isDark ? themeColors.accentGreen : '#15803D' }]}>
+                          Đã duyệt
+                        </Text>
                       </View>
                     )}
                     {isPending && (
-                      <View style={[styles.statusPill, { backgroundColor: '#FEF3C7' }]}>
-                        <Clock size={11} color="#B45309" />
-                        <Text style={[styles.statusPillText, { color: '#B45309' }]}>Chờ duyệt</Text>
+                      <View
+                        style={[
+                          styles.statusPill,
+                          {
+                            backgroundColor: isDark ? 'rgba(245, 158, 11, 0.15)' : '#FEF3C7',
+                          },
+                        ]}
+                      >
+                        <Clock size={11} color={isDark ? '#FBBF24' : '#B45309'} />
+                        <Text style={[styles.statusPillText, { color: isDark ? '#FBBF24' : '#B45309' }]}>
+                          Chờ duyệt
+                        </Text>
                       </View>
                     )}
                     {isRejected && (
-                      <View style={[styles.statusPill, { backgroundColor: '#FFE4E6' }]}>
-                        <XCircle size={11} color="#E11D48" />
-                        <Text style={[styles.statusPillText, { color: '#E11D48' }]}>Từ chối</Text>
+                      <View
+                        style={[
+                          styles.statusPill,
+                          {
+                            backgroundColor: isDark ? 'rgba(239, 68, 68, 0.15)' : '#FFE4E6',
+                          },
+                        ]}
+                      >
+                        <XCircle size={11} color={isDark ? '#F87171' : '#E11D48'} />
+                        <Text style={[styles.statusPillText, { color: isDark ? '#F87171' : '#E11D48' }]}>
+                          Từ chối
+                        </Text>
                       </View>
                     )}
                   </View>
                 </View>
 
                 {isRejected && item.rejectionReason ? (
-                  <View style={styles.rejectNotice}>
-                    <Text style={styles.rejectNoticeText}>❌ Lý do từ chối: {item.rejectionReason}</Text>
+                  <View
+                    style={[
+                      styles.rejectNotice,
+                      isDark && { backgroundColor: 'rgba(239, 68, 68, 0.15)' },
+                    ]}
+                  >
+                    <Text style={[styles.rejectNoticeText, isDark && { color: '#F87171' }]}>
+                      ❌ Lý do từ chối: {item.rejectionReason}
+                    </Text>
                   </View>
                 ) : null}
               </Pressable>
@@ -331,62 +475,103 @@ export function ChildMoneyRequestsScreen({ onBack }: Props) {
 
       {/* Modal Xin tiền */}
       <Modal visible={showModal} transparent animationType="slide">
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Xin tiền bố mẹ</Text>
-            <Text style={styles.modalSub}>Nhập số tiền và lý do để bố mẹ xét duyệt nhé</Text>
+        <View style={styles.sheetOverlay}>
+          <Pressable style={styles.modalBackdrop} onPress={() => setShowModal(false)} />
+          <View
+            style={[
+              styles.modalContent,
+              isDark && {
+                backgroundColor: themeColors.surface,
+                borderColor: themeColors.cardBorder,
+              },
+            ]}
+          >
+            <Text style={[styles.modalTitle, isDark && { color: themeColors.textPrimary }]}>Xin tiền bố mẹ</Text>
+            <Text style={[styles.modalSub, isDark && { color: themeColors.textSecondary }]}>
+              Nhập số tiền và lý do để bố mẹ xét duyệt nhé
+            </Text>
 
             <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>Số tiền muốn xin (₫)</Text>
+              <Text style={[styles.inputLabel, isDark && { color: themeColors.textSecondary }]}>Số tiền muốn xin (₫)</Text>
               <TextInput
-                style={styles.amountInput}
+                style={[
+                  styles.amountInput,
+                  isDark && {
+                    backgroundColor: themeColors.surfaceSubtle,
+                    borderColor: themeColors.cardBorder,
+                    color: themeColors.textPrimary,
+                  },
+                ]}
                 keyboardType="numeric"
                 value={amount}
                 onChangeText={setAmount}
                 placeholder="0"
-                placeholderTextColor="#94A3B8"
+                placeholderTextColor={isDark ? themeColors.textMuted : '#94A3B8'}
               />
             </View>
 
             {/* Quick choices */}
             <View style={{ marginBottom: 12 }}>
-              <Text style={{ fontSize: 11, fontWeight: '600', color: '#64748B', marginBottom: 6 }}>
+              <Text style={{ fontSize: 11, fontWeight: '600', color: isDark ? themeColors.textSecondary : '#64748B', marginBottom: 6 }}>
                 Gợi ý số tiền:
               </Text>
               <View style={styles.quickChoices}>
                 {['5000', '10000', '20000', '50000'].map((val) => (
                   <Pressable
                     key={val}
-                    style={styles.quickBtn}
+                    style={[
+                      styles.quickBtn,
+                      isDark && {
+                        backgroundColor: themeColors.surfaceSubtle,
+                        borderColor: themeColors.cardBorder,
+                      },
+                    ]}
                     onPress={() => setAmount(val)}
                   >
-                    <Text style={styles.quickBtnText}>{formatVND(Number(val))}</Text>
+                    <Text style={[styles.quickBtnText, isDark && { color: themeColors.textPrimary }]}>
+                      {formatVND(Number(val))}
+                    </Text>
                   </Pressable>
                 ))}
               </View>
             </View>
 
             <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>Mục đích sử dụng</Text>
+              <Text style={[styles.inputLabel, isDark && { color: themeColors.textSecondary }]}>Mục đích sử dụng</Text>
               <TextInput
-                style={styles.textInput}
+                style={[
+                  styles.textInput,
+                  isDark && {
+                    backgroundColor: themeColors.surfaceSubtle,
+                    borderColor: themeColors.cardBorder,
+                    color: themeColors.textPrimary,
+                  },
+                ]}
                 value={description}
                 onChangeText={setDescription}
                 placeholder="Ví dụ: Mua vở bài tập, ăn sáng..."
-                placeholderTextColor="#94A3B8"
+                placeholderTextColor={isDark ? themeColors.textMuted : '#94A3B8'}
               />
             </View>
 
             <View style={styles.modalButtons}>
               <Pressable
-                style={[styles.modalBtn, styles.cancelBtn]}
+                style={[
+                  styles.modalBtn,
+                  styles.cancelBtn,
+                  isDark && { backgroundColor: themeColors.surfaceSubtle },
+                ]}
                 onPress={() => setShowModal(false)}
                 disabled={submitting}
               >
-                <Text style={styles.cancelBtnText}>Hủy</Text>
+                <Text style={[styles.cancelBtnText, isDark && { color: themeColors.textSecondary }]}>Hủy</Text>
               </Pressable>
               <Pressable
-                style={[styles.modalBtn, styles.submitBtn]}
+                style={[
+                  styles.modalBtn,
+                  styles.submitBtn,
+                  isDark && { backgroundColor: themeColors.accentGreen },
+                ]}
                 onPress={handleCreateRequest}
                 disabled={submitting}
               >
@@ -402,10 +587,18 @@ export function ChildMoneyRequestsScreen({ onBack }: Props) {
       {/* Modal Chi tiết Yêu cầu xin tiền */}
       <Modal visible={Boolean(selectedDetail)} transparent animationType="fade" onRequestClose={() => setSelectedDetail(null)}>
         <View style={styles.modalOverlay}>
-          <Pressable style={StyleSheet.absoluteFillObject} onPress={() => setSelectedDetail(null)} />
-          <View style={styles.detailModalCard}>
+          <Pressable style={StyleSheet.absoluteFill} onPress={() => setSelectedDetail(null)} />
+          <View
+            style={[
+              styles.detailModalCard,
+              isDark && {
+                backgroundColor: themeColors.surface,
+                borderColor: themeColors.cardBorder,
+              },
+            ]}
+          >
             {/* Header */}
-            <View style={styles.detailHeader}>
+            <View style={[styles.detailHeader, isDark && { borderBottomColor: themeColors.divider }]}>
               <View style={styles.detailHeaderLeft}>
                 <Image
                   source={
@@ -419,19 +612,40 @@ export function ChildMoneyRequestsScreen({ onBack }: Props) {
                   resizeMode="contain"
                 />
                 <View style={{ flex: 1 }}>
-                  <Text style={styles.detailHeaderTitle}>Chi tiết yêu cầu</Text>
-                  <Text style={styles.detailHeaderSub}>Thông tin phê duyệt từ bố mẹ</Text>
+                  <Text style={[styles.detailHeaderTitle, isDark && { color: themeColors.textPrimary }]}>
+                    Chi tiết yêu cầu
+                  </Text>
+                  <Text style={[styles.detailHeaderSub, isDark && { color: themeColors.textSecondary }]}>
+                    Thông tin phê duyệt từ bố mẹ
+                  </Text>
                 </View>
               </View>
-              <Pressable onPress={() => setSelectedDetail(null)} hitSlop={10} style={styles.detailCloseBtn}>
-                <Text style={{ fontSize: 16, color: '#64748B', fontWeight: 'bold' }}>✕</Text>
+              <Pressable
+                onPress={() => setSelectedDetail(null)}
+                hitSlop={10}
+                style={[
+                  styles.detailCloseBtn,
+                  isDark && { backgroundColor: themeColors.surfaceSubtle },
+                ]}
+              >
+                <Text style={{ fontSize: 16, color: isDark ? themeColors.textSecondary : '#64748B', fontWeight: 'bold' }}>✕</Text>
               </Pressable>
             </View>
 
             {/* Thẻ tiền nổi bật */}
-            <View style={styles.detailAmountBox}>
-              <Text style={styles.detailAmountLabel}>SỐ TIỀN XIN CẤP</Text>
-              <Text style={styles.detailAmountValue}>+{formatVND(selectedDetail?.amount || 0)}</Text>
+            <View
+              style={[
+                styles.detailAmountBox,
+                isDark && {
+                  backgroundColor: themeColors.surfaceSubtle,
+                  borderColor: themeColors.cardBorder,
+                },
+              ]}
+            >
+              <Text style={[styles.detailAmountLabel, isDark && { color: themeColors.accentGreen }]}>SỐ TIỀN XIN CẤP</Text>
+              <Text style={[styles.detailAmountValue, isDark && { color: themeColors.accentGreen }]}>
+                +{formatVND(selectedDetail?.amount || 0)}
+              </Text>
               <View style={{ marginTop: 8, flexDirection: 'row', justifyContent: 'center' }}>
                 <View
                   style={[
@@ -439,10 +653,10 @@ export function ChildMoneyRequestsScreen({ onBack }: Props) {
                     {
                       backgroundColor:
                         selectedDetail?.status === 'APPROVED'
-                          ? '#DCFCE7'
+                          ? (isDark ? 'rgba(52, 211, 153, 0.15)' : '#DCFCE7')
                           : selectedDetail?.status === 'REJECTED'
-                            ? '#FFE4E6'
-                            : '#FEF3C7',
+                            ? (isDark ? 'rgba(239, 68, 68, 0.15)' : '#FFE4E6')
+                            : (isDark ? 'rgba(245, 158, 11, 0.15)' : '#FEF3C7'),
                       paddingHorizontal: 12,
                       paddingVertical: 5,
                     },
@@ -454,10 +668,10 @@ export function ChildMoneyRequestsScreen({ onBack }: Props) {
                       {
                         color:
                           selectedDetail?.status === 'APPROVED'
-                            ? '#15803D'
+                            ? (isDark ? themeColors.accentGreen : '#15803D')
                             : selectedDetail?.status === 'REJECTED'
-                              ? '#E11D48'
-                              : '#B45309',
+                              ? (isDark ? '#F87171' : '#E11D48')
+                              : (isDark ? '#FBBF24' : '#B45309'),
                       },
                     ]}
                   >
@@ -472,15 +686,25 @@ export function ChildMoneyRequestsScreen({ onBack }: Props) {
             </View>
 
             {/* Chi tiết nội dung */}
-            <View style={styles.detailContentGroup}>
+            <View
+              style={[
+                styles.detailContentGroup,
+                isDark && {
+                  backgroundColor: themeColors.surfaceSubtle,
+                  borderColor: themeColors.cardBorder,
+                },
+              ]}
+            >
               <View style={styles.detailItemRow}>
-                <Text style={styles.detailItemLabel}>Mục đích sử dụng:</Text>
-                <Text style={styles.detailItemValBold}>{selectedDetail?.cleanDesc}</Text>
+                <Text style={[styles.detailItemLabel, isDark && { color: themeColors.textSecondary }]}>Mục đích sử dụng:</Text>
+                <Text style={[styles.detailItemValBold, isDark && { color: themeColors.textPrimary }]}>
+                  {selectedDetail?.cleanDesc}
+                </Text>
               </View>
 
               <View style={styles.detailItemRow}>
-                <Text style={styles.detailItemLabel}>Thời gian gửi:</Text>
-                <Text style={styles.detailItemVal}>
+                <Text style={[styles.detailItemLabel, isDark && { color: themeColors.textSecondary }]}>Thời gian gửi:</Text>
+                <Text style={[styles.detailItemVal, isDark && { color: themeColors.textPrimary }]}>
                   {selectedDetail?.createdAt
                     ? new Date(selectedDetail.createdAt).toLocaleString('vi-VN')
                     : 'Gần đây'}
@@ -488,15 +712,20 @@ export function ChildMoneyRequestsScreen({ onBack }: Props) {
               </View>
 
               <View style={styles.detailItemRow}>
-                <Text style={styles.detailItemLabel}>Phản hồi từ:</Text>
-                <Text style={styles.detailItemVal}>
+                <Text style={[styles.detailItemLabel, isDark && { color: themeColors.textSecondary }]}>Phản hồi từ:</Text>
+                <Text style={[styles.detailItemVal, isDark && { color: themeColors.textPrimary }]}>
                   {selectedDetail?.respondedByUserName || (selectedDetail?.status === 'PENDING' ? 'Đang đợi bố mẹ' : 'Bố mẹ')}
                 </Text>
               </View>
 
               {selectedDetail?.status === 'REJECTED' && selectedDetail?.rejectionReason ? (
-                <View style={styles.detailRejectNotice}>
-                  <Text style={styles.detailRejectNoticeText}>
+                <View
+                  style={[
+                    styles.detailRejectNotice,
+                    isDark && { backgroundColor: 'rgba(239, 68, 68, 0.15)' },
+                  ]}
+                >
+                  <Text style={[styles.detailRejectNoticeText, isDark && { color: '#F87171' }]}>
                     ❌ Lý do từ chối: {selectedDetail.rejectionReason}
                   </Text>
                 </View>
@@ -504,7 +733,13 @@ export function ChildMoneyRequestsScreen({ onBack }: Props) {
             </View>
 
             {/* Nút đóng */}
-            <Pressable style={styles.detailConfirmBtn} onPress={() => setSelectedDetail(null)}>
+            <Pressable
+              style={[
+                styles.detailConfirmBtn,
+                isDark && { backgroundColor: themeColors.accentGreen },
+              ]}
+              onPress={() => setSelectedDetail(null)}
+            >
               <Text style={styles.detailConfirmBtnText}>Đóng</Text>
             </Pressable>
           </View>
@@ -520,11 +755,11 @@ export function ChildMoneyRequestsScreen({ onBack }: Props) {
       >
         <View style={styles.sheetOverlay}>
           <Pressable style={styles.modalBackdrop} onPress={() => setIsMonthPickerVisible(false)} />
-          <View style={styles.modalSheet}>
-            <View style={styles.modalTopBar}>
-              <Text style={styles.modalTopTitle}>Chọn kỳ / Tháng</Text>
+          <View style={[styles.modalSheet, isDark && { backgroundColor: themeColors.surface }]}>
+            <View style={[styles.modalTopBar, isDark && { borderBottomColor: themeColors.divider }]}>
+              <Text style={[styles.modalTopTitle, isDark && { color: themeColors.textPrimary }]}>Chọn kỳ / Tháng</Text>
               <Pressable onPress={() => setIsMonthPickerVisible(false)} hitSlop={10}>
-                <Text style={styles.modalCloseText}>Đóng</Text>
+                <Text style={[styles.modalCloseText, isDark && { color: themeColors.accentGreen }]}>Đóng</Text>
               </Pressable>
             </View>
             <ScrollView style={{ paddingHorizontal: 16 }} showsVerticalScrollIndicator={false}>
@@ -537,12 +772,30 @@ export function ChildMoneyRequestsScreen({ onBack }: Props) {
                       setSelectedMonth(m.key);
                       setIsMonthPickerVisible(false);
                     }}
-                    style={[styles.monthOptionRow, isSelected && styles.monthOptionRowActive]}
+                    style={[
+                      styles.monthOptionRow,
+                      isDark && { borderBottomColor: themeColors.divider },
+                      isSelected && [
+                        styles.monthOptionRowActive,
+                        isDark && { backgroundColor: themeColors.surfaceSubtle },
+                      ],
+                    ]}
                   >
-                    <Text style={[styles.monthOptionLabel, isSelected && styles.monthOptionLabelActive]}>
+                    <Text
+                      style={[
+                        styles.monthOptionLabel,
+                        isDark && { color: themeColors.textPrimary },
+                        isSelected && [
+                          styles.monthOptionLabelActive,
+                          isDark && { color: themeColors.accentGreen },
+                        ],
+                      ]}
+                    >
                       {m.label}
                     </Text>
-                    {isSelected && <Text style={styles.checkmarkIcon}>✓</Text>}
+                    {isSelected && (
+                      <Text style={[styles.checkmarkIcon, isDark && { color: themeColors.accentGreen }]}>✓</Text>
+                    )}
                   </Pressable>
                 );
               })}
@@ -656,17 +909,42 @@ const styles = StyleSheet.create({
   },
   kpiLabel: { fontSize: 12, fontWeight: '600', color: '#64748B', marginBottom: 2 },
   kpiValue: { fontSize: 16, fontWeight: '800' },
-  tabsRow: { flexDirection: 'row', gap: 8, marginBottom: 16 },
+  tabsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#F1F5F9',
+    borderRadius: 14,
+    padding: 3,
+    marginBottom: 16,
+    gap: 2,
+  },
   tabBtn: {
     flex: 1,
-    alignItems: 'center',
     paddingVertical: 7,
-    borderRadius: 20,
-    backgroundColor: '#E2E8F0',
+    paddingHorizontal: 2,
+    borderRadius: 11,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  tabBtnActive: { backgroundColor: '#059669' },
-  tabText: { fontSize: 12, fontWeight: '600', color: '#475569' },
-  tabTextActive: { color: '#FFF' },
+  tabBtnActive: {
+    backgroundColor: '#059669',
+    shadowColor: '#059669',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  tabText: {
+    fontSize: 11.5,
+    fontWeight: '700',
+    color: '#64748B',
+    textAlign: 'center',
+  },
+  tabTextActive: {
+    color: '#FFFFFF',
+    fontWeight: '800',
+  },
   emptyContainer: { alignItems: 'center', justifyContent: 'center', paddingVertical: 50 },
   emptyTitle: { fontSize: 15, fontWeight: '700', color: '#1E293B', marginBottom: 4 },
   emptySub: { fontSize: 13, color: '#64748B', textAlign: 'center', paddingHorizontal: 30 },
@@ -721,7 +999,12 @@ const styles = StyleSheet.create({
     marginTop: 10,
   },
   rejectNoticeText: { fontSize: 12, color: '#BE123C', fontWeight: '500' },
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   modalContent: {
     backgroundColor: '#FFF',
     borderTopLeftRadius: 24,
@@ -772,74 +1055,78 @@ const styles = StyleSheet.create({
   detailModalCard: {
     backgroundColor: '#FFF',
     borderRadius: 24,
-    marginHorizontal: 20,
-    marginBottom: 'auto',
-    marginTop: 'auto',
-    padding: 20,
+    width: '92%',
+    maxWidth: 420,
+    alignSelf: 'center',
+    padding: 22,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
     shadowColor: '#000',
-    shadowOpacity: 0.15,
-    shadowRadius: 20,
-    shadowOffset: { width: 0, height: 6 },
-    elevation: 8,
+    shadowOpacity: 0.25,
+    shadowRadius: 24,
+    shadowOffset: { width: 0, height: 8 },
+    elevation: 10,
   },
   detailHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingBottom: 14,
+    paddingBottom: 16,
     borderBottomWidth: 1,
     borderBottomColor: '#F1F5F9',
   },
   detailHeaderLeft: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
+    gap: 12,
     flex: 1,
+    paddingRight: 6,
   },
   detailHeaderTitle: {
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: '800',
     color: '#0F172A',
   },
   detailHeaderSub: {
-    fontSize: 11,
+    fontSize: 12,
     color: '#64748B',
     marginTop: 2,
   },
   detailCloseBtn: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     backgroundColor: '#F1F5F9',
     alignItems: 'center',
     justifyContent: 'center',
   },
   detailAmountBox: {
-    marginVertical: 14,
-    padding: 16,
-    borderRadius: 18,
+    marginVertical: 16,
+    paddingVertical: 18,
+    paddingHorizontal: 16,
+    borderRadius: 20,
     backgroundColor: '#F0FDF4',
     borderWidth: 1,
     borderColor: '#DCFCE7',
     alignItems: 'center',
   },
   detailAmountLabel: {
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: '800',
     color: '#15803D',
-    letterSpacing: 0.5,
+    letterSpacing: 0.6,
   },
   detailAmountValue: {
-    fontSize: 26,
+    fontSize: 30,
     fontWeight: '900',
     color: '#15803D',
     marginTop: 4,
   },
   detailContentGroup: {
     backgroundColor: '#F8FAFC',
-    borderRadius: 16,
-    padding: 14,
-    gap: 10,
+    borderRadius: 18,
+    padding: 16,
+    gap: 12,
     borderWidth: 1,
     borderColor: '#E2E8F0',
   },
@@ -849,17 +1136,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   detailItemLabel: {
-    fontSize: 12,
+    fontSize: 13.5,
     color: '#64748B',
     fontWeight: '500',
   },
   detailItemVal: {
-    fontSize: 12,
+    fontSize: 13.5,
     color: '#0F172A',
     fontWeight: '700',
   },
   detailItemValBold: {
-    fontSize: 13,
+    fontSize: 14.5,
     color: '#0F172A',
     fontWeight: '800',
     maxWidth: '65%',
@@ -867,26 +1154,26 @@ const styles = StyleSheet.create({
   },
   detailRejectNotice: {
     backgroundColor: '#FFE4E6',
-    padding: 10,
-    borderRadius: 10,
+    padding: 12,
+    borderRadius: 12,
     marginTop: 4,
   },
   detailRejectNoticeText: {
-    fontSize: 12,
+    fontSize: 13,
     color: '#E11D48',
     fontWeight: '700',
   },
   detailConfirmBtn: {
-    marginTop: 16,
-    height: 44,
-    borderRadius: 14,
+    marginTop: 18,
+    height: 48,
+    borderRadius: 16,
     backgroundColor: '#059669',
     alignItems: 'center',
     justifyContent: 'center',
   },
   detailConfirmBtnText: {
     color: '#FFF',
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: '700',
   },
   sheetOverlay: {
@@ -948,6 +1235,6 @@ const styles = StyleSheet.create({
     color: '#00A86B',
   },
   modalBackdrop: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
   },
 });

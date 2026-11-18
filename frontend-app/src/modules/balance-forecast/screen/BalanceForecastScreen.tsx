@@ -23,6 +23,8 @@ import {
   CategoryForecastResponse,
 } from '../api';
 import { FinanceIcon, resolveCategoryIconName } from '../../core/components/FinanceIcon';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useAppTheme } from '../../../context/ThemeContext';
 
 // Banner background & robot mascot 3D HD do người dùng cung cấp
 const bannerBgImage = require('../../../assets/icons/ai_forecast_bg_wave_hd.jpg');
@@ -39,6 +41,8 @@ function formatVND(amount: number): string {
 }
 
 export function BalanceForecastScreen({ onBack }: Props) {
+  const insets = useSafeAreaInsets();
+  const { isDark, colors: themeColors } = useAppTheme();
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [balanceForecast, setBalanceForecast] = useState<BalanceForecastResponse | null>(null);
@@ -127,24 +131,33 @@ export function BalanceForecastScreen({ onBack }: Props) {
     : '';
 
   return (
-    <View style={styles.screen}>
+    <View style={[styles.screen, isDark && { backgroundColor: themeColors.background }]}>
       {/* ── HEADER: Nút quay lại + Tiêu đề sát nhau (trái), Nút Cập nhật dự báo (phải) ── */}
-      <View style={styles.header}>
+      <View
+        style={[
+          styles.header,
+          {
+            paddingTop: Math.max(insets.top + 6, 16),
+            height: 52 + Math.max(insets.top + 6, 16),
+          },
+          isDark && { backgroundColor: themeColors.background, borderBottomColor: themeColors.cardBorder },
+        ]}
+      >
         <View style={styles.headerLeftGroup}>
           <Pressable
             onPress={onBack}
-            style={styles.backButton}
+            style={[styles.backButton, isDark && { backgroundColor: themeColors.surfaceSubtle }]}
             accessibilityRole="button"
             accessibilityLabel="Quay lại"
           >
-            <FinanceIcon name="chevron-left" size={22} color="#087557" />
+            <FinanceIcon name="chevron-left" size={22} color={isDark ? themeColors.accentGreen : "#087557"} />
           </Pressable>
-          <Text style={styles.headerTitle}>Dự báo số dư</Text>
+          <Text style={[styles.headerTitle, isDark && { color: themeColors.textPrimary }]}>Dự báo số dư</Text>
         </View>
 
         <Pressable
           onPress={() => loadData(true)}
-          style={styles.headerRefreshBtn}
+          style={[styles.headerRefreshBtn, isDark && { backgroundColor: themeColors.accentGreen }]}
           accessibilityRole="button"
         >
           <FinanceIcon name="refresh" size={13} color="#FFFFFF" />
@@ -200,49 +213,49 @@ export function BalanceForecastScreen({ onBack }: Props) {
         {/* ── 2. BỘ ĐÔI THẺ CHỈ SỐ: SỐ DƯ HIỆN TẠI & BIẾN ĐỘNG DỰ KIẾN ── */}
         <View style={styles.duoCardsRow}>
           {/* Thẻ trái: Số dư hiện tại (Viền xanh lá) */}
-          <View style={[styles.duoCard, styles.duoCardLeft]}>
+          <View style={[styles.duoCard, styles.duoCardLeft, isDark && { backgroundColor: themeColors.surface, borderColor: themeColors.cardBorder }]}>
             <View style={styles.duoCardTopRow}>
-              <View style={[styles.duoIconBox, { backgroundColor: '#ECFDF5' }]}>
-                <FinanceIcon name="wallet" size={17} color="#087557" />
+              <View style={[styles.duoIconBox, { backgroundColor: isDark ? 'rgba(52, 211, 153, 0.16)' : '#ECFDF5' }]}>
+                <FinanceIcon name="wallet" size={17} color={isDark ? themeColors.accentGreen : "#087557"} />
               </View>
-              <Text style={styles.duoLabel}>Số dư hiện tại</Text>
+              <Text style={[styles.duoLabel, isDark && { color: themeColors.textSecondary }]}>Số dư hiện tại</Text>
             </View>
-            <Text style={styles.duoValue} numberOfLines={1}>
+            <Text style={[styles.duoValue, isDark && { color: themeColors.textPrimary }]} numberOfLines={1}>
               {formatVND(currentBal)}
             </Text>
-            <Text style={styles.duoSub}>Tổng hợp từ tất cả ví cá nhân</Text>
+            <Text style={[styles.duoSub, isDark && { color: themeColors.textMuted }]}>Tổng hợp từ tất cả ví cá nhân</Text>
           </View>
 
           {/* Thẻ phải: Biến động dự kiến (Viền đỏ) */}
-          <View style={[styles.duoCard, styles.duoCardRight]}>
+          <View style={[styles.duoCard, styles.duoCardRight, isDark && { backgroundColor: themeColors.surface, borderColor: themeColors.cardBorder }]}>
             <View style={styles.duoCardTopRow}>
-              <View style={[styles.duoIconBox, { backgroundColor: '#FEF2F2' }]}>
+              <View style={[styles.duoIconBox, { backgroundColor: isDark ? 'rgba(239, 68, 68, 0.16)' : '#FEF2F2' }]}>
                 <FinanceIcon name="trend" size={17} color="#DC2626" />
               </View>
-              <Text style={styles.duoLabel}>Biến động dự kiến</Text>
+              <Text style={[styles.duoLabel, isDark && { color: themeColors.textSecondary }]}>Biến động dự kiến</Text>
             </View>
             <Text
               style={[
                 styles.duoValue,
-                { color: netDiff >= 0 ? '#087557' : '#EF4444' },
+                { color: netDiff >= 0 ? (isDark ? themeColors.accentGreen : '#087557') : '#EF4444' },
               ]}
               numberOfLines={1}
             >
               {netDiff >= 0 ? `+${formatVND(netDiff)}` : `-${formatVND(Math.abs(netDiff))}`}
             </Text>
-            <Text style={styles.duoSub}>So với số dư hiện tại</Text>
+            <Text style={[styles.duoSub, isDark && { color: themeColors.textMuted }]}>So với số dư hiện tại</Text>
           </View>
         </View>
 
-        {/* ── 3. CARD ĐỒ THỊ DỰ PHÓNG SỐ DƯ VÍ ── */}
-        <View style={styles.chartCard}>
+        {/* ── 3. CARD ĐỒ THỊ BIẾN ĐỘNG SỐ DƯ VÍ ── */}
+        <View style={[styles.chartCard, isDark && { backgroundColor: themeColors.surface, borderColor: themeColors.cardBorder }]}>
           {/* Header Card: Tiêu đề biểu đồ trên cùng 1 hàng */}
           <View style={styles.chartHeaderRow}>
-            <Text style={styles.chartTitle}>Đồ thị dự phóng số dư ví (15 ngày tới)</Text>
+            <Text style={[styles.chartTitle, isDark && { color: themeColors.textPrimary }]}>Dự kiến số dư ví (15 ngày tới)</Text>
           </View>
 
           {/* Dòng chữ mô tả chi tiết đặt ở dưới trọn vẹn cả chiều ngang */}
-          <Text style={styles.chartSubtitleFull}>
+          <Text style={[styles.chartSubtitleFull, isDark && { color: themeColors.textSecondary }]}>
             {(() => {
               const baseSum = balanceForecast?.summary || '';
               // Loại bỏ dòng "Xu hướng: ..." nếu trong summary của AI backend đã có sẵn để không bị lặp
@@ -254,31 +267,31 @@ export function BalanceForecastScreen({ onBack }: Props) {
               return cleanSummary || 'Dự báo số dư đến ngày 25/11/2026: 17.150.048 VND (dao động trong khoảng 16.654.266 – 17.622.204 VND).';
             })()}
           </Text>
-          <Text style={styles.chartTrendLine}>
+          <Text style={[styles.chartTrendLine, isDark && { color: themeColors.accentGreen }]}>
             Xu hướng: {netDiff >= 0 ? 'TĂNG' : 'GIẢM'} so với số dư hiện tại.
           </Text>
 
           {/* Chỉ số Đỉnh - Đáy - Biên độ */}
-          <View style={styles.statsRow}>
+          <View style={[styles.statsRow, isDark && { backgroundColor: themeColors.surfaceSubtle }]}>
             <View style={styles.statItem}>
               <View style={[styles.statDot, { backgroundColor: '#10B981' }]} />
-              <Text style={styles.statLabel}>Cao nhất: </Text>
-              <Text style={[styles.statValue, { color: '#087557' }]}>
+              <Text style={[styles.statLabel, isDark && { color: themeColors.textSecondary }]}>Cao nhất: </Text>
+              <Text style={[styles.statValue, { color: isDark ? themeColors.accentGreen : '#087557' }]}>
                 {Math.round(rawMax).toLocaleString('vi-VN')} đ
               </Text>
             </View>
 
             <View style={styles.statItem}>
               <View style={[styles.statDot, { backgroundColor: '#0284C7' }]} />
-              <Text style={styles.statLabel}>Thấp nhất: </Text>
+              <Text style={[styles.statLabel, isDark && { color: themeColors.textSecondary }]}>Thấp nhất: </Text>
               <Text style={[styles.statValue, { color: '#0284C7' }]}>
                 {Math.round(rawMin).toLocaleString('vi-VN')} đ
               </Text>
             </View>
 
             <View style={styles.statItem}>
-              <Text style={styles.statLabel}>Biên độ: </Text>
-              <Text style={[styles.statValue, { color: '#087557' }]}>
+              <Text style={[styles.statLabel, isDark && { color: themeColors.textSecondary }]}>Biên độ: </Text>
+              <Text style={[styles.statValue, { color: isDark ? themeColors.accentGreen : '#087557' }]}>
                 +{Math.round(Math.abs(rawMax - rawMin)).toLocaleString('vi-VN')} đ
               </Text>
             </View>
@@ -324,7 +337,7 @@ export function BalanceForecastScreen({ onBack }: Props) {
                     y1={y}
                     x2={svgWidth - padRight}
                     y2={y}
-                    stroke="#E2E8F0"
+                    stroke={isDark ? themeColors.cardBorder : "#E2E8F0"}
                     strokeDasharray="4 4"
                     strokeWidth="1"
                   />
@@ -339,7 +352,7 @@ export function BalanceForecastScreen({ onBack }: Props) {
                 <Path
                   d={linePath}
                   fill="none"
-                  stroke="#10B981"
+                  stroke={isDark ? themeColors.accentGreen : "#10B981"}
                   strokeWidth="2.8"
                   strokeLinecap="round"
                   strokeLinejoin="round"
@@ -353,7 +366,7 @@ export function BalanceForecastScreen({ onBack }: Props) {
                   y1={padTop}
                   x2={coords[selectedPointIndex].x}
                   y2={padTop + plotH}
-                  stroke="#10B981"
+                  stroke={isDark ? themeColors.accentGreen : "#10B981"}
                   strokeDasharray="3 3"
                   strokeWidth="1.2"
                 />
@@ -368,8 +381,8 @@ export function BalanceForecastScreen({ onBack }: Props) {
                     cx={c.x}
                     cy={c.y}
                     r={isSelected ? 6 : 3.5}
-                    fill={isSelected ? '#059669' : '#10B981'}
-                    stroke="#FFFFFF"
+                    fill={isSelected ? (isDark ? themeColors.accentGreen : '#059669') : '#10B981'}
+                    stroke={isDark ? themeColors.surface : "#FFFFFF"}
                     strokeWidth={isSelected ? 2 : 1}
                   />
                 );
@@ -389,6 +402,7 @@ export function BalanceForecastScreen({ onBack }: Props) {
                 <View
                   style={[
                     styles.tooltip,
+                    isDark && { backgroundColor: themeColors.surface, borderColor: themeColors.cardBorder },
                     {
                       left: Math.max(8, Math.min(pt.x - 65, svgWidth - 130)),
                       top: Math.max(-10, pt.y - 46),
@@ -398,9 +412,9 @@ export function BalanceForecastScreen({ onBack }: Props) {
                 >
                   <View style={styles.tooltipPulseRow}>
                     <View style={styles.tooltipPulseDot} />
-                    <Text style={styles.tooltipDate}>{dateFormatted}</Text>
+                    <Text style={[styles.tooltipDate, isDark && { color: themeColors.textSecondary }]}>{dateFormatted}</Text>
                   </View>
-                  <Text style={styles.tooltipVal}>{formatVND(pt.val)}</Text>
+                  <Text style={[styles.tooltipVal, isDark && { color: themeColors.accentGreen }]}>{formatVND(pt.val)}</Text>
                 </View>
               );
             })()}
@@ -408,12 +422,12 @@ export function BalanceForecastScreen({ onBack }: Props) {
 
           {/* Mốc thời gian trục X */}
           <View style={styles.timelineRow}>
-            <Text style={[styles.timelineLabel, { color: '#087557', fontWeight: '700' }]}>
+            <Text style={[styles.timelineLabel, { color: isDark ? themeColors.accentGreen : '#087557', fontWeight: '700' }]}>
               Hôm nay
             </Text>
-            <Text style={styles.timelineLabel}>+5 ngày</Text>
-            <Text style={styles.timelineLabel}>+10 ngày</Text>
-            <Text style={[styles.timelineLabel, { color: '#087557', fontWeight: '700' }]}>
+            <Text style={[styles.timelineLabel, isDark && { color: themeColors.textMuted }]}>+5 ngày</Text>
+            <Text style={[styles.timelineLabel, isDark && { color: themeColors.textMuted }]}>+10 ngày</Text>
+            <Text style={[styles.timelineLabel, { color: isDark ? themeColors.accentGreen : '#087557', fontWeight: '700' }]}>
               Dự báo 15 ngày tới
             </Text>
           </View>
@@ -421,8 +435,8 @@ export function BalanceForecastScreen({ onBack }: Props) {
 
         {/* ── 4. SECTION: DỰ BÁO CHI TIÊU DANH MỤC THỰC TẾ ── */}
         <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Dự báo chi tiêu Danh mục Thực tế</Text>
-          <Text style={styles.sectionSubtitle}>
+          <Text style={[styles.sectionTitle, isDark && { color: themeColors.textPrimary }]}>Dự báo chi tiêu Danh mục Thực tế</Text>
+          <Text style={[styles.sectionSubtitle, isDark && { color: themeColors.textSecondary }]}>
             Phân tích tốc độ chi tiêu theo chu kỳ tháng và đối soát ngân sách.
           </Text>
         </View>
@@ -435,7 +449,7 @@ export function BalanceForecastScreen({ onBack }: Props) {
             const iconBg = `${iconColor}15`;
 
             return (
-              <View key={`${cat.category_name}-${idx}`} style={styles.catCard}>
+              <View key={`${cat.category_name}-${idx}`} style={[styles.catCard, isDark && { backgroundColor: themeColors.surface, borderColor: themeColors.cardBorder }]}>
                 {/* Header card danh mục */}
                 <View style={styles.catCardHeader}>
                   <View style={styles.catInfoLeft}>
@@ -447,8 +461,8 @@ export function BalanceForecastScreen({ onBack }: Props) {
                       />
                     </View>
                     <View style={{ flex: 1 }}>
-                      <Text style={styles.catName}>{cat.category_name}</Text>
-                      <Text style={styles.catBudget}>
+                      <Text style={[styles.catName, isDark && { color: themeColors.textPrimary }]}>{cat.category_name}</Text>
+                      <Text style={[styles.catBudget, isDark && { color: themeColors.textSecondary }]}>
                         Hạn mức:{' '}
                         {cat.budget_limit ? formatVND(cat.budget_limit) : 'Chưa đặt hạn mức'}
                       </Text>
@@ -459,13 +473,13 @@ export function BalanceForecastScreen({ onBack }: Props) {
                   <View
                     style={[
                       styles.riskBadge,
-                      { backgroundColor: isDanger ? '#FFF1F2' : '#E3F4E9' },
+                      { backgroundColor: isDanger ? (isDark ? 'rgba(239, 68, 68, 0.16)' : '#FFF1F2') : (isDark ? 'rgba(52, 211, 153, 0.16)' : '#E3F4E9') },
                     ]}
                   >
                     <Text
                       style={[
                         styles.riskBadgeText,
-                        { color: isDanger ? '#E11D48' : '#087557' },
+                        { color: isDanger ? '#F87171' : (isDark ? themeColors.accentGreen : '#087557') },
                       ]}
                     >
                       {cat.risk_level || 'AN TOÀN'}
@@ -476,14 +490,14 @@ export function BalanceForecastScreen({ onBack }: Props) {
                 {/* 3 Cột chỉ số chi tiết */}
                 <View style={styles.catMetricsGrid}>
                   <View style={styles.catMetricItem}>
-                    <Text style={styles.catMetricLabel}>Đã chi trong tháng</Text>
-                    <Text style={styles.catMetricValue}>
+                    <Text style={[styles.catMetricLabel, isDark && { color: themeColors.textMuted }]}>Đã chi trong tháng</Text>
+                    <Text style={[styles.catMetricValue, isDark && { color: themeColors.textPrimary }]}>
                       {formatVND(cat.current_spent || 0)}
                     </Text>
                   </View>
 
                   <View style={[styles.catMetricItem, { alignItems: 'center' }]}>
-                    <Text style={styles.catMetricLabel}>Dự báo tổng chi cả tháng</Text>
+                    <Text style={[styles.catMetricLabel, isDark && { color: themeColors.textMuted }]}>Dự báo tổng chi cả tháng</Text>
                     <Text
                       style={[
                         styles.catMetricValue,
@@ -495,8 +509,8 @@ export function BalanceForecastScreen({ onBack }: Props) {
                   </View>
 
                   <View style={[styles.catMetricItem, { alignItems: 'flex-end' }]}>
-                    <Text style={styles.catMetricLabel}>Tốc độ chi trung bình</Text>
-                    <Text style={styles.catMetricValueRate}>
+                    <Text style={[styles.catMetricLabel, isDark && { color: themeColors.textMuted }]}>Tốc độ chi trung bình</Text>
+                    <Text style={[styles.catMetricValueRate, isDark && { color: themeColors.textSecondary }]}>
                       {formatVND(cat.daily_rate || 0)}/ngày
                     </Text>
                   </View>

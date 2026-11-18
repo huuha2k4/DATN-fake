@@ -10,6 +10,8 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { styles } from './SplashScreen.styles';
+import { useAppTheme } from '../../../context/ThemeContext';
+import { Moon, Sun } from 'lucide-react-native';
 
 const logo = require('../../../assets/finora-logo.png');
 
@@ -89,6 +91,7 @@ type Props = {
 export function SplashScreen({ onStart, onLogin }: Props) {
   const [activeSlide, setActiveSlide] = React.useState(0);
   const { width, height } = useWindowDimensions();
+  const { isDark, colors: themeColors, setTheme } = useAppTheme();
 
   const isTablet = width >= 600;
   const containerMaxWidth = isTablet ? 560 : 460;
@@ -178,12 +181,12 @@ export function SplashScreen({ onStart, onLogin }: Props) {
   const currentSlide = ONBOARDING_SLIDES[activeSlide];
 
   return (
-    <SafeAreaView style={styles.screen} edges={['top']}>
+    <SafeAreaView style={[styles.screen, isDark && { backgroundColor: themeColors.background }]} edges={['top']}>
       {/* Ambient background glows */}
       <View pointerEvents="none" style={styles.ambientLayer}>
-        <View style={styles.ambientBlob1} />
-        <View style={styles.ambientBlob2} />
-        <View style={styles.ambientBlob3} />
+        <View style={[styles.ambientBlob1, isDark && { backgroundColor: '#064E3B', opacity: 0.18 }]} />
+        <View style={[styles.ambientBlob2, isDark && { backgroundColor: '#022C22', opacity: 0.15 }]} />
+        <View style={[styles.ambientBlob3, isDark && { backgroundColor: '#047857', opacity: 0.12 }]} />
       </View>
 
       <View style={[styles.container, { maxWidth: containerMaxWidth }]}>
@@ -192,7 +195,7 @@ export function SplashScreen({ onStart, onLogin }: Props) {
           {/* 1. Header / Navbar */}
           <View style={styles.navbar}>
             <View style={styles.navBrand}>
-              <View style={styles.navLogoBox}>
+              <View style={[styles.navLogoBox, isDark && { backgroundColor: themeColors.surfaceSubtle }]}>
                 <Image
                   source={logo}
                   style={styles.navLogo}
@@ -201,14 +204,36 @@ export function SplashScreen({ onStart, onLogin }: Props) {
                 />
               </View>
               <View>
-                <Text style={styles.navBrandTitle} maxFontSizeMultiplier={1.2}>
+                <Text style={[styles.navBrandTitle, isDark && { color: themeColors.textPrimary }]} maxFontSizeMultiplier={1.2}>
                   Finora
                 </Text>
-                <Text style={styles.navBrandSub} maxFontSizeMultiplier={1.15}>
+                <Text style={[styles.navBrandSub, isDark && { color: themeColors.accentGreen }]} maxFontSizeMultiplier={1.15}>
                   INTELLIGENCE
                 </Text>
               </View>
             </View>
+
+            {/* Nút chuyển đổi Sáng / Tối duy nhất ở ngoài cùng (góc phải trên) */}
+            <Pressable
+              onPress={() => setTheme(isDark ? 'LIGHT' : 'DARK')}
+              style={({ pressed }) => [
+                styles.themeToggleBtn,
+                isDark && {
+                  backgroundColor: themeColors.surfaceSubtle,
+                  borderColor: themeColors.cardBorder,
+                },
+                pressed && { opacity: 0.75, transform: [{ scale: 0.95 }] },
+              ]}
+              hitSlop={8}
+              accessibilityRole="button"
+              accessibilityLabel={isDark ? 'Chuyển sang giao diện Sáng' : 'Chuyển sang giao diện Tối'}
+            >
+              {isDark ? (
+                <Sun size={20} color="#FBBF24" strokeWidth={2.2} />
+              ) : (
+                <Moon size={20} color="#047857" strokeWidth={2.2} />
+              )}
+            </Pressable>
           </View>
 
           {/* 2. Swipeable Slides Area */}
@@ -239,10 +264,10 @@ export function SplashScreen({ onStart, onLogin }: Props) {
               ]}
             >
               {/* Hero Pill Badge */}
-              <View style={styles.heroBadge}>
+              <View style={[styles.heroBadge, isDark && { backgroundColor: themeColors.surface, borderColor: themeColors.cardBorder }]}>
                 <Text style={styles.heroBadgeSpark}>{currentSlide.badgeSpark}</Text>
                 <Text
-                  style={styles.heroBadgeText}
+                  style={[styles.heroBadgeText, isDark && { color: themeColors.accentGreen }]}
                   numberOfLines={1}
                   ellipsizeMode="tail"
                   maxFontSizeMultiplier={1.15}
@@ -257,17 +282,19 @@ export function SplashScreen({ onStart, onLogin }: Props) {
                   style={[
                     styles.heroTitle,
                     { fontSize: heroFontSize, lineHeight: heroLineHeight },
+                    isDark && { color: themeColors.textPrimary },
                   ]}
                   maxFontSizeMultiplier={1.2}
                 >
                   {currentSlide.titlePrefix}
-                  <Text style={styles.heroTitleHighlight}>{currentSlide.titleHighlight}</Text>
+                  <Text style={[styles.heroTitleHighlight, isDark && { color: themeColors.accentGreen }]}>{currentSlide.titleHighlight}</Text>
                 </Text>
 
                 <Text
                   style={[
                     styles.heroDesc,
                     { fontSize: descFontSize, lineHeight: descLineHeight },
+                    isDark && { color: themeColors.textSecondary },
                   ]}
                   maxFontSizeMultiplier={1.25}
                 >
@@ -277,9 +304,9 @@ export function SplashScreen({ onStart, onLogin }: Props) {
 
               {/* Rich Mockup Card */}
               <View style={styles.mockupContainer}>
-                {currentSlide.mockupType === 'balance' && <BalanceMockup isCompact={isCompactHeight} />}
-                {currentSlide.mockupType === 'ocr' && <OcrMockup isCompact={isCompactHeight} />}
-                {currentSlide.mockupType === 'ai' && <AiForecastMockup isCompact={isCompactHeight} />}
+                {currentSlide.mockupType === 'balance' && <BalanceMockup isCompact={isCompactHeight} isDark={isDark} />}
+                {currentSlide.mockupType === 'ocr' && <OcrMockup isCompact={isCompactHeight} isDark={isDark} />}
+                {currentSlide.mockupType === 'ai' && <AiForecastMockup isCompact={isCompactHeight} isDark={isDark} />}
               </View>
 
               {/* 4 Thẻ Tính Năng: 2 hàng x 2 thẻ co giãn theo chiều cao màn hình */}
@@ -289,12 +316,17 @@ export function SplashScreen({ onStart, onLogin }: Props) {
                   {currentSlide.featureChips.slice(0, 2).map((chip, idx) => (
                     <View
                       key={idx}
-                      style={[styles.featureChipCard, { paddingVertical: chipVerticalPadding }]}
+                      style={[
+                        styles.featureChipCard,
+                        { paddingVertical: chipVerticalPadding },
+                        isDark && { backgroundColor: themeColors.surface, borderColor: themeColors.cardBorder },
+                      ]}
                     >
                       <View
                         style={[
                           styles.featureChipIconBox,
                           { width: chipIconSize, height: chipIconSize },
+                          isDark && { backgroundColor: themeColors.surfaceSubtle },
                         ]}
                       >
                         <Text style={[styles.featureChipIconText, { fontSize: chipIconFontSize }]}>
@@ -302,10 +334,10 @@ export function SplashScreen({ onStart, onLogin }: Props) {
                         </Text>
                       </View>
                       <View style={styles.featureChipTextBox}>
-                        <Text style={styles.featureChipTitle} numberOfLines={1}>
+                        <Text style={[styles.featureChipTitle, isDark && { color: themeColors.textPrimary }]} numberOfLines={1}>
                           {chip.title}
                         </Text>
-                        <Text style={styles.featureChipDesc} numberOfLines={1}>
+                        <Text style={[styles.featureChipDesc, isDark && { color: themeColors.textSecondary }]} numberOfLines={1}>
                           {chip.desc}
                         </Text>
                       </View>
@@ -318,12 +350,17 @@ export function SplashScreen({ onStart, onLogin }: Props) {
                   {currentSlide.featureChips.slice(2, 4).map((chip, idx) => (
                     <View
                       key={idx + 2}
-                      style={[styles.featureChipCard, { paddingVertical: chipVerticalPadding }]}
+                      style={[
+                        styles.featureChipCard,
+                        { paddingVertical: chipVerticalPadding },
+                        isDark && { backgroundColor: themeColors.surface, borderColor: themeColors.cardBorder },
+                      ]}
                     >
                       <View
                         style={[
                           styles.featureChipIconBox,
                           { width: chipIconSize, height: chipIconSize },
+                          isDark && { backgroundColor: themeColors.surfaceSubtle },
                         ]}
                       >
                         <Text style={[styles.featureChipIconText, { fontSize: chipIconFontSize }]}>
@@ -331,10 +368,10 @@ export function SplashScreen({ onStart, onLogin }: Props) {
                         </Text>
                       </View>
                       <View style={styles.featureChipTextBox}>
-                        <Text style={styles.featureChipTitle} numberOfLines={1}>
+                        <Text style={[styles.featureChipTitle, isDark && { color: themeColors.textPrimary }]} numberOfLines={1}>
                           {chip.title}
                         </Text>
-                        <Text style={styles.featureChipDesc} numberOfLines={1}>
+                        <Text style={[styles.featureChipDesc, isDark && { color: themeColors.textSecondary }]} numberOfLines={1}>
                           {chip.desc}
                         </Text>
                       </View>
@@ -364,7 +401,10 @@ export function SplashScreen({ onStart, onLogin }: Props) {
                   accessibilityRole="tab"
                   accessibilityState={{ selected: isActive }}
                   accessibilityLabel={`Trang ${idx + 1}`}
-                  style={[styles.dotBase, isActive ? styles.dotActive : styles.dotInactive]}
+                  style={[
+                    styles.dotBase,
+                    isActive ? [styles.dotActive, isDark && { backgroundColor: themeColors.accentGreen }] : [styles.dotInactive, isDark && { backgroundColor: themeColors.cardBorder }],
+                  ]}
                 />
               );
             })}
@@ -374,10 +414,10 @@ export function SplashScreen({ onStart, onLogin }: Props) {
           <View style={styles.highlightsRow}>
             {currentSlide.highlights.map((item, i) => (
               <React.Fragment key={i}>
-                <Text style={styles.highlightText} maxFontSizeMultiplier={1.15}>
+                <Text style={[styles.highlightText, isDark && { color: themeColors.textSecondary }]} maxFontSizeMultiplier={1.15}>
                   {item}
                 </Text>
-                {i < currentSlide.highlights.length - 1 && <View style={styles.highlightDot} />}
+                {i < currentSlide.highlights.length - 1 && <View style={[styles.highlightDot, isDark && { backgroundColor: themeColors.cardBorder }]} />}
               </React.Fragment>
             ))}
           </View>
@@ -397,11 +437,15 @@ export function SplashScreen({ onStart, onLogin }: Props) {
 
             <Pressable
               onPress={onLogin}
-              style={({ pressed }) => [styles.btnSecondary, pressed && styles.pressed]}
+              style={({ pressed }) => [
+                styles.btnSecondary,
+                isDark && { backgroundColor: themeColors.surface, borderColor: themeColors.accentGreen },
+                pressed && styles.pressed,
+              ]}
               accessibilityRole="button"
               accessibilityLabel="Đăng nhập"
             >
-              <Text style={styles.btnSecondaryText} maxFontSizeMultiplier={1.2}>
+              <Text style={[styles.btnSecondaryText, isDark && { color: themeColors.accentGreen }]} maxFontSizeMultiplier={1.2}>
                 Đăng nhập
               </Text>
             </Pressable>
@@ -409,7 +453,7 @@ export function SplashScreen({ onStart, onLogin }: Props) {
 
           {/* Footer */}
           <View style={styles.footerBox}>
-            <Text style={styles.footerText} maxFontSizeMultiplier={1.15}>
+            <Text style={[styles.footerText, isDark && { color: themeColors.textSecondary }]} maxFontSizeMultiplier={1.15}>
               © {new Date().getFullYear()} Finora Intelligence · Bảo mật & Riêng tư
             </Text>
           </View>
@@ -422,7 +466,7 @@ export function SplashScreen({ onStart, onLogin }: Props) {
 // ─────────────────────────────────────────────────────────────────────────────
 // COMPONENT CON: SLIDE 1 - MOCKUP DÒNG TIỀN VÀ SỐ DƯ (ANIMATED BARS)
 // ─────────────────────────────────────────────────────────────────────────────
-function BalanceMockup({ isCompact }: { isCompact: boolean }) {
+function BalanceMockup({ isCompact, isDark = false }: { isCompact: boolean; isDark?: boolean }) {
   const barAnim1 = React.useRef(new Animated.Value(0)).current;
   const barAnim2 = React.useRef(new Animated.Value(0)).current;
   const barAnim3 = React.useRef(new Animated.Value(0)).current;
@@ -516,7 +560,7 @@ function BalanceMockup({ isCompact }: { isCompact: boolean }) {
 // ─────────────────────────────────────────────────────────────────────────────
 // COMPONENT CON: SLIDE 2 - MOCKUP OCR QUÉT HÓA ĐƠN (LASER SCANNING)
 // ─────────────────────────────────────────────────────────────────────────────
-function OcrMockup({ isCompact }: { isCompact: boolean }) {
+function OcrMockup({ isCompact, isDark = false }: { isCompact: boolean; isDark?: boolean }) {
   const scanAnim = React.useRef(new Animated.Value(0)).current;
 
   React.useEffect(() => {
@@ -604,7 +648,7 @@ function OcrMockup({ isCompact }: { isCompact: boolean }) {
 // ─────────────────────────────────────────────────────────────────────────────
 // COMPONENT CON: SLIDE 3 - MOCKUP DỰ BÁO TÀI CHÍNH (PULSE NODE)
 // ─────────────────────────────────────────────────────────────────────────────
-function AiForecastMockup({ isCompact }: { isCompact: boolean }) {
+function AiForecastMockup({ isCompact, isDark = false }: { isCompact: boolean; isDark?: boolean }) {
   const pulseAnim = React.useRef(new Animated.Value(1)).current;
 
   React.useEffect(() => {

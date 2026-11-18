@@ -13,6 +13,7 @@ import {
 } from 'react-native';
 import { KeyRound, X, AlertTriangle, CheckCircle2, Eye, EyeOff, Lock } from 'lucide-react-native';
 import { authApi } from '../api/authApi';
+import { useAppTheme } from '../../../context/ThemeContext';
 
 interface ForgotPasswordModalProps {
   visible: boolean;
@@ -25,6 +26,7 @@ export function ForgotPasswordModal({
   onClose,
   onSuccess,
 }: ForgotPasswordModalProps) {
+  const { isDark, colors: themeColors } = useAppTheme();
   // 3 bước rõ ràng: 1. email -> 2. otp -> 3. new_password
   const [step, setStep] = useState<'email' | 'otp' | 'new_password'>('email');
   const [email, setEmail] = useState('');
@@ -196,16 +198,16 @@ export function ForgotPasswordModal({
           behavior={Platform.OS === 'ios' ? 'padding' : undefined}
           style={styles.keyboardWrap}
         >
-          <View style={styles.sheet}>
+          <View style={[styles.sheet, isDark && { backgroundColor: themeColors.surface, borderColor: themeColors.cardBorder, borderWidth: 1 }]}>
             {/* Header popup */}
-            <View style={styles.header}>
+            <View style={[styles.header, isDark && { borderBottomColor: themeColors.cardBorder }]}>
               <View style={styles.titleWrap}>
-                <View style={styles.keyIconBox}>
-                  <KeyRound size={20} color="#006747" strokeWidth={2.2} />
+                <View style={[styles.keyIconBox, isDark && { backgroundColor: themeColors.surfaceSubtle }]}>
+                  <KeyRound size={20} color={isDark ? themeColors.accentGreen : '#006747'} strokeWidth={2.2} />
                 </View>
                 <View>
-                  <Text style={styles.title}>Quên mật khẩu</Text>
-                  <Text style={styles.subtitle}>
+                  <Text style={[styles.title, isDark && { color: themeColors.textPrimary }]}>Quên mật khẩu</Text>
+                  <Text style={[styles.subtitle, isDark && { color: themeColors.textSecondary }]}>
                     {step === 'email' && 'Nhập email để nhận mã OTP 6 số khôi phục'}
                     {step === 'otp' && `Nhập mã OTP 6 số đã gửi tới ${email}`}
                     {step === 'new_password' && 'Thiết lập mật khẩu mới cho tài khoản'}
@@ -213,8 +215,8 @@ export function ForgotPasswordModal({
                 </View>
               </View>
 
-              <Pressable onPress={onClose} style={styles.closeBtn} hitSlop={12}>
-                <X size={18} color="#475569" strokeWidth={2.2} />
+              <Pressable onPress={onClose} style={[styles.closeBtn, isDark && { backgroundColor: themeColors.surfaceSubtle }]} hitSlop={12}>
+                <X size={18} color={isDark ? themeColors.textSecondary : '#475569'} strokeWidth={2.2} />
               </Pressable>
             </View>
 
@@ -355,8 +357,8 @@ export function ForgotPasswordModal({
                         {resending
                           ? 'Đang gửi...'
                           : countdown > 0
-                          ? `Gửi lại (${countdown}s)`
-                          : 'Gửi lại mã OTP'}
+                            ? `Gửi lại (${countdown}s)`
+                            : 'Gửi lại mã OTP'}
                       </Text>
                     </Pressable>
                   </View>
@@ -503,7 +505,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
   },
   backdrop: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
   },
   keyboardWrap: {
     width: '100%',

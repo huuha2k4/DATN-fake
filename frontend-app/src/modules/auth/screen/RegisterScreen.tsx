@@ -16,6 +16,7 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { authApi } from '../api/authApi';
 import { styles } from './RegisterScreen.styles';
 import { LegalTermsModal } from '../../legal/components/LegalTermsModal';
+import { useAppTheme } from '../../../context/ThemeContext';
 
 type Props = {
   onBack: () => void;
@@ -28,6 +29,7 @@ export function RegisterScreen({
   onSuccess,
   onSwitchToLogin,
 }: Props) {
+  const { isDark, colors: themeColors } = useAppTheme();
   const [fullName, setFullName] = React.useState('');
   const [email, setEmail] = React.useState('');
   const [username, setUsername] = React.useState('');
@@ -155,14 +157,14 @@ export function RegisterScreen({
   };
 
   return (
-    <View style={styles.registerPage}>
+    <View style={[styles.registerPage, isDark && { backgroundColor: themeColors.background }]}>
       <SafeAreaView style={styles.flexOne} edges={['top', 'bottom']}>
         <KeyboardAvoidingView
           style={styles.flexOne}
           behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         >
           <ScrollView
-            contentContainerStyle={styles.scrollContent}
+            contentContainerStyle={[styles.scrollContent, isDark && { backgroundColor: themeColors.background }]}
             keyboardShouldPersistTaps="handled"
             showsVerticalScrollIndicator={false}
             bounces={false}
@@ -174,18 +176,19 @@ export function RegisterScreen({
                 onPress={onBack}
                 style={({ pressed }) => [
                   styles.inlineBackBtn,
+                  isDark && { backgroundColor: themeColors.surfaceSubtle, borderColor: themeColors.cardBorder, borderWidth: 1 },
                   pressed && styles.pressed,
                 ]}
                 accessibilityRole="button"
                 accessibilityLabel="Quay lại"
                 hitSlop={10}
               >
-                <ChevronLeft size={18} color="#006747" strokeWidth={2.5} />
-                <Text style={styles.inlineBackText}>Quay lại</Text>
+                <ChevronLeft size={18} color={isDark ? themeColors.accentGreen : '#006747'} strokeWidth={2.5} />
+                <Text style={[styles.inlineBackText, isDark && { color: themeColors.accentGreen }]}>Quay lại</Text>
               </Pressable>
 
-              <Text style={styles.registerTitle}>Đăng ký tài khoản</Text>
-              <Text style={styles.registerSubtitle}>
+              <Text style={[styles.registerTitle, isDark && { color: themeColors.textPrimary }]}>Đăng ký tài khoản</Text>
+              <Text style={[styles.registerSubtitle, isDark && { color: themeColors.textSecondary }]}>
                 Bắt đầu quản lý tài chính thông minh cùng Finora.
               </Text>
 
@@ -200,8 +203,8 @@ export function RegisterScreen({
               {/* Thông báo thành công gửi OTP */}
               {successMsg ? (
                 <View style={styles.successBox}>
-                  <CheckCircle2 size={16} color="#00A86B" strokeWidth={2.2} />
-                  <Text style={styles.successText}>{successMsg}</Text>
+                  <CheckCircle2 size={16} color={isDark ? themeColors.accentGreen : '#00A86B'} strokeWidth={2.2} />
+                  <Text style={[styles.successText, isDark && { color: themeColors.accentGreen }]}>{successMsg}</Text>
                 </View>
               ) : null}
             </View>
@@ -210,14 +213,19 @@ export function RegisterScreen({
             <View style={styles.formBlock}>
               {/* Họ và tên */}
               <View style={styles.formGroup}>
-                <Text style={styles.formLabel}>
+                <Text style={[styles.formLabel, isDark && { color: themeColors.textSecondary }]}>
                   Họ và tên <Text style={styles.formLabelRequired}>*</Text>
                 </Text>
                 <View
                   style={[
                     styles.formInputWrap,
                     { height: inputHeight },
+                    isDark && {
+                      backgroundColor: themeColors.surfaceSubtle,
+                      borderColor: themeColors.cardBorder,
+                    },
                     fullNameFocused && styles.formInputWrapFocused,
+                    fullNameFocused && isDark && { borderColor: themeColors.accentGreen },
                   ]}
                 >
                   <TextInput
@@ -229,8 +237,8 @@ export function RegisterScreen({
                     onFocus={() => setFullNameFocused(true)}
                     onBlur={() => setFullNameFocused(false)}
                     placeholder="Nguyễn Văn A"
-                    placeholderTextColor="#9ca3af"
-                    style={styles.formInput}
+                    placeholderTextColor={isDark ? themeColors.textMuted : '#9ca3af'}
+                    style={[styles.formInput, isDark && { color: themeColors.textPrimary }]}
                     returnKeyType="next"
                   />
                 </View>
@@ -238,14 +246,19 @@ export function RegisterScreen({
 
               {/* Tên tài khoản */}
               <View style={styles.formGroup}>
-                <Text style={styles.formLabel}>
+                <Text style={[styles.formLabel, isDark && { color: themeColors.textSecondary }]}>
                   Username <Text style={styles.formOptionalText}>(tùy chọn)</Text>
                 </Text>
                 <View
                   style={[
                     styles.formInputWrap,
                     { height: inputHeight },
+                    isDark && {
+                      backgroundColor: themeColors.surfaceSubtle,
+                      borderColor: themeColors.cardBorder,
+                    },
                     usernameFocused && styles.formInputWrapFocused,
+                    usernameFocused && isDark && { borderColor: themeColors.accentGreen },
                   ]}
                 >
                   <TextInput
@@ -259,8 +272,8 @@ export function RegisterScreen({
                     autoCapitalize="none"
                     autoCorrect={false}
                     placeholder="VD: nguyen_vana"
-                    placeholderTextColor="#9ca3af"
-                    style={styles.formInput}
+                    placeholderTextColor={isDark ? themeColors.textMuted : '#9ca3af'}
+                    style={[styles.formInput, isDark && { color: themeColors.textPrimary }]}
                     returnKeyType="next"
                   />
                 </View>
@@ -268,14 +281,19 @@ export function RegisterScreen({
 
               {/* Email */}
               <View style={styles.formGroup}>
-                <Text style={styles.formLabel}>
+                <Text style={[styles.formLabel, isDark && { color: themeColors.textSecondary }]}>
                   Email <Text style={styles.formLabelRequired}>*</Text>
                 </Text>
                 <View
                   style={[
                     styles.formInputWrap,
                     { height: inputHeight },
+                    isDark && {
+                      backgroundColor: themeColors.surfaceSubtle,
+                      borderColor: themeColors.cardBorder,
+                    },
                     emailFocused && styles.formInputWrapFocused,
+                    emailFocused && isDark && { borderColor: themeColors.accentGreen },
                   ]}
                 >
                   <TextInput
@@ -290,8 +308,8 @@ export function RegisterScreen({
                     autoCorrect={false}
                     keyboardType="email-address"
                     placeholder="name@email.com"
-                    placeholderTextColor="#9ca3af"
-                    style={styles.formInput}
+                    placeholderTextColor={isDark ? themeColors.textMuted : '#9ca3af'}
+                    style={[styles.formInput, isDark && { color: themeColors.textPrimary }]}
                     returnKeyType="next"
                   />
                 </View>
@@ -299,7 +317,7 @@ export function RegisterScreen({
 
               {/* Mã OTP */}
               <View style={styles.formGroup}>
-                <Text style={styles.formLabel}>
+                <Text style={[styles.formLabel, isDark && { color: themeColors.textSecondary }]}>
                   Mã OTP <Text style={styles.formLabelRequired}>*</Text>
                 </Text>
                 <View style={styles.otpRowWrap}>
@@ -308,7 +326,12 @@ export function RegisterScreen({
                       styles.formInputWrap,
                       styles.otpInputWrap,
                       { height: inputHeight },
+                      isDark && {
+                        backgroundColor: themeColors.surfaceSubtle,
+                        borderColor: themeColors.cardBorder,
+                      },
                       otpFocused && styles.formInputWrapFocused,
+                      otpFocused && isDark && { borderColor: themeColors.accentGreen },
                     ]}
                   >
                     <TextInput
@@ -322,8 +345,8 @@ export function RegisterScreen({
                       keyboardType="number-pad"
                       maxLength={6}
                       placeholder="Nhập 6 số OTP"
-                      placeholderTextColor="#9ca3af"
-                      style={styles.formInput}
+                      placeholderTextColor={isDark ? themeColors.textMuted : '#9ca3af'}
+                      style={[styles.formInput, isDark && { color: themeColors.textPrimary }]}
                       returnKeyType="next"
                     />
                   </View>
@@ -333,6 +356,7 @@ export function RegisterScreen({
                     style={({ pressed }) => [
                       styles.otpSendBtn,
                       { height: inputHeight },
+                      isDark && { backgroundColor: themeColors.primaryDark },
                       (sendingOtp || countdown > 0) && styles.otpSendBtnDisabled,
                       pressed && styles.pressed,
                     ]}
@@ -350,14 +374,19 @@ export function RegisterScreen({
 
               {/* Mật khẩu */}
               <View style={styles.formGroup}>
-                <Text style={styles.formLabel}>
+                <Text style={[styles.formLabel, isDark && { color: themeColors.textSecondary }]}>
                   Mật khẩu <Text style={styles.formLabelRequired}>*</Text>
                 </Text>
                 <View
                   style={[
                     styles.formInputWrap,
                     { height: inputHeight },
+                    isDark && {
+                      backgroundColor: themeColors.surfaceSubtle,
+                      borderColor: themeColors.cardBorder,
+                    },
                     passwordFocused && styles.formInputWrapFocused,
+                    passwordFocused && isDark && { borderColor: themeColors.accentGreen },
                   ]}
                 >
                   <TextInput
@@ -370,8 +399,8 @@ export function RegisterScreen({
                     onBlur={() => setPasswordFocused(false)}
                     secureTextEntry={!showPassword}
                     placeholder="Tối thiểu 8 ký tự"
-                    placeholderTextColor="#9ca3af"
-                    style={styles.formInput}
+                    placeholderTextColor={isDark ? themeColors.textMuted : '#9ca3af'}
+                    style={[styles.formInput, isDark && { color: themeColors.textPrimary }]}
                     returnKeyType="next"
                   />
                   <Pressable
@@ -382,9 +411,9 @@ export function RegisterScreen({
                     accessibilityLabel={showPassword ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'}
                   >
                     {showPassword ? (
-                      <Eye size={20} color="#6b7571" strokeWidth={1.8} />
+                      <Eye size={20} color={isDark ? themeColors.accentGreen : '#6b7571'} strokeWidth={1.8} />
                     ) : (
-                      <EyeOff size={20} color="#8c9c93" strokeWidth={1.8} />
+                      <EyeOff size={20} color={isDark ? themeColors.textSecondary : '#8c9c93'} strokeWidth={1.8} />
                     )}
                   </Pressable>
                 </View>
@@ -392,14 +421,19 @@ export function RegisterScreen({
 
               {/* Xác nhận mật khẩu */}
               <View style={styles.formGroup}>
-                <Text style={styles.formLabel}>
+                <Text style={[styles.formLabel, isDark && { color: themeColors.textSecondary }]}>
                   Xác nhận mật khẩu <Text style={styles.formLabelRequired}>*</Text>
                 </Text>
                 <View
                   style={[
                     styles.formInputWrap,
                     { height: inputHeight },
+                    isDark && {
+                      backgroundColor: themeColors.surfaceSubtle,
+                      borderColor: themeColors.cardBorder,
+                    },
                     confirmPasswordFocused && styles.formInputWrapFocused,
+                    confirmPasswordFocused && isDark && { borderColor: themeColors.accentGreen },
                   ]}
                 >
                   <TextInput
@@ -412,8 +446,8 @@ export function RegisterScreen({
                     onBlur={() => setConfirmPasswordFocused(false)}
                     secureTextEntry={!showConfirmPassword}
                     placeholder="Nhập lại mật khẩu"
-                    placeholderTextColor="#9ca3af"
-                    style={styles.formInput}
+                    placeholderTextColor={isDark ? themeColors.textMuted : '#9ca3af'}
+                    style={[styles.formInput, isDark && { color: themeColors.textPrimary }]}
                     returnKeyType="done"
                     onSubmitEditing={handleRegister}
                   />
@@ -425,18 +459,18 @@ export function RegisterScreen({
                     accessibilityLabel={showConfirmPassword ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'}
                   >
                     {showConfirmPassword ? (
-                      <Eye size={20} color="#6b7571" strokeWidth={1.8} />
+                      <Eye size={20} color={isDark ? themeColors.accentGreen : '#6b7571'} strokeWidth={1.8} />
                     ) : (
-                      <EyeOff size={20} color="#8c9c93" strokeWidth={1.8} />
+                      <EyeOff size={20} color={isDark ? themeColors.textSecondary : '#8c9c93'} strokeWidth={1.8} />
                     )}
                   </Pressable>
                 </View>
               </View>
 
               {/* Password requirement hint */}
-              <View style={styles.passwordHintBox}>
-                <Lock size={14} color="#006747" strokeWidth={2} />
-                <Text style={styles.passwordHintText}>
+              <View style={[styles.passwordHintBox, isDark && { backgroundColor: themeColors.surfaceSubtle, borderColor: themeColors.cardBorder }]}>
+                <Lock size={14} color={isDark ? themeColors.accentGreen : '#006747'} strokeWidth={2} />
+                <Text style={[styles.passwordHintText, isDark && { color: themeColors.textSecondary }]}>
                   Mật khẩu từ 8 ký tự, gồm chữ hoa, chữ thường, số và ký tự đặc biệt (!@#$%^&*).
                 </Text>
               </View>
@@ -445,10 +479,10 @@ export function RegisterScreen({
             {/* 3. Bottom Block: Điều khoản, Nút bấm & Copyright */}
             <View style={styles.bottomBlock}>
               {/* Điều khoản dịch vụ & Chính sách bảo mật */}
-              <Text style={styles.termsAgreementText}>
+              <Text style={[styles.termsAgreementText, isDark && { color: themeColors.textSecondary }]}>
                 Bằng việc nhấn đăng ký, bạn đồng ý với{' '}
                 <Text
-                  style={styles.termsAgreementLink}
+                  style={[styles.termsAgreementLink, isDark && { color: themeColors.accentGreen }]}
                   onPress={() => {
                     setLegalModalTab('terms');
                     setLegalModalVisible(true);
@@ -458,7 +492,7 @@ export function RegisterScreen({
                 </Text>
                 {' '}&{' '}
                 <Text
-                  style={styles.termsAgreementLink}
+                  style={[styles.termsAgreementLink, isDark && { color: themeColors.accentGreen }]}
                   onPress={() => {
                     setLegalModalTab('privacy');
                     setLegalModalVisible(true);
@@ -476,6 +510,7 @@ export function RegisterScreen({
                 style={({ pressed }) => [
                   styles.registerButton,
                   { height: ctaButtonHeight },
+                  isDark && { backgroundColor: themeColors.primaryDark },
                   loading && styles.registerButtonDisabled,
                   pressed && styles.pressed,
                 ]}
@@ -491,9 +526,9 @@ export function RegisterScreen({
 
               {/* Divider */}
               <View style={styles.dividerBox}>
-                <View style={styles.dividerLine} />
-                <Text style={styles.dividerText}>HOẶC</Text>
-                <View style={styles.dividerLine} />
+                <View style={[styles.dividerLine, isDark && { backgroundColor: themeColors.cardBorder }]} />
+                <Text style={[styles.dividerText, isDark && { color: themeColors.textSecondary }]}>HOẶC</Text>
+                <View style={[styles.dividerLine, isDark && { backgroundColor: themeColors.cardBorder }]} />
               </View>
 
               {/* Nút Đăng ký bằng Google với chuẩn SVG 4 màu */}
@@ -502,6 +537,7 @@ export function RegisterScreen({
                 style={({ pressed }) => [
                   styles.googleButton,
                   { height: ctaButtonHeight - 4 },
+                  isDark && { backgroundColor: themeColors.surfaceSubtle, borderColor: themeColors.cardBorder },
                   pressed && styles.pressed,
                 ]}
                 accessibilityRole="button"
@@ -525,21 +561,21 @@ export function RegisterScreen({
                     d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"
                   />
                 </Svg>
-                <Text style={styles.googleButtonText}>Đăng ký bằng Google</Text>
+                <Text style={[styles.googleButtonText, isDark && { color: themeColors.textPrimary }]}>Đăng ký bằng Google</Text>
               </Pressable>
 
               {/* Chuyển tiếp Đăng nhập */}
               <View style={styles.registerFooter}>
-                <Text style={styles.registerFooterText}>
+                <Text style={[styles.registerFooterText, isDark && { color: themeColors.textSecondary }]}>
                   Đã có tài khoản Finora?{' '}
                   <Text
-                    style={styles.registerFooterLink}
+                    style={[styles.registerFooterLink, isDark && { color: themeColors.accentGreen }]}
                     onPress={onSwitchToLogin}
                   >
                     Đăng nhập ngay
                   </Text>
                 </Text>
-                <Text style={styles.copyrightText}>
+                <Text style={[styles.copyrightText, isDark && { color: themeColors.textMuted }]}>
                   🛡️ 2026 Finora Intelligence · Bảo mật & Riêng tư
                 </Text>
               </View>

@@ -1,16 +1,9 @@
 import React, { useEffect, useState } from 'react';
-import {
-  Alert,
-  Pressable,
-  ScrollView,
-  StatusBar,
-  StyleSheet,
-  Switch,
-  Text,
-  View,
-} from 'react-native';
+import { Pressable, ScrollView, StatusBar, StyleSheet, Switch, Text, View } from 'react-native';
+import { AppAlert as Alert } from '../../../context/DialogContext';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { FinanceIcon } from '../../core/components/FinanceIcon';
+import { useAppTheme } from '../../../context/ThemeContext';
 import {
   notificationSettingsStorage,
   type NotificationSettingsState,
@@ -27,6 +20,7 @@ export function NotificationSettingsScreen({
   onViewNotificationsHistory,
 }: NotificationSettingsScreenProps) {
   const insets = useSafeAreaInsets();
+  const { isDark, colors: themeColors } = useAppTheme();
   const [settings, setSettings] = useState<NotificationSettingsState>(DEFAULT_NOTIFICATION_SETTINGS);
   const [loaded, setLoaded] = useState(false);
 
@@ -66,17 +60,25 @@ export function NotificationSettingsScreen({
   };
 
   return (
-    <View style={styles.screen}>
-      <StatusBar barStyle="dark-content" backgroundColor="#FAFCFB" />
+    <View style={[styles.screen, isDark && { backgroundColor: themeColors.background }]}>
+      <StatusBar barStyle={isDark ? "light-content" : "dark-content"} backgroundColor={isDark ? themeColors.background : "#FAFCFB"} />
 
       {/* ── 1. TOP HEADER ── */}
-      <View style={[styles.headerContainer, { paddingTop: Math.max(insets.top + 6, 16) }]}>
-        <Pressable onPress={onBack} style={styles.headerIconButton} hitSlop={12}>
-          <FinanceIcon name="chevron-left" size={24} color="#0F172A" />
+      <View style={[styles.headerContainer, { paddingTop: Math.max(insets.top + 6, 16) }, isDark && { backgroundColor: themeColors.surface, borderBottomColor: themeColors.cardBorder }]}>
+        <Pressable
+          onPress={onBack}
+          style={[styles.headerIconButton, isDark && { backgroundColor: themeColors.surfaceSubtle }]}
+          hitSlop={12}
+        >
+          <FinanceIcon name="chevron-left" size={24} color={isDark ? themeColors.textPrimary : "#0F172A"} />
         </Pressable>
-        <Text style={styles.headerTitle}>Cài đặt thông báo</Text>
-        <Pressable onPress={handleReset} style={styles.headerResetButton} hitSlop={8}>
-          <FinanceIcon name="refresh" size={17} color="#047857" />
+        <Text style={[styles.headerTitle, isDark && { color: themeColors.textPrimary }]}>Cài đặt thông báo</Text>
+        <Pressable
+          onPress={handleReset}
+          style={[styles.headerResetButton, isDark && { backgroundColor: themeColors.surfaceSubtle }]}
+          hitSlop={8}
+        >
+          <FinanceIcon name="refresh" size={17} color={isDark ? themeColors.accentGreen : "#047857"} />
         </Pressable>
       </View>
 
@@ -88,85 +90,88 @@ export function NotificationSettingsScreen({
         {/* Banner dẫn tới Hộp thư thông báo */}
         {onViewNotificationsHistory && (
           <Pressable
-            style={styles.historyBannerCard}
+            style={[
+              styles.historyBannerCard,
+              isDark && { backgroundColor: themeColors.surface, borderColor: themeColors.cardBorder },
+            ]}
             onPress={onViewNotificationsHistory}
           >
             <View style={styles.historyBannerLeft}>
-              <View style={styles.historyIconCircle}>
-                <FinanceIcon name="bell" size={18} color="#047857" />
+              <View style={[styles.historyIconCircle, isDark && { backgroundColor: 'rgba(16, 185, 129, 0.16)' }]}>
+                <FinanceIcon name="bell" size={18} color={isDark ? '#34D399' : '#047857'} />
               </View>
               <View>
-                <Text style={styles.historyBannerTitle}>Lịch sử thông báo hệ thống</Text>
-                <Text style={styles.historyBannerSub}>Xem lại tất cả tin nhắn và thông báo đã nhận</Text>
+                <Text style={[styles.historyBannerTitle, isDark && { color: themeColors.textPrimary }]}>Lịch sử thông báo hệ thống</Text>
+                <Text style={[styles.historyBannerSub, isDark && { color: themeColors.accentGreen }]}>Xem lại tất cả tin nhắn và thông báo đã nhận</Text>
               </View>
             </View>
-            <FinanceIcon name="arrow-right" size={16} color="#047857" />
+            <FinanceIcon name="arrow-right" size={16} color={isDark ? themeColors.accentGreen : '#047857'} />
           </Pressable>
         )}
 
         {/* ── NHÓM 1: LỊCH TÀI CHÍNH & KHOẢN NỢ ── */}
-        <View style={styles.groupCard}>
-          <View style={styles.groupHeaderRow}>
-            <View style={[styles.groupIconBox, { backgroundColor: '#ECFDF5' }]}>
-              <FinanceIcon name="calendar" size={18} color="#059669" />
+        <View style={[styles.groupCard, isDark && { backgroundColor: themeColors.surface, borderColor: themeColors.cardBorder }]}>
+          <View style={[styles.groupHeaderRow, isDark && { borderBottomColor: themeColors.divider }]}>
+            <View style={[styles.groupIconBox, { backgroundColor: isDark ? 'rgba(16, 185, 129, 0.16)' : '#ECFDF5' }]}>
+              <FinanceIcon name="calendar" size={18} color={isDark ? '#34D399' : '#059669'} />
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={styles.groupTitle}>Lịch tài chính & Khoản nợ</Text>
-              <Text style={styles.groupSub}>Nhắc nhở trước hạn và đúng ngày thanh toán</Text>
+              <Text style={[styles.groupTitle, isDark && { color: themeColors.textPrimary }]}>Lịch tài chính & Khoản nợ</Text>
+              <Text style={[styles.groupSub, isDark && { color: themeColors.textSecondary }]}>Nhắc nhở trước hạn và đúng ngày thanh toán</Text>
             </View>
           </View>
 
           {/* Toggle tổng */}
           <View style={styles.settingRow}>
             <View style={styles.settingTextWrap}>
-              <Text style={styles.settingTitle}>Bật nhắc nhở lịch tài chính</Text>
-              <Text style={styles.settingDesc}>Nhận thông báo khi tới lịch thu chi hoặc khoản nợ</Text>
+              <Text style={[styles.settingTitle, isDark && { color: themeColors.textPrimary }]}>Bật nhắc nhở lịch tài chính</Text>
+              <Text style={[styles.settingDesc, isDark && { color: themeColors.textSecondary }]}>Nhận thông báo khi tới lịch thu chi hoặc khoản nợ</Text>
             </View>
             <Switch
               value={settings.remindersEnabled}
               onValueChange={(val) => updateSetting('remindersEnabled', val)}
-              trackColor={{ false: '#CBD5E1', true: '#A7F3D0' }}
-              thumbColor={settings.remindersEnabled ? '#059669' : '#F1F5F9'}
+              trackColor={{ false: isDark ? '#334155' : '#CBD5E1', true: isDark ? '#059669' : '#A7F3D0' }}
+              thumbColor={settings.remindersEnabled ? (isDark ? '#34D399' : '#059669') : (isDark ? '#64748B' : '#F1F5F9')}
             />
           </View>
 
           {settings.remindersEnabled && (
             <>
-              <View style={styles.divider} />
+              <View style={[styles.divider, isDark && { backgroundColor: themeColors.divider }]} />
 
               <View style={styles.settingRow}>
                 <View style={styles.settingTextWrap}>
-                  <Text style={styles.settingTitle}>Nhắc nợ phải trả & Cho vay</Text>
-                  <Text style={styles.settingDesc}>Báo hạn trả nợ hoặc nhắc người vay thanh toán</Text>
+                  <Text style={[styles.settingTitle, isDark && { color: themeColors.textPrimary }]}>Nhắc nợ phải trả & Cho vay</Text>
+                  <Text style={[styles.settingDesc, isDark && { color: themeColors.textSecondary }]}>Báo hạn trả nợ hoặc nhắc người vay thanh toán</Text>
                 </View>
                 <Switch
                   value={settings.debtDueReminder}
                   onValueChange={(val) => updateSetting('debtDueReminder', val)}
-                  trackColor={{ false: '#CBD5E1', true: '#A7F3D0' }}
-                  thumbColor={settings.debtDueReminder ? '#059669' : '#F1F5F9'}
+                  trackColor={{ false: isDark ? '#334155' : '#CBD5E1', true: isDark ? '#059669' : '#A7F3D0' }}
+                  thumbColor={settings.debtDueReminder ? (isDark ? '#34D399' : '#059669') : (isDark ? '#64748B' : '#F1F5F9')}
                 />
               </View>
 
-              <View style={styles.divider} />
+              <View style={[styles.divider, isDark && { backgroundColor: themeColors.divider }]} />
 
               <View style={styles.settingRow}>
                 <View style={styles.settingTextWrap}>
-                  <Text style={styles.settingTitle}>Lịch định kỳ (Tiền nhà, Lương, Hóa đơn)</Text>
-                  <Text style={styles.settingDesc}>Nhắc các khoản chi tiêu / thu nhập lặp lại</Text>
+                  <Text style={[styles.settingTitle, isDark && { color: themeColors.textPrimary }]}>Lịch định kỳ (Tiền nhà, Lương, Hóa đơn)</Text>
+                  <Text style={[styles.settingDesc, isDark && { color: themeColors.textSecondary }]}>Nhắc các khoản chi tiêu / thu nhập lặp lại</Text>
                 </View>
                 <Switch
                   value={settings.scheduleDueReminder}
                   onValueChange={(val) => updateSetting('scheduleDueReminder', val)}
-                  trackColor={{ false: '#CBD5E1', true: '#A7F3D0' }}
-                  thumbColor={settings.scheduleDueReminder ? '#059669' : '#F1F5F9'}
+                  trackColor={{ false: isDark ? '#334155' : '#CBD5E1', true: isDark ? '#059669' : '#A7F3D0' }}
+                  thumbColor={settings.scheduleDueReminder ? (isDark ? '#34D399' : '#059669') : (isDark ? '#64748B' : '#F1F5F9')}
                 />
               </View>
 
-              <View style={styles.divider} />
+              <View style={[styles.divider, isDark && { backgroundColor: themeColors.divider }]} />
 
               {/* Thời điểm nhắc trước */}
               <View style={{ paddingTop: 6 }}>
-                <Text style={styles.miniLabel}>Thời gian nhắc nhở trước hạn:</Text>
+                <Text style={[styles.miniLabel, isDark && { color: themeColors.textSecondary }]}>Thời gian nhắc nhở trước hạn:</Text>
                 <View style={styles.pillsRow}>
                   {[
                     { days: 0, label: 'Đúng ngày' },
@@ -179,13 +184,15 @@ export function NotificationSettingsScreen({
                       onPress={() => updateSetting('remindAdvanceDays', it.days)}
                       style={[
                         styles.choicePill,
-                        settings.remindAdvanceDays === it.days && styles.choicePillActive,
+                        isDark && { backgroundColor: themeColors.surfaceSubtle, borderColor: themeColors.cardBorder },
+                        settings.remindAdvanceDays === it.days && (isDark ? { backgroundColor: 'rgba(16, 185, 129, 0.16)', borderColor: themeColors.accentGreen } : styles.choicePillActive),
                       ]}
                     >
                       <Text
                         style={[
                           styles.choicePillText,
-                          settings.remindAdvanceDays === it.days && styles.choicePillTextActive,
+                          isDark && { color: themeColors.textSecondary },
+                          settings.remindAdvanceDays === it.days && (isDark ? { color: themeColors.accentGreen, fontWeight: '800' } : styles.choicePillTextActive),
                         ]}
                       >
                         {it.label}
@@ -199,74 +206,74 @@ export function NotificationSettingsScreen({
         </View>
 
         {/* ── NHÓM 2: NGÂN SÁCH & CẢNH BÁO BỘI CHI ── */}
-        <View style={styles.groupCard}>
-          <View style={styles.groupHeaderRow}>
-            <View style={[styles.groupIconBox, { backgroundColor: '#EFF6FF' }]}>
-              <FinanceIcon name="pie-chart" size={18} color="#2563EB" />
+        <View style={[styles.groupCard, isDark && { backgroundColor: themeColors.surface, borderColor: themeColors.cardBorder }]}>
+          <View style={[styles.groupHeaderRow, isDark && { borderBottomColor: themeColors.divider }]}>
+            <View style={[styles.groupIconBox, { backgroundColor: isDark ? 'rgba(59, 130, 246, 0.16)' : '#EFF6FF' }]}>
+              <FinanceIcon name="pie-chart" size={18} color={isDark ? '#60A5FA' : '#2563EB'} />
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={styles.groupTitle}>Ngân sách & Cảnh báo chi tiêu</Text>
-              <Text style={styles.groupSub}>Bảo vệ hạn mức ngân sách và ngăn ngừa thâm hụt</Text>
+              <Text style={[styles.groupTitle, isDark && { color: themeColors.textPrimary }]}>Ngân sách & Cảnh báo chi tiêu</Text>
+              <Text style={[styles.groupSub, isDark && { color: themeColors.textSecondary }]}>Bảo vệ hạn mức ngân sách và ngăn ngừa thâm hụt</Text>
             </View>
           </View>
 
           <View style={styles.settingRow}>
             <View style={styles.settingTextWrap}>
-              <Text style={styles.settingTitle}>Bật cảnh báo hạn mức ngân sách</Text>
-              <Text style={styles.settingDesc}>Nhận thông báo khi danh mục chi tiêu sắp hoặc đã vượt</Text>
+              <Text style={[styles.settingTitle, isDark && { color: themeColors.textPrimary }]}>Bật cảnh báo hạn mức ngân sách</Text>
+              <Text style={[styles.settingDesc, isDark && { color: themeColors.textSecondary }]}>Nhận thông báo khi danh mục chi tiêu sắp hoặc đã vượt</Text>
             </View>
             <Switch
               value={settings.budgetAlertEnabled}
               onValueChange={(val) => updateSetting('budgetAlertEnabled', val)}
-              trackColor={{ false: '#CBD5E1', true: '#A7F3D0' }}
-              thumbColor={settings.budgetAlertEnabled ? '#059669' : '#F1F5F9'}
+              trackColor={{ false: isDark ? '#334155' : '#CBD5E1', true: isDark ? '#059669' : '#A7F3D0' }}
+              thumbColor={settings.budgetAlertEnabled ? (isDark ? '#34D399' : '#059669') : (isDark ? '#64748B' : '#F1F5F9')}
             />
           </View>
 
           {settings.budgetAlertEnabled && (
             <>
-              <View style={styles.divider} />
+              <View style={[styles.divider, isDark && { backgroundColor: themeColors.divider }]} />
 
               <View style={styles.settingRow}>
                 <View style={styles.settingTextWrap}>
-                  <Text style={styles.settingTitle}>Cảnh báo sớm khi chạm 80%</Text>
-                  <Text style={styles.settingDesc}>Nhắc nhở nhẹ để kiểm soát chi tiêu trước khi hết tháng</Text>
+                  <Text style={[styles.settingTitle, isDark && { color: themeColors.textPrimary }]}>Cảnh báo sớm khi chạm 80%</Text>
+                  <Text style={[styles.settingDesc, isDark && { color: themeColors.textSecondary }]}>Nhắc nhở nhẹ để kiểm soát chi tiêu trước khi hết tháng</Text>
                 </View>
                 <Switch
                   value={settings.budgetThreshold80}
                   onValueChange={(val) => updateSetting('budgetThreshold80', val)}
-                  trackColor={{ false: '#CBD5E1', true: '#A7F3D0' }}
-                  thumbColor={settings.budgetThreshold80 ? '#059669' : '#F1F5F9'}
+                  trackColor={{ false: isDark ? '#334155' : '#CBD5E1', true: isDark ? '#059669' : '#A7F3D0' }}
+                  thumbColor={settings.budgetThreshold80 ? (isDark ? '#34D399' : '#059669') : (isDark ? '#64748B' : '#F1F5F9')}
                 />
               </View>
 
-              <View style={styles.divider} />
+              <View style={[styles.divider, isDark && { backgroundColor: themeColors.divider }]} />
 
               <View style={styles.settingRow}>
                 <View style={styles.settingTextWrap}>
-                  <Text style={styles.settingTitle}>Cảnh báo đỏ khi vượt 100%</Text>
-                  <Text style={styles.settingDesc}>Thông báo khẩn cấp khi chi tiêu vượt ngân sách tháng</Text>
+                  <Text style={[styles.settingTitle, isDark && { color: themeColors.textPrimary }]}>Cảnh báo đỏ khi vượt 100%</Text>
+                  <Text style={[styles.settingDesc, isDark && { color: themeColors.textSecondary }]}>Thông báo khẩn cấp khi chi tiêu vượt ngân sách tháng</Text>
                 </View>
                 <Switch
                   value={settings.budgetThreshold100}
                   onValueChange={(val) => updateSetting('budgetThreshold100', val)}
-                  trackColor={{ false: '#CBD5E1', true: '#A7F3D0' }}
-                  thumbColor={settings.budgetThreshold100 ? '#059669' : '#F1F5F9'}
+                  trackColor={{ false: isDark ? '#334155' : '#CBD5E1', true: isDark ? '#059669' : '#A7F3D0' }}
+                  thumbColor={settings.budgetThreshold100 ? (isDark ? '#34D399' : '#059669') : (isDark ? '#64748B' : '#F1F5F9')}
                 />
               </View>
 
-              <View style={styles.divider} />
+              <View style={[styles.divider, isDark && { backgroundColor: themeColors.divider }]} />
 
               <View style={styles.settingRow}>
                 <View style={styles.settingTextWrap}>
-                  <Text style={styles.settingTitle}>FinAI dự báo số dư thâm hụt</Text>
-                  <Text style={styles.settingDesc}>Cảnh báo khi AI dự báo số dư cuối tháng có nguy cơ âm</Text>
+                  <Text style={[styles.settingTitle, isDark && { color: themeColors.textPrimary }]}>FinAI dự báo số dư thâm hụt</Text>
+                  <Text style={[styles.settingDesc, isDark && { color: themeColors.textSecondary }]}>Cảnh báo khi AI dự báo số dư cuối tháng có nguy cơ âm</Text>
                 </View>
                 <Switch
                   value={settings.balanceForecastAlert}
                   onValueChange={(val) => updateSetting('balanceForecastAlert', val)}
-                  trackColor={{ false: '#CBD5E1', true: '#A7F3D0' }}
-                  thumbColor={settings.balanceForecastAlert ? '#059669' : '#F1F5F9'}
+                  trackColor={{ false: isDark ? '#334155' : '#CBD5E1', true: isDark ? '#059669' : '#A7F3D0' }}
+                  thumbColor={settings.balanceForecastAlert ? (isDark ? '#34D399' : '#059669') : (isDark ? '#64748B' : '#F1F5F9')}
                 />
               </View>
             </>
@@ -274,124 +281,124 @@ export function NotificationSettingsScreen({
         </View>
 
         {/* ── NHÓM 3: GIAO DỊCH & QUỸ NHÓM GIA ĐÌNH ── */}
-        <View style={styles.groupCard}>
-          <View style={styles.groupHeaderRow}>
-            <View style={[styles.groupIconBox, { backgroundColor: '#FDF2F8' }]}>
-              <FinanceIcon name="users" size={18} color="#DB2777" />
+        <View style={[styles.groupCard, isDark && { backgroundColor: themeColors.surface, borderColor: themeColors.cardBorder }]}>
+          <View style={[styles.groupHeaderRow, isDark && { borderBottomColor: themeColors.divider }]}>
+            <View style={[styles.groupIconBox, { backgroundColor: isDark ? 'rgba(236, 72, 153, 0.16)' : '#FDF2F8' }]}>
+              <FinanceIcon name="users" size={18} color={isDark ? '#F472B6' : '#DB2777'} />
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={styles.groupTitle}>Biến động số dư & Quỹ nhóm</Text>
-              <Text style={styles.groupSub}>Cập nhật thu chi cá nhân và gia đình</Text>
+              <Text style={[styles.groupTitle, isDark && { color: themeColors.textPrimary }]}>Biến động số dư & Quỹ nhóm</Text>
+              <Text style={[styles.groupSub, isDark && { color: themeColors.textSecondary }]}>Cập nhật thu chi cá nhân và gia đình</Text>
             </View>
           </View>
 
           <View style={styles.settingRow}>
             <View style={styles.settingTextWrap}>
-              <Text style={styles.settingTitle}>Thông báo ghi chép giao dịch</Text>
-              <Text style={styles.settingDesc}>Xác nhận sau khi thêm giao dịch hoặc quét hóa đơn AI</Text>
+              <Text style={[styles.settingTitle, isDark && { color: themeColors.textPrimary }]}>Thông báo ghi chép giao dịch</Text>
+              <Text style={[styles.settingDesc, isDark && { color: themeColors.textSecondary }]}>Xác nhận sau khi thêm giao dịch hoặc quét hóa đơn AI</Text>
             </View>
             <Switch
               value={settings.transactionSuccessNotify}
               onValueChange={(val) => updateSetting('transactionSuccessNotify', val)}
-              trackColor={{ false: '#CBD5E1', true: '#A7F3D0' }}
-              thumbColor={settings.transactionSuccessNotify ? '#059669' : '#F1F5F9'}
+              trackColor={{ false: isDark ? '#334155' : '#CBD5E1', true: isDark ? '#059669' : '#A7F3D0' }}
+              thumbColor={settings.transactionSuccessNotify ? (isDark ? '#34D399' : '#059669') : (isDark ? '#64748B' : '#F1F5F9')}
             />
           </View>
 
-          <View style={styles.divider} />
+          <View style={[styles.divider, isDark && { backgroundColor: themeColors.divider }]} />
 
           <View style={styles.settingRow}>
             <View style={styles.settingTextWrap}>
-              <Text style={styles.settingTitle}>Chi tiêu trong nhóm & Ví con cái</Text>
-              <Text style={styles.settingDesc}>Nhận tin nhắn khi thành viên thêm chi tiêu hoặc yêu cầu duyệt tiền</Text>
+              <Text style={[styles.settingTitle, isDark && { color: themeColors.textPrimary }]}>Chi tiêu trong nhóm & Ví con cái</Text>
+              <Text style={[styles.settingDesc, isDark && { color: themeColors.textSecondary }]}>Nhận tin nhắn khi thành viên thêm chi tiêu hoặc yêu cầu duyệt tiền</Text>
             </View>
             <Switch
               value={settings.groupExpenseNotify}
               onValueChange={(val) => updateSetting('groupExpenseNotify', val)}
-              trackColor={{ false: '#CBD5E1', true: '#A7F3D0' }}
-              thumbColor={settings.groupExpenseNotify ? '#059669' : '#F1F5F9'}
+              trackColor={{ false: isDark ? '#334155' : '#CBD5E1', true: isDark ? '#059669' : '#A7F3D0' }}
+              thumbColor={settings.groupExpenseNotify ? (isDark ? '#34D399' : '#059669') : (isDark ? '#64748B' : '#F1F5F9')}
             />
           </View>
         </View>
 
         {/* ── NHÓM 4: BÁO CÁO TỔNG KẾT ĐỊNH KỲ ── */}
-        <View style={styles.groupCard}>
-          <View style={styles.groupHeaderRow}>
-            <View style={[styles.groupIconBox, { backgroundColor: '#FFFBEB' }]}>
-              <FinanceIcon name="file-text" size={18} color="#D97706" />
+        <View style={[styles.groupCard, isDark && { backgroundColor: themeColors.surface, borderColor: themeColors.cardBorder }]}>
+          <View style={[styles.groupHeaderRow, isDark && { borderBottomColor: themeColors.divider }]}>
+            <View style={[styles.groupIconBox, { backgroundColor: isDark ? 'rgba(245, 158, 11, 0.16)' : '#FFFBEB' }]}>
+              <FinanceIcon name="file-text" size={18} color={isDark ? '#FBBF24' : '#D97706'} />
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={styles.groupTitle}>Báo cáo định kỳ</Text>
-              <Text style={styles.groupSub}>Tổng kết dòng tiền và tỷ lệ tiết kiệm</Text>
+              <Text style={[styles.groupTitle, isDark && { color: themeColors.textPrimary }]}>Báo cáo định kỳ</Text>
+              <Text style={[styles.groupSub, isDark && { color: themeColors.textSecondary }]}>Tổng kết dòng tiền và tỷ lệ tiết kiệm</Text>
             </View>
           </View>
 
           <View style={styles.settingRow}>
             <View style={styles.settingTextWrap}>
-              <Text style={styles.settingTitle}>Báo cáo tuần (Chủ nhật hàng tuần)</Text>
-              <Text style={styles.settingDesc}>Tóm tắt tổng chi tiêu và so sánh với tuần trước</Text>
+              <Text style={[styles.settingTitle, isDark && { color: themeColors.textPrimary }]}>Báo cáo tuần (Chủ nhật hàng tuần)</Text>
+              <Text style={[styles.settingDesc, isDark && { color: themeColors.textSecondary }]}>Tóm tắt tổng chi tiêu và so sánh với tuần trước</Text>
             </View>
             <Switch
               value={settings.weeklyReportNotify}
               onValueChange={(val) => updateSetting('weeklyReportNotify', val)}
-              trackColor={{ false: '#CBD5E1', true: '#A7F3D0' }}
-              thumbColor={settings.weeklyReportNotify ? '#059669' : '#F1F5F9'}
+              trackColor={{ false: isDark ? '#334155' : '#CBD5E1', true: isDark ? '#059669' : '#A7F3D0' }}
+              thumbColor={settings.weeklyReportNotify ? (isDark ? '#34D399' : '#059669') : (isDark ? '#64748B' : '#F1F5F9')}
             />
           </View>
 
-          <View style={styles.divider} />
+          <View style={[styles.divider, isDark && { backgroundColor: themeColors.divider }]} />
 
           <View style={styles.settingRow}>
             <View style={styles.settingTextWrap}>
-              <Text style={styles.settingTitle}>Báo cáo tháng (Ngày cuối tháng)</Text>
-              <Text style={styles.settingDesc}>Thống kê toàn diện tài sản ròng và phân tích thói quen chi tiêu</Text>
+              <Text style={[styles.settingTitle, isDark && { color: themeColors.textPrimary }]}>Báo cáo tháng (Ngày cuối tháng)</Text>
+              <Text style={[styles.settingDesc, isDark && { color: themeColors.textSecondary }]}>Thống kê toàn diện tài sản ròng và phân tích thói quen chi tiêu</Text>
             </View>
             <Switch
               value={settings.monthlyReportNotify}
               onValueChange={(val) => updateSetting('monthlyReportNotify', val)}
-              trackColor={{ false: '#CBD5E1', true: '#A7F3D0' }}
-              thumbColor={settings.monthlyReportNotify ? '#059669' : '#F1F5F9'}
+              trackColor={{ false: isDark ? '#334155' : '#CBD5E1', true: isDark ? '#059669' : '#A7F3D0' }}
+              thumbColor={settings.monthlyReportNotify ? (isDark ? '#34D399' : '#059669') : (isDark ? '#64748B' : '#F1F5F9')}
             />
           </View>
         </View>
 
         {/* ── NHÓM 5: ÂM THANH & RUNG ── */}
-        <View style={styles.groupCard}>
-          <View style={styles.groupHeaderRow}>
-            <View style={[styles.groupIconBox, { backgroundColor: '#F1F5F9' }]}>
-              <FinanceIcon name="settings" size={18} color="#475569" />
+        <View style={[styles.groupCard, isDark && { backgroundColor: themeColors.surface, borderColor: themeColors.cardBorder }]}>
+          <View style={[styles.groupHeaderRow, isDark && { borderBottomColor: themeColors.divider }]}>
+            <View style={[styles.groupIconBox, { backgroundColor: isDark ? 'rgba(148, 163, 184, 0.16)' : '#F1F5F9' }]}>
+              <FinanceIcon name="settings" size={18} color={isDark ? '#94A3B8' : '#475569'} />
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={styles.groupTitle}>Âm thanh & Phản hồi</Text>
-              <Text style={styles.groupSub}>Tùy chỉnh chuông báo ứng dụng</Text>
+              <Text style={[styles.groupTitle, isDark && { color: themeColors.textPrimary }]}>Âm thanh & Phản hồi</Text>
+              <Text style={[styles.groupSub, isDark && { color: themeColors.textSecondary }]}>Tùy chỉnh chuông báo ứng dụng</Text>
             </View>
           </View>
 
           <View style={styles.settingRow}>
             <View style={styles.settingTextWrap}>
-              <Text style={styles.settingTitle}>Âm thanh thông báo</Text>
-              <Text style={styles.settingDesc}>Phát chuông khi có thông báo đẩy mới</Text>
+              <Text style={[styles.settingTitle, isDark && { color: themeColors.textPrimary }]}>Âm thanh thông báo</Text>
+              <Text style={[styles.settingDesc, isDark && { color: themeColors.textSecondary }]}>Phát chuông khi có thông báo đẩy mới</Text>
             </View>
             <Switch
               value={settings.soundEnabled}
               onValueChange={(val) => updateSetting('soundEnabled', val)}
-              trackColor={{ false: '#CBD5E1', true: '#A7F3D0' }}
-              thumbColor={settings.soundEnabled ? '#059669' : '#F1F5F9'}
+              trackColor={{ false: isDark ? '#334155' : '#CBD5E1', true: isDark ? '#059669' : '#A7F3D0' }}
+              thumbColor={settings.soundEnabled ? (isDark ? '#34D399' : '#059669') : (isDark ? '#64748B' : '#F1F5F9')}
             />
           </View>
 
-          <View style={styles.divider} />
+          <View style={[styles.divider, isDark && { backgroundColor: themeColors.divider }]} />
 
           <View style={styles.settingRow}>
             <View style={styles.settingTextWrap}>
-              <Text style={styles.settingTitle}>Rung khi có thông báo</Text>
-              <Text style={styles.settingDesc}>Rung nhẹ khi thiết bị nhận thông báo quan trọng</Text>
+              <Text style={[styles.settingTitle, isDark && { color: themeColors.textPrimary }]}>Rung khi có thông báo</Text>
+              <Text style={[styles.settingDesc, isDark && { color: themeColors.textSecondary }]}>Rung nhẹ khi thiết bị nhận thông báo quan trọng</Text>
             </View>
             <Switch
               value={settings.vibrateEnabled}
               onValueChange={(val) => updateSetting('vibrateEnabled', val)}
-              trackColor={{ false: '#CBD5E1', true: '#A7F3D0' }}
-              thumbColor={settings.vibrateEnabled ? '#059669' : '#F1F5F9'}
+              trackColor={{ false: isDark ? '#334155' : '#CBD5E1', true: isDark ? '#059669' : '#A7F3D0' }}
+              thumbColor={settings.vibrateEnabled ? (isDark ? '#34D399' : '#059669') : (isDark ? '#64748B' : '#F1F5F9')}
             />
           </View>
         </View>

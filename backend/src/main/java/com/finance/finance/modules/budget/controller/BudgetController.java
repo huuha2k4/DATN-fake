@@ -148,7 +148,7 @@ public class BudgetController {
     public ResponseEntity<Map<String, Object>> deleteBudget(
             @AuthenticationPrincipal User user,
             @PathVariable UUID id,
-            @RequestParam Integer version) {
+            @RequestParam(required = false, defaultValue = "0") Integer version) {
         log.info("Delete budget: {} for user: {}", id, user.getId());
 
         budgetService.deleteBudget(user.getId(), id, version);

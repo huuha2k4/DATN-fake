@@ -1,23 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  Modal,
-  TextInput,
-  Pressable,
-  ScrollView,
-  KeyboardAvoidingView,
-  Platform,
-  Alert,
-  ActivityIndicator,
-} from 'react-native';
+import { View, Text, StyleSheet, Modal, TextInput, Pressable, ScrollView, KeyboardAvoidingView, Platform, ActivityIndicator } from 'react-native';
+import { AppAlert as Alert } from '../../../context/DialogContext';
 import { FinanceIcon } from '../../core/components/FinanceIcon';
 import { goalsApi } from '../api/goalsApi';
 import { accountApi, type AccountItem } from '../../accounts/api/accountApi';
 import { authStorage } from '../../auth/api/authApi';
 import { groupApi } from '../../group/api/groupApi';
 import { AccountBadge } from '../../accounts/components/AccountBadge';
+import { useAppTheme } from '../../../context/ThemeContext';
 
 type Props = {
   visible: boolean;
@@ -39,6 +29,7 @@ function formatCurrencyInput(val: string): string {
 }
 
 export function ContributeGoalModal({ visible, goalId, goalTitle, onClose, onSuccess }: Props) {
+  const { isDark, colors: themeColors } = useAppTheme();
   const [amount, setAmount] = useState('');
   const [note, setNote] = useState('');
   const [accounts, setAccounts] = useState<AccountItem[]>([]);
@@ -127,26 +118,46 @@ export function ContributeGoalModal({ visible, goalId, goalTitle, onClose, onSuc
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         style={styles.backdrop}
       >
-        <View style={styles.sheet}>
+        <View
+          style={[
+            styles.sheet,
+            isDark && { backgroundColor: themeColors.surface, borderColor: themeColors.cardBorder, borderWidth: 1 },
+          ]}
+        >
           {/* Header */}
-          <View style={styles.header}>
+          <View style={[styles.header, isDark && { borderBottomColor: themeColors.cardBorder }]}>
             <View>
-              <Text style={styles.headerTitle}>Nộp tiền vào mục tiêu</Text>
-              <Text style={styles.headerSub}>{goalTitle}</Text>
+              <Text style={[styles.headerTitle, isDark && { color: themeColors.textPrimary }]}>
+                Nộp tiền vào mục tiêu
+              </Text>
+              <Text style={[styles.headerSub, isDark && { color: '#34D399' }]}>{goalTitle}</Text>
             </View>
-            <Pressable onPress={onClose} hitSlop={10} style={styles.closeBtn}>
-              <FinanceIcon name="close" size={20} color="#64748B" />
+            <Pressable
+              onPress={onClose}
+              hitSlop={10}
+              style={[styles.closeBtn, isDark && { backgroundColor: themeColors.surfaceSubtle }]}
+            >
+              <FinanceIcon name="close" size={20} color={isDark ? themeColors.textSecondary : '#64748B'} />
             </Pressable>
           </View>
 
           <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scroll}>
             {/* Số tiền */}
             <View style={styles.field}>
-              <Text style={styles.label}>Số tiền nộp (đ) *</Text>
+              <Text style={[styles.label, isDark && { color: themeColors.textSecondary }]}>
+                Số tiền nộp (đ) *
+              </Text>
               <TextInput
-                style={styles.input}
+                style={[
+                  styles.input,
+                  isDark && {
+                    backgroundColor: themeColors.surfaceSubtle,
+                    borderColor: themeColors.cardBorder,
+                    color: themeColors.textPrimary,
+                  },
+                ]}
                 placeholder="VD: 1.000.000"
-                placeholderTextColor="#94A3B8"
+                placeholderTextColor={isDark ? '#64748B' : '#94A3B8'}
                 keyboardType="numeric"
                 value={amount}
                 onChangeText={(val) => setAmount(formatCurrencyInput(val))}
@@ -155,45 +166,79 @@ export function ContributeGoalModal({ visible, goalId, goalTitle, onClose, onSuc
 
             {/* Tài khoản nguồn (Dropdown phong cách quản lý nợ - Khóa khi là ví của bé) */}
             <View style={styles.field}>
-              <Text style={styles.label}>Tài khoản nguồn trích tiền *</Text>
+              <Text style={[styles.label, isDark && { color: themeColors.textSecondary }]}>
+                Tài khoản nguồn trích tiền *
+              </Text>
               {isChildAccount ? (
-                <View style={[styles.dropdownBtn, { backgroundColor: '#F8FAFC', borderColor: '#E2E8F0' }]}>
+                <View
+                  style={[
+                    styles.dropdownBtn,
+                    {
+                      backgroundColor: isDark ? themeColors.surfaceSubtle : '#F8FAFC',
+                      borderColor: isDark ? themeColors.cardBorder : '#E2E8F0',
+                    },
+                  ]}
+                >
                   <View style={styles.dropdownLeft}>
                     <FinanceIcon name="wallet" size={18} color="#059669" />
-                    <Text style={[styles.dropdownText, { color: '#0F172A', fontWeight: '700' }]} numberOfLines={1}>
-                      {user?.childWalletName || 'Ví của em'} {selectedAccountObj ? `(Số dư: ${formatVND(selectedAccountObj.balance)})` : ''}
+                    <Text
+                      style={[
+                        styles.dropdownText,
+                        { color: isDark ? themeColors.textPrimary : '#0F172A', fontWeight: '700' },
+                      ]}
+                      numberOfLines={1}
+                    >
+                      {user?.childWalletName || 'Ví của em'}{' '}
+                      {selectedAccountObj ? `(Số dư: ${formatVND(selectedAccountObj.balance)})` : ''}
                     </Text>
                   </View>
                 </View>
               ) : (
                 <Pressable
                   onPress={() => setShowAccountPicker(true)}
-                  style={styles.dropdownBtn}
+                  style={[
+                    styles.dropdownBtn,
+                    isDark && {
+                      backgroundColor: themeColors.surfaceSubtle,
+                      borderColor: themeColors.cardBorder,
+                    },
+                  ]}
                 >
                   <View style={styles.dropdownLeft}>
                     {selectedAccountObj ? (
                       <AccountBadge account={selectedAccountObj} size={28} />
                     ) : (
-                      <FinanceIcon name="wallet" size={18} color="#006747" />
+                      <FinanceIcon name="wallet" size={18} color={isDark ? '#34D399' : '#006747'} />
                     )}
-                    <Text style={styles.dropdownText} numberOfLines={1}>
+                    <Text
+                      style={[styles.dropdownText, isDark && { color: themeColors.textPrimary }]}
+                      numberOfLines={1}
+                    >
                       {selectedAccountObj
                         ? `${selectedAccountObj.name} (Số dư: ${formatVND(selectedAccountObj.balance)})`
                         : 'Chọn tài khoản nguồn...'}
                     </Text>
                   </View>
-                  <FinanceIcon name="chevron-down" size={18} color="#006747" />
+                  <FinanceIcon name="chevron-down" size={18} color={isDark ? '#34D399' : '#006747'} />
                 </Pressable>
               )}
             </View>
 
             {/* Ghi chú */}
             <View style={styles.field}>
-              <Text style={styles.label}>Ghi chú</Text>
+              <Text style={[styles.label, isDark && { color: themeColors.textSecondary }]}>Ghi chú</Text>
               <TextInput
-                style={[styles.input, styles.textArea]}
+                style={[
+                  styles.input,
+                  styles.textArea,
+                  isDark && {
+                    backgroundColor: themeColors.surfaceSubtle,
+                    borderColor: themeColors.cardBorder,
+                    color: themeColors.textPrimary,
+                  },
+                ]}
                 placeholder="VD: Trích lương tháng 11, Thưởng dự án..."
-                placeholderTextColor="#94A3B8"
+                placeholderTextColor={isDark ? '#64748B' : '#94A3B8'}
                 multiline
                 numberOfLines={2}
                 value={note}
@@ -203,7 +248,11 @@ export function ContributeGoalModal({ visible, goalId, goalTitle, onClose, onSuc
 
             {/* Submit Button */}
             <Pressable
-              style={[styles.submitBtn, isSubmitting && { opacity: 0.7 }]}
+              style={[
+                styles.submitBtn,
+                isDark && { backgroundColor: '#10B981', shadowColor: '#10B981' },
+                isSubmitting && { opacity: 0.7 },
+              ]}
               onPress={handleSubmit}
               disabled={isSubmitting}
             >
@@ -219,11 +268,18 @@ export function ContributeGoalModal({ visible, goalId, goalTitle, onClose, onSuc
           {showAccountPicker && (
             <View style={styles.pickerBackdrop}>
               <Pressable style={StyleSheet.absoluteFillObject} onPress={() => setShowAccountPicker(false)} />
-              <View style={styles.pickerBox}>
-                <View style={styles.pickerHeader}>
-                  <Text style={styles.pickerTitle}>Chọn tài khoản nguồn</Text>
+              <View
+                style={[
+                  styles.pickerBox,
+                  isDark && { backgroundColor: themeColors.surface, borderColor: themeColors.cardBorder, borderWidth: 1 },
+                ]}
+              >
+                <View style={[styles.pickerHeader, isDark && { borderBottomColor: themeColors.cardBorder }]}>
+                  <Text style={[styles.pickerTitle, isDark && { color: themeColors.textPrimary }]}>
+                    Chọn tài khoản nguồn
+                  </Text>
                   <Pressable onPress={() => setShowAccountPicker(false)} hitSlop={10}>
-                    <FinanceIcon name="close" size={18} color="#64748B" />
+                    <FinanceIcon name="close" size={18} color={isDark ? themeColors.textSecondary : '#64748B'} />
                   </Pressable>
                 </View>
 
@@ -237,16 +293,27 @@ export function ContributeGoalModal({ visible, goalId, goalTitle, onClose, onSuc
                           setSelectedAccountId(acc.id);
                           setShowAccountPicker(false);
                         }}
-                        style={[styles.pickerRow, isSel && styles.pickerRowActive]}
+                        style={[
+                          styles.pickerRow,
+                          isSel && (isDark ? { backgroundColor: 'rgba(52, 211, 153, 0.15)' } : styles.pickerRowActive),
+                        ]}
                       >
                         <AccountBadge account={acc} size={36} />
                         <View style={{ flex: 1, marginLeft: 12 }}>
-                          <Text style={[styles.pickerRowTitle, isSel && styles.pickerRowTitleActive]}>
+                          <Text
+                            style={[
+                              styles.pickerRowTitle,
+                              isDark && { color: themeColors.textPrimary },
+                              isSel && (isDark ? { color: '#34D399', fontWeight: '700' } : styles.pickerRowTitleActive),
+                            ]}
+                          >
                             {acc.name}
                           </Text>
-                          <Text style={styles.pickerRowDesc}>Số dư: {formatVND(acc.balance)}</Text>
+                          <Text style={[styles.pickerRowDesc, isDark && { color: themeColors.textSecondary }]}>
+                            Số dư: {formatVND(acc.balance)}
+                          </Text>
                         </View>
-                        {isSel && <FinanceIcon name="check" size={18} color="#006747" />}
+                        {isSel && <FinanceIcon name="check" size={18} color={isDark ? '#34D399' : '#006747'} />}
                       </Pressable>
                     );
                   })}
