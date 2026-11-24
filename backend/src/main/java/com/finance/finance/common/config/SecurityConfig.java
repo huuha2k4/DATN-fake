@@ -80,7 +80,7 @@ public class SecurityConfig {
             "http://localhost:*",
             "http://127.0.0.1:*",
             "https://*.ngrok-free.dev",
-            "http://180.93.193.138:*",
+            "http://79.182.10.21:*",
             "https://finora.3congian.top",
             "https://*.ngrok-free.app",
             "https://*.ngrok.io",
