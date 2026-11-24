@@ -112,6 +112,7 @@ export interface GroupFundContributionResponse {
   contributorName: string;
   amount: number;
   contributedAt: string;
+  createdAt?: string;
   note?: string;
 }
 
@@ -149,6 +150,7 @@ export interface GroupCommentResponse {
   user?: {
     id?: string;
     fullName?: string;
+    username?: string;
     avatarUrl?: string;
     avatarKey?: string;
   };
@@ -262,6 +264,10 @@ export interface ChildWalletResponse {
   weeklyAllowance?: number;
   spentToday?: number;
   spentThisWeek?: number;
+  dailySpendingLimit?: number;
+  monthlySpendingLimit?: number;
+  requireApprovalAbove?: number;
+  notes?: string;
   createdAt?: string;
 }
 
@@ -269,16 +275,21 @@ export interface CreateChildWalletRequest {
   childName: string;
   username?: string;
   password?: string;
-  dateOfBirth?: string;
-  balance?: number;
   grade?: string;
+  age?: number;
+  dateOfBirth?: string;
   avatarKey?: string;
+  avatarUrl?: string;
+  initialBalance?: number;
+  balance?: number;
   weeklyAllowance?: number;
-  allowanceSource?: 'PERSONAL_ACCOUNT' | 'GROUP_FUND';
-  allowanceAccountId?: string;
-  privacyLevel?: 'FULL_ACCESS' | 'PARENT_SUPERVISED' | 'VIEW_ONLY';
   spendLimitDaily?: number;
   spendLimitWeekly?: number;
+  requireApprovalAbove?: number;
+  notes?: string;
+  allowanceSource?: string;
+  allowanceAccountId?: string;
+  privacyLevel?: string;
 }
 
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
@@ -545,6 +556,48 @@ export const groupApi = {
     });
   },
 
+  async uploadChildWalletAvatar(groupId: string, file: { uri: string; name: string; type: string }): Promise<string> {
+    const token = authStorage.getToken();
+    const formData = new FormData();
+    // @ts-ignore
+    formData.append('file', {
+      uri: file.uri,
+      name: file.name || 'avatar.jpg',
+      type: file.type || 'image/jpeg',
+    });
+
+    return await new Promise<string>((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      xhr.open('POST', `${API_BASE_URL}/groups/${groupId}/child-wallets/avatar`);
+      if (token) {
+        xhr.setRequestHeader('Authorization', `Bearer ${token}`);
+      }
+
+      xhr.onload = () => {
+        try {
+          const res = JSON.parse(xhr.responseText);
+          if (xhr.status >= 200 && xhr.status < 300) {
+            resolve(res?.avatarUrl || res?.fileKey || res?.data?.avatarUrl || '');
+          } else {
+            reject(new Error(res?.message || `Lỗi tải ảnh đại diện (${xhr.status})`));
+          }
+        } catch {
+          if (xhr.status >= 200 && xhr.status < 300) {
+            resolve('');
+          } else {
+            reject(new Error(`Máy chủ phản hồi HTTP ${xhr.status}`));
+          }
+        }
+      };
+
+      xhr.onerror = () => {
+        reject(new Error('Lỗi kết nối mạng khi tải ảnh lên'));
+      };
+
+      xhr.send(formData);
+    });
+  },
+
   async uploadMessageAttachment(groupId: string, file: { uri: string; name: string; type: string }): Promise<MessageAttachmentItem> {
     const token = authStorage.getToken();
     const formData = new FormData();
@@ -724,6 +777,8 @@ export const groupApi = {
     walletId: string,
     data: {
       childName?: string;
+      avatarKey?: string;
+      avatarUrl?: string;
       weeklyAllowance?: number;
       spendLimitDaily?: number;
       spendLimitWeekly?: number;
@@ -746,19 +801,15 @@ export const groupApi = {
     });
   },
 
-  async getChildWallet(groupId: string, walletId: string): Promise<ChildWalletResponse> {
-    return await request<ChildWalletResponse>(`/groups/${groupId}/child-wallets/${walletId}`);
+  async resetChildPassword(groupId: string, walletId: string, newPassword: string): Promise<void> {
+    await request<void>(`/groups/${groupId}/child-wallets/${walletId}/reset-password`, {
+      method: 'PUT',
+      body: JSON.stringify({ newPassword }),
+    });
   },
 
-  async getSpendRequests(groupId: string, walletId: string): Promise<SpendRequestItem[]> {
-    try {
-      const res = await request<any>(`/groups/${groupId}/child-wallets/${walletId}/spend-requests?size=100`);
-      if (Array.isArray(res)) return res;
-      if (res?.content && Array.isArray(res.content)) return res.content;
-      return [];
-    } catch {
-      return [];
-    }
+  async getChildWallet(groupId: string, walletId: string): Promise<ChildWalletResponse> {
+    return await request<ChildWalletResponse>(`/groups/${groupId}/child-wallets/${walletId}`);
   },
 
   async createChildSpendRequest(

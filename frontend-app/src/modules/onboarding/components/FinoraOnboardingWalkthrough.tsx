@@ -155,7 +155,7 @@ export function FinoraOnboardingWalkthrough({ onComplete }: Props) {
   const [walletType, setWalletType] = useState<AccountTypeCode>('CASH');
   const [walletName, setWalletName] = useState('Tiền mặt ví');
   const [initialBalance, setInitialBalance] = useState('');
-  const formScrollViewRef = useRef<ScrollView>(null);
+  const formScrollViewRef = useRef<any>(null);
   const [selectedPreset, setSelectedPreset] = useState<BankOrWalletPreset | null>(null);
   const [searchPreset, setSearchPreset] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -278,7 +278,7 @@ export function FinoraOnboardingWalkthrough({ onComplete }: Props) {
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="light-content" translucent backgroundColor="transparent" />
+      <StatusBar barStyle="light-content" />
 
       {/* ══════════════════════════════════════════════════════════════
           1. HERO SECTION:

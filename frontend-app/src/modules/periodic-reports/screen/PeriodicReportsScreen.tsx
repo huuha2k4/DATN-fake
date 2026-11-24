@@ -285,7 +285,7 @@ export function PeriodicReportsScreen({
 
   return (
     <View style={[styles.screen, isDark && { backgroundColor: themeColors.background }]}>
-      <StatusBar barStyle={isDark ? "light-content" : "dark-content"} backgroundColor={isDark ? themeColors.background : "#FAFCFB"} />
+      <StatusBar barStyle={isDark ? "light-content" : "dark-content"} />
 
       {/* ── 1. TOP HEADER ── */}
       <View

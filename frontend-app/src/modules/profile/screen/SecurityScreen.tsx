@@ -186,7 +186,6 @@ export function SecurityScreen({
     <View style={[styles.container, isDark && { backgroundColor: themeColors.background }]}>
       <StatusBar
         barStyle={isDark ? 'light-content' : 'dark-content'}
-        backgroundColor={isDark ? themeColors.surface : '#FFFFFF'}
         animated
       />
       {/* ── HEADER THANH ĐIỀU HƯỚNG TRANG ── */}

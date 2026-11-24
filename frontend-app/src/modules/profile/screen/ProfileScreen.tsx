@@ -268,7 +268,6 @@ export function ProfileScreen({
     <View style={[styles.screen, isDark && { backgroundColor: themeColors.background }]}>
       <StatusBar
         barStyle={isDark ? 'light-content' : 'dark-content'}
-        backgroundColor={isDark ? themeColors.background : 'transparent'}
         animated
       />
       {/* ── BACKGROUND LƯỢN SÓNG XANH CHỈ Ở PHẦN ĐẦU (Header & User Info) ── */}

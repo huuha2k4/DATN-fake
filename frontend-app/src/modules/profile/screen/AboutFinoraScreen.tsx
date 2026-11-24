@@ -48,7 +48,7 @@ export function AboutFinoraScreen({ onBack }: AboutFinoraScreenProps) {
 
   return (
     <View style={[styles.screen, isDark && { backgroundColor: themeColors.background }]}>
-      <StatusBar barStyle={isDark ? "light-content" : "dark-content"} backgroundColor={isDark ? themeColors.background : "#FFFFFF"} />
+      <StatusBar barStyle={isDark ? "light-content" : "dark-content"} />
 
       {/* ── 1. HEADER CHUẨN NỀN TRẮNG TINH TẾ ── */}
       <View style={[styles.headerContainer, { paddingTop: Math.max(insets.top + 6, 16) }, isDark && { backgroundColor: themeColors.surface, borderBottomColor: themeColors.cardBorder }]}>

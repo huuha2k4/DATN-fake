@@ -30,18 +30,22 @@ export const OFFICIAL_KID_AVATARS: KidAvatarPreset[] = [
 ];
 
 export function resolveKidAvatarSource(avatarKey?: string | null, isGirlHint?: boolean): any {
-  if (!avatarKey) {
+  if (!avatarKey || avatarKey.trim() === '') {
     return isGirlHint ? GIRL_AVATAR_IMAGE : BOY_AVATAR_IMAGE;
   }
-  if (avatarKey === 'kid_girl' || avatarKey.includes('kid_avatar_girl')) {
+  const cleanKey = avatarKey.trim();
+  if (cleanKey === 'kid_girl' || cleanKey.includes('kid_avatar_girl')) {
     return GIRL_AVATAR_IMAGE;
   }
-  if (avatarKey === 'kid_boy' || avatarKey.includes('kid_avatar_boy')) {
+  if (cleanKey === 'kid_boy' || cleanKey.includes('kid_avatar_boy')) {
     return BOY_AVATAR_IMAGE;
   }
-  if (avatarKey.startsWith('http')) {
-    return { uri: avatarKey };
+  if (cleanKey.startsWith('http://') || cleanKey.startsWith('https://')) {
+    return { uri: cleanKey };
   }
-  // Dạng relative path từ backend (/uploads/...)
-  return { uri: userProfileApi.formatAvatarUrl(avatarKey) };
+  const formattedUrl = userProfileApi.formatAvatarUrl(cleanKey);
+  if (formattedUrl) {
+    return { uri: formattedUrl };
+  }
+  return isGirlHint ? GIRL_AVATAR_IMAGE : BOY_AVATAR_IMAGE;
 }

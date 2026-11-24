@@ -34,6 +34,7 @@ export interface ThemeColors {
   bannerForecastBg: string;
   
   cardShadow: string;
+  headerBackground?: string;
 }
 
 export const lightColors: ThemeColors = {

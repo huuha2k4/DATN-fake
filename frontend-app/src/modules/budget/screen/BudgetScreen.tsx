@@ -544,7 +544,6 @@ export function BudgetScreen({
     <View style={[styles.screen, isDark && { backgroundColor: themeColors.background }]}>
       <StatusBar
         barStyle={isDark ? 'light-content' : 'dark-content'}
-        backgroundColor={isDark ? themeColors.background : '#FFFFFF'}
       />
       {/* ── HEADER THANH LỊCH NỀN TRẮNG / NỀN TỐI ── */}
       <View style={[styles.header, { paddingTop }, isDark && { backgroundColor: themeColors.background }]}>

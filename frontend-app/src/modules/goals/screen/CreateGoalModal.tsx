@@ -191,7 +191,7 @@ export function CreateGoalModal({ visible, onClose, onSuccess }: Props) {
         setTargetAmount('');
         setCurrentAmount('');
         setDescription('');
-        setTargetDateInput('31/12/2027');
+        setTargetDate(new Date('2027-12-31'));
         onSuccess();
         onClose();
       } else {

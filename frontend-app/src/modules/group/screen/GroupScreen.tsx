@@ -33,6 +33,9 @@ import {
   type GroupCommentResponse,
   type GroupExpenseResponse,
   type GroupFundResponse,
+  type GroupFundContributionResponse,
+  type GroupInvitationResponse,
+  type GroupMessageResponse,
   type GroupMemberResponse,
   type GroupMonthlyStatisticsResponse,
   type GroupResponse,
@@ -226,7 +229,7 @@ export function GroupScreen({
   const [submittingGroup, setSubmittingGroup] = useState(false);
 
   // Mời nhiều thành viên khi tạo nhóm
-  const createScrollViewRef = useRef<ScrollView>(null);
+  const createScrollViewRef = useRef<any>(null);
   const [createMemberSearchQuery, setCreateMemberSearchQuery] = useState('');
   const [createMemberSearchResults, setCreateMemberSearchResults] = useState<UserSearchResult[]>([]);
   const [searchingCreateMember, setSearchingCreateMember] = useState(false);
@@ -315,6 +318,11 @@ export function GroupScreen({
     }
   }, [initialGroupId, initialGroupName, initialTab, initialKidSubTab, initialKidWalletId, groups, onConsumeInitialNav]);
 
+  const [childWallets, setChildWallets] = useState<ChildWalletResponse[]>([]);
+  const [selectedChildWallet, setSelectedChildWallet] = useState<ChildWalletResponse | null>(null);
+  const [childWalletDetailVisible, setChildWalletDetailVisible] = useState(false);
+  const [createChildWalletModalVisible, setCreateChildWalletModalVisible] = useState(false);
+
   // Nếu chuyển vào tab KIDS và có yêu cầu mở thẳng chi tiết ví của bé (hoặc ví đầu tiên)
   const [activeKidSubTab, setActiveKidSubTab] = useState<'REQUESTS' | 'SPENDS' | 'CHORES' | 'DEPOSIT' | 'SETTINGS' | undefined>(initialKidSubTab);
   useEffect(() => {
@@ -331,10 +339,6 @@ export function GroupScreen({
     }
   }, [detailTab, childWallets, initialKidSubTab, initialKidWalletId, onConsumeInitialNav]);
   const [groupNotificationEnabled, setGroupNotificationEnabled] = useState(true);
-  const [childWallets, setChildWallets] = useState<ChildWalletResponse[]>([]);
-  const [selectedChildWallet, setSelectedChildWallet] = useState<ChildWalletResponse | null>(null);
-  const [childWalletDetailVisible, setChildWalletDetailVisible] = useState(false);
-  const [createChildWalletModalVisible, setCreateChildWalletModalVisible] = useState(false);
   const [depositFundModalVisible, setDepositFundModalVisible] = useState(false);
   const [viewingExpense, setViewingExpense] = useState<GroupExpenseResponse | null>(null);
   const [viewingContribution, setViewingContribution] = useState<GroupFundContributionResponse | null>(null);
@@ -353,7 +357,7 @@ export function GroupScreen({
   const [activeReactionMessageId, setActiveReactionMessageId] = useState<string | null>(null);
   const [activeActionTargetMessage, setActiveActionTargetMessage] = useState<GroupMessageResponse | null>(null);
   const [activeTargetLayout, setActiveTargetLayout] = useState<{ x: number; y: number; width: number; height: number } | null>(null);
-  const messageBubbleRefs = useRef<Record<string, View | null>>({});
+  const messageBubbleRefs = useRef<Record<string, any>>({});
   const [editingMessage, setEditingMessage] = useState<{ id: string; text: string } | null>(null);
   const [hiddenMessageIds, setHiddenMessageIds] = useState<string[]>([]);
   const [viewingReactionModalMessage, setViewingReactionModalMessage] = useState<GroupMessageResponse | null>(null);
@@ -385,9 +389,9 @@ export function GroupScreen({
   const [selectedImageAttachment, setSelectedImageAttachment] = useState<{ uri: string; name: string; type: string; width?: number; height?: number } | null>(null);
   const [uploadingAttachment, setUploadingAttachment] = useState(false);
   const [chatVisibleCount, setChatVisibleCount] = useState<number>(25);
-  const chatScrollViewRef = useRef<ScrollView>(null);
-  const detailTxScrollViewRef = useRef<ScrollView>(null);
-  const expenseFormScrollViewRef = useRef<ScrollView>(null);
+  const chatScrollViewRef = useRef<any>(null);
+  const detailTxScrollViewRef = useRef<any>(null);
+  const expenseFormScrollViewRef = useRef<any>(null);
   const [keyboardHeight, setKeyboardHeight] = useState(0);
   const [showScrollBottomBtn, setShowScrollBottomBtn] = useState(false);
   const messageItemLayouts = useRef<Record<string, number>>({});
@@ -1365,7 +1369,6 @@ export function GroupScreen({
       >
         <StatusBar
           barStyle={isDark ? 'light-content' : 'dark-content'}
-          backgroundColor={isDark ? themeColors.surface : '#FFFFFF'}
         />
         {/* Header Trang Chi tiết full màn hình - Phong cách sáng & icons tương tác chuẩn mẫu */}
         <View
@@ -1469,7 +1472,7 @@ export function GroupScreen({
                 ]
               : [
                   { key: 'OVERVIEW', label: 'Tổng quan', icon: 'chart' },
-                  { key: 'EXPENSES', label: 'Thu & Chi', icon: 'receipt' },
+                  { key: 'EXPENSES', label: 'Thu & Chi', icon: 'history' },
                   { key: 'CHAT', label: 'Trò chuyện', icon: 'message-square' },
                   ...(hasBalancesTab ? [{ key: 'BALANCES', label: 'Cân đối nợ', icon: 'scale' }] : []),
                   { key: 'MEMBERS', label: 'Thành viên', icon: 'users' },
@@ -3584,9 +3587,10 @@ export function GroupScreen({
                         onPress: async () => {
                           try {
                             if (!selectedGroup) return;
-                            await groupApi.sendMessage(selectedGroup.id, {
-                              content: `[[BALANCE]]Nhắc nhở công nợ: @${debt.fromUserName} vui lòng thanh toán ${formatVND(debt.amount)} đ cho @Bạn để cân bằng nợ nhóm nhé!`,
-                            });
+                            await groupApi.sendMessage(
+                              selectedGroup.id,
+                              `[[BALANCE]]Nhắc nhở công nợ: @${debt.fromUserName} vui lòng thanh toán ${formatVND(debt.amount)} đ cho @Bạn để cân bằng nợ nhóm nhé!`
+                            );
                             Alert.alert('Thành công', 'Đã gửi lời nhắc công nợ vào tin nhắn nhóm.');
                           } catch {
                             Alert.alert('Thông báo', 'Đã ghi nhận yêu cầu nhắc nhở.');
@@ -3645,6 +3649,7 @@ export function GroupScreen({
             {detailTab === 'KIDS' && (
               <KidWalletTab
                 childWallets={childWallets}
+                members={members}
                 onAddWalletPress={() => setCreateChildWalletModalVisible(true)}
                 onWalletItemPress={(wallet) => {
                   setSelectedChildWallet(wallet);
@@ -4369,7 +4374,6 @@ export function GroupScreen({
         >
           <StatusBar
             barStyle={isDark ? 'light-content' : 'dark-content'}
-            backgroundColor={isDark ? themeColors.surface : '#FFFFFF'}
           />
           <View
             style={[
@@ -5087,7 +5091,6 @@ export function GroupScreen({
       >
         <StatusBar
           barStyle={isDark ? 'light-content' : 'dark-content'}
-          backgroundColor={isDark ? themeColors.surface : '#FFFFFF'}
         />
         <View
           style={[
@@ -5731,6 +5734,7 @@ export function GroupScreen({
           accounts={personalAccounts}
           fundBalance={fundData?.balance ?? monthlyStats?.fundBalance ?? 0}
           initialTab={activeKidSubTab || initialKidSubTab}
+          members={members}
           onClose={() => {
             setChildWalletDetailVisible(false);
             setSelectedChildWallet(null);
@@ -5738,6 +5742,12 @@ export function GroupScreen({
           }}
           onRefreshWallet={async () => {
             if (selectedGroup) {
+              const freshWallets = await groupApi.getChildWallets(selectedGroup.id).catch(() => []);
+              setChildWallets(freshWallets || []);
+              if (selectedChildWallet) {
+                const updated = freshWallets?.find((w) => w.id === selectedChildWallet.id);
+                if (updated) setSelectedChildWallet(updated);
+              }
               await loadGroupDetailData(selectedGroup.id);
             }
           }}
@@ -5750,7 +5760,6 @@ export function GroupScreen({
     <View style={[styles.screen, isDark && { backgroundColor: themeColors.background }]}>
       <StatusBar
         barStyle={isDark ? 'light-content' : 'dark-content'}
-        backgroundColor={isDark ? themeColors.surface : '#FFFFFF'}
       />
       {/* ── 1. HEADER NỀN TRẮNG THANH LỊCH ĐỒNG BỘ ── */}
       <View

@@ -881,7 +881,6 @@ export function NotificationsScreen({ onBack, onNavigate }: NotificationsScreenP
     <View style={[styles.screen, isDark && { backgroundColor: themeColors.background }]}>
       <StatusBar
         barStyle={isDark ? 'light-content' : 'dark-content'}
-        backgroundColor={isDark ? themeColors.background : '#FFFFFF'}
       />
       {/* Làm mờ toàn bộ nội dung xung quanh khi đang mở Modal chi tiết thông báo để người dùng tập trung tối đa */}
       <View

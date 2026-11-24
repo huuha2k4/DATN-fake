@@ -34,7 +34,7 @@ export function getAccountTypeMeta(type?: AccountTypeCode, item?: { name?: strin
 }
 
 type AccountBadgeProps = {
-  account?: AccountItem | { name?: string; accountType?: AccountTypeCode } | null;
+  account?: any;
   size?: number;
   style?: StyleProp<ViewStyle>;
 };

@@ -66,7 +66,7 @@ export function AddTransactionScreen({ onBack, onSaved, onOpenInvoiceScanner }: 
   const insets = useSafeAreaInsets();
   const { width: screenWidth } = useWindowDimensions();
   const cardWidth = Math.max(300, screenWidth - 32);
-  const amountInputRef = useRef<TextInput>(null);
+  const amountInputRef = useRef<any>(null);
 
   // Tab: Chi tiêu | Thu nhập | Chuyển khoản
   const currentUser = authStorage.getUser();

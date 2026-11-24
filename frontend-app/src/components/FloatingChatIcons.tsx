@@ -1345,7 +1345,7 @@ export function FloatingChatIcons({
                                   onLongPress={() => {
                                     const targetNode = messageBubbleRefs.current[m.id];
                                     if (targetNode && targetNode.measureInWindow) {
-                                      targetNode.measureInWindow((x, y, width, height) => {
+                                      targetNode.measureInWindow((x: number, y: number, width: number, height: number) => {
                                         setActiveTargetLayout({ x, y, width, height });
                                         setActiveActionTargetMessage(m);
                                       });

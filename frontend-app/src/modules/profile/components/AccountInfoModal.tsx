@@ -79,7 +79,6 @@ export function AccountInfoModal({
     <Modal visible={visible} animationType="slide" transparent={false} onRequestClose={onClose}>
       <StatusBar
         barStyle={isDark ? 'light-content' : 'dark-content'}
-        backgroundColor={isDark ? themeColors.background : '#FFFFFF'}
       />
       <View
         style={[
