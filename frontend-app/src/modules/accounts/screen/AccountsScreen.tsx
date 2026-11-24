@@ -192,8 +192,8 @@ export function AccountsScreen({ onBack, onAddTransaction }: Props) {
       case 'BANK_ACCOUNT': {
         const isDebit = Boolean(
           item?.cardNumberLast4 ||
-            item?.name?.toLowerCase().includes('thẻ ghi nợ') ||
-            item?.name?.toLowerCase().includes('thẻ atm')
+          item?.name?.toLowerCase().includes('thẻ ghi nợ') ||
+          item?.name?.toLowerCase().includes('thẻ atm')
         );
         if (isDebit) {
           return { label: 'Thẻ ghi nợ', icon: 'bank', color: '#0891B2', bg: '#ECFEFF' };
@@ -340,11 +340,13 @@ export function AccountsScreen({ onBack, onAddTransaction }: Props) {
       const newCleanBalance = editBalance ? parseInt(editBalance.replace(/\D/g, '') || '0', 10) : 0;
       const isBalanceChanged = Math.abs(newCleanBalance - (selectedAccountForEdit.balance ?? 0)) > 0.001;
 
-      // Cập nhật thông tin cơ bản
+      // Cập nhật thông tin cơ bản kèm số dư trực tiếp
       const updatePayload: any = {
         name: editName.trim(),
         description: editDescription.trim(),
         isActive: editIsActive,
+        balance: newCleanBalance,
+        version: selectedAccountForEdit.version,
       };
 
       const res = await accountApi.updateAccount(selectedAccountForEdit.id, updatePayload);
@@ -353,13 +355,17 @@ export function AccountsScreen({ onBack, onAddTransaction }: Props) {
         return;
       }
 
-      // Nếu có đổi số dư -> gọi adjustBalance
+      // Nếu có đổi số dư -> gọi thêm adjustBalance để đồng bộ hệ thống lịch sử/điều chỉnh nếu backend yêu cầu
       if (isBalanceChanged) {
-        await accountApi.adjustBalance(selectedAccountForEdit.id, {
-          newBalance: newCleanBalance,
-          reason: 'Cập nhật lại số dư từ quản lý ví',
-          createAdjustmentTransaction: false,
-        });
+        try {
+          await accountApi.adjustBalance(selectedAccountForEdit.id, {
+            newBalance: newCleanBalance,
+            reason: 'Cập nhật lại số dư từ quản lý ví',
+            createAdjustmentTransaction: false,
+          });
+        } catch {
+          // Bỏ qua lỗi phụ nếu updateAccount đã thành công
+        }
       }
 
       setIsEditModalOpen(false);
@@ -385,12 +391,22 @@ export function AccountsScreen({ onBack, onAddTransaction }: Props) {
 
   return (
     <View style={[styles.screen, isDark && { backgroundColor: themeColors.background }]}>
-      {/* ── 1. HEADER SÁNG TRẮNG ĐỒNG BỘ MÀN THÊM GIAO DỊCH ── */}
+      {/* ── 1. HEADER SÁNG TRẮNG ĐỒNG BỘ CÁC TRANG KHÁC ── */}
       <View style={[styles.header, { paddingTop: Math.max(insets.top, 10) + 4 }, isDark && { backgroundColor: themeColors.background, borderBottomColor: themeColors.cardBorder }]}>
-        <Pressable onPress={onBack} hitSlop={12} style={styles.backBtn}>
-          <ArrowLeft size={25} color={isDark ? themeColors.textPrimary : "#0F172A"} strokeWidth={2.5} />
-        </Pressable>
-        <Text style={[styles.headerTitle, isDark && { color: themeColors.textPrimary }]}>Ví & Tài khoản</Text>
+        <View style={styles.headerLeftCol}>
+          <Pressable
+            onPress={onBack}
+            hitSlop={12}
+            style={({ pressed }) => [
+              styles.backBtn,
+              isDark && { backgroundColor: themeColors.surfaceSubtle },
+              pressed && styles.pressed,
+            ]}
+          >
+            <FinanceIcon name="chevron-left" size={22} color={isDark ? themeColors.textPrimary : '#047857'} />
+          </Pressable>
+          <Text style={[styles.headerTitle, isDark && { color: themeColors.textPrimary }]} numberOfLines={1}>Ví & Tài khoản</Text>
+        </View>
         <Pressable onPress={handleOpenAddModal} style={styles.addNavBtn} hitSlop={8}>
           <Plus size={16} color="#FFFFFF" strokeWidth={2.6} />
           <Text style={styles.addNavBtnText}>Thêm ví</Text>
@@ -739,7 +755,7 @@ export function AccountsScreen({ onBack, onAddTransaction }: Props) {
                           },
                           onConfirm: async () => {
                             try {
-                              const res = await accountApi.deleteAccount(acc.id);
+                              const res = await accountApi.deleteAccount(acc.id, acc.version);
                               if (res.success) {
                                 showSuccess('Thành công', `Đã xóa ví "${acc.name}" thành công!`);
                                 await loadAccounts();
@@ -955,118 +971,118 @@ export function AccountsScreen({ onBack, onAddTransaction }: Props) {
                 modalCategory === 'DEBIT_CARD' ||
                 modalCategory === 'CREDIT_CARD' ||
                 modalCategory === 'E_WALLET') && (
-                <View style={styles.modalInputGroup}>
-                  <View style={styles.presetLabelRow}>
-                    <Text style={[styles.modalInputLabel, isDark && { color: themeColors.textSecondary }]}>
-                      {modalCategory === 'E_WALLET' ? 'Chọn ví điện tử *' : 'Chọn ngân hàng *'}
-                    </Text>
-                    {selectedPreset && (
-                      <Pressable
-                        onPress={() => {
-                          setSelectedPreset(null);
-                          setIsBankPickerOpen(true);
-                        }}
-                      >
-                        <Text style={styles.changePresetLink}>Đổi ngân hàng/ví</Text>
-                      </Pressable>
-                    )}
-                  </View>
-
-                  {selectedPreset ? (
-                    <View style={[styles.selectedPresetCard, isDark && { backgroundColor: themeColors.surfaceSubtle, borderColor: themeColors.cardBorder }]}>
-                      <View style={styles.selectedPresetLeft}>
-                        <View style={[styles.presetLogoSmall, ['MOMO', 'ZALOPAY', 'VNPAY'].includes(selectedPreset.code) && { padding: 5 }]}>
-                          {selectedPreset.logoUrl ? (
-                            <Image
-                              source={{ uri: selectedPreset.logoUrl }}
-                              style={[styles.brandLogoImg, ['MOMO', 'ZALOPAY', 'VNPAY'].includes(selectedPreset.code) && { transform: [{ scale: 0.95 }] }]}
-                              resizeMode="contain"
-                            />
-                          ) : (
-                            <Text style={{ fontSize: 11, fontWeight: '800', color: selectedPreset.textColor }}>
-                              {selectedPreset.shortName.slice(0, 3)}
-                            </Text>
-                          )}
-                        </View>
-                        <View style={{ flex: 1 }}>
-                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                            <Text style={[styles.selectedPresetName, isDark && { color: themeColors.textPrimary }]}>{selectedPreset.shortName}</Text>
-                            <View style={[styles.codeTag, isDark && { backgroundColor: 'rgba(5, 150, 105, 0.25)' }]}>
-                              <Text style={[styles.codeTagText, isDark && { color: '#34D399' }]}>{selectedPreset.code}</Text>
-                            </View>
-                          </View>
-                          <Text style={[styles.selectedPresetFullName, isDark && { color: themeColors.textMuted }]} numberOfLines={1}>
-                            {selectedPreset.name}
-                          </Text>
-                        </View>
-                      </View>
-                    </View>
-                  ) : (
-                    <View>
-                      <View style={[styles.searchPresetBox, isDark && { backgroundColor: themeColors.surfaceSubtle, borderColor: themeColors.cardBorder }]}>
-                        <FinanceIcon name="search" size={16} color="#94A3B8" />
-                        <TextInput
-                          value={bankSearchQuery}
-                          onChangeText={(t) => {
-                            setBankSearchQuery(t);
+                  <View style={styles.modalInputGroup}>
+                    <View style={styles.presetLabelRow}>
+                      <Text style={[styles.modalInputLabel, isDark && { color: themeColors.textSecondary }]}>
+                        {modalCategory === 'E_WALLET' ? 'Chọn ví điện tử *' : 'Chọn ngân hàng *'}
+                      </Text>
+                      {selectedPreset && (
+                        <Pressable
+                          onPress={() => {
+                            setSelectedPreset(null);
                             setIsBankPickerOpen(true);
                           }}
-                          onFocus={() => setIsBankPickerOpen(true)}
-                          placeholder={
-                            modalCategory === 'E_WALLET'
-                              ? 'Tìm ví: MoMo, ZaloPay, ShopeePay...'
-                              : 'Tìm ngân hàng: VCB, MB, Techcombank...'
-                          }
-                          placeholderTextColor="#94A3B8"
-                          style={[styles.searchPresetInput, isDark && { color: themeColors.textPrimary }]}
-                        />
-                        {bankSearchQuery ? (
-                          <Pressable onPress={() => setBankSearchQuery('')} hitSlop={8}>
-                            <FinanceIcon name="close" size={16} color="#94A3B8" />
-                          </Pressable>
-                        ) : null}
-                      </View>
-
-                      <View style={styles.presetListWrap}>
-                        <Text style={[styles.presetListTitle, isDark && { color: themeColors.textSecondary }]}>Phổ biến nhất:</Text>
-                        <ScrollView
-                          horizontal
-                          showsHorizontalScrollIndicator={false}
-                          contentContainerStyle={styles.popularPresetsRow}
                         >
-                          {filteredPresets.slice(0, 8).map((preset) => {
-                            const isWallet = ['MOMO', 'ZALOPAY', 'VNPAY'].includes(preset.code);
-                            return (
-                              <Pressable
-                                key={preset.code}
-                                onPress={() => handleSelectPreset(preset)}
-                                style={styles.popularPresetItem}
-                              >
-                                <View style={[styles.popularPresetLogo, isWallet && { padding: 5 }]}>
-                                  {preset.logoUrl ? (
-                                    <Image
-                                      source={{ uri: preset.logoUrl }}
-                                      style={[styles.brandLogoImg, isWallet && { transform: [{ scale: 0.95 }] }]}
-                                      resizeMode="contain"
-                                    />
-                                  ) : (
-                                    <Text style={{ fontSize: 10, fontWeight: '800', color: preset.textColor }}>
-                                      {preset.shortName.slice(0, 3)}
-                                    </Text>
-                                  )}
-                                </View>
-                                <Text style={[styles.popularPresetName, isDark ? { color: '#F1F5F9' } : { color: '#334155' }]} numberOfLines={1}>
-                                  {preset.shortName}
-                                </Text>
-                              </Pressable>
-                            );
-                          })}
-                        </ScrollView>
-                      </View>
+                          <Text style={styles.changePresetLink}>Đổi ngân hàng/ví</Text>
+                        </Pressable>
+                      )}
                     </View>
-                  )}
-                </View>
-              )}
+
+                    {selectedPreset ? (
+                      <View style={[styles.selectedPresetCard, isDark && { backgroundColor: themeColors.surfaceSubtle, borderColor: themeColors.cardBorder }]}>
+                        <View style={styles.selectedPresetLeft}>
+                          <View style={[styles.presetLogoSmall, ['MOMO', 'ZALOPAY', 'VNPAY'].includes(selectedPreset.code) && { padding: 5 }]}>
+                            {selectedPreset.logoUrl ? (
+                              <Image
+                                source={{ uri: selectedPreset.logoUrl }}
+                                style={[styles.brandLogoImg, ['MOMO', 'ZALOPAY', 'VNPAY'].includes(selectedPreset.code) && { transform: [{ scale: 0.95 }] }]}
+                                resizeMode="contain"
+                              />
+                            ) : (
+                              <Text style={{ fontSize: 11, fontWeight: '800', color: selectedPreset.textColor }}>
+                                {selectedPreset.shortName.slice(0, 3)}
+                              </Text>
+                            )}
+                          </View>
+                          <View style={{ flex: 1 }}>
+                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                              <Text style={[styles.selectedPresetName, isDark && { color: themeColors.textPrimary }]}>{selectedPreset.shortName}</Text>
+                              <View style={[styles.codeTag, isDark && { backgroundColor: 'rgba(5, 150, 105, 0.25)' }]}>
+                                <Text style={[styles.codeTagText, isDark && { color: '#34D399' }]}>{selectedPreset.code}</Text>
+                              </View>
+                            </View>
+                            <Text style={[styles.selectedPresetFullName, isDark && { color: themeColors.textMuted }]} numberOfLines={1}>
+                              {selectedPreset.name}
+                            </Text>
+                          </View>
+                        </View>
+                      </View>
+                    ) : (
+                      <View>
+                        <View style={[styles.searchPresetBox, isDark && { backgroundColor: themeColors.surfaceSubtle, borderColor: themeColors.cardBorder }]}>
+                          <FinanceIcon name="search" size={16} color="#94A3B8" />
+                          <TextInput
+                            value={bankSearchQuery}
+                            onChangeText={(t) => {
+                              setBankSearchQuery(t);
+                              setIsBankPickerOpen(true);
+                            }}
+                            onFocus={() => setIsBankPickerOpen(true)}
+                            placeholder={
+                              modalCategory === 'E_WALLET'
+                                ? 'Tìm ví: MoMo, ZaloPay, ShopeePay...'
+                                : 'Tìm ngân hàng: VCB, MB, Techcombank...'
+                            }
+                            placeholderTextColor="#94A3B8"
+                            style={[styles.searchPresetInput, isDark && { color: themeColors.textPrimary }]}
+                          />
+                          {bankSearchQuery ? (
+                            <Pressable onPress={() => setBankSearchQuery('')} hitSlop={8}>
+                              <FinanceIcon name="close" size={16} color="#94A3B8" />
+                            </Pressable>
+                          ) : null}
+                        </View>
+
+                        <View style={styles.presetListWrap}>
+                          <Text style={[styles.presetListTitle, isDark && { color: themeColors.textSecondary }]}>Phổ biến nhất:</Text>
+                          <ScrollView
+                            horizontal
+                            showsHorizontalScrollIndicator={false}
+                            contentContainerStyle={styles.popularPresetsRow}
+                          >
+                            {filteredPresets.slice(0, 8).map((preset) => {
+                              const isWallet = ['MOMO', 'ZALOPAY', 'VNPAY'].includes(preset.code);
+                              return (
+                                <Pressable
+                                  key={preset.code}
+                                  onPress={() => handleSelectPreset(preset)}
+                                  style={styles.popularPresetItem}
+                                >
+                                  <View style={[styles.popularPresetLogo, isWallet && { padding: 5 }]}>
+                                    {preset.logoUrl ? (
+                                      <Image
+                                        source={{ uri: preset.logoUrl }}
+                                        style={[styles.brandLogoImg, isWallet && { transform: [{ scale: 0.95 }] }]}
+                                        resizeMode="contain"
+                                      />
+                                    ) : (
+                                      <Text style={{ fontSize: 10, fontWeight: '800', color: preset.textColor }}>
+                                        {preset.shortName.slice(0, 3)}
+                                      </Text>
+                                    )}
+                                  </View>
+                                  <Text style={[styles.popularPresetName, isDark ? { color: '#F1F5F9' } : { color: '#334155' }]} numberOfLines={1}>
+                                    {preset.shortName}
+                                  </Text>
+                                </Pressable>
+                              );
+                            })}
+                          </ScrollView>
+                        </View>
+                      </View>
+                    )}
+                  </View>
+                )}
 
               {/* 3. Tên ví / tài khoản hiển thị */}
               <View style={styles.modalInputGroup}>
@@ -1084,18 +1100,18 @@ export function AccountsScreen({ onBack, onAddTransaction }: Props) {
               {(modalCategory === 'BANK_ACCOUNT' ||
                 modalCategory === 'DEBIT_CARD' ||
                 modalCategory === 'CREDIT_CARD') && (
-                <View style={styles.modalInputGroup}>
-                  <Text style={[styles.modalInputLabel, isDark && { color: themeColors.textSecondary }]}>Số tài khoản / Số thẻ (Tùy chọn)</Text>
-                  <TextInput
-                    value={newAccountNumber}
-                    onChangeText={setNewAccountNumber}
-                    placeholder="Ví dụ: 1903... hoặc 9704..."
-                    placeholderTextColor={isDark ? '#64748B' : '#94A3B8'}
-                    keyboardType="number-pad"
-                    style={[styles.modalTextInput, isDark && { backgroundColor: themeColors.surfaceSubtle, borderColor: themeColors.cardBorder, color: themeColors.textPrimary }]}
-                  />
-                </View>
-              )}
+                  <View style={styles.modalInputGroup}>
+                    <Text style={[styles.modalInputLabel, isDark && { color: themeColors.textSecondary }]}>Số tài khoản / Số thẻ (Tùy chọn)</Text>
+                    <TextInput
+                      value={newAccountNumber}
+                      onChangeText={setNewAccountNumber}
+                      placeholder="Ví dụ: 1903... hoặc 9704..."
+                      placeholderTextColor={isDark ? '#64748B' : '#94A3B8'}
+                      keyboardType="number-pad"
+                      style={[styles.modalTextInput, isDark && { backgroundColor: themeColors.surfaceSubtle, borderColor: themeColors.cardBorder, color: themeColors.textPrimary }]}
+                    />
+                  </View>
+                )}
 
               {/* 5. Số dư ban đầu */}
               <View style={styles.modalInputGroup}>
@@ -1144,11 +1160,21 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
   },
+  headerLeftCol: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
   backBtn: {
     width: 36,
     height: 36,
+    borderRadius: 18,
+    alignItems: 'center',
     justifyContent: 'center',
-    alignItems: 'flex-start',
+    backgroundColor: '#F0FDF4',
+  },
+  pressed: {
+    opacity: 0.7,
   },
   backIcon: {
     color: '#0F172A',

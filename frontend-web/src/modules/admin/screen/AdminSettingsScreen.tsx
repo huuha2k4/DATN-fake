@@ -185,7 +185,7 @@ export const AdminSettingsScreen: React.FC = () => {
                 <span>{g.label}</span>
                 <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${
                   isActive
-                    ? 'bg-[#e8f7f0] dark:bg-emerald-950/60 text-[#07543f] dark:text-emerald-300'
+                    ? 'bg-[#E6F4EA] dark:bg-emerald-950/60 text-[#007F53] dark:text-emerald-300'
                     : 'bg-gray-200/70 dark:bg-slate-800 text-gray-500'
                 }`}>
                   {count}
@@ -246,7 +246,7 @@ export const AdminSettingsScreen: React.FC = () => {
                       {/* Tiêu đề thân thiện + Icon + Badge Nhóm */}
                       <div className="flex items-start justify-between gap-3 mb-2">
                         <div className="flex items-center gap-3">
-                          <span className="size-9 rounded-xl grid place-items-center bg-[#e8f7f0] dark:bg-emerald-950/60 text-[#07543f] dark:text-emerald-300 shrink-0">
+                          <span className="size-9 rounded-xl grid place-items-center bg-[#E6F4EA] dark:bg-emerald-950/60 text-[#007F53] dark:text-emerald-300 shrink-0">
                             <FinanceIcon name={meta.icon} size={18} />
                           </span>
                           <div>
@@ -286,7 +286,7 @@ export const AdminSettingsScreen: React.FC = () => {
                             onClick={() => handleToggle(item)}
                             disabled={isSaving}
                             className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
-                              currentVal === 'true' ? 'bg-[#07543f]' : 'bg-gray-300 dark:bg-gray-600'
+                              currentVal === 'true' ? 'bg-[#007F53]' : 'bg-gray-300 dark:bg-gray-600'
                             }`}
                             title="Bấm để bật/tắt"
                           >
@@ -322,7 +322,7 @@ export const AdminSettingsScreen: React.FC = () => {
                             disabled={isSaving || !hasChanged}
                             className={`h-11 px-5 rounded-xl font-bold transition flex items-center gap-1.5 cursor-pointer text-xs shrink-0 shadow-2xs ${
                               hasChanged
-                                ? 'bg-[#07543f] hover:bg-[#064232] text-white shadow-emerald-700/20 shadow-md'
+                                ? 'bg-[#007F53] hover:bg-[#004D3B] text-white shadow-emerald-700/20 shadow-md'
                                 : 'bg-gray-100 dark:bg-slate-800 text-gray-400 cursor-not-allowed border border-gray-200/50 dark:border-slate-700/50'
                             }`}
                             title={hasChanged ? 'Lưu thay đổi vào Database' : 'Chưa có thay đổi'}

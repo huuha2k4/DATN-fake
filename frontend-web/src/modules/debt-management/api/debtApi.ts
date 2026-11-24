@@ -65,6 +65,7 @@ export interface DebtDetailResponse {
   currency_code?: string;
   payment_frequency?: PaymentFrequency;
   payment_amount?: number;
+  monthly_payment?: number;
   next_payment_date?: string;
   status: DebtStatus;
   start_date?: string;

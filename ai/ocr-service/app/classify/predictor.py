@@ -34,12 +34,26 @@ INCOME_CLASSES = {"salary", "bonus", "family", "other_income"}
 
 # Từ khóa ngữ nghĩa trong raw_text — tăng confidence cho lớp tương ứng
 _RAW_TEXT_HINTS = {
-    "food":          ["ban", "phuc vu", "mon an", "thuc don", "bep", "com", "pho", "bun"],
+    "food":          ["phuc vu", "mon an", "thuc don", "bep", "com", "pho 24",
+                      "quan an", "nha hang", "quan ca phe"],
     "transport":     ["bien so", "xe", "chuyen di", "km"],
     "health":        ["benh nhan", "bac si", "kham", "thuoc", "don thuoc"],
     "entertainment": ["rap chieu phim", "phim", "ghe so", "suat chieu"],
-    "shopping":      ["san pham", "so luong", "don gia", "ma hang"],
-    "bills":         ["chi so", "kwh", "khoi", "ky thanh toan"],
+    "education":     ["hoc phi", "hoc vien", "truong", "khoa hoc", "giao duc",
+                      "sach giao khoa", "nha sach", "van phong pham",
+                      "but", "vo viet", "tap viet", "dung cu hoc tap",
+                      "but bi", "but gel", "but long", "but chi"],
+    "bills":         ["chi so", "kwh", "khoi", "ky thanh toan",
+                      # EVN / điện
+                      "dien nang", "tieu thu", "chi so cu", "chi so moi",
+                      "he so nhan", "bac dien", "tien dien", "hoa don dien",
+                      "evn", "dien luc", "so cong to",
+                      # Nước
+                      "tien nuoc", "m3", "nuoc sach", "cap nuoc",
+                      # Viễn thông
+                      "cuoc phi", "phi dich vu", "ky cuoc", "thang cuoc",
+                      # Gas
+                      "binh gas", "kg gas", "tien gas"],
 }
 
 

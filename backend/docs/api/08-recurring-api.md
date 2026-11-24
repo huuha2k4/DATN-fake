@@ -6,7 +6,7 @@
 
 ---
 
-## 📋 Endpoints
+## 📋 Endpointss
 
 | Method | Endpoint | Mô tả | Auth |
 |--------|----------|-------|------|

@@ -113,15 +113,33 @@ async def scan_receipt(
 
     ocr_result = await run_in_threadpool(state["pipeline"].run, img)
 
-    category_result = None
-    if ocr_result.get("kind") != "draft":
-        merchant = ocr_result.get("merchant_name") or ""
-        raw_text = ocr_result.get("raw_text") or ""
-        cat = await run_in_threadpool(
-            _run_classify, merchant, raw_text, user_id
+    # Các kind bị từ chối — trả về ngay, không phân loại danh mục
+    _REJECTED_KINDS = {"not_receipt", "low_quality", "handwritten", "draft"}
+
+    if ocr_result.get("kind") in _REJECTED_KINDS:
+        return ReceiptResult(
+            kind=ocr_result["kind"],
+            merchant_name=None,
+            transaction_date=None,
+            transaction_time=None,
+            total_amount=None,
+            currency="VND",
+            raw_text=ocr_result.get("raw_text", ""),
+            confidence=ocr_result.get("confidence", 0.0),
+            needs_review=ocr_result.get("needs_review", False),
+            reject_reason=ocr_result.get("reject_reason"),
+            category=None,
         )
-        if cat:
-            category_result = CategoryResult(**cat)
+
+    # Hóa đơn hợp lệ (paid / unknown) — phân loại danh mục
+    category_result = None
+    merchant = ocr_result.get("merchant_name") or ""
+    raw_text = ocr_result.get("raw_text") or ""
+    cat = await run_in_threadpool(
+        _run_classify, merchant, raw_text, user_id
+    )
+    if cat:
+        category_result = CategoryResult(**cat)
 
     return ReceiptResult(
         kind=ocr_result.get("kind", "unknown"),
@@ -130,9 +148,10 @@ async def scan_receipt(
         transaction_time=ocr_result.get("transaction_time"),
         total_amount=ocr_result.get("total_amount"),
         currency=ocr_result.get("currency", "VND"),
-        raw_text=ocr_result.get("raw_text", ""),
+        raw_text=raw_text,
         confidence=ocr_result.get("confidence", 0.0),
         needs_review=ocr_result.get("needs_review", False),
+        reject_reason=None,
         category=category_result,
     )
 

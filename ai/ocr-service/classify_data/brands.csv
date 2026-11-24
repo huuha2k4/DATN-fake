@@ -144,11 +144,23 @@ kfc viet nam,food
 # Nhà sách / văn phòng phẩm → education
 nha sach,education
 hieu sach,education
+sach,education
+fahasa,education
+nha sach fahasa,education
+phuong nam,education
+nha sach phuong nam,education
+tien phong book,education
+nha sach tien phong,education
+bookstore,education
+book,education
+sach giao khoa,education
+truyen,education
+tap chi,education
 vpp,education
 van phong pham,education
-nha sach phuong nam,education
-nha sach fahasa,education
-nha sach tien phong,education
+dung cu hoc tap,education
+but,education
+vo viet,education
 # Nhà thuốc thêm
 nha thuoc,health
 trung tam y te,health
@@ -159,3 +171,38 @@ big,shopping
 tops market,shopping
 central food,shopping
 velutino,food
+
+# Điện lực / EVN — mở rộng alias để cover các tên OCR hay đọc được
+evnhcmc,bills
+evnhanoi,bills
+evnspc,bills
+evncpc,bills
+evnnpc,bills
+tong cong ty dien luc,bills
+cong ty dien luc,bills
+dien luc ha noi,bills
+dien luc tp hcm,bills
+dien luc ho chi minh,bills
+dien luc mien nam,bills
+dien luc mien bac,bills
+dien luc mien trung,bills
+dien luc tp,bills
+hoa don tien dien,bills
+hoa don dien,bills
+tien dien,bills
+# Nước — mở rộng
+hawaco,bills
+cap thoat nuoc,bills
+tien nuoc,bills
+hoa don tien nuoc,bills
+cong ty cap nuoc,bills
+# Viễn thông / Internet thêm
+vietnamobile,bills
+gmobile,bills
+indochina telecom,bills
+fpt,bills
+# Gas
+pv gas,bills
+petrovietnam gas,bills
+saigon gas,bills
+gas viet,bills

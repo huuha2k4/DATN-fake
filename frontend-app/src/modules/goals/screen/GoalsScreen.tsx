@@ -296,59 +296,73 @@ export function GoalsScreen({ onBack }: Props) {
             </View>
 
             <View style={styles.itemsList}>
-              {goals.map((item) => {
-                const imgSource = getGoalCategoryIcon(item.icon, item.category || item.title);
+              {goals.length === 0 ? (
+                <View style={[styles.emptyCard, isDark && { backgroundColor: themeColors.surface, borderColor: themeColors.cardBorder }]}>
+                  <View style={[styles.emptyIconCircle, isDark && { backgroundColor: themeColors.surfaceSubtle }]}>
+                    <FinanceIcon name="target" size={32} color={isDark ? themeColors.textMuted : '#94A3B8'} />
+                  </View>
+                  <Text style={[styles.emptyTitle, isDark && { color: themeColors.textPrimary }]}>
+                    Chưa có mục tiêu nào
+                  </Text>
+                  <Text style={[styles.emptySubText, isDark && { color: themeColors.textSecondary }]}>
+                    Hãy bấm "+ Thêm mục tiêu" bên dưới để lập kế hoạch tài chính cho tương lai.
+                  </Text>
+                </View>
+              ) : (
+                goals.map((item) => {
+                  const imgSource = getGoalCategoryIcon(item.icon, item.category || item.title);
 
-                return (
-                  <Pressable
-                    key={item.id}
-                    style={[styles.goalCard, isDark && { backgroundColor: themeColors.surface, borderColor: themeColors.cardBorder }]}
-                    onPress={() => setSelectedGoalId(item.id)}
-                  >
-                    <View style={styles.goalCardRow}>
-                      <View style={styles.goalIcon3dBox}>
-                        <Image source={imgSource} style={styles.goal3dImg} resizeMode="contain" />
-                      </View>
-
-                      <View style={styles.goalInfoCol}>
-                        <View style={styles.goalTopLine}>
-                          <Text style={[styles.goalTitleText, isDark && { color: themeColors.textPrimary }]}>{item.title}</Text>
-                          <View style={[styles.goalPctBadge, isDark && { backgroundColor: 'rgba(52, 211, 153, 0.16)' }]}>
-                            <Text style={[styles.goalPctBadgeText, isDark && { color: themeColors.accentGreen }]}>{item.percentage}%</Text>
-                          </View>
-                          <FinanceIcon name="chevron-right" size={16} color={isDark ? themeColors.textSecondary : '#94A3B8'} />
+                  return (
+                    <Pressable
+                      key={item.id}
+                      style={[styles.goalCard, isDark && { backgroundColor: themeColors.surface, borderColor: themeColors.cardBorder }]}
+                      onPress={() => setSelectedGoalId(item.id)}
+                    >
+                      <View style={styles.goalCardRow}>
+                        <View style={styles.goalIcon3dBox}>
+                          <Image source={imgSource} style={styles.goal3dImg} resizeMode="contain" />
                         </View>
 
-                        {item.deadline && (
-                          <View style={styles.deadlineToRow}>
-                            <FinanceIcon name="calendar" size={13} color={isDark ? themeColors.textMuted : '#64748B'} />
-                            <Text style={[styles.deadlineText, isDark && { color: themeColors.textMuted }]}>Hạn: {item.deadline}</Text>
+                        <View style={styles.goalInfoCol}>
+                          <View style={styles.goalTopLine}>
+                            <Text style={[styles.goalTitleText, isDark && { color: themeColors.textPrimary }]}>{item.title}</Text>
+                            <View style={[styles.goalPctBadge, isDark && { backgroundColor: 'rgba(52, 211, 153, 0.16)' }]}>
+                              <Text style={[styles.goalPctBadgeText, isDark && { color: themeColors.accentGreen }]}>{item.percentage}%</Text>
+                            </View>
+                            <FinanceIcon name="chevron-right" size={16} color={isDark ? themeColors.textSecondary : '#94A3B8'} />
                           </View>
-                        )}
 
-                        {/* Progress Bar */}
-                        <View style={[styles.progressBarTrack, isDark && { backgroundColor: themeColors.surfaceSubtle }]}>
-                          <View
-                            style={[
-                              styles.progressBarFill,
-                              isDark && { backgroundColor: themeColors.accentGreen },
-                              { width: `${Math.min(100, item.percentage)}%` },
-                            ]}
-                          />
+                          {item.deadline && (
+                            <View style={styles.deadlineToRow}>
+                              <FinanceIcon name="calendar" size={13} color={isDark ? themeColors.textMuted : '#64748B'} />
+                              <Text style={[styles.deadlineText, isDark && { color: themeColors.textMuted }]}>Hạn: {item.deadline}</Text>
+                            </View>
+                          )}
+
+                          {/* Progress Bar */}
+                          <View style={[styles.progressBarTrack, isDark && { backgroundColor: themeColors.surfaceSubtle }]}>
+                            <View
+                              style={[
+                                styles.progressBarFill,
+                                isDark && { backgroundColor: themeColors.accentGreen },
+                                { width: `${Math.min(100, item.percentage)}%` },
+                              ]}
+                            />
+                          </View>
+
+                          {/* Amounts */}
+                          <Text style={[styles.goalAmountsText, isDark && { color: themeColors.textSecondary }]}>
+                            <Text style={[styles.currentAmountGreen, isDark && { color: themeColors.accentGreen }]}>
+                              {formatVND(item.currentAmount)}
+                            </Text>{' '}
+                            / {formatVND(item.targetAmount)}
+                          </Text>
                         </View>
-
-                        {/* Amounts */}
-                        <Text style={[styles.goalAmountsText, isDark && { color: themeColors.textSecondary }]}>
-                          <Text style={[styles.currentAmountGreen, isDark && { color: themeColors.accentGreen }]}>
-                            {formatVND(item.currentAmount)}
-                          </Text>{' '}
-                          / {formatVND(item.targetAmount)}
-                        </Text>
                       </View>
-                    </View>
-                  </Pressable>
-                );
-              })}
+                    </Pressable>
+                  );
+                })
+              )}
             </View>
           </View>
         ) : (
@@ -361,35 +375,49 @@ export function GoalsScreen({ onBack }: Props) {
             </View>
 
             <View style={styles.itemsList}>
-              {savings.map((item) => {
-                const imgSource = getSavingCategoryIcon(item.icon, item.category || item.title);
+              {savings.length === 0 ? (
+                <View style={[styles.emptyCard, isDark && { backgroundColor: themeColors.surface, borderColor: themeColors.cardBorder }]}>
+                  <View style={[styles.emptyIconCircle, isDark && { backgroundColor: themeColors.surfaceSubtle }]}>
+                    <FinanceIcon name="wallet" size={32} color={isDark ? themeColors.textMuted : '#94A3B8'} />
+                  </View>
+                  <Text style={[styles.emptyTitle, isDark && { color: themeColors.textPrimary }]}>
+                    Chưa có khoản tiết kiệm nào
+                  </Text>
+                  <Text style={[styles.emptySubText, isDark && { color: themeColors.textSecondary }]}>
+                    Bấm "+ Thêm khoản tích lũy" bên dưới để quản lý các quỹ tiết kiệm tự do.
+                  </Text>
+                </View>
+              ) : (
+                savings.map((item) => {
+                  const imgSource = getSavingCategoryIcon(item.icon, item.category || item.title);
 
-                return (
-                  <Pressable
-                    key={item.id}
-                    style={[styles.savingCard, isDark && { backgroundColor: themeColors.surface, borderColor: themeColors.cardBorder }]}
-                    onPress={() => setSelectedSavingId(item.id)}
-                  >
-                    <View style={styles.savingCardRow}>
-                      <View style={styles.savingIcon3dBox}>
-                        <Image source={imgSource} style={styles.saving3dImg} resizeMode="contain" />
-                      </View>
-
-                      <View style={styles.savingInfoCol}>
-                        <View style={styles.savingTopLine}>
-                          <Text style={[styles.savingTitleText, isDark && { color: themeColors.textPrimary }]}>{item.title}</Text>
-                          <FinanceIcon name="chevron-right" size={16} color={isDark ? themeColors.textSecondary : '#94A3B8'} />
+                  return (
+                    <Pressable
+                      key={item.id}
+                      style={[styles.savingCard, isDark && { backgroundColor: themeColors.surface, borderColor: themeColors.cardBorder }]}
+                      onPress={() => setSelectedSavingId(item.id)}
+                    >
+                      <View style={styles.savingCardRow}>
+                        <View style={styles.savingIcon3dBox}>
+                          <Image source={imgSource} style={styles.saving3dImg} resizeMode="contain" />
                         </View>
 
-                        <Text style={[styles.savingSubtitleText, isDark && { color: themeColors.textMuted }]}>{item.subtitle || item.category}</Text>
-                        <Text style={[styles.savingAmountText, isDark && { color: themeColors.accentGreen }]}>
-                          {formatVND(item.currentAmount)}
-                        </Text>
+                        <View style={styles.savingInfoCol}>
+                          <View style={styles.savingTopLine}>
+                            <Text style={[styles.savingTitleText, isDark && { color: themeColors.textPrimary }]}>{item.title}</Text>
+                            <FinanceIcon name="chevron-right" size={16} color={isDark ? themeColors.textSecondary : '#94A3B8'} />
+                          </View>
+
+                          <Text style={[styles.savingSubtitleText, isDark && { color: themeColors.textMuted }]}>{item.subtitle || item.category}</Text>
+                          <Text style={[styles.savingAmountText, isDark && { color: themeColors.accentGreen }]}>
+                            {formatVND(item.currentAmount)}
+                          </Text>
+                        </View>
                       </View>
-                    </View>
-                  </Pressable>
-                );
-              })}
+                    </Pressable>
+                  );
+                })
+              )}
             </View>
           </View>
         )}
@@ -810,5 +838,36 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 14,
     fontWeight: '700',
+  },
+  emptyCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    marginTop: 8,
+  },
+  emptyIconCircle: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: '#F1F5F9',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 12,
+  },
+  emptyTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#0F172A',
+    marginBottom: 6,
+  },
+  emptySubText: {
+    fontSize: 12.5,
+    color: '#64748B',
+    textAlign: 'center',
+    lineHeight: 18,
   },
 });

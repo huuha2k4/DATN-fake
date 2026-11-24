@@ -103,14 +103,14 @@ export const AdminAuditLogsScreen: React.FC = () => {
 
             <div className="h-10 px-3.5 rounded-xl bg-gray-100/80 dark:bg-slate-800 border border-gray-200/60 dark:border-slate-700 flex items-center justify-center shrink-0">
               <span className="text-xs text-gray-500 dark:text-slate-400">
-                Tổng: <strong className="text-[#07543f] dark:text-emerald-400 font-bold">{filteredLogs.length}</strong>
+                Tổng: <strong className="text-[#007F53] dark:text-emerald-400 font-bold">{filteredLogs.length}</strong>
               </span>
             </div>
 
             <button
               type="button"
               onClick={loadAuditLogs}
-              className="h-10 px-4 rounded-xl bg-[#07543f] hover:bg-[#064232] text-white text-xs font-bold transition shrink-0 cursor-pointer shadow-xs"
+              className="h-10 px-4 rounded-xl bg-[#007F53] hover:bg-[#004D3B] text-white text-xs font-bold transition shrink-0 cursor-pointer shadow-xs"
             >
               Làm mới
             </button>
@@ -123,7 +123,7 @@ export const AdminAuditLogsScreen: React.FC = () => {
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
-              <tr className="border-b border-[#edf2ee] dark:border-slate-800 bg-gray-50/70 dark:bg-slate-850/60 text-[11px] font-bold text-gray-500 dark:text-slate-400 uppercase tracking-wider">
+              <tr className="border-b border-[#E2E8F0] dark:border-slate-800 bg-gray-50/70 dark:bg-slate-850/60 text-[11px] font-bold text-gray-500 dark:text-slate-400 uppercase tracking-wider">
                 <th className="py-3.5 px-5">Quản trị viên thực hiện</th>
                 <th className="py-3.5 px-4">Hành vi (Action)</th>
                 <th className="py-3.5 px-4">Đối tượng tác động</th>
@@ -132,7 +132,7 @@ export const AdminAuditLogsScreen: React.FC = () => {
                 <th className="py-3.5 px-5 text-right">Thời gian ghi nhận</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-[#edf2ee] dark:divide-slate-800 text-xs">
+            <tbody className="divide-y divide-[#E2E8F0] dark:divide-slate-800 text-xs">
               {loading ? (
                 <tr>
                   <td colSpan={6} className="py-12 text-center text-gray-400">
@@ -166,7 +166,7 @@ export const AdminAuditLogsScreen: React.FC = () => {
                       {/* Cột 1: Admin */}
                       <td className="py-3.5 px-5">
                         <div className="flex items-center gap-2.5">
-                          <span className="size-8 rounded-full bg-[#07543f] text-white font-bold text-xs grid place-items-center shrink-0">
+                          <span className="size-8 rounded-full bg-[#007F53] text-white font-bold text-xs grid place-items-center shrink-0">
                             A
                           </span>
                           <div>

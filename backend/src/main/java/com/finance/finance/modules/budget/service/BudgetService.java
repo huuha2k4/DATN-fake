@@ -461,13 +461,20 @@ public class BudgetService {
         LocalDate fromDate = LocalDate.now().minusMonths(6);
         LocalDate toDate = LocalDate.now();
         Object[] perfData = budgetRepository.getPerformanceStatistics(userId, fromDate, toDate);
-        
+        if (perfData != null && perfData.length == 1 && perfData[0] instanceof Object[] nested) {
+            perfData = nested;
+        }
+        Number totalPeriods = statistic(perfData, 0);
+        Number onTrackPeriods = statistic(perfData, 1);
+        Number exceededPeriods = statistic(perfData, 2);
+        Number averageUtilization = statistic(perfData, 3);
+
         BudgetSummaryResponse.Performance performance = BudgetSummaryResponse.Performance.builder()
-                .monthsOnTrack(perfData != null ? ((Number) perfData[1]).intValue() : 0)
-                .monthsExceeded(perfData != null ? ((Number) perfData[2]).intValue() : 0)
-                .successRate(perfData != null && ((Number) perfData[0]).intValue() > 0 ?
-                        ((Number) perfData[1]).doubleValue() / ((Number) perfData[0]).doubleValue() * 100 : 0.0)
-                .averageUtilization(perfData != null ? ((Number) perfData[3]).doubleValue() : 0.0)
+                .monthsOnTrack(onTrackPeriods.intValue())
+                .monthsExceeded(exceededPeriods.intValue())
+                .successRate(totalPeriods.longValue() > 0 ?
+                        onTrackPeriods.doubleValue() / totalPeriods.doubleValue() * 100 : 0.0)
+                .averageUtilization(averageUtilization.doubleValue())
                 .build();
 
         // Get spending trends
@@ -550,6 +557,13 @@ public class BudgetService {
     }
 
     // ===== Private helper methods =====
+
+    private Number statistic(Object[] values, int index) {
+        if (values == null || index < 0 || index >= values.length || !(values[index] instanceof Number number)) {
+            return BigDecimal.ZERO;
+        }
+        return number;
+    }
 
     private void recalculateBudgetIfNeeded(Budget budget) {
         // Recalculate directly to guarantee real-time balance with user transactions

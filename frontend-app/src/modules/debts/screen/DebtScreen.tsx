@@ -19,6 +19,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { FinanceIcon, type IconName } from '../../core/components/FinanceIcon';
+import { AppDatePicker } from '../../core/components/AppDatePicker';
 import { accountApi, type AccountItem } from '../../accounts/api/accountApi';
 import { AccountBadge } from '../../accounts/components/AccountBadge';
 import {
@@ -196,82 +197,6 @@ function resolveDebtVisual(title: string, debtType: DebtType): { icon?: IconName
 
 type TabFilter = 'ALL' | 'BORROWING' | 'LENDING';
 
-// 5 Khoản nợ mẫu chuẩn 100% khớp số liệu trên Banner và ảnh thiết kế
-const INITIAL_DEMO_DEBTS: DebtItem[] = [
-  {
-    id: 'demo-debt-1',
-    debtType: 'BORROWING',
-    creditorName: 'Trả góp laptop',
-    counterpartyName: 'Trả góp laptop',
-    principalAmount: 6000000,
-    paidAmount: 4500000,
-    remainingAmount: 6000000,
-    percentagePaid: 75,
-    status: 'ACTIVE',
-    paymentFrequency: 'MONTHLY',
-    startDate: '2026-10-15',
-    dueDate: '2026-11-15',
-    description: 'Trả góp laptop 0% lãi suất',
-    note: 'Trả góp laptop 0% lãi suất',
-  },
-  {
-    id: 'demo-debt-2',
-    debtType: 'BORROWING',
-    creditorName: 'Vay Minh',
-    counterpartyName: 'Vay Minh',
-    principalAmount: 2000000,
-    paidAmount: 0,
-    remainingAmount: 2000000,
-    percentagePaid: 0,
-    status: 'ACTIVE',
-    startDate: '2026-10-10',
-    dueDate: '2026-11-11',
-    description: 'Vay tiêu dùng ngắn hạn',
-  },
-  {
-    id: 'demo-debt-3',
-    debtType: 'BORROWING',
-    creditorName: 'Vay mua xe',
-    counterpartyName: 'Vay mua xe',
-    principalAmount: 2800000,
-    paidAmount: 0,
-    remainingAmount: 2800000,
-    percentagePaid: 0,
-    status: 'ACTIVE',
-    startDate: '2026-10-01',
-    dueDate: '2026-12-01',
-    description: 'Trả góp xe máy',
-  },
-  {
-    id: 'demo-debt-4',
-    debtType: 'LENDING',
-    debtorName: 'Cho Nam vay',
-    counterpartyName: 'Cho Nam vay',
-    principalAmount: 3000000,
-    paidAmount: 0,
-    remainingAmount: 3000000,
-    percentagePaid: 0,
-    status: 'ACTIVE',
-    startDate: '2026-10-15',
-    dueDate: '2026-11-21',
-    description: 'Cho Nam mượn đóng học phí',
-  },
-  {
-    id: 'demo-debt-5',
-    debtType: 'LENDING',
-    debtorName: 'Cho Lan vay',
-    counterpartyName: 'Cho Lan vay',
-    principalAmount: 2000000,
-    paidAmount: 1000000,
-    remainingAmount: 2000000,
-    percentagePaid: 50,
-    status: 'ACTIVE',
-    startDate: '2026-09-01',
-    dueDate: '2026-12-01',
-    description: 'Cho Lan mượn',
-  },
-];
-
 export function DebtScreen({ onBack }: DebtScreenProps) {
   const insets = useSafeAreaInsets();
   const { isDark, colors: themeColors } = useAppTheme();
@@ -279,7 +204,7 @@ export function DebtScreen({ onBack }: DebtScreenProps) {
 
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [debts, setDebts] = useState<DebtItem[]>(INITIAL_DEMO_DEBTS);
+  const [debts, setDebts] = useState<DebtItem[]>([]);
   const [summary, setSummary] = useState<DebtSummaryData | null>(null);
   const [accounts, setAccounts] = useState<AccountItem[]>([]);
 
@@ -297,15 +222,15 @@ export function DebtScreen({ onBack }: DebtScreenProps) {
   const [formPartnerPhone, setFormPartnerPhone] = useState('');
   const [paymentPlanType, setPaymentPlanType] = useState<PaymentPlanType>('ONE_TIME');
   const [formPrincipal, setFormPrincipal] = useState('');
-  const [formStartDate, setFormStartDate] = useState(getTodayDDMMYYYY());
-  const [formDueDate, setFormDueDate] = useState('');
+  const [formStartDate, setFormStartDate] = useState<Date | null>(new Date());
+  const [formDueDate, setFormDueDate] = useState<Date | null>(null);
   // Trường trả theo kỳ (INSTALLMENT)
   const [formFrequency, setFormFrequency] = useState<PaymentFrequency>('MONTHLY');
   const [formInstallmentCount, setFormInstallmentCount] = useState('3');
   const [formPeriodicAmount, setFormPeriodicAmount] = useState('');
   const [formDayOfMonth, setFormDayOfMonth] = useState<number>(new Date().getDate()); // Ngày trong tháng (1-31)
   const [formDayOfWeek, setFormDayOfWeek] = useState<number>(1); // Thứ trong tuần (1: Thứ 2 ... 0: CN)
-  const [formFirstPaymentDate, setFormFirstPaymentDate] = useState(getTodayDDMMYYYY());
+  const [formFirstPaymentDate, setFormFirstPaymentDate] = useState<Date | null>(new Date());
 
   // Tài khoản & nhắc nhở
   const [selectedAccountId, setSelectedAccountId] = useState('');
@@ -332,8 +257,8 @@ export function DebtScreen({ onBack }: DebtScreenProps) {
   const [editCounterpartyName, setEditCounterpartyName] = useState('');
   const [editPartnerPhone, setEditPartnerPhone] = useState('');
   const [editPrincipal, setEditPrincipal] = useState('');
-  const [editStartDate, setEditStartDate] = useState('');
-  const [editDueDate, setEditDueDate] = useState('');
+  const [editStartDate, setEditStartDate] = useState<Date | null>(null);
+  const [editDueDate, setEditDueDate] = useState<Date | null>(null);
   const [editAccountId, setEditAccountId] = useState('');
   const [editNote, setEditNote] = useState('');
   const [submittingEdit, setSubmittingEdit] = useState(false);
@@ -382,8 +307,8 @@ export function DebtScreen({ onBack }: DebtScreenProps) {
     setEditCounterpartyName(selectedDebtDetail.counterpartyName || '');
     setEditPartnerPhone(selectedDebtDetail.creditorPhone || selectedDebtDetail.debtorPhone || '');
     setEditPrincipal(selectedDebtDetail.principalAmount ? String(selectedDebtDetail.principalAmount) : '');
-    setEditStartDate(formatIsoToDDMMYYYY(selectedDebtDetail.startDate));
-    setEditDueDate(formatIsoToDDMMYYYY(selectedDebtDetail.dueDate));
+    setEditStartDate(selectedDebtDetail.startDate ? new Date(selectedDebtDetail.startDate) : null);
+    setEditDueDate(selectedDebtDetail.dueDate ? new Date(selectedDebtDetail.dueDate) : null);
     setEditAccountId(selectedDebtDetail.accountId || '');
     setEditNote(selectedDebtDetail.note || selectedDebtDetail.description || '');
     setEditModalVisible(true);
@@ -403,8 +328,8 @@ export function DebtScreen({ onBack }: DebtScreenProps) {
     }
     setSubmittingEdit(true);
     try {
-      const isoStartDate = parseDDMMYYYYtoIso(editStartDate);
-      const isoDueDate = parseDDMMYYYYtoIso(editDueDate);
+      const isoStartDate = editStartDate ? editStartDate.toISOString().split('T')[0] : undefined;
+      const isoDueDate = editDueDate ? editDueDate.toISOString().split('T')[0] : undefined;
       if (!selectedDebtDetail.id.startsWith('demo-')) {
         const isBorrow = selectedDebtDetail.debtType === 'BORROWING';
         const payload: any = {
@@ -462,16 +387,12 @@ export function DebtScreen({ onBack }: DebtScreenProps) {
   const loadData = async () => {
     try {
       const [debtList, sum, accList] = await Promise.all([
-        debtApi.getDebts(),
-        debtApi.getSummary(),
+        debtApi.getDebts().catch(() => []),
+        debtApi.getSummary().catch(() => null),
         accountApi.getAccounts().catch(() => []),
       ]);
-      if (debtList && debtList.length > 0) {
-        setDebts(debtList);
-      }
-      if (sum) {
-        setSummary(sum);
-      }
+      setDebts(debtList || []);
+      setSummary(sum || null);
       if (accList && accList.length > 0) {
         setAccounts(accList);
       }
@@ -520,7 +441,7 @@ export function DebtScreen({ onBack }: DebtScreenProps) {
   const totalDebtBalance = totalBorrowingRemaining + totalLendingRemaining;
 
   // Tính toán ngày trả kỳ đầu tiên mặc định dựa trên tần suất và ngày/thứ đã chọn
-  const calculateDefaultFirstPaymentDate = (freq: PaymentFrequency, dayMonth: number, dayWeek: number) => {
+  const calculateDefaultFirstPaymentDate = (freq: PaymentFrequency, dayMonth: number, dayWeek: number): Date => {
     const today = new Date();
     let targetDate: Date;
     if (freq === 'WEEKLY') {
@@ -533,10 +454,7 @@ export function DebtScreen({ onBack }: DebtScreenProps) {
       const nextMonth = (today.getMonth() + 1) % 12;
       targetDate = new Date(nextMonthYear, nextMonth, Math.min(dayMonth, 28));
     }
-    const dStr = String(targetDate.getDate()).padStart(2, '0');
-    const mStr = String(targetDate.getMonth() + 1).padStart(2, '0');
-    const yStr = targetDate.getFullYear();
-    return `${dStr}-${mStr}-${yStr}`;
+    return targetDate;
   };
 
   // Cập nhật ngày trong tháng
@@ -602,9 +520,9 @@ export function DebtScreen({ onBack }: DebtScreenProps) {
       const chosenFreq = paymentPlanType === 'INSTALLMENT' ? formFrequency : 'ONE_TIME';
 
       // Tính ngày trả nợ cuối cùng (due_date) nếu trả theo kỳ
-      const isoStartDate = parseDDMMYYYYtoIso(formStartDate) || new Date().toISOString().split('T')[0];
-      const isoFirstPaymentDate = parseDDMMYYYYtoIso(formFirstPaymentDate);
-      let computedDueDate = formDueDate ? parseDDMMYYYYtoIso(formDueDate) : undefined;
+      const isoStartDate = formStartDate ? formStartDate.toISOString().split('T')[0] : new Date().toISOString().split('T')[0];
+      const isoFirstPaymentDate = formFirstPaymentDate ? formFirstPaymentDate.toISOString().split('T')[0] : undefined;
+      let computedDueDate = formDueDate ? formDueDate.toISOString().split('T')[0] : undefined;
       if (!computedDueDate && paymentPlanType === 'INSTALLMENT') {
         const count = parseInt(formInstallmentCount, 10) || 1;
         const baseDateStr = isoFirstPaymentDate || isoStartDate;
@@ -1705,43 +1623,19 @@ export function DebtScreen({ onBack }: DebtScreenProps) {
 
                 <View style={{ flexDirection: 'row', gap: 12 }}>
                   <View style={{ flex: 1 }}>
-                    <Text style={[styles.inputSectionLabel, isDark && { color: themeColors.textSecondary }]}>
-                      NGÀY BẮT ĐẦU
-                    </Text>
-                    <TextInput
+                    <AppDatePicker
                       value={editStartDate}
-                      onChangeText={(val) => setEditStartDate(formatInputDDMMYYYY(val))}
-                      placeholder="DD-MM-YYYY"
-                      placeholderTextColor={isDark ? '#64748B' : '#94A3B8'}
-                      keyboardType="numeric"
-                      style={[
-                        styles.modalTextInput,
-                        isDark && {
-                          backgroundColor: themeColors.surfaceSubtle,
-                          borderColor: themeColors.cardBorder,
-                          color: themeColors.textPrimary,
-                        },
-                      ]}
+                      onChange={setEditStartDate}
+                      label="NGÀY BẮT ĐẦU"
+                      placeholder="DD/MM/YYYY"
                     />
                   </View>
                   <View style={{ flex: 1 }}>
-                    <Text style={[styles.inputSectionLabel, isDark && { color: themeColors.textSecondary }]}>
-                      HẠN THANH TOÁN
-                    </Text>
-                    <TextInput
+                    <AppDatePicker
                       value={editDueDate}
-                      onChangeText={(val) => setEditDueDate(formatInputDDMMYYYY(val))}
-                      placeholder="DD-MM-YYYY"
-                      placeholderTextColor={isDark ? '#64748B' : '#94A3B8'}
-                      keyboardType="numeric"
-                      style={[
-                        styles.modalTextInput,
-                        isDark && {
-                          backgroundColor: themeColors.surfaceSubtle,
-                          borderColor: themeColors.cardBorder,
-                          color: themeColors.textPrimary,
-                        },
-                      ]}
+                      onChange={setEditDueDate}
+                      label="HẠN THANH TOÁN"
+                      placeholder="DD/MM/YYYY"
                     />
                   </View>
                 </View>
@@ -3186,43 +3080,19 @@ export function DebtScreen({ onBack }: DebtScreenProps) {
 
                 <View style={{ flexDirection: 'row', gap: 12 }}>
                   <View style={{ flex: 1 }}>
-                    <Text style={[styles.inputSectionLabel, isDark && { color: themeColors.textSecondary }]}>
-                      NGÀY BẮT ĐẦU
-                    </Text>
-                    <TextInput
+                    <AppDatePicker
                       value={editStartDate}
-                      onChangeText={(val) => setEditStartDate(formatInputDDMMYYYY(val))}
-                      placeholder="DD-MM-YYYY"
-                      placeholderTextColor={isDark ? '#64748B' : '#94A3B8'}
-                      keyboardType="numeric"
-                      style={[
-                        styles.modalTextInput,
-                        isDark && {
-                          backgroundColor: themeColors.surfaceSubtle,
-                          borderColor: themeColors.cardBorder,
-                          color: themeColors.textPrimary,
-                        },
-                      ]}
+                      onChange={setEditStartDate}
+                      label="NGÀY BẮT ĐẦU"
+                      placeholder="DD/MM/YYYY"
                     />
                   </View>
                   <View style={{ flex: 1 }}>
-                    <Text style={[styles.inputSectionLabel, isDark && { color: themeColors.textSecondary }]}>
-                      HẠN THANH TOÁN
-                    </Text>
-                    <TextInput
+                    <AppDatePicker
                       value={editDueDate}
-                      onChangeText={(val) => setEditDueDate(formatInputDDMMYYYY(val))}
-                      placeholder="DD-MM-YYYY"
-                      placeholderTextColor={isDark ? '#64748B' : '#94A3B8'}
-                      keyboardType="numeric"
-                      style={[
-                        styles.modalTextInput,
-                        isDark && {
-                          backgroundColor: themeColors.surfaceSubtle,
-                          borderColor: themeColors.cardBorder,
-                          color: themeColors.textPrimary,
-                        },
-                      ]}
+                      onChange={setEditDueDate}
+                      label="HẠN THANH TOÁN"
+                      placeholder="DD/MM/YYYY"
                     />
                   </View>
                 </View>
@@ -4338,25 +4208,19 @@ export function DebtScreen({ onBack }: DebtScreenProps) {
 
                     <View style={styles.inputTwoColsRow}>
                       <View style={{ flex: 1 }}>
-                        <Text style={[styles.webBoxLabel, isDark && { color: themeColors.textSecondary }]}>NGÀY BẮT ĐẦU</Text>
-                        <TextInput
+                        <AppDatePicker
                           value={formStartDate}
-                          onChangeText={(val) => setFormStartDate(formatInputDDMMYYYY(val))}
-                          placeholder="DD-MM-YYYY"
-                          placeholderTextColor={isDark ? themeColors.textMuted : "#94A3B8"}
-                          keyboardType="numeric"
-                          style={[styles.webDateInput, isDark && { backgroundColor: themeColors.surface, borderColor: themeColors.cardBorder, color: themeColors.textPrimary }]}
+                          onChange={setFormStartDate}
+                          label="NGÀY BẮT ĐẦU"
+                          placeholder="DD/MM/YYYY"
                         />
                       </View>
                       <View style={{ flex: 1 }}>
-                        <Text style={[styles.webBoxLabel, isDark && { color: themeColors.textSecondary }]}>NGÀY PHẢI TRẢ *</Text>
-                        <TextInput
+                        <AppDatePicker
                           value={formDueDate}
-                          onChangeText={(val) => setFormDueDate(formatInputDDMMYYYY(val))}
-                          placeholder="DD-MM-YYYY"
-                          placeholderTextColor={isDark ? themeColors.textMuted : "#94A3B8"}
-                          keyboardType="numeric"
-                          style={[styles.webDateInput, isDark && { backgroundColor: themeColors.surface, borderColor: themeColors.cardBorder, color: themeColors.textPrimary }]}
+                          onChange={setFormDueDate}
+                          label="NGÀY PHẢI TRẢ *"
+                          placeholder="DD/MM/YYYY"
                         />
                       </View>
                     </View>
@@ -4431,7 +4295,9 @@ export function DebtScreen({ onBack }: DebtScreenProps) {
 
                     <View style={styles.inputTwoColsRow}>
                       <View style={{ flex: 1 }}>
-                        <Text style={[styles.webBoxLabel, isDark && { color: themeColors.textSecondary }]}>SỐ TIỀN MỖI KỲ (VND) *</Text>
+                        <Text style={[styles.inputSectionLabel, { fontSize: 13, fontWeight: '600', color: '#334155' }, isDark && { color: '#94A3B8' }]}>
+                          SỐ TIỀN MỖI KỲ (VND) <Text style={{ color: '#EF4444' }}>*</Text>
+                        </Text>
                         <TextInput
                           value={formPeriodicAmount ? new Intl.NumberFormat('vi-VN').format(parseInt(formPeriodicAmount, 10)) : ''}
                           onChangeText={handlePeriodicAmountChange}
@@ -4443,14 +4309,11 @@ export function DebtScreen({ onBack }: DebtScreenProps) {
                       </View>
 
                       <View style={{ flex: 1 }}>
-                        <Text style={[styles.webBoxLabel, isDark && { color: themeColors.textSecondary }]}>NGÀY TRẢ ĐẦU TIÊN</Text>
-                        <TextInput
+                        <AppDatePicker
                           value={formFirstPaymentDate}
-                          onChangeText={(val) => setFormFirstPaymentDate(formatInputDDMMYYYY(val))}
-                          placeholder="DD-MM-YYYY"
-                          placeholderTextColor={isDark ? themeColors.textMuted : "#94A3B8"}
-                          keyboardType="numeric"
-                          style={[styles.webDateInput, isDark && { backgroundColor: themeColors.surface, borderColor: themeColors.cardBorder, color: themeColors.textPrimary }]}
+                          onChange={setFormFirstPaymentDate}
+                          label="NGÀY TRẢ ĐẦU TIÊN"
+                          placeholder="DD/MM/YYYY"
                         />
                       </View>
                     </View>
@@ -5891,12 +5754,12 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     borderWidth: 1,
     borderColor: '#E2E8F0',
-    paddingHorizontal: 12,
-    paddingVertical: 9,
-    fontSize: 13,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    fontSize: 14,
     color: '#0F172A',
     fontWeight: '600',
-    height: 40,
+    height: 48,
   },
   freqSwitchRow: {
     flexDirection: 'row',
@@ -6020,9 +5883,9 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     borderWidth: 1,
     borderColor: '#E2E8F0',
-    paddingHorizontal: 12,
-    paddingVertical: 9,
-    height: 40,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    height: 48,
   },
   modernSelectDropdownLight: {
     flexDirection: 'row',
@@ -6032,9 +5895,9 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     borderWidth: 1,
     borderColor: '#E2E8F0',
-    paddingHorizontal: 12,
-    paddingVertical: 9,
-    height: 40,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    height: 48,
     marginTop: 6,
   },
   modernSelectText: {

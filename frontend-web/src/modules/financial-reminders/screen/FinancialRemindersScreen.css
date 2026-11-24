@@ -20,7 +20,7 @@
   position: relative;
   background: #ffffff;
   border-radius: 20px;
-  border: 1px solid #e7ece8;
+  border: 1px solid #E2E8F0;
   padding: 18px 20px;
   display: flex;
   flex-direction: column;
@@ -33,13 +33,13 @@
 .schedule-stat-card:hover {
   transform: translateY(-2px);
   box-shadow: 0 10px 24px -6px rgba(18, 38, 30, 0.08);
-  border-color: #cbdad0;
+  border-color: #CBD5E1;
 }
 
 /* Thẻ Gradient đặc sắc (Card 4) */
 .schedule-hero-card {
   position: relative;
-  background: linear-gradient(135deg, #053b2d 0%, #07543f 55%, #0b6c52 100%);
+  background: linear-gradient(135deg, #004D3B 0%, #007F53 55%, #009663 100%);
   border-radius: 20px;
   padding: 18px 20px;
   display: flex;
@@ -60,11 +60,11 @@
   gap: 8px;
   padding: 6px 14px 6px 10px;
   background: #ffffff;
-  border: 1px solid #e2e8e4;
+  border: 1px solid #E2E8F0;
   border-radius: 9999px;
   font-size: 12px;
   font-weight: 600;
-  color: #26372e;
+  color: #0F172A;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
   transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
   cursor: pointer;
@@ -72,9 +72,9 @@
 }
 
 .quick-preset-chip:hover {
-  border-color: #07543f;
+  border-color: #007F53;
   background: #f0fdf4;
-  color: #07543f;
+  color: #007F53;
   transform: translateY(-2px);
   box-shadow: 0 6px 16px -2px rgba(7, 84, 63, 0.12);
 }
@@ -105,15 +105,15 @@
 }
 
 .calendar-cell:hover {
-  background-color: #f7faf8;
-  border-color: #07543f;
+  background-color: #F8FAFC;
+  border-color: #007F53;
   z-index: 10;
 }
 
 .calendar-cell.selected {
-  border-color: #07543f;
+  border-color: #007F53;
   box-shadow: 0 0 0 2px rgba(7, 84, 63, 0.25);
-  background-color: #f7faf8;
+  background-color: #F8FAFC;
 }
 
 .calendar-cell.today {
@@ -152,7 +152,7 @@
   position: relative;
   background: #ffffff;
   border-radius: 18px;
-  border: 1px solid #e7ece8;
+  border: 1px solid #E2E8F0;
   padding: 16px 20px;
   box-shadow: 0 3px 12px -2px rgba(18, 38, 30, 0.04);
   transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1);
@@ -187,27 +187,27 @@
    ======================================================== */
 /* 1. Nền trang chính */
 html.dark .financial-schedule-page {
-  background-color: #081622 !important;
+  background-color: #0B0F19 !important;
   color: #cbd5e1 !important;
 }
 
 /* 2. Các thẻ thống kê & Card chung */
 html.dark .schedule-stat-card,
 html.dark .schedule-row-card {
-  background-color: #0e2333 !important;
-  border-color: #173852 !important;
+  background-color: #111827 !important;
+  border-color: #1E293B !important;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4) !important;
   color: #cbd5e1 !important;
 }
 
 html.dark .schedule-stat-card:hover,
 html.dark .schedule-row-card:hover {
-  background-color: #0e1f2d !important;
-  border-color: #1a3c54 !important;
+  background-color: #111827 !important;
+  border-color: #1E293B !important;
 }
 
 html.dark .schedule-stat-card p.text-2xl {
-  color: #e2eaf0 !important;
+  color: #F8FAFC !important;
 }
 
 html.dark .schedule-stat-card p.text-2xl.text-\[\#059669\] {
@@ -245,50 +245,50 @@ html.dark .schedule-hero-card {
 /* 3. Khối điều khiển Toolbar & Quick Presets */
 html.dark .financial-schedule-page section.rounded-2xl.border,
 html.dark .financial-schedule-page div.rounded-2xl.border {
-  background-color: #0e2333 !important;
-  border-color: #173852 !important;
+  background-color: #111827 !important;
+  border-color: #1E293B !important;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4) !important;
 }
 
 html.dark .financial-schedule-page h2,
 html.dark .financial-schedule-page h3 {
-  color: #e2eaf0 !important;
+  color: #F8FAFC !important;
 }
 
 html.dark .financial-schedule-page p.text-\[\#718078\],
 html.dark .financial-schedule-page span.text-\[\#718078\] {
-  color: #8da4b4 !important;
+  color: #94A3B8 !important;
 }
 
 html.dark .financial-schedule-page .border-t,
 html.dark .financial-schedule-page .border-b {
-  border-color: #162f42 !important;
+  border-color: #1E293B !important;
 }
 
 /* Segmented Control Chuyển Chế độ xem */
 html.dark .financial-schedule-page .bg-\[\#f0f5f2\] {
-  background-color: #0c1c28 !important;
-  border: 1px solid #162f42 !important;
+  background-color: #111827 !important;
+  border: 1px solid #1E293B !important;
 }
 
 html.dark .financial-schedule-page .bg-\[\#f0f5f2\] button:not(.bg-\[\#07543f\]) {
-  color: #8da4b4 !important;
+  color: #94A3B8 !important;
 }
 
 html.dark .financial-schedule-page .bg-\[\#f0f5f2\] button:not(.bg-\[\#07543f\]):hover {
-  background-color: #122838 !important;
-  color: #e2eaf0 !important;
+  background-color: #1F2937 !important;
+  color: #F8FAFC !important;
 }
 
 /* Quick Preset Chips trong Dark Mode */
 html.dark .quick-preset-chip {
-  background-color: #0c1c28 !important;
-  border-color: #1a3c54 !important;
+  background-color: #111827 !important;
+  border-color: #1E293B !important;
   color: #cbd5e1 !important;
 }
 
 html.dark .quick-preset-chip:hover {
-  background-color: #0f2738 !important;
+  background-color: #111827 !important;
   border-color: #10b981 !important;
   color: #10b981 !important;
 }
@@ -303,20 +303,20 @@ html.dark .financial-schedule-page .text-\[\#07543f\] {
 }
 
 html.dark .calendar-cell {
-  border-color: #173852 !important;
-  background-color: #091520 !important;
+  border-color: #1E293B !important;
+  background-color: #0B0F19 !important;
   color: #cbd5e1 !important;
 }
 
 html.dark .calendar-cell:hover {
-  background-color: #0f2334 !important;
-  border-color: #1a4968 !important;
+  background-color: #111827 !important;
+  border-color: #1E293B !important;
 }
 
 html.dark .calendar-cell.selected {
   border-color: #10b981 !important;
   box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.3) !important;
-  background-color: #0c202d !important;
+  background-color: #111827 !important;
 }
 
 html.dark .calendar-cell.today {
@@ -324,20 +324,20 @@ html.dark .calendar-cell.today {
 }
 
 html.dark .calendar-cell .text-\[\#c2cbc5\] {
-  color: #2a4356 !important;
+  color: #1E293B !important;
 }
 
 /* Ô ngày điều hướng tháng ‹ › */
 html.dark .financial-schedule-page button[title='Tháng trước'],
 html.dark .financial-schedule-page button[title='Tháng sau'] {
-  background-color: #0c1c28 !important;
-  border-color: #162f42 !important;
+  background-color: #111827 !important;
+  border-color: #1E293B !important;
   color: #cbd5e1 !important;
 }
 
 html.dark .financial-schedule-page button[title='Tháng trước']:hover,
 html.dark .financial-schedule-page button[title='Tháng sau']:hover {
-  background-color: #122838 !important;
+  background-color: #1F2937 !important;
   color: #ffffff !important;
 }
 
@@ -362,28 +362,28 @@ html.dark .event-pill-reminder {
 
 /* 5. Cột phải chi tiết ngày */
 html.dark aside .divide-\[\#f1f5f2\] > * + * {
-  border-color: #162f42 !important;
+  border-color: #1E293B !important;
 }
 
 html.dark aside h4 {
-  color: #e2eaf0 !important;
+  color: #F8FAFC !important;
 }
 
 html.dark aside .bg-\[\#f3f7f4\] {
-  background-color: #0c1c28 !important;
-  color: #8da4b4 !important;
+  background-color: #111827 !important;
+  color: #94A3B8 !important;
 }
 
 html.dark aside .bg-\[\#f8faf9\] {
-  background-color: #0c1c28 !important;
-  border-color: #162f42 !important;
-  color: #8da4b4 !important;
+  background-color: #111827 !important;
+  border-color: #1E293B !important;
+  color: #94A3B8 !important;
 }
 
 /* 6. Modal / Popup Dialog */
 html.dark .modal-backdrop-blur > div {
-  background-color: #0e2333 !important;
-  border: 1px solid #16364a !important;
+  background-color: #111827 !important;
+  border: 1px solid #1E293B !important;
   color: #cbd5e1 !important;
 }
 
@@ -420,7 +420,7 @@ html.dark .modal-backdrop-blur .border-\[\#f1f5f2\] {
 html.dark .modal-backdrop-blur input,
 html.dark .modal-backdrop-blur select,
 html.dark .modal-backdrop-blur textarea {
-  background-color: #0b1c28 !important;
+  background-color: #111827 !important;
   border-color: #1e3a4f !important;
   color: #f8fafc !important;
 }
@@ -434,11 +434,11 @@ html.dark .modal-backdrop-blur input:focus,
 html.dark .modal-backdrop-blur select:focus,
 html.dark .modal-backdrop-blur textarea:focus {
   border-color: #10b981 !important;
-  background-color: #0d2232 !important;
+  background-color: #111827 !important;
 }
 
 html.dark .modal-backdrop-blur select option {
-  background-color: #0b1c28 !important;
+  background-color: #111827 !important;
   color: #f8fafc !important;
 }
 
@@ -446,13 +446,13 @@ html.dark .modal-backdrop-blur select option {
 html.dark .modal-backdrop-blur .bg-\[\#fafcfa\],
 html.dark .modal-backdrop-blur .bg-\[\#f8faf9\],
 html.dark .modal-backdrop-blur .bg-\[\#f9fbf9\] {
-  background-color: #0c1d2a !important;
+  background-color: #111827 !important;
   border-color: #1e3a4f !important;
 }
 
 /* Nút dạng unselected (Chi tiêu / Thu nhập / Chuyển tiền & Chỉ nhắc nhở) trong form tạo mới */
 html.dark .modal-backdrop-blur form button.bg-white,
-html.dark .modal-backdrop-blur form button:not([class*="bg-[#07543f]"]):not([class*="bg-[#e6f7ef]"]):not([class*="bg-[#fff8e6]"]):not([class*="bg-[#122838]"]) {
+html.dark .modal-backdrop-blur form button:not([class*="bg-[#07543f]"]):not([class*="bg-[#e6f7ef]"]):not([class*="bg-[#fff8e6]"]):not([class*="bg-[#1F2937]"]) {
   border-color: #1e3a4f !important;
   color: #cbd5e1 !important;
 }
@@ -479,12 +479,12 @@ html.dark .modal-backdrop-blur .btn-detail-delete:hover {
 }
 
 html.dark .modal-backdrop-blur .btn-detail-close {
-  background-color: #162f42 !important;
-  border-color: #274b67 !important;
+  background-color: #1E293B !important;
+  border-color: #1E293B !important;
   color: #e2e8f0 !important;
 }
 html.dark .modal-backdrop-blur .btn-detail-close:hover {
-  background-color: #1e3d54 !important;
+  background-color: #1E293B !important;
   color: #ffffff !important;
 }
 
@@ -507,12 +507,12 @@ html.dark .modal-backdrop-blur button.bg-\[\#07543f\] {
 }
 
 html.dark .modal-backdrop-blur button.bg-\[\#f1f5f2\] {
-  background-color: #162f42 !important;
+  background-color: #1E293B !important;
   color: #e2e8f0 !important;
 }
 
 html.dark .modal-backdrop-blur button.bg-\[\#f1f5f2\]:hover {
-  background-color: #1e3d54 !important;
+  background-color: #1E293B !important;
 }
 
 /* ========================================================

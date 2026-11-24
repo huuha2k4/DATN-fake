@@ -20,6 +20,7 @@ public class UserResponse {
     private String email;
     private String username;
     private String fullName;
+    private java.time.LocalDate dateOfBirth;
     private Boolean emailVerified;
     private String phone;
     private Boolean mfaEnabled;

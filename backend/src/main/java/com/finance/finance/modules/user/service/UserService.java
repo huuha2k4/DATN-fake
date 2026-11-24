@@ -1,5 +1,6 @@
 package com.finance.finance.modules.user.service;
 
+import com.finance.finance.common.upload.FileUploadValidator;
 import com.finance.finance.modules.user.dto.request.UpdateProfileRequest;
 import com.finance.finance.modules.user.dto.response.UserResponse;
 import com.finance.finance.modules.user.entity.User;
@@ -29,11 +30,18 @@ public class UserService {
     private final UserRepository userRepository;
     private final UserMapper userMapper;
     private final PasswordEncoder passwordEncoder;
+    private final FileUploadValidator fileUploadValidator;
     
     private static final String UPLOAD_DIR = "uploads/avatars";
-    private static final long MAX_FILE_SIZE = 100 * 1024 * 1024; // 100MB
-    private static final String[] ALLOWED_EXTENSIONS = {".jpg", ".jpeg", ".png", ".gif", ".webp"};
     
+    @Transactional(readOnly = true)
+    public boolean isUsernameAvailable(String username) {
+        if (username == null || username.trim().isEmpty()) {
+            return false;
+        }
+        return !userRepository.existsByUsernameAndDeletedAtIsNull(username.trim());
+    }
+
     private User findUserByIdOrIdentifier(String identifier) {
         try {
             UUID userId = UUID.fromString(identifier);
@@ -83,7 +91,23 @@ public class UserService {
         
         // Update only non-null fields
         if (request.getFullName() != null) {
-            user.setFullName(request.getFullName());
+            user.setFullName(request.getFullName().trim());
+        }
+        if (request.getUsername() != null && !request.getUsername().trim().isEmpty()) {
+            String newUsername = request.getUsername().trim();
+            if (!newUsername.equalsIgnoreCase(user.getUsername())) {
+                if (userRepository.existsByUsernameAndDeletedAtIsNull(newUsername)) {
+                    throw new com.finance.finance.common.exception.BusinessException("Tên đăng nhập đã tồn tại, vui lòng chọn tên khác");
+                }
+                user.setUsername(newUsername);
+            }
+        }
+        if (request.getPassword() != null && !request.getPassword().trim().isEmpty()) {
+            user.setPasswordHash(passwordEncoder.encode(request.getPassword().trim()));
+            user.setPasswordChangedAt(java.time.Instant.now());
+        }
+        if (request.getDateOfBirth() != null) {
+            user.setDateOfBirth(request.getDateOfBirth());
         }
         if (request.getPhone() != null) {
             user.setPhone(request.getPhone());
@@ -107,24 +131,8 @@ public class UserService {
     
     @Transactional
     public UserResponse uploadAvatar(UUID userId, MultipartFile file) throws IOException {
-        // Validate file
-        if (file.isEmpty()) {
-            throw new IllegalArgumentException("File is empty");
-        }
-        
-        if (file.getSize() > MAX_FILE_SIZE) {
-            throw new IllegalArgumentException("File size exceeds maximum allowed size of 100MB");
-        }
-        
-        String originalFilename = file.getOriginalFilename();
-        if (originalFilename == null) {
-            throw new IllegalArgumentException("Invalid file name");
-        }
-        
-        String fileExtension = getFileExtension(originalFilename);
-        if (!isAllowedExtension(fileExtension)) {
-            throw new IllegalArgumentException("File type not allowed. Allowed types: jpg, jpeg, png, gif, webp");
-        }
+        FileUploadValidator.ValidatedUpload validated =
+                fileUploadValidator.validate(file, FileUploadValidator.Policy.AVATAR);
         
         // Get user
         User user = userRepository.findById(userId)
@@ -142,7 +150,7 @@ public class UserService {
         }
         
         // Generate unique filename
-        String newFilename = userId + "_" + System.currentTimeMillis() + fileExtension;
+        String newFilename = userId + "_" + UUID.randomUUID() + validated.extension();
         Path filePath = uploadPath.resolve(newFilename);
         
         // Save file
@@ -222,20 +230,4 @@ public class UserService {
         }
     }
     
-    private String getFileExtension(String filename) {
-        int lastIndexOf = filename.lastIndexOf(".");
-        if (lastIndexOf == -1) {
-            return "";
-        }
-        return filename.substring(lastIndexOf).toLowerCase();
-    }
-    
-    private boolean isAllowedExtension(String extension) {
-        for (String allowed : ALLOWED_EXTENSIONS) {
-            if (allowed.equalsIgnoreCase(extension)) {
-                return true;
-            }
-        }
-        return false;
-    }
 }

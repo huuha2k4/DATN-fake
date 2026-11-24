@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { FinanceIcon, resolveCategoryIconName, getCategoryCanonicalKey } from '../../core/components/FinanceIcon';
+import { DatePicker } from '../../core/components/DatePicker';
+import { subscribeFinAiActionCompleted } from '../../core/utils/finaiSyncEvents';
 import {
   transactionApi,
   type TransactionItem,
@@ -321,8 +323,14 @@ export function CashFlowManagementScreen({ onNotify, onAddTransaction }: Props) 
         loadTransactions();
       }
     });
+    const unsubscribeFinAi = subscribeFinAiActionCompleted(() => {
+      loadTransactions();
+      loadMetadata();
+    });
+
     return () => {
       window.removeEventListener('focus', handleFocus);
+      unsubscribeFinAi();
     };
   }, [activeTab, selectedCategory, selectedAccount, selectedMonth, currentPage, debouncedSearch]);
 
@@ -488,7 +496,7 @@ export function CashFlowManagementScreen({ onNotify, onAddTransaction }: Props) 
     .td-cat { text-align: left; border: 1px solid #e2e8f0; height: 36px; vertical-align: middle; padding-left: 10px; padding-right: 8px; color: #0369A1; font-weight: 600; }
     .td-wallet { text-align: left; border: 1px solid #e2e8f0; height: 36px; vertical-align: middle; padding-left: 10px; padding-right: 8px; color: #334155; }
     .td-center { text-align: center; border: 1px solid #e2e8f0; height: 36px; vertical-align: middle; }
-    .td-date { text-align: center; border: 1px solid #e2e8f0; height: 36px; vertical-align: middle; color: #047857; font-weight: 600; mso-number-format: "\\@"; }
+    .td-date { text-align: center; border: 1px solid #e2e8f0; height: 36px; vertical-align: middle; color: #007F53; font-weight: 600; mso-number-format: "\\@"; }
     .td-type { text-align: center; border: 1px solid #e2e8f0; height: 36px; vertical-align: middle; font-weight: 600; }
     .td-amount { text-align: right; border: 1px solid #e2e8f0; height: 36px; vertical-align: middle; padding-right: 12px; font-weight: bold; mso-number-format:"\\#,##0"; }
     .row-even { background-color: #FFFFFF; }
@@ -768,7 +776,7 @@ export function CashFlowManagementScreen({ onNotify, onAddTransaction }: Props) 
 
   return (
     <main
-      className="cashflow-management-page mx-auto flex min-h-[calc(100vh-64px)] w-full max-w-[1560px] flex-col gap-6 bg-[#f6f8f6] px-4 pb-24 pt-6 text-[#14251f] sm:px-6 lg:px-8 lg:pb-12"
+      className="cashflow-management-page mx-auto flex min-h-[calc(100vh-64px)] w-full max-w-[1560px] flex-col gap-6 bg-[#F8FAFC] px-4 pb-24 pt-6 text-[#0F172A] sm:px-6 lg:px-8 lg:pb-12"
       aria-label="Quản lý Thu & Chi"
     >
       {/* 2. Top Summary Ribbon */}
@@ -780,7 +788,7 @@ export function CashFlowManagementScreen({ onNotify, onAddTransaction }: Props) 
         >
           <div>
             <div className="flex items-center justify-between">
-              <span className="text-xs font-semibold text-[#718579]">TỔNG THU NHẬP</span>
+              <span className="text-xs font-semibold text-[#64748B]">TỔNG THU NHẬP</span>
               <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-700 border border-emerald-200 shrink-0">
                 Dòng tiền vào
               </span>
@@ -794,9 +802,9 @@ export function CashFlowManagementScreen({ onNotify, onAddTransaction }: Props) 
               </h3>
             </div>
           </div>
-          <div className="mt-4 flex items-center justify-between border-t border-[#f0f4f1] pt-3 text-[11px] text-[#718579]">
+          <div className="mt-4 flex items-center justify-between border-t border-[#f0f4f1] pt-3 text-[11px] text-[#64748B]">
             <span>Đã ghi nhận trong kỳ</span>
-            <span className="font-semibold text-[#14261e]">{summary.transactionCount} giao dịch</span>
+            <span className="font-semibold text-[#0F172A]">{summary.transactionCount} giao dịch</span>
           </div>
         </div>
 
@@ -807,7 +815,7 @@ export function CashFlowManagementScreen({ onNotify, onAddTransaction }: Props) 
         >
           <div>
             <div className="flex items-center justify-between">
-              <span className="text-xs font-semibold text-[#718579]">TỔNG CHI TIÊU</span>
+              <span className="text-xs font-semibold text-[#64748B]">TỔNG CHI TIÊU</span>
               <span className="rounded-full bg-rose-50 px-2 py-0.5 text-[10px] font-bold text-rose-700 border border-rose-200 shrink-0">
                 Dòng tiền ra
               </span>
@@ -821,7 +829,7 @@ export function CashFlowManagementScreen({ onNotify, onAddTransaction }: Props) 
               </h3>
             </div>
           </div>
-          <div className="mt-4 flex items-center justify-between border-t border-[#f0f4f1] pt-3 text-[11px] text-[#718579]">
+          <div className="mt-4 flex items-center justify-between border-t border-[#f0f4f1] pt-3 text-[11px] text-[#64748B]">
             <span>Tỷ lệ chi / thu</span>
             <span className="font-semibold text-rose-600">
               {summary.totalIncome > 0 ? Math.round((summary.totalExpense / summary.totalIncome) * 100) : 0}%
@@ -859,13 +867,13 @@ export function CashFlowManagementScreen({ onNotify, onAddTransaction }: Props) 
           {/* Hàng 1: Tabs phân loại màu xanh ngọc bên trái + Ô tìm kiếm kéo dài sát cạnh Chuyển ví tới hết */}
           <div className="flex flex-col gap-2.5 sm:flex-row sm:items-center">
             {/* Tab Pills - Các nút đều mang màu xanh đặc trưng như ban đầu */}
-            <div className="inline-flex items-center rounded-xl bg-[#f0f5f2] p-0.5 gap-0.5 shrink-0 overflow-x-auto">
+            <div className="inline-flex items-center rounded-xl bg-[#F1F5F9] p-0.5 gap-0.5 shrink-0 overflow-x-auto">
               <button
                 type="button"
                 onClick={() => { setActiveTab('ALL'); setSelectedCategory('ALL'); setCurrentPage(1); }}
                 className={`rounded-lg px-3 py-1.5 text-[11px] font-bold transition flex items-center justify-center whitespace-nowrap ${activeTab === 'ALL'
-                    ? 'bg-[#07543f] text-white shadow-xs'
-                    : 'text-[#52665a] hover:text-[#07543f] hover:bg-[#e4ede7]'
+                    ? 'bg-[#007F53] text-white shadow-xs'
+                    : 'text-[#475569] hover:text-[#007F53] hover:bg-[#e4ede7]'
                   }`}
               >
                 <span>Tất cả</span>
@@ -875,8 +883,8 @@ export function CashFlowManagementScreen({ onNotify, onAddTransaction }: Props) 
                 type="button"
                 onClick={() => { setActiveTab('INCOME'); setSelectedCategory('ALL'); setCurrentPage(1); }}
                 className={`rounded-lg px-3 py-1.5 text-[11px] font-bold transition flex items-center justify-center whitespace-nowrap ${activeTab === 'INCOME'
-                    ? 'bg-[#07543f] text-white shadow-xs'
-                    : 'text-[#52665a] hover:text-[#07543f] hover:bg-[#e4ede7]'
+                    ? 'bg-[#007F53] text-white shadow-xs'
+                    : 'text-[#475569] hover:text-[#007F53] hover:bg-[#e4ede7]'
                   }`}
               >
                 <span>Khoản thu</span>
@@ -886,8 +894,8 @@ export function CashFlowManagementScreen({ onNotify, onAddTransaction }: Props) 
                 type="button"
                 onClick={() => { setActiveTab('EXPENSE'); setSelectedCategory('ALL'); setCurrentPage(1); }}
                 className={`rounded-lg px-3 py-1.5 text-[11px] font-bold transition flex items-center justify-center whitespace-nowrap ${activeTab === 'EXPENSE'
-                    ? 'bg-[#07543f] text-white shadow-xs'
-                    : 'text-[#52665a] hover:text-[#07543f] hover:bg-[#e4ede7]'
+                    ? 'bg-[#007F53] text-white shadow-xs'
+                    : 'text-[#475569] hover:text-[#007F53] hover:bg-[#e4ede7]'
                   }`}
               >
                 <span>Khoản chi</span>
@@ -898,8 +906,8 @@ export function CashFlowManagementScreen({ onNotify, onAddTransaction }: Props) 
                   type="button"
                   onClick={() => { setActiveTab('TRANSFER'); setSelectedCategory('ALL'); setCurrentPage(1); }}
                   className={`rounded-lg px-3 py-1.5 text-[11px] font-bold transition flex items-center justify-center whitespace-nowrap ${activeTab === 'TRANSFER'
-                      ? 'bg-[#07543f] text-white shadow-xs'
-                      : 'text-[#52665a] hover:text-[#07543f] hover:bg-[#e4ede7]'
+                      ? 'bg-[#007F53] text-white shadow-xs'
+                      : 'text-[#475569] hover:text-[#007F53] hover:bg-[#e4ede7]'
                     }`}
                 >
                   <span>Chuyển ví</span>
@@ -917,7 +925,7 @@ export function CashFlowManagementScreen({ onNotify, onAddTransaction }: Props) 
                 placeholder="Tìm theo đối tác, hạng mục, số tiền..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="h-8.5 w-full rounded-xl border border-[#d5ded8] bg-[#f8faf8] pl-8 pr-14 text-[11px] font-medium text-[#14261e] placeholder:text-[#8a9e93] outline-none focus:border-[#07543f] focus:bg-white focus:ring-2 focus:ring-[#07543f]/10 transition"
+                className="h-8.5 w-full rounded-xl border border-[#CBD5E1] bg-[#F8FAFC] pl-8 pr-14 text-[11px] font-medium text-[#0F172A] placeholder:text-[#8a9e93] outline-none focus:border-[#007F53] focus:bg-white focus:ring-2 focus:ring-[#007F53]/10 transition"
               />
               <span className="absolute left-2.5 top-2.5 text-[#8a9e93]">
                 <FinanceIcon name="search" size={13} />
@@ -941,7 +949,7 @@ export function CashFlowManagementScreen({ onNotify, onAddTransaction }: Props) 
                 <button
                   type="submit"
                   title="Tìm kiếm"
-                  className="flex size-7 items-center justify-center rounded-lg text-[#64748b] hover:text-[#07543f] hover:bg-slate-100 transition"
+                  className="flex size-7 items-center justify-center rounded-lg text-[#64748b] hover:text-[#007F53] hover:bg-slate-100 transition"
                 >
                   <FinanceIcon name="search" size={14} />
                 </button>
@@ -950,7 +958,7 @@ export function CashFlowManagementScreen({ onNotify, onAddTransaction }: Props) 
           </div>
 
           {/* Hàng 2: Các ô thả xuống chữ nhỏ gọn 10.5px, kéo dài giãn ra tới 2 nút chức năng màu xanh */}
-          <div className="flex flex-col gap-2 pt-2 border-t border-[#edf2ee] lg:flex-row lg:items-center lg:justify-between">
+          <div className="flex flex-col gap-2 pt-2 border-t border-[#E2E8F0] lg:flex-row lg:items-center lg:justify-between">
             {/* Cụm 3 ô dropdown kéo dài chiếm đều không gian */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 flex-1">
               {/* 1. Lọc danh mục */}
@@ -964,12 +972,12 @@ export function CashFlowManagementScreen({ onNotify, onAddTransaction }: Props) 
                       setIsMonthDropdownOpen(false);
                     }}
                     className={`flex h-7.5 w-full items-center justify-between rounded-xl border px-2.5 text-[10.5px] font-semibold transition ${isCategoryDropdownOpen || selectedCategory !== 'ALL'
-                        ? 'border-[#07543f] bg-[#eef7f2] text-[#07543f]'
-                        : 'border-[#d5ded8] bg-[#f8faf8] text-[#475569] hover:bg-[#f1f5f9] hover:border-[#b0c2b7]'
+                        ? 'border-[#007F53] bg-[#eef7f2] text-[#007F53]'
+                        : 'border-[#CBD5E1] bg-[#F8FAFC] text-[#475569] hover:bg-[#f1f5f9] hover:border-[#94A3B8]'
                       }`}
                   >
                     <div className="flex items-center gap-1.5 truncate">
-                      <FinanceIcon name="grid" size={11} className="text-[#07543f] shrink-0" />
+                      <FinanceIcon name="grid" size={11} className="text-[#007F53] shrink-0" />
                       <span className="truncate">
                         Danh mục: {selectedCategory === 'ALL'
                           ? 'Tất cả'
@@ -979,13 +987,13 @@ export function CashFlowManagementScreen({ onNotify, onAddTransaction }: Props) 
                     <FinanceIcon
                       name="chevron-down"
                       size={12}
-                      className={`text-[#8a9e93] shrink-0 transition-transform ${isCategoryDropdownOpen ? 'rotate-180 text-[#07543f]' : ''}`}
+                      className={`text-[#8a9e93] shrink-0 transition-transform ${isCategoryDropdownOpen ? 'rotate-180 text-[#007F53]' : ''}`}
                     />
                   </button>
 
                   {/* Menu thả xuống */}
                   {isCategoryDropdownOpen && (
-                    <div className="absolute left-0 top-full mt-1 z-40 w-full min-w-[190px] max-h-52 overflow-y-auto rounded-xl border border-[#d5ded8] bg-white p-1 shadow-xl animate-fadeIn">
+                    <div className="absolute left-0 top-full mt-1 z-40 w-full min-w-[190px] max-h-52 overflow-y-auto rounded-xl border border-[#CBD5E1] bg-white p-1 shadow-xl animate-fadeIn">
                       <button
                         type="button"
                         onClick={() => {
@@ -994,15 +1002,15 @@ export function CashFlowManagementScreen({ onNotify, onAddTransaction }: Props) 
                           setCurrentPage(1);
                         }}
                         className={`flex w-full items-center justify-between rounded-lg px-2 py-1 text-[10.5px] transition ${selectedCategory === 'ALL'
-                            ? 'bg-emerald-50 font-bold text-[#07543f]'
+                            ? 'bg-emerald-50 font-bold text-[#007F53]'
                             : 'text-[#1e293b] hover:bg-[#f8fafc]'
                           }`}
                       >
                         <span>Tất cả danh mục</span>
-                        {selectedCategory === 'ALL' && <span className="text-[#07543f]">✓</span>}
+                        {selectedCategory === 'ALL' && <span className="text-[#007F53]">✓</span>}
                       </button>
 
-                      <div className="my-1 border-t border-[#edf2ee]" />
+                      <div className="my-1 border-t border-[#E2E8F0]" />
 
                       {availableCategories.length === 0 ? (
                         <div className="px-2.5 py-1.5 text-center text-[10.5px] text-[#94a3b8]">
@@ -1021,7 +1029,7 @@ export function CashFlowManagementScreen({ onNotify, onAddTransaction }: Props) 
                                 setCurrentPage(1);
                               }}
                               className={`flex w-full items-center justify-between rounded-lg px-2 py-1 text-[10.5px] transition ${isSelected
-                                  ? 'bg-emerald-50 font-bold text-[#07543f]'
+                                  ? 'bg-emerald-50 font-bold text-[#007F53]'
                                   : 'text-[#1e293b] hover:bg-[#f8fafc]'
                                 }`}
                             >
@@ -1032,7 +1040,7 @@ export function CashFlowManagementScreen({ onNotify, onAddTransaction }: Props) 
                                 />
                                 <span className="truncate">{c.name}</span>
                               </div>
-                              {isSelected && <span className="text-[#07543f] ml-1 shrink-0">✓</span>}
+                              {isSelected && <span className="text-[#007F53] ml-1 shrink-0">✓</span>}
                             </button>
                           );
                         })
@@ -1055,14 +1063,14 @@ export function CashFlowManagementScreen({ onNotify, onAddTransaction }: Props) 
                   }}
                   className={`flex h-7.5 w-full items-center justify-between rounded-xl border px-2.5 text-[10.5px] font-semibold transition ${
                     isChildAccount
-                      ? 'border-[#d5ded8] bg-[#f0f5f2] text-[#07543f] cursor-default'
+                      ? 'border-[#CBD5E1] bg-[#F1F5F9] text-[#007F53] cursor-default'
                       : isAccountDropdownOpen || selectedAccount !== 'ALL'
-                      ? 'border-[#07543f] bg-[#eef7f2] text-[#07543f]'
-                      : 'border-[#d5ded8] bg-[#f8faf8] text-[#475569] hover:bg-[#f1f5f9] hover:border-[#b0c2b7]'
+                      ? 'border-[#007F53] bg-[#eef7f2] text-[#007F53]'
+                      : 'border-[#CBD5E1] bg-[#F8FAFC] text-[#475569] hover:bg-[#f1f5f9] hover:border-[#94A3B8]'
                   }`}
                 >
                   <div className="flex items-center gap-1.5 truncate">
-                    <FinanceIcon name="credit-card" size={11} className="text-[#07543f] shrink-0" />
+                    <FinanceIcon name="credit-card" size={11} className="text-[#007F53] shrink-0" />
                     <span className="truncate">
                       Nguồn tiền: {isChildAccount
                         ? (accounts[0]?.name || 'Ví của bé')
@@ -1075,14 +1083,14 @@ export function CashFlowManagementScreen({ onNotify, onAddTransaction }: Props) 
                     <FinanceIcon
                       name="chevron-down"
                       size={12}
-                      className={`text-[#8a9e93] shrink-0 transition-transform ${isAccountDropdownOpen ? 'rotate-180 text-[#07543f]' : ''}`}
+                      className={`text-[#8a9e93] shrink-0 transition-transform ${isAccountDropdownOpen ? 'rotate-180 text-[#007F53]' : ''}`}
                     />
                   )}
                 </button>
 
                 {/* Menu thả xuống */}
                 {!isChildAccount && isAccountDropdownOpen && (
-                  <div className="absolute left-0 top-full mt-1 z-40 w-full min-w-[190px] max-h-52 overflow-y-auto rounded-xl border border-[#d5ded8] bg-white p-1 shadow-xl animate-fadeIn">
+                  <div className="absolute left-0 top-full mt-1 z-40 w-full min-w-[190px] max-h-52 overflow-y-auto rounded-xl border border-[#CBD5E1] bg-white p-1 shadow-xl animate-fadeIn">
                     <button
                       type="button"
                       onClick={() => {
@@ -1091,15 +1099,15 @@ export function CashFlowManagementScreen({ onNotify, onAddTransaction }: Props) 
                         setCurrentPage(1);
                       }}
                       className={`flex w-full items-center justify-between rounded-lg px-2 py-1 text-[10.5px] transition ${selectedAccount === 'ALL'
-                          ? 'bg-emerald-50 font-bold text-[#07543f]'
+                          ? 'bg-emerald-50 font-bold text-[#007F53]'
                           : 'text-[#1e293b] hover:bg-[#f8fafc]'
                         }`}
                     >
                       <span>Tất cả tài khoản / Ví</span>
-                      {selectedAccount === 'ALL' && <span className="text-[#07543f]">✓</span>}
+                      {selectedAccount === 'ALL' && <span className="text-[#007F53]">✓</span>}
                     </button>
 
-                    <div className="my-1 border-t border-[#edf2ee]" />
+                    <div className="my-1 border-t border-[#E2E8F0]" />
 
                     {accounts.length === 0 ? (
                       <div className="px-2.5 py-1.5 text-center text-[10.5px] text-[#94a3b8]">
@@ -1118,7 +1126,7 @@ export function CashFlowManagementScreen({ onNotify, onAddTransaction }: Props) 
                               setCurrentPage(1);
                             }}
                             className={`flex w-full items-center justify-between rounded-lg px-2 py-1 text-[10.5px] transition ${isSelected
-                                ? 'bg-emerald-50 font-bold text-[#07543f]'
+                                ? 'bg-emerald-50 font-bold text-[#007F53]'
                                 : 'text-[#1e293b] hover:bg-[#f8fafc]'
                               }`}
                           >
@@ -1126,7 +1134,7 @@ export function CashFlowManagementScreen({ onNotify, onAddTransaction }: Props) 
                               <FinanceIcon name="wallet" size={11} className="text-[#64748b] shrink-0" />
                               <span className="truncate">{acc.name}</span>
                             </div>
-                            {isSelected && <span className="text-[#07543f] ml-1 shrink-0">✓</span>}
+                            {isSelected && <span className="text-[#007F53] ml-1 shrink-0">✓</span>}
                           </button>
                         );
                       })
@@ -1145,12 +1153,12 @@ export function CashFlowManagementScreen({ onNotify, onAddTransaction }: Props) 
                     setIsAccountDropdownOpen(false);
                   }}
                   className={`flex h-7.5 w-full items-center justify-between rounded-xl border px-2.5 text-[10.5px] font-semibold transition ${isMonthDropdownOpen || selectedMonth !== 'ALL'
-                      ? 'border-[#07543f] bg-[#eef7f2] text-[#07543f]'
-                      : 'border-[#d5ded8] bg-[#f8faf8] text-[#475569] hover:bg-[#f1f5f9] hover:border-[#b0c2b7]'
+                      ? 'border-[#007F53] bg-[#eef7f2] text-[#007F53]'
+                      : 'border-[#CBD5E1] bg-[#F8FAFC] text-[#475569] hover:bg-[#f1f5f9] hover:border-[#94A3B8]'
                     }`}
                 >
                   <div className="flex items-center gap-1.5 truncate">
-                    <FinanceIcon name="calendar" size={11} className="text-[#07543f] shrink-0" />
+                    <FinanceIcon name="calendar" size={11} className="text-[#007F53] shrink-0" />
                     <span className="truncate">
                       Thời gian: {selectedMonth === 'ALL'
                         ? 'Tất cả'
@@ -1160,13 +1168,13 @@ export function CashFlowManagementScreen({ onNotify, onAddTransaction }: Props) 
                   <FinanceIcon
                     name="chevron-down"
                     size={12}
-                    className={`text-[#8a9e93] shrink-0 transition-transform ${isMonthDropdownOpen ? 'rotate-180 text-[#07543f]' : ''}`}
+                    className={`text-[#8a9e93] shrink-0 transition-transform ${isMonthDropdownOpen ? 'rotate-180 text-[#007F53]' : ''}`}
                   />
                 </button>
 
                 {/* Menu thả xuống */}
                 {isMonthDropdownOpen && (
-                  <div className="absolute left-0 top-full mt-1 z-40 w-full min-w-[170px] max-h-52 overflow-y-auto rounded-xl border border-[#d5ded8] bg-white p-1 shadow-xl animate-fadeIn">
+                  <div className="absolute left-0 top-full mt-1 z-40 w-full min-w-[170px] max-h-52 overflow-y-auto rounded-xl border border-[#CBD5E1] bg-white p-1 shadow-xl animate-fadeIn">
                     <button
                       type="button"
                       onClick={() => {
@@ -1175,15 +1183,15 @@ export function CashFlowManagementScreen({ onNotify, onAddTransaction }: Props) 
                         setCurrentPage(1);
                       }}
                       className={`flex w-full items-center justify-between rounded-lg px-2 py-1 text-[10.5px] transition ${selectedMonth === 'ALL'
-                          ? 'bg-emerald-50 font-bold text-[#07543f]'
+                          ? 'bg-emerald-50 font-bold text-[#007F53]'
                           : 'text-[#1e293b] hover:bg-[#f8fafc]'
                         }`}
                     >
                       <span>Tất cả thời gian</span>
-                      {selectedMonth === 'ALL' && <span className="text-[#07543f]">✓</span>}
+                      {selectedMonth === 'ALL' && <span className="text-[#007F53]">✓</span>}
                     </button>
 
-                    <div className="my-1 border-t border-[#edf2ee]" />
+                    <div className="my-1 border-t border-[#E2E8F0]" />
 
                     {availableMonths.map((m) => {
                       const isSelected = selectedMonth === m.key;
@@ -1197,12 +1205,12 @@ export function CashFlowManagementScreen({ onNotify, onAddTransaction }: Props) 
                             setCurrentPage(1);
                           }}
                           className={`flex w-full items-center justify-between rounded-lg px-2 py-1 text-[10.5px] transition ${isSelected
-                              ? 'bg-emerald-50 font-bold text-[#07543f]'
+                              ? 'bg-emerald-50 font-bold text-[#007F53]'
                               : 'text-[#1e293b] hover:bg-[#f8fafc]'
                             }`}
                         >
                           <span>{m.label}</span>
-                          {isSelected && <span className="text-[#07543f]">✓</span>}
+                          {isSelected && <span className="text-[#007F53]">✓</span>}
                         </button>
                       );
                     })}
@@ -1216,7 +1224,7 @@ export function CashFlowManagementScreen({ onNotify, onAddTransaction }: Props) 
               <button
                 type="button"
                 onClick={() => setIsCategoryModalOpen(true)}
-                className="inline-flex h-7.5 items-center gap-1.5 rounded-xl bg-[#07543f] px-2.5 text-[10.5px] font-semibold text-white shadow-xs hover:bg-[#0b6c52] transition"
+                className="inline-flex h-7.5 items-center gap-1.5 rounded-xl bg-[#007F53] px-2.5 text-[10.5px] font-semibold text-white shadow-xs hover:bg-[#009663] transition"
               >
                 <FinanceIcon name="receipt" size={12} />
                 <span>Danh mục thu chi</span>
@@ -1226,7 +1234,7 @@ export function CashFlowManagementScreen({ onNotify, onAddTransaction }: Props) 
                 type="button"
                 disabled={isExporting}
                 onClick={handleExportExcel}
-                className="inline-flex h-7.5 items-center gap-1.5 rounded-xl bg-[#07543f] px-2.5 text-[10.5px] font-semibold text-white shadow-xs hover:bg-[#0b6c52] transition disabled:opacity-60"
+                className="inline-flex h-7.5 items-center gap-1.5 rounded-xl bg-[#007F53] px-2.5 text-[10.5px] font-semibold text-white shadow-xs hover:bg-[#009663] transition disabled:opacity-60"
               >
                 <FinanceIcon name={isExporting ? 'refresh' : 'download'} size={12} className={isExporting ? 'animate-spin' : ''} />
                 <span>{isExporting ? 'Đang xuất...' : 'Xuất báo cáo'}</span>
@@ -1239,23 +1247,23 @@ export function CashFlowManagementScreen({ onNotify, onAddTransaction }: Props) 
       {/* 4. Transactions Table */}
       <section className="cashflow-table-container">
         {loading ? (
-          <div className="flex min-h-[260px] items-center justify-center p-8 text-center text-xs text-[#718579]">
-            <FinanceIcon name="refresh" size={24} className="animate-spin text-[#07543f]" />
+          <div className="flex min-h-[260px] items-center justify-center p-8 text-center text-xs text-[#64748B]">
+            <FinanceIcon name="refresh" size={24} className="animate-spin text-[#007F53]" />
             <span className="ml-3 font-semibold text-sm">Đang tải lịch sử thu chi...</span>
           </div>
         ) : transactions.length === 0 ? (
           <div className="flex flex-col items-center justify-center p-12 text-center">
-            <div className="grid size-14 place-items-center rounded-2xl bg-[#e3f4e9] text-[#07543f]">
+            <div className="grid size-14 place-items-center rounded-2xl bg-[#E6F4EA] text-[#007F53]">
               <FinanceIcon name="receipt" size={28} />
             </div>
-            <h3 className="mt-4 text-base font-bold text-[#14261e]">Không tìm thấy giao dịch nào</h3>
-            <p className="mt-1 text-xs text-[#718579] max-w-sm">
+            <h3 className="mt-4 text-base font-bold text-[#0F172A]">Không tìm thấy giao dịch nào</h3>
+            <p className="mt-1 text-xs text-[#64748B] max-w-sm">
               Bạn chưa có giao dịch nào phù hợp với bộ lọc hiện tại hoặc chưa ghi chép chi tiêu.
             </p>
             <button
               type="button"
               onClick={onAddTransaction}
-              className="mt-4 inline-flex h-9 items-center gap-1.5 rounded-xl bg-[#07543f] px-4 text-xs font-bold text-white shadow hover:bg-[#09694e]"
+              className="mt-4 inline-flex h-9 items-center gap-1.5 rounded-xl bg-[#007F53] px-4 text-xs font-bold text-white shadow hover:bg-[#09694e]"
             >
               <FinanceIcon name="plus" size={14} />
               Ghi chép giao dịch ngay
@@ -1325,11 +1333,11 @@ export function CashFlowManagementScreen({ onNotify, onAddTransaction }: Props) 
                           </span>
                           <div className="min-w-0 flex-1">
                             <div className="flex items-center gap-1.5 min-w-0">
-                              <p className="truncate font-bold text-[#0f172a] dark:text-slate-100 text-[13px] group-hover:text-[#07543f] dark:group-hover:text-emerald-400 transition-colors" title={tx.description || 'Giao dịch'}>
+                              <p className="truncate font-bold text-[#0f172a] dark:text-slate-100 text-[13px] group-hover:text-[#007F53] dark:group-hover:text-emerald-400 transition-colors" title={tx.description || 'Giao dịch'}>
                                 {tx.description || (isIncome ? 'Khoản thu' : isTransfer ? 'Chuyển tiền' : 'Khoản chi')}
                               </p>
                               {tx.receiptUrl && (
-                                <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md bg-emerald-100/80 dark:bg-emerald-950 text-[10px] font-bold text-[#07543f] dark:text-emerald-400 border border-emerald-200/80 dark:border-emerald-800/60 shrink-0" title="Có hóa đơn đính kèm">
+                                <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md bg-emerald-100/80 dark:bg-emerald-950 text-[10px] font-bold text-[#007F53] dark:text-emerald-400 border border-emerald-200/80 dark:border-emerald-800/60 shrink-0" title="Có hóa đơn đính kèm">
                                   <FinanceIcon name="receipt" size={10} />
                                   <span>Hóa đơn</span>
                                 </span>
@@ -1352,7 +1360,7 @@ export function CashFlowManagementScreen({ onNotify, onAddTransaction }: Props) 
                             <p className="font-bold text-[#0f172a] dark:text-slate-100 text-[12.5px] truncate" title={tx.accountName}>
                               {tx.accountName}
                             </p>
-                            <p className="text-[10.5px] text-[#718579] dark:text-slate-400 font-medium truncate mt-0.5" title={isTransfer && tx.toAccountName ? `Chuyển sang: ${tx.toAccountName}` : getAccountTypeLabel(tx.accountId)}>
+                            <p className="text-[10.5px] text-[#64748B] dark:text-slate-400 font-medium truncate mt-0.5" title={isTransfer && tx.toAccountName ? `Chuyển sang: ${tx.toAccountName}` : getAccountTypeLabel(tx.accountId)}>
                               {isTransfer && tx.toAccountName
                                 ? `→ ${tx.toAccountName}`
                                 : getAccountTypeLabel(tx.accountId)}
@@ -1413,7 +1421,7 @@ export function CashFlowManagementScreen({ onNotify, onAddTransaction }: Props) 
                           <button
                             type="button"
                             onClick={() => setSelectedTxDetail(tx)}
-                            className="grid size-7 place-items-center rounded-lg text-slate-400 hover:bg-emerald-50 hover:text-[#07543f] transition"
+                            className="grid size-7 place-items-center rounded-lg text-slate-400 hover:bg-emerald-50 hover:text-[#007F53] transition"
                             title="Xem chi tiết giao dịch"
                           >
                             <FinanceIcon name="eye" size={15} />
@@ -1435,10 +1443,10 @@ export function CashFlowManagementScreen({ onNotify, onAddTransaction }: Props) 
             </table>
 
             {/* Pagination Footer */}
-            <footer className="flex flex-col items-center justify-between gap-3 border-t border-[#edf2ee] bg-[#fafcfb] px-5 py-3 text-xs text-[#718579] sm:flex-row">
+            <footer className="flex flex-col items-center justify-between gap-3 border-t border-[#E2E8F0] bg-[#fafcfb] px-5 py-3 text-xs text-[#64748B] sm:flex-row">
               <span>
-                Hiển thị <strong className="text-[#14261e]">{transactions.length}</strong> trong tổng số{' '}
-                <strong className="text-[#14261e]">{totalItems}</strong> giao dịch
+                Hiển thị <strong className="text-[#0F172A]">{transactions.length}</strong> trong tổng số{' '}
+                <strong className="text-[#0F172A]">{totalItems}</strong> giao dịch
               </span>
 
               {totalPages > 1 && (
@@ -1447,18 +1455,18 @@ export function CashFlowManagementScreen({ onNotify, onAddTransaction }: Props) 
                     type="button"
                     disabled={currentPage <= 1}
                     onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                    className="inline-flex h-8 items-center gap-1 rounded-lg border border-[#d5ded8] bg-white px-2.5 text-xs font-semibold text-[#495b50] hover:bg-[#f1f5f2] disabled:opacity-40"
+                    className="inline-flex h-8 items-center gap-1 rounded-lg border border-[#CBD5E1] bg-white px-2.5 text-xs font-semibold text-[#495b50] hover:bg-[#F1F5F9] disabled:opacity-40"
                   >
                     <FinanceIcon name="chevron-left" size={14} /> Trước
                   </button>
-                  <span className="px-2 font-bold text-[#14261e]">
+                  <span className="px-2 font-bold text-[#0F172A]">
                     Trang {currentPage} / {totalPages}
                   </span>
                   <button
                     type="button"
                     disabled={currentPage >= totalPages}
                     onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-                    className="inline-flex h-8 items-center gap-1 rounded-lg border border-[#d5ded8] bg-white px-2.5 text-xs font-semibold text-[#495b50] hover:bg-[#f1f5f2] disabled:opacity-40"
+                    className="inline-flex h-8 items-center gap-1 rounded-lg border border-[#CBD5E1] bg-white px-2.5 text-xs font-semibold text-[#495b50] hover:bg-[#F1F5F9] disabled:opacity-40"
                   >
                     Sau <FinanceIcon name="chevron-right" size={14} />
                   </button>
@@ -1480,14 +1488,14 @@ export function CashFlowManagementScreen({ onNotify, onAddTransaction }: Props) 
             onClick={(e) => e.stopPropagation()}
           >
             {/* Header */}
-            <div className="flex items-center justify-between border-b border-[#edf2ee] pb-4">
+            <div className="flex items-center justify-between border-b border-[#E2E8F0] pb-4">
               <div className="flex items-center gap-3">
-                <span className="grid size-11 place-items-center rounded-2xl bg-emerald-50 text-[#07543f] border border-emerald-100 shadow-xs">
+                <span className="grid size-11 place-items-center rounded-2xl bg-emerald-50 text-[#007F53] border border-emerald-100 shadow-xs">
                   <FinanceIcon name="receipt" size={20} />
                 </span>
                 <div>
-                  <h2 className="text-base font-bold text-[#14261e]">Danh mục Thu &amp; Chi</h2>
-                  <p className="text-xs text-[#718579]">Tùy biến và quản lý các danh mục phân loại giao dịch</p>
+                  <h2 className="text-base font-bold text-[#0F172A]">Danh mục Thu &amp; Chi</h2>
+                  <p className="text-xs text-[#64748B]">Tùy biến và quản lý các danh mục phân loại giao dịch</p>
                 </div>
               </div>
               <button
@@ -1500,13 +1508,13 @@ export function CashFlowManagementScreen({ onNotify, onAddTransaction }: Props) 
             </div>
 
             {/* Segmented Tabs: Chi tiêu / Thu nhập */}
-            <div className="mt-4 grid grid-cols-2 rounded-2xl bg-[#f1f5f2] p-1">
+            <div className="mt-4 grid grid-cols-2 rounded-2xl bg-[#F1F5F9] p-1">
               <button
                 type="button"
                 onClick={() => setCategoryKindTab('EXPENSE')}
                 className={`flex items-center justify-center gap-2 rounded-xl py-2 text-xs font-bold transition ${categoryKindTab === 'EXPENSE'
                     ? 'bg-white text-rose-600 shadow-sm'
-                    : 'text-[#63756b] hover:text-[#14261e]'
+                    : 'text-[#64748B] hover:text-[#0F172A]'
                   }`}
               >
                 <span className="size-2 rounded-full bg-rose-500" />
@@ -1517,7 +1525,7 @@ export function CashFlowManagementScreen({ onNotify, onAddTransaction }: Props) 
                 onClick={() => setCategoryKindTab('INCOME')}
                 className={`flex items-center justify-center gap-2 rounded-xl py-2 text-xs font-bold transition ${categoryKindTab === 'INCOME'
                     ? 'bg-white text-emerald-700 shadow-sm'
-                    : 'text-[#63756b] hover:text-[#14261e]'
+                    : 'text-[#64748B] hover:text-[#0F172A]'
                   }`}
               >
                 <span className="size-2 rounded-full bg-emerald-500" />
@@ -1526,12 +1534,12 @@ export function CashFlowManagementScreen({ onNotify, onAddTransaction }: Props) 
             </div>
 
             {/* Create new category form */}
-            <form onSubmit={handleCreateCategory} className="mt-4 rounded-2xl bg-[#f8faf8] p-3.5 border border-[#e5ede7]">
+            <form onSubmit={handleCreateCategory} className="mt-4 rounded-2xl bg-[#F8FAFC] p-3.5 border border-[#e5ede7]">
               <div className="flex items-center justify-between mb-2">
-                <span className="text-xs font-bold text-[#14261e]">
+                <span className="text-xs font-bold text-[#0F172A]">
                   Tạo danh mục {categoryKindTab === 'EXPENSE' ? 'chi tiêu' : 'thu nhập'} mới
                 </span>
-                <span className="text-[10px] text-[#718579]">
+                <span className="text-[10px] text-[#64748B]">
                   {categoryKindTab === 'EXPENSE' ? 'Tự động nhận diện biểu tượng' : 'Tự động nhận diện biểu tượng'}
                 </span>
               </div>
@@ -1545,12 +1553,12 @@ export function CashFlowManagementScreen({ onNotify, onAddTransaction }: Props) 
                   }
                   value={newCatName}
                   onChange={(e) => setNewCatName(e.target.value)}
-                  className="h-9 flex-1 rounded-xl border border-[#d5ded8] bg-white px-3 text-xs outline-none focus:border-[#07543f] focus:ring-1 focus:ring-[#07543f] transition"
+                  className="h-9 flex-1 rounded-xl border border-[#CBD5E1] bg-white px-3 text-xs outline-none focus:border-[#007F53] focus:ring-1 focus:ring-[#007F53] transition"
                 />
                 <button
                   type="submit"
                   disabled={isCreatingCat}
-                  className="inline-flex h-9 items-center gap-1.5 rounded-xl bg-[#07543f] px-4 text-xs font-bold text-white shadow-sm hover:bg-[#0b6c52] disabled:opacity-50 transition"
+                  className="inline-flex h-9 items-center gap-1.5 rounded-xl bg-[#007F53] px-4 text-xs font-bold text-white shadow-sm hover:bg-[#009663] disabled:opacity-50 transition"
                 >
                   <FinanceIcon name="plus" size={13} />
                   <span>{isCreatingCat ? 'Đang tạo...' : 'Thêm'}</span>
@@ -1561,7 +1569,7 @@ export function CashFlowManagementScreen({ onNotify, onAddTransaction }: Props) 
             {/* Category list */}
             <div className="mt-4 flex-1 overflow-y-auto pr-1">
               <div className="flex items-center justify-between mb-2">
-                <span className="text-[11px] font-bold uppercase tracking-wider text-[#718579]">
+                <span className="text-[11px] font-bold uppercase tracking-wider text-[#64748B]">
                   Danh sách ({filteredCategoriesForTab.length})
                 </span>
                 <span className="text-[10px] text-[#8fa296]">
@@ -1578,13 +1586,13 @@ export function CashFlowManagementScreen({ onNotify, onAddTransaction }: Props) 
                   {filteredCategoriesForTab.map((cat) => (
                     <div
                       key={cat.id}
-                      className="group flex items-center justify-between rounded-xl border border-[#e5ece7] bg-white px-3 py-2.5 shadow-2xs hover:border-[#b8cfc1] hover:bg-[#fafcfa] transition"
+                      className="group flex items-center justify-between rounded-xl border border-[#e5ece7] bg-white px-3 py-2.5 shadow-2xs hover:border-[#b8cfc1] hover:bg-[#F8FAFC] transition"
                     >
                       <div className="flex items-center gap-2.5 min-w-0">
                         <span
                           className="grid size-8 place-items-center rounded-xl shrink-0"
                           style={{
-                            backgroundColor: cat.color ? `${cat.color}15` : '#f0f5f2',
+                            backgroundColor: cat.color ? `${cat.color}15` : '#F1F5F9',
                             color: cat.color || (cat.kind === 'INCOME' ? '#10b981' : '#f43f5e'),
                             border: `1px solid ${cat.color ? `${cat.color}35` : '#d9e4dd'}`,
                           }}
@@ -1592,7 +1600,7 @@ export function CashFlowManagementScreen({ onNotify, onAddTransaction }: Props) 
                           {renderCategoryIcon(cat.icon, cat.kind, 16, cat.name)}
                         </span>
                         <div className="min-w-0">
-                          <p className="truncate text-xs font-semibold text-[#14261e]" title={cat.name}>
+                          <p className="truncate text-xs font-semibold text-[#0F172A]" title={cat.name}>
                             {cat.name}
                           </p>
                           <span className="text-[9.5px] text-[#86978e]">
@@ -1603,7 +1611,7 @@ export function CashFlowManagementScreen({ onNotify, onAddTransaction }: Props) 
 
                       <div className="flex items-center gap-1.5 shrink-0 ml-2">
                         {cat.isSystem ? (
-                          <span className="rounded-md bg-[#edf4f0] px-1.5 py-0.5 text-[9.5px] font-semibold text-[#52665a]">
+                          <span className="rounded-md bg-[#edf4f0] px-1.5 py-0.5 text-[9.5px] font-semibold text-[#475569]">
                             Mặc định
                           </span>
                         ) : (
@@ -1624,7 +1632,7 @@ export function CashFlowManagementScreen({ onNotify, onAddTransaction }: Props) 
             </div>
 
             {/* Footer */}
-            <div className="mt-4 flex items-center justify-end border-t border-[#edf2ee] pt-3.5">
+            <div className="mt-4 flex items-center justify-end border-t border-[#E2E8F0] pt-3.5">
               <button
                 type="button"
                 onClick={() => setIsCategoryModalOpen(false)}
@@ -1652,25 +1660,25 @@ export function CashFlowManagementScreen({ onNotify, onAddTransaction }: Props) 
                 <FinanceIcon name="delete" size={22} />
               </span>
               <div>
-                <h3 className="text-base font-bold text-[#14261e]">Xóa giao dịch này?</h3>
-                <p className="text-xs text-[#718579] mt-0.5">Số dư tài khoản liên quan sẽ được tự động hoàn lại</p>
+                <h3 className="text-base font-bold text-[#0F172A]">Xóa giao dịch này?</h3>
+                <p className="text-xs text-[#64748B] mt-0.5">Số dư tài khoản liên quan sẽ được tự động hoàn lại</p>
               </div>
             </div>
 
-            <div className="mt-4 rounded-xl bg-[#fafbfa] p-3.5 border border-[#edf2ee]">
+            <div className="mt-4 rounded-xl bg-[#fafbfa] p-3.5 border border-[#E2E8F0]">
               <div className="flex items-center justify-between text-xs">
-                <span className="text-[#718579]">Mô tả:</span>
-                <span className="font-bold text-[#14261e] truncate max-w-[180px]">
+                <span className="text-[#64748B]">Mô tả:</span>
+                <span className="font-bold text-[#0F172A] truncate max-w-[180px]">
                   {transactionToDelete.description || 'Giao dịch'}
                 </span>
               </div>
               <div className="mt-1.5 flex items-center justify-between text-xs">
-                <span className="text-[#718579]">Số tiền:</span>
+                <span className="text-[#64748B]">Số tiền:</span>
                 <span className="font-bold text-rose-600">{formatVND(transactionToDelete.amount)}</span>
               </div>
               <div className="mt-1.5 flex items-center justify-between text-xs">
-                <span className="text-[#718579]">Tài khoản:</span>
-                <span className="font-semibold text-[#14261e]">{transactionToDelete.accountName}</span>
+                <span className="text-[#64748B]">Tài khoản:</span>
+                <span className="font-semibold text-[#0F172A]">{transactionToDelete.accountName}</span>
               </div>
             </div>
 
@@ -1679,7 +1687,7 @@ export function CashFlowManagementScreen({ onNotify, onAddTransaction }: Props) 
                 type="button"
                 disabled={isDeletingTx}
                 onClick={() => setTransactionToDelete(null)}
-                className="h-9 rounded-xl border border-[#d5ded8] bg-white px-4 text-xs font-semibold text-[#495b50] hover:bg-[#f1f5f2] disabled:opacity-50"
+                className="h-9 rounded-xl border border-[#CBD5E1] bg-white px-4 text-xs font-semibold text-[#495b50] hover:bg-[#F1F5F9] disabled:opacity-50"
               >
                 Hủy bỏ
               </button>
@@ -1712,8 +1720,8 @@ export function CashFlowManagementScreen({ onNotify, onAddTransaction }: Props) 
         const renderDetailOrEditBody = (isTwoCol: boolean) => (
           <>
             {/* Số tiền nổi bật */}
-            <div className={`${isTwoCol ? 'my-4 p-3.5' : 'my-5 p-4'} rounded-2xl bg-[#fafcfa] dark:bg-[#0f2231] border border-[#e5eee8] dark:border-white/10 text-center shrink-0`}>
-              <span className="text-[11px] font-bold uppercase tracking-wider text-[#718579] dark:text-slate-400">Số tiền giao dịch</span>
+            <div className={`${isTwoCol ? 'my-4 p-3.5' : 'my-5 p-4'} rounded-2xl bg-[#F8FAFC] dark:bg-[#111827] border border-[#e5eee8] dark:border-white/10 text-center shrink-0`}>
+              <span className="text-[11px] font-bold uppercase tracking-wider text-[#64748B] dark:text-slate-400">Số tiền giao dịch</span>
               {isEditingTx ? (
                 <div className="mt-2 flex items-center justify-center">
                   <input
@@ -1721,7 +1729,7 @@ export function CashFlowManagementScreen({ onNotify, onAddTransaction }: Props) 
                     value={editAmount ? Number(editAmount.replace(/\D/g, '') || 0).toLocaleString('vi-VN') : ''}
                     onChange={(e) => setEditAmount(e.target.value.replace(/\D/g, ''))}
                     placeholder="Nhập số tiền..."
-                    className="w-56 text-center text-2xl font-black rounded-xl border border-emerald-500 bg-white dark:bg-[#0c1a24] px-3 py-1.5 text-[#14261e] dark:text-white focus:outline-none"
+                    className="w-56 text-center text-2xl font-black rounded-xl border border-emerald-500 bg-white dark:bg-[#111827] px-3 py-1.5 text-[#0F172A] dark:text-white focus:outline-none"
                   />
                 </div>
               ) : (
@@ -1739,7 +1747,7 @@ export function CashFlowManagementScreen({ onNotify, onAddTransaction }: Props) 
                 </div>
               )}
               <div className="mt-2 flex items-center justify-center gap-2">
-                <span className="inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-bold bg-white dark:bg-[#0c1a24] border border-[#dce6e0] dark:border-white/10 text-[#14261e] dark:text-slate-200">
+                <span className="inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-bold bg-white dark:bg-[#111827] border border-[#dce6e0] dark:border-white/10 text-[#0F172A] dark:text-slate-200">
                   {selectedTxDetail.transactionType === 'INCOME'
                     ? 'Thu nhập'
                     : selectedTxDetail.transactionType === 'TRANSFER'
@@ -1755,22 +1763,22 @@ export function CashFlowManagementScreen({ onNotify, onAddTransaction }: Props) 
             {isEditingTx ? (
               <div className="flex flex-col gap-3 text-xs flex-1">
                 <div>
-                  <label className="block text-[11px] font-bold text-[#718579] dark:text-slate-400 mb-1">Mô tả / Nội dung giao dịch</label>
+                  <label className="block text-[11px] font-bold text-[#64748B] dark:text-slate-400 mb-1">Mô tả / Nội dung giao dịch</label>
                   <input
                     type="text"
                     value={editDescription}
                     onChange={(e) => setEditDescription(e.target.value)}
-                    className="w-full h-9 rounded-xl border border-[#dce6e0] dark:border-white/15 bg-white dark:bg-[#0f2231] px-3 text-xs font-semibold text-[#14261e] dark:text-white"
+                    className="w-full h-9 rounded-xl border border-[#dce6e0] dark:border-white/15 bg-white dark:bg-[#111827] px-3 text-xs font-semibold text-[#0F172A] dark:text-white"
                   />
                 </div>
 
                 {selectedTxDetail.transactionType !== 'TRANSFER' && (
                   <div>
-                    <label className="block text-[11px] font-bold text-[#718579] dark:text-slate-400 mb-1">Hạng mục</label>
+                    <label className="block text-[11px] font-bold text-[#64748B] dark:text-slate-400 mb-1">Hạng mục</label>
                     <select
                       value={editCategoryId}
                       onChange={(e) => setEditCategoryId(e.target.value)}
-                      className="w-full h-9 rounded-xl border border-[#dce6e0] dark:border-white/15 bg-white dark:bg-[#0f2231] px-3 text-xs font-semibold text-[#14261e] dark:text-white"
+                      className="w-full h-9 rounded-xl border border-[#dce6e0] dark:border-white/15 bg-white dark:bg-[#111827] px-3 text-xs font-semibold text-[#0F172A] dark:text-white"
                     >
                       {editCategories.map((c) => (
                         <option key={c.id} value={c.id}>{c.name}</option>
@@ -1780,16 +1788,16 @@ export function CashFlowManagementScreen({ onNotify, onAddTransaction }: Props) 
                 )}
 
                 <div>
-                  <label className="block text-[11px] font-bold text-[#718579] dark:text-slate-400 mb-1">Tài khoản / Ví</label>
+                  <label className="block text-[11px] font-bold text-[#64748B] dark:text-slate-400 mb-1">Tài khoản / Ví</label>
                   {isChildAccount ? (
-                    <div className="w-full h-9 rounded-xl border border-[#dce6e0] dark:border-white/15 bg-[#f0f5f2] dark:bg-slate-800/80 px-3 flex items-center text-xs font-bold text-[#07543f] dark:text-emerald-400">
+                    <div className="w-full h-9 rounded-xl border border-[#dce6e0] dark:border-white/15 bg-[#F1F5F9] dark:bg-slate-800/80 px-3 flex items-center text-xs font-bold text-[#007F53] dark:text-emerald-400">
                       {accounts[0]?.name || 'Ví của bé'}
                     </div>
                   ) : (
                     <select
                       value={editAccountId}
                       onChange={(e) => setEditAccountId(e.target.value)}
-                      className="w-full h-9 rounded-xl border border-[#dce6e0] dark:border-white/15 bg-white dark:bg-[#0f2231] px-3 text-xs font-semibold text-[#14261e] dark:text-white"
+                      className="w-full h-9 rounded-xl border border-[#dce6e0] dark:border-white/15 bg-white dark:bg-[#111827] px-3 text-xs font-semibold text-[#0F172A] dark:text-white"
                     >
                       {accounts.map((acc) => (
                         <option key={acc.id} value={acc.id}>{acc.name} ({formatVND(acc.balance)})</option>
@@ -1800,54 +1808,52 @@ export function CashFlowManagementScreen({ onNotify, onAddTransaction }: Props) 
 
                 <div className="grid grid-cols-2 gap-2.5">
                   <div>
-                    <label className="block text-[11px] font-bold text-[#718579] dark:text-slate-400 mb-1">Giờ</label>
+                    <label className="block text-[11px] font-bold text-[#64748B] dark:text-slate-400 mb-1">Giờ</label>
                     <input
                       type="time"
                       value={editTime}
                       onChange={(e) => setEditTime(e.target.value)}
-                      className="w-full h-9 rounded-xl border border-[#dce6e0] dark:border-white/15 bg-white dark:bg-[#0f2231] px-3 text-xs font-semibold text-[#14261e] dark:text-white"
+                      className="w-full h-9 rounded-xl border border-[#dce6e0] dark:border-white/15 bg-white dark:bg-[#111827] px-3 text-xs font-semibold text-[#0F172A] dark:text-white"
                     />
                   </div>
                   <div>
-                    <label className="block text-[11px] font-bold text-[#718579] dark:text-slate-400 mb-1">Ngày</label>
-                    <input
-                      type="date"
+                    <label className="block text-[11px] font-bold text-[#64748B] dark:text-slate-400 mb-1">Ngày</label>
+                    <DatePicker
                       value={editDate}
-                      onChange={(e) => setEditDate(e.target.value)}
-                      className="w-full h-9 rounded-xl border border-[#dce6e0] dark:border-white/15 bg-white dark:bg-[#0f2231] px-3 text-xs font-semibold text-[#14261e] dark:text-white"
+                      onChange={(newVal) => setEditDate(newVal)}
                     />
                   </div>
                 </div>
 
                 <div>
-                  <label className="block text-[11px] font-bold text-[#718579] dark:text-slate-400 mb-1">Ghi chú bổ sung</label>
+                  <label className="block text-[11px] font-bold text-[#64748B] dark:text-slate-400 mb-1">Ghi chú bổ sung</label>
                   <textarea
                     rows={2}
                     value={editNote}
                     onChange={(e) => setEditNote(e.target.value)}
                     placeholder="Ghi chú thêm (không bắt buộc)..."
-                    className="w-full rounded-xl border border-[#dce6e0] dark:border-white/15 bg-white dark:bg-[#0f2231] p-2.5 text-xs font-medium text-[#14261e] dark:text-white"
+                    className="w-full rounded-xl border border-[#dce6e0] dark:border-white/15 bg-white dark:bg-[#111827] p-2.5 text-xs font-medium text-[#0F172A] dark:text-white"
                   />
                 </div>
               </div>
             ) : (
               /* Bảng thông tin chi tiết */
-              <div className="divide-y divide-[#edf2ee] dark:divide-white/10 text-xs flex-1">
+              <div className="divide-y divide-[#E2E8F0] dark:divide-white/10 text-xs flex-1">
                 {/* Mô tả / Tiêu đề */}
                 <div className="py-2.5 flex items-center justify-between">
-                  <span className="text-[#718579] dark:text-slate-400 font-medium">Mô tả / Đối tác:</span>
-                  <span className="font-bold text-[#14261e] dark:text-white text-right max-w-[260px] break-words">
+                  <span className="text-[#64748B] dark:text-slate-400 font-medium">Mô tả / Đối tác:</span>
+                  <span className="font-bold text-[#0F172A] dark:text-white text-right max-w-[260px] break-words">
                     {selectedTxDetail.description || 'Giao dịch thông thường'}
                   </span>
                 </div>
 
                 {/* Hạng mục */}
                 <div className="py-2.5 flex items-center justify-between">
-                  <span className="text-[#718579] dark:text-slate-400 font-medium">Hạng mục:</span>
-                  <span className="font-semibold text-[#14261e] dark:text-white flex items-center gap-1.5">
+                  <span className="text-[#64748B] dark:text-slate-400 font-medium">Hạng mục:</span>
+                  <span className="font-semibold text-[#0F172A] dark:text-white flex items-center gap-1.5">
                     {selectedTxDetail.category ? (
                       <>
-                        <span className="size-2 rounded-full" style={{ backgroundColor: selectedTxDetail.category.color || '#07543f' }} />
+                        <span className="size-2 rounded-full" style={{ backgroundColor: selectedTxDetail.category.color || '#007F53' }} />
                         <span>{selectedTxDetail.category.name}</span>
                       </>
                     ) : (
@@ -1858,10 +1864,10 @@ export function CashFlowManagementScreen({ onNotify, onAddTransaction }: Props) 
 
                 {/* Tài khoản nguồn */}
                 <div className="py-2.5 flex items-center justify-between">
-                  <span className="text-[#718579] dark:text-slate-400 font-medium">Tài khoản / Ví trích tiền:</span>
+                  <span className="text-[#64748B] dark:text-slate-400 font-medium">Tài khoản / Ví trích tiền:</span>
                   <div className="text-right">
-                    <p className="font-bold text-[#14261e] dark:text-white">{selectedTxDetail.accountName}</p>
-                    <p className="text-[11px] text-[#718579] dark:text-slate-400 font-medium">{getAccountTypeLabel(selectedTxDetail.accountId)}</p>
+                    <p className="font-bold text-[#0F172A] dark:text-white">{selectedTxDetail.accountName}</p>
+                    <p className="text-[11px] text-[#64748B] dark:text-slate-400 font-medium">{getAccountTypeLabel(selectedTxDetail.accountId)}</p>
                   </div>
                 </div>
 
@@ -1878,8 +1884,8 @@ export function CashFlowManagementScreen({ onNotify, onAddTransaction }: Props) 
 
                 {/* Thời gian giao dịch */}
                 <div className="py-2.5 flex items-center justify-between">
-                  <span className="text-[#718579] dark:text-slate-400 font-medium">Thời gian thực hiện:</span>
-                  <span className="font-bold text-[#14261e] dark:text-white">
+                  <span className="text-[#64748B] dark:text-slate-400 font-medium">Thời gian thực hiện:</span>
+                  <span className="font-bold text-[#0F172A] dark:text-white">
                     {selectedTxDetail.transactionTime ? `${selectedTxDetail.transactionTime.slice(0, 5)} • ` : ''}
                     {formatTxDateTime(selectedTxDetail.transactionDate, selectedTxDetail.transactionTime).date}
                   </span>
@@ -1888,8 +1894,8 @@ export function CashFlowManagementScreen({ onNotify, onAddTransaction }: Props) 
                 {/* Ghi chú nếu có */}
                 {selectedTxDetail.note && (
                   <div className="py-2.5 flex flex-col gap-1">
-                    <span className="text-[#718579] dark:text-slate-400 font-medium">Ghi chú bổ sung:</span>
-                    <p className="p-2.5 rounded-xl bg-[#fafafa] dark:bg-[#142b3d] border border-[#f0f0f0] dark:border-white/10 text-[#334155] dark:text-slate-200 whitespace-pre-wrap">
+                    <span className="text-[#64748B] dark:text-slate-400 font-medium">Ghi chú bổ sung:</span>
+                    <p className="p-2.5 rounded-xl bg-[#fafafa] dark:bg-[#1F2937] border border-[#f0f0f0] dark:border-white/10 text-[#334155] dark:text-slate-200 whitespace-pre-wrap">
                       {selectedTxDetail.note}
                     </p>
                   </div>
@@ -1898,7 +1904,7 @@ export function CashFlowManagementScreen({ onNotify, onAddTransaction }: Props) 
             )}
 
             {/* Nút tác vụ dưới cùng */}
-            <div className="mt-5 flex items-center justify-between pt-4 border-t border-[#edf2ee] dark:border-white/10 shrink-0">
+            <div className="mt-5 flex items-center justify-between pt-4 border-t border-[#E2E8F0] dark:border-white/10 shrink-0">
               {isEditingTx ? (
                 <div className="flex w-full items-center justify-end gap-2.5">
                   <button
@@ -1913,7 +1919,7 @@ export function CashFlowManagementScreen({ onNotify, onAddTransaction }: Props) 
                     type="button"
                     onClick={handleSaveEditTx}
                     disabled={isSavingEdit}
-                    className="inline-flex h-10 items-center justify-center gap-1.5 rounded-xl bg-[#006747] hover:bg-[#005238] px-6 text-xs font-bold text-white transition shadow-sm cursor-pointer disabled:opacity-60"
+                    className="inline-flex h-10 items-center justify-center gap-1.5 rounded-xl bg-[#007F53] hover:bg-[#005238] px-6 text-xs font-bold text-white transition shadow-sm cursor-pointer disabled:opacity-60"
                   >
                     <FinanceIcon name="check" size={15} />
                     <span>{isSavingEdit ? 'Đang lưu...' : 'Lưu thay đổi'}</span>
@@ -1968,18 +1974,18 @@ export function CashFlowManagementScreen({ onNotify, onAddTransaction }: Props) 
           >
             <div
               className={`w-full ${selectedTxDetail.receiptUrl ? 'max-w-4xl lg:max-w-5xl' : 'max-w-lg'
-                } rounded-3xl bg-white dark:bg-[#0c1a24] shadow-2xl border border-[#e2eae4] dark:border-white/10 max-h-[92vh] flex flex-col overflow-hidden transition-all`}
+                } rounded-3xl bg-white dark:bg-[#111827] shadow-2xl border border-[#e2eae4] dark:border-white/10 max-h-[92vh] flex flex-col overflow-hidden transition-all`}
               onClick={(e) => e.stopPropagation()}
             >
               {/* Modal Body: 2 Columns if receiptUrl exists, 1 Column if not */}
               {selectedTxDetail.receiptUrl ? (
                 <div className="grid grid-cols-1 md:grid-cols-12 gap-5 sm:gap-6 min-h-0 flex-1 overflow-hidden">
                   {/* CỘT TRÁI: ẢNH HÓA ĐƠN GỐC TO RÕ (Tương tự OCR Scanner) */}
-                  <div className="md:col-span-6 lg:col-span-6 flex flex-col min-h-0 rounded-2xl border border-[#d8e3dc] dark:border-white/10 bg-[#f8faf9] dark:bg-[#07131e] overflow-hidden">
+                  <div className="md:col-span-6 lg:col-span-6 flex flex-col min-h-0 rounded-2xl border border-[#d8e3dc] dark:border-white/10 bg-[#F8FAFC] dark:bg-[#0B0F19] overflow-hidden">
                     {/* Thanh công cụ xem ảnh */}
-                    <div className="flex items-center justify-between px-3.5 py-2.5 border-b border-[#edf3ef] dark:border-white/10 bg-white dark:bg-[#0f2231] shrink-0">
+                    <div className="flex items-center justify-between px-3.5 py-2.5 border-b border-[#E2E8F0] dark:border-white/10 bg-white dark:bg-[#111827] shrink-0">
                       <div className="flex items-center gap-2">
-                        <span className="grid size-6 place-items-center rounded-lg bg-emerald-100/80 dark:bg-emerald-950 text-[#07543f] dark:text-emerald-300">
+                        <span className="grid size-6 place-items-center rounded-lg bg-emerald-100/80 dark:bg-emerald-950 text-[#007F53] dark:text-emerald-300">
                           <FinanceIcon name="receipt" size={13} />
                         </span>
                         <span className="text-xs font-bold text-gray-800 dark:text-white uppercase tracking-wider">
@@ -1989,7 +1995,7 @@ export function CashFlowManagementScreen({ onNotify, onAddTransaction }: Props) 
                       <button
                         type="button"
                         onClick={() => setViewingReceiptImage(selectedTxDetail.receiptUrl!)}
-                        className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-xs font-bold text-[#07543f] dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/60 hover:bg-emerald-100 dark:hover:bg-emerald-900/60 transition cursor-pointer border border-emerald-200/60 dark:border-emerald-800/60"
+                        className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-xs font-bold text-[#007F53] dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/60 hover:bg-emerald-100 dark:hover:bg-emerald-900/60 transition cursor-pointer border border-emerald-200/60 dark:border-emerald-800/60"
                         title="Xem ảnh phóng to toàn màn hình"
                       >
                         <FinanceIcon name="eye" size={13} />
@@ -2018,7 +2024,7 @@ export function CashFlowManagementScreen({ onNotify, onAddTransaction }: Props) 
                   {/* CỘT PHẢI: CHI TIẾT THÔNG TIN GIAO DỊCH */}
                   <div className="md:col-span-6 lg:col-span-6 flex flex-col min-h-0 overflow-y-auto pr-0.5">
                     {/* Header */}
-                    <div className="flex items-center justify-between border-b border-[#edf2ee] dark:border-white/10 pb-3.5 shrink-0">
+                    <div className="flex items-center justify-between border-b border-[#E2E8F0] dark:border-white/10 pb-3.5 shrink-0">
                       <div className="flex items-center gap-3">
                         <span
                           className="grid size-11 shrink-0 place-items-center rounded-2xl shadow-xs"
@@ -2049,10 +2055,10 @@ export function CashFlowManagementScreen({ onNotify, onAddTransaction }: Props) 
                           )}
                         </span>
                         <div>
-                          <h3 className="text-base font-bold text-[#14261e] dark:text-white leading-tight">
+                          <h3 className="text-base font-bold text-[#0F172A] dark:text-white leading-tight">
                             {isEditingTx ? 'Chỉnh sửa giao dịch' : 'Chi tiết giao dịch'}
                           </h3>
-                          <p className="text-xs text-[#718579] dark:text-slate-400 mt-0.5">
+                          <p className="text-xs text-[#64748B] dark:text-slate-400 mt-0.5">
                             Mã GD: <span className="font-mono text-[#475569] dark:text-slate-300">{selectedTxDetail.id.slice(0, 13)}...</span>
                           </p>
                         </div>
@@ -2077,7 +2083,7 @@ export function CashFlowManagementScreen({ onNotify, onAddTransaction }: Props) 
                 /* DẠNG 1 CỘT GỌN GÀNG KHI KHÔNG CÓ HÓA ĐƠN ĐÍNH KÈM */
                 <div className="flex flex-col min-h-0">
                   {/* Header */}
-                  <div className="flex items-center justify-between border-b border-[#edf2ee] dark:border-white/10 p-5 sm:p-6 pb-4 shrink-0">
+                  <div className="flex items-center justify-between border-b border-[#E2E8F0] dark:border-white/10 p-5 sm:p-6 pb-4 shrink-0">
                     <div className="flex items-center gap-3">
                       <span
                         className="grid size-12 shrink-0 place-items-center rounded-2xl shadow-xs"
@@ -2108,10 +2114,10 @@ export function CashFlowManagementScreen({ onNotify, onAddTransaction }: Props) 
                         )}
                       </span>
                       <div>
-                        <h3 className="text-base font-bold text-[#14261e] dark:text-white">
+                        <h3 className="text-base font-bold text-[#0F172A] dark:text-white">
                           {isEditingTx ? 'Chỉnh sửa giao dịch' : 'Chi tiết giao dịch'}
                         </h3>
-                        <p className="text-xs text-[#718579] dark:text-slate-400">
+                        <p className="text-xs text-[#64748B] dark:text-slate-400">
                           Mã GD: <span className="font-mono text-[#475569] dark:text-slate-300">{selectedTxDetail.id.slice(0, 13)}...</span>
                         </p>
                       </div>

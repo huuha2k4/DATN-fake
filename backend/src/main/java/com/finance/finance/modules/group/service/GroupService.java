@@ -98,6 +98,9 @@ public class GroupService {
     @Transactional(readOnly = true)
     public GroupDetailResponse getGroupDetail(UUID groupId, UUID currentUserId) {
         Group group = findGroupOrThrow(groupId);
+        // Authorize before inspecting group-specific state so a non-member
+        // cannot infer the group type, capacity, or invitation count.
+        validateMemberAccess(groupId, currentUserId);
 
         if (group.getGroupType() == GroupType.COUPLE) {
             long currentMembers = groupMemberRepository.findByGroupId(groupId).size();
@@ -107,8 +110,6 @@ public class GroupService {
                 throw new IllegalArgumentException("Nhóm Cặp đôi chỉ có tối đa 2 thành viên");
             }
         }
-        validateMemberAccess(groupId, currentUserId);
-        
         return buildGroupDetailResponse(group, currentUserId);
     }
 

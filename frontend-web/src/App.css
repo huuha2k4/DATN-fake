@@ -1,12 +1,12 @@
 .finance-app {
-  --ink: #14251f;
-  --muted: #77837d;
-  --line: #e7ece8;
-  --green: #087557;
+  --ink: #0F172A;
+  --muted: #64748B;
+  --line: #E2E8F0;
+  --green: #007F53;
   --green-dark: #063f32;
-  --mint: #dff5ec;
+  --mint: #E6F4EA;
   min-height: 100vh;
-  background: #f6f8f6;
+  background: #F8FAFC;
   color: var(--ink);
 }
 
@@ -33,7 +33,7 @@
   width: 264px;
   flex-direction: column;
   padding: 24px 16px 18px;
-  border-right: 1px solid #e9eeea;
+  border-right: 1px solid #E2E8F0;
   background: #fff;
   transition: width 0.25s cubic-bezier(0.4, 0, 0.2, 1), padding 0.25s ease;
   overflow: hidden;
@@ -102,7 +102,7 @@
 
 .desktop-sidebar-toggle:hover {
   background: #eaf2ed;
-  color: #07543f;
+  color: #007F53;
 }
 
 html.dark .desktop-sidebar-toggle {
@@ -231,7 +231,7 @@ html.dark .desktop-sidebar-toggle:hover {
 }
 
 .nav-item.active {
-  background: #07543f;
+  background: #007F53;
   color: #fff;
 }
 
@@ -275,7 +275,7 @@ html.dark .desktop-sidebar-toggle:hover {
   place-items: center;
   border-radius: 8px;
   background: #d8f2e5;
-  color: #087557;
+  color: #007F53;
 }
 
 .upgrade-card > strong {
@@ -308,7 +308,7 @@ html.dark .desktop-sidebar-toggle:hover {
   align-items: center;
   gap: 10px;
   padding: 12px 6px 0;
-  border-top: 1px solid #edf0ed;
+  border-top: 1px solid #E2E8F0;
 }
 
 .avatar {
@@ -319,7 +319,7 @@ html.dark .desktop-sidebar-toggle:hover {
   place-items: center;
   border-radius: 50%;
   background: #d9eee5;
-  color: #07543f;
+  color: #007F53;
   font-size: 11px;
   font-weight: 700;
 }
@@ -358,7 +358,7 @@ html.dark .desktop-sidebar-toggle:hover {
   justify-content: space-between;
   gap: 16px;
   padding: 0 24px 0 16px;
-  border-bottom: 1px solid #e9eeea;
+  border-bottom: 1px solid #E2E8F0;
   background: rgb(255 255 255 / 92%);
   backdrop-filter: blur(14px);
 }
@@ -442,7 +442,7 @@ html.dark .desktop-sidebar-toggle:hover {
 }
 
 .button-primary {
-  background: #07543f;
+  background: #007F53;
   color: #fff;
 }
 
@@ -456,15 +456,15 @@ html.dark .desktop-sidebar-toggle:hover {
 }
 
 .button-ai {
-  background: #dff5ec;
-  color: #07543f;
+  background: #E6F4EA;
+  color: #007F53;
 }
 
 .icon-button {
   position: relative;
   width: 36px;
   flex: 0 0 auto;
-  border-color: #e5ebe7;
+  border-color: #E2E8F0;
   background: #fff;
   color: #526159;
 }
@@ -587,7 +587,7 @@ html.dark .desktop-sidebar-toggle:hover {
   justify-content: space-between;
   overflow: hidden;
   padding: 19px 20px 16px;
-  border: 1px solid #e5ebe7;
+  border: 1px solid #E2E8F0;
   border-radius: 10px;
   background: #fff;
   box-shadow: 0 2px 6px rgb(22 45 33 / 3%);
@@ -595,7 +595,7 @@ html.dark .desktop-sidebar-toggle:hover {
 
 .balance-card {
   border-color: #0b634a;
-  background: linear-gradient(135deg, #07543f, #063d31);
+  background: linear-gradient(135deg, #007F53, #063d31);
   color: #fff;
 }
 
@@ -609,7 +609,7 @@ html.dark .desktop-sidebar-toggle:hover {
 }
 
 .summary-label {
-  color: #718078;
+  color: #64748B;
   font-size: 9px;
   font-weight: 700;
   letter-spacing: 0.9px;
@@ -627,7 +627,7 @@ html.dark .desktop-sidebar-toggle:hover {
   place-items: center;
   border-radius: 8px;
   background: #eaf5ef;
-  color: #087557;
+  color: #007F53;
 }
 
 .summary-icon.mint {
@@ -657,7 +657,7 @@ html.dark .desktop-sidebar-toggle:hover {
 }
 
 .summary-amount small {
-  color: #087557;
+  color: #007F53;
   font-size: 17px;
   font-weight: 500;
 }
@@ -684,7 +684,7 @@ html.dark .desktop-sidebar-toggle:hover {
 
 .summary-foot.bordered {
   padding-top: 10px;
-  border-top: 1px solid #edf0ed;
+  border-top: 1px solid #E2E8F0;
 }
 
 .balance-card .summary-foot {
@@ -698,7 +698,7 @@ html.dark .desktop-sidebar-toggle:hover {
   gap: 4px;
   padding: 4px 7px;
   border-radius: 20px;
-  background: #e3f4e9;
+  background: #E6F4EA;
   color: #17794f;
   font-size: 9px;
   font-weight: 700;
@@ -724,7 +724,7 @@ html.dark .desktop-sidebar-toggle:hover {
   display: grid;
   gap: 9px;
   padding-top: 9px;
-  border-top: 1px solid #edf0ed;
+  border-top: 1px solid #E2E8F0;
 }
 
 .progress-copy {
@@ -778,7 +778,7 @@ html.dark .desktop-sidebar-toggle:hover {
 .panel {
   min-width: 0;
   padding: 20px;
-  border: 1px solid #e5ebe7;
+  border: 1px solid #E2E8F0;
   border-radius: 10px;
   background: #fff;
   box-shadow: 0 2px 6px rgb(22 45 33 / 3%);
@@ -837,7 +837,7 @@ html.dark .desktop-sidebar-toggle:hover {
 }
 
 .legend-income {
-  background: #087557;
+  background: #007F53;
 }
 
 .legend-expense {
@@ -929,7 +929,7 @@ html.dark .desktop-sidebar-toggle:hover {
 }
 
 .bar-group strong.current-week {
-  color: #087557;
+  color: #007F53;
 }
 
 .bar-group small {
@@ -956,7 +956,7 @@ html.dark .desktop-sidebar-toggle:hover {
   display: flex;
   align-items: center;
   gap: 8px;
-  color: #34463b;
+  color: #334155;
 }
 
 .net-savings small {
@@ -975,7 +975,7 @@ html.dark .desktop-sidebar-toggle:hover {
 }
 
 .net-savings > strong {
-  color: #087557;
+  color: #007F53;
   font-size: 12px;
   white-space: nowrap;
 }
@@ -990,7 +990,7 @@ html.dark .desktop-sidebar-toggle:hover {
   padding: 4px 0;
   border: 0;
   background: transparent;
-  color: #087557;
+  color: #007F53;
   cursor: pointer;
   font: inherit;
   font-size: 10px;
@@ -1163,7 +1163,7 @@ html.dark .desktop-sidebar-toggle:hover {
   flex-direction: column;
   justify-content: space-between;
   padding: 16px 17px 13px;
-  border: 1px solid #e5ebe7;
+  border: 1px solid #E2E8F0;
   border-radius: 9px;
   background: #fff;
   box-shadow: 0 2px 6px rgb(22 45 33 / 3%);
@@ -1178,7 +1178,7 @@ html.dark .desktop-sidebar-toggle:hover {
 
 .account-top h3 {
   margin: 1px 0 4px;
-  color: #59675f;
+  color: #64748B;
   font-size: 9px;
   font-weight: 700;
   letter-spacing: 0.6px;
@@ -1197,7 +1197,7 @@ html.dark .desktop-sidebar-toggle:hover {
   flex: 0 0 auto;
   place-items: center;
   border-radius: 8px;
-  background: #e3f4e9;
+  background: #E6F4EA;
   color: #137951;
 }
 
@@ -1225,7 +1225,7 @@ html.dark .desktop-sidebar-toggle:hover {
 
 .account-balance span {
   margin-left: 5px;
-  color: #087557;
+  color: #007F53;
   font-size: 14px;
 }
 
@@ -1280,7 +1280,7 @@ html.dark .desktop-sidebar-toggle:hover {
   border-radius: 14px;
   background: #ffffff;
   box-shadow: 0 10px 30px -4px rgba(7, 84, 63, 0.16);
-  color: #14251f;
+  color: #0F172A;
   font-size: 13px;
   font-weight: 500;
   animation: toast-in 220ms cubic-bezier(0.16, 1, 0.3, 1);
@@ -1292,8 +1292,8 @@ html.dark .desktop-sidebar-toggle:hover {
   height: 22px;
   place-items: center;
   border-radius: 50%;
-  background: #e3f4e9;
-  color: #07543f;
+  background: #E6F4EA;
+  color: #007F53;
   font-weight: 700;
   font-size: 12px;
   flex-shrink: 0;
@@ -1312,7 +1312,7 @@ html.dark .desktop-sidebar-toggle:hover {
 }
 
 .toast button:hover {
-  color: #14251f;
+  color: #0F172A;
 }
 
 .mobile-nav {
@@ -1465,7 +1465,7 @@ html.dark .desktop-sidebar-toggle:hover {
     width: 36px;
     height: 36px;
     border-radius: 10px;
-    background: #f1f5f2;
+    background: #F1F5F9;
     color: #4b6155;
     border: none;
     cursor: pointer;
@@ -1474,14 +1474,14 @@ html.dark .desktop-sidebar-toggle:hover {
 
   .sidebar-close-btn:hover {
     background: #e5ece7;
-    color: #07543f;
+    color: #007F53;
   }
 
   /* Main Shell fills full width */
   .main-shell {
     margin-left: 0 !important;
     width: 100% !important;
-    max-width: 100vw !important;
+    max-width: 100% !important;
     overflow-x: hidden;
   }
 
@@ -1494,7 +1494,7 @@ html.dark .desktop-sidebar-toggle:hover {
 
   .header-page-title {
     font-size: 15px !important;
-    max-width: calc(100vw - 165px);
+    max-width: calc(100% - 165px);
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -1836,7 +1836,7 @@ html.dark .desktop-sidebar-toggle:hover {
 
 .theme-toggle-btn:hover {
   background-color: #f9fafb;
-  color: #07543f;
+  color: #007F53;
   border-color: #d1d5db;
   transform: translateY(-1px);
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.06);
@@ -1864,80 +1864,80 @@ html.dark,
 html[data-theme='dark'],
 .dark .finance-app {
   --ink: #e2e8f0;
-  --muted: #8fa7b7;
-  --line: #162c3b;
+  --muted: #94A3B8;
+  --line: #1E293B;
   --green: #10b981;
   --green-dark: #0f766e;
-  --mint: #0c273b;
-  background: #07131d;
+  --mint: #111827;
+  background: #0B0F19;
   color: #cbd5e1;
 }
 
 html.dark {
-  background: #07131d;
+  background: #0B0F19;
 }
 
 html.dark body {
-  background: #07131d;
+  background: #0B0F19;
   color: #cbd5e1;
 }
 
 /* Topbar in Dark Mode: Xanh dương đêm mờ ảo */
 html.dark .topbar {
-  background: rgba(8, 22, 33, 0.94);
-  border-bottom-color: #142a38;
+  background: rgba(17, 24, 39, 0.94);
+  border-bottom-color: #1E293B;
 }
 
 html.dark .header-page-title {
-  color: #e2eaf0;
+  color: #F8FAFC;
 }
 
 html.dark .topbar p {
-  color: #8da6b8;
+  color: #94A3B8;
 }
 
 html.dark .icon-button {
-  background: #0d2130;
-  border-color: #173246;
-  color: #8da6b8;
+  background: #111827;
+  border-color: #1E293B;
+  color: #94A3B8;
 }
 
 html.dark .icon-button:hover {
-  background: #122b3e;
+  background: #1F2937;
   color: #38bdf8;
-  border-color: #1e425c;
+  border-color: #1E293B;
 }
 
 html.dark .notification-button i {
-  border-color: #0d2130;
+  border-color: #111827;
 }
 
 /* Sidebar in Dark Mode: Xanh navy thẫm đồng nhất */
 html.dark .sidebar {
-  background: #091722;
-  border-right-color: #142a38;
+  background: #0B0F19;
+  border-right-color: #1E293B;
 }
 
 html.dark .brand strong {
-  color: #e2eaf0;
+  color: #F8FAFC;
 }
 
 html.dark .nav-caption {
-  color: #557288;
+  color: #64748B;
 }
 
 html.dark .nav-item {
-  color: #8da6b8;
+  color: #94A3B8;
 }
 
 html.dark .nav-item:hover {
-  background: #0f2434;
-  color: #e2eaf0;
+  background: #111827;
+  color: #F8FAFC;
 }
 
 /* Nút Active trong Dark Mode: Tông xanh ngọc biển êm mắt */
 html.dark .nav-item.active {
-  background: #0f494c;
+  background: #1F2937;
   color: #e6f6ee;
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.35);
 }
@@ -1947,28 +1947,28 @@ html.dark .nav-item.active svg {
 }
 
 html.dark .sidebar-user {
-  border-top-color: #142a38;
+  border-top-color: #1E293B;
 }
 
 html.dark .sidebar-user strong {
-  color: #e2eaf0;
+  color: #F8FAFC;
 }
 
 html.dark .sidebar-user small {
-  color: #8da6b8;
+  color: #94A3B8;
 }
 
 html.dark .upgrade-card {
-  background: linear-gradient(145deg, #0e2434, #0a1b27);
-  border-color: #18374d;
+  background: linear-gradient(145deg, #111827, #0B0F19);
+  border-color: #1E293B;
 }
 
 html.dark .upgrade-card strong {
-  color: #e2eaf0;
+  color: #F8FAFC;
 }
 
 html.dark .upgrade-card p {
-  color: #8da6b8;
+  color: #94A3B8;
 }
 
 /* Panels and Cards in Dark Mode */
@@ -1979,110 +1979,110 @@ html.dark .budget-card,
 html.dark .goal-card,
 html.dark .reminder-card,
 html.dark .report-card {
-  background: #0b1d2a;
-  border-color: #163042;
+  background: #111827;
+  border-color: #1E293B;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
   color: #cbd5e1;
 }
 
 html.dark .summary-card:not(.balance-card) .summary-amount {
-  color: #e2eaf0;
+  color: #F8FAFC;
 }
 
 html.dark .summary-label {
-  color: #8da6b8;
+  color: #94A3B8;
 }
 
 html.dark .summary-icon {
-  background: #11293a;
+  background: #1F2937;
   color: #38bdf8;
 }
 
 html.dark .panel-heading h2,
 html.dark .section-heading h2 {
-  color: #e2eaf0;
+  color: #F8FAFC;
 }
 
 html.dark .panel-heading p {
-  color: #8da6b8;
+  color: #94A3B8;
 }
 
 html.dark .chart-plot {
-  border-bottom-color: #18374d;
+  border-bottom-color: #1E293B;
 }
 
 html.dark .chart-gridline {
-  border-top-color: #132a3a;
+  border-top-color: #1F2937;
 }
 
 html.dark .chart-y-labels {
-  color: #648196;
+  color: #64748B;
 }
 
 html.dark .chart-legend {
-  color: #8da6b8;
+  color: #94A3B8;
 }
 
 html.dark .search-box {
-  background: #0d2130;
-  border-color: #173246;
-  color: #8da6b8;
+  background: #111827;
+  border-color: #1E293B;
+  color: #94A3B8;
 }
 
 html.dark .search-box input {
-  color: #e2eaf0;
+  color: #F8FAFC;
 }
 
 html.dark .search-box input::placeholder {
-  color: #557288;
+  color: #64748B;
 }
 
 html.dark .month-picker {
-  background: #0d2130;
-  border-color: #173246;
-  color: #8da6b8;
+  background: #111827;
+  border-color: #1E293B;
+  color: #94A3B8;
 }
 
 html.dark .month-picker select {
   color: #cbd5e1;
-  background: #0d2130;
+  background: #111827;
 }
 
 /* Tables and Lists in Dark Mode */
 html.dark table th {
-  background: #0d2130;
-  color: #8da6b8;
-  border-color: #173246;
+  background: #111827;
+  color: #94A3B8;
+  border-color: #1E293B;
 }
 
 html.dark table td {
-  border-color: #142a38;
+  border-color: #1E293B;
   color: #cbd5e1;
 }
 
 html.dark .transaction-row {
-  border-color: #142a38;
+  border-color: #1E293B;
 }
 
 html.dark .transaction-row:hover {
-  background: #102637;
+  background: #1F2937;
 }
 
 html.dark .transaction-info strong {
-  color: #e2eaf0;
+  color: #F8FAFC;
 }
 
 html.dark .transaction-info small {
-  color: #8da6b8;
+  color: #94A3B8;
 }
 
 /* User Greeting & Dropdown in Dark Mode */
 html.dark .greeting-headline {
-  color: #e2eaf0;
+  color: #F8FAFC;
 }
 
 html.dark .greeting-sub-meta {
-  color: #7b99ad;
+  color: #94A3B8;
 }
 
 html.dark .user-tier-badge {
@@ -2092,21 +2092,21 @@ html.dark .user-tier-badge {
 }
 
 html.dark .user-profile-menu-dropdown {
-  background: #0d2232;
-  border-color: #18384f;
+  background: #111827;
+  border-color: #1E293B;
   box-shadow: 0 16px 36px -8px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255, 255, 255, 0.04);
 }
 
 html.dark .menu-user-name {
-  color: #e2eaf0;
+  color: #F8FAFC;
 }
 
 html.dark .menu-user-email {
-  color: #8da6b8;
+  color: #94A3B8;
 }
 
 html.dark .menu-divider {
-  background: #17354a;
+  background: #1E293B;
 }
 
 html.dark .menu-item-row {
@@ -2114,11 +2114,11 @@ html.dark .menu-item-row {
 }
 
 html.dark .menu-item-icon {
-  color: #7b99ad;
+  color: #94A3B8;
 }
 
 html.dark .menu-item-row:hover {
-  background: #132f44;
+  background: #1F2937;
   color: #38bdf8;
 }
 
@@ -2128,12 +2128,12 @@ html.dark .menu-item-row:hover .menu-item-icon {
 
 html.dark .profile-hero-card,
 html.dark .profile-card-layout {
-  background: #0b1d2a;
-  border-color: #163042;
+  background: #111827;
+  border-color: #1E293B;
 }
 
 html.dark .profile-hero-meta h2 {
-  color: #e2eaf0 !important;
+  color: #F8FAFC !important;
 }
 
 html.dark .profile-input-group label {
@@ -2142,15 +2142,15 @@ html.dark .profile-input-group label {
 
 html.dark .profile-input-group input,
 html.dark .profile-input-group select {
-  background: #0d2130;
-  border-color: #173246;
-  color: #e2eaf0;
+  background: #111827;
+  border-color: #1E293B;
+  color: #F8FAFC;
 }
 
 html.dark .profile-input-group input:disabled {
-  background: #081721;
-  color: #557288;
-  border-color: #112433;
+  background: #0B0F19;
+  color: #64748B;
+  border-color: #1F2937;
 }
 
 html.dark .tag-verified {
@@ -2166,18 +2166,18 @@ html.dark .tag-tier {
 }
 
 html.dark .tag-user-id {
-  color: #7b96a8 !important;
+  color: #94A3B8 !important;
 }
 
 html.dark .btn-upload-text {
-  background: #0e2738 !important;
+  background: #111827 !important;
   color: #38bdf8 !important;
-  border-color: #163f5c !important;
+  border-color: #1E293B !important;
 }
 
 html.dark .btn-upload-text:hover {
-  background: #12334a !important;
-  color: #e2eaf0 !important;
+  background: #1F2937 !important;
+  color: #F8FAFC !important;
 }
 
 html.dark .btn-remove-avatar {
@@ -2194,7 +2194,7 @@ html.dark .btn-remove-avatar:hover {
 /* Nền màn hình chính: than chì xám nhẹ, không tối thui cũng không tương phản gắt */
 html.dark main,
 html.dark .main-shell {
-  background-color: #081622 !important;
+  background-color: #0B0F19 !important;
   color: #cbd5e1 !important;
 }
 
@@ -2203,7 +2203,7 @@ html.dark main .bg-white,
 html.dark .main-shell .bg-white,
 html.dark [class*="bg-[#f6f8f6]"],
 html.dark [class*="bg-[#f9fbf9]"] {
-  background-color: #0e2333 !important;
+  background-color: #111827 !important;
   color: #cbd5e1;
 }
 
@@ -2215,7 +2215,7 @@ html.dark main .border-\[\#edf2ee\],
 html.dark main .border-\[\#edf0ed\],
 html.dark main .divide-\[\#edf2ee\] > * + *,
 html.dark main .border-\[\#cbe0d3\] {
-  border-color: #173852 !important;
+  border-color: #1E293B !important;
 }
 
 /* Màu chữ tiêu đề & nội dung chính: màu xanh xám nhạt dịu mắt (như màu chữ Tiền mặt) */
@@ -2231,7 +2231,7 @@ html.dark .header-page-title,
 html.dark .brand strong,
 html.dark .sidebar-user strong,
 html.dark .upgrade-card strong {
-  color: #9cb1c1 !important;
+  color: #94A3B8 !important;
 }
 
 /* Số tiền lớn trên banner: chữ trắng bạc sáng rõ */
@@ -2278,7 +2278,7 @@ html.dark .rounded-full.border.border-white\/20.bg-white\/10,
 html.dark .rounded-xl.bg-white\/10 button:not(.bg-white),
 html.dark button[title*="Tự động nhận diện"],
 html.dark .bg-white\/15 {
-  color: #9cb1c1 !important;
+  color: #94A3B8 !important;
 }
 
 /* Các nhãn phụ, ngày giờ, số dư nhỏ: màu xanh xám khói */
@@ -2290,58 +2290,58 @@ html.dark main .text-\[\#89958e\],
 html.dark main .text-gray-500,
 html.dark .topbar p,
 html.dark .greeting-sub-meta {
-  color: #7b96a8 !important;
+  color: #94A3B8 !important;
 }
 
 /* Tên người dùng góc trên bên phải */
 html.dark .greeting-headline {
-  color: #d8e5ee !important;
+  color: #F8FAFC !important;
 }
 
 /* Input, Select và Button lựa chọn trong màn hình con: Đậm đà, chìm vào nền card */
 html.dark main input:not(#hero-amount-input),
 html.dark main select,
 html.dark main textarea {
-  background-color: #0c1c28 !important;
-  border-color: #142a3a !important;
-  color: #d8e5ee !important;
+  background-color: #111827 !important;
+  border-color: #1E293B !important;
+  color: #F8FAFC !important;
 }
 
 html.dark main input::placeholder,
 html.dark main textarea::placeholder {
-  color: #4b667a !important;
+  color: #64748B !important;
 }
 
 /* Dropdown list (như chọn ví, chọn danh mục) */
 html.dark main .rounded-2xl.border.bg-white,
 html.dark main [class*="shadow-2xl"] {
-  background-color: #0c1c28 !important;
-  border-color: #173852 !important;
+  background-color: #111827 !important;
+  border-color: #1E293B !important;
   box-shadow: 0 12px 28px rgba(0, 0, 0, 0.55) !important;
 }
 
 /* Các vùng phụ màu xám/xanh sáng trong Form (như hàng Lặp lại hàng tháng, Đính kèm ảnh hóa đơn) */
 html.dark main [class*="bg-[#f8faf8]"],
 html.dark main [class*="bg-[#f2faf6]"] {
-  background-color: #0d1e2b !important;
-  border-color: #142a3a !important;
+  background-color: #111827 !important;
+  border-color: #1E293B !important;
 }
 
 /* Nút đính kèm ảnh hóa đơn */
 html.dark main button[class*="border-[#cbe0d3]"] {
-  background-color: #102738 !important;
-  border-color: #193c54 !important;
+  background-color: #1F2937 !important;
+  border-color: #1E293B !important;
   color: #38bdf8 !important;
 }
 
 /* Các nút phụ ở footer: Hủy, Lưu & Tiếp tục thêm */
 html.dark main button.bg-gray-100 {
-  background-color: #102332 !important;
+  background-color: #1F2937 !important;
   color: #cbd5e1 !important;
 }
 
 html.dark main button.bg-gray-100:hover {
-  background-color: #162f44 !important;
+  background-color: #1E293B !important;
 }
 
 html.dark main button[class*="bg-[#e3f4e9]"] {
@@ -2355,8 +2355,8 @@ html.dark main button[class*="bg-[#e3f4e9]"]:hover {
 
 /* Các nút FAB nổi tròn ở góc dưới bên phải (Floating Action Buttons) */
 html.dark .fab-scanner {
-  background: #0c1c28 !important;
-  border-color: #173852 !important;
+  background: #111827 !important;
+  border-color: #1E293B !important;
   color: #38bdf8 !important;
 }
 
@@ -2373,7 +2373,7 @@ html.dark .fab-primary.fab-add {
 html.dark .fab-tooltip {
   background: rgba(6, 14, 21, 0.96) !important;
   color: #cbd5e1 !important;
-  border: 1px solid #162f42;
+  border: 1px solid #1E293B;
 }
 
 /* Hộp icon ví nguồn và ví đích nhận trong trang Thêm giao dịch: Tông dark navy dịu mắt, icon màu tươi rõ */
@@ -2395,8 +2395,8 @@ html.dark main .bg-emerald-50 {
 }
 
 html.dark main .bg-gray-100.text-gray-700 {
-  background-color: #0f2738 !important;
-  color: #9cb1c1 !important;
+  background-color: #111827 !important;
+  color: #94A3B8 !important;
 }
 
 /* ==========================================================================
@@ -2407,16 +2407,16 @@ html.dark main .bg-gray-100.text-gray-700 {
 .reports-tab-group {
   display: inline-flex;
   align-items: center;
-  background-color: #eef2ef;
+  background-color: #E2E8F0;
   border-radius: 12px;
   padding: 4px;
   gap: 3px;
-  border: 1px solid #e1e9e3;
+  border: 1px solid #E2E8F0;
 }
 
 html.dark .reports-tab-group {
-  background-color: #0c1c28 !important;
-  border-color: #173852 !important;
+  background-color: #111827 !important;
+  border-color: #1E293B !important;
 }
 
 .reports-tab-item {
@@ -2435,17 +2435,17 @@ html.dark .reports-tab-group {
 }
 
 .reports-tab-item:hover {
-  color: #07543f;
+  color: #007F53;
 }
 
 .reports-tab-item.active {
   background: #ffffff;
-  color: #07543f;
+  color: #007F53;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
 }
 
 html.dark .reports-tab-item {
-  color: #7b96a8 !important;
+  color: #94A3B8 !important;
 }
 
 html.dark .reports-tab-item:hover {
@@ -2453,7 +2453,7 @@ html.dark .reports-tab-item:hover {
 }
 
 html.dark .reports-tab-item.active {
-  background: #143044 !important;
+  background: #1F2937 !important;
   color: #38bdf8 !important;
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.35) !important;
 }
@@ -2470,7 +2470,7 @@ html.dark .reports-tab-item.active {
   font-size: 13px;
   font-weight: 700;
   background: #ffffff;
-  border: 1px solid #d4ded7;
+  border: 1px solid #CBD5E1;
   color: #17382b;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
   transition: all 0.2s ease;
@@ -2478,18 +2478,18 @@ html.dark .reports-tab-item.active {
 }
 
 .reports-action-btn:hover {
-  border-color: #07543f;
-  color: #07543f;
+  border-color: #007F53;
+  color: #007F53;
   background: #eef7f2;
 }
 
 .reports-action-btn svg {
-  color: #07543f !important;
+  color: #007F53 !important;
 }
 
 html.dark .reports-action-btn {
-  background: #0e2333 !important;
-  border-color: #173852 !important;
+  background: #111827 !important;
+  border-color: #1E293B !important;
   color: #cbd5e1 !important;
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2) !important;
 }
@@ -2507,15 +2507,15 @@ html.dark .reports-action-btn svg {
 /* Hàng 2: Thanh filter bao bọc */
 .reports-filter-container {
   background: #ffffff;
-  border: 1px solid #e2ece5;
+  border: 1px solid #E2E8F0;
   border-radius: 16px;
   padding: 10px 12px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.02);
 }
 
 html.dark .reports-filter-container {
-  background: #0e2333 !important;
-  border-color: #173852 !important;
+  background: #111827 !important;
+  border-color: #1E293B !important;
 }
 
 /* Nhóm 4 nút thời gian preset */
@@ -2531,8 +2531,8 @@ html.dark .reports-filter-container {
 }
 
 html.dark .reports-preset-group {
-  background: #07131e !important;
-  border-color: #173852 !important;
+  background: #0B0F19 !important;
+  border-color: #1E293B !important;
 }
 
 .reports-preset-btn {
@@ -2552,17 +2552,17 @@ html.dark .reports-preset-group {
 }
 
 .reports-preset-btn:hover {
-  color: #07543f;
+  color: #007F53;
 }
 
 .reports-preset-btn.active {
   background: #ffffff;
-  color: #07543f;
+  color: #007F53;
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
 }
 
 html.dark .reports-preset-btn {
-  color: #7b96a8 !important;
+  color: #94A3B8 !important;
 }
 
 html.dark .reports-preset-btn:hover {
@@ -2582,20 +2582,20 @@ html.dark .reports-preset-btn.active {
   align-items: center;
   gap: 8px;
   border-radius: 10px;
-  border: 1px solid #d4ded7;
+  border: 1px solid #CBD5E1;
   background: #ffffff;
   padding: 0 12px;
   transition: border-color 0.2s ease;
 }
 
 .reports-date-picker-box:focus-within {
-  border-color: #07543f;
+  border-color: #007F53;
   box-shadow: 0 0 0 3px rgba(7, 84, 63, 0.1);
 }
 
 html.dark .reports-date-picker-box {
-  background: #07131e !important;
-  border-color: #173852 !important;
+  background: #0B0F19 !important;
+  border-color: #1E293B !important;
 }
 
 html.dark .reports-date-picker-box:focus-within {
@@ -2616,7 +2616,7 @@ html.dark .reports-date-picker-box:focus-within {
 }
 
 html.dark .reports-date-picker-box input[type="date"] {
-  color: #e2edf5 !important;
+  color: #F8FAFC !important;
   background: transparent !important;
 }
 
@@ -2627,7 +2627,7 @@ html.dark .reports-date-picker-box input[type="date"] {
   align-items: center;
   gap: 10px;
   border-radius: 10px;
-  border: 1px solid #d4ded7;
+  border: 1px solid #CBD5E1;
   background: #ffffff;
   padding: 0 12px;
   transition: all 0.2s ease;
@@ -2640,19 +2640,19 @@ html.dark .reports-date-picker-box input[type="date"] {
 }
 
 .reports-wallet-select-box:focus-within {
-  border-color: #07543f;
+  border-color: #007F53;
   box-shadow: 0 0 0 3px rgba(7, 84, 63, 0.12);
   background: #ffffff;
 }
 
 html.dark .reports-wallet-select-box {
-  background: #07131e !important;
-  border-color: #173852 !important;
+  background: #0B0F19 !important;
+  border-color: #1E293B !important;
 }
 
 html.dark .reports-wallet-select-box:hover {
   border-color: #1f4738 !important;
-  background: #0a1926 !important;
+  background: #0B0F19 !important;
 }
 
 html.dark .reports-wallet-select-box:focus-within {
@@ -2677,14 +2677,14 @@ html.dark .reports-wallet-select-box:focus-within {
 }
 
 html.dark .reports-wallet-select-box select {
-  color: #e2edf5 !important;
+  color: #F8FAFC !important;
   background: transparent !important;
 }
 
 /* Card số liệu & biểu đồ chung */
 .reports-card {
   background: #ffffff;
-  border: 1px solid #e1e9e3;
+  border: 1px solid #E2E8F0;
   border-radius: 16px;
   padding: 20px;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
@@ -2692,15 +2692,15 @@ html.dark .reports-wallet-select-box select {
 }
 
 html.dark .reports-card {
-  background: #0e2333 !important;
-  border-color: #173852 !important;
+  background: #111827 !important;
+  border-color: #1E293B !important;
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25) !important;
 }
 
 /* Thẻ KPI nhỏ */
 .reports-kpi-card {
   background: #ffffff;
-  border: 1px solid #e1e9e3;
+  border: 1px solid #E2E8F0;
   border-radius: 16px;
   padding: 16px;
   display: flex;
@@ -2711,8 +2711,8 @@ html.dark .reports-card {
 }
 
 html.dark .reports-kpi-card {
-  background: #0e2333 !important;
-  border-color: #173852 !important;
+  background: #111827 !important;
+  border-color: #1E293B !important;
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25) !important;
 }
 
@@ -2736,7 +2736,7 @@ html.dark .reports-kpi-card {
 
 .reports-advisor-badge {
   font-weight: 700;
-  color: #07543f;
+  color: #007F53;
   font-size: 12px;
 }
 
@@ -2781,7 +2781,7 @@ html.dark .reports-subtitle {
 }
 
 html.dark .reports-card-label {
-  color: #9cb1c1 !important;
+  color: #94A3B8 !important;
 }
 
 .reports-card-meta {
@@ -2791,18 +2791,18 @@ html.dark .reports-card-label {
 }
 
 html.dark .reports-card-meta {
-  color: #8da6b8 !important;
+  color: #94A3B8 !important;
 }
 
 /* Trục ngang biểu đồ cột */
 .reports-chart-line {
   height: 1px;
   flex: 1;
-  background-color: #e2ece5;
+  background-color: #E2E8F0;
 }
 
 html.dark .reports-chart-line {
-  background-color: #162f42 !important;
+  background-color: #1E293B !important;
 }
 
 /* Thẻ badge chú thích chân biểu đồ */
@@ -2810,7 +2810,7 @@ html.dark .reports-chart-line {
   margin-top: 16px;
   padding: 10px 14px;
   border-radius: 12px;
-  background: #f1f5f3 !important;
+  background: #F1F5F9 !important;
   color: #1e293b !important;
   border: 1px solid #dce6e0 !important;
   font-size: 12px;
@@ -2840,9 +2840,9 @@ html:not(.dark) .reports-sub-footer strong.text-\[\#0f172a\] {
 }
 
 html.dark .reports-sub-footer {
-  background: #0d2130 !important;
+  background: #111827 !important;
   color: #cbd5e1 !important;
-  border-color: #16364d !important;
+  border-color: #1E293B !important;
 }
 
 
@@ -2854,8 +2854,8 @@ html.dark .reports-sub-footer {
 }
 
 html.dark .reports-donut-center {
-  background-color: #0e2333 !important;
-  color: #e2edf5 !important;
+  background-color: #111827 !important;
+  color: #F8FAFC !important;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4) !important;
 }
 
@@ -2941,15 +2941,15 @@ html:not(.dark) .reports-kpi-amount-savings {
   font-weight: 800;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  background-color: #f1f5f3 !important;
+  background-color: #F1F5F9 !important;
   color: #1e3328 !important;
-  border-bottom: 2px solid #e1e9e3 !important;
+  border-bottom: 2px solid #E2E8F0 !important;
 }
 
 .reports-table td {
   padding: 9px 10px;
-  border-bottom: 1px solid #edf2ee;
-  color: #14251f;
+  border-bottom: 1px solid #E2E8F0;
+  color: #0F172A;
   background: transparent;
 }
 
@@ -2959,18 +2959,18 @@ html:not(.dark) .reports-table tr:hover td {
 
 /* Bảng trong Dark Mode */
 html.dark .reports-table th {
-  background-color: #112636 !important;
-  color: #9cb1c1 !important;
-  border-bottom-color: #18374d !important;
+  background-color: #1F2937 !important;
+  color: #94A3B8 !important;
+  border-bottom-color: #1E293B !important;
 }
 
 html.dark .reports-table td {
-  border-bottom-color: #162f42 !important;
+  border-bottom-color: #1E293B !important;
   color: #cbd5e1 !important;
 }
 
 html.dark .reports-table tr:hover td {
-  background-color: #102638 !important;
+  background-color: #1F2937 !important;
 }
 
 /* ==========================================================================
@@ -3099,15 +3099,15 @@ html.dark .reports-tx-footer {
   padding: 6px 12px;
   font-size: 12px;
   font-weight: 700;
-  background-color: #f1f5f3 !important;
+  background-color: #F1F5F9 !important;
   color: #172c21 !important;
   border: 1px solid #e1e9e4 !important;
 }
 
 html.dark .reports-legend-pill {
-  background-color: #0c1f2d !important;
+  background-color: #111827 !important;
   color: #cbd5e1 !important;
-  border-color: #16364d !important;
+  border-color: #1E293B !important;
 }
 
 /* Badge số nhóm trên header Cơ cấu chi tiêu */
@@ -3118,8 +3118,8 @@ html.dark .reports-legend-pill {
   padding: 4px 10px;
   font-size: 11px;
   font-weight: 800;
-  background-color: #e3f4e9 !important;
-  color: #07543f !important;
+  background-color: #E6F4EA !important;
+  color: #007F53 !important;
   border: 1px solid #bce6cf !important;
 }
 

@@ -1,0 +1,345 @@
+.complete-profile-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 99999;
+  background-color: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  animation: fadeIn 0.25s ease-out;
+}
+
+.complete-profile-card {
+  width: 100%;
+  max-width: 440px;
+  max-height: 94vh;
+  background-color: #FFFFFF;
+  border-radius: 24px;
+  overflow-y: auto;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.25);
+  display: flex;
+  flex-direction: column;
+  position: relative;
+}
+
+/* TOP HERO BANNER */
+.complete-profile-hero {
+  background: linear-gradient(135deg, #003F32 0%, #005541 50%, #007B58 100%);
+  padding: 20px 22px 28px;
+  position: relative;
+  border-top-left-radius: 24px;
+  border-top-right-radius: 24px;
+}
+
+.complete-profile-nav {
+  display: flex;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.complete-profile-brand {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.complete-profile-brand-logo-img {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  object-fit: contain;
+}
+
+.complete-profile-brand-name {
+  color: #FFFFFF;
+  font-size: 19px;
+  fontWeight: 800;
+  letter-spacing: 0.3px;
+}
+
+.complete-profile-header-content {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.complete-profile-title-col h2 {
+  color: #FFFFFF;
+  font-size: 22px;
+  font-weight: 800;
+  margin: 0 0 6px;
+  letter-spacing: -0.3px;
+}
+
+.complete-profile-title-col p {
+  color: rgba(255, 255, 255, 0.85);
+  font-size: 12px;
+  line-height: 17px;
+  margin: 0;
+}
+
+.complete-profile-robot-img {
+  width: 165px;
+  height: 115px;
+  object-fit: contain;
+  flex-shrink: 0;
+  margin-top: -12px;
+}
+
+/* BODY */
+.complete-profile-body {
+  padding: 0 22px 28px;
+  background-color: #FFFFFF;
+  border-top-left-radius: 24px;
+  border-top-right-radius: 24px;
+  margin-top: -12px;
+  position: relative;
+  z-index: 2;
+}
+
+/* AVATAR */
+.complete-profile-avatar-wrap {
+  display: flex;
+  justify-content: center;
+  margin-top: -38px;
+  margin-bottom: 14px;
+}
+
+.complete-profile-avatar-box {
+  position: relative;
+  width: 76px;
+  height: 76px;
+  border-radius: 50%;
+  border: 3px solid #FFFFFF;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+  cursor: pointer;
+  background-color: #E0F2FE;
+  overflow: visible;
+}
+
+.complete-profile-avatar-img {
+  width: 70px;
+  height: 70px;
+  border-radius: 50%;
+  object-fit: cover;
+  display: block;
+}
+
+.complete-profile-camera-badge {
+  position: absolute;
+  bottom: 0;
+  right: -2px;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background-color: #007B58;
+  border: 2px solid #FFFFFF;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* FORM FIELDS */
+.complete-profile-form {
+  display: flex;
+  flex-direction: column;
+  gap: 13px;
+}
+
+.form-field-group {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.field-label-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 700;
+  color: #0F172A;
+}
+
+.field-label-row .at-symbol {
+  color: #007B58;
+  font-size: 15px;
+  font-weight: 800;
+}
+
+.star-red {
+  color: #EF4444;
+}
+
+.label-optional {
+  font-size: 11.5px;
+  color: #64748B;
+  font-weight: 400;
+}
+
+.field-input-box {
+  display: flex;
+  align-items: center;
+  border: 1.2px solid #E2E8F0;
+  border-radius: 12px;
+  background-color: #F8FAFC;
+  padding: 0 12px;
+  height: 42px;
+  transition: all 0.2s;
+}
+
+.field-input-box:focus-within {
+  border-color: #007B58;
+  background-color: #FFFFFF;
+  box-shadow: 0 0 0 3px rgba(0, 123, 88, 0.12);
+}
+
+.field-input-box.field-error {
+  border-color: #EF4444;
+}
+
+.field-input-box input {
+  flex: 1;
+  border: none;
+  background: transparent;
+  outline: none;
+  font-size: 13.5px;
+  font-weight: 500;
+  color: #0F172A;
+}
+
+.field-hint {
+  font-size: 11px;
+  color: #64748B;
+  line-height: 15px;
+}
+
+.btn-clear-text,
+.btn-toggle-eye {
+  background: none;
+  border: none;
+  padding: 4px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* STRENGTH METER */
+.strength-meter-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 4px;
+}
+
+.strength-bars {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  flex: 1;
+}
+
+.strength-bars span {
+  height: 4px;
+  flex: 1;
+  border-radius: 2px;
+  transition: background-color 0.25s;
+}
+
+.strength-label {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  font-weight: 700;
+  margin-left: 10px;
+}
+
+/* CALLOUT */
+.complete-profile-callout {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  background-color: #F0FDF4;
+  border: 1px solid #DCFCE7;
+  border-radius: 12px;
+  padding: 10px 12px;
+  margin-top: 4px;
+}
+
+.callout-icon-circle {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 1.2px solid #10B981;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.complete-profile-callout p {
+  margin: 0;
+  font-size: 11.5px;
+  line-height: 16px;
+  color: #166534;
+}
+
+/* BUTTONS */
+.complete-profile-submit-btn {
+  background-color: #007B58;
+  color: #FFFFFF;
+  border: none;
+  border-radius: 24px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-size: 14.5px;
+  font-weight: 800;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(0, 123, 88, 0.25);
+  transition: all 0.2s;
+  margin-top: 6px;
+}
+
+.complete-profile-submit-btn:hover {
+  background-color: #006649;
+}
+
+.complete-profile-skip-btn {
+  background: none;
+  border: none;
+  color: #64748B;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  padding: 8px;
+  text-align: center;
+  transition: color 0.2s;
+}
+
+.complete-profile-skip-btn:hover {
+  color: #0F172A;
+}
+
+.complete-profile-error-banner {
+  background-color: #FEF2F2;
+  border: 1px solid #FCA5A5;
+  color: #B91C1C;
+  padding: 8px 12px;
+  border-radius: 10px;
+  font-size: 12px;
+  margin-bottom: 12px;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: scale(0.98); }
+  to { opacity: 1; transform: scale(1); }
+}

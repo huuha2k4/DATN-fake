@@ -19,6 +19,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { FinanceIcon } from '../../core/components/FinanceIcon';
+import { AppDatePicker } from '../../core/components/AppDatePicker';
 import { accountApi, type AccountItem } from '../../accounts/api/accountApi';
 import { AccountBadge } from '../../accounts/components/AccountBadge';
 import { transactionApi, type CategoryItem } from '../../add-transaction/api/transactionApi';
@@ -186,13 +187,7 @@ export function RemindersScreen({ onBack, onNavigateToDebts }: RemindersScreenPr
   const [formFreq, setFormFreq] = useState<'DAILY' | 'WEEKLY' | 'MONTHLY' | 'YEARLY'>('MONTHLY');
   const [formDayOfWeek, setFormDayOfWeek] = useState<number>(1); // 1 = Thứ 2, ..., 7 = Chủ nhật
   const [formDayOfMonth, setFormDayOfMonth] = useState<number>(() => new Date().getDate());
-  const [formStartDate, setFormStartDate] = useState<string>(() => {
-    const today = new Date();
-    const y = today.getFullYear();
-    const m = String(today.getMonth() + 1).padStart(2, '0');
-    const d = String(today.getDate()).padStart(2, '0');
-    return `${d}/${m}/${y}`;
-  });
+  const [formStartDate, setFormStartDate] = useState<Date | null>(new Date());
   const [formNote, setFormNote] = useState<string>('');
   const [formNotificationEnabled, setFormNotificationEnabled] = useState<boolean>(true);
   const [formNotifyBeforeHours, setFormNotifyBeforeHours] = useState<string>('24');
@@ -698,14 +693,13 @@ export function RemindersScreen({ onBack, onNavigateToDebts }: RemindersScreenPr
       return;
     }
 
-    // Chuyển format dd/mm/yyyy hoặc dd-mm-yyyy sang yyyy-mm-dd
+    // Chuyển format sang yyyy-mm-dd
     let startDateIso = new Date().toISOString().split('T')[0];
     if (formStartDate) {
-      const sep = formStartDate.includes('/') ? '/' : '-';
-      const parts = formStartDate.split(sep);
-      if (parts.length === 3) {
-        startDateIso = `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
-      }
+      const y = formStartDate.getFullYear();
+      const m = String(formStartDate.getMonth() + 1).padStart(2, '0');
+      const d = String(formStartDate.getDate()).padStart(2, '0');
+      startDateIso = `${y}-${m}-${d}`;
     }
 
     const dayOfWeekCodes = ['', 'MO', 'TU', 'WE', 'TH', 'FR', 'SA', 'SU'];
@@ -1654,19 +1648,14 @@ export function RemindersScreen({ onBack, onNavigateToDebts }: RemindersScreenPr
                       </Pressable>
                     </>
                   ) : (
-                    <>
-                      <Text style={[styles.webFormLabel, isDark && { color: themeColors.textSecondary }]}>Bắt đầu từ ngày *</Text>
-                      <View style={[styles.webDateInputWrap, isDark && { backgroundColor: themeColors.surfaceSubtle, borderColor: themeColors.cardBorder }]}>
-                        <TextInput
-                          style={[styles.webDateInput, isDark && { color: themeColors.textPrimary }]}
-                          value={formStartDate}
-                          onChangeText={setFormStartDate}
-                          placeholder="dd/mm/yyyy"
-                          placeholderTextColor={isDark ? themeColors.textMuted : "#94A3B8"}
-                        />
-                        <FinanceIcon name="calendar" size={18} color={isDark ? themeColors.textMuted : "#94A3B8"} />
-                      </View>
-                    </>
+                    <View style={{ flex: 1 }}>
+                      <AppDatePicker
+                        value={formStartDate}
+                        onChange={setFormStartDate}
+                        label="Bắt đầu từ ngày *"
+                        placeholder="DD/MM/YYYY"
+                      />
+                    </View>
                   )}
                 </View>
               </View>
@@ -1884,7 +1873,7 @@ export function RemindersScreen({ onBack, onNavigateToDebts }: RemindersScreenPr
                DROPDOWN PICKER OVERLAY SHEET (Học từ DebtScreen)
                ======================================================== */}
             {schedulePickerType !== 'NONE' && (
-              <View style={[StyleSheet.absoluteFillObject, styles.pickerModalBackdrop]}>
+              <View style={[StyleSheet.absoluteFill, styles.pickerModalBackdrop]}>
                 <View style={[styles.pickerModalBox, isDark && { backgroundColor: themeColors.surface, borderColor: themeColors.cardBorder, borderWidth: 1 }]}>
                   {/* Header Picker */}
                   <View style={[styles.pickerModalHeader, isDark && { borderBottomColor: themeColors.cardBorder }]}>
@@ -2584,7 +2573,7 @@ export function RemindersScreen({ onBack, onNavigateToDebts }: RemindersScreenPr
 
                       if (schedItem?.start_date || schedItem?.startDate) {
                         const d = schedItem.start_date || schedItem.startDate;
-                        setFormStartDate(formatDDMMYYYY(d));
+                        setFormStartDate(d ? new Date(d) : null);
                       }
 
                       setSelectedDetailItem(null);

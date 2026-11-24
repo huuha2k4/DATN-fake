@@ -1,3 +1,4 @@
+import { finAiSyncEmitter } from '../../ai-assistant/api/finAiSyncEmitter';
 import { AppAlert as Alert, useAppDialog } from '../../../context/DialogContext';
 import React, { useEffect, useState, useMemo } from 'react';
 import {
@@ -6,6 +7,7 @@ import {
   FlatList,
   Image,
   ImageBackground,
+  KeyboardAvoidingView,
   Modal,
   Platform,
   Pressable,
@@ -131,6 +133,10 @@ export function BudgetScreen({
 
   useEffect(() => {
     loadData();
+    const unsubscribe = finAiSyncEmitter.subscribe(() => {
+      loadData(false);
+    });
+    return () => unsubscribe();
   }, [selectedYear, selectedMonth]);
 
   const onRefresh = () => {
@@ -526,9 +532,10 @@ export function BudgetScreen({
   const paddingTop = Math.max(insets.top, Platform.OS === 'ios' ? 44 : 12);
   const paddingBottom = Math.max(insets.bottom, 20);
 
-  const totalBudgeted = budgetOverview?.totalBudgeted || 5000000;
-  const totalSpent = budgetOverview?.totalSpent || 3200000;
-  const totalRemaining = budgetOverview?.totalRemaining || 1800000;
+  const hasBudget = !!budgetOverview?.currentBudget;
+  const totalBudgeted = budgetOverview?.totalBudgeted || 0;
+  const totalSpent = budgetOverview?.totalSpent || 0;
+  const totalRemaining = budgetOverview?.totalRemaining || 0;
   const progressRatio = totalBudgeted > 0 ? Math.min(1, totalSpent / totalBudgeted) : 0;
 
   const items = budgetOverview?.items || [];
@@ -675,14 +682,75 @@ export function BudgetScreen({
             </Pressable>
           </View>
 
-          {/* ── 3. TIÊU ĐỀ: NGÂN SÁCH CHI TIÊU (ĐÃ XÓA NÚT XEM TẤT CẢ) ── */}
+          {/* ── 3. TIÊU ĐỀ: NGÂN SÁCH CHI TIÊU ── */}
           <View style={styles.sectionHeader}>
             <Text style={[styles.sectionTitle, isDark && { color: themeColors.textPrimary }]}>Ngân sách chi tiêu</Text>
           </View>
 
-          {/* ── 4. DANH SÁCH TỪNG DANH MỤC (CHUẨN ẢNH THIẾT KẾ) ── */}
-          <View style={[styles.categoryCardList, isDark && { backgroundColor: themeColors.surface, borderColor: themeColors.cardBorder }]}>
-            {items.map((item) => {
+          {/* ── 4. DANH SÁCH TỪNG DANH MỤC HOẶC EMPTY STATE ── */}
+          {items.length === 0 ? (
+            <View
+              style={[
+                styles.categoryCardList,
+                { alignItems: 'center', justifyContent: 'center', paddingVertical: 36, paddingHorizontal: 20 },
+                isDark && { backgroundColor: themeColors.surface, borderColor: themeColors.cardBorder },
+              ]}
+            >
+              <View
+                style={{
+                  width: 56,
+                  height: 56,
+                  borderRadius: 28,
+                  backgroundColor: isDark ? 'rgba(5, 150, 105, 0.16)' : '#ECFDF5',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  marginBottom: 12,
+                }}
+              >
+                <FinanceIcon name="wallet" size={28} color={isDark ? themeColors.accentGreen : '#059669'} />
+              </View>
+              <Text
+                style={{
+                  fontSize: 15,
+                  fontWeight: '700',
+                  color: isDark ? themeColors.textPrimary : '#0F172A',
+                  marginBottom: 6,
+                  textAlign: 'center',
+                }}
+              >
+                Chưa có ngân sách tháng {currentMonth}/{currentYear}
+              </Text>
+              <Text
+                style={{
+                  fontSize: 13,
+                  color: isDark ? themeColors.textSecondary : '#64748B',
+                  textAlign: 'center',
+                  lineHeight: 18,
+                  marginBottom: 18,
+                }}
+              >
+                Lập ngân sách giúp bạn kiểm soát chi tiêu tốt hơn. Bạn có thể tự tạo mới hoặc nhờ FinAI gợi ý!
+              </Text>
+              <Pressable
+                onPress={() => setCreateModalVisible(true)}
+                style={({ pressed }) => [
+                  {
+                    backgroundColor: isDark ? themeColors.primary : '#059669',
+                    paddingVertical: 10,
+                    paddingHorizontal: 20,
+                    borderRadius: 10,
+                    opacity: pressed ? 0.8 : 1,
+                  },
+                ]}
+              >
+                <Text style={{ color: '#FFFFFF', fontWeight: '700', fontSize: 13.5 }}>
+                  + Thiết lập ngân sách ngay
+                </Text>
+              </Pressable>
+            </View>
+          ) : (
+            <View style={[styles.categoryCardList, isDark && { backgroundColor: themeColors.surface, borderColor: themeColors.cardBorder }]}>
+              {items.map((item) => {
               const itemPercent = item.percentageUsed;
               const isHigh = itemPercent >= 80;
               const percentColor = isHigh ? '#EF4444' : itemPercent >= 70 ? '#8B5CF6' : itemPercent >= 50 ? '#0EA5E9' : '#10B981';
@@ -752,7 +820,8 @@ export function BudgetScreen({
                 </Pressable>
               );
             })}
-          </View>
+            </View>
+          )}
         </ScrollView>
       )}
 
@@ -763,7 +832,10 @@ export function BudgetScreen({
         animationType="slide"
         onRequestClose={() => setCreateModalVisible(false)}
       >
-        <View style={styles.modalOverlay}>
+        <KeyboardAvoidingView
+          style={styles.modalOverlay}
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        >
           <Pressable style={styles.modalBackdrop} onPress={() => setCreateModalVisible(false)} />
           <View style={[styles.modalSheet, isDark && { backgroundColor: themeColors.surface, borderColor: themeColors.cardBorder, borderWidth: 1 }]}>
             <View style={styles.modalSheetHeader}>
@@ -1188,7 +1260,7 @@ export function BudgetScreen({
               </ScrollView>
             )}
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
 
       {/* ── MODAL: CHI TIẾT HẠN MỨC NGÂN SÁCH & TÙY CHỌN XÓA ── */}
@@ -1295,7 +1367,10 @@ export function BudgetScreen({
         animationType="slide"
         onRequestClose={() => setEditItemModalVisible(false)}
       >
-        <View style={styles.modalOverlay}>
+        <KeyboardAvoidingView
+          style={styles.modalOverlay}
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        >
           <Pressable style={styles.modalBackdrop} onPress={() => setEditItemModalVisible(false)} />
           <View style={[styles.modalSheet, isDark && { backgroundColor: themeColors.surface, borderColor: themeColors.cardBorder, borderWidth: 1 }]}>
             <View style={styles.modalSheetHeader}>
@@ -1305,66 +1380,68 @@ export function BudgetScreen({
               </Pressable>
             </View>
 
-            <View style={{ paddingTop: 8 }}>
-              <Text style={[styles.inputLabel, isDark && { color: themeColors.textSecondary }]}>Tên danh mục / Hạn mức</Text>
-              <View style={[styles.inputBox, isDark && { backgroundColor: themeColors.surfaceSubtle, borderColor: themeColors.cardBorder }]}>
-                <TextInput
-                  style={[styles.textInput, isDark && { color: themeColors.textPrimary }]}
-                  value={editItemName}
-                  onChangeText={setEditItemName}
-                  placeholder="Tên danh mục..."
-                  placeholderTextColor={isDark ? '#64748B' : '#94A3B8'}
-                />
-              </View>
+            <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+              <View style={{ paddingTop: 8 }}>
+                <Text style={[styles.inputLabel, isDark && { color: themeColors.textSecondary }]}>Tên danh mục / Hạn mức</Text>
+                <View style={[styles.inputBox, isDark && { backgroundColor: themeColors.surfaceSubtle, borderColor: themeColors.cardBorder }]}>
+                  <TextInput
+                    style={[styles.textInput, isDark && { color: themeColors.textPrimary }]}
+                    value={editItemName}
+                    onChangeText={setEditItemName}
+                    placeholder="Tên danh mục..."
+                    placeholderTextColor={isDark ? '#64748B' : '#94A3B8'}
+                  />
+                </View>
 
-              <Text style={[styles.inputLabel, isDark && { color: themeColors.textSecondary }, { marginTop: 14 }]}>Số tiền hạn mức (VNĐ)</Text>
-              <View style={[styles.inputBox, isDark && { backgroundColor: themeColors.surfaceSubtle, borderColor: themeColors.cardBorder }]}>
-                <TextInput
-                  style={[styles.textInput, isDark && { color: themeColors.textPrimary }]}
-                  value={editItemAmount}
-                  onChangeText={(val) => {
-                    const num = Number(val.replace(/\D/g, ''));
-                    setEditItemAmount(num ? new Intl.NumberFormat('vi-VN').format(num) : '');
-                  }}
-                  keyboardType="numeric"
-                  placeholder="0"
-                  placeholderTextColor={isDark ? '#64748B' : '#94A3B8'}
-                />
-                <Text style={[styles.inputSuffix, isDark && { color: themeColors.textSecondary }]}>đ</Text>
-              </View>
+                <Text style={[styles.inputLabel, isDark && { color: themeColors.textSecondary }, { marginTop: 14 }]}>Số tiền hạn mức (VNĐ)</Text>
+                <View style={[styles.inputBox, isDark && { backgroundColor: themeColors.surfaceSubtle, borderColor: themeColors.cardBorder }]}>
+                  <TextInput
+                    style={[styles.textInput, isDark && { color: themeColors.textPrimary }]}
+                    value={editItemAmount}
+                    onChangeText={(val) => {
+                      const num = Number(val.replace(/\D/g, ''));
+                      setEditItemAmount(num ? new Intl.NumberFormat('vi-VN').format(num) : '');
+                    }}
+                    keyboardType="numeric"
+                    placeholder="0"
+                    placeholderTextColor={isDark ? '#64748B' : '#94A3B8'}
+                  />
+                  <Text style={[styles.inputSuffix, isDark && { color: themeColors.textSecondary }]}>đ</Text>
+                </View>
 
-              <Text style={[styles.inputLabel, isDark && { color: themeColors.textSecondary }, { marginTop: 14 }]}>Ngưỡng cảnh báo chi tiêu (%)</Text>
-              <View style={[styles.inputBox, isDark && { backgroundColor: themeColors.surfaceSubtle, borderColor: themeColors.cardBorder }]}>
-                <TextInput
-                  style={[styles.textInput, isDark && { color: themeColors.textPrimary }]}
-                  value={editItemThreshold}
-                  onChangeText={setEditItemThreshold}
-                  keyboardType="numeric"
-                  placeholder="80"
-                  placeholderTextColor={isDark ? '#64748B' : '#94A3B8'}
-                />
-                <Text style={[styles.inputSuffix, isDark && { color: themeColors.textSecondary }]}>%</Text>
-              </View>
+                <Text style={[styles.inputLabel, isDark && { color: themeColors.textSecondary }, { marginTop: 14 }]}>Ngưỡng cảnh báo chi tiêu (%)</Text>
+                <View style={[styles.inputBox, isDark && { backgroundColor: themeColors.surfaceSubtle, borderColor: themeColors.cardBorder }]}>
+                  <TextInput
+                    style={[styles.textInput, isDark && { color: themeColors.textPrimary }]}
+                    value={editItemThreshold}
+                    onChangeText={setEditItemThreshold}
+                    keyboardType="numeric"
+                    placeholder="80"
+                    placeholderTextColor={isDark ? '#64748B' : '#94A3B8'}
+                  />
+                  <Text style={[styles.inputSuffix, isDark && { color: themeColors.textSecondary }]}>%</Text>
+                </View>
 
-              <Pressable
-                onPress={handleSaveEditBudgetItem}
-                disabled={isSubmitting}
-                style={({ pressed }) => [
-                  styles.submitBtn,
-                  isDark && { backgroundColor: '#059669' },
-                  pressed && styles.pressed,
-                  { marginTop: 24 },
-                ]}
-              >
-                {isSubmitting ? (
-                  <ActivityIndicator color="#FFFFFF" />
-                ) : (
-                  <Text style={styles.submitBtnText}>Lưu thay đổi</Text>
-                )}
-              </Pressable>
-            </View>
+                <Pressable
+                  onPress={handleSaveEditBudgetItem}
+                  disabled={isSubmitting}
+                  style={({ pressed }) => [
+                    styles.submitBtn,
+                    isDark && { backgroundColor: '#059669' },
+                    pressed && styles.pressed,
+                    { marginTop: 24, marginBottom: 16 },
+                  ]}
+                >
+                  {isSubmitting ? (
+                    <ActivityIndicator color="#FFFFFF" />
+                  ) : (
+                    <Text style={styles.submitBtnText}>Lưu thay đổi</Text>
+                  )}
+                </Pressable>
+              </View>
+            </ScrollView>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
 
       {/* ── MODAL: MẪU PHÂN BỔ NGÂN SÁCH THEO DANH MỤC ── */}

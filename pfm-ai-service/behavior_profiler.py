@@ -351,7 +351,8 @@ class BehaviorProfiler:
         finally:
             db.close()
 
-# Singleton instance
+# Optimized implementation; keep this module path for backward compatibility.
+from behavior_engine import BehaviorProfiler as BehaviorProfiler
 profiler = BehaviorProfiler()
 
 if __name__ == "__main__":

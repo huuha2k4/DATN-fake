@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import { getStoredUser, type User } from '../../auth/api/authApi';
 import { userApi, type UpdateProfileRequest } from '../../user/api/userApi';
 import { FinanceIcon } from '../../core/components/FinanceIcon';
+import { BirthDatePicker } from '../../core/components/BirthDatePicker';
 import './ProfileScreen.css';
 
 interface ProfileScreenProps {
@@ -26,6 +27,7 @@ export function ProfileScreen({ onLogout: _onLogout }: ProfileScreenProps) {
     username: formatCleanUsername(user?.username, user?.email),
     email: user?.email || '',
     phone: user?.phone || '',
+    dateOfBirth: (user as any)?.dateOfBirth || '',
     preferredCurrency: user?.preferredCurrency || 'VND',
     timezone: user?.timezone || 'Asia/Ho_Chi_Minh',
     language: user?.language || 'vi-VN',
@@ -64,6 +66,7 @@ export function ProfileScreen({ onLogout: _onLogout }: ProfileScreenProps) {
           username: cleanUsername,
           email: fresh.email || '',
           phone: fresh.phone || '',
+          dateOfBirth: fresh.dateOfBirth || '',
           preferredCurrency: fresh.preferredCurrency || 'VND',
           timezone: fresh.timezone || 'Asia/Ho_Chi_Minh',
           language: fresh.language || 'vi-VN',
@@ -153,6 +156,7 @@ export function ProfileScreen({ onLogout: _onLogout }: ProfileScreenProps) {
       const profileUpdate: UpdateProfileRequest = {
         fullName: formData.fullName.trim(),
         phone: formData.phone.trim() || undefined,
+        dateOfBirth: formData.dateOfBirth || undefined,
         preferredCurrency: formData.preferredCurrency,
         timezone: formData.timezone,
         language: formData.language,
@@ -167,6 +171,7 @@ export function ProfileScreen({ onLogout: _onLogout }: ProfileScreenProps) {
           fullName: response.fullName,
           username: response.username || '',
           phone: response.phone || '',
+          dateOfBirth: response.dateOfBirth || undefined,
           preferredCurrency: response.preferredCurrency,
           timezone: response.timezone,
           language: response.language,
@@ -320,54 +325,16 @@ export function ProfileScreen({ onLogout: _onLogout }: ProfileScreenProps) {
                 placeholder="0912 345 678"
               />
             </div>
+
+            <div className="profile-input-group">
+              <label>Ngày sinh</label>
+              <BirthDatePicker
+                value={formData.dateOfBirth}
+                onChange={(val) => setFormData({ ...formData, dateOfBirth: val })}
+                placeholder="dd/mm/yyyy"
+              />
+            </div>
           </div>
-
-          {/* Các tùy chọn tiền tệ, múi giờ, ngôn ngữ chỉ cần thiết cho User quản lý tài chính */}
-          {!isAdmin && (
-            <>
-              <div className="form-grid-2col">
-                <div className="profile-input-group">
-                  <label htmlFor="currency">Đơn vị tiền tệ hiển thị</label>
-                  <select
-                    id="currency"
-                    value={formData.preferredCurrency}
-                    onChange={(e) => setFormData({ ...formData, preferredCurrency: e.target.value })}
-                  >
-                    <option value="VND">VND (₫) - Việt Nam Đồng</option>
-                    <option value="USD">USD ($) - Đô la Mỹ</option>
-                    <option value="EUR">EUR (€) - Euro</option>
-                    <option value="JPY">JPY (¥) - Yên Nhật</option>
-                  </select>
-                </div>
-
-                <div className="profile-input-group">
-                  <label htmlFor="timezone">Múi giờ hệ thống</label>
-                  <select
-                    id="timezone"
-                    value={formData.timezone}
-                    onChange={(e) => setFormData({ ...formData, timezone: e.target.value })}
-                  >
-                    <option value="Asia/Ho_Chi_Minh">Việt Nam (GMT+7)</option>
-                    <option value="Asia/Bangkok">Bangkok (GMT+7)</option>
-                    <option value="Asia/Singapore">Singapore (GMT+8)</option>
-                    <option value="Asia/Tokyo">Tokyo (GMT+9)</option>
-                  </select>
-                </div>
-              </div>
-
-              <div className="profile-input-group" style={{ maxWidth: '48%', marginBottom: '10px' }}>
-                <label htmlFor="language">Ngôn ngữ giao diện</label>
-                <select
-                  id="language"
-                  value={formData.language}
-                  onChange={(e) => setFormData({ ...formData, language: e.target.value })}
-                >
-                  <option value="vi-VN">Tiếng Việt (vi-VN)</option>
-                  <option value="en-US">English (en-US)</option>
-                </select>
-              </div>
-            </>
-          )}
 
           <div className="profile-actions-bar">
             <button
@@ -379,6 +346,7 @@ export function ProfileScreen({ onLogout: _onLogout }: ProfileScreenProps) {
                   username: user?.username || '',
                   email: user?.email || '',
                   phone: user?.phone || '',
+                  dateOfBirth: (user as any)?.dateOfBirth || '',
                   preferredCurrency: user?.preferredCurrency || 'VND',
                   timezone: user?.timezone || 'Asia/Ho_Chi_Minh',
                   language: user?.language || 'vi-VN',

@@ -10,6 +10,7 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.math.BigDecimal;
+import java.util.List;
 import java.util.UUID;
 
 @Repository
@@ -34,4 +35,13 @@ public interface ChildSpendRequestRepository extends JpaRepository<ChildSpendReq
     @Query("SELECT SUM(csr.amount) FROM ChildSpendRequest csr " +
            "WHERE csr.walletId = :walletId AND csr.status = 'APPROVED'")
     BigDecimal sumApprovedAmountByWalletId(@Param("walletId") UUID walletId);
+
+    @Query("SELECT csr FROM ChildSpendRequest csr " +
+           "WHERE csr.walletId = :walletId " +
+           "AND csr.createdAt >= :fromDateTime AND csr.createdAt <= :toDateTime " +
+           "ORDER BY csr.createdAt DESC")
+    List<ChildSpendRequest> findByWalletIdAndDateRange(
+            @Param("walletId") UUID walletId,
+            @Param("fromDateTime") java.time.Instant fromDateTime,
+            @Param("toDateTime") java.time.Instant toDateTime);
 }

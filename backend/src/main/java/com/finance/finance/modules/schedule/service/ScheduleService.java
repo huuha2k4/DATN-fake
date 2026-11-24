@@ -179,6 +179,17 @@ public class ScheduleService {
         return new PageImpl<>(responses, pageable, schedulesPage.getTotalElements());
     }
 
+    @Transactional(readOnly = true)
+    public Page<ScheduleListResponse> getUpcomingSchedules(UUID userId, LocalDate fromDate,
+                                                            LocalDate toDate, Pageable pageable) {
+        if (fromDate == null || toDate == null || toDate.isBefore(fromDate)) {
+            throw new IllegalArgumentException("Invalid upcoming schedule date range");
+        }
+        return scheduleRepository.findUpcomingByUserIdAndDateRange(
+                        userId, fromDate, toDate, ScheduleStatus.ACTIVE, pageable)
+                .map(this::mapToScheduleListResponse);
+    }
+
     /**
      * 3. Lấy chi tiết schedule
      */

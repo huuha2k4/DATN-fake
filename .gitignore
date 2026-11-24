@@ -14,10 +14,15 @@ web-build/
 
 # Java / Maven
 target/
+.m2/
 
 # IDE
 .vscode/
 .idea/
+
+# Local Android signing keys
+*.keystore
+*.jks
 
 # OS
 .DS_Store

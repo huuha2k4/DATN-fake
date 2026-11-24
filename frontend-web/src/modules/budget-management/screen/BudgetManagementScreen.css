@@ -20,7 +20,7 @@
   position: relative;
   background: #ffffff;
   border-radius: 20px;
-  border: 1px solid #e7ece8;
+  border: 1px solid #E2E8F0;
   padding: 20px;
   display: flex;
   flex-direction: column;
@@ -33,13 +33,13 @@
 .budget-stat-card:hover {
   transform: translateY(-2px);
   box-shadow: 0 10px 24px -6px rgba(18, 38, 30, 0.08);
-  border-color: #cbdad0;
+  border-color: #CBD5E1;
 }
 
 /* Card 4 Cảnh báo thông minh */
 .budget-hero-alert-card {
   position: relative;
-  background: linear-gradient(135deg, #053b2d 0%, #07543f 55%, #0b6c52 100%);
+  background: linear-gradient(135deg, #004D3B 0%, #007F53 55%, #009663 100%);
   border-radius: 20px;
   padding: 20px;
   display: flex;
@@ -57,7 +57,7 @@
   position: relative;
   background: #ffffff;
   border-radius: 20px;
-  border: 1px solid #e7ece8;
+  border: 1px solid #E2E8F0;
   padding: 16px 20px;
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.03);
   transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
@@ -73,31 +73,31 @@
 /* --- DARK MODE STYLES --- */
 /* 1. Nền màn hình chính & Khung card */
 html.dark .budget-management-page {
-  background-color: #081622 !important;
+  background-color: #0B0F19 !important;
   color: #cbd5e1 !important;
 }
 
 html.dark .budget-stat-card,
 html.dark .budget-item-card {
-  background-color: #0e2333 !important;
-  border-color: #173852 !important;
+  background-color: #111827 !important;
+  border-color: #1E293B !important;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4) !important;
 }
 
 html.dark .budget-item-card:hover {
-  background-color: #0e1f2d !important;
-  border-color: #1a3c54 !important;
+  background-color: #111827 !important;
+  border-color: #1E293B !important;
   box-shadow: 0 10px 28px rgba(0, 0, 0, 0.5) !important;
 }
 
 /* 2. Tiêu đề và nhãn */
 html.dark .budget-management-page h2 {
-  color: #9cb1c1 !important;
+  color: #94A3B8 !important;
 }
 
 html.dark .budget-stat-card p.text-2xl:not(.budget-spent-amount):not(.budget-remaining-amount),
 html.dark .budget-item-card .budget-item-title {
-  color: #e2eaf0 !important;
+  color: #F8FAFC !important;
 }
 
 html.dark .budget-spent-amount {
@@ -116,7 +116,7 @@ html.dark .budget-stat-card p.text-\[\#718078\],
 html.dark .budget-item-card .budget-item-sub,
 html.dark .budget-item-card .budget-item-rem,
 html.dark .budget-management-page p.text-\[\#718078\] {
-  color: #8da4b4 !important;
+  color: #94A3B8 !important;
 }
 
 
@@ -166,13 +166,13 @@ html.dark .budget-val-over {
 
 /* 5. Khung thanh tiến độ ProgressBar */
 html.dark .budget-progress-track {
-  background-color: #102332 !important;
+  background-color: #1F2937 !important;
 }
 
 /* 6. Cụm bộ lọc Filter & Chọn tháng */
 html.dark .budget-filter-box {
-  background-color: #0c1c28 !important;
-  border: 1px solid #162f42 !important;
+  background-color: #111827 !important;
+  border: 1px solid #1E293B !important;
 }
 
 html.dark .budget-filter-box button.is-active {
@@ -182,28 +182,28 @@ html.dark .budget-filter-box button.is-active {
 }
 
 html.dark .budget-filter-box button:not(.is-active) {
-  color: #7b96a8 !important;
+  color: #94A3B8 !important;
 }
 
 html.dark .budget-filter-box button:not(.is-active):hover {
-  background-color: #122838 !important;
-  color: #e2eaf0 !important;
+  background-color: #1F2937 !important;
+  color: #F8FAFC !important;
 }
 
 html.dark .budget-month-selector {
-  background-color: #0c1c28 !important;
-  border-color: #162f42 !important;
-  color: #9cb1c1 !important;
+  background-color: #111827 !important;
+  border-color: #1E293B !important;
+  color: #94A3B8 !important;
 }
 
 html.dark .budget-month-selector select {
-  background-color: #0c1c28 !important;
-  color: #d8e5ee !important;
+  background-color: #111827 !important;
+  color: #F8FAFC !important;
 }
 
 html.dark .budget-month-selector select option {
-  background-color: #0c1c28;
-  color: #d8e5ee;
+  background-color: #111827;
+  color: #F8FAFC;
 }
 
 /* 7. Nút Thêm ngân sách */
@@ -240,15 +240,15 @@ html.dark .budget-badge-over {
 
 /* 9. Modal / Dialog */
 html.dark .budget-modal-card {
-  background-color: #0b1d2a !important;
-  border-color: #16364a !important;
+  background-color: #111827 !important;
+  border-color: #1E293B !important;
   color: #cbd5e1 !important;
 }
 
 html.dark .budget-modal-card input,
 html.dark .budget-modal-card select {
-  background-color: #071520 !important;
-  border-color: #16364a !important;
+  background-color: #0B0F19 !important;
+  border-color: #1E293B !important;
   color: #cbd5e1 !important;
 }
 
@@ -258,8 +258,8 @@ html.dark .budget-modal-card select:focus {
 }
 
 html.dark .budget-modal-card .budget-detail-summary-box {
-  background-color: #071520 !important;
-  border-color: #132a3a !important;
+  background-color: #0B0F19 !important;
+  border-color: #1F2937 !important;
 }
 
 /* 10. Nút Xóa & Sửa trong Modal (tránh chói mắt trong dark mode) */
@@ -288,13 +288,13 @@ html.dark .btn-budget-edit:hover {
 }
 
 html.dark .btn-budget-close {
-  background-color: #122838 !important;
-  border: 1px solid #1a3c54 !important;
+  background-color: #1F2937 !important;
+  border: 1px solid #1E293B !important;
   color: #cbd5e1 !important;
 }
 
 html.dark .btn-budget-close:hover {
-  background-color: #18354b !important;
+  background-color: #1E293B !important;
   color: #ffffff !important;
 }
 

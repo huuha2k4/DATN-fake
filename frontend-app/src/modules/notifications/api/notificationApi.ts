@@ -30,7 +30,7 @@ export const notificationApi = {
   async getNotifications(params?: NotificationFilterParams): Promise<AppNotification[]> {
     try {
       const token = await authStorage.getToken();
-      if (!token) return getMockNotifications();
+      if (!token) return [];
 
       const queryParams = new URLSearchParams();
       if (params?.isRead !== undefined) queryParams.append('is_read', String(params.isRead));
@@ -48,13 +48,13 @@ export const notificationApi = {
       });
 
       if (!res.ok) {
-        return await buildFallbackNotificationsWithRealWeeklyReport(token);
+        return [];
       }
 
       const json = await res.json();
       const list = json?.data?.notifications || json?.data || [];
       if (!Array.isArray(list) || list.length === 0) {
-        return await buildFallbackNotificationsWithRealWeeklyReport(token);
+        return [];
       }
 
       const mapped: AppNotification[] = list.map((item: any) => ({
@@ -72,23 +72,9 @@ export const notificationApi = {
         readAt: item.readAt || item.read_at,
       }));
 
-      // Nếu danh sách từ server chưa có thông báo báo cáo tuần hoặc cần đồng bộ số liệu thật của tuần trước
-      const hasWeekly = mapped.some(
-        (n) =>
-          (n.type || '').toUpperCase().includes('WEEKLY') ||
-          (n.title || '').toLowerCase().includes('báo cáo tài chính tuần')
-      );
-      if (!hasWeekly) {
-        const dynamicWeekly = await buildDynamicWeeklyNotification(token);
-        if (dynamicWeekly) {
-          mapped.unshift(dynamicWeekly);
-        }
-      }
-
       return mapped;
     } catch (e) {
-      const token = await authStorage.getToken();
-      return await buildFallbackNotificationsWithRealWeeklyReport(token);
+      return [];
     }
   },
 
@@ -98,7 +84,7 @@ export const notificationApi = {
   async getUnreadCount(): Promise<number> {
     try {
       const token = await authStorage.getToken();
-      if (!token) return 3;
+      if (!token) return 0;
 
       const res = await fetch(`${API_BASE_URL}/notifications/unread-count`, {
         headers: {
@@ -113,7 +99,7 @@ export const notificationApi = {
     } catch (e) {
       // ignore
     }
-    return 3;
+    return 0;
   },
 
   /**
@@ -316,117 +302,5 @@ async function buildFallbackNotificationsWithRealWeeklyReport(token?: string | n
 }
 
 function getMockNotifications(): AppNotification[] {
-  const now = new Date();
-  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-
-  return [
-    // --- HÔM NAY ---
-    {
-      id: 'mock-req-0',
-      type: 'KID_SPEND_REQUEST',
-      priority: 'HIGH',
-      title: 'Bé gửi yêu cầu xin tiền',
-      body: 'Bé Nam đã gửi yêu cầu xin tiền "Mua bút chì và tập vở mới" 45.000 đ. Nhấn để duyệt ngay.',
-      actionUrl: '/groups?tab=CHILD_WALLETS&modal=SPEND_REQUESTS',
-      actionText: 'Duyệt yêu cầu ngay',
-      isRead: false,
-      createdAt: new Date(today.getTime() + 9 * 3600000 + 15 * 60000).toISOString(), // 09:15
-      data: { tab: 'KIDS', subTab: 'REQUESTS' },
-    },
-    {
-      id: 'mock-0',
-      type: 'CHORE_COMPLETED',
-      priority: 'HIGH',
-      title: 'Bé hoàn thành nhiệm vụ',
-      body: 'Bé Nam đã hoàn thành nhiệm vụ "Rửa bát sau bữa tối". Nhấn để duyệt thưởng 20.000 đ.',
-      actionUrl: '/groups?tab=CHILD_WALLETS&modal=CHORES',
-      actionText: 'Duyệt nhiệm vụ & Thưởng',
-      isRead: false,
-      createdAt: new Date(today.getTime() + 9 * 3600000).toISOString(), // 09:00
-      data: { tab: 'KIDS', subTab: 'CHORES' },
-    },
-    {
-      id: 'mock-1',
-      type: 'GROUP_FUND_DEPOSIT',
-      priority: 'MEDIUM',
-      title: 'Thành viên đã nộp quỹ',
-      body: 'Nguyễn Văn Nam đã nộp 100.000 đ vào quỹ "Đại gia đình".',
-      actionUrl: '/groups?tab=BALANCES',
-      actionText: 'Xem quỹ nhóm',
-      isRead: false,
-      createdAt: new Date(today.getTime() + 8 * 3600000 + 45 * 60000).toISOString(), // 08:45
-      data: { tab: 'BALANCES' },
-    },
-    {
-      id: 'mock-2',
-      type: 'TRANSACTION_NEW',
-      priority: 'MEDIUM',
-      title: 'Giao dịch mới',
-      body: 'Đã thêm giao dịch "Ăn cơm tối" - 100.000 đ.',
-      actionUrl: '/transactions',
-      actionText: 'Xem giao dịch',
-      isRead: false,
-      createdAt: new Date(today.getTime() + 8 * 3600000 + 20 * 60000).toISOString(), // 08:20
-    },
-    {
-      id: 'mock-3',
-      type: 'GROUP_MEMBER_JOIN',
-      priority: 'LOW',
-      title: 'Thành viên mới',
-      body: 'Trần Thị Linh đã tham gia nhóm "Đại gia đình".',
-      actionUrl: '/groups?tab=MEMBERS',
-      actionText: 'Xem thành viên',
-      isRead: false,
-      createdAt: new Date(today.getTime() + 7 * 3600000 + 55 * 60000).toISOString(), // 07:55
-    },
-
-    // --- HÔM QUA ---
-    {
-      id: 'mock-4',
-      type: 'FUND_REMINDER',
-      priority: 'HIGH',
-      title: 'Nhắc nhở nộp quỹ',
-      body: 'Đã đến hạn nộp quỹ tháng 11. Vui lòng hoàn thành trước 23:59.',
-      actionUrl: '/schedules',
-      actionText: 'Xem lịch tài chính',
-      isRead: true,
-      createdAt: new Date(today.getTime() - 86400000 + 20 * 3600000).toISOString(), // 20:00 hôm qua
-    },
-    {
-      id: 'mock-5',
-      type: 'GROUP_EXPENSE_SUMMARY',
-      priority: 'MEDIUM',
-      title: 'Cập nhật chi tiêu nhóm',
-      body: 'Tổng chi nhóm hôm nay: 120.000 đ (vượt 20% so với trung bình).',
-      actionUrl: '/groups?tab=EXPENSES',
-      actionText: 'Xem chi tiêu nhóm',
-      isRead: true,
-      createdAt: new Date(today.getTime() - 86400000 + 18 * 3600000 + 30 * 60000).toISOString(), // 18:30 hôm qua
-    },
-
-    // --- TRƯỚC ĐÓ ---
-    {
-      id: 'mock-6',
-      type: 'WEEKLY_REPORT',
-      priority: 'MEDIUM',
-      title: '📊 Báo cáo tài chính tuần của bạn đã sẵn sàng!',
-      body: 'Tuần qua bạn đã chi 1.250.000đ, giảm 12% so với tuần trước. Xem ngay báo cáo nhé!',
-      actionUrl: '/reports?period=last_week',
-      actionText: 'Xem ngay',
-      data: { periodPreset: 'LAST_WEEK' },
-      isRead: false,
-      createdAt: new Date(today.getTime() - 86400000 * 2 + 8 * 3600000).toISOString(), // 08:00 sáng Thứ 2
-    },
-    {
-      id: 'mock-7',
-      type: 'SYSTEM_FEATURE',
-      priority: 'LOW',
-      title: 'Cập nhật tính năng mới',
-      body: 'Finora đã ra mắt tính năng "Mục tiêu nhóm". Khám phá ngay!',
-      actionUrl: '/goals',
-      actionText: 'Xem mục tiêu',
-      isRead: true,
-      createdAt: new Date(today.getTime() - 86400000 * 4).toISOString(), // 05/11
-    },
-  ];
+  return [];
 }

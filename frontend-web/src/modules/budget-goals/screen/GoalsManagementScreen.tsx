@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { FinanceIcon } from '../../core/components/FinanceIcon';
 import { ConfirmDeleteModal } from '../../core/components/ConfirmDeleteModal';
+import { DatePicker } from '../../core/components/DatePicker';
 import {
   goalApi,
   type GoalResponse,
@@ -651,8 +652,8 @@ export function GoalsManagementScreen({ onNotify }: Props) {
                 Tổng tiền đã tích lũy
               </p>
               <div className="flex items-center gap-2 mt-0.5">
-                <span className="text-xl sm:text-2xl font-black text-[#006747] dark:text-emerald-400 tracking-tight">
-                  {totalAccumulated.toLocaleString('vi-VN')} <span className="text-sm font-bold text-[#006747] dark:text-emerald-400">đ</span>
+                <span className="text-xl sm:text-2xl font-black text-[#007F53] dark:text-emerald-400 tracking-tight">
+                  {totalAccumulated.toLocaleString('vi-VN')} <span className="text-sm font-bold text-[#007F53] dark:text-emerald-400">đ</span>
                 </span>
                 {totalTargetAmount > 0 ? (
                   <span className="inline-flex items-center gap-1 text-[11px] font-bold text-[#00a86b] bg-[#e6f9f0] dark:bg-emerald-950/60 dark:text-emerald-300 px-2 py-0.5 rounded-full shrink-0" title={`Đạt ${completionPercent}% so với tổng mục tiêu ${totalTargetAmount.toLocaleString('vi-VN')} đ`}>
@@ -717,7 +718,7 @@ export function GoalsManagementScreen({ onNotify }: Props) {
               <button
                 type="button"
                 onClick={() => setShowCreateGoalModal(true)}
-                className="inline-flex h-9 items-center justify-center gap-1.5 rounded-xl bg-[#006747] px-4 text-xs font-bold text-white shadow-xs hover:bg-[#005238] transition cursor-pointer"
+                className="inline-flex h-9 items-center justify-center gap-1.5 rounded-xl bg-[#007F53] px-4 text-xs font-bold text-white shadow-xs hover:bg-[#005238] transition cursor-pointer"
               >
                 <FinanceIcon name="plus" size={14} color="#FFFFFF" />
                 <span>Thêm mục tiêu</span>
@@ -732,7 +733,7 @@ export function GoalsManagementScreen({ onNotify }: Props) {
                 <button
                   type="button"
                   onClick={() => setShowCreateGoalModal(true)}
-                  className="px-3.5 py-1.5 bg-[#006747] text-white rounded-xl text-xs font-bold hover:bg-[#005238] transition cursor-pointer"
+                  className="px-3.5 py-1.5 bg-[#007F53] text-white rounded-xl text-xs font-bold hover:bg-[#005238] transition cursor-pointer"
                 >
                   + Thêm mục tiêu
                 </button>
@@ -785,13 +786,13 @@ export function GoalsManagementScreen({ onNotify }: Props) {
 
                         <div className="w-full h-2 rounded-full bg-gray-100 dark:bg-gray-800 overflow-hidden mb-2.5">
                           <div
-                            className="h-full bg-[#006747] dark:bg-emerald-500 rounded-full transition-all duration-500"
+                            className="h-full bg-[#007F53] dark:bg-emerald-500 rounded-full transition-all duration-500"
                             style={{ width: `${pct}%` }}
                           />
                         </div>
 
                         <div className="text-xs font-medium">
-                          <strong className="text-[#006747] dark:text-emerald-400 font-extrabold text-[13px]">
+                          <strong className="text-[#007F53] dark:text-emerald-400 font-extrabold text-[13px]">
                             {formatVND(current)}
                           </strong>
                           <span className="text-gray-400 mx-1">/</span>
@@ -816,7 +817,7 @@ export function GoalsManagementScreen({ onNotify }: Props) {
               <button
                 type="button"
                 onClick={() => setShowCreateSavingModal(true)}
-                className="inline-flex h-9 items-center justify-center gap-1.5 rounded-xl bg-[#006747] px-4 text-xs font-bold text-white shadow-xs hover:bg-[#005238] transition cursor-pointer"
+                className="inline-flex h-9 items-center justify-center gap-1.5 rounded-xl bg-[#007F53] px-4 text-xs font-bold text-white shadow-xs hover:bg-[#005238] transition cursor-pointer"
               >
                 <FinanceIcon name="plus" size={14} color="#FFFFFF" />
                 <span>Thêm tiết kiệm</span>
@@ -831,7 +832,7 @@ export function GoalsManagementScreen({ onNotify }: Props) {
                 <button
                   type="button"
                   onClick={() => setShowCreateSavingModal(true)}
-                  className="px-3.5 py-1.5 bg-[#006747] text-white rounded-xl text-xs font-bold hover:bg-[#005238] transition cursor-pointer"
+                  className="px-3.5 py-1.5 bg-[#007F53] text-white rounded-xl text-xs font-bold hover:bg-[#005238] transition cursor-pointer"
                 >
                   + Thêm tiết kiệm
                 </button>
@@ -854,7 +855,7 @@ export function GoalsManagementScreen({ onNotify }: Props) {
 
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center justify-between gap-2 mb-1">
-                          <h4 className="text-sm font-bold text-gray-900 dark:text-white truncate group-hover:text-[#006747] transition">
+                          <h4 className="text-sm font-bold text-gray-900 dark:text-white truncate group-hover:text-[#007F53] transition">
                             {s.name}
                           </h4>
                           <FinanceIcon name="chevron-right" size={16} color="#94A3B8" />
@@ -864,7 +865,7 @@ export function GoalsManagementScreen({ onNotify }: Props) {
                           {s.description || 'Tiết kiệm tự do'}
                         </p>
 
-                        <p className="text-base font-extrabold text-[#006747] dark:text-emerald-400">
+                        <p className="text-base font-extrabold text-[#007F53] dark:text-emerald-400">
                           {formatVND(current)}
                         </p>
                       </div>
@@ -916,7 +917,7 @@ export function GoalsManagementScreen({ onNotify }: Props) {
                       key={t.value}
                       onClick={() => setGoalType(t.value)}
                       className={`p-2.5 rounded-xl border text-left cursor-pointer flex items-center gap-2.5 transition ${goalType === t.value
-                          ? 'border-[#006747] bg-emerald-50/50 dark:bg-emerald-950/40 text-[#006747] font-bold'
+                          ? 'border-[#007F53] bg-emerald-50/50 dark:bg-emerald-950/40 text-[#007F53] font-bold'
                           : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 text-gray-700 dark:text-gray-300'
                         }`}
                     >
@@ -959,11 +960,9 @@ export function GoalsManagementScreen({ onNotify }: Props) {
 
               <div>
                 <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">Hạn chót hoàn thành</label>
-                <input
-                  type="date"
+                <DatePicker
                   value={goalDeadline}
-                  onChange={(e) => setGoalDeadline(e.target.value)}
-                  className="w-full h-10 px-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-slate-800 text-xs text-gray-900 dark:text-white focus:outline-none focus:border-emerald-600"
+                  onChange={(val) => setGoalDeadline(val)}
                 />
               </div>
 
@@ -989,7 +988,7 @@ export function GoalsManagementScreen({ onNotify }: Props) {
                 <button
                   type="submit"
                   disabled={isSubmittingGoal}
-                  className="px-5 py-2 rounded-xl bg-[#006747] text-white text-xs font-bold hover:bg-[#005238] transition disabled:opacity-50 cursor-pointer shadow-sm"
+                  className="px-5 py-2 rounded-xl bg-[#007F53] text-white text-xs font-bold hover:bg-[#005238] transition disabled:opacity-50 cursor-pointer shadow-sm"
                 >
                   {isSubmittingGoal ? 'Đang tạo...' : 'Tạo mục tiêu'}
                 </button>
@@ -1038,7 +1037,7 @@ export function GoalsManagementScreen({ onNotify }: Props) {
                       key={t.value}
                       onClick={() => setSavingCategory(t.value)}
                       className={`p-2.5 rounded-xl border text-left cursor-pointer flex items-center gap-2.5 transition ${savingCategory === t.value
-                          ? 'border-[#006747] bg-emerald-50/50 dark:bg-emerald-950/40 text-[#006747] font-bold'
+                          ? 'border-[#007F53] bg-emerald-50/50 dark:bg-emerald-950/40 text-[#007F53] font-bold'
                           : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 text-gray-700 dark:text-gray-300'
                         }`}
                     >
@@ -1085,7 +1084,7 @@ export function GoalsManagementScreen({ onNotify }: Props) {
                 <button
                   type="submit"
                   disabled={isSubmittingSaving}
-                  className="px-5 py-2 rounded-xl bg-[#006747] text-white text-xs font-bold hover:bg-[#005238] transition disabled:opacity-50 cursor-pointer shadow-sm"
+                  className="px-5 py-2 rounded-xl bg-[#007F53] text-white text-xs font-bold hover:bg-[#005238] transition disabled:opacity-50 cursor-pointer shadow-sm"
                 >
                   {isSubmittingSaving ? 'Đang tạo...' : 'Lưu khoản tiết kiệm'}
                 </button>
@@ -1174,7 +1173,7 @@ export function GoalsManagementScreen({ onNotify }: Props) {
                           <p className="text-xs font-semibold text-gray-600 dark:text-gray-300 mb-1.5 flex items-center gap-1.5">
                             <span>Tổng số dư đang tích lũy</span>
                           </p>
-                          <p className="text-3xl font-black text-[#006747] dark:text-emerald-400 mb-3 tracking-tight">
+                          <p className="text-3xl font-black text-[#007F53] dark:text-emerald-400 mb-3 tracking-tight">
                             {formatVND(current)}
                           </p>
                           <p className="text-xs text-gray-500 dark:text-gray-400 leading-relaxed max-w-sm">
@@ -1184,7 +1183,7 @@ export function GoalsManagementScreen({ onNotify }: Props) {
 
                         <div className="flex flex-col items-end gap-2 shrink-0">
                           <span className="inline-flex items-center gap-1.5 text-xs font-bold text-emerald-700 bg-emerald-100/80 dark:bg-emerald-900/50 dark:text-emerald-300 px-3 py-1 rounded-full">
-                            <FinanceIcon name="bell" size={13} color="#006747" />
+                            <FinanceIcon name="bell" size={13} color="#007F53" />
                             Đang tích lũy
                           </span>
                           <img
@@ -1217,7 +1216,7 @@ export function GoalsManagementScreen({ onNotify }: Props) {
                               <path
                                 d="M 35.4 114.6 A 56 56 0 1 1 114.6 114.6"
                                 fill="none"
-                                stroke="#006747"
+                                stroke="#007F53"
                                 strokeWidth={11}
                                 strokeLinecap="round"
                                 strokeDasharray={`${totalArcLen}`}
@@ -1235,7 +1234,7 @@ export function GoalsManagementScreen({ onNotify }: Props) {
                               className="size-7 object-contain mb-1"
                               onError={(e) => { (e.target as HTMLImageElement).src = '/saving_cat_free_3d.png'; }}
                             />
-                            <p className="text-sm font-extrabold text-[#006747] dark:text-emerald-400 leading-tight">{formatVND(current)}</p>
+                            <p className="text-sm font-extrabold text-[#007F53] dark:text-emerald-400 leading-tight">{formatVND(current)}</p>
                             <p className="text-[11px] text-gray-400 font-medium">/{formatVND(target)}</p>
                           </div>
 
@@ -1250,13 +1249,13 @@ export function GoalsManagementScreen({ onNotify }: Props) {
                         {/* 3 Metric rows */}
                         <div className="flex-1 space-y-2.5">
                           {[
-                            { label: 'Mục tiêu', value: formatVND(target), icon: 'target' as const, color: '#006747', bold: false },
-                            { label: 'Đã tiết kiệm', value: formatVND(current), icon: 'wallet' as const, color: '#006747', bold: true },
+                            { label: 'Mục tiêu', value: formatVND(target), icon: 'target' as const, color: '#007F53', bold: false },
+                            { label: 'Đã tiết kiệm', value: formatVND(current), icon: 'wallet' as const, color: '#007F53', bold: true },
                             { label: 'Còn thiếu', value: formatVND(Math.max(0, target - current)), icon: 'trend' as const, color: '#DC2626', bold: true },
                           ].map((m) => (
                             <div key={m.label} className="flex items-center gap-3">
                               <div className="size-8 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 flex items-center justify-center shrink-0">
-                                <FinanceIcon name={m.icon} size={15} color="#006747" />
+                                <FinanceIcon name={m.icon} size={15} color="#007F53" />
                               </div>
                               <div>
                                 <p className="text-[11px] text-gray-500 dark:text-gray-400 leading-none mb-0.5">{m.label}</p>
@@ -1274,7 +1273,7 @@ export function GoalsManagementScreen({ onNotify }: Props) {
                         <div className="rounded-2xl border border-gray-100 dark:border-slate-800 bg-gray-50 dark:bg-slate-800/60 p-3">
                           <div className="flex items-center gap-2 mb-1">
                             <div className="size-7 rounded-lg bg-emerald-50 dark:bg-emerald-950/40 flex items-center justify-center">
-                              <FinanceIcon name="calendar" size={14} color="#006747" />
+                              <FinanceIcon name="calendar" size={14} color="#007F53" />
                             </div>
                             <span className="text-[11px] text-gray-500 dark:text-gray-400 font-medium">Hạn chót</span>
                           </div>
@@ -1288,7 +1287,7 @@ export function GoalsManagementScreen({ onNotify }: Props) {
                         <div className="rounded-2xl border border-gray-100 dark:border-slate-800 bg-gray-50 dark:bg-slate-800/60 p-3">
                           <div className="flex items-center gap-2 mb-1">
                             <div className="size-7 rounded-lg bg-emerald-50 dark:bg-emerald-950/40 flex items-center justify-center">
-                              <FinanceIcon name="layers" size={14} color="#006747" />
+                              <FinanceIcon name="layers" size={14} color="#007F53" />
                             </div>
                             <span className="text-[11px] text-gray-500 dark:text-gray-400 font-medium">Tần suất đóng góp</span>
                           </div>
@@ -1315,7 +1314,7 @@ export function GoalsManagementScreen({ onNotify }: Props) {
                       <button
                         type="button"
                         onClick={() => setShowDepositModal(true)}
-                        className="inline-flex items-center justify-center gap-1.5 py-3 rounded-xl bg-[#006747] text-white hover:bg-[#005238] text-sm font-bold transition cursor-pointer shadow-sm"
+                        className="inline-flex items-center justify-center gap-1.5 py-3 rounded-xl bg-[#007F53] text-white hover:bg-[#005238] text-sm font-bold transition cursor-pointer shadow-sm"
                       >
                         <FinanceIcon name="plus" size={15} color="#fff" />
                         Nạp thêm
@@ -1335,7 +1334,7 @@ export function GoalsManagementScreen({ onNotify }: Props) {
                         onClick={() => handleOpenEdit(activeGoal)}
                         className="inline-flex items-center justify-center gap-1.5 py-2.5 rounded-xl border border-emerald-200 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 hover:bg-emerald-100 text-xs font-bold transition cursor-pointer"
                       >
-                        <FinanceIcon name="edit" size={13} color="#006747" />
+                        <FinanceIcon name="edit" size={13} color="#007F53" />
                         Chỉnh sửa
                       </button>
                       <button
@@ -1353,7 +1352,7 @@ export function GoalsManagementScreen({ onNotify }: Props) {
                 {/* ── RIGHT: Lịch sử nạp & rút tiền ── */}
                 <div className="lg:border-l lg:border-gray-100 dark:lg:border-slate-800 lg:pl-6 mt-6 lg:mt-0">
                   <div className="flex items-center gap-2 mb-4">
-                    <FinanceIcon name="file-text" size={18} color="#006747" />
+                    <FinanceIcon name="file-text" size={18} color="#007F53" />
                     <h4 className="text-sm font-bold text-gray-900 dark:text-white">
                       Lịch sử nạp &amp; rút tiền ({historyItems.length})
                     </h4>
@@ -1366,7 +1365,7 @@ export function GoalsManagementScreen({ onNotify }: Props) {
                     current > 0 ? (
                       <div className="rounded-xl bg-emerald-50/60 dark:bg-emerald-950/30 border border-emerald-100 dark:border-emerald-800/40 p-3 flex items-center justify-between text-xs">
                         <div>
-                          <p className="font-bold text-[#006747]">+{formatVND(current)}</p>
+                          <p className="font-bold text-[#007F53]">+{formatVND(current)}</p>
                           <span className="text-[11px] text-gray-500">Số tiền tích lũy ban đầu</span>
                         </div>
                         <span className="text-[11px] font-semibold text-emerald-600">Khởi điểm ✓</span>
@@ -1423,7 +1422,7 @@ export function GoalsManagementScreen({ onNotify }: Props) {
                               <FinanceIcon
                                 name={isWd ? 'arrow-up' : 'arrow-down'}
                                 size={15}
-                                color={isWd ? '#DC2626' : '#006747'}
+                                color={isWd ? '#DC2626' : '#007F53'}
                               />
                             </div>
 
@@ -1528,7 +1527,7 @@ export function GoalsManagementScreen({ onNotify }: Props) {
                 <button
                   type="submit"
                   disabled={isSubmittingTx}
-                  className="px-5 py-2 rounded-xl bg-[#006747] text-white text-xs font-bold hover:bg-[#005238] transition disabled:opacity-50 cursor-pointer shadow-sm"
+                  className="px-5 py-2 rounded-xl bg-[#007F53] text-white text-xs font-bold hover:bg-[#005238] transition disabled:opacity-50 cursor-pointer shadow-sm"
                 >
                   {isSubmittingTx ? 'Đang nạp...' : 'Xác nhận nạp'}
                 </button>
@@ -1681,11 +1680,9 @@ export function GoalsManagementScreen({ onNotify }: Props) {
                     <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">
                       Hạn chót hoàn thành (Ngày kết thúc)
                     </label>
-                    <input
-                      type="date"
+                    <DatePicker
                       value={editTargetDate}
-                      onChange={(e) => setEditTargetDate(e.target.value)}
-                      className="w-full h-10 px-3.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-slate-800 text-xs text-gray-900 dark:text-white focus:outline-none focus:border-emerald-600"
+                      onChange={(val) => setEditTargetDate(val)}
                     />
                   </div>
                 </>
@@ -1715,7 +1712,7 @@ export function GoalsManagementScreen({ onNotify }: Props) {
                 <button
                   type="submit"
                   disabled={isSubmittingEdit}
-                  className="px-5 py-2 rounded-xl bg-[#006747] text-white text-xs font-bold hover:bg-[#005238] transition disabled:opacity-50 cursor-pointer shadow-sm"
+                  className="px-5 py-2 rounded-xl bg-[#007F53] text-white text-xs font-bold hover:bg-[#005238] transition disabled:opacity-50 cursor-pointer shadow-sm"
                 >
                   {isSubmittingEdit ? 'Đang lưu...' : 'Lưu thay đổi'}
                 </button>
@@ -1745,7 +1742,7 @@ export function GoalsManagementScreen({ onNotify }: Props) {
               <p className="text-xs font-medium text-gray-500 mb-1">
                 {selectedTxItem.type === 'withdraw' ? 'Số tiền đã rút' : 'Số tiền đã nộp'}
               </p>
-              <p className={`text-2xl font-black ${selectedTxItem.type === 'withdraw' ? 'text-rose-600' : 'text-[#006747] dark:text-emerald-400'}`}>
+              <p className={`text-2xl font-black ${selectedTxItem.type === 'withdraw' ? 'text-rose-600' : 'text-[#007F53] dark:text-emerald-400'}`}>
                 {selectedTxItem.type === 'withdraw' ? '-' : '+'}{formatVND(selectedTxItem.amount)}
               </p>
             </div>

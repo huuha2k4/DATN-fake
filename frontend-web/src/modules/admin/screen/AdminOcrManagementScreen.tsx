@@ -84,7 +84,7 @@ export const AdminOcrManagementScreen: React.FC = () => {
         {/* Card 1: TỔNG HÓA ĐƠN ĐÃ QUÉT */}
         <article className="overview-white-card">
           <div className="flex items-center justify-between">
-            <span className="text-[11px] font-bold tracking-wider text-[#63756b] dark:text-slate-400 uppercase">
+            <span className="text-[11px] font-bold tracking-wider text-[#64748B] dark:text-slate-400 uppercase">
               TỔNG HÓA ĐƠN QUÉT
             </span>
             <span className="icon-box-mint">
@@ -92,12 +92,12 @@ export const AdminOcrManagementScreen: React.FC = () => {
             </span>
           </div>
           <div className="my-2">
-            <div className="text-3xl sm:text-[34px] font-black text-[#14261e] dark:text-slate-100 tracking-tight">
+            <div className="text-3xl sm:text-[34px] font-black text-[#0F172A] dark:text-slate-100 tracking-tight">
               {data?.totalScanned.toLocaleString('vi-VN') || 0}
             </div>
           </div>
-          <div className="flex items-center gap-2 text-xs text-[#718078] dark:text-slate-400">
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-[#e8f7f0] dark:bg-emerald-950/60 px-2.5 py-0.5 text-[11px] font-bold text-[#07543f] dark:text-emerald-300">
+          <div className="flex items-center gap-2 text-xs text-[#64748B] dark:text-slate-400">
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-[#E6F4EA] dark:bg-emerald-950/60 px-2.5 py-0.5 text-[11px] font-bold text-[#007F53] dark:text-emerald-300">
               +{data?.scannedToday || 0} hôm nay
             </span>
             <span>· +{data?.scannedThisMonth || 0} tháng này</span>
@@ -107,7 +107,7 @@ export const AdminOcrManagementScreen: React.FC = () => {
         {/* Card 2: ĐỘ CHÍNH XÁC TRUNG BÌNH */}
         <article className="overview-white-card">
           <div className="flex items-center justify-between">
-            <span className="text-[11px] font-bold tracking-wider text-[#63756b] dark:text-slate-400 uppercase">
+            <span className="text-[11px] font-bold tracking-wider text-[#64748B] dark:text-slate-400 uppercase">
               ĐỘ TIN CẬY TRÍ TUỆ
             </span>
             <span className="icon-box-mint">
@@ -115,11 +115,11 @@ export const AdminOcrManagementScreen: React.FC = () => {
             </span>
           </div>
           <div className="my-2">
-            <div className="text-3xl sm:text-[34px] font-black text-[#07543f] dark:text-emerald-400 tracking-tight">
+            <div className="text-3xl sm:text-[34px] font-black text-[#007F53] dark:text-emerald-400 tracking-tight">
               {data ? `${Math.round((data.averageConfidence || 0.88) * 100)}%` : '0%'}
             </div>
           </div>
-          <div className="text-xs text-[#718078] dark:text-slate-400">
+          <div className="text-xs text-[#64748B] dark:text-slate-400">
             Tỷ lệ nhận diện đúng phân loại & nhà bán hàng
           </div>
         </article>
@@ -127,7 +127,7 @@ export const AdminOcrManagementScreen: React.FC = () => {
         {/* Card 3: CẦN NGƯỜI DÙNG XÁC NHẬN */}
         <article className="overview-white-card">
           <div className="flex items-center justify-between">
-            <span className="text-[11px] font-bold tracking-wider text-[#63756b] dark:text-slate-400 uppercase">
+            <span className="text-[11px] font-bold tracking-wider text-[#64748B] dark:text-slate-400 uppercase">
               CẦN KIỂM TRA LẠI
             </span>
             <span className="size-9 rounded-xl grid place-items-center bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300">
@@ -139,7 +139,7 @@ export const AdminOcrManagementScreen: React.FC = () => {
               {data?.needReviewCount.toLocaleString('vi-VN') || 0}
             </div>
           </div>
-          <div className="text-xs text-[#718078] dark:text-slate-400">
+          <div className="text-xs text-[#64748B] dark:text-slate-400">
             Hóa đơn mờ hoặc nghi vấn sai lệch
           </div>
         </article>
@@ -147,17 +147,17 @@ export const AdminOcrManagementScreen: React.FC = () => {
         {/* Card 4: TRẠNG THÁI OCR ENGINE */}
         <article className="overview-white-card">
           <div className="flex items-center justify-between">
-            <span className="text-[11px] font-bold tracking-wider text-[#63756b] dark:text-slate-400 uppercase">
+            <span className="text-[11px] font-bold tracking-wider text-[#64748B] dark:text-slate-400 uppercase">
               TRẠNG THÁI OCR CORE
             </span>
             <span className="size-2 rounded-full bg-[#10b981] animate-pulse" />
           </div>
           <div className="my-2">
-            <div className="text-2xl sm:text-[26px] font-black text-[#14261e] dark:text-slate-100 tracking-tight flex items-center gap-2">
+            <div className="text-2xl sm:text-[26px] font-black text-[#0F172A] dark:text-slate-100 tracking-tight flex items-center gap-2">
               <span>SẴN SÀNG</span>
             </div>
           </div>
-          <div className="text-xs text-[#718078] dark:text-slate-400">
+          <div className="text-xs text-[#64748B] dark:text-slate-400">
             Google Vision & FinAI Text Extraction
           </div>
         </article>
@@ -194,14 +194,14 @@ export const AdminOcrManagementScreen: React.FC = () => {
 
             <div className="h-10 px-3.5 rounded-xl bg-gray-100/80 dark:bg-slate-800 border border-gray-200/60 dark:border-slate-700 flex items-center justify-center shrink-0">
               <span className="text-xs text-gray-500 dark:text-slate-400">
-                Hiển thị: <strong className="text-[#07543f] dark:text-emerald-400 font-bold">{filteredReceipts.length}</strong>
+                Hiển thị: <strong className="text-[#007F53] dark:text-emerald-400 font-bold">{filteredReceipts.length}</strong>
               </span>
             </div>
 
             <button
               type="button"
               onClick={loadOcrData}
-              className="h-10 px-4 rounded-xl bg-[#07543f] hover:bg-[#064232] text-white text-xs font-bold transition shrink-0 cursor-pointer shadow-xs"
+              className="h-10 px-4 rounded-xl bg-[#007F53] hover:bg-[#004D3B] text-white text-xs font-bold transition shrink-0 cursor-pointer shadow-xs"
             >
               Làm mới
             </button>
@@ -214,7 +214,7 @@ export const AdminOcrManagementScreen: React.FC = () => {
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
-              <tr className="border-b border-[#edf2ee] dark:border-slate-800 bg-gray-50/70 dark:bg-slate-850/60 text-[11px] font-bold text-gray-500 dark:text-slate-400 uppercase tracking-wider">
+              <tr className="border-b border-[#E2E8F0] dark:border-slate-800 bg-gray-50/70 dark:bg-slate-850/60 text-[11px] font-bold text-gray-500 dark:text-slate-400 uppercase tracking-wider">
                 <th className="py-3.5 px-5">Hóa đơn quét (Merchant)</th>
                 <th className="py-3.5 px-4">Người tải lên</th>
                 <th className="py-3.5 px-4">Phân loại AI</th>
@@ -222,7 +222,7 @@ export const AdminOcrManagementScreen: React.FC = () => {
                 <th className="py-3.5 px-5 text-right">Thời gian quét</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-[#edf2ee] dark:divide-slate-800 text-xs">
+            <tbody className="divide-y divide-[#E2E8F0] dark:divide-slate-800 text-xs">
               {loading ? (
                 <tr>
                   <td colSpan={5} className="py-12 text-center text-gray-400">
@@ -254,7 +254,7 @@ export const AdminOcrManagementScreen: React.FC = () => {
                       {/* Cột 1: Quét hóa đơn gì (Tên nhà bán hàng / Dịch vụ) */}
                       <td className="py-3.5 px-5">
                         <div className="flex items-center gap-3">
-                          <span className="size-9 rounded-xl grid place-items-center shrink-0 bg-[#e8f7f0] dark:bg-emerald-950/60 text-[#07543f] dark:text-emerald-300">
+                          <span className="size-9 rounded-xl grid place-items-center shrink-0 bg-[#E6F4EA] dark:bg-emerald-950/60 text-[#007F53] dark:text-emerald-300">
                             <FinanceIcon name="receipt" size={18} />
                           </span>
                           <div>
@@ -322,7 +322,7 @@ export const AdminOcrManagementScreen: React.FC = () => {
 
         {/* Thanh phân trang Pagination */}
         {filteredReceipts.length > 0 && (
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-3 px-5 py-3 border-t border-[#edf2ee] dark:border-slate-800 bg-gray-50/50 dark:bg-slate-850/40 text-xs">
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-3 px-5 py-3 border-t border-[#E2E8F0] dark:border-slate-800 bg-gray-50/50 dark:bg-slate-850/40 text-xs">
             <span className="text-gray-500 dark:text-slate-400 text-[11px]">
               Hiển thị <strong className="text-gray-800 dark:text-slate-200 font-bold">{(currentPage - 1) * pageSize + 1} - {Math.min(currentPage * pageSize, filteredReceipts.length)}</strong> trên tổng số <strong className="text-gray-800 dark:text-slate-200 font-bold">{filteredReceipts.length}</strong> hóa đơn
             </span>
@@ -352,7 +352,7 @@ export const AdminOcrManagementScreen: React.FC = () => {
                           onClick={() => setCurrentPage(page)}
                           className={`size-8 rounded-lg text-xs font-bold transition cursor-pointer ${
                             currentPage === page
-                              ? 'bg-[#07543f] text-white shadow-xs'
+                              ? 'bg-[#007F53] text-white shadow-xs'
                               : 'border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-gray-700 dark:text-slate-300 hover:bg-gray-100 dark:hover:bg-slate-700'
                           }`}
                         >

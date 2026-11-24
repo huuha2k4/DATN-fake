@@ -58,7 +58,7 @@ export function ChildWalletScreen({ onNotify }: Props) {
       {/* Hàng 1: Thẻ ví chính & Các nút điều hướng nhanh */}
       <div className="grid gap-5 lg:grid-cols-12 items-stretch">
         {/* Thẻ Ví Của Em (7 cột) */}
-        <div className="lg:col-span-7 relative overflow-hidden rounded-3xl bg-gradient-to-br from-[#064232] via-[#07543f] to-[#0d7357] dark:from-[#04281e] dark:via-[#064232] dark:to-[#095843] p-6 text-white shadow-md flex flex-col justify-between min-h-[220px] border border-emerald-800/40 dark:border-emerald-700/30">
+        <div className="lg:col-span-7 relative overflow-hidden rounded-3xl bg-gradient-to-br from-[#004D3B] via-[#007F53] to-[#0d7357] dark:from-[#04281e] dark:via-[#064232] dark:to-[#095843] p-6 text-white shadow-md flex flex-col justify-between min-h-[220px] border border-emerald-800/40 dark:border-emerald-700/30">
           <div className="absolute -right-12 -top-12 size-44 rounded-full bg-white/10 dark:bg-emerald-400/10 blur-xl pointer-events-none" />
           <div className="absolute -left-12 -bottom-12 size-40 rounded-full bg-emerald-400/20 dark:bg-emerald-500/15 blur-lg pointer-events-none" />
 
@@ -180,17 +180,17 @@ export function ChildWalletScreen({ onNotify }: Props) {
       <section className="rounded-3xl border border-gray-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 shadow-xs flex flex-col">
         <div className="flex items-center justify-between pb-3 border-b border-gray-100 dark:border-slate-800">
           <div>
-            <h2 className="text-sm font-bold text-[#14261e] dark:text-slate-100 m-0">
+            <h2 className="text-sm font-bold text-[#0F172A] dark:text-slate-100 m-0">
               Hoạt động ví gần đây
             </h2>
-            <p className="text-[11px] text-[#718579] dark:text-slate-400 m-0 mt-0.5">
+            <p className="text-[11px] text-[#64748B] dark:text-slate-400 m-0 mt-0.5">
               Danh sách các khoản nạp, rút, thưởng nhiệm vụ và chi tiêu mua sắm của ví
             </p>
           </div>
           <button
             type="button"
             onClick={() => navigate('/transactions')}
-            className="text-xs font-bold text-[#07543f] dark:text-emerald-400 hover:underline cursor-pointer"
+            className="text-xs font-bold text-[#007F53] dark:text-emerald-400 hover:underline cursor-pointer"
           >
             Xem tất cả →
           </button>
@@ -260,7 +260,7 @@ export function ChildWalletScreen({ onNotify }: Props) {
               return (
                 <div
                   key={item.id}
-                  className="p-3.5 rounded-2xl bg-[#fafcfa] dark:bg-slate-800/80 border border-[#edf3ee] dark:border-slate-700/60 flex items-center justify-between gap-3 shadow-2xs hover:border-gray-300 dark:hover:border-slate-600 transition"
+                  className="p-3.5 rounded-2xl bg-[#F8FAFC] dark:bg-slate-800/80 border border-[#E2E8F0] dark:border-slate-700/60 flex items-center justify-between gap-3 shadow-2xs hover:border-gray-300 dark:hover:border-slate-600 transition"
                 >
                   <div className="flex items-center gap-3 min-w-0 flex-1">
                     <div
@@ -276,7 +276,7 @@ export function ChildWalletScreen({ onNotify }: Props) {
                       />
                     </div>
                     <div className="min-w-0 flex-1">
-                      <strong className="text-xs font-bold text-[#14261e] dark:text-slate-100 truncate block">
+                      <strong className="text-xs font-bold text-[#0F172A] dark:text-slate-100 truncate block">
                         {cleanTitle}
                       </strong>
                       <span className="text-[11px] text-gray-500 dark:text-slate-400 block mt-0.5">

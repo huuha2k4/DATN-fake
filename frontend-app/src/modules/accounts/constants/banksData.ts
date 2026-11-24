@@ -810,17 +810,32 @@ export function findBankOrWalletPreset(query?: string): BankOrWalletPreset | und
   const q = normalize(query);
   if (!q) return undefined;
 
-  return POPULAR_BANKS_AND_WALLETS.find((item) => {
-    const code = normalize(item.code);
-    const shortName = normalize(item.shortName);
-    const fullName = normalize(item.name);
+  // 1. Khớp chính xác hoàn toàn trước (Exact match)
+  const exact = POPULAR_BANKS_AND_WALLETS.find((item) => {
+    return normalize(item.code) === q || normalize(item.shortName) === q || normalize(item.name) === q;
+  });
+  if (exact) return exact;
 
-    return (
-      code === q ||
-      shortName === q ||
-      q.includes(shortName) ||
-      q.includes(code) ||
-      fullName.includes(q)
-    );
+  // 2. Khớp theo ranh giới từ (Word Boundary) để tránh trường hợp code ngắn như "MB" khớp nhầm trong "TECHCOMBANK"
+  const words = q.split(/[\s,._-]+/).filter(Boolean);
+
+  // 2a. Ưu tiên khớp theo tên viết tắt (shortName) nếu xuất hiện như một từ riêng biệt hoặc tiền tố
+  const byShortName = POPULAR_BANKS_AND_WALLETS.find((item) => {
+    const sn = normalize(item.shortName);
+    return words.includes(sn) || q.includes(sn);
+  });
+  if (byShortName) return byShortName;
+
+  // 2b. Khớp theo mã ngân hàng (code) nhưng BẮT BUỘC phải là từ độc lập (Word Boundary)
+  const byCode = POPULAR_BANKS_AND_WALLETS.find((item) => {
+    const c = normalize(item.code);
+    return words.includes(c);
+  });
+  if (byCode) return byCode;
+
+  // 2c. Cuối cùng mới kiểm tra tên đầy đủ (fullName)
+  return POPULAR_BANKS_AND_WALLETS.find((item) => {
+    const fullName = normalize(item.name);
+    return fullName.includes(q) || q.includes(fullName);
   });
 }

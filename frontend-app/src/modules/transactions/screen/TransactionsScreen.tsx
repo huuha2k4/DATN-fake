@@ -16,13 +16,15 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { FinanceIcon, resolveCategoryIconName } from '../../core/components/FinanceIcon';
+import { FinanceIcon, resolveCategoryIconName, type IconName } from '../../core/components/FinanceIcon';
+import { AppDateTimePicker } from '../../core/components/AppDateTimePicker';
 import {
   transactionApi,
   type CategoryItem,
   type TransactionType,
 } from '../../add-transaction/api/transactionApi';
 import { API_BASE_URL, authStorage } from '../../auth/api/authApi';
+import { finAiSyncEmitter } from '../../ai-assistant/api/finAiSyncEmitter';
 import { accountApi, type AccountItem, type AccountTypeCode } from '../../accounts/api/accountApi';
 import { findBankOrWalletPreset } from '../../accounts/constants/banksData';
 import { exportTransactionHistoryToExcel } from '../utils/exportTransactionHistoryHelper';
@@ -101,7 +103,7 @@ export function TransactionsScreen({ onBack, onAddTransaction }: Props) {
   const [editAmount, setEditAmount] = useState('');
   const [editDescription, setEditDescription] = useState('');
   const [editNote, setEditNote] = useState('');
-  const [editDate, setEditDate] = useState('');
+  const [editDateObj, setEditDateObj] = useState<Date | null>(new Date());
   const [editTime, setEditTime] = useState('');
   const [editCategoryId, setEditCategoryId] = useState('');
   const [editAccountId, setEditAccountId] = useState('');
@@ -151,15 +153,20 @@ export function TransactionsScreen({ onBack, onAddTransaction }: Props) {
     setEditAmount(new Intl.NumberFormat('vi-VN').format(tx.amount || 0));
     setEditDescription(tx.description || '');
     setEditNote(tx.note || tx.notes || '');
-    // Format YYYY-MM-DD -> DD/MM/YYYY cho dễ sửa
-    let formattedDate = tx.transactionDate || '';
-    if (formattedDate.includes('-')) {
-      const parts = formattedDate.split('-');
-      if (parts.length === 3) {
-        formattedDate = `${parts[2]}/${parts[1]}/${parts[0]}`;
+    // Tạo đối tượng Date cho AppDateTimePicker
+    let dateObj = new Date();
+    if (tx.transactionDate) {
+      try {
+        const timePart = tx.transactionTime ? tx.transactionTime.slice(0, 5) : '12:00';
+        const d = new Date(`${tx.transactionDate}T${timePart}:00`);
+        if (!isNaN(d.getTime())) {
+          dateObj = d;
+        }
+      } catch {
+        dateObj = new Date();
       }
     }
-    setEditDate(formattedDate);
+    setEditDateObj(dateObj);
     setEditTime(tx.transactionTime ? tx.transactionTime.slice(0, 5) : '12:00');
     setEditCategoryId(tx.category?.id || '');
     setEditAccountId(tx.accountId || '');
@@ -177,18 +184,16 @@ export function TransactionsScreen({ onBack, onAddTransaction }: Props) {
     }
 
     let isoDate = selectedTxDetail.transactionDate;
-    const cleanDate = editDate.trim();
-    if (cleanDate.includes('/')) {
-      const parts = cleanDate.split('/');
-      if (parts.length === 3) {
-        isoDate = `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
-      }
-    } else if (cleanDate.includes('-')) {
-      isoDate = cleanDate;
+    let formattedTime = selectedTxDetail.transactionTime;
+    if (editDateObj) {
+      const y = editDateObj.getFullYear();
+      const m = String(editDateObj.getMonth() + 1).padStart(2, '0');
+      const d = String(editDateObj.getDate()).padStart(2, '0');
+      const hh = String(editDateObj.getHours()).padStart(2, '0');
+      const mm = String(editDateObj.getMinutes()).padStart(2, '0');
+      isoDate = `${y}-${m}-${d}`;
+      formattedTime = `${hh}:${mm}:00`;
     }
-
-    const cleanTime = editTime.trim();
-    const formattedTime = cleanTime.length === 5 ? `${cleanTime}:00` : cleanTime || undefined;
 
     setEditSubmitting(true);
     try {
@@ -227,7 +232,7 @@ export function TransactionsScreen({ onBack, onAddTransaction }: Props) {
         note: editNote.trim(),
         notes: editNote.trim(),
         transactionDate: isoDate,
-        transactionTime: cleanTime.slice(0, 5),
+        transactionTime: formattedTime ? formattedTime.slice(0, 5) : editTime.slice(0, 5),
         accountId: editAccountId || selectedTxDetail.accountId,
         accountName: updatedAcc?.name || selectedTxDetail.accountName,
         toAccountId: editToAccountId || selectedTxDetail.toAccountId,
@@ -541,6 +546,11 @@ export function TransactionsScreen({ onBack, onAddTransaction }: Props) {
 
   useEffect(() => {
     fetchTransactions();
+    const unsubscribe = finAiSyncEmitter.subscribe(() => {
+      fetchTransactions(true);
+      reloadAccountsAndCategories();
+    });
+    return () => unsubscribe();
   }, [selectedMonth]);
 
   // Lọc giao dịch theo Tab, Tìm kiếm & Ví cụ thể
@@ -1206,7 +1216,11 @@ export function TransactionsScreen({ onBack, onAddTransaction }: Props) {
       {/* ── NÚT TẠO GIAO DỊCH MỚI NỔI NỔI BẬT GÓC DƯỚI ── */}
       <Pressable
         onPress={onAddTransaction}
-        style={({ pressed }) => [styles.floatingAddBtn, pressed && styles.floatingAddBtnPressed]}
+        style={({ pressed }) => [
+          styles.floatingAddBtn,
+          { bottom: Math.max(insets.bottom, 16) + 65 },
+          pressed && styles.floatingAddBtnPressed,
+        ]}
         accessibilityRole="button"
         accessibilityLabel="Thêm giao dịch mới"
       >
@@ -1836,56 +1850,20 @@ export function TransactionsScreen({ onBack, onAddTransaction }: Props) {
                         </View>
                       )}
 
-                      {/* Giờ trước - Ngày sau */}
-                      <View style={styles.editRowTwoCols}>
-                        <View style={[styles.editFieldGroup, { flex: 0.9 }]}>
-                          <Text
-                            style={[
-                              styles.editFieldLabel,
-                              isDark && { color: themeColors.textSecondary },
-                            ]}
-                          >
-                            GIỜ
-                          </Text>
-                          <TextInput
-                            value={editTime}
-                            onChangeText={setEditTime}
-                            placeholder="12:00"
-                            placeholderTextColor={isDark ? '#64748B' : '#94A3B8'}
-                            style={[
-                              styles.editTextInput,
-                              isDark && {
-                                backgroundColor: themeColors.surface,
-                                borderColor: themeColors.cardBorder,
-                                color: themeColors.textPrimary,
-                              },
-                            ]}
-                          />
-                        </View>
-                        <View style={[styles.editFieldGroup, { flex: 1.1 }]}>
-                          <Text
-                            style={[
-                              styles.editFieldLabel,
-                              isDark && { color: themeColors.textSecondary },
-                            ]}
-                          >
-                            NGÀY
-                          </Text>
-                          <TextInput
-                            value={editDate}
-                            onChangeText={setEditDate}
-                            placeholder="12/11/2026"
-                            placeholderTextColor={isDark ? '#64748B' : '#94A3B8'}
-                            style={[
-                              styles.editTextInput,
-                              isDark && {
-                                backgroundColor: themeColors.surface,
-                                borderColor: themeColors.cardBorder,
-                                color: themeColors.textPrimary,
-                              },
-                            ]}
-                          />
-                        </View>
+                      {/* Ngày & Giờ giao dịch */}
+                      <View style={{ marginBottom: 12 }}>
+                        <AppDateTimePicker
+                          value={editDateObj}
+                          onChange={(d) => {
+                            setEditDateObj(d);
+                            if (d) {
+                              const hh = String(d.getHours()).padStart(2, '0');
+                              const mm = String(d.getMinutes()).padStart(2, '0');
+                              setEditTime(`${hh}:${mm}`);
+                            }
+                          }}
+                          label="THỜI GIAN GIAO DỊCH"
+                        />
                       </View>
 
                       {/* Ghi chú */}
@@ -2266,13 +2244,13 @@ export function TransactionsScreen({ onBack, onAddTransaction }: Props) {
                 {editPickerType !== 'NONE' && (
                   <View
                     style={[
-                      StyleSheet.absoluteFillObject,
+                      StyleSheet.absoluteFill,
                       styles.pickerModalBackdrop,
                       { zIndex: 9999, elevation: 9999 },
                     ]}
                   >
                     <Pressable
-                      style={StyleSheet.absoluteFillObject}
+                      style={StyleSheet.absoluteFill}
                       onPress={() => setEditPickerType('NONE')}
                     />
                     <View
@@ -2953,11 +2931,10 @@ const styles = StyleSheet.create({
   },
   floatingAddBtn: {
     position: 'absolute',
-    right: 18,
-    bottom: 30,
+    right: 80,
     backgroundColor: '#00A86B',
     borderRadius: 24,
-    paddingHorizontal: 18,
+    paddingHorizontal: 16,
     paddingVertical: 12,
     flexDirection: 'row',
     alignItems: 'center',
@@ -2967,6 +2944,7 @@ const styles = StyleSheet.create({
     shadowRadius: 10,
     shadowOffset: { width: 0, height: 4 },
     elevation: 6,
+    zIndex: 9998,
   },
   floatingAddBtnPressed: {
     transform: [{ scale: 0.95 }],
@@ -3223,7 +3201,7 @@ const styles = StyleSheet.create({
     color: '#059669',
   },
   fullReceiptOverlay: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     zIndex: 999,
     elevation: 20,
     backgroundColor: 'rgba(15, 23, 42, 0.94)',

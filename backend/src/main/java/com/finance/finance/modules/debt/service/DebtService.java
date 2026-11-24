@@ -476,14 +476,15 @@ public class DebtService {
     }
 
     private LocalDate advancePaymentDate(LocalDate date, PaymentFrequency frequency) {
-        if (date == null || frequency == null) return date;
+        if (date == null) return date;
+        if (frequency == null) return date.plusMonths(1);
         return switch (frequency) {
             case WEEKLY -> date.plusWeeks(1);
             case BIWEEKLY -> date.plusWeeks(2);
             case MONTHLY -> date.plusMonths(1);
             case QUARTERLY -> date.plusMonths(3);
             case YEARLY -> date.plusYears(1);
-            case ONE_TIME -> date;
+            case ONE_TIME -> date.plusMonths(1);
         };
     }
 

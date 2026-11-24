@@ -1,6 +1,7 @@
 import { useEffect, useState, useMemo } from 'react';
 import { FinanceIcon, resolveCategoryIconName, type IconName } from '../../core/components/FinanceIcon';
 import { ConfirmDeleteModal } from '../../core/components/ConfirmDeleteModal';
+import { subscribeFinAiActionCompleted } from '../../core/utils/finaiSyncEvents';
 import { budgetApi, type BudgetResponse, type BudgetItemResponse } from '../api/budgetApi';
 import { transactionApi, type CategoryItem, type TransactionItem } from '../../cash-flow-management/api/transactionApi';
 import './BudgetManagementScreen.css';
@@ -8,7 +9,7 @@ import './BudgetManagementScreen.css';
 type Props = { onNotify: (message: string) => void };
 
 // Định dạng thanh tiến độ phần trăm
-function ProgressBar({ percent, color = 'bg-[#006c49]', height = 'h-2' }: { percent: number; color?: string; height?: string }) {
+function ProgressBar({ percent, color = 'bg-[#007F53]', height = 'h-2' }: { percent: number; color?: string; height?: string }) {
   const bounded = Math.min(100, Math.max(0, percent));
   return (
     <div className={`relative w-full ${height} overflow-hidden rounded-full bg-[#e2e8f0] budget-progress-track`} role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={bounded}>
@@ -132,6 +133,11 @@ export function BudgetManagementScreen({ onNotify }: Props) {
 
   useEffect(() => {
     loadCategories();
+    const unsubscribeFinAi = subscribeFinAiActionCompleted(() => {
+      loadBudgetForSelectedMonth();
+      loadCategories();
+    });
+    return () => unsubscribeFinAi();
   }, []);
 
   // Lấy các item con (các ngân sách nhỏ của từng danh mục)
@@ -308,7 +314,7 @@ export function BudgetManagementScreen({ onNotify }: Props) {
     return [
       { name: 'Chi tiêu thiết yếu (Ăn uống, nhà cửa, xăng xe)', percent: 55, amount: Math.round(incomeNumber * 0.55), icon: 'home' as IconName, color: '#EF4444', group: 'Hũ 1: Thiết yếu (NEC - 55%)' },
       { name: 'Tiết kiệm dài hạn (Mua xe, mua nhà, dự phòng)', percent: 10, amount: Math.round(incomeNumber * 0.10), icon: 'coin-stack' as IconName, color: '#10B981', group: 'Hũ 2: Tiết kiệm dài hạn (LTSS - 10%)' },
-      { name: 'Tự do tài chính (Đầu tư, kinh doanh sinh lời)', percent: 10, amount: Math.round(incomeNumber * 0.10), icon: 'chart' as IconName, color: '#047857', group: 'Hũ 3: Tự do tài chính (FFA - 10%)' },
+      { name: 'Tự do tài chính (Đầu tư, kinh doanh sinh lời)', percent: 10, amount: Math.round(incomeNumber * 0.10), icon: 'chart' as IconName, color: '#007F53', group: 'Hũ 3: Tự do tài chính (FFA - 10%)' },
       { name: 'Giáo dục & Học tập (Sách vở, khóa học, kỹ năng)', percent: 10, amount: Math.round(incomeNumber * 0.10), icon: 'book' as IconName, color: '#0EA5E9', group: 'Hũ 4: Giáo dục (EDUC - 10%)' },
       { name: 'Hưởng thụ cá nhân (Mua sắm, ăn ngon, du lịch)', percent: 10, amount: Math.round(incomeNumber * 0.10), icon: 'shopping-bag' as IconName, color: '#8B5CF6', group: 'Hũ 5: Hưởng thụ (PLAY - 10%)' },
       { name: 'Cho đi & Từ thiện (Quà tặng, giúp đỡ gia đình)', percent: 5, amount: Math.round(incomeNumber * 0.05), icon: 'gift' as IconName, color: '#F59E0B', group: 'Hũ 6: Cho đi (GIVE - 5%)' },
@@ -505,39 +511,39 @@ export function BudgetManagementScreen({ onNotify }: Props) {
     if (name.includes('sức khỏe') || name.includes('y tế') || name.includes('thuốc')) {
       return { color: '#ef4444', bgLight: '#fee2e2', bgDark: '#450a0a', border: '#991b1b' }; // Đỏ
     }
-    return { color: '#10b981', bgLight: '#d1fae5', bgDark: '#064e3b', border: '#047857' }; // Xanh ngọc
+    return { color: '#10b981', bgLight: '#d1fae5', bgDark: '#064e3b', border: '#007F53' }; // Xanh ngọc
   };
 
   return (
-    <main className="budget-management-page mx-auto flex min-h-[calc(100vh-64px)] w-full max-w-[1560px] flex-col gap-6 bg-[#f6f8f6] px-3 pb-24 pt-4 text-[#14251f] sm:gap-6 sm:px-[22px] lg:px-[34px] lg:pb-10 lg:pt-6" aria-label="Quản lý ngân sách">
+    <main className="budget-management-page mx-auto flex min-h-[calc(100vh-64px)] w-full max-w-[1560px] flex-col gap-6 bg-[#F8FAFC] px-3 pb-24 pt-4 text-[#0F172A] sm:gap-6 sm:px-[22px] lg:px-[34px] lg:pb-10 lg:pt-6" aria-label="Quản lý ngân sách">
 
       {/* 4 Cards thống kê tổng quan của tháng đang chọn */}
       <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4" aria-label="Thống kê ngân sách">
         {/* Card 1: Tổng hạn mức tháng */}
-        <article className="budget-stat-card flex min-h-[135px] flex-col justify-between rounded-2xl border border-[#e7ece8] bg-white p-5 shadow-sm">
+        <article className="budget-stat-card flex min-h-[135px] flex-col justify-between rounded-2xl border border-[#E2E8F0] bg-white p-5 shadow-sm">
           <div className="flex items-start justify-between">
             <div>
-              <p className="text-[11px] font-bold uppercase tracking-wider text-[#718078]">Tổng Ngân Sách Tháng</p>
-              <p className="mt-1 text-2xl font-bold text-[#14251f]">
-                {totalBudgeted.toLocaleString('vi-VN')} <span className="text-sm font-normal text-[#718078]">đ</span>
+              <p className="text-[11px] font-bold uppercase tracking-wider text-[#64748B]">Tổng Ngân Sách Tháng</p>
+              <p className="mt-1 text-2xl font-bold text-[#0F172A]">
+                {totalBudgeted.toLocaleString('vi-VN')} <span className="text-sm font-normal text-[#64748B]">đ</span>
               </p>
             </div>
             <span className="grid size-11 place-items-center rounded-xl bg-[#eaf0fb] text-[#2563eb]">
               <FinanceIcon name="wallet" size={20} />
             </span>
           </div>
-          <p className="text-[11px] text-[#718078]">
-            Đã phân bổ cho <strong className="text-[#14251f]">{budgetItems.length}</strong> danh mục chi tiêu
+          <p className="text-[11px] text-[#64748B]">
+            Đã phân bổ cho <strong className="text-[#0F172A]">{budgetItems.length}</strong> danh mục chi tiêu
           </p>
         </article>
 
         {/* Card 2: Đã sử dụng thực tế */}
-        <article className="budget-stat-card flex min-h-[135px] flex-col justify-between rounded-2xl border border-[#e7ece8] bg-white p-5 shadow-sm">
+        <article className="budget-stat-card flex min-h-[135px] flex-col justify-between rounded-2xl border border-[#E2E8F0] bg-white p-5 shadow-sm">
           <div className="flex items-start justify-between">
             <div>
-              <p className="text-[11px] font-bold uppercase tracking-wider text-[#718078]">Đã Sử Dụng Thực Tế</p>
+              <p className="text-[11px] font-bold uppercase tracking-wider text-[#64748B]">Đã Sử Dụng Thực Tế</p>
               <p className="budget-spent-amount mt-1 text-2xl font-bold text-[#dc2626]">
-                {totalSpent.toLocaleString('vi-VN')} <span className="text-sm font-normal text-[#718078]">đ</span>
+                {totalSpent.toLocaleString('vi-VN')} <span className="text-sm font-normal text-[#64748B]">đ</span>
               </p>
             </div>
             <span className="grid size-11 place-items-center rounded-xl bg-[#fef2f2] text-[#dc2626]">
@@ -545,21 +551,21 @@ export function BudgetManagementScreen({ onNotify }: Props) {
             </span>
           </div>
           <div className="space-y-1">
-            <div className="flex justify-between text-[11px] text-[#718078]">
+            <div className="flex justify-between text-[11px] text-[#64748B]">
               <span>Tỷ lệ sử dụng</span>
               <span className="font-semibold text-[#dc2626]">{overallPercent}%</span>
             </div>
-            <ProgressBar percent={overallPercent} color={overallPercent > 100 ? 'bg-[#dc2626]' : overallPercent >= 80 ? 'bg-[#f59e0b]' : 'bg-[#006c49]'} />
+            <ProgressBar percent={overallPercent} color={overallPercent > 100 ? 'bg-[#dc2626]' : overallPercent >= 80 ? 'bg-[#f59e0b]' : 'bg-[#007F53]'} />
           </div>
         </article>
 
         {/* Card 3: Số dư khả dụng còn lại */}
-        <article className="budget-stat-card flex min-h-[135px] flex-col justify-between rounded-2xl border border-[#e7ece8] bg-white p-5 shadow-sm">
+        <article className="budget-stat-card flex min-h-[135px] flex-col justify-between rounded-2xl border border-[#E2E8F0] bg-white p-5 shadow-sm">
           <div className="flex items-start justify-between">
             <div>
-              <p className="text-[11px] font-bold uppercase tracking-wider text-[#718078]">Còn Lại Khả Dụng</p>
+              <p className="text-[11px] font-bold uppercase tracking-wider text-[#64748B]">Còn Lại Khả Dụng</p>
               <p className={`budget-remaining-amount mt-1 text-2xl font-bold ${totalRemaining >= 0 ? 'text-[#16a34a] is-safe' : 'text-[#dc2626] is-over'}`}>
-                {totalRemaining.toLocaleString('vi-VN')} <span className="text-sm font-normal text-[#718078]">đ</span>
+                {totalRemaining.toLocaleString('vi-VN')} <span className="text-sm font-normal text-[#64748B]">đ</span>
               </p>
             </div>
             <span className="grid size-11 place-items-center rounded-xl bg-[#f0fdf4] text-[#16a34a]">
@@ -572,7 +578,7 @@ export function BudgetManagementScreen({ onNotify }: Props) {
         </article>
 
         {/* Card 4: Trạng thái cảnh báo */}
-        <article className="budget-hero-alert-card flex min-h-[135px] flex-col justify-between rounded-2xl bg-gradient-to-br from-[#063d31] via-[#07543f] to-[#063d31] p-5 text-white shadow-sm">
+        <article className="budget-hero-alert-card flex min-h-[135px] flex-col justify-between rounded-2xl bg-gradient-to-br from-[#063d31] via-[#007F53] to-[#063d31] p-5 text-white shadow-sm">
           <div className="flex items-start justify-between">
             <div>
               <p className="text-[11px] font-bold uppercase tracking-wider text-[#a8ebca]">Cảnh Báo Thông Minh</p>
@@ -595,14 +601,14 @@ export function BudgetManagementScreen({ onNotify }: Props) {
         <div className="flex flex-col justify-between gap-3 md:flex-row md:items-center">
           {/* Trái: Tiêu đề gọn gàng giống App */}
           <div className="shrink-0">
-            <h2 className="text-base sm:text-lg font-bold text-[#14251f]">Ngân Sách Chi Tiêu</h2>
-            <p className="text-[11px] text-[#718078]">Định mức theo từng danh mục</p>
+            <h2 className="text-base sm:text-lg font-bold text-[#0F172A]">Ngân Sách Chi Tiêu</h2>
+            <p className="text-[11px] text-[#64748B]">Định mức theo từng danh mục</p>
           </div>
 
           {/* Phải: Cụm bộ lọc, Chọn tháng (ở giữa), Nút Thêm ngân sách */}
           <div className="flex flex-nowrap items-center gap-2 py-0.5">
             {/* Bộ lọc trạng thái kiểu pill xanh chuẩn theme */}
-            <div className="budget-filter-box inline-flex h-9 shrink-0 items-center rounded-xl bg-[#f0f5f2] p-1 gap-1">
+            <div className="budget-filter-box inline-flex h-9 shrink-0 items-center rounded-xl bg-[#F1F5F9] p-1 gap-1">
               {([
                 ['all', 'Tất cả'],
                 ['safe', 'An toàn'],
@@ -615,8 +621,8 @@ export function BudgetManagementScreen({ onNotify }: Props) {
                   onClick={() => setSelectedFilter(val)}
                   className={`h-full rounded-lg px-2.5 text-xs font-bold transition flex items-center justify-center whitespace-nowrap ${
                     selectedFilter === val
-                      ? 'is-active bg-[#07543f] text-white shadow-xs'
-                      : 'text-[#52665a] hover:text-[#07543f] hover:bg-[#e4ede7]'
+                      ? 'is-active bg-[#007F53] text-white shadow-xs'
+                      : 'text-[#475569] hover:text-[#007F53] hover:bg-[#e4ede7]'
                   }`}
                 >
                   {label}
@@ -629,18 +635,18 @@ export function BudgetManagementScreen({ onNotify }: Props) {
               <button
                 type="button"
                 onClick={() => setIsMonthDropdownOpen((prev) => !prev)}
-                className="flex h-9 items-center gap-2 rounded-xl border border-[#d2dcd5] bg-white px-3 text-xs font-bold text-[#14251f] shadow-xs hover:border-[#07543f] hover:bg-[#fafcfa] transition cursor-pointer"
+                className="flex h-9 items-center gap-2 rounded-xl border border-[#CBD5E1] bg-white px-3 text-xs font-bold text-[#0F172A] shadow-xs hover:border-[#007F53] hover:bg-[#F8FAFC] transition cursor-pointer"
                 aria-label="Chọn tháng quản lý ngân sách"
               >
-                <FinanceIcon name="calendar" size={14} color="#07543f" />
+                <FinanceIcon name="calendar" size={14} color="#007F53" />
                 <span>
                   Tháng {selectedMonth.split('-')[1]}/{selectedMonth.split('-')[0]}
                 </span>
                 <FinanceIcon
                   name="chevron-down"
                   size={13}
-                  className={`text-[#718078] transition-transform duration-200 ${
-                    isMonthDropdownOpen ? 'rotate-180 text-[#07543f]' : ''
+                  className={`text-[#64748B] transition-transform duration-200 ${
+                    isMonthDropdownOpen ? 'rotate-180 text-[#007F53]' : ''
                   }`}
                 />
               </button>
@@ -653,7 +659,7 @@ export function BudgetManagementScreen({ onNotify }: Props) {
                     onClick={() => setIsMonthDropdownOpen(false)}
                   />
                   <div className="absolute right-0 top-full mt-1.5 z-50 w-44 rounded-2xl border border-[#e2eae4] bg-white p-1.5 shadow-xl transition-all max-h-60 overflow-y-auto">
-                    <div className="px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-[#718078]">
+                    <div className="px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-[#64748B]">
                       Chọn kỳ ngân sách
                     </div>
                     {availableMonths.map((m) => {
@@ -668,14 +674,14 @@ export function BudgetManagementScreen({ onNotify }: Props) {
                           }}
                           className={`flex w-full items-center justify-between rounded-xl px-2.5 py-2 text-xs font-semibold transition cursor-pointer ${
                             isSelected
-                              ? 'bg-[#eef6f2] font-bold text-[#07543f]'
-                              : 'text-[#52665a] hover:bg-[#f1f5f2] hover:text-[#14251f]'
+                              ? 'bg-[#ECFDF5] font-bold text-[#007F53]'
+                              : 'text-[#475569] hover:bg-[#F1F5F9] hover:text-[#0F172A]'
                           }`}
                         >
                           <span>{m.label}</span>
                           {isSelected && (
-                            <span className="text-[#07543f]">
-                              <FinanceIcon name="check" size={13} color="#07543f" />
+                            <span className="text-[#007F53]">
+                              <FinanceIcon name="check" size={13} color="#007F53" />
                             </span>
                           )}
                         </button>
@@ -701,7 +707,7 @@ export function BudgetManagementScreen({ onNotify }: Props) {
             <button
               type="button"
               onClick={handleOpenAddModal}
-              className="btn-budget-add inline-flex h-9 shrink-0 items-center justify-center gap-1.5 rounded-xl bg-[#07543f] hover:bg-[#064232] px-3.5 text-xs font-bold text-white shadow-xs transition cursor-pointer whitespace-nowrap"
+              className="btn-budget-add inline-flex h-9 shrink-0 items-center justify-center gap-1.5 rounded-xl bg-[#007F53] hover:bg-[#004D3B] px-3.5 text-xs font-bold text-white shadow-xs transition cursor-pointer whitespace-nowrap"
             >
               <FinanceIcon name="plus" size={14} color="#FFFFFF" />
               <span>Thêm ngân sách</span>
@@ -711,17 +717,17 @@ export function BudgetManagementScreen({ onNotify }: Props) {
 
         {/* Danh sách các hạn mức ngân sách nhỏ của từng danh mục */}
         {isLoading ? (
-          <div className="grid place-items-center rounded-2xl border border-[#e7ece8] bg-white py-16 text-sm text-[#718078]">
-            <span className="inline-block size-6 animate-spin rounded-full border-2 border-[#07543f] border-t-transparent" />
+          <div className="grid place-items-center rounded-2xl border border-[#E2E8F0] bg-white py-16 text-sm text-[#64748B]">
+            <span className="inline-block size-6 animate-spin rounded-full border-2 border-[#007F53] border-t-transparent" />
             <p className="mt-2">Đang tải hạn mức ngân sách...</p>
           </div>
         ) : filteredItems.length === 0 ? (
           <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-[#cbd5e1] bg-white py-14 text-center">
-            <span className="grid size-12 place-items-center rounded-2xl bg-[#f1f5f2] text-[#718078]">
+            <span className="grid size-12 place-items-center rounded-2xl bg-[#F1F5F9] text-[#64748B]">
               <FinanceIcon name="wallet" size={24} />
             </span>
-            <p className="mt-3 text-sm font-semibold text-[#14251f]">Chưa có hạn mức ngân sách nào trong tháng này</p>
-            <p className="mt-1 text-xs text-[#718078]">Hãy bấm nút &quot;+ Thêm ngân sách&quot; để thiết lập hạn mức cho từng danh mục chi tiêu.</p>
+            <p className="mt-3 text-sm font-semibold text-[#0F172A]">Chưa có hạn mức ngân sách nào trong tháng này</p>
+            <p className="mt-1 text-xs text-[#64748B]">Hãy bấm nút &quot;+ Thêm ngân sách&quot; để thiết lập hạn mức cho từng danh mục chi tiêu.</p>
           </div>
         ) : (
           <div className="grid gap-3">
@@ -737,9 +743,9 @@ export function BudgetManagementScreen({ onNotify }: Props) {
 
               // Màu sắc trạng thái (chỉ hiện % gọn gàng)
               const statusLabel = `${pct}%`;
-              const statusBg = isOver ? 'bg-[#fee2e2] budget-badge-over' : isWarn ? 'bg-[#ffddb8] budget-badge-warn' : 'bg-[#e3f4e9] budget-badge-safe';
-              const statusColor = isOver ? 'text-[#991b1b]' : isWarn ? 'text-[#653e00]' : 'text-[#006c49]';
-              const progressColor = isOver ? 'bg-[#dc2626]' : isWarn ? 'bg-[#f49d0a]' : 'bg-[#006c49]';
+              const statusBg = isOver ? 'bg-[#fee2e2] budget-badge-over' : isWarn ? 'bg-[#ffddb8] budget-badge-warn' : 'bg-[#E6F4EA] budget-badge-safe';
+              const statusColor = isOver ? 'text-[#991b1b]' : isWarn ? 'text-[#653e00]' : 'text-[#007F53]';
+              const progressColor = isOver ? 'bg-[#dc2626]' : isWarn ? 'bg-[#f49d0a]' : 'bg-[#007F53]';
 
               const catTheme = getCategoryTheme(item);
 
@@ -747,7 +753,7 @@ export function BudgetManagementScreen({ onNotify }: Props) {
                 <div
                   key={item.id}
                   onClick={() => handleOpenDetail(item)}
-                  className="budget-item-card group flex w-full cursor-pointer flex-col items-start gap-3 rounded-2xl border border-[#e7ece8] bg-white p-4 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md hover:border-[#07543f]/40"
+                  className="budget-item-card group flex w-full cursor-pointer flex-col items-start gap-3 rounded-2xl border border-[#E2E8F0] bg-white p-4 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md hover:border-[#007F53]/40"
                 >
                   <div className="flex w-full items-center justify-between gap-3">
                     {/* Trái: Icon & Tên danh mục */}
@@ -765,10 +771,10 @@ export function BudgetManagementScreen({ onNotify }: Props) {
                         <FinanceIcon name={catIcon} size={20} />
                       </span>
                       <div className="min-w-0">
-                        <span className="budget-item-title block truncate text-sm font-semibold text-[#14251f] group-hover:text-[#07543f]">
+                        <span className="budget-item-title block truncate text-sm font-semibold text-[#0F172A] group-hover:text-[#007F53]">
                           {item.name || catName}
                         </span>
-                        <span className="budget-item-sub mt-0.5 block truncate text-xs text-[#718078]">
+                        <span className="budget-item-sub mt-0.5 block truncate text-xs text-[#64748B]">
                           {item.name && item.name !== catName && (
                             <span
                               className="budget-item-tag font-semibold mr-1.5"
@@ -787,7 +793,7 @@ export function BudgetManagementScreen({ onNotify }: Props) {
                       <span className={`inline-flex rounded-full px-2.5 py-0.5 text-[10px] font-bold ${statusBg} ${statusColor}`}>
                         {statusLabel}
                       </span>
-                      <span className="budget-item-rem mt-1 block text-xs text-[#718078]">
+                      <span className="budget-item-rem mt-1 block text-xs text-[#64748B]">
                         Còn lại: <strong className={rem >= 0 ? 'text-[#16a34a] budget-val-safe' : 'text-[#dc2626] budget-val-over'}>{rem.toLocaleString('vi-VN')} đ</strong>
                       </span>
                     </div>
@@ -807,15 +813,15 @@ export function BudgetManagementScreen({ onNotify }: Props) {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm" onClick={() => setIsAddModalOpen(false)}>
           <div className="budget-modal-card w-full max-w-xl rounded-2xl bg-white shadow-2xl overflow-hidden max-h-[92vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
             {/* Header */}
-            <div className="flex items-center justify-between border-b border-[#e7ece8] px-6 py-4">
+            <div className="flex items-center justify-between border-b border-[#E2E8F0] px-6 py-4">
               <div>
-                <h3 className="text-base font-bold text-[#14251f]">Thiết Lập Ngân Sách Danh Mục</h3>
-                <p className="text-xs text-[#718078]">Áp dụng cho kỳ: <strong className="text-[#07543f]">Tháng {selectedMonth.split('-')[1]}/{selectedMonth.split('-')[0]}</strong></p>
+                <h3 className="text-base font-bold text-[#0F172A]">Thiết Lập Ngân Sách Danh Mục</h3>
+                <p className="text-xs text-[#64748B]">Áp dụng cho kỳ: <strong className="text-[#007F53]">Tháng {selectedMonth.split('-')[1]}/{selectedMonth.split('-')[0]}</strong></p>
               </div>
               <button
                 type="button"
                 onClick={() => setIsAddModalOpen(false)}
-                className="grid size-8 place-items-center rounded-lg text-[#718078] hover:bg-[#f1f5f2] transition cursor-pointer"
+                className="grid size-8 place-items-center rounded-lg text-[#64748B] hover:bg-[#F1F5F9] transition cursor-pointer"
               >
                 ✕
               </button>
@@ -823,14 +829,14 @@ export function BudgetManagementScreen({ onNotify }: Props) {
 
             {/* Chuyển chế độ: Gộp danh mục vs Bảng cả tháng (giống App) */}
             <div className="px-6 pt-4 shrink-0">
-              <div className="grid grid-cols-2 p-1 bg-[#f0f5f2] rounded-xl gap-1">
+              <div className="grid grid-cols-2 p-1 bg-[#F1F5F9] rounded-xl gap-1">
                 <button
                   type="button"
                   onClick={() => setCreateMode('grouped')}
                   className={`py-2 text-xs font-bold rounded-lg transition cursor-pointer flex items-center justify-center gap-1.5 ${
                     createMode === 'grouped'
-                      ? 'bg-white text-[#07543f] shadow-xs'
-                      : 'text-[#52665a] hover:text-[#07543f]'
+                      ? 'bg-white text-[#007F53] shadow-xs'
+                      : 'text-[#475569] hover:text-[#007F53]'
                   }`}
                 >
                   <FinanceIcon name="tag" size={14} />
@@ -841,8 +847,8 @@ export function BudgetManagementScreen({ onNotify }: Props) {
                   onClick={() => setCreateMode('batch')}
                   className={`py-2 text-xs font-bold rounded-lg transition cursor-pointer flex items-center justify-center gap-1.5 ${
                     createMode === 'batch'
-                      ? 'bg-white text-[#07543f] shadow-xs'
-                      : 'text-[#52665a] hover:text-[#07543f]'
+                      ? 'bg-white text-[#007F53] shadow-xs'
+                      : 'text-[#475569] hover:text-[#007F53]'
                   }`}
                 >
                   <FinanceIcon name="chart" size={14} />
@@ -859,28 +865,28 @@ export function BudgetManagementScreen({ onNotify }: Props) {
                     {/* Chọn các danh mục */}
                     <div>
                       <div className="flex items-center justify-between mb-1.5">
-                        <label className="text-xs font-semibold text-[#14251f]">
+                        <label className="text-xs font-semibold text-[#0F172A]">
                           Chọn danh mục chi tiêu ({selectedCatIds.length} đã chọn) *
                         </label>
                         <div className="flex items-center gap-2">
                           <button
                             type="button"
                             onClick={handleSelectAllCategories}
-                            className="text-[11px] font-bold text-[#07543f] hover:underline cursor-pointer"
+                            className="text-[11px] font-bold text-[#007F53] hover:underline cursor-pointer"
                           >
                             Chọn tất cả
                           </button>
-                          <span className="text-[#d2dcd5]">|</span>
+                          <span className="text-[#CBD5E1]">|</span>
                           <button
                             type="button"
                             onClick={handleDeselectAllCategories}
-                            className="text-[11px] font-medium text-[#718078] hover:underline cursor-pointer"
+                            className="text-[11px] font-medium text-[#64748B] hover:underline cursor-pointer"
                           >
                             Bỏ chọn
                           </button>
                         </div>
                       </div>
-                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 max-h-56 overflow-y-auto p-2 bg-[#f8faf9] rounded-xl border border-[#e7ece8]">
+                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 max-h-56 overflow-y-auto p-2 bg-[#F8FAFC] rounded-xl border border-[#E2E8F0]">
                         {categories.map((cat) => {
                           const isSelected = selectedCatIds.includes(cat.id);
                           const iconName = getCategoryIcon(cat.icon, cat.name);
@@ -892,14 +898,14 @@ export function BudgetManagementScreen({ onNotify }: Props) {
                               onClick={() => handleToggleCategory(cat.id)}
                               className={`flex items-center gap-2 p-2 rounded-xl border text-left text-xs transition cursor-pointer select-none ${
                                 isSelected
-                                  ? 'border-[#07543f] bg-[#eef6f2] font-bold text-[#07543f] shadow-xs'
-                                  : 'border-[#e7ece8] bg-white text-[#52665a] hover:border-[#b4c8be] hover:bg-[#fafcfa]'
+                                  ? 'border-[#007F53] bg-[#ECFDF5] font-bold text-[#007F53] shadow-xs'
+                                  : 'border-[#E2E8F0] bg-white text-[#475569] hover:border-[#b4c8be] hover:bg-[#F8FAFC]'
                               }`}
                             >
                               <span
                                 className={`grid size-4 shrink-0 place-items-center rounded border transition-colors ${
                                   isSelected
-                                    ? 'border-[#07543f] bg-[#07543f] text-white'
+                                    ? 'border-[#007F53] bg-[#007F53] text-white'
                                     : 'border-[#cbd5e1] bg-white'
                                 }`}
                               >
@@ -921,25 +927,25 @@ export function BudgetManagementScreen({ onNotify }: Props) {
                           );
                         })}
                       </div>
-                      <p className="mt-1 text-[11px] text-[#718078]">Có thể chọn 1 hoặc nhiều danh mục để lập ngân sách chung.</p>
+                      <p className="mt-1 text-[11px] text-[#64748B]">Có thể chọn 1 hoặc nhiều danh mục để lập ngân sách chung.</p>
                     </div>
 
                     {/* Tên ngân sách */}
                     <div>
-                      <label className="block text-xs font-semibold text-[#14251f] mb-1">Tên ngân sách (tùy chọn)</label>
+                      <label className="block text-xs font-semibold text-[#0F172A] mb-1">Tên ngân sách (tùy chọn)</label>
                       <input
                         type="text"
                         placeholder="Ví dụ: Ăn uống & Cà phê"
                         value={newBudgetName}
                         onChange={(e) => setNewBudgetName(e.target.value)}
                         maxLength={100}
-                        className="w-full rounded-xl border border-[#d2dcd5] px-3.5 py-2.5 text-xs text-[#14251f] focus:border-[#07543f] focus:outline-none"
+                        className="w-full rounded-xl border border-[#CBD5E1] px-3.5 py-2.5 text-xs text-[#0F172A] focus:border-[#007F53] focus:outline-none"
                       />
                     </div>
 
                     {/* Số tiền hạn mức */}
                     <div>
-                      <label className="block text-xs font-semibold text-[#14251f] mb-1">Số tiền hạn mức (VND) *</label>
+                      <label className="block text-xs font-semibold text-[#0F172A] mb-1">Số tiền hạn mức (VND) *</label>
                       <input
                         type="text"
                         placeholder="Ví dụ: 2,500,000"
@@ -948,11 +954,11 @@ export function BudgetManagementScreen({ onNotify }: Props) {
                           const val = e.target.value.replace(/\D/g, '');
                           setNewAmount(val ? Number(val).toLocaleString('vi-VN') : '');
                         }}
-                        className="w-full rounded-xl border border-[#d2dcd5] px-3.5 py-2.5 text-xs text-[#14251f] focus:border-[#07543f] focus:outline-none"
+                        className="w-full rounded-xl border border-[#CBD5E1] px-3.5 py-2.5 text-xs text-[#0F172A] focus:border-[#007F53] focus:outline-none"
                         required
                       />
                       {selectedCatIds.length > 1 && newAmount && (
-                        <p className="mt-1 text-[11px] text-[#07543f]">
+                        <p className="mt-1 text-[11px] text-[#007F53]">
                           Phân bổ: ~{Math.round(Number(newAmount.replace(/\D/g, '')) / selectedCatIds.length).toLocaleString('vi-VN')} đ/danh mục
                         </p>
                       )}
@@ -960,23 +966,23 @@ export function BudgetManagementScreen({ onNotify }: Props) {
 
                     {/* Ngưỡng cảnh báo */}
                     <div>
-                      <label className="block text-xs font-semibold text-[#14251f] mb-1">Ngưỡng cảnh báo chi tiêu (%)</label>
+                      <label className="block text-xs font-semibold text-[#0F172A] mb-1">Ngưỡng cảnh báo chi tiêu (%)</label>
                       <input
                         type="number"
                         min="10"
                         max="100"
                         value={newThreshold}
                         onChange={(e) => setNewThreshold(e.target.value)}
-                        className="w-full rounded-xl border border-[#d2dcd5] px-3.5 py-2.5 text-xs text-[#14251f] focus:border-[#07543f] focus:outline-none"
+                        className="w-full rounded-xl border border-[#CBD5E1] px-3.5 py-2.5 text-xs text-[#0F172A] focus:border-[#007F53] focus:outline-none"
                       />
-                      <p className="mt-1 text-[11px] text-[#718078]">Hệ thống sẽ chuyển trạng thái sang &quot;Cần chú ý&quot; khi đạt đến ngưỡng này.</p>
+                      <p className="mt-1 text-[11px] text-[#64748B]">Hệ thống sẽ chuyển trạng thái sang &quot;Cần chú ý&quot; khi đạt đến ngưỡng này.</p>
                     </div>
                   </>
                 ) : (
                   <>
                     {/* Chế độ Bảng cả tháng */}
                     <div>
-                      <p className="text-xs text-[#718078] mb-3">
+                      <p className="text-xs text-[#64748B] mb-3">
                         Nhập trực tiếp số tiền hạn mức dự kiến cho từng danh mục chi tiêu của tháng này:
                       </p>
                       <div className="space-y-2 max-h-[360px] overflow-y-auto pr-1">
@@ -985,7 +991,7 @@ export function BudgetManagementScreen({ onNotify }: Props) {
                           const iconName = getCategoryIcon(cat.icon, cat.name);
                           const catTheme = getCategoryTheme(cat);
                           return (
-                            <div key={cat.id} className="flex items-center justify-between p-2.5 rounded-xl border border-[#e7ece8] hover:border-[#b4c8be] bg-white">
+                            <div key={cat.id} className="flex items-center justify-between p-2.5 rounded-xl border border-[#E2E8F0] hover:border-[#b4c8be] bg-white">
                               <div className="flex items-center gap-2.5 min-w-0 pr-2">
                                 <span
                                   className="grid size-8 shrink-0 place-items-center rounded-lg shadow-xs"
@@ -996,7 +1002,7 @@ export function BudgetManagementScreen({ onNotify }: Props) {
                                 >
                                   <FinanceIcon name={iconName} size={16} color={catTheme.color} />
                                 </span>
-                                <span className="text-xs font-semibold text-[#14251f] truncate">{cat.name}</span>
+                                <span className="text-xs font-semibold text-[#0F172A] truncate">{cat.name}</span>
                               </div>
                               <div className="w-40 shrink-0 relative flex items-center">
                                 <input
@@ -1010,9 +1016,9 @@ export function BudgetManagementScreen({ onNotify }: Props) {
                                       [cat.id]: raw ? Number(raw).toLocaleString('vi-VN') : '',
                                     }));
                                   }}
-                                  className="w-full h-9 rounded-lg border border-[#d2dcd5] pl-3 pr-7 text-right text-xs font-bold text-[#14251f] focus:border-[#07543f] focus:outline-none"
+                                  className="w-full h-9 rounded-lg border border-[#CBD5E1] pl-3 pr-7 text-right text-xs font-bold text-[#0F172A] focus:border-[#007F53] focus:outline-none"
                                 />
-                                <span className="absolute right-2.5 text-xs font-semibold text-[#718078] pointer-events-none select-none">
+                                <span className="absolute right-2.5 text-xs font-semibold text-[#64748B] pointer-events-none select-none">
                                   đ
                                 </span>
                               </div>
@@ -1020,7 +1026,7 @@ export function BudgetManagementScreen({ onNotify }: Props) {
                           );
                         })}
                       </div>
-                      <div className="mt-3 flex items-center justify-between p-3 rounded-xl bg-[#f0f5f2] text-xs font-bold text-[#07543f]">
+                      <div className="mt-3 flex items-center justify-between p-3 rounded-xl bg-[#F1F5F9] text-xs font-bold text-[#007F53]">
                         <span>Tổng ngân sách dự kiến:</span>
                         <span>{totalBatchAmount.toLocaleString('vi-VN')} đ</span>
                       </div>
@@ -1030,18 +1036,18 @@ export function BudgetManagementScreen({ onNotify }: Props) {
               </div>
 
               {/* Nút hành động dưới modal */}
-              <div className="flex items-center justify-end gap-2 px-6 py-4 border-t border-[#e7ece8] bg-[#fdfdfd] shrink-0">
+              <div className="flex items-center justify-end gap-2 px-6 py-4 border-t border-[#E2E8F0] bg-[#fdfdfd] shrink-0">
                 <button
                   type="button"
                   onClick={() => setIsAddModalOpen(false)}
-                  className="rounded-xl border border-[#d2dcd5] px-4 py-2 text-xs font-semibold text-[#53645a] hover:bg-[#f1f5f2] transition cursor-pointer"
+                  className="rounded-xl border border-[#CBD5E1] px-4 py-2 text-xs font-semibold text-[#53645a] hover:bg-[#F1F5F9] transition cursor-pointer"
                 >
                   Hủy
                 </button>
                 <button
                   type="submit"
                   disabled={isSubmitting}
-                  className="rounded-xl bg-[#07543f] px-5 py-2 text-xs font-semibold text-white hover:bg-[#064232] transition cursor-pointer disabled:opacity-50"
+                  className="rounded-xl bg-[#007F53] px-5 py-2 text-xs font-semibold text-white hover:bg-[#004D3B] transition cursor-pointer disabled:opacity-50"
                 >
                   {isSubmitting ? 'Đang lưu...' : 'Lưu ngân sách'}
                 </button>
@@ -1056,20 +1062,20 @@ export function BudgetManagementScreen({ onNotify }: Props) {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm" onClick={() => setIsTemplateModalOpen(false)}>
           <div className="budget-modal-card w-full max-w-lg rounded-2xl bg-white shadow-2xl overflow-hidden max-h-[92vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
             {/* Header */}
-            <div className="flex items-center justify-between border-b border-[#e7ece8] px-6 py-4">
+            <div className="flex items-center justify-between border-b border-[#E2E8F0] px-6 py-4">
               <div className="flex items-center gap-2.5">
                 <span className="grid size-9 place-items-center rounded-xl bg-sky-50 text-sky-600">
                   <FinanceIcon name="spark" size={18} color="#0284c7" />
                 </span>
                 <div>
-                  <h3 className="text-base font-bold text-[#14251f]">Mẫu Ngân Sách Thông Minh</h3>
-                  <p className="text-xs text-[#718078]">Phân bổ thu nhập theo phương pháp tài chính chuẩn quốc tế</p>
+                  <h3 className="text-base font-bold text-[#0F172A]">Mẫu Ngân Sách Thông Minh</h3>
+                  <p className="text-xs text-[#64748B]">Phân bổ thu nhập theo phương pháp tài chính chuẩn quốc tế</p>
                 </div>
               </div>
               <button
                 type="button"
                 onClick={() => setIsTemplateModalOpen(false)}
-                className="grid size-8 place-items-center rounded-lg text-[#718078] hover:bg-[#f1f5f2] transition cursor-pointer"
+                className="grid size-8 place-items-center rounded-lg text-[#64748B] hover:bg-[#F1F5F9] transition cursor-pointer"
               >
                 ✕
               </button>
@@ -1079,7 +1085,7 @@ export function BudgetManagementScreen({ onNotify }: Props) {
             <div className="overflow-y-auto px-6 py-4 space-y-4 flex-1">
               {/* Nhập thu nhập */}
               <div>
-                <label className="block text-xs font-semibold text-[#14251f] mb-1">Thu nhập ước tính tháng này (VND) *</label>
+                <label className="block text-xs font-semibold text-[#0F172A] mb-1">Thu nhập ước tính tháng này (VND) *</label>
                 <div className="relative">
                   <input
                     type="text"
@@ -1089,29 +1095,29 @@ export function BudgetManagementScreen({ onNotify }: Props) {
                       setTemplateIncome(raw ? Number(raw).toLocaleString('vi-VN') : '');
                     }}
                     placeholder="15,000,000"
-                    className="w-full rounded-xl border border-[#d2dcd5] px-3.5 py-2.5 text-sm font-bold text-[#07543f] focus:border-[#07543f] focus:outline-none"
+                    className="w-full rounded-xl border border-[#CBD5E1] px-3.5 py-2.5 text-sm font-bold text-[#007F53] focus:border-[#007F53] focus:outline-none"
                   />
-                  <span className="absolute right-3.5 top-2.5 text-xs text-[#718078]">VND</span>
+                  <span className="absolute right-3.5 top-2.5 text-xs text-[#64748B]">VND</span>
                 </div>
               </div>
 
               {/* Lựa chọn mô hình */}
               <div>
-                <label className="block text-xs font-semibold text-[#14251f] mb-2">Chọn phương pháp phân bổ</label>
+                <label className="block text-xs font-semibold text-[#0F172A] mb-2">Chọn phương pháp phân bổ</label>
                 <div className="grid grid-cols-2 gap-2.5">
                   <button
                     type="button"
                     onClick={() => setSelectedTemplateKey('50_30_20')}
                     className={`p-3 rounded-xl border text-left transition cursor-pointer ${
                       selectedTemplateKey === '50_30_20'
-                        ? 'border-[#07543f] bg-[#eef6f2] shadow-xs'
-                        : 'border-[#e7ece8] bg-white hover:border-[#b4c8be]'
+                        ? 'border-[#007F53] bg-[#ECFDF5] shadow-xs'
+                        : 'border-[#E2E8F0] bg-white hover:border-[#b4c8be]'
                     }`}
                   >
-                    <p className={`text-xs font-bold ${selectedTemplateKey === '50_30_20' ? 'text-[#07543f]' : 'text-[#14251f]'}`}>
+                    <p className={`text-xs font-bold ${selectedTemplateKey === '50_30_20' ? 'text-[#007F53]' : 'text-[#0F172A]'}`}>
                       Quy tắc 50/30/20
                     </p>
-                    <p className="mt-1 text-[11px] text-[#718078]">50% Thiết yếu • 30% Mong muốn • 20% Tiết kiệm</p>
+                    <p className="mt-1 text-[11px] text-[#64748B]">50% Thiết yếu • 30% Mong muốn • 20% Tiết kiệm</p>
                   </button>
 
                   <button
@@ -1119,24 +1125,24 @@ export function BudgetManagementScreen({ onNotify }: Props) {
                     onClick={() => setSelectedTemplateKey('6_JARS')}
                     className={`p-3 rounded-xl border text-left transition cursor-pointer ${
                       selectedTemplateKey === '6_JARS'
-                        ? 'border-[#07543f] bg-[#eef6f2] shadow-xs'
-                        : 'border-[#e7ece8] bg-white hover:border-[#b4c8be]'
+                        ? 'border-[#007F53] bg-[#ECFDF5] shadow-xs'
+                        : 'border-[#E2E8F0] bg-white hover:border-[#b4c8be]'
                     }`}
                   >
-                    <p className={`text-xs font-bold ${selectedTemplateKey === '6_JARS' ? 'text-[#07543f]' : 'text-[#14251f]'}`}>
+                    <p className={`text-xs font-bold ${selectedTemplateKey === '6_JARS' ? 'text-[#007F53]' : 'text-[#0F172A]'}`}>
                       6 Chiếc Hũ (T. Harv Eker)
                     </p>
-                    <p className="mt-1 text-[11px] text-[#718078]">55% NEC • 10% FFA • 10% LTSS • 10% PLAY • 10% EDUC • 5% GIVE</p>
+                    <p className="mt-1 text-[11px] text-[#64748B]">55% NEC • 10% FFA • 10% LTSS • 10% PLAY • 10% EDUC • 5% GIVE</p>
                   </button>
                 </div>
               </div>
 
               {/* Danh sách phân bổ chi tiết */}
               <div>
-                <p className="text-xs font-semibold text-[#14251f] mb-2">Phân bổ dự kiến vào ngân sách:</p>
+                <p className="text-xs font-semibold text-[#0F172A] mb-2">Phân bổ dự kiến vào ngân sách:</p>
                 <div className="space-y-2">
                   {templateAllocations.map((alloc, idx) => (
-                    <div key={idx} className="flex items-center justify-between p-2.5 rounded-xl border border-[#e7ece8] bg-[#fbfdfc]">
+                    <div key={idx} className="flex items-center justify-between p-2.5 rounded-xl border border-[#E2E8F0] bg-[#fbfdfc]">
                       <div className="flex items-center gap-3 min-w-0 pr-2">
                         <span
                           className="grid size-9 shrink-0 place-items-center rounded-xl"
@@ -1149,7 +1155,7 @@ export function BudgetManagementScreen({ onNotify }: Props) {
                         </span>
                         <div className="min-w-0">
                           <div className="flex items-center gap-1.5">
-                            <p className="text-xs font-bold text-[#14251f] truncate">{alloc.name}</p>
+                            <p className="text-xs font-bold text-[#0F172A] truncate">{alloc.name}</p>
                             <span
                               className="px-1.5 py-0.5 rounded text-[10px] font-bold text-white shrink-0"
                               style={{ backgroundColor: alloc.color }}
@@ -1157,10 +1163,10 @@ export function BudgetManagementScreen({ onNotify }: Props) {
                               {alloc.percent}%
                             </span>
                           </div>
-                          <p className="text-[11px] text-[#718078] mt-0.5">{alloc.group}</p>
+                          <p className="text-[11px] text-[#64748B] mt-0.5">{alloc.group}</p>
                         </div>
                       </div>
-                      <span className="text-xs font-bold text-[#07543f] shrink-0">
+                      <span className="text-xs font-bold text-[#007F53] shrink-0">
                         {alloc.amount.toLocaleString('vi-VN')} đ
                       </span>
                     </div>
@@ -1170,15 +1176,15 @@ export function BudgetManagementScreen({ onNotify }: Props) {
             </div>
 
             {/* Footer */}
-            <div className="flex items-center justify-between px-6 py-4 border-t border-[#e7ece8] bg-[#fdfdfd] shrink-0">
-              <span className="text-xs text-[#718078]">
+            <div className="flex items-center justify-between px-6 py-4 border-t border-[#E2E8F0] bg-[#fdfdfd] shrink-0">
+              <span className="text-xs text-[#64748B]">
                 Kỳ áp dụng: <strong>Tháng {selectedMonth.split('-')[1]}/{selectedMonth.split('-')[0]}</strong>
               </span>
               <div className="flex items-center gap-2">
                 <button
                   type="button"
                   onClick={() => setIsTemplateModalOpen(false)}
-                  className="rounded-xl border border-[#d2dcd5] px-4 py-2 text-xs font-semibold text-[#53645a] hover:bg-[#f1f5f2] transition cursor-pointer"
+                  className="rounded-xl border border-[#CBD5E1] px-4 py-2 text-xs font-semibold text-[#53645a] hover:bg-[#F1F5F9] transition cursor-pointer"
                 >
                   Đóng
                 </button>
@@ -1186,7 +1192,7 @@ export function BudgetManagementScreen({ onNotify }: Props) {
                   type="button"
                   onClick={handleApplyTemplate}
                   disabled={isApplyingTemplate || incomeNumber <= 0}
-                  className="inline-flex items-center gap-1.5 rounded-xl bg-[#07543f] px-5 py-2 text-xs font-semibold text-white hover:bg-[#064232] transition cursor-pointer disabled:opacity-50"
+                  className="inline-flex items-center gap-1.5 rounded-xl bg-[#007F53] px-5 py-2 text-xs font-semibold text-white hover:bg-[#004D3B] transition cursor-pointer disabled:opacity-50"
                 >
                   <FinanceIcon name="check" size={14} color="#FFFFFF" />
                   <span>{isApplyingTemplate ? 'Đang tạo ngân sách...' : 'Áp dụng mẫu này'}</span>
@@ -1218,10 +1224,10 @@ export function BudgetManagementScreen({ onNotify }: Props) {
                     <FinanceIcon name={getCategoryIcon(selectedItem.category?.icon || selectedItem.categoryIcon, selectedItem.name || selectedItem.category?.name || selectedItem.categoryName)} size={22} />
                   </span>
                   <div>
-                    <h3 className="text-base font-bold text-[#14251f]">
+                    <h3 className="text-base font-bold text-[#0F172A]">
                       {isEditing ? 'Chỉnh Sửa Ngân Sách' : (selectedItem.name || selectedItem.category?.name || selectedItem.categoryName)}
                     </h3>
-                    <p className="text-xs text-[#718078]">
+                    <p className="text-xs text-[#64748B]">
                       {selectedItem.name && !isEditing && (
                         <span
                           className="font-semibold mr-1"
@@ -1237,7 +1243,7 @@ export function BudgetManagementScreen({ onNotify }: Props) {
                 <button
                   type="button"
                   onClick={() => setSelectedItem(null)}
-                  className="grid size-8 place-items-center rounded-lg text-[#718078] hover:bg-[#f1f5f2]"
+                  className="grid size-8 place-items-center rounded-lg text-[#64748B] hover:bg-[#F1F5F9]"
                 >
                   ✕
                 </button>
@@ -1246,19 +1252,19 @@ export function BudgetManagementScreen({ onNotify }: Props) {
             {isEditing ? (
               <form onSubmit={handleSaveEdit} className="mt-4 space-y-3.5">
                 <div>
-                  <label className="block text-xs font-semibold text-[#14251f] mb-1">Tên ngân sách *</label>
+                  <label className="block text-xs font-semibold text-[#0F172A] mb-1">Tên ngân sách *</label>
                   <input
                     type="text"
                     value={editName}
                     onChange={(e) => setEditName(e.target.value)}
                     maxLength={100}
-                    className="w-full rounded-xl border border-[#d2dcd5] px-3.5 py-2 text-xs text-[#14251f] focus:border-[#07543f] focus:outline-none"
+                    className="w-full rounded-xl border border-[#CBD5E1] px-3.5 py-2 text-xs text-[#0F172A] focus:border-[#007F53] focus:outline-none"
                     required
                   />
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold text-[#14251f] mb-1">Số tiền hạn mức (VND) *</label>
+                  <label className="block text-xs font-semibold text-[#0F172A] mb-1">Số tiền hạn mức (VND) *</label>
                   <input
                     type="text"
                     value={editAmount}
@@ -1266,35 +1272,35 @@ export function BudgetManagementScreen({ onNotify }: Props) {
                       const val = e.target.value.replace(/\D/g, '');
                       setEditAmount(val ? Number(val).toLocaleString('vi-VN') : '');
                     }}
-                    className="w-full rounded-xl border border-[#d2dcd5] px-3.5 py-2 text-xs text-[#14251f] focus:border-[#07543f] focus:outline-none"
+                    className="w-full rounded-xl border border-[#CBD5E1] px-3.5 py-2 text-xs text-[#0F172A] focus:border-[#007F53] focus:outline-none"
                     required
                   />
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold text-[#14251f] mb-1">Ngưỡng cảnh báo chi tiêu (%)</label>
+                  <label className="block text-xs font-semibold text-[#0F172A] mb-1">Ngưỡng cảnh báo chi tiêu (%)</label>
                   <input
                     type="number"
                     min="10"
                     max="100"
                     value={editThreshold}
                     onChange={(e) => setEditThreshold(e.target.value)}
-                    className="w-full rounded-xl border border-[#d2dcd5] px-3.5 py-2 text-xs text-[#14251f] focus:border-[#07543f] focus:outline-none"
+                    className="w-full rounded-xl border border-[#CBD5E1] px-3.5 py-2 text-xs text-[#0F172A] focus:border-[#007F53] focus:outline-none"
                   />
                 </div>
 
-                <div className="flex gap-2 pt-2 border-t border-[#e7ece8]">
+                <div className="flex gap-2 pt-2 border-t border-[#E2E8F0]">
                   <button
                     type="button"
                     onClick={() => setIsEditing(false)}
-                    className="flex-1 rounded-xl border border-[#d2dcd5] py-2 text-xs font-semibold text-[#53645a] hover:bg-[#f1f5f2]"
+                    className="flex-1 rounded-xl border border-[#CBD5E1] py-2 text-xs font-semibold text-[#53645a] hover:bg-[#F1F5F9]"
                   >
                     Quay lại
                   </button>
                   <button
                     type="submit"
                     disabled={isSavingEdit}
-                    className="flex-1 rounded-xl bg-[#07543f] py-2 text-xs font-semibold text-white hover:bg-[#064232] disabled:opacity-50"
+                    className="flex-1 rounded-xl bg-[#007F53] py-2 text-xs font-semibold text-white hover:bg-[#004D3B] disabled:opacity-50"
                   >
                     {isSavingEdit ? 'Đang lưu...' : 'Lưu thay đổi'}
                   </button>
@@ -1304,31 +1310,31 @@ export function BudgetManagementScreen({ onNotify }: Props) {
               <>
                 <div className="budget-detail-summary-box mt-4 rounded-xl bg-[#f8fafc] p-3.5 border border-[#e2e8f0] space-y-2 text-xs">
                   <div className="flex justify-between">
-                    <span className="text-[#718078]">Hạn mức:</span>
-                    <strong className="text-[#14251f]">{(selectedItem.amount || 0).toLocaleString('vi-VN')} đ</strong>
+                    <span className="text-[#64748B]">Hạn mức:</span>
+                    <strong className="text-[#0F172A]">{(selectedItem.amount || 0).toLocaleString('vi-VN')} đ</strong>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-[#718078]">Đã chi tiêu thực tế:</span>
+                    <span className="text-[#64748B]">Đã chi tiêu thực tế:</span>
                     <strong className="text-[#dc2626]">{(selectedItem.spentAmount || 0).toLocaleString('vi-VN')} đ</strong>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-[#718078]">Số dư khả dụng:</span>
+                    <span className="text-[#64748B]">Số dư khả dụng:</span>
                     <strong className={(selectedItem.remaining || 0) >= 0 ? 'text-[#16a34a]' : 'text-[#dc2626]'}>
                       {(selectedItem.remaining || 0).toLocaleString('vi-VN')} đ
                     </strong>
                   </div>
                   <div className="pt-1">
-                    <ProgressBar percent={Math.round(selectedItem.percentageUsed || 0)} color={(selectedItem.percentageUsed || 0) > 100 ? 'bg-[#dc2626]' : 'bg-[#006c49]'} />
+                    <ProgressBar percent={Math.round(selectedItem.percentageUsed || 0)} color={(selectedItem.percentageUsed || 0) > 100 ? 'bg-[#dc2626]' : 'bg-[#007F53]'} />
                   </div>
                 </div>
 
                 {/* Lịch sử thanh toán chi tiêu thực tế thuộc ngân sách này */}
                 <div className="mt-4 pt-3 border-t border-gray-100 dark:border-gray-800">
                   <div className="flex items-center justify-between mb-2">
-                    <h4 className="text-xs font-bold text-[#14261e] dark:text-gray-200">
+                    <h4 className="text-xs font-bold text-[#0F172A] dark:text-gray-200">
                       Lịch sử thanh toán thực tế ({itemTransactions.length})
                     </h4>
-                    <span className="text-[10px] text-[#718078]">Tháng {selectedMonth.split('-')[1]}/{selectedMonth.split('-')[0]}</span>
+                    <span className="text-[10px] text-[#64748B]">Tháng {selectedMonth.split('-')[1]}/{selectedMonth.split('-')[0]}</span>
                   </div>
 
                   {isLoadingTx ? (
@@ -1340,7 +1346,7 @@ export function BudgetManagementScreen({ onNotify }: Props) {
                       {itemTransactions.map((tx) => (
                         <div key={tx.id} className="py-2 flex items-center justify-between text-xs">
                           <div className="min-w-0 pr-2">
-                            <p className="font-bold text-[#14261e] dark:text-gray-200 truncate">{tx.description || tx.accountName || 'Chi tiêu'}</p>
+                            <p className="font-bold text-[#0F172A] dark:text-gray-200 truncate">{tx.description || tx.accountName || 'Chi tiêu'}</p>
                             <span className="text-[10.5px] text-gray-500">
                               {tx.transactionDate} {tx.accountName ? `· ${tx.accountName}` : ''}
                             </span>
@@ -1369,7 +1375,7 @@ export function BudgetManagementScreen({ onNotify }: Props) {
                   <button
                     type="button"
                     onClick={() => setIsEditing(true)}
-                    className="btn-budget-edit flex-1 rounded-xl border border-[#07543f] bg-[#07543f]/5 py-2.5 text-xs font-semibold text-[#07543f] hover:bg-[#07543f]/10 transition flex items-center justify-center gap-1.5"
+                    className="btn-budget-edit flex-1 rounded-xl border border-[#007F53] bg-[#007F53]/5 py-2.5 text-xs font-semibold text-[#007F53] hover:bg-[#007F53]/10 transition flex items-center justify-center gap-1.5"
                   >
                     <FinanceIcon name="edit" size={14} />
                     Sửa
@@ -1377,7 +1383,7 @@ export function BudgetManagementScreen({ onNotify }: Props) {
                   <button
                     type="button"
                     onClick={() => setSelectedItem(null)}
-                    className="btn-budget-close flex-1 rounded-xl bg-[#07543f] py-2.5 text-xs font-semibold text-white hover:bg-[#064232] transition"
+                    className="btn-budget-close flex-1 rounded-xl bg-[#007F53] py-2.5 text-xs font-semibold text-white hover:bg-[#004D3B] transition"
                   >
                     Đóng
                   </button>

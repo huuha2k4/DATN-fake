@@ -58,58 +58,21 @@ export async function fetchDashboardData(): Promise<DashboardSummary> {
   const user = authStorage.getUser();
   const userName = user?.fullName || user?.username || 'Khách';
 
-  // Nếu chưa đăng nhập thì trả về mock mặc định an toàn
+  // Nếu chưa đăng nhập thì trả về mặc định 0
   if (!token) {
     return {
       userName,
-      totalBalance: 128450000,
-      monthlyIncome: 24500000,
-      monthlyExpense: 7850000,
-      balanceGrowthRate: 12.5,
-      budgetTotal: 18500000,
-      budgetSpent: 7850000,
-      budgetRemaining: 10650000,
-      budgetPercent: 42,
-      predictedEndOfMonthBalance: 142600000,
-      forecastAdvice: 'Dòng tiền an toàn, bạn có thể trích thêm 2.500.000 ₫ vào quỹ tiết kiệm.',
-      recentTransactions: [
-        {
-          id: '1',
-          name: 'CGV Cinema',
-          description: 'Giải trí · Hôm nay',
-          amount: -250000,
-          account: 'Ví MoMo',
-          icon: '🎬',
-          iconBg: '#FCE7F3',
-        },
-        {
-          id: '2',
-          name: 'Lương tháng 11',
-          description: 'Thu nhập · Hôm qua',
-          amount: 18500000,
-          account: 'Vietcombank',
-          icon: '💰',
-          iconBg: '#EAF8F1',
-        },
-        {
-          id: '3',
-          name: 'Highlands Coffee',
-          description: 'Ăn uống · Hôm qua',
-          amount: -85000,
-          account: 'Ví MoMo',
-          icon: '☕',
-          iconBg: '#FEF3C7',
-        },
-        {
-          id: '4',
-          name: 'Shopee Mall',
-          description: 'Mua sắm · 05/11',
-          amount: -320000,
-          account: 'Vietcombank',
-          icon: '🛍️',
-          iconBg: '#FEE2E2',
-        },
-      ],
+      totalBalance: 0,
+      monthlyIncome: 0,
+      monthlyExpense: 0,
+      balanceGrowthRate: 0,
+      budgetTotal: 0,
+      budgetSpent: 0,
+      budgetRemaining: 0,
+      budgetPercent: 0,
+      predictedEndOfMonthBalance: 0,
+      forecastAdvice: 'Chào mừng bạn! Hãy bắt đầu ghi chép để quản lý tài chính cùng FinAI.',
+      recentTransactions: [],
     };
   }
 
@@ -239,15 +202,8 @@ export async function fetchDashboardData(): Promise<DashboardSummary> {
   if (budgetSummaryRes.status === 'fulfilled' && budgetSummaryRes.value?.data) {
     const bData = budgetSummaryRes.value.data;
     budgetTotal = Number(bData.totalBudgetAmount || bData.totalAmount || 0);
-    budgetSpent = Number(bData.totalSpentAmount || bData.spentAmount || monthlyExpense);
+    budgetSpent = Number(bData.totalSpentAmount || bData.spentAmount || 0);
     budgetRemaining = Number(bData.totalRemainingAmount || bData.remaining || Math.max(0, budgetTotal - budgetSpent));
-    budgetPercent = budgetTotal > 0 ? Math.min(100, Math.round((budgetSpent / budgetTotal) * 100)) : 0;
-  }
-
-  // Nếu chưa có ngân sách thiết lập thì tính tạm ngân sách bằng 120% thu nhập hoặc mức cơ bản
-  if (budgetTotal === 0 && monthlyIncome > 0) {
-    budgetTotal = Math.round(monthlyIncome * 0.7);
-    budgetRemaining = Math.max(0, budgetTotal - budgetSpent);
     budgetPercent = budgetTotal > 0 ? Math.min(100, Math.round((budgetSpent / budgetTotal) * 100)) : 0;
   }
 
@@ -260,10 +216,12 @@ export async function fetchDashboardData(): Promise<DashboardSummary> {
   const predictedEndOfMonthBalance = Math.max(0, Math.round(totalBalance - estimatedRemainingExpense));
 
   let forecastAdvice = 'Dòng tiền ổn định. Hãy duy trì chi tiêu hợp lý theo ngân sách.';
-  if (budgetPercent > 80) {
+  if (budgetTotal > 0 && budgetPercent > 80) {
     forecastAdvice = 'Cảnh báo: Bạn đã dùng hơn 80% ngân sách tháng, hãy thắt chặt chi tiêu!';
-  } else if (monthlyIncome > monthlyExpense * 1.5) {
+  } else if (monthlyIncome > monthlyExpense * 1.5 && monthlyIncome > 0) {
     forecastAdvice = 'FinAI: Dòng tiền dồi dào, bạn có thể trích thêm 10-15% vào mục tiêu tiết kiệm.';
+  } else if (monthlyIncome === 0 && monthlyExpense === 0) {
+    forecastAdvice = 'Chưa có biến động thu chi trong tháng này. Hãy thêm giao dịch để FinAI theo dõi.';
   }
 
   return {
@@ -278,17 +236,7 @@ export async function fetchDashboardData(): Promise<DashboardSummary> {
     budgetPercent,
     predictedEndOfMonthBalance: predictedEndOfMonthBalance > 0 ? predictedEndOfMonthBalance : totalBalance,
     forecastAdvice,
-    recentTransactions: recentList.length > 0 ? recentList : [
-      {
-        id: 'mock-1',
-        name: 'Chưa có giao dịch gần đây',
-        description: 'Hãy bấm thêm giao dịch mới',
-        amount: 0,
-        account: 'Ví Finora',
-        icon: '📝',
-        iconBg: '#F3F4F6',
-      },
-    ],
+    recentTransactions: recentList,
   };
 }
 

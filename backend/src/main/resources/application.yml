@@ -11,8 +11,8 @@ spring:
   servlet:
     multipart:
       enabled: true
-      max-file-size: 100MB
-      max-request-size: 100MB
+      max-file-size: 10MB
+      max-request-size: 11MB
   
   datasource:
     url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:finance_db}
@@ -112,7 +112,8 @@ logging:
     org.springframework.security: INFO
     org.hibernate.SQL: WARN
     org.hibernate.type.descriptor.sql: WARN
-    org.springframework.web.servlet.mvc.method.annotation: DEBUG
+    # DEBUG logs resolved request/response DTO values, including auth credentials.
+    org.springframework.web.servlet.mvc.method.annotation: INFO
     org.springframework.web.filter.CommonsRequestLoggingFilter: DEBUG
     org.flywaydb: DEBUG
     org.springframework.boot.autoconfigure: DEBUG
@@ -143,7 +144,18 @@ app:
   ai:
     ocr-service-url: ${OCR_SERVICE_URL:http://ocr-service:8000}
 
+  finai:
+    service-url: ${FINAI_SERVICE_URL:http://pfm-ai-service:8000}
+    service-secret: ${FINAI_SERVICE_SECRET:dev-only-finai-service-secret-change-me}
+    internal-secret: ${FINAI_INTERNAL_SECRET:dev-only-finai-internal-secret-change-me}
+    action-ttl-minutes: ${FINAI_ACTION_TTL_MINUTES:15}
+
+  attachments:
+    url-ttl-seconds: ${ATTACHMENT_URL_TTL_SECONDS:300}
+
   oauth2:
     google:
       client-id: ${GOOGLE_CLIENT_ID:}
+      ios-client-id: ${GOOGLE_IOS_CLIENT_ID:}
+      android-client-id: ${GOOGLE_ANDROID_CLIENT_ID:}
       client-secret: ${GOOGLE_CLIENT_SECRET:}

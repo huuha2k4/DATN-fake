@@ -6,7 +6,7 @@ import './AuthModal.css';
 
 interface LoginModalProps {
   onClose: () => void;
-  onSuccess: () => void;
+  onSuccess: (authRes?: any) => void;
   onSwitchToRegister: () => void;
   onForgotPassword?: () => void;
 }
@@ -142,7 +142,7 @@ export function LoginModal({ onClose, onSuccess, onSwitchToRegister, onForgotPas
             <div className="flex-grow border-t border-gray-200 dark:border-slate-700"></div>
           </div>
           <GoogleSignInButton
-            onSuccess={onSuccess}
+            onSuccess={(res) => onSuccess(res)}
             onError={(msg) => setError(msg)}
             text="signin_with"
           />

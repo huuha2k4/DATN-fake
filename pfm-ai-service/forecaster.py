@@ -290,6 +290,7 @@ def forecast_category_spending(
             top_category = (
                 db.query(Transaction.category_id)
                 .filter(Transaction.user_id == user_id, Transaction.type == "EXPENSE",
+                        Transaction.deleted_at.is_(None),
                         Transaction.occurred_at >= first_day_of_month)
                 .group_by(Transaction.category_id)
                 .order_by(func.sum(Transaction.amount).desc())
@@ -315,6 +316,7 @@ def forecast_category_spending(
                 Transaction.user_id == user_id,
                 Transaction.category_id == cat.id,
                 Transaction.type == "EXPENSE",
+                Transaction.deleted_at.is_(None),
                 Transaction.occurred_at >= first_day_of_month,
                 Transaction.occurred_at <= end_of_today
             )
@@ -394,18 +396,19 @@ def forecast_goal_completion(user_id: str = "test_user_01", goal_name: Optional[
         # Tính thặng dư tiết kiệm trung bình mỗi tháng từ toàn bộ lịch sử thu - chi
         total_inflow = (
             db.query(func.sum(Transaction.amount))
-            .filter(Transaction.user_id == user_id, Transaction.type == "INCOME")
+            .filter(Transaction.user_id == user_id, Transaction.type == "INCOME", Transaction.deleted_at.is_(None))
             .scalar() or 0.0
         )
         total_outflow = (
             db.query(func.sum(Transaction.amount))
-            .filter(Transaction.user_id == user_id, Transaction.type == "EXPENSE")
+            .filter(Transaction.user_id == user_id, Transaction.type == "EXPENSE", Transaction.deleted_at.is_(None))
             .scalar() or 0.0
         )
 
         first_tx = (
             db.query(Transaction.occurred_at)
-            .filter(Transaction.user_id == user_id)
+            .filter(Transaction.user_id == user_id, Transaction.deleted_at.is_(None),
+                    Transaction.type.in_(("INCOME", "EXPENSE")))
             .order_by(Transaction.occurred_at.asc())
             .first()
         )
@@ -416,7 +419,15 @@ def forecast_goal_completion(user_id: str = "test_user_01", goal_name: Optional[
             months_span = 1.0
 
         net_saving_calc = (total_inflow - total_outflow) / months_span
-        monthly_saving_rate = max(1000000.0, float(net_saving_calc)) # Tối thiểu 1 triệu để ước tính khả thi
+        monthly_saving_rate = float(net_saving_calc)
+
+        if monthly_saving_rate <= 0:
+            return {
+                "status": "INSUFFICIENT_SURPLUS",
+                "estimated_monthly_saving": round(monthly_saving_rate, 0),
+                "goals": [],
+                "summary": "Dữ liệu hiện tại chưa ghi nhận thặng dư dương để ước tính ngày hoàn thành mục tiêu."
+            }
 
         today = date.today()
         goal_results = []
@@ -457,6 +468,14 @@ def forecast_goal_completion(user_id: str = "test_user_01", goal_name: Optional[
         }
     finally:
         db.close()
+
+# Optimized AI 3 implementations.  Category/goal APIs above remain unchanged;
+# these replacements preserve the public call signatures and response keys.
+from forecast_engine import (
+    forecast_balance as forecast_balance,
+    forecast_spending as forecast_spending,
+    get_daily_cashflow as get_daily_cashflow,
+)
 
 if __name__ == "__main__":
     res = forecast_balance("test_user_01", 21)

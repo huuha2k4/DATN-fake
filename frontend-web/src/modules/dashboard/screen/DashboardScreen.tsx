@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { FinanceIcon, resolveCategoryIconName, type IconName } from '../../core/components/FinanceIcon';
+import { subscribeFinAiActionCompleted } from '../../core/utils/finaiSyncEvents';
 import { accountApi, type AccountItem, type AccountSummary } from '../../account-management/api/accountApi';
 import { transactionApi, type TransactionItem } from '../../cash-flow-management/api/transactionApi';
 import { budgetApi, type BudgetResponse } from '../../budget-management/api/budgetApi';
@@ -261,6 +262,10 @@ export function DashboardScreen({ onNotify, onAddTransaction }: Props) {
 
   useEffect(() => {
     loadDashboardData();
+    const unsubscribeFinAi = subscribeFinAiActionCompleted(() => {
+      loadDashboardData();
+    });
+    return () => unsubscribeFinAi();
   }, []);
 
   // Tính toán dữ liệu 4 tuần trong tháng hoàn toàn từ các giao dịch thực tế
@@ -438,7 +443,7 @@ export function DashboardScreen({ onNotify, onAddTransaction }: Props) {
         {/* Card 2: TỔNG THU NHẬP THÁNG */}
         <article className="overview-white-card">
           <div className="flex items-center justify-between">
-            <span className="text-[11px] font-bold tracking-wider text-[#63756b] uppercase">
+            <span className="text-[11px] font-bold tracking-wider text-[#64748B] uppercase">
               TỔNG THU NHẬP THÁNG
             </span>
             <span className="icon-box-mint">
@@ -447,18 +452,18 @@ export function DashboardScreen({ onNotify, onAddTransaction }: Props) {
           </div>
 
           <div className="my-2">
-            <div className="text-3xl sm:text-[34px] font-black text-[#14261e] tracking-tight text-headline flex items-baseline gap-1">
+            <div className="text-3xl sm:text-[34px] font-black text-[#0F172A] tracking-tight text-headline flex items-baseline gap-1">
               {isLoading ? '...' : (
                 <>
                   <span>{Math.round(monthSummary.totalIncome).toLocaleString('vi-VN')}</span>
-                  <span className="text-[#07543f] dark:text-emerald-400 font-extrabold text-2xl sm:text-[28px]">₫</span>
+                  <span className="text-[#007F53] dark:text-emerald-400 font-extrabold text-2xl sm:text-[28px]">₫</span>
                 </>
               )}
             </div>
           </div>
 
-          <div className="flex items-center gap-3 text-xs text-[#718078] text-sub">
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-[#e8f7f0] px-2.5 py-0.5 text-[11px] font-bold text-[#07543f] dark:bg-emerald-950/60 dark:text-emerald-300">
+          <div className="flex items-center gap-3 text-xs text-[#64748B] text-sub">
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-[#E6F4EA] px-2.5 py-0.5 text-[11px] font-bold text-[#007F53] dark:bg-emerald-950/60 dark:text-emerald-300">
               <span className="size-1.5 rounded-full bg-[#10b981]" />
               {monthSummary.transactionCount} giao dịch
             </span>
@@ -471,7 +476,7 @@ export function DashboardScreen({ onNotify, onAddTransaction }: Props) {
         {/* Card 3: TỔNG CHI TIÊU THÁNG */}
         <article className="overview-white-card sm:col-span-2 lg:col-span-1">
           <div className="flex items-center justify-between">
-            <span className="text-[11px] font-bold tracking-wider text-[#63756b] uppercase">
+            <span className="text-[11px] font-bold tracking-wider text-[#64748B] uppercase">
               TỔNG CHI TIÊU THÁNG
             </span>
             <span className="icon-box-red">
@@ -480,7 +485,7 @@ export function DashboardScreen({ onNotify, onAddTransaction }: Props) {
           </div>
 
           <div className="my-2">
-            <div className="text-3xl sm:text-[34px] font-black text-[#14261e] tracking-tight text-headline flex items-baseline gap-1">
+            <div className="text-3xl sm:text-[34px] font-black text-[#0F172A] tracking-tight text-headline flex items-baseline gap-1">
               {isLoading ? '...' : (
                 <>
                   <span>{Math.round(monthSummary.totalExpense).toLocaleString('vi-VN')}</span>
@@ -491,11 +496,11 @@ export function DashboardScreen({ onNotify, onAddTransaction }: Props) {
           </div>
 
           <div>
-            <div className="flex items-center justify-between text-xs text-[#718078] text-sub mb-2 font-medium">
+            <div className="flex items-center justify-between text-xs text-[#64748B] text-sub mb-2 font-medium">
               <span>
                 {budgetTotal > 0 ? `Đã dùng ${budgetPercent}% hạn mức` : `Tổng đã chi trong tháng`}
               </span>
-              <strong className="text-[#14261e] font-bold text-headline">
+              <strong className="text-[#0F172A] font-bold text-headline">
                 {budgetTotal > 0 ? formatVND(budgetTotal) : formatVND(monthSummary.totalExpense)}
               </strong>
             </div>
@@ -516,23 +521,23 @@ export function DashboardScreen({ onNotify, onAddTransaction }: Props) {
           <div>
             <div className="flex items-start justify-between">
               <div>
-                <h2 className="text-lg font-bold text-[#14261e] text-headline">Dòng tiền theo tuần</h2>
-                <p className="text-xs text-[#718078] text-sub mt-0.5">
+                <h2 className="text-lg font-bold text-[#0F172A] text-headline">Dòng tiền theo tuần</h2>
+                <p className="text-xs text-[#64748B] text-sub mt-0.5">
                   Đối chiếu Thu nhập vs Chi tiêu chu kỳ 4 tuần Tháng {currentMonthNum}
                 </p>
               </div>
               <div className="flex items-center gap-4 text-xs font-semibold">
-                <span className="flex items-center gap-1.5 text-[#14261e] text-headline">
+                <span className="flex items-center gap-1.5 text-[#0F172A] text-headline">
                   <span className="size-2.5 rounded-full chart-legend-income" /> Thu nhập
                 </span>
-                <span className="flex items-center gap-1.5 text-[#14261e] text-headline">
+                <span className="flex items-center gap-1.5 text-[#0F172A] text-headline">
                   <span className="size-2.5 rounded-full chart-legend-expense" /> Chi tiêu
                 </span>
               </div>
             </div>
 
             {/* Vùng vẽ các cột (Cột Thu nhập xanh lá đậm và Cột Chi tiêu xanh ngọc nhạt/bạc hà bo tròn đỉnh) */}
-            <div className="mt-8 flex min-h-[220px] items-end justify-around gap-4 border-b border-[#edf2ee] pb-4 dark:border-[#122432]">
+            <div className="mt-8 flex min-h-[220px] items-end justify-around gap-4 border-b border-[#E2E8F0] pb-4 dark:border-[#1E293B]">
               {weeksData.map((week) => (
                 <div key={week.label} className="flex flex-col items-center gap-3">
                   <div className="flex h-40 items-end justify-center gap-2">
@@ -560,10 +565,10 @@ export function DashboardScreen({ onNotify, onAddTransaction }: Props) {
                     </div>
                   </div>
                   <div className="text-center">
-                    <strong className={`block text-xs font-bold ${week.isCurrent ? 'text-[#07543f] dark:text-emerald-400' : 'text-[#14261e] text-headline'}`}>
+                    <strong className={`block text-xs font-bold ${week.isCurrent ? 'text-[#007F53] dark:text-emerald-400' : 'text-[#0F172A] text-headline'}`}>
                       {week.label} {week.isCurrent ? '(Nay)' : ''}
                     </strong>
-                    <span className="text-[11px] text-[#718078] text-sub">{week.date}</span>
+                    <span className="text-[11px] text-[#64748B] text-sub">{week.date}</span>
                   </div>
                 </div>
               ))}
@@ -572,11 +577,11 @@ export function DashboardScreen({ onNotify, onAddTransaction }: Props) {
 
           {/* Dòng tiền thuần tích lũy (Net Savings) */}
           <div className="net-savings-pill-box mt-5">
-            <span className="flex items-center gap-2 text-[#14261e] text-headline font-bold text-xs">
-              <FinanceIcon name="trend" size={17} className="text-[#07543f] dark:text-emerald-400" />
+            <span className="flex items-center gap-2 text-[#0F172A] text-headline font-bold text-xs">
+              <FinanceIcon name="trend" size={17} className="text-[#007F53] dark:text-emerald-400" />
               Dòng tiền thuần tích lũy (Net Savings):
             </span>
-            <strong className={`text-sm font-black ${monthSummary.netCashFlow >= 0 ? 'text-[#07543f] dark:text-emerald-400' : 'text-[#dc2626] dark:text-rose-400'}`}>
+            <strong className={`text-sm font-black ${monthSummary.netCashFlow >= 0 ? 'text-[#007F53] dark:text-emerald-400' : 'text-[#dc2626] dark:text-rose-400'}`}>
               {monthSummary.netCashFlow >= 0 ? '+' : ''}{Math.round(monthSummary.netCashFlow).toLocaleString('vi-VN')} ₫
             </strong>
           </div>
@@ -587,14 +592,14 @@ export function DashboardScreen({ onNotify, onAddTransaction }: Props) {
           <div>
             <div className="flex items-center justify-between pb-3">
               <div>
-                <h2 className="text-lg font-bold text-[#14261e] text-headline">Giao dịch gần đây</h2>
-                <p className="text-xs text-[#718078] text-sub mt-0.5">
+                <h2 className="text-lg font-bold text-[#0F172A] text-headline">Giao dịch gần đây</h2>
+                <p className="text-xs text-[#64748B] text-sub mt-0.5">
                   {transactions.length} hoạt động tài chính mới nhất
                 </p>
               </div>
             </div>
 
-            <div className="divide-y divide-[#edf2ee] dark:divide-white/5">
+            <div className="divide-y divide-[#E2E8F0] dark:divide-white/5">
               {isLoading ? (
                 <div className="py-8 text-center text-xs text-gray-400">Đang tải giao dịch...</div>
               ) : visibleTransactions.length === 0 ? (
@@ -617,10 +622,10 @@ export function DashboardScreen({ onNotify, onAddTransaction }: Props) {
                           {renderTransactionCategoryIcon(tx.category?.icon, isIncome, 18, tx.category?.name)}
                         </span>
                         <div className="min-w-0">
-                          <p className="font-bold text-[#14261e] text-headline truncate text-[13px]">
+                          <p className="font-bold text-[#0F172A] text-headline truncate text-[13px]">
                             {tx.description || tx.category?.name || 'Giao dịch'}
                           </p>
-                          <div className="flex items-center gap-1.5 text-[11px] text-[#718078] text-sub mt-0.5">
+                          <div className="flex items-center gap-1.5 text-[11px] text-[#64748B] text-sub mt-0.5">
                             <span className="tx-category-badge rounded px-2 py-0.5 font-semibold text-[11px]">
                               {tx.category?.name || (isIncome ? 'Thu nhập' : 'Chi tiêu')}
                             </span>
@@ -632,7 +637,7 @@ export function DashboardScreen({ onNotify, onAddTransaction }: Props) {
                         <strong className={`font-black text-sm block ${isIncome ? 'tx-amount-income' : 'tx-amount-expense'}`}>
                           {isIncome ? '+' : '-'}{formatVND(tx.amount)}
                         </strong>
-                        <span className="text-[11px] text-[#718078] text-sub">{tx.accountName || 'Ví'}</span>
+                        <span className="text-[11px] text-[#64748B] text-sub">{tx.accountName || 'Ví'}</span>
                       </div>
                     </div>
                   );
@@ -655,11 +660,11 @@ export function DashboardScreen({ onNotify, onAddTransaction }: Props) {
       {/* 3. HÀNG DƯỚI: TÀI KHOẢN & NGUỒN TIỀN (TÀI SẢN THANH KHOẢN) */}
       <section>
         <div className="mb-4 flex items-center justify-between">
-          <h2 className="flex items-center gap-2 text-base font-bold text-[#14261e] text-headline">
-            <FinanceIcon name="bank" size={18} className="text-[#07543f] dark:text-emerald-400" />
+          <h2 className="flex items-center gap-2 text-base font-bold text-[#0F172A] text-headline">
+            <FinanceIcon name="bank" size={18} className="text-[#007F53] dark:text-emerald-400" />
             Tài khoản &amp; Nguồn tiền (Tài sản thanh khoản)
           </h2>
-          <span className="rounded-full bg-[#e8f7f0] px-3 py-1 text-xs font-bold text-[#07543f] dark:bg-emerald-950/60 dark:text-emerald-300">
+          <span className="rounded-full bg-[#E6F4EA] px-3 py-1 text-xs font-bold text-[#007F53] dark:bg-emerald-950/60 dark:text-emerald-300">
             {accounts.length} tài khoản liên kết
           </span>
         </div>
@@ -679,33 +684,33 @@ export function DashboardScreen({ onNotify, onAddTransaction }: Props) {
                 <article key={acc.id} className="overview-account-card">
                   <div className="flex items-start justify-between">
                     <div>
-                      <span className="text-[11px] font-bold uppercase tracking-wider text-[#63756b] block">
+                      <span className="text-[11px] font-bold uppercase tracking-wider text-[#64748B] block">
                         {acc.name}
                       </span>
-                      <p className="text-xs text-[#718078] text-sub mt-0.5">
+                      <p className="text-xs text-[#64748B] text-sub mt-0.5">
                         {acc.accountNumberMasked ? `•••• ${acc.accountNumberMasked.slice(-4)} · Hoạt động` : (acc.phoneNumber ? `${acc.phoneNumber} · Hoạt động` : (isCredit ? 'Thẻ tín dụng · Hoạt động' : 'Ví hoạt động'))}
                       </p>
                     </div>
-                    <span className="acc-icon-box bg-[#e8f7f0] text-[#07543f] dark:bg-emerald-950 dark:text-emerald-400">
+                    <span className="acc-icon-box bg-[#E6F4EA] text-[#007F53] dark:bg-emerald-950 dark:text-emerald-400">
                       <FinanceIcon name={getAccountIcon(acc.accountType)} size={20} />
                     </span>
                   </div>
 
                   <div className="my-2">
-                    <strong className="text-2xl sm:text-[28px] font-black text-[#14261e] text-headline tracking-tight flex items-baseline gap-1">
+                    <strong className="text-2xl sm:text-[28px] font-black text-[#0F172A] text-headline tracking-tight flex items-baseline gap-1">
                       <span>{Math.round(acc.balance).toLocaleString('vi-VN')}</span>
-                      <span className="text-[#07543f] dark:text-emerald-400 text-xl font-extrabold">₫</span>
+                      <span className="text-[#007F53] dark:text-emerald-400 text-xl font-extrabold">₫</span>
                     </strong>
-                    <p className="text-xs text-[#718078] text-sub mt-1">
+                    <p className="text-xs text-[#64748B] text-sub mt-1">
                       {acc.description || (isCredit ? 'Hạn mức linh hoạt hàng ngày' : 'Tài khoản thanh toán chính')}
                     </p>
                   </div>
 
-                  <div className="flex items-center justify-between border-t border-[#edf2ee] pt-3 text-xs dark:border-[#122432]">
+                  <div className="flex items-center justify-between border-t border-[#E2E8F0] pt-3 text-xs dark:border-[#1E293B]">
                     <span className={`inline-flex items-center gap-1 font-bold ${delta >= 0 ? 'text-[#10b981]' : 'text-[#f43f5e]'}`}>
                       <FinanceIcon name="trend" size={13} /> {delta >= 0 ? '+' : ''}{Math.round(delta).toLocaleString('vi-VN')} ₫
                     </span>
-                    <span className="text-[#718078] text-sub font-medium">Biến động tháng</span>
+                    <span className="text-[#64748B] text-sub font-medium">Biến động tháng</span>
                   </div>
                 </article>
               );

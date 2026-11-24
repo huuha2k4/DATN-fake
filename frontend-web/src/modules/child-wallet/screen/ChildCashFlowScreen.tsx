@@ -19,7 +19,7 @@ export function ChildCashFlowScreen({ onNotify, onAddTransaction }: Props) {
   const expenses = items.filter((item) => !item.description.startsWith('[MONEY_REQUEST] '))
   const history = [...moneyEvents, ...expenses]
   return <main className="mx-auto w-full max-w-6xl p-4 sm:p-6">
-    <div className="mb-5 flex items-center justify-between"><div><h2 className="text-xl font-black text-[#14261e]">Lịch sử thu & chi</h2><p className="text-sm text-slate-500">Các khoản thực tế của ví em</p></div><button onClick={onAddTransaction} className="rounded-xl bg-[#07543f] px-4 py-2 text-sm font-bold text-white">+ Thêm khoản chi</button></div>
+    <div className="mb-5 flex items-center justify-between"><div><h2 className="text-xl font-black text-[#0F172A]">Lịch sử thu & chi</h2><p className="text-sm text-slate-500">Các khoản thực tế của ví em</p></div><button onClick={onAddTransaction} className="rounded-xl bg-[#007F53] px-4 py-2 text-sm font-bold text-white">+ Thêm khoản chi</button></div>
     <section className="overflow-hidden rounded-3xl border border-slate-200 bg-white">
       {loading ? (
         <p className="p-10 text-center text-sm text-slate-400">Đang tải lịch sử...</p>
@@ -51,7 +51,7 @@ export function ChildCashFlowScreen({ onNotify, onAddTransaction }: Props) {
           return (
             <div key={item.id} className="flex items-center justify-between border-b border-slate-100 px-5 py-4 last:border-0">
               <div>
-                <strong className="text-[#14261e]">{displayTitle}</strong>
+                <strong className="text-[#0F172A]">{displayTitle}</strong>
                 <p className="mt-1 text-xs text-slate-500">{subText}</p>
               </div>
               <b className={income ? 'text-emerald-600' : 'text-rose-600'}>

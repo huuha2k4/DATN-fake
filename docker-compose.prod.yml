@@ -40,6 +40,33 @@ services:
       - finance_network
     restart: always
 
+  pfm-ai-service:
+    build:
+      context: ./pfm-ai-service
+      dockerfile: Dockerfile
+    container_name: pfm-ai-service
+    environment:
+      DATABASE_URL: postgresql+psycopg2://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      GEMINI_API_KEY: ${GEMINI_API_KEY}
+      GEMINI_MODEL: ${GEMINI_MODEL:-gemini-flash-lite-latest}
+      FINAI_BACKEND_URL: http://backend:8080
+      FINAI_SERVICE_SECRET: ${FINAI_SERVICE_SECRET}
+      FINAI_INTERNAL_SECRET: ${FINAI_INTERNAL_SECRET}
+      FINAI_MODEL_TIMEOUT_SECONDS: ${FINAI_MODEL_TIMEOUT_SECONDS:-10}
+      FINAI_REQUEST_BUDGET_SECONDS: ${FINAI_REQUEST_BUDGET_SECONDS:-25}
+      FINAI_TOOL_TIMEOUT_SECONDS: ${FINAI_TOOL_TIMEOUT_SECONDS:-8}
+      FINAI_MAX_MODEL_ROUNDS: ${FINAI_MAX_MODEL_ROUNDS:-6}
+      FINAI_MAX_TOOL_CALLS: ${FINAI_MAX_TOOL_CALLS:-8}
+      TZ: Asia/Ho_Chi_Minh
+    expose:
+      - "8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - finance_network
+    restart: always
+
   # Spring Boot Backend
   backend:
     build:
@@ -57,6 +84,11 @@ services:
       JWT_EXPIRATION: ${JWT_EXPIRATION}
       SUPER_ADMIN_USER: ${SUPER_ADMIN_USER}
       SUPER_ADMIN_PASSWORD: ${SUPER_ADMIN_PASSWORD}
+      FINAI_SERVICE_URL: http://pfm-ai-service:8000
+      FINAI_SERVICE_SECRET: ${FINAI_SERVICE_SECRET}
+      FINAI_INTERNAL_SECRET: ${FINAI_INTERNAL_SECRET}
+      FINAI_ACTION_TTL_MINUTES: ${FINAI_ACTION_TTL_MINUTES:-15}
+      ATTACHMENT_URL_TTL_SECONDS: ${ATTACHMENT_URL_TTL_SECONDS:-300}
       TZ: Asia/Ho_Chi_Minh
     expose:
       - "8080"
@@ -67,6 +99,8 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+      pfm-ai-service:
+        condition: service_started
     networks:
       - finance_network
     restart: always
@@ -83,6 +117,7 @@ services:
       - "80"
     depends_on:
       - backend
+      - pfm-ai-service
     networks:
       - finance_network
     restart: always

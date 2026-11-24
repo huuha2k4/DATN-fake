@@ -155,7 +155,7 @@ public interface BudgetRepository extends JpaRepository<Budget, UUID> {
            "    SUM(CASE WHEN status IN ('ON_TRACK', 'COMPLETED') THEN 1 ELSE 0 END) as on_track_count, " +
            "    SUM(CASE WHEN status = 'EXCEEDED' THEN 1 ELSE 0 END) as exceeded_count, " +
            "    AVG(percentage_used) as avg_utilization " +
-           "FROM budgets " +
+           "FROM core.budgets " +
            "WHERE user_id = :userId AND deleted_at IS NULL " +
            "    AND start_date >= :fromDate AND end_date <= :toDate",
            nativeQuery = true)
@@ -175,7 +175,7 @@ public interface BudgetRepository extends JpaRepository<Budget, UUID> {
            "    b.total_amount, " +
            "    b.spent_amount, " +
            "    b.percentage_used " +
-           "FROM budgets b " +
+           "FROM core.budgets b " +
            "WHERE b.user_id = :userId AND b.deleted_at IS NULL " +
            "    AND b.period_type = :periodType " +
            "    AND b.start_date >= :fromDate " +

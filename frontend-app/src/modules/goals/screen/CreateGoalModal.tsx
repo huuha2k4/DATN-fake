@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { View, Text, StyleSheet, Modal, TextInput, Pressable, ScrollView, KeyboardAvoidingView, Platform, ActivityIndicator, Image } from 'react-native';
 import { AppAlert as Alert } from '../../../context/DialogContext';
 import { FinanceIcon } from '../../core/components/FinanceIcon';
+import { AppDatePicker } from '../../core/components/AppDatePicker';
 import { goalsApi } from '../api/goalsApi';
 import { authStorage } from '../../auth/api/authApi';
 import { useAppTheme } from '../../../context/ThemeContext';
@@ -146,7 +147,7 @@ export function CreateGoalModal({ visible, onClose, onSuccess }: Props) {
   const [goalType, setGoalType] = useState('PURCHASE');
   const [targetAmount, setTargetAmount] = useState('');
   const [currentAmount, setCurrentAmount] = useState('');
-  const [targetDateInput, setTargetDateInput] = useState('31/12/2027');
+  const [targetDate, setTargetDate] = useState<Date | null>(new Date('2027-12-31'));
   const [description, setDescription] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showCategoryPicker, setShowCategoryPicker] = useState(false);
@@ -164,7 +165,13 @@ export function CreateGoalModal({ visible, onClose, onSuccess }: Props) {
       return;
     }
     const current = currentAmount ? parseFloat(currentAmount.replace(/[^0-9]/g, '')) : 0;
-    const isoDate = parseDDMMYYYYtoIso(targetDateInput);
+    let isoDate = '2027-12-31';
+    if (targetDate) {
+      const y = targetDate.getFullYear();
+      const m = String(targetDate.getMonth() + 1).padStart(2, '0');
+      const d = String(targetDate.getDate()).padStart(2, '0');
+      isoDate = `${y}-${m}-${d}`;
+    }
 
     setIsSubmitting(true);
     try {
@@ -314,23 +321,12 @@ export function CreateGoalModal({ visible, onClose, onSuccess }: Props) {
 
             {/* Thời hạn */}
             <View style={styles.field}>
-              <Text style={[styles.label, isDark && { color: themeColors.textSecondary }]}>
-                Thời hạn hoàn thành
-              </Text>
-              <TextInput
-                style={[
-                  styles.input,
-                  isDark && {
-                    backgroundColor: themeColors.surfaceSubtle,
-                    borderColor: themeColors.cardBorder,
-                    color: themeColors.textPrimary,
-                  },
-                ]}
-                placeholder="31/12/2027"
-                placeholderTextColor={isDark ? '#64748B' : '#94A3B8'}
-                keyboardType="numeric"
-                value={targetDateInput}
-                onChangeText={(t) => setTargetDateInput(formatInputDDMMYYYY(t))}
+              <AppDatePicker
+                value={targetDate}
+                onChange={setTargetDate}
+                label="Thời hạn hoàn thành"
+                placeholder="Chọn ngày kết thúc mục tiêu"
+                minDate={new Date()}
               />
             </View>
 

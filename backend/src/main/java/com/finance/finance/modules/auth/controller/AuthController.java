@@ -272,6 +272,9 @@ public class AuthController {
         Map<String, Object> data = new HashMap<>();
         data.put("user", authResponse.getUser());
         data.put("tokens", buildTokenMap(authResponse));
+        if (authResponse.getIsNewUser() != null) {
+            data.put("isNewUser", authResponse.getIsNewUser());
+        }
         return data;
     }
 

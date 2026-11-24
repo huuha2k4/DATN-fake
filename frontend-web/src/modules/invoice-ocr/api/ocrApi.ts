@@ -3,7 +3,7 @@ import { api } from '../../core/api/api';
 export interface OcrReceiptResult {
   id: string;
   imageUrl?: string;
-  kind: 'paid' | 'draft' | 'unknown';
+  kind: 'paid' | 'draft' | 'unknown' | 'not_receipt' | 'low_quality' | 'handwritten';
   merchantName?: string;
   transactionDate?: string;
   transactionTime?: string;
@@ -11,6 +11,7 @@ export interface OcrReceiptResult {
   currency: string;
   confidence: number;
   needsReview: boolean;
+  rejectReason?: string;
   aiCategoryId?: string;
   aiCategoryName?: string;
   transactionId?: string;

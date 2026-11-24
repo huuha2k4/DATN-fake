@@ -30,6 +30,7 @@ public class UserMapper {
                 .email(user.getEmail())
                 .username(resolvedUsername)
                 .fullName(user.getFullName())
+                .dateOfBirth(user.getDateOfBirth())
                 .emailVerified(user.isEmailVerified())
                 .phone(user.getPhone())
                 .mfaEnabled(user.isMfaEnabled())

@@ -1,0 +1,190 @@
+/* ==========================================================================
+   ORGANIC MINT BACKGROUND & COLOR SYSTEM (STRICT SPEC COMPLIANT)
+   ========================================================================== */
+
+:root {
+  --color-primary: #008F63;
+  --color-primary-dark: #006B4D;
+  --color-primary-hover: #007853;
+  --color-mint: #BDF3D8;
+  --color-mint-light: #E4FAEF;
+  --color-bg: #FFFFFF;
+  --color-soft-bg: #F7FCF9;
+  --color-text-main: #073D32;
+  --color-text-muted: #4B6E66;
+  --color-card-border: #E8F5EF;
+  --color-card-bg: #FFFFFF;
+  --shadow-soft-card: 0 4px 20px -2px rgba(0, 143, 99, 0.05), 0 2px 6px -1px rgba(0, 0, 0, 0.02);
+  --shadow-hover-card: 0 16px 32px -6px rgba(0, 143, 99, 0.12), 0 4px 12px -2px rgba(0, 0, 0, 0.03);
+}
+
+html.dark {
+  --color-primary: #10B981;
+  --color-primary-dark: #059669;
+  --color-primary-hover: #34D399;
+  --color-mint: #064E3B;
+  --color-mint-light: #063428;
+  --color-bg: #071512;
+  --color-soft-bg: #0A1C18;
+  --color-text-main: #F1FDF8;
+  --color-text-muted: #8FB5AA;
+  --color-card-border: #14352E;
+  --color-card-bg: #0D231E;
+  --shadow-soft-card: 0 4px 20px -2px rgba(0, 0, 0, 0.4);
+  --shadow-hover-card: 0 16px 32px -6px rgba(16, 185, 129, 0.15);
+}
+
+.organic-mint-bg-root {
+  position: relative;
+  width: 100%;
+  min-height: 100vh;
+  background-color: var(--color-bg);
+  color: var(--color-text-main);
+  overflow-x: hidden;
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+.organic-mint-content {
+  position: relative;
+  z-index: 2;
+}
+
+/* Organic Mesh Layer */
+.organic-blob-mesh {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 1;
+  overflow: hidden;
+}
+
+/* Individual Organic Blobs with Controlled Soft Blurs & Subtle Animation */
+.blob-organic {
+  position: absolute;
+  border-radius: 48% 52% 60% 40% / 45% 55% 45% 55%;
+  pointer-events: none;
+  mix-blend-mode: normal;
+  will-change: transform;
+}
+
+/* 1. Hero Top-Right: The iconic large mint aura behind laptop/bot */
+.blob-hero-top-right {
+  top: -80px;
+  right: -100px;
+  width: 780px;
+  height: 680px;
+  background: radial-gradient(circle at 45% 45%, #BDF3D8 0%, #D4F7E6 40%, #E4FAEF 65%, transparent 85%);
+  opacity: 0.75;
+  filter: blur(50px);
+  animation: floatOrganic1 10s ease-in-out infinite alternate;
+}
+
+/* 2. Hero Top-Left: Soft aura */
+.blob-hero-top-left {
+  top: 40px;
+  left: -120px;
+  width: 520px;
+  height: 500px;
+  background: radial-gradient(circle at 50% 50%, #E4FAEF 0%, #EDFCF4 50%, transparent 80%);
+  opacity: 0.65;
+  filter: blur(60px);
+  animation: floatOrganic2 12s ease-in-out infinite alternate;
+}
+
+/* 3. Solutions Mid-Left */
+.blob-mid-solutions {
+  top: 32%;
+  left: -80px;
+  width: 600px;
+  height: 600px;
+  background: radial-gradient(circle at 40% 50%, #BDF3D8 0%, #E4FAEF 55%, transparent 80%);
+  opacity: 0.55;
+  filter: blur(65px);
+  animation: floatOrganic1 11s ease-in-out infinite alternate;
+}
+
+/* 4. FinAI Aura: Soft organic glow around the FinAI banner */
+.blob-finai-aura {
+  top: 50%;
+  right: -60px;
+  width: 650px;
+  height: 550px;
+  background: radial-gradient(circle at 60% 40%, #BDF3D8 0%, #E4FAEF 50%, transparent 80%);
+  opacity: 0.6;
+  filter: blur(55px);
+  animation: floatOrganic2 9s ease-in-out infinite alternate;
+}
+
+/* 5. Bottom Highlights Aura */
+.blob-highlights-bottom {
+  top: 72%;
+  left: 10%;
+  width: 700px;
+  height: 500px;
+  background: radial-gradient(circle at 50% 50%, #E4FAEF 0%, #F0FDF6 55%, transparent 80%);
+  opacity: 0.7;
+  filter: blur(70px);
+}
+
+/* SVG Organic Blobs with Asymmetric Curvature */
+.svg-organic-accent {
+  position: absolute;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.svg-accent-1 {
+  top: 60px;
+  right: 5%;
+  width: 480px;
+  height: 480px;
+  opacity: 0.55;
+  filter: blur(25px);
+  animation: floatOrganic2 10s ease-in-out infinite alternate;
+}
+
+.svg-accent-2 {
+  top: 28%;
+  right: -5%;
+  width: 520px;
+  height: 520px;
+  opacity: 0.45;
+  filter: blur(35px);
+}
+
+/* Dark mode adjustment for organic blobs */
+html.dark .blob-hero-top-right,
+html.dark .blob-finai-aura {
+  background: radial-gradient(circle at 45% 45%, rgba(16, 185, 129, 0.15) 0%, rgba(5, 150, 105, 0.08) 50%, transparent 80%);
+  opacity: 0.8;
+}
+
+html.dark .blob-hero-top-left,
+html.dark .blob-mid-solutions,
+html.dark .blob-highlights-bottom {
+  background: radial-gradient(circle at 50% 50%, rgba(16, 185, 129, 0.1) 0%, transparent 75%);
+  opacity: 0.6;
+}
+
+html.dark .svg-organic-accent {
+  opacity: 0.15;
+}
+
+/* Very subtle breathing organic animations (8-12 seconds) */
+@keyframes floatOrganic1 {
+  0% {
+    transform: translate(0px, 0px) scale(1) rotate(0deg);
+  }
+  100% {
+    transform: translate(25px, -18px) scale(1.05) rotate(4deg);
+  }
+}
+
+@keyframes floatOrganic2 {
+  0% {
+    transform: translate(0px, 0px) scale(1) rotate(0deg);
+  }
+  100% {
+    transform: translate(-20px, 22px) scale(1.04) rotate(-3deg);
+  }
+}

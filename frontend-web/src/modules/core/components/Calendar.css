@@ -1,0 +1,146 @@
+/* Reset and Scope Styles for Finora Calendar (React DayPicker v9/v10) */
+@import 'react-day-picker/src/style.css';
+
+.finora-calendar {
+  --rdp-accent-color: #007B58;
+  --rdp-accent-background-color: rgba(0, 123, 88, 0.12);
+  --rdp-day_button-width: 30px;
+  --rdp-day_button-height: 30px;
+  --rdp-day_button-border-radius: 8px;
+  margin: 0 !important;
+  font-family: inherit;
+  font-size: 13px;
+  user-select: none;
+}
+
+/* Fix bảng lịch luôn nằm gọn 230px, không bị tràn ngang */
+.finora-calendar .rdp-month_grid {
+  width: 100% !important;
+  border-collapse: separate !important;
+  border-spacing: 2px !important;
+}
+
+.finora-calendar .rdp-weekday {
+  font-size: 11px !important;
+  font-weight: 700 !important;
+  color: #64748B !important;
+  padding: 4px 0 !important;
+  text-align: center !important;
+}
+
+.finora-calendar .rdp-day {
+  padding: 0 !important;
+  text-align: center !important;
+}
+
+.finora-calendar .rdp-day_button {
+  width: 30px !important;
+  height: 30px !important;
+  font-size: 12.5px !important;
+  font-weight: 500 !important;
+  border-radius: 8px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  transition: all 0.15s ease !important;
+  cursor: pointer !important;
+  border: none !important;
+  background: transparent;
+  color: #0F172A;
+}
+
+.finora-calendar .rdp-day_button:hover:not(:disabled) {
+  background-color: #F1F5F9 !important;
+  color: #007B58 !important;
+}
+
+/* Ngày đang được chọn */
+.finora-calendar .rdp-selected .rdp-day_button,
+.finora-calendar .rdp-day_button[aria-selected="true"] {
+  background-color: #007B58 !important;
+  color: #FFFFFF !important;
+  font-weight: 700 !important;
+}
+
+/* Hôm nay */
+.finora-calendar .rdp-today .rdp-day_button {
+  font-weight: 800 !important;
+  color: #007B58 !important;
+  border: 1.5px solid #007B58 !important;
+}
+
+.finora-calendar .rdp-selected.rdp-today .rdp-day_button {
+  color: #FFFFFF !important;
+}
+
+/* Header & Dropdown */
+.finora-calendar .rdp-month_caption {
+  padding: 0 4px 8px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+}
+
+.finora-calendar .rdp-dropdowns {
+  display: flex !important;
+  gap: 6px !important;
+  align-items: center !important;
+}
+
+.finora-calendar select {
+  font-size: 12.5px !important;
+  font-weight: 600 !important;
+  color: #0F172A !important;
+  background-color: #F8FAFC !important;
+  border: 1px solid #E2E8F0 !important;
+  border-radius: 6px !important;
+  padding: 2px 6px !important;
+  cursor: pointer !important;
+  outline: none !important;
+}
+
+.finora-calendar .rdp-chevron {
+  fill: #007B58 !important;
+  width: 14px !important;
+  height: 14px !important;
+}
+
+/* Dark mode */
+.dark .finora-calendar {
+  --rdp-accent-color: #10B981;
+  --rdp-accent-background-color: rgba(16, 185, 129, 0.2);
+  color: #F8FAFC;
+}
+
+.dark .finora-calendar .rdp-day_button {
+  color: #F8FAFC;
+}
+
+.dark .finora-calendar .rdp-weekday {
+  color: #94A3B8 !important;
+}
+
+.dark .finora-calendar .rdp-day_button:hover:not(:disabled) {
+  background-color: #334155 !important;
+  color: #34D399 !important;
+}
+
+.dark .finora-calendar .rdp-selected .rdp-day_button {
+  background-color: #10B981 !important;
+  color: #0F172A !important;
+}
+
+.dark .finora-calendar .rdp-today .rdp-day_button {
+  color: #34D399 !important;
+  border-color: #34D399 !important;
+}
+
+.dark .finora-calendar select {
+  background-color: #1E293B !important;
+  border-color: #334155 !important;
+  color: #F8FAFC !important;
+}
+
+.dark .finora-calendar .rdp-chevron {
+  fill: #34D399 !important;
+}

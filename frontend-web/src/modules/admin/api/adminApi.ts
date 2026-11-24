@@ -92,6 +92,11 @@ export const adminApi = {
     return res.data?.data || res.data;
   },
 
+  async deleteUser(userId: string): Promise<void> {
+    const res = await api.delete(`/admin/users/${userId}`);
+    return res.data?.data || res.data;
+  },
+
   // 3. Vai trò & Phân quyền
   async getRoles(): Promise<Array<{
     role: string;
@@ -358,6 +363,12 @@ export const adminApi = {
 
   async updateSetting(key: string, value: string): Promise<any> {
     const res = await api.put(`/admin/settings/${key}`, { value });
+    return res.data?.data || res.data;
+  },
+
+  // 12. Thống kê FinAI Engine
+  async getAiAdminStats(): Promise<any> {
+    const res = await api.get('/admin/ai/stats');
     return res.data?.data || res.data;
   },
 };

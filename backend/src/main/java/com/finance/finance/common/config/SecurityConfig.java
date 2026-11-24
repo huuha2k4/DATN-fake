@@ -50,13 +50,15 @@ public class SecurityConfig {
                         // Public endpoints
                         .requestMatchers("/api/v1/auth/**").permitAll()
                         .requestMatchers("/api/v1/public/**").permitAll()
+                        // Authenticated service-to-service context is verified by the FinAI internal controller.
+                        .requestMatchers("/api/internal/v1/finai/**").permitAll()
                         .requestMatchers("/api/v1/test/**").permitAll()  // Test endpoints
                         .requestMatchers(HttpMethod.GET, "/api/v1/health").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/v1/accounts/types").permitAll()
                         .requestMatchers("/actuator/health/**").permitAll()  // Docker healthcheck
                         .requestMatchers("/error").permitAll()  // Error page
-                        .requestMatchers("/uploads/**").permitAll()  // Static files (avatars, etc.)
-                        .requestMatchers(HttpMethod.GET, "/api/v1/groups/messages/attachments/download").permitAll()
+                        .requestMatchers("/uploads/avatars/**", "/uploads/receipts/**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/v1/groups/*/messages/attachments/*").permitAll()
                         
                         // Admin endpoints
                         .requestMatchers("/api/v1/admin/**").hasRole("ADMIN")

@@ -59,7 +59,6 @@ export function FloatingActions({
             className="fab-item fab-ai"
             onClick={() => {
               setIsMiniChatOpen((prev) => !prev);
-              setIsOpen(false);
             }}
             title={isChildAccount ? 'Trợ lý Finora AI (Hỏi đáp tài chính cho bé)' : 'Trợ lý Finora (Chat nhanh)'}
             aria-label="Trợ lý Finora"

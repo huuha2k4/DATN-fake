@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { FinanceIcon, resolveCategoryIconName } from '../../core/components/FinanceIcon'
 import {
   getBalanceForecast,
@@ -15,7 +15,21 @@ function formatVND(amount: number): string {
   return Math.round(amount).toLocaleString('vi-VN') + ' đ'
 }
 
+const defaultFallbackForecast: BalanceForecastResponse = {
+  status: 'LIMITED_DATA',
+  current_balance: 0,
+  projected_end_of_month_balance: 0,
+  projected_range: {
+    lower: 0,
+    upper: 0,
+  },
+  summary: 'Chưa đủ dữ liệu lịch sử chi tiêu để FinAI mô hình hóa dự báo chuỗi thời gian cho bạn.',
+  forecast_points: [],
+  future_forecast: [],
+}
+
 export function FinancialForecastScreen({ onNotify }: Props) {
+  const initialLoadStarted = useRef(false)
   const [isLoading, setIsLoading] = useState(true)
   const [hoveredPoint, setHoveredPoint] = useState<{ date: string; val: number; x: number; y: number } | null>(null)
 
@@ -33,11 +47,20 @@ export function FinancialForecastScreen({ onNotify }: Props) {
         getGoalsForecast(),
       ])
 
-      if (balRes.status === 'fulfilled') {
+      if (balRes.status === 'fulfilled' && balRes.value) {
         setBalanceForecast(balRes.value)
+      } else {
+        setBalanceForecast(defaultFallbackForecast)
       }
-      if (categoriesRes.status === 'fulfilled' && categoriesRes.value.status === 'success') {
-        setCategoryForecasts(categoriesRes.value.forecasts)
+      if (categoriesRes.status === 'fulfilled' && categoriesRes.value) {
+        const val = categoriesRes.value as any
+        if (Array.isArray(val)) {
+          setCategoryForecasts(val)
+        } else if (Array.isArray(val.forecasts)) {
+          setCategoryForecasts(val.forecasts)
+        } else {
+          setCategoryForecasts([])
+        }
       } else {
         setCategoryForecasts([])
       }
@@ -49,13 +72,16 @@ export function FinancialForecastScreen({ onNotify }: Props) {
       }
     } catch (err) {
       console.error('Lỗi khi tải dự báo tài chính:', err)
-      onNotify('Không thể kết nối đến AI Service.')
+      setBalanceForecast((prev) => prev || defaultFallbackForecast)
+      onNotify('Không thể kết nối đến AI Service, hiển thị dữ liệu ước tính.')
     } finally {
       setIsLoading(false)
     }
   }
 
   useEffect(() => {
+    if (initialLoadStarted.current) return
+    initialLoadStarted.current = true
     loadForecast()
   }, [])
 
@@ -65,58 +91,58 @@ export function FinancialForecastScreen({ onNotify }: Props) {
   const chartPoints = (balanceForecast?.future_forecast || balanceForecast?.forecast_points || []).slice(0, 15)
 
   return (
-    <main className="mx-auto flex min-h-[calc(100vh-64px)] w-full max-w-[1560px] flex-col gap-5 bg-[#f6f8f6] dark:bg-[#07131d] px-3 pb-24 pt-4 text-[#14251f] dark:text-[#e2eaf0] sm:px-[22px] lg:px-[34px] lg:pb-10" aria-label="Dự báo tài chính">
+    <main className="mx-auto flex min-h-[calc(100vh-64px)] w-full max-w-[1560px] flex-col gap-5 bg-[#F8FAFC] dark:bg-[#0B0F19] px-3 pb-24 pt-4 text-[#0F172A] dark:text-[#F8FAFC] sm:px-[22px] lg:px-[34px] lg:pb-10" aria-label="Dự báo tài chính">
       {/* 3 THẺ TỔNG QUAN DỰ BÁO SỐ DƯ TỪ AI */}
       <section aria-label="Tổng quan dự báo" className="grid gap-3.5 md:grid-cols-3">
-        <article className="flex min-h-[140px] flex-col justify-between rounded-2xl border border-[#e2e8f0] dark:border-[#1e3c54] bg-white dark:bg-[#102334] p-5 shadow-sm dark:shadow-[0_8px_20px_rgba(0,0,0,0.35)] transition-all hover:border-[#cbd5e1] dark:hover:border-[#2b5170]">
+        <article className="flex min-h-[140px] flex-col justify-between rounded-2xl border border-[#e2e8f0] dark:border-[#1E293B] bg-white dark:bg-[#1F2937] p-5 shadow-sm dark:shadow-[0_8px_20px_rgba(0,0,0,0.35)] transition-all hover:border-[#cbd5e1] dark:hover:border-[#2b5170]">
           <div className="flex items-center justify-between">
             <span className="text-[10px] font-bold tracking-[.7px] text-[#64748b] dark:text-[#94a3b8]">SỐ DƯ THỰC TẾ HIỆN TẠI</span>
-            <span className="grid size-9 place-items-center rounded-xl bg-[#eaf4ed] dark:bg-[#163f39] text-[#087557] dark:text-[#34d399] shadow-inner">
+            <span className="grid size-9 place-items-center rounded-xl bg-[#E6F4EA] dark:bg-[#163f39] text-[#007F53] dark:text-[#34d399] shadow-inner">
               <FinanceIcon name="wallet" size={17} />
             </span>
           </div>
           <strong className="mt-2 text-[28px] font-bold tracking-tight text-[#1e293b] dark:text-white">
             {formatVND(currentBal)}
           </strong>
-          <span className="text-[11px] text-[#64748b] dark:text-[#8fa7b7]">Tổng hợp từ tất cả ví cá nhân</span>
+          <span className="text-[11px] text-[#64748b] dark:text-[#94A3B8]">Tổng hợp từ tất cả ví cá nhân</span>
         </article>
 
-        <article className="flex min-h-[140px] flex-col justify-between rounded-2xl border border-[#e2e8f0] dark:border-[#1e3c54] bg-white dark:bg-[#102334] p-5 shadow-sm dark:shadow-[0_8px_20px_rgba(0,0,0,0.35)] transition-all hover:border-[#cbd5e1] dark:hover:border-[#2b5170]">
+        <article className="flex min-h-[140px] flex-col justify-between rounded-2xl border border-[#e2e8f0] dark:border-[#1E293B] bg-white dark:bg-[#1F2937] p-5 shadow-sm dark:shadow-[0_8px_20px_rgba(0,0,0,0.35)] transition-all hover:border-[#cbd5e1] dark:hover:border-[#2b5170]">
           <div className="flex items-center justify-between">
             <span className="text-[10px] font-bold tracking-[.7px] text-[#64748b] dark:text-[#94a3b8]">DỰ BÁO SỐ DƯ CUỐI THÁNG</span>
-            <span className="grid size-9 place-items-center rounded-xl bg-[#eaf0fb] dark:bg-[#153e5c] text-[#3b82f6] dark:text-[#38bdf8] shadow-inner">
+            <span className="grid size-9 place-items-center rounded-xl bg-[#eaf0fb] dark:bg-[#1F2937] text-[#3b82f6] dark:text-[#38bdf8] shadow-inner">
               <FinanceIcon name="spark" size={17} />
             </span>
           </div>
-          <strong className="mt-2 text-[28px] font-bold tracking-tight text-[#07543f] dark:text-[#34d399]">
+          <strong className="mt-2 text-[28px] font-bold tracking-tight text-[#007F53] dark:text-[#34d399]">
             {formatVND(projectedBal)}
           </strong>
-          <span className="text-[11px] text-[#64748b] dark:text-[#8fa7b7]">
+          <span className="text-[11px] text-[#64748b] dark:text-[#94A3B8]">
             {balanceForecast?.projected_range
               ? `Khoảng dao động: ${formatVND(balanceForecast.projected_range.lower)} ~ ${formatVND(balanceForecast.projected_range.upper)}`
               : 'Ước lượng theo xu hướng chi tiêu'}
           </span>
         </article>
 
-        <article className="flex min-h-[140px] flex-col justify-between rounded-2xl border border-[#e2e8f0] dark:border-[#1e3c54] bg-white dark:bg-[#102334] p-5 shadow-sm dark:shadow-[0_8px_20px_rgba(0,0,0,0.35)] transition-all hover:border-[#cbd5e1] dark:hover:border-[#2b5170]">
+        <article className="flex min-h-[140px] flex-col justify-between rounded-2xl border border-[#e2e8f0] dark:border-[#1E293B] bg-white dark:bg-[#1F2937] p-5 shadow-sm dark:shadow-[0_8px_20px_rgba(0,0,0,0.35)] transition-all hover:border-[#cbd5e1] dark:hover:border-[#2b5170]">
           <div className="flex items-center justify-between">
             <span className="text-[10px] font-bold tracking-[.7px] text-[#64748b] dark:text-[#94a3b8]">BIẾN ĐỘNG DÒNG TIỀN DỰ KIẾN</span>
             <span className="grid size-9 place-items-center rounded-xl bg-[#f0fdf4] dark:bg-[#174431] text-[#10b981] dark:text-[#34d399] shadow-inner">
               <FinanceIcon name="trend" size={17} />
             </span>
           </div>
-          <strong className={`mt-2 text-[28px] font-bold tracking-tight ${netDiff >= 0 ? 'text-[#087557] dark:text-[#34d399]' : 'text-[#e11d48]'}`}>
+          <strong className={`mt-2 text-[28px] font-bold tracking-tight ${netDiff >= 0 ? 'text-[#007F53] dark:text-[#34d399]' : 'text-[#e11d48]'}`}>
             {netDiff >= 0 ? `+${formatVND(netDiff)}` : `-${formatVND(Math.abs(netDiff))}`}
           </strong>
-          <span className="text-[11px] text-[#64748b] dark:text-[#8fa7b7]">
+          <span className="text-[11px] text-[#64748b] dark:text-[#94A3B8]">
             {netDiff >= 0 ? 'Dự kiến thặng dư vào cuối chu kỳ' : 'Dự kiến suy giảm số dư do chi tiêu'}
           </span>
         </article>
       </section>
 
       {/* BIỂU ĐỒ CHUỖI THỜI GIAN AI (TIME-SERIES CHART) */}
-      <section className="rounded-2xl border border-[#e2e8f0] dark:border-[#1e3c54] bg-white dark:bg-[#102334] p-4 shadow-sm dark:shadow-[0_12px_28px_rgba(0,0,0,0.38)] sm:p-5">
-        <header className="flex flex-col justify-between gap-3 border-b border-[#edf0ed] dark:border-[#1a3449] pb-3 sm:flex-row sm:items-center">
+      <section className="rounded-2xl border border-[#e2e8f0] dark:border-[#1E293B] bg-white dark:bg-[#1F2937] p-4 shadow-sm dark:shadow-[0_12px_28px_rgba(0,0,0,0.38)] sm:p-5">
+        <header className="flex flex-col justify-between gap-3 border-b border-[#E2E8F0] dark:border-[#1a3449] pb-3 sm:flex-row sm:items-center">
           <div>
             <h2 className="text-base font-semibold text-[#1e293b] dark:text-[#f8fafc]">Đồ thị Dự phóng Số dư Ví (15 ngày tới)</h2>
             <p className="mt-1 text-[11px] text-[#64748b] dark:text-[#94a3b8]">
@@ -127,7 +153,7 @@ export function FinancialForecastScreen({ onNotify }: Props) {
             type="button"
             onClick={() => loadForecast(true)}
             disabled={isLoading}
-            className="inline-flex h-9 shrink-0 items-center justify-center gap-1.5 rounded-lg bg-[#07543f] px-3 text-[11px] font-semibold text-white transition hover:bg-[#064a36] disabled:cursor-not-allowed disabled:opacity-60"
+            className="inline-flex h-9 shrink-0 items-center justify-center gap-1.5 rounded-lg bg-[#007F53] px-3 text-[11px] font-semibold text-white transition hover:bg-[#064a36] disabled:cursor-not-allowed disabled:opacity-60"
           >
             <FinanceIcon name="refresh" size={14} className={isLoading ? 'animate-spin' : ''} />
             {isLoading ? 'Đang tính...' : 'Cập nhật dự báo'}
@@ -181,11 +207,11 @@ export function FinancialForecastScreen({ onNotify }: Props) {
           return (
             <div className="relative mt-5">
               {/* Thanh Header đồ thị: Chỉ số Đỉnh - Đáy & Biến động */}
-              <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg bg-[#f8faf9] dark:bg-[#071926] px-3.5 py-2.5 border border-[#edf0ed] dark:border-[#132c3f] text-xs">
+              <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg bg-[#F8FAFC] dark:bg-[#0B0F19] px-3.5 py-2.5 border border-[#E2E8F0] dark:border-[#132c3f] text-xs">
                 <div className="flex items-center gap-2">
                   <span className="size-2 rounded-full bg-[#10b981] shadow-[0_0_8px_#10b981]" />
                   <span className="text-[#64748b] dark:text-[#94a3b8]">Cao nhất:</span>
-                  <strong className="text-[#07543f] dark:text-[#34d399] font-semibold">{formatVND(rawMax)}</strong>
+                  <strong className="text-[#007F53] dark:text-[#34d399] font-semibold">{formatVND(rawMax)}</strong>
                 </div>
                 <div className="flex items-center gap-2">
                   <span className="size-2 rounded-full bg-[#0284c7] shadow-[0_0_8px_#38bdf8]" />
@@ -201,7 +227,7 @@ export function FinancialForecastScreen({ onNotify }: Props) {
               </div>
 
               {/* Khung đồ thị chứng khoán chuyên nghiệp */}
-              <div className="relative w-full h-[230px] sm:h-[270px] select-none mt-2 rounded-xl bg-gradient-to-b from-[#f8faf9]/50 to-white dark:from-[#081b29] dark:to-[#05121b] border border-[#e2e8f0]/60 dark:border-[#132c3f] p-2">
+              <div className="relative w-full h-[230px] sm:h-[270px] select-none mt-2 rounded-xl bg-gradient-to-b from-[#F8FAFC]/50 to-white dark:from-[#0B0F19] dark:to-[#0B0F19] border border-[#e2e8f0]/60 dark:border-[#132c3f] p-2">
                 <svg
                   viewBox={`0 0 ${svgWidth} ${svgHeight}`}
                   preserveAspectRatio="none"
@@ -324,8 +350,8 @@ export function FinancialForecastScreen({ onNotify }: Props) {
               </div>
 
               {/* Mốc thời gian trục X */}
-              <div className="mt-2.5 flex justify-between px-2 text-[10px] font-medium text-[#718078] dark:text-[#8fa7b7]">
-                <span className="text-[#07543f] dark:text-[#34d399] font-bold">Hôm nay</span>
+              <div className="mt-2.5 flex justify-between px-2 text-[10px] font-medium text-[#64748B] dark:text-[#94A3B8]">
+                <span className="text-[#007F53] dark:text-[#34d399] font-bold">Hôm nay</span>
                 <span>+5 ngày</span>
                 <span>+10 ngày</span>
                 <span className="text-[#10b981] dark:text-[#38bdf8] font-bold">Dự báo 15 ngày tới</span>
@@ -333,7 +359,7 @@ export function FinancialForecastScreen({ onNotify }: Props) {
             </div>
           )
         })() : (
-          <div className="py-12 text-center text-xs text-[#718078] dark:text-[#8fa7b7]">
+          <div className="py-12 text-center text-xs text-[#64748B] dark:text-[#94A3B8]">
             Đang tải dữ liệu chuỗi thời gian từ mô hình Prophet...
           </div>
         )}
@@ -343,14 +369,14 @@ export function FinancialForecastScreen({ onNotify }: Props) {
       {categoryForecasts.length > 0 && (
         <section>
           <header className="mb-3">
-            <h2 className="text-base font-semibold text-[#26372e] dark:text-[#f8fafc]">Dự báo chi tiêu Danh mục Thực tế</h2>
-            <p className="mt-1 text-[10px] text-[#718078] dark:text-[#8fa7b7]">
+            <h2 className="text-base font-semibold text-[#0F172A] dark:text-[#f8fafc]">Dự báo chi tiêu Danh mục Thực tế</h2>
+            <p className="mt-1 text-[10px] text-[#64748B] dark:text-[#94A3B8]">
               Phân tích tốc độ chi tiêu theo chu kỳ tháng và đối soát ngân sách.
             </p>
           </header>
           <div className="grid gap-3.5 md:grid-cols-2 xl:grid-cols-3">
             {categoryForecasts.map((categoryForecast) => (
-            <article key={categoryForecast.category_name} className="flex flex-col justify-between rounded-2xl border border-[#e2e8f0] dark:border-[#1e3c54] bg-white dark:bg-[#102334] p-5 shadow-sm dark:shadow-[0_8px_20px_rgba(0,0,0,0.35)]">
+            <article key={categoryForecast.category_name} className="flex flex-col justify-between rounded-2xl border border-[#e2e8f0] dark:border-[#1E293B] bg-white dark:bg-[#1F2937] p-5 shadow-sm dark:shadow-[0_8px_20px_rgba(0,0,0,0.35)]">
               <div>
                 <header className="flex items-start justify-between gap-2">
                   <div className="flex items-center gap-2.5">
@@ -364,33 +390,33 @@ export function FinancialForecastScreen({ onNotify }: Props) {
                       <FinanceIcon name={resolveCategoryIconName(categoryForecast.category_icon || undefined, 'EXPENSE', categoryForecast.category_name)} size={16} />
                     </span>
                     <div>
-                      <h3 className="text-xs font-semibold text-[#34463b] dark:text-[#e2eaf0]">{categoryForecast.category_name}</h3>
-                      <p className="mt-0.5 text-[9px] text-[#718078] dark:text-[#8fa7b7]">
+                      <h3 className="text-xs font-semibold text-[#334155] dark:text-[#F8FAFC]">{categoryForecast.category_name}</h3>
+                      <p className="mt-0.5 text-[9px] text-[#64748B] dark:text-[#94A3B8]">
                         Hạn mức: {categoryForecast.budget_limit ? formatVND(categoryForecast.budget_limit) : 'Chưa đặt hạn mức'}
                       </p>
                     </div>
                   </div>
-                  <span className={`shrink-0 rounded-full px-2 py-0.5 text-[8px] font-semibold ${categoryForecast.risk_level?.includes('VƯỢT') ? 'bg-[#fff0e9] text-[#b45148]' : 'bg-[#e3f4e9] text-[#087557]'}`}>
+                  <span className={`shrink-0 rounded-full px-2 py-0.5 text-[8px] font-semibold ${categoryForecast.risk_level?.includes('VƯỢT') ? 'bg-[#fff0e9] text-[#b45148]' : 'bg-[#E6F4EA] text-[#007F53]'}`}>
                     {categoryForecast.risk_level || 'AN TOÀN'}
                   </span>
                 </header>
 
                 <div className="mt-4 grid gap-2 text-[11px]">
                   <div className="flex justify-between">
-                    <span className="text-[#718078] dark:text-[#8fa7b7]">Đã chi trong tháng:</span>
-                    <strong className="text-[#26372e] dark:text-[#f8fafc]">{formatVND(categoryForecast.current_spent || 0)}</strong>
+                    <span className="text-[#64748B] dark:text-[#94A3B8]">Đã chi trong tháng:</span>
+                    <strong className="text-[#0F172A] dark:text-[#f8fafc]">{formatVND(categoryForecast.current_spent || 0)}</strong>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-[#718078] dark:text-[#8fa7b7]">Dự báo tổng chi cả tháng:</span>
+                    <span className="text-[#64748B] dark:text-[#94A3B8]">Dự báo tổng chi cả tháng:</span>
                     <strong style={{ color: categoryForecast.category_color || '#b45148' }}>{formatVND(categoryForecast.projected_total_month || 0)}</strong>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-[#718078] dark:text-[#8fa7b7]">Tốc độ chi trung bình:</span>
-                    <span className="text-[#59675f] dark:text-[#cbd5e1]">{formatVND(categoryForecast.daily_rate || 0)}/ngày</span>
+                    <span className="text-[#64748B] dark:text-[#94A3B8]">Tốc độ chi trung bình:</span>
+                    <span className="text-[#64748B] dark:text-[#cbd5e1]">{formatVND(categoryForecast.daily_rate || 0)}/ngày</span>
                   </div>
                 </div>
 
-                <p className="mt-3 rounded-lg bg-[#f8faf9] dark:bg-[#122838] p-2.5 text-[10px] leading-4 text-[#59675f] dark:text-[#cbd5e1]">
+                <p className="mt-3 rounded-lg bg-[#F8FAFC] dark:bg-[#1F2937] p-2.5 text-[10px] leading-4 text-[#64748B] dark:text-[#cbd5e1]">
                   💡 {categoryForecast.summary}
                 </p>
               </div>
@@ -404,45 +430,45 @@ export function FinancialForecastScreen({ onNotify }: Props) {
       {goalsForecast && goalsForecast.goals && goalsForecast.goals.length > 0 && (
         <section>
           <header className="mb-3">
-            <h2 className="text-base font-semibold text-[#26372e] dark:text-[#f8fafc]">Dự báo Khả năng Hoàn thành Mục tiêu</h2>
-            <p className="mt-1 text-[10px] text-[#718078] dark:text-[#8fa7b7]">
+            <h2 className="text-base font-semibold text-[#0F172A] dark:text-[#f8fafc]">Dự báo Khả năng Hoàn thành Mục tiêu</h2>
+            <p className="mt-1 text-[10px] text-[#64748B] dark:text-[#94A3B8]">
               {goalsForecast.summary || 'Ước tính thời gian đạt mục tiêu dựa trên thặng dư tiết kiệm trung bình hàng tháng.'}
             </p>
           </header>
           <div className="grid gap-3.5 md:grid-cols-2 xl:grid-cols-3">
             {goalsForecast.goals.map((g) => (
-              <article key={g.goal_id} className="flex min-h-[220px] flex-col justify-between rounded-2xl border border-[#e2e8f0] dark:border-[#1e3c54] bg-white dark:bg-[#102334] p-5 shadow-sm dark:shadow-[0_8px_20px_rgba(0,0,0,0.35)]">
+              <article key={g.goal_id} className="flex min-h-[220px] flex-col justify-between rounded-2xl border border-[#e2e8f0] dark:border-[#1E293B] bg-white dark:bg-[#1F2937] p-5 shadow-sm dark:shadow-[0_8px_20px_rgba(0,0,0,0.35)]">
                 <div>
                   <header className="flex items-start justify-between gap-2">
                     <div className="flex items-center gap-2.5">
-                      <span className="grid size-9 place-items-center rounded-lg bg-[#eaf4ed] dark:bg-[#15454b] text-[#087557] dark:text-[#5eead4]">
+                      <span className="grid size-9 place-items-center rounded-lg bg-[#E6F4EA] dark:bg-[#15454b] text-[#007F53] dark:text-[#5eead4]">
                         <FinanceIcon name="shield" size={16} />
                       </span>
                       <div>
-                        <h3 className="text-xs font-semibold text-[#34463b] dark:text-[#e2eaf0]">{g.name}</h3>
-                        <p className="mt-0.5 text-[9px] text-[#718078] dark:text-[#8fa7b7]">
+                        <h3 className="text-xs font-semibold text-[#334155] dark:text-[#F8FAFC]">{g.name}</h3>
+                        <p className="mt-0.5 text-[9px] text-[#64748B] dark:text-[#94A3B8]">
                           Dự kiến xong: <strong>{g.estimated_completion_month}</strong>
                         </p>
                       </div>
                     </div>
-                    <strong className="text-sm font-bold text-[#087557] dark:text-[#5eead4]">{g.progress_pct}%</strong>
+                    <strong className="text-sm font-bold text-[#007F53] dark:text-[#5eead4]">{g.progress_pct}%</strong>
                   </header>
 
-                  <div className="mt-4 flex justify-between text-[10px] text-[#718078] dark:text-[#8fa7b7]">
+                  <div className="mt-4 flex justify-between text-[10px] text-[#64748B] dark:text-[#94A3B8]">
                     <span>Tiến độ tích lũy:</span>
-                    <strong className="text-[#34463b] dark:text-[#e2eaf0]">
+                    <strong className="text-[#334155] dark:text-[#F8FAFC]">
                       {formatVND(g.current_amount)} / {formatVND(g.target_amount)}
                     </strong>
                   </div>
 
-                  <div className="mt-2 h-2 overflow-hidden rounded-full bg-[#edf1ee] dark:bg-[#1e3a4e]">
+                  <div className="mt-2 h-2 overflow-hidden rounded-full bg-[#edf1ee] dark:bg-[#1F2937]">
                     <span
                       className="block h-full rounded-full bg-[#10b981]"
                       style={{ width: `${Math.min(100, g.progress_pct)}%` }}
                     />
                   </div>
 
-                  <p className="mt-3 rounded-lg bg-[#f8faf9] dark:bg-[#122838] p-2.5 text-[10px] text-[#59675f] dark:text-[#cbd5e1]">
+                  <p className="mt-3 rounded-lg bg-[#F8FAFC] dark:bg-[#1F2937] p-2.5 text-[10px] text-[#64748B] dark:text-[#cbd5e1]">
                     🎯 Còn thiếu {formatVND(g.remaining_amount)}. Cần khoảng <strong>{g.months_needed} tháng</strong> với tốc độ tiết kiệm hiện tại.
                   </p>
                 </div>

@@ -5,6 +5,7 @@ export interface UserProfileResponse {
   email: string;
   username: string | null;
   fullName: string;
+  dateOfBirth?: string | null;
   avatarUrl: string | null;
   phone: string | null;
   subscriptionTier: string;
@@ -64,6 +65,9 @@ export const userProfileApi = {
    */
   async updateProfile(req: {
     fullName?: string;
+    username?: string;
+    password?: string;
+    dateOfBirth?: string;
     phone?: string;
     preferredCurrency?: string;
     timezone?: string;
@@ -96,6 +100,8 @@ export const userProfileApi = {
         {
           ...currentUser,
           fullName: updated.fullName || currentUser.fullName,
+          username: updated.username || currentUser.username,
+          dateOfBirth: updated.dateOfBirth !== undefined ? updated.dateOfBirth : currentUser.dateOfBirth,
           avatarUrl: updated.avatarUrl !== undefined ? updated.avatarUrl : currentUser.avatarUrl,
           phone: updated.phone || currentUser.phone,
         },

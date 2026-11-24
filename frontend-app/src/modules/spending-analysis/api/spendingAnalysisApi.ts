@@ -89,9 +89,6 @@ export interface RecommendationResponse {
 
 function getAiServiceBaseUrls(): string[] {
   const list: string[] = [];
-  if (process.env.EXPO_PUBLIC_AI_URL) {
-    list.push(process.env.EXPO_PUBLIC_AI_URL);
-  }
   if (API_BASE_URL) {
     const nginxRoot = API_BASE_URL.replace(/\/api\/v1\/?$/, '');
     if (nginxRoot && !list.includes(nginxRoot)) {
@@ -101,85 +98,50 @@ function getAiServiceBaseUrls(): string[] {
   return list;
 }
 
-function getUserId(): string {
-  const u = authStorage.getUser();
-  return u?.id || 'b5f7482d-74a0-4582-8fa2-9c586211a583';
-}
-
 export const fallbackProfile: BehaviorProfileResponse = {
   persona: {
-    title: 'Người Tiết Kiệm & Kỷ Luật',
-    tagline: 'Ưu tiên tích lũy dự phòng, chi tiêu có kế hoạch chặt chẽ.',
-    description: 'Ưu tiên tích lũy dự phòng, chi tiêu có kế hoạch chặt chẽ.',
-    icon: '🛡️',
+    title: 'Chưa đủ dữ liệu phân tích',
+    tagline: 'Cần thêm các giao dịch chi tiêu để FinAI định hình thói quen tài chính của bạn.',
+    description: 'Chưa đủ dữ liệu phân tích.',
+    icon: '📊',
   },
   findings: [
-    'Chi tiêu ăn uống chiếm 26.7% tổng ngân sách.',
-    'Tỷ lệ tiết kiệm khả quan: đạt 66.9% tổng thu nhập.',
-    'Có xu hướng chi mạnh vào cuối tuần.',
+    'Chưa có đủ số lượng giao dịch để tổng hợp thói quen.',
+    'Hãy ghi chép các khoản chi tiêu hàng ngày để FinAI đưa ra insight chuẩn xác nhất.',
   ],
   rule_50_30_20: {
-    needs_pct: 18.5,
-    wants_pct: 14.6,
-    savings_pct: 66.9,
+    needs_pct: 0,
+    wants_pct: 0,
+    savings_pct: 0,
   },
   dining_analysis: {
-    dining_amount: 865000,
-    dining_percentage: 26.7,
+    dining_amount: 0,
+    dining_percentage: 0,
   },
   radar_scores: {
-    savings_discipline: 88,
-    needs_control: 82,
+    savings_discipline: 0,
+    needs_control: 0,
   },
-  top_categories: [
-    { category_name: 'Chi phí khác', total_amount: 1000000, percentage: 30.9, icon: 'wallet', color: '#10B981' },
-    { category_name: 'Ăn uống', total_amount: 865000, percentage: 26.7, icon: 'utensils', color: '#F59E0B' },
-    { category_name: 'Tiết kiệm, đầu tư', total_amount: 471900, percentage: 14.6, icon: 'piggy-bank', color: '#EAB308' },
-    { category_name: 'Trả nợ', total_amount: 323456, percentage: 10.0, icon: 'car', color: '#06B6D4' },
-    { category_name: 'Gia đình & Con cái', total_amount: 262000, percentage: 8.1, icon: 'users', color: '#A855F7' },
-  ],
+  top_categories: [],
 };
 
-export const fallbackAnomalies: AnomalyItem[] = [
-  {
-    transaction_id: 'anom-1',
-    date: '16/08/2026 11:02',
-    amount: 440000,
-    category: 'Ăn uống',
-    severity: 'HIGH',
-    explanation: 'Cảnh báo bất thường: Số tiền 440.000 đ cao gấp 5.6 lần mức trung bình danh mục (78.636 đ).',
-  },
-];
+export const fallbackAnomalies: AnomalyItem[] = [];
 
 export const fallbackRecommendations: RecommendationResponse = {
-  total_monthly_potential_savings: 43250,
+  total_monthly_potential_savings: 0,
   health_score: 100,
-  health_rating: 'Rất Tốt ☀️',
-  overall_advice: 'Bạn đang duy trì thói quen chi tiêu kỷ luật, tỷ lệ tiết kiệm tốt và ít rủi ro tài chính.',
-  recommendations: [
-    {
-      id: 'rec-1',
-      title: 'Tối ưu hóa lợi nhuận tích lũy',
-      priority: 'LOW',
-      explanation: 'Với khả năng gom góp xuất sắc, việc bạn để tiền nằm yên trong tài khoản thanh toán giống như để một cỗ máy đắt tiền hoạt động không hết công suất.',
-      action_steps: [
-        'Cài đặt tính năng “Tích lũy tự động” (Auto-save) trên ứng dụng ngân hàng để chuyển 50% tiền nhàn rỗi sang tài khoản sinh lời theo ngày.',
-        'Chia nhỏ số tiền tiết kiệm thành các hợp đồng tiền gửi trực tuyến (Online Term Deposit) kỳ hạn ngắn 1–3 tháng để vừa tối ưu lãi suất, vừa đảm bảo tính thanh khoản.',
-        'Thiết lập thói quen “quét tài khoản” vào cuối tháng: Chuyển toàn bộ số dư thừa còn lại trong tài khoản chi tiêu vào quỹ mở trái phiếu hoặc két tích lũy thông minh.',
-      ],
-      summary: 'Tỷ lệ tích lũy của bạn rất tốt (66.9%). Hãy chuyển bớt tiền nhàn rỗi sang tài khoản sinh lời.',
-    },
-  ],
+  health_rating: 'Khởi đầu mới',
+  overall_advice: 'Bạn chưa có nhiều dữ liệu giao dịch. Hãy tiếp tục ghi chép để FinAI hỗ trợ tối ưu tài chính nhé!',
+  recommendations: [],
 };
 
 export async function fetchBehaviorProfile(): Promise<BehaviorProfileResponse> {
   const token = authStorage.getToken();
-  const userId = getUserId();
   const baseUrls = getAiServiceBaseUrls();
 
   for (const base of baseUrls) {
     try {
-      const res = await fetch(`${base}/api/behavior/profile?user_id=${encodeURIComponent(userId)}`, {
+      const res = await fetch(`${base}/api/behavior/profile`, {
         headers: {
           'Content-Type': 'application/json',
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
@@ -210,7 +172,6 @@ export async function fetchBehaviorProfile(): Promise<BehaviorProfileResponse> {
 
 export async function fetchSpendingAnomalies(): Promise<AnomalyResponse> {
   const token = authStorage.getToken();
-  const userId = getUserId();
   const baseUrls = getAiServiceBaseUrls();
 
   let totalScanned = 0;
@@ -255,7 +216,7 @@ export async function fetchSpendingAnomalies(): Promise<AnomalyResponse> {
 
   for (const base of baseUrls) {
     try {
-      const res = await fetch(`${base}/api/anomalies?user_id=${encodeURIComponent(userId)}`, {
+      const res = await fetch(`${base}/api/anomalies`, {
         headers: {
           'Content-Type': 'application/json',
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
@@ -272,7 +233,7 @@ export async function fetchSpendingAnomalies(): Promise<AnomalyResponse> {
 
         const scanned = (typeof data?.total_scanned === 'number' && data.total_scanned > 0)
           ? data.total_scanned
-          : (totalScanned > 0 ? totalScanned : fallbackAnomalies.length * 15);
+          : (totalScanned > 0 ? totalScanned : 0);
         const risk = list.length === 0 ? 'An toàn' : list.length <= 2 ? 'Thấp' : 'Trung bình';
         return {
           anomalies: list,
@@ -286,20 +247,19 @@ export async function fetchSpendingAnomalies(): Promise<AnomalyResponse> {
   }
 
   return {
-    anomalies: fallbackAnomalies,
-    total_scanned: totalScanned > 0 ? totalScanned : 152,
-    risk_level: 'Thấp',
+    anomalies: [],
+    total_scanned: totalScanned,
+    risk_level: 'An toàn',
   };
 }
 
 export async function fetchAiRecommendations(): Promise<RecommendationResponse> {
   const token = authStorage.getToken();
-  const userId = getUserId();
   const baseUrls = getAiServiceBaseUrls();
 
   for (const base of baseUrls) {
     try {
-      const res = await fetch(`${base}/api/recommendations?user_id=${encodeURIComponent(userId)}`, {
+      const res = await fetch(`${base}/api/recommendations`, {
         headers: {
           'Content-Type': 'application/json',
           ...(token ? { Authorization: `Bearer ${token}` } : {}),

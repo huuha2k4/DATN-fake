@@ -46,27 +46,27 @@ export function ConfirmDeleteModal({
             <FinanceIcon name={iconName} size={22} />
           </span>
           <div>
-            <h3 className="text-base font-bold text-[#14261e] dark:text-white">{title}</h3>
-            <p className="text-xs text-[#718579] dark:text-slate-400 mt-0.5">{subtitle}</p>
+            <h3 className="text-base font-bold text-[#0F172A] dark:text-white">{title}</h3>
+            <p className="text-xs text-[#64748B] dark:text-slate-400 mt-0.5">{subtitle}</p>
           </div>
         </div>
 
         {itemName && (
-          <div className="mt-4 rounded-xl bg-[#fafbfa] dark:bg-black/20 p-3.5 border border-[#edf2ee] dark:border-white/10">
+          <div className="mt-4 rounded-xl bg-[#fafbfa] dark:bg-black/20 p-3.5 border border-[#E2E8F0] dark:border-white/10">
             <div className="flex items-center justify-between text-xs">
-              <span className="text-[#718579] dark:text-slate-400">{itemTypeLabel}:</span>
-              <span className="font-bold text-[#14261e] dark:text-white truncate max-w-[200px]" title={itemName}>
+              <span className="text-[#64748B] dark:text-slate-400">{itemTypeLabel}:</span>
+              <span className="font-bold text-[#0F172A] dark:text-white truncate max-w-[200px]" title={itemName}>
                 {itemName}
               </span>
             </div>
           </div>
         )}
 
-        <p className="mt-3 text-xs text-[#52665a] dark:text-slate-300 leading-relaxed">
+        <p className="mt-3 text-xs text-[#475569] dark:text-slate-300 leading-relaxed">
           {message || (
             <>
               Bạn có chắc chắn muốn xóa vĩnh viễn{' '}
-              <strong className="text-[#14261e] dark:text-white">"{itemName || 'mục này'}"</strong> không?
+              <strong className="text-[#0F172A] dark:text-white">"{itemName || 'mục này'}"</strong> không?
             </>
           )}
         </p>
@@ -76,7 +76,7 @@ export function ConfirmDeleteModal({
             type="button"
             disabled={isDeleting}
             onClick={onClose}
-            className="h-9 rounded-xl border border-[#d5ded8] dark:border-slate-700 bg-white dark:bg-slate-800 px-4 text-xs font-semibold text-[#495b50] dark:text-slate-200 hover:bg-[#f1f5f2] dark:hover:bg-slate-700 transition disabled:opacity-50 cursor-pointer"
+            className="h-9 rounded-xl border border-[#CBD5E1] dark:border-slate-700 bg-white dark:bg-slate-800 px-4 text-xs font-semibold text-[#495b50] dark:text-slate-200 hover:bg-[#F1F5F9] dark:hover:bg-slate-700 transition disabled:opacity-50 cursor-pointer"
           >
             {cancelText}
           </button>

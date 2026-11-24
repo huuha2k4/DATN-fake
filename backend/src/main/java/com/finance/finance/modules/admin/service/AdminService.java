@@ -45,6 +45,9 @@ public class AdminService {
     private final com.finance.finance.modules.feedback.repository.FeedbackRepository feedbackRepository;
     private final com.finance.finance.modules.admin.repository.NotificationTemplateRepository notificationTemplateRepository;
     private final com.finance.finance.modules.admin.repository.SystemSettingRepository systemSettingRepository;
+    private final com.finance.finance.modules.auth.repository.RefreshTokenRepository refreshTokenRepository;
+    private final com.finance.finance.modules.auth.repository.AuthTokenRepository authTokenRepository;
+    private final com.finance.finance.modules.analytics.client.AiAnalyticsClient aiAnalyticsClient;
     private final javax.sql.DataSource dataSource;
     private final UserMapper userMapper;
 
@@ -214,6 +217,47 @@ public class AdminService {
         log.info("Admin toggled block status for user [{}]: new status={}", user.getId(), user.getUserStatus());
         logAudit(user.getUserStatus() == UserStatus.LOCKED ? "USER_LOCK" : "USER_UNLOCK", "USER", user.getId().toString(), "Thao tác khóa/mở khóa tài khoản: " + user.getEmail());
         return userMapper.toResponse(user);
+    }
+
+    @Transactional
+    public void deleteUser(UUID userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy người dùng với ID: " + userId));
+
+        if (user.getSystemRole() == com.finance.finance.common.enums.SystemRole.ADMIN) {
+            long adminCount = userRepository.findAll().stream()
+                    .filter(u -> u.getDeletedAt() == null && u.getSystemRole() == com.finance.finance.common.enums.SystemRole.ADMIN)
+                    .count();
+            if (adminCount <= 1) {
+                throw new com.finance.finance.common.exception.BusinessException("Không thể xóa quản trị viên duy nhất của hệ thống");
+            }
+        }
+
+        user.markAsDeleted();
+        userRepository.save(user);
+
+        // Xóa liên kết OAuth để khi đăng ký Google lại thì không bị nhận diện là user cũ
+        try (java.sql.Connection conn = dataSource.getConnection()) {
+            try (java.sql.PreparedStatement ps = conn.prepareStatement("DELETE FROM core.oauth_accounts WHERE user_id = ?")) {
+                ps.setObject(1, userId);
+                ps.executeUpdate();
+            }
+        } catch (Exception ex) {
+            log.warn("Failed to delete oauth_accounts for deleted user [{}]: {}", userId, ex.getMessage());
+        }
+
+        // Xóa token đăng nhập cũ
+        try {
+            refreshTokenRepository.revokeAllByUserId(userId, Instant.now());
+            for (com.finance.finance.common.enums.TokenType t : com.finance.finance.common.enums.TokenType.values()) {
+                authTokenRepository.invalidateUserTokensByType(userId, t, Instant.now());
+            }
+        } catch (Exception ex) {
+            log.warn("Failed to revoke tokens for deleted user [{}]: {}", userId, ex.getMessage());
+        }
+
+        log.info("Admin deleted user [{}]: original email={}", user.getId(), user.getEmail());
+        logAudit("USER_DELETE", "USER", user.getId().toString(), "Xóa người dùng khỏi hệ thống (giải phóng email/username): " + user.getEmail());
     }
 
     // 3. Quản lý Vai trò & Phân quyền
@@ -997,5 +1041,9 @@ public class AdminService {
                 .description(setting.getDescription())
                 .updatedAt(setting.getUpdatedAt())
                 .build();
+    }
+
+    public Object getAiAdminStats() {
+        return aiAnalyticsClient.get("/api/ai/admin/stats", null, java.util.Map.of());
     }
 }

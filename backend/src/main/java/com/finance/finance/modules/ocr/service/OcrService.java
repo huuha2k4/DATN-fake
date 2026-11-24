@@ -11,6 +11,7 @@ import com.finance.finance.modules.ocr.repository.ReceiptRepository;
 import com.finance.finance.modules.transaction.dto.request.CreateTransactionRequest;
 import com.finance.finance.modules.transaction.dto.response.TransactionResponse;
 import com.finance.finance.modules.transaction.service.TransactionService;
+import com.finance.finance.common.upload.FileUploadValidator;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
@@ -37,6 +38,7 @@ import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 
 @Slf4j
@@ -49,27 +51,25 @@ public class OcrService {
     private final TransactionService transactionService;
     private final AccountRepository accountRepository;
     private final CategoryRepository categoryRepository;
+    private final FileUploadValidator fileUploadValidator;
 
     @Value("${app.ai.ocr-service-url}")
     private String aiServiceUrl;
 
-    private static final List<String> ALLOWED_CONTENT_TYPES = List.of("image/jpeg", "image/png", "image/webp");
-    private static final long MAX_FILE_SIZE = 15L * 1024 * 1024; // 15 MB
     private static final String RECEIPT_UPLOAD_DIR = "uploads/receipts";
+
+    // Các kind bị từ chối — không lưu DB, trả thẳng về frontend
+    private static final Set<String> REJECTED_KINDS = Set.of(
+            "not_receipt", "low_quality", "handwritten", "draft"
+    );
 
     /**
      * Scan a receipt image via the AI OCR service and persist the result.
      */
     @Transactional
     public OcrReceiptResponse scanReceipt(UUID userId, MultipartFile file) throws IOException {
-        // --- Validate ---
-        String contentType = file.getContentType();
-        if (contentType == null || !ALLOWED_CONTENT_TYPES.contains(contentType)) {
-            throw new IllegalArgumentException("Chỉ chấp nhận file JPEG, PNG hoặc WEBP");
-        }
-        if (file.getSize() > MAX_FILE_SIZE) {
-            throw new IllegalArgumentException("Kích thước file vượt quá 15MB");
-        }
+        FileUploadValidator.ValidatedUpload validated =
+                fileUploadValidator.validate(file, FileUploadValidator.Policy.RECEIPT);
 
         // --- Save receipt image to uploads/receipts ---
         String imageUrl = null;
@@ -78,12 +78,7 @@ public class OcrService {
             if (!Files.exists(uploadDir)) {
                 Files.createDirectories(uploadDir);
             }
-            String originalFilename = file.getOriginalFilename();
-            String extension = ".jpg";
-            if (originalFilename != null && originalFilename.lastIndexOf('.') > 0) {
-                extension = originalFilename.substring(originalFilename.lastIndexOf('.')).toLowerCase();
-            }
-            String filename = UUID.randomUUID() + extension;
+            String filename = UUID.randomUUID() + validated.extension();
             Path targetPath = uploadDir.resolve(filename);
             Files.copy(file.getInputStream(), targetPath, StandardCopyOption.REPLACE_EXISTING);
             imageUrl = "/" + RECEIPT_UPLOAD_DIR + "/" + filename;
@@ -122,6 +117,24 @@ public class OcrService {
         AiReceiptResult result = aiResponse.getBody();
         if (result == null) {
             throw new IllegalStateException("AI service returned empty response");
+        }
+
+        // --- CỔNG KIỂM TRA: từ chối ảnh không hợp lệ, không lưu DB ---
+        if (result.getKind() != null && REJECTED_KINDS.contains(result.getKind())) {
+            log.info("Receipt rejected by AI service: kind={}, reason={}", result.getKind(), result.getRejectReason());
+            // Xóa ảnh đã lưu tạm (nếu có) vì không cần thiết
+            if (imageUrl != null) {
+                try {
+                    Files.deleteIfExists(Paths.get(imageUrl.replaceFirst("^/", "")));
+                } catch (Exception ignored) {}
+            }
+            // Trả về response từ chối mà KHÔNG lưu vào database
+            return OcrReceiptResponse.builder()
+                    .kind(result.getKind())
+                    .confidence(result.getConfidence())
+                    .needsReview(result.getNeedsReview() != null ? result.getNeedsReview() : false)
+                    .rejectReason(result.getRejectReason())
+                    .build();
         }
 
         // --- Parse dates ---
@@ -242,24 +255,19 @@ public class OcrService {
 
         TransactionResponse txResponse = transactionService.createTransaction(userId, txReq);
 
-        // Link receipt to the new transaction and update user-confirmed fields
+        // Link receipt to the new transaction
         receipt.setTransactionId(txResponse.getId());
-        receipt.setKind("paid");
-        if (req.getDescription() != null && !req.getDescription().isBlank()) {
-            receipt.setMerchantName(req.getDescription().trim());
-        }
-        receipt.setTotalAmount(amount.longValue());
         receiptRepository.save(receipt);
 
         return txResponse;
     }
 
     /**
-     * List receipts for a user with pagination (only receipts that have created a transaction and deducted money).
+     * List receipts for a user with pagination.
      */
     public Page<OcrReceiptResponse> getReceipts(UUID userId, Pageable pageable) {
         return receiptRepository
-                .findByUserIdAndTransactionIdIsNotNullOrderByCreatedAtDesc(userId, pageable)
+                .findByUserIdOrderByCreatedAtDesc(userId, pageable)
                 .map(this::toResponse);
     }
 
@@ -298,6 +306,7 @@ public class OcrService {
                 .currency(r.getCurrency())
                 .confidence(r.getConfidence() != null ? r.getConfidence().doubleValue() : null)
                 .needsReview(r.getNeedsReview())
+                .rejectReason(null) // receipts đã lưu DB đều là hợp lệ
                 .aiCategoryId(r.getAiCategoryId())
                 .aiCategoryName(r.getAiCategoryName())
                 .aiCategoryConfidence(r.getAiCategoryConfidence() != null
@@ -339,6 +348,9 @@ public class OcrService {
 
         @JsonProperty("needs_review")
         private Boolean needsReview;
+
+        @JsonProperty("reject_reason")
+        private String rejectReason;
 
         @JsonProperty("category")
         private AiCategory category;

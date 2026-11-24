@@ -218,7 +218,7 @@ export function ChildChoresScreen({ onNotify }: Props) {
               onClick={() => setActiveTab('ALL')}
               className={`rounded-lg px-3 py-1.5 text-xs font-bold whitespace-nowrap transition cursor-pointer ${
                 activeTab === 'ALL'
-                  ? 'bg-white dark:bg-slate-700 text-[#07543f] dark:text-emerald-300 shadow-2xs'
+                  ? 'bg-white dark:bg-slate-700 text-[#007F53] dark:text-emerald-300 shadow-2xs'
                   : 'text-gray-500 dark:text-slate-400 hover:text-gray-800 dark:hover:text-slate-200'
               }`}
             >
@@ -277,7 +277,7 @@ export function ChildChoresScreen({ onNotify }: Props) {
                 placeholder="Tìm tên nhiệm vụ, nội dung..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="h-9 w-full rounded-xl border border-gray-200 dark:border-slate-700 bg-gray-50/70 dark:bg-slate-800/80 pl-8 pr-8 text-xs text-gray-800 dark:text-slate-100 placeholder:text-gray-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-[#07543f] dark:focus:ring-emerald-500"
+                className="h-9 w-full rounded-xl border border-gray-200 dark:border-slate-700 bg-gray-50/70 dark:bg-slate-800/80 pl-8 pr-8 text-xs text-gray-800 dark:text-slate-100 placeholder:text-gray-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-[#007F53] dark:focus:ring-emerald-500"
               />
               <span className="absolute left-2.5 top-2.5 text-gray-400">
                 <FinanceIcon name="search" size={13} />
@@ -318,7 +318,7 @@ export function ChildChoresScreen({ onNotify }: Props) {
                     }}
                     className={`flex w-full items-center justify-between rounded-lg px-2.5 py-1.5 text-xs transition cursor-pointer ${
                       selectedMonth === 'ALL'
-                        ? 'bg-emerald-50 dark:bg-emerald-950/60 font-bold text-[#07543f] dark:text-emerald-400'
+                        ? 'bg-emerald-50 dark:bg-emerald-950/60 font-bold text-[#007F53] dark:text-emerald-400'
                         : 'text-gray-700 dark:text-slate-200 hover:bg-gray-50 dark:hover:bg-slate-700/60'
                     }`}
                   >
@@ -340,7 +340,7 @@ export function ChildChoresScreen({ onNotify }: Props) {
                         }}
                         className={`flex w-full items-center justify-between rounded-lg px-2.5 py-1.5 text-xs transition cursor-pointer ${
                           isSelected
-                            ? 'bg-emerald-50 dark:bg-emerald-950/60 font-bold text-[#07543f] dark:text-emerald-400'
+                            ? 'bg-emerald-50 dark:bg-emerald-950/60 font-bold text-[#007F53] dark:text-emerald-400'
                             : 'text-gray-700 dark:text-slate-200 hover:bg-gray-50 dark:hover:bg-slate-700/60'
                         }`}
                       >
@@ -507,7 +507,7 @@ export function ChildChoresScreen({ onNotify }: Props) {
                           <button
                             type="button"
                             onClick={() => setSelectedChore(chore)}
-                            className="grid size-7 place-items-center rounded-lg text-slate-400 hover:bg-emerald-50 hover:text-[#07543f] dark:hover:bg-slate-800 transition cursor-pointer"
+                            className="grid size-7 place-items-center rounded-lg text-slate-400 hover:bg-emerald-50 hover:text-[#007F53] dark:hover:bg-slate-800 transition cursor-pointer"
                             title="Xem chi tiết nhiệm vụ"
                           >
                             <FinanceIcon name="eye" size={15} />

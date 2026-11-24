@@ -20,4 +20,5 @@ public class AuthResponse {
     private String message;  // Optional message for register response
     private Boolean requires2fa;
     private String tempToken;
+    private Boolean isNewUser;
 }

@@ -4,6 +4,7 @@ import { AppAlert as Alert } from '../../../../context/DialogContext';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
 import { FinanceIcon } from '../../../core/components/FinanceIcon';
+import { BirthDatePicker } from '../../../core/components/BirthDatePicker';
 import { userProfileApi } from '../../../profile/api/userProfileApi';
 import { CreateChildWalletRequest, groupApi } from '../../api/groupApi';
 import {
@@ -42,7 +43,7 @@ export const CreateChildWalletModal: React.FC<CreateChildWalletModalProps> = ({
   const [childName, setChildName] = useState('');
   const [childUsername, setChildUsername] = useState('');
   const [childPassword, setChildPassword] = useState('');
-  const [dateOfBirth, setDateOfBirth] = useState('');
+  const [dobDate, setDobDate] = useState<Date | null>(null);
   const [initialBalance, setInitialBalance] = useState('');
   const [weeklyAllowance, setWeeklyAllowance] = useState('');
   const [shareBalance, setShareBalance] = useState(true);
@@ -115,20 +116,13 @@ export const CreateChildWalletModal: React.FC<CreateChildWalletModalProps> = ({
     const balanceNum = parseInt(initialBalance.replace(/\D/g, '') || '0', 10);
     const allowanceNum = parseInt(weeklyAllowance.replace(/\D/g, '') || '0', 10);
 
-    // Chuẩn hóa định dạng ngày sinh / năm sinh gửi lên Backend (LocalDate YYYY-MM-DD)
+    // Chuẩn hóa định dạng ngày sinh gửi lên Backend (LocalDate YYYY-MM-DD)
     let formattedDob: string | undefined = undefined;
-    const trimmedDob = dateOfBirth.trim();
-    if (trimmedDob) {
-      if (/^\d{4}$/.test(trimmedDob)) {
-        // Nếu chỉ nhập năm (VD: 2016) -> chuẩn hóa thành ngày 01/01/2016 để backend lưu LocalDate và tính tuổi chính xác
-        formattedDob = `${trimmedDob}-01-01`;
-      } else if (/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(trimmedDob)) {
-        // Nếu nhập dạng DD/MM/YYYY -> chuyển sang YYYY-MM-DD
-        const [d, m, y] = trimmedDob.split('/');
-        formattedDob = `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`;
-      } else {
-        formattedDob = trimmedDob;
-      }
+    if (dobDate) {
+      const y = dobDate.getFullYear();
+      const m = String(dobDate.getMonth() + 1).padStart(2, '0');
+      const d = String(dobDate.getDate()).padStart(2, '0');
+      formattedDob = `${y}-${m}-${d}`;
     }
 
     setSubmitting(true);
@@ -147,7 +141,7 @@ export const CreateChildWalletModal: React.FC<CreateChildWalletModalProps> = ({
       setChildName('');
       setChildUsername('');
       setChildPassword('');
-      setDateOfBirth('');
+      setDobDate(null);
       setInitialBalance('');
       setWeeklyAllowance('');
       setSelectedAvatarKey('kid_boy');
@@ -432,26 +426,17 @@ export const CreateChildWalletModal: React.FC<CreateChildWalletModalProps> = ({
             )}
 
             {/* Ngày sinh & Số dư ban đầu */}
-            <View style={{ flexDirection: 'row', gap: 10 }}>
-              <View style={[styles.formGroup, { flex: 1 }]}>
-                <Text style={[styles.label, isDark && { color: themeColors.textPrimary }]}>Năm sinh / Tuổi</Text>
-                <TextInput
-                  value={dateOfBirth}
-                  onChangeText={setDateOfBirth}
-                  placeholder="VD: 2014"
-                  placeholderTextColor={isDark ? themeColors.textMuted : '#94A3B8'}
-                  style={[
-                    styles.input,
-                    isDark && {
-                      backgroundColor: themeColors.surfaceSubtle,
-                      borderColor: themeColors.cardBorder,
-                      color: themeColors.textPrimary,
-                    },
-                  ]}
+            <View style={{ flexDirection: 'row', gap: 10, alignItems: 'flex-start' }}>
+              <View style={{ flex: 1.1 }}>
+                <BirthDatePicker
+                  value={dobDate}
+                  onChange={setDobDate}
+                  label="Ngày sinh bé"
+                  placeholder="Chọn ngày sinh"
                 />
               </View>
 
-              <View style={[styles.formGroup, { flex: 1.2 }]}>
+              <View style={[styles.formGroup, { flex: 1 }]}>
                 <Text style={[styles.label, isDark && { color: themeColors.textPrimary }]}>Tiền ban đầu (₫)</Text>
                 <TextInput
                   value={initialBalance ? formatVND(Number(initialBalance.replace(/\D/g, ''))) : ''}

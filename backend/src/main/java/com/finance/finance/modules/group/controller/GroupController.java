@@ -428,21 +428,25 @@ public class GroupController {
         }
     }
 
-    @GetMapping("/messages/attachments/download")
+    @GetMapping("/{groupId}/messages/attachments/{attachmentId}")
     @PreAuthorize("permitAll()")
-    public ResponseEntity<Resource> downloadMessageAttachment(@RequestParam("filename") String filename) {
-        Resource resource = messageService.getAttachmentResource(filename);
-        if (resource == null) {
-            return ResponseEntity.notFound().build();
-        }
-        String downloadName = resource.getFilename();
-        if (downloadName == null) {
-            downloadName = "finora_attachment.jpg";
-        }
+    public ResponseEntity<Resource> downloadMessageAttachment(
+            @PathVariable UUID groupId,
+            @PathVariable UUID attachmentId,
+            @RequestParam long expires,
+            @RequestParam String signature) {
+        GroupMessageService.AttachmentDownload download =
+                messageService.getAttachmentResource(groupId, attachmentId, expires, signature);
+        String downloadName = download.fileName() == null ? "finora_attachment" : download.fileName();
         return ResponseEntity.ok()
-                .contentType(MediaType.APPLICATION_OCTET_STREAM)
-                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + downloadName + "\"")
-                .body(resource);
+                .contentType(MediaType.parseMediaType(download.contentType()))
+                .header(HttpHeaders.CONTENT_DISPOSITION,
+                        org.springframework.http.ContentDisposition.inline()
+                                .filename(downloadName, java.nio.charset.StandardCharsets.UTF_8)
+                                .build().toString())
+                .header("X-Content-Type-Options", "nosniff")
+                .header(HttpHeaders.CACHE_CONTROL, "private, no-store")
+                .body(download.resource());
     }
 
     @GetMapping("/{groupId}/messages")

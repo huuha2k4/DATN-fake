@@ -83,7 +83,7 @@ export const AdminAnalyticsScreen: React.FC = () => {
         {/* DAU */}
         <article className="overview-white-card">
           <div className="flex items-center justify-between">
-            <span className="text-[11px] font-bold tracking-wider text-[#63756b] dark:text-slate-400 uppercase">
+            <span className="text-[11px] font-bold tracking-wider text-[#64748B] dark:text-slate-400 uppercase">
               DAU (HÔM NAY)
             </span>
             <span className="icon-box-mint">
@@ -91,11 +91,11 @@ export const AdminAnalyticsScreen: React.FC = () => {
             </span>
           </div>
           <div className="my-2">
-            <div className="text-3xl sm:text-[34px] font-black text-[#14261e] dark:text-slate-100 tracking-tight">
+            <div className="text-3xl sm:text-[34px] font-black text-[#0F172A] dark:text-slate-100 tracking-tight">
               {data.activeUsersDAU.toLocaleString('vi-VN')}
             </div>
           </div>
-          <div className="text-xs text-[#718078] dark:text-slate-400">
+          <div className="text-xs text-[#64748B] dark:text-slate-400">
             Người dùng tương tác trong ngày
           </div>
         </article>
@@ -103,7 +103,7 @@ export const AdminAnalyticsScreen: React.FC = () => {
         {/* WAU */}
         <article className="overview-white-card">
           <div className="flex items-center justify-between">
-            <span className="text-[11px] font-bold tracking-wider text-[#63756b] dark:text-slate-400 uppercase">
+            <span className="text-[11px] font-bold tracking-wider text-[#64748B] dark:text-slate-400 uppercase">
               WAU (7 NGÀY QUA)
             </span>
             <span className="icon-box-mint">
@@ -111,11 +111,11 @@ export const AdminAnalyticsScreen: React.FC = () => {
             </span>
           </div>
           <div className="my-2">
-            <div className="text-3xl sm:text-[34px] font-black text-[#14261e] dark:text-slate-100 tracking-tight">
+            <div className="text-3xl sm:text-[34px] font-black text-[#0F172A] dark:text-slate-100 tracking-tight">
               {data.activeUsersWAU.toLocaleString('vi-VN')}
             </div>
           </div>
-          <div className="text-xs text-[#718078] dark:text-slate-400">
+          <div className="text-xs text-[#64748B] dark:text-slate-400">
             Tài khoản truy cập trong tuần
           </div>
         </article>
@@ -123,7 +123,7 @@ export const AdminAnalyticsScreen: React.FC = () => {
         {/* MAU */}
         <article className="overview-white-card">
           <div className="flex items-center justify-between">
-            <span className="text-[11px] font-bold tracking-wider text-[#63756b] dark:text-slate-400 uppercase">
+            <span className="text-[11px] font-bold tracking-wider text-[#64748B] dark:text-slate-400 uppercase">
               MAU (30 NGÀY QUA)
             </span>
             <span className="icon-box-mint">
@@ -131,11 +131,11 @@ export const AdminAnalyticsScreen: React.FC = () => {
             </span>
           </div>
           <div className="my-2">
-            <div className="text-3xl sm:text-[34px] font-black text-[#07543f] dark:text-emerald-400 tracking-tight">
+            <div className="text-3xl sm:text-[34px] font-black text-[#007F53] dark:text-emerald-400 tracking-tight">
               {data.activeUsersMAU.toLocaleString('vi-VN')}
             </div>
           </div>
-          <div className="text-xs text-[#718078] dark:text-slate-400">
+          <div className="text-xs text-[#64748B] dark:text-slate-400">
             Người dùng hoạt động hàng tháng
           </div>
         </article>
@@ -143,7 +143,7 @@ export const AdminAnalyticsScreen: React.FC = () => {
         {/* TỶ LỆ GIỮ CHÂN */}
         <article className="overview-white-card">
           <div className="flex items-center justify-between">
-            <span className="text-[11px] font-bold tracking-wider text-[#63756b] dark:text-slate-400 uppercase">
+            <span className="text-[11px] font-bold tracking-wider text-[#64748B] dark:text-slate-400 uppercase">
               TỶ LỆ QUAY LẠI
             </span>
             <span className="size-9 rounded-xl grid place-items-center bg-purple-100 text-purple-700 dark:bg-purple-950/60 dark:text-purple-300">
@@ -155,7 +155,7 @@ export const AdminAnalyticsScreen: React.FC = () => {
               {data.retentionRate}%
             </div>
           </div>
-          <div className="text-xs text-[#718078] dark:text-slate-400">
+          <div className="text-xs text-[#64748B] dark:text-slate-400">
             Tỷ lệ thành viên thường xuyên sử dụng
           </div>
         </article>
@@ -168,15 +168,15 @@ export const AdminAnalyticsScreen: React.FC = () => {
           <div>
             <div className="flex items-start justify-between">
               <div>
-                <h2 className="text-base sm:text-lg font-bold text-[#14261e] dark:text-slate-100 text-headline">
+                <h2 className="text-base sm:text-lg font-bold text-[#0F172A] dark:text-slate-100 text-headline">
                   Tần suất Hoạt động Hệ thống (14 ngày qua)
                 </h2>
-                <p className="text-xs text-[#718078] dark:text-slate-400 text-sub mt-0.5">
+                <p className="text-xs text-[#64748B] dark:text-slate-400 text-sub mt-0.5">
                   Số lượng giao dịch ghi nhận & người dùng mới theo ngày
                 </p>
               </div>
               <div className="flex items-center gap-3 text-xs">
-                <span className="flex items-center gap-1.5 font-bold text-[#07543f] dark:text-emerald-400">
+                <span className="flex items-center gap-1.5 font-bold text-[#007F53] dark:text-emerald-400">
                   <span className="size-2 rounded-full bg-[#10b981]" /> Giao dịch
                 </span>
                 <span className="flex items-center gap-1.5 font-bold text-gray-400 dark:text-slate-500">
@@ -186,7 +186,7 @@ export const AdminAnalyticsScreen: React.FC = () => {
             </div>
 
             {/* Khung Biểu đồ cột */}
-            <div className="mt-8 flex h-[260px] items-end justify-around gap-1.5 sm:gap-3 border-b border-[#edf2ee] pb-4 dark:border-[#122432]">
+            <div className="mt-8 flex h-[260px] items-end justify-around gap-1.5 sm:gap-3 border-b border-[#E2E8F0] pb-4 dark:border-[#1E293B]">
               {data.activityTrend.map((pt) => {
                 const txHeight = Math.max(12, Math.round((pt.transactionCount / maxActivity) * 85));
                 const userHeight = pt.newUsers > 0 ? Math.max(12, Math.round((pt.newUsers / maxActivity) * 85)) : 0;
@@ -200,7 +200,7 @@ export const AdminAnalyticsScreen: React.FC = () => {
                     <div className="flex items-end gap-1" style={{ height: '180px' }}>
                       {/* Cột Giao dịch (Xanh ngọc) */}
                       <div
-                        className="w-2.5 sm:w-3.5 rounded-t-full bg-gradient-to-t from-[#07543f] to-[#10b981] hover:brightness-110 transition cursor-pointer"
+                        className="w-2.5 sm:w-3.5 rounded-t-full bg-gradient-to-t from-[#007F53] to-[#10b981] hover:brightness-110 transition cursor-pointer"
                         style={{ height: `${txHeight}%` }}
                         title={`${pt.date}: ${pt.transactionCount} giao dịch`}
                       />
@@ -248,7 +248,7 @@ export const AdminAnalyticsScreen: React.FC = () => {
                       <span className="text-gray-500 dark:text-slate-400 font-mono text-[11px]">
                         {feat.totalEvents.toLocaleString('vi-VN')} lượt
                       </span>
-                      <span className="text-[#07543f] dark:text-emerald-400 text-xs font-black">
+                      <span className="text-[#007F53] dark:text-emerald-400 text-xs font-black">
                         {feat.percentage}%
                       </span>
                     </div>

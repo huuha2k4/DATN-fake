@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import axios from 'axios';
+import { adminApi } from '../api/adminApi';
 import { FinanceIcon } from '../../core/components/FinanceIcon';
 
 interface AlgorithmInfo {
@@ -42,10 +42,10 @@ export const AdminAIManagementScreen: React.FC = () => {
     try {
       setLoading(true);
       setError('');
-      const res = await axios.get<AIAdminStats>('/api/ai/admin/stats');
-      setData(res.data);
+      const res = await adminApi.getAiAdminStats();
+      setData(res);
     } catch (err: any) {
-      setError(err?.response?.data?.message || 'Không thể kết nối đến FinAI Service');
+      setError(err?.response?.data?.message || err?.message || 'Không thể kết nối đến FinAI Service');
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -114,7 +114,9 @@ export const AdminAIManagementScreen: React.FC = () => {
         <div className="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
           <div className="flex items-center justify-between text-slate-500 dark:text-slate-400 text-xs font-semibold uppercase">
             <span>Cuộc trò chuyện (Sessions)</span>
-            <span className="p-2 bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 rounded-lg">💬</span>
+            <span className="p-2 bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 rounded-lg">
+              <FinanceIcon name="message-square" size={16} />
+            </span>
           </div>
           <div className="mt-3 text-2xl font-bold text-slate-900 dark:text-white">
             {data?.totalSessions ?? 0}
@@ -220,7 +222,9 @@ export const AdminAIManagementScreen: React.FC = () => {
                 data.recentSessions.map((s) => (
                   <tr key={s.id} className="hover:bg-slate-50/60 dark:hover:bg-slate-800/40 transition">
                     <td className="py-3 px-4 font-medium max-w-xs truncate" title={s.title}>
-                      <span className="mr-1.5">💬</span>
+                      <span className="inline-block mr-1.5 text-blue-500 align-middle">
+                        <FinanceIcon name="message-square" size={15} />
+                      </span>
                       {s.title}
                     </td>
                     <td className="py-3 px-4">

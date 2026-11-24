@@ -16,6 +16,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { FinanceIcon } from '../../../core/components/FinanceIcon';
 import { userProfileApi } from '../../../profile/api/userProfileApi';
 import { UserSearchResult } from '../../api/groupApi';
+import { useAppTheme } from '../../../../context/ThemeContext';
 
 export interface InviteMemberModalProps {
   visible: boolean;
@@ -39,6 +40,7 @@ export const InviteMemberModal: React.FC<InviteMemberModalProps> = ({
   existingMemberUserIds = [],
 }) => {
   const insets = useSafeAreaInsets();
+  const { isDark, colors: themeColors } = useAppTheme();
   const trimmed = searchQuery.trim();
   const hasAtSymbol = trimmed.includes('@');
 
@@ -50,34 +52,66 @@ export const InviteMemberModal: React.FC<InviteMemberModalProps> = ({
         keyboardVerticalOffset={Platform.OS === 'ios' ? 10 : 0}
       >
         <Pressable style={styles.backdrop} onPress={onClose} />
-        <View style={[styles.modalSheet, { paddingBottom: Math.max(insets.bottom, 16) + 12 }]}>
+        <View
+          style={[
+            styles.modalSheet,
+            isDark && {
+              backgroundColor: themeColors.surface,
+              borderColor: themeColors.cardBorder,
+              borderWidth: 1,
+            },
+            { paddingBottom: Math.max(insets.bottom, 16) + 12 },
+          ]}
+        >
           {/* Header */}
           <View style={styles.modalHeader}>
             <View>
-              <Text style={styles.modalTitle}>Mời thành viên vào nhóm</Text>
-              <Text style={styles.modalSubtitle}>Nhập email người bạn muốn mời</Text>
+              <Text style={[styles.modalTitle, isDark && { color: themeColors.textPrimary }]}>
+                Mời thành viên vào nhóm
+              </Text>
+              <Text style={[styles.modalSubtitle, isDark && { color: themeColors.textMuted }]}>
+                Nhập email người bạn muốn mời
+              </Text>
             </View>
-            <Pressable onPress={onClose} hitSlop={10} style={styles.closeBtn}>
-              <FinanceIcon name="close" size={16} color="#64748B" />
+            <Pressable
+              onPress={onClose}
+              hitSlop={10}
+              style={[
+                styles.closeBtn,
+                isDark && { backgroundColor: themeColors.surfaceSubtle },
+              ]}
+            >
+              <FinanceIcon name="close" size={16} color={isDark ? themeColors.textSecondary : '#64748B'} />
             </Pressable>
           </View>
 
           {/* Ô tìm kiếm email */}
-          <View style={styles.searchBar}>
-            <FinanceIcon name="search" size={18} color="#94A3B8" />
+          <View
+            style={[
+              styles.searchBar,
+              isDark && {
+                backgroundColor: themeColors.surfaceSubtle,
+                borderColor: themeColors.cardBorder,
+              },
+            ]}
+          >
+            <FinanceIcon name="search" size={18} color={isDark ? themeColors.textMuted : '#94A3B8'} />
             <TextInput
               value={searchQuery}
               onChangeText={onChangeSearchQuery}
               placeholder="Nhập email (VD: user@...)"
-              placeholderTextColor="#94A3B8"
-              style={styles.searchInput}
+              placeholderTextColor={isDark ? themeColors.textMuted : '#94A3B8'}
+              style={[
+                styles.searchInput,
+                isDark && { color: themeColors.textPrimary },
+              ]}
               autoCapitalize="none"
               keyboardType="email-address"
               autoFocus
             />
             {!!searchQuery && (
               <Pressable onPress={() => onChangeSearchQuery('')} hitSlop={8}>
-                <FinanceIcon name="close" size={14} color="#94A3B8" />
+                <FinanceIcon name="close" size={14} color={isDark ? themeColors.textMuted : '#94A3B8'} />
               </Pressable>
             )}
           </View>
@@ -86,8 +120,10 @@ export const InviteMemberModal: React.FC<InviteMemberModalProps> = ({
           <View style={styles.contentBox}>
             {searching ? (
               <View style={styles.centerBox}>
-                <ActivityIndicator color="#059669" size="small" />
-                <Text style={styles.statusText}>Đang tìm kiếm tài khoản...</Text>
+                <ActivityIndicator color={isDark ? themeColors.accentGreen : '#059669'} size="small" />
+                <Text style={[styles.statusText, isDark && { color: themeColors.textSecondary }]}>
+                  Đang tìm kiếm tài khoản...
+                </Text>
               </View>
             ) : searchResults.length > 0 ? (
               <FlatList
@@ -101,13 +137,23 @@ export const InviteMemberModal: React.FC<InviteMemberModalProps> = ({
                   const letter = (item.fullName || item.username || item.email || 'U').slice(0, 1).toUpperCase();
 
                   return (
-                    <View style={styles.userRow}>
+                    <View
+                      style={[
+                        styles.userRow,
+                        isDark && { borderBottomColor: themeColors.divider },
+                      ]}
+                    >
                       {/* Avatar */}
                       <View style={styles.avatarWrap}>
                         {avatarUri ? (
                           <Image source={{ uri: avatarUri }} style={styles.avatarImg} />
                         ) : (
-                          <View style={styles.avatarPlaceholder}>
+                          <View
+                            style={[
+                              styles.avatarPlaceholder,
+                              isDark && { backgroundColor: themeColors.accentGreen },
+                            ]}
+                          >
                             <Text style={styles.avatarText}>{letter}</Text>
                           </View>
                         )}
@@ -115,23 +161,48 @@ export const InviteMemberModal: React.FC<InviteMemberModalProps> = ({
 
                       {/* Info */}
                       <View style={styles.userInfoCol}>
-                        <Text style={styles.userName} numberOfLines={1}>
+                        <Text
+                          style={[
+                            styles.userName,
+                            isDark && { color: themeColors.textPrimary },
+                          ]}
+                          numberOfLines={1}
+                        >
                           {item.fullName || item.username || 'Người dùng Finora'}
                         </Text>
-                        <Text style={styles.userEmail} numberOfLines={1}>
+                        <Text
+                          style={[
+                            styles.userEmail,
+                            isDark && { color: themeColors.textMuted },
+                          ]}
+                          numberOfLines={1}
+                        >
                           {item.email}
                         </Text>
                       </View>
 
                       {/* Nút thao tác */}
                       {isAlreadyMember ? (
-                        <View style={styles.alreadyBadge}>
-                          <Text style={styles.alreadyBadgeText}>Đã tham gia</Text>
+                        <View
+                          style={[
+                            styles.alreadyBadge,
+                            isDark && { backgroundColor: themeColors.surfaceSubtle },
+                          ]}
+                        >
+                          <Text
+                            style={[
+                              styles.alreadyBadgeText,
+                              isDark && { color: themeColors.textMuted },
+                            ]}
+                          >
+                            Đã tham gia
+                          </Text>
                         </View>
                       ) : (
                         <Pressable
                           style={({ pressed }) => [
                             styles.inviteActionBtn,
+                            isDark && { backgroundColor: themeColors.accentGreen },
                             pressed && { opacity: 0.8 },
                           ]}
                           onPress={() => onInviteUser(item)}
@@ -146,16 +217,25 @@ export const InviteMemberModal: React.FC<InviteMemberModalProps> = ({
               />
             ) : hasAtSymbol ? (
               <View style={styles.centerBox}>
-                <Text style={styles.statusText}>Không tìm thấy tài khoản phù hợp</Text>
-                <Text style={styles.hintSubText}>Hãy kiểm tra lại chính xác địa chỉ email của người nhận</Text>
+                <Text style={[styles.statusText, isDark && { color: themeColors.textSecondary }]}>
+                  Không tìm thấy tài khoản phù hợp
+                </Text>
+                <Text style={[styles.hintSubText, isDark && { color: themeColors.textMuted }]}>
+                  Hãy kiểm tra lại chính xác địa chỉ email của người nhận
+                </Text>
               </View>
             ) : (
               <View style={styles.centerBox}>
-                <FinanceIcon name="shield" size={32} color="#10B981" />
-                <Text style={[styles.hintSubText, { fontWeight: '600', color: '#475569' }]}>
+                <FinanceIcon name="shield" size={32} color={isDark ? themeColors.accentGreen : '#10B981'} />
+                <Text
+                  style={[
+                    styles.hintSubText,
+                    { fontWeight: '600', color: isDark ? themeColors.textPrimary : '#475569' },
+                  ]}
+                >
                   Bảo mật danh sách người dùng
                 </Text>
-                <Text style={styles.hintSubText}>
+                <Text style={[styles.hintSubText, isDark && { color: themeColors.textMuted }]}>
                   Gõ email đến ký tự @ (ví dụ: name@...) để bắt đầu tìm kiếm
                 </Text>
               </View>

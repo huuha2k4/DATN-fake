@@ -6,6 +6,7 @@ import { fetchDashboardData, type DashboardSummary, type DashboardTransaction } 
 import { budgetApi } from '../../budget/api';
 import { authStorage } from '../../auth/api/authApi';
 import { groupApi } from '../../group/api/groupApi';
+import { finAiSyncEmitter } from '../../ai-assistant/api/finAiSyncEmitter';
 import { themeTokens } from '../themeTokens';
 import { useAppTheme } from '../../../context/ThemeContext';
 
@@ -61,7 +62,8 @@ export function HomeScreen({
   onProfile,
 }: Props) {
   const insets = useSafeAreaInsets();
-  const { width: screenWidth } = useWindowDimensions();
+  const { width: screenWidth, height: screenHeight } = useWindowDimensions();
+  const waveHeight = Math.min(Math.max(screenHeight * 0.44, 350), 410);
   const { isDark, colors: themeColors } = useAppTheme();
   const currentUser = authStorage.getUser();
   const isChildAccount = Boolean(currentUser?.childAccount);
@@ -213,6 +215,10 @@ export function HomeScreen({
 
   useEffect(() => {
     loadData();
+    const unsubscribe = finAiSyncEmitter.subscribe(() => {
+      loadData();
+    });
+    return () => unsubscribe();
   }, [loadData]);
 
   const now = new Date();
@@ -228,32 +234,11 @@ export function HomeScreen({
   const monthlyExpense = dashboardData?.monthlyExpense ?? 0;
   const growthRate = dashboardData?.balanceGrowthRate ?? null;
 
-  const budgetTotal = budgetOverview?.totalBudgeted ?? (dashboardData?.budgetTotal ?? 5000000);
-  const budgetSpent = budgetOverview?.totalSpent ?? (dashboardData?.budgetSpent ?? 3200000);
-  const budgetPercent = budgetOverview?.overallPercentage ?? (dashboardData?.budgetPercent ?? Math.min(100, Math.round((budgetSpent / budgetTotal) * 100)));
+  const budgetTotal = budgetOverview?.totalBudgeted ?? (dashboardData?.budgetTotal ?? 0);
+  const budgetSpent = budgetOverview?.totalSpent ?? (dashboardData?.budgetSpent ?? 0);
+  const budgetPercent = budgetOverview?.overallPercentage ?? (dashboardData?.budgetPercent ?? 0);
 
-  const recentList: DashboardTransaction[] = dashboardData?.recentTransactions && dashboardData.recentTransactions.length > 0
-    ? dashboardData.recentTransactions
-    : [
-        {
-          id: '1',
-          name: 'Mua sắm',
-          description: 'Hôm nay · 12:15',
-          amount: -650000,
-          account: isChildAccount ? 'Ví của em' : 'Vietcombank',
-          icon: '🛒',
-          iconBg: '#FEE2E2',
-        },
-        {
-          id: '2',
-          name: 'Ăn uống',
-          description: 'Hôm nay · 11:30',
-          amount: -120000,
-          account: isChildAccount ? 'Ví của em' : 'Ví MoMo',
-          icon: '🍴',
-          iconBg: '#DCFCE7',
-        },
-      ];
+  const recentList: DashboardTransaction[] = dashboardData?.recentTransactions || [];
 
   return (
     <ScrollView
@@ -275,7 +260,7 @@ export function HomeScreen({
         <GreenWaveBackground
           variant="header"
           width={screenWidth}
-          height={420}
+          height={waveHeight}
           style={styles.headerWaveBackdrop}
         />
 
@@ -354,12 +339,12 @@ const styles = StyleSheet.create({
     backgroundColor: themeTokens.colors.background,
   },
   contentContainer: {
-    paddingBottom: 36,
+    paddingBottom: 24,
   },
   headerHeroContainer: {
     width: '100%',
     paddingHorizontal: themeTokens.spacing.lg,
-    paddingBottom: 6,
+    paddingBottom: 4,
     position: 'relative',
   },
   headerWaveBackdrop: {
@@ -367,6 +352,5 @@ const styles = StyleSheet.create({
     top: -100,
     left: 0,
     right: 0,
-    height: 420,
   },
 });

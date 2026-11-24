@@ -9,6 +9,8 @@ import com.finance.finance.modules.group.dto.request.UpdateMessageRequest;
 import com.finance.finance.modules.group.dto.response.MessageResponse;
 import com.finance.finance.modules.group.entity.*;
 import com.finance.finance.modules.group.repository.*;
+import com.finance.finance.common.upload.AttachmentUrlSigner;
+import com.finance.finance.common.upload.FileUploadValidator;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.io.Resource;
@@ -76,6 +78,8 @@ public class GroupMessageService {
     private final com.finance.finance.modules.group.repository.GroupRepository groupRepository;
     private final com.finance.finance.modules.notification.service.NotificationService notificationService;
     private final com.fasterxml.jackson.databind.ObjectMapper objectMapper;
+    private final FileUploadValidator fileUploadValidator;
+    private final AttachmentUrlSigner attachmentUrlSigner;
 
     @Transactional
     public MessageResponse.AttachmentSummary uploadAttachment(UUID groupId, MultipartFile file, UUID currentUserId) throws IOException {
@@ -83,28 +87,22 @@ public class GroupMessageService {
             throw new ResourceNotFoundException("User is not a member of this group");
         }
 
-        if (file == null || file.isEmpty()) {
-            throw new IllegalArgumentException("File không được để trống");
-        }
+        FileUploadValidator.ValidatedUpload validated =
+                fileUploadValidator.validate(file, FileUploadValidator.Policy.GROUP_IMAGE);
 
         Path uploadPath = Paths.get(ATTACHMENT_UPLOAD_DIR);
         if (!Files.exists(uploadPath)) {
             Files.createDirectories(uploadPath);
         }
 
-        String originalFilename = file.getOriginalFilename() != null ? file.getOriginalFilename() : "file";
-        String fileExtension = "";
-        int extIndex = originalFilename.lastIndexOf(".");
-        if (extIndex > 0) {
-            fileExtension = originalFilename.substring(extIndex);
-        }
+        String originalFilename = sanitizeDisplayName(file.getOriginalFilename());
 
-        String newFilename = groupId + "_" + UUID.randomUUID() + fileExtension;
+        String newFilename = groupId + "_" + UUID.randomUUID() + validated.extension();
         Path filePath = uploadPath.resolve(newFilename);
         Files.copy(file.getInputStream(), filePath, StandardCopyOption.REPLACE_EXISTING);
 
         String fileKey = "/" + ATTACHMENT_UPLOAD_DIR + "/" + newFilename;
-        String mimeType = file.getContentType();
+        String mimeType = validated.contentType();
         long fileSize = file.getSize();
 
         Integer width = null;
@@ -162,16 +160,19 @@ public class GroupMessageService {
         if (request.getAttachments() != null && !request.getAttachments().isEmpty()) {
             final UUID messageId = message.getId();
             List<GroupMessageAttachment> attachments = request.getAttachments().stream()
-                    .map(dto -> GroupMessageAttachment.builder()
+                    .map(dto -> {
+                        Path storedFile = resolvePendingAttachment(groupId, dto.getFileKey());
+                        return GroupMessageAttachment.builder()
                             .messageId(messageId)
-                            .fileKey(dto.getFileKey())
-                            .fileName(dto.getFileName())
-                            .mimeType(dto.getMimeType())
-                            .fileSize(dto.getFileSize())
-                            .thumbnailKey(dto.getThumbnailKey())
+                            .fileKey("/" + storedFile.toString().replace('\\', '/'))
+                            .fileName(sanitizeDisplayName(dto.getFileName()))
+                            .mimeType(contentTypeFromPath(storedFile))
+                            .fileSize(fileSize(storedFile))
+                            .thumbnailKey(null)
                             .width(dto.getWidth())
                             .height(dto.getHeight())
-                            .build())
+                            .build();
+                    })
                     .collect(Collectors.toList());
             attachmentRepository.saveAll(attachments);
         }
@@ -184,32 +185,8 @@ public class GroupMessageService {
                 .build();
         readRepository.save(read);
 
-        // Notify other group members about the new chat message
-        try {
-            String groupName = groupRepository.findById(groupId).map(Group::getName).orElse("nhóm");
-            String senderName = userRepository.findById(currentUserId)
-                    .map(u -> u.getFullName() != null && !u.getFullName().isBlank() ? u.getFullName() : u.getUsername())
-                    .orElse("Một thành viên");
-            String rawContent = message.getContent() != null ? message.getContent().trim() : "";
-            String preview = rawContent.isEmpty() ? "[Hình ảnh / Tệp đính kèm]" : (rawContent.length() > 60 ? rawContent.substring(0, 57) + "..." : rawContent);
-
-            List<GroupMember> members = groupMemberRepository.findByGroupId(groupId);
-            for (GroupMember member : members) {
-                if (!member.getUserId().equals(currentUserId) && Boolean.TRUE.equals(member.getNotificationEnabled())) {
-                    notificationService.createNotification(
-                            member.getUserId(),
-                            com.finance.finance.common.enums.NotificationType.GROUP_COMMENT,
-                            com.finance.finance.common.enums.NotificationPriority.NORMAL,
-                            "Tin nhắn mới trong nhóm " + groupName,
-                            senderName + ": \"" + preview + "\"",
-                            "/groups?groupId=" + groupId + "&tab=CHAT",
-                            "Mở trò chuyện"
-                    );
-                }
-            }
-        } catch (Exception e) {
-            log.warn("Failed to send group message notification: {}", e.getMessage());
-        }
+        // Tin nhắn nhóm chỉ dùng cho push notification thiết bị, không lưu vào bảng core.notifications
+        // để tránh làm tràn ngập hộp thư thông báo trong app toàn là tin nhắn chat.
 
         return buildMessageResponse(message);
     }
@@ -445,7 +422,7 @@ public class GroupMessageService {
                 .attachments(attachments.stream()
                         .map(att -> MessageResponse.AttachmentSummary.builder()
                                 .id(att.getId())
-                                .fileKey(att.getFileKey())
+                                .fileKey(attachmentUrlSigner.createUrl(message.getGroupId(), att.getId()))
                                 .fileName(att.getFileName())
                                 .mimeType(att.getMimeType())
                                 .fileSize(att.getFileSize())
@@ -465,20 +442,78 @@ public class GroupMessageService {
                 .build();
     }
 
-    public Resource getAttachmentResource(String filename) {
-        try {
-            // Ngăn chặn Path Traversal
-            String cleanName = Paths.get(filename).getFileName().toString();
-            Path filePath = Paths.get(ATTACHMENT_UPLOAD_DIR).resolve(cleanName).normalize();
-            Resource resource = new UrlResource(filePath.toUri());
-            if (resource.exists() && resource.isReadable()) {
-                return resource;
-            }
-            return null;
-        } catch (Exception e) {
-            log.error("Lỗi khi tải file đính kèm: {}", filename, e);
-            return null;
+    @Transactional(readOnly = true)
+    public AttachmentDownload getAttachmentResource(
+            UUID groupId, UUID attachmentId, long expires, String signature) {
+        if (!attachmentUrlSigner.isValid(groupId, attachmentId, expires, signature)) {
+            throw new ResourceNotFoundException("Attachment not found");
         }
+
+        GroupMessageAttachment attachment = attachmentRepository.findById(attachmentId)
+                .orElseThrow(() -> new ResourceNotFoundException("Attachment not found"));
+        messageRepository.findByIdAndNotDeleted(attachment.getMessageId())
+                .filter(item -> groupId.equals(item.getGroupId()))
+                .orElseThrow(() -> new ResourceNotFoundException("Attachment not found"));
+
+        try {
+            Path root = Paths.get(ATTACHMENT_UPLOAD_DIR).toAbsolutePath().normalize();
+            String storedName = Paths.get(attachment.getFileKey()).getFileName().toString();
+            Path filePath = root.resolve(storedName).normalize();
+            if (!filePath.startsWith(root)) {
+                throw new ResourceNotFoundException("Attachment not found");
+            }
+            Resource resource = new UrlResource(filePath.toUri());
+            if (!resource.exists() || !resource.isReadable()) {
+                throw new ResourceNotFoundException("Attachment not found");
+            }
+            return new AttachmentDownload(resource, attachment.getFileName(), attachment.getMimeType());
+        } catch (ResourceNotFoundException e) {
+            throw e;
+        } catch (Exception e) {
+            log.warn("Cannot load group attachment {}", attachmentId, e);
+            throw new ResourceNotFoundException("Attachment not found");
+        }
+    }
+
+    private Path resolvePendingAttachment(UUID groupId, String fileKey) {
+        if (fileKey == null || fileKey.isBlank()) {
+            throw new IllegalArgumentException("Attachment key is missing");
+        }
+        Path root = Paths.get(ATTACHMENT_UPLOAD_DIR).toAbsolutePath().normalize();
+        String storedName = Paths.get(fileKey).getFileName().toString();
+        Path candidate = root.resolve(storedName).normalize();
+        if (!candidate.startsWith(root)
+                || !storedName.startsWith(groupId + "_")
+                || !Files.isRegularFile(candidate)) {
+            throw new IllegalArgumentException("Attachment is unavailable for this group");
+        }
+        return Paths.get(ATTACHMENT_UPLOAD_DIR).resolve(storedName);
+    }
+
+    private String sanitizeDisplayName(String name) {
+        String safe = name == null || name.isBlank() ? "image" : name.replace('\\', '/');
+        safe = safe.substring(safe.lastIndexOf('/') + 1).replaceAll("[\\r\\n\\u0000]", "_");
+        return safe.length() > 255 ? safe.substring(safe.length() - 255) : safe;
+    }
+
+    private String contentTypeFromPath(Path path) {
+        String name = path.getFileName().toString().toLowerCase(java.util.Locale.ROOT);
+        if (name.endsWith(".jpg")) return "image/jpeg";
+        if (name.endsWith(".png")) return "image/png";
+        if (name.endsWith(".gif")) return "image/gif";
+        if (name.endsWith(".webp")) return "image/webp";
+        throw new IllegalArgumentException("Attachment type is not allowed");
+    }
+
+    private long fileSize(Path path) {
+        try {
+            return Files.size(path);
+        } catch (IOException e) {
+            throw new IllegalArgumentException("Attachment is unavailable", e);
+        }
+    }
+
+    public record AttachmentDownload(Resource resource, String fileName, String contentType) {
     }
 
     private String serializeMentions(List<UUID> mentionedUserIds) {

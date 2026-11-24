@@ -59,22 +59,22 @@ export const budgetApi = {
   /**
    * Lấy tổng quan ngân sách tháng hiện tại
    */
-  async getMonthlyBudgetOverview(year: number, month: number): Promise<BudgetOverviewResponse> {
+  async getMonthlyBudgetOverview(year: number, month: number): Promise<BudgetOverviewResponse | null> {
     try {
       const token = await authStorage.getToken();
-      if (!token) return getFallbackBudgetOverview(month);
+      if (!token) return null;
 
       const url = `${API_BASE_URL}/budgets?year=${year}&month=${month}`;
       const res = await authFetch(url);
 
       if (!res.ok) {
-        return getFallbackBudgetOverview(month);
+        return null;
       }
 
       const json = await res.json();
       const budgets: any[] = json?.data?.budgets || [];
       if (!budgets || budgets.length === 0) {
-        return getFallbackBudgetOverview(month);
+        return null;
       }
 
       // Lấy budget đầu tiên tìm thấy
@@ -115,10 +115,6 @@ export const budgetApi = {
         spentAmount = detailData.spentAmount || spentAmount;
       }
 
-      if (items.length === 0) {
-        return getFallbackBudgetOverview(month);
-      }
-
       const remaining = Math.max(0, totalAmount - spentAmount);
       const overallPercentage = totalAmount > 0 ? Math.min(100, Math.round((spentAmount / totalAmount) * 100)) : 0;
 
@@ -146,7 +142,7 @@ export const budgetApi = {
       };
     } catch (e) {
       console.warn('Lỗi gọi API /budgets:', e);
-      return getFallbackBudgetOverview(month);
+      return null;
     }
   },
 
@@ -341,87 +337,5 @@ function getFallbackExpenseCategories(): CategoryItem[] {
     { id: 'cat-investment', name: 'Đầu tư', kind: 'EXPENSE', icon: 'trending-up', color: '#10B981' },
     { id: 'cat-other', name: 'Chi phí khác', kind: 'EXPENSE', icon: 'file-text', color: '#94A3B8' },
   ];
-}
-
-/**
- * Dữ liệu mặc định chuẩn như ảnh thiết kế mẫu
- */
-function getFallbackBudgetOverview(month: number): BudgetOverviewResponse {
-  const items: BudgetItem[] = [
-    {
-      id: 'item-1',
-      name: 'Ăn uống',
-      categoryName: 'Ăn uống',
-      categoryIcon: 'utensils',
-      categoryColor: '#EF4444',
-      amount: 1500000,
-      spentAmount: 1200000,
-      remaining: 300000,
-      percentageUsed: 80,
-      alertThresholdPercentage: 80,
-      alertLevel: 'WARNING',
-    },
-    {
-      id: 'item-2',
-      name: 'Di chuyển',
-      categoryName: 'Di chuyển',
-      categoryIcon: 'car',
-      categoryColor: '#0EA5E9',
-      amount: 800000,
-      spentAmount: 400000,
-      remaining: 400000,
-      percentageUsed: 50,
-      alertThresholdPercentage: 80,
-      alertLevel: 'SAFE',
-    },
-    {
-      id: 'item-3',
-      name: 'Mua sắm',
-      categoryName: 'Mua sắm',
-      categoryIcon: 'shopping-bag',
-      categoryColor: '#8B5CF6',
-      amount: 1000000,
-      spentAmount: 700000,
-      remaining: 300000,
-      percentageUsed: 70,
-      alertThresholdPercentage: 80,
-      alertLevel: 'SAFE',
-    },
-    {
-      id: 'item-4',
-      name: 'Sinh hoạt',
-      categoryName: 'Sinh hoạt',
-      categoryIcon: 'home',
-      categoryColor: '#10B981',
-      amount: 1000000,
-      spentAmount: 500000,
-      remaining: 500000,
-      percentageUsed: 50,
-      alertThresholdPercentage: 80,
-      alertLevel: 'SAFE',
-    },
-  ];
-
-  return {
-    currentBudget: {
-      id: 'b-mock-1',
-      name: `Tổng ngân sách tháng ${month}`,
-      periodType: 'MONTHLY',
-      startDate: '2026-11-01',
-      endDate: '2026-11-30',
-      totalAmount: 5000000,
-      spentAmount: 3200000,
-      remaining: 1800000,
-      percentageUsed: 64,
-      status: 'ACTIVE',
-      alertLevel: 'SAFE',
-      items,
-    },
-    items,
-    totalBudgeted: 5000000,
-    totalSpent: 3200000,
-    totalRemaining: 1800000,
-    overallPercentage: 64,
-  };
 }
 

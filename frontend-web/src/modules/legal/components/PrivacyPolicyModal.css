@@ -33,6 +33,7 @@
   padding: 18px 24px;
   border-bottom: 1px solid #f1f5f9;
   background: #f8fafc;
+  flex-shrink: 0;
 }
 
 .privacy-modal-title-wrap {
@@ -115,7 +116,7 @@
   margin: 0 0 8px 0;
   font-size: 0.96rem;
   font-weight: 700;
-  color: #047857;
+  color: #007F53;
 }
 
 .privacy-sec-card ul {
@@ -143,6 +144,7 @@
   background: #ffffff;
   display: flex;
   justify-content: flex-end;
+  flex-shrink: 0;
 }
 
 .privacy-modal-btn-confirm {
@@ -159,7 +161,7 @@
 }
 
 .privacy-modal-btn-confirm:hover {
-  background: linear-gradient(135deg, #059669 0%, #047857 100%);
+  background: linear-gradient(135deg, #059669 0%, #007F53 100%);
   transform: translateY(-1px);
 }
 

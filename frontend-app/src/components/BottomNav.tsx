@@ -1,5 +1,5 @@
 import React from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Home, ArrowLeftRight, ScanLine, Users, User } from 'lucide-react-native';
 import { useAppTheme } from '../context/ThemeContext';
@@ -36,7 +36,7 @@ export function BottomNav({
     ? 'group'
     : 'home';
 
-  const bottomPadding = Math.max(insets.bottom, 12);
+  const bottomPadding = Platform.OS === 'android' ? Math.max(insets.bottom, 6) : Math.max(insets.bottom, 12);
   const activeColor = isDark ? '#34D399' : '#00A86B';
   const inactiveColor = isDark ? '#64748B' : '#475569';
   const activePillBg = isDark ? 'rgba(52, 211, 153, 0.16)' : '#E8F8F0';

@@ -3,6 +3,7 @@ import { useSearchParams } from 'react-router-dom';
 import { isAxiosError } from 'axios';
 import { FinanceIcon, resolveCategoryIconName, type IconName } from '../../core/components/FinanceIcon';
 import { ConfirmDeleteModal } from '../../core/components/ConfirmDeleteModal';
+import { DatePicker } from '../../core/components/DatePicker';
 import {
   groupApi,
   type GroupResponse,
@@ -37,7 +38,7 @@ const LAST_SELECTED_GROUP_KEY = 'finora:last-selected-group-id';
 function getGroupTypeLabel(type: GroupType): { label: string; icon: IconName; bg: string; color: string; darkBg: string; darkColor: string; darkBorder: string } {
   switch (type) {
     case 'FAMILY':
-      return { label: 'Gia đình', icon: 'home', bg: '#ecfdf5', color: '#07543f', darkBg: 'rgba(16, 185, 129, 0.15)', darkColor: '#34d399', darkBorder: 'rgba(16, 185, 129, 0.3)' };
+      return { label: 'Gia đình', icon: 'home', bg: '#ecfdf5', color: '#007F53', darkBg: 'rgba(16, 185, 129, 0.15)', darkColor: '#34d399', darkBorder: 'rgba(16, 185, 129, 0.3)' };
     case 'ROOMMATE':
       return { label: 'Bạn cùng phòng', icon: 'users', bg: '#eff6ff', color: '#2563eb', darkBg: 'rgba(59, 130, 246, 0.15)', darkColor: '#60a5fa', darkBorder: 'rgba(59, 130, 246, 0.3)' };
     case 'TRAVEL':
@@ -1796,10 +1797,10 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
                     <FinanceIcon name="users" size={18} />
                   </div>
                   <div className="min-w-0">
-                    <h4 className="text-xs font-bold text-[#14261e] dark:text-slate-100 truncate m-0">
+                    <h4 className="text-xs font-bold text-[#0F172A] dark:text-slate-100 truncate m-0">
                       {inv.groupName}
                     </h4>
-                    <p className="text-[11px] text-[#718579] dark:text-slate-400 truncate m-0">
+                    <p className="text-[11px] text-[#64748B] dark:text-slate-400 truncate m-0">
                       Từ: <strong>{inv.inviterName}</strong> • Vai trò: {inv.role}
                     </p>
                   </div>
@@ -1816,7 +1817,7 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
                   <button
                     type="button"
                     onClick={() => handleAcceptInvitation(inv.id, inv.groupName)}
-                    className="h-7 px-3 rounded-lg bg-[#07543f] text-[11px] font-bold text-white hover:bg-[#064232] transition shadow-2xs"
+                    className="h-7 px-3 rounded-lg bg-[#007F53] text-[11px] font-bold text-white hover:bg-[#004D3B] transition shadow-2xs"
                   >
                     Đồng ý
                   </button>
@@ -1837,14 +1838,14 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
                 <h3 className="text-xs font-bold text-gray-600 dark:text-slate-300 uppercase tracking-wider m-0 whitespace-nowrap">
                   Nhóm
                 </h3>
-                <span className="rounded-full bg-emerald-100 dark:bg-emerald-950 px-1.5 py-0.5 text-[10px] font-bold text-[#07543f] dark:text-emerald-400">
+                <span className="rounded-full bg-emerald-100 dark:bg-emerald-950 px-1.5 py-0.5 text-[10px] font-bold text-[#007F53] dark:text-emerald-400">
                   {groups.length}
                 </span>
               </div>
               <button
                 type="button"
                 onClick={() => setIsCreateModalOpen(true)}
-                className="h-7 px-2.5 rounded-lg bg-[#07543f] hover:bg-[#064232] text-[11px] font-bold text-white shadow-2xs transition flex items-center gap-1 shrink-0 whitespace-nowrap cursor-pointer"
+                className="h-7 px-2.5 rounded-lg bg-[#007F53] hover:bg-[#004D3B] text-[11px] font-bold text-white shadow-2xs transition flex items-center gap-1 shrink-0 whitespace-nowrap cursor-pointer"
               >
                 <FinanceIcon name="plus" size={13} />
                 <span>Tạo nhóm</span>
@@ -1852,24 +1853,24 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
             </div>
 
             {loading ? (
-              <div className="rounded-2xl bg-white dark:bg-slate-900 border border-[#e2ece5] dark:border-slate-800 p-8 text-center text-xs text-[#718579]">
+              <div className="rounded-2xl bg-white dark:bg-slate-900 border border-[#E2E8F0] dark:border-slate-800 p-8 text-center text-xs text-[#64748B]">
                 Đang tải danh sách nhóm...
               </div>
             ) : groups.length === 0 ? (
-              <div className="rounded-2xl bg-white dark:bg-slate-900 border border-[#e2ece5] dark:border-slate-800 p-8 text-center flex flex-col items-center gap-3">
-                <div className="size-12 rounded-full bg-emerald-50 text-[#07543f] grid place-items-center">
+              <div className="rounded-2xl bg-white dark:bg-slate-900 border border-[#E2E8F0] dark:border-slate-800 p-8 text-center flex flex-col items-center gap-3">
+                <div className="size-12 rounded-full bg-emerald-50 text-[#007F53] grid place-items-center">
                   <FinanceIcon name="users" size={24} />
                 </div>
-                <p className="text-sm font-bold text-[#14261e] dark:text-slate-100 m-0">
+                <p className="text-sm font-bold text-[#0F172A] dark:text-slate-100 m-0">
                   Bạn chưa tham gia nhóm nào
                 </p>
-                <p className="text-xs text-[#718579] dark:text-slate-400 m-0">
+                <p className="text-xs text-[#64748B] dark:text-slate-400 m-0">
                   Hãy tạo nhóm gia đình hoặc bạn bè để cùng chia tiền sinh hoạt
                 </p>
                 <button
                   type="button"
                   onClick={() => setIsCreateModalOpen(true)}
-                  className="mt-2 h-9 px-4 rounded-xl bg-[#07543f] text-xs font-bold text-white hover:bg-[#064232] transition"
+                  className="mt-2 h-9 px-4 rounded-xl bg-[#007F53] text-xs font-bold text-white hover:bg-[#004D3B] transition"
                 >
                   + Tạo nhóm đầu tiên
                 </button>
@@ -1905,21 +1906,21 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
                           >
                             <FinanceIcon name={meta.icon} size={15} />
                           </div>
-                          <h4 className="text-[13px] font-bold text-[#14261e] dark:text-slate-100 truncate m-0 leading-tight">
+                          <h4 className="text-[13px] font-bold text-[#0F172A] dark:text-slate-100 truncate m-0 leading-tight">
                             {group.name}
                           </h4>
                         </div>
 
                         {/* Tổng chi tiêu của nhóm */}
                         <div className="text-right shrink-0">
-                          <span className="text-[12px] font-bold text-[#07543f] dark:text-emerald-400 leading-tight whitespace-nowrap">
+                          <span className="text-[12px] font-bold text-[#007F53] dark:text-emerald-400 leading-tight whitespace-nowrap">
                             {(group.totalExpenses || 0).toLocaleString('vi-VN')} đ
                           </span>
                         </div>
                       </div>
 
                       {/* Dòng 2: Loại nhóm & Số thành viên (Ghi đầy đủ "thành viên", không viết tắt, không bị rớt dòng) */}
-                      <div className="flex items-center justify-between text-[11px] text-[#718579] dark:text-slate-400 pt-1.5 pb-0.5 border-t border-[#edf3ee]/80 dark:border-slate-800/60 leading-normal">
+                      <div className="flex items-center justify-between text-[11px] text-[#64748B] dark:text-slate-400 pt-1.5 pb-0.5 border-t border-[#E2E8F0]/80 dark:border-slate-800/60 leading-normal">
                         <span className="truncate">{meta.label}</span>
                         <span className="shrink-0 font-medium">
                           {group.memberCount || 1} thành viên
@@ -1936,9 +1937,9 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
         {/* Right Column: Active Group Detail Panel (Chiếm trọn 9 cột rộng rãi) */}
         <div className={`${isChildAccount ? 'lg:col-span-12' : 'lg:col-span-9'} flex flex-col gap-5 ${!selectedGroup ? 'hidden lg:flex' : 'flex'}`}>
           {selectedGroup ? (
-            <div className="rounded-3xl bg-white dark:bg-slate-900 border border-[#e2ece5] dark:border-slate-800 p-5 sm:p-6 flex flex-col gap-5 shadow-xs">
+            <div className="rounded-3xl bg-white dark:bg-slate-900 border border-[#E2E8F0] dark:border-slate-800 p-5 sm:p-6 flex flex-col gap-5 shadow-xs">
               {/* Group Banner Info */}
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-[#edf3ef] dark:border-slate-800 pb-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-[#E2E8F0] dark:border-slate-800 pb-4">
                 <div>
                   <div className="flex items-center gap-2.5 flex-wrap">
                     {/* Mobile Back Button to Groups List */}
@@ -1946,21 +1947,21 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
                       <button
                         type="button"
                         onClick={() => setSelectedGroup(null)}
-                        className="lg:hidden h-7 px-2 rounded-lg bg-gray-100 dark:bg-slate-800 text-[#07543f] dark:text-emerald-300 text-xs font-bold flex items-center gap-1 hover:bg-gray-200"
+                        className="lg:hidden h-7 px-2 rounded-lg bg-gray-100 dark:bg-slate-800 text-[#007F53] dark:text-emerald-300 text-xs font-bold flex items-center gap-1 hover:bg-gray-200"
                         title="Quay lại danh sách nhóm"
                       >
                         <span>← Danh sách</span>
                       </button>
                     )}
-                    <span className="rounded-md bg-emerald-100 dark:bg-emerald-950 px-2 py-0.5 text-[10px] font-bold text-[#07543f] dark:text-emerald-400">
+                    <span className="rounded-md bg-emerald-100 dark:bg-emerald-950 px-2 py-0.5 text-[10px] font-bold text-[#007F53] dark:text-emerald-400">
                       {getGroupTypeLabel(selectedGroup.groupType).label}
                     </span>
-                    <h2 className="text-xl font-bold text-[#14261e] dark:text-slate-100 m-0">
+                    <h2 className="text-xl font-bold text-[#0F172A] dark:text-slate-100 m-0">
                       {selectedGroup.name}
                     </h2>
                   </div>
                   {selectedGroup.description && (
-                    <p className="text-xs text-[#718579] dark:text-slate-400 mt-1 m-0">
+                    <p className="text-xs text-[#64748B] dark:text-slate-400 mt-1 m-0">
                       {selectedGroup.description}
                     </p>
                   )}
@@ -1973,13 +1974,13 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
                       <button
                         type="button"
                         onClick={() => setIsExpenseModalOpen(true)}
-                        className="h-9 px-3.5 rounded-xl bg-[#07543f] text-xs font-bold text-white hover:bg-[#064232] transition flex items-center gap-1.5 shadow-2xs"
+                        className="h-9 px-3.5 rounded-xl bg-[#007F53] text-xs font-bold text-white hover:bg-[#004D3B] transition flex items-center gap-1.5 shadow-2xs"
                       >
                         <FinanceIcon name="plus" size={14} />
                         <span>Thêm khoản chi</span>
                       </button>
 
-                      <button type="button" onClick={() => setIsFundModalOpen(true)} className="h-9 px-3.5 rounded-xl border border-emerald-300 text-xs font-bold text-[#07543f] hover:bg-emerald-50 transition flex items-center gap-1.5">
+                      <button type="button" onClick={() => setIsFundModalOpen(true)} className="h-9 px-3.5 rounded-xl border border-emerald-300 text-xs font-bold text-[#007F53] hover:bg-emerald-50 transition flex items-center gap-1.5">
                         <FinanceIcon name="wallet" size={14} />
                         <span>Nộp quỹ</span>
                       </button>
@@ -1990,7 +1991,7 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
               </div>
 
               {/* Sub-tabs Navigation */}
-              <div className="flex border-b border-[#edf3ef] dark:border-slate-800 gap-2 sm:gap-4 overflow-x-auto no-scrollbar">
+              <div className="flex border-b border-[#E2E8F0] dark:border-slate-800 gap-2 sm:gap-4 overflow-x-auto no-scrollbar">
                 {!isChildAccount && (
                   <>
                     <button
@@ -1998,7 +1999,7 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
                       onClick={() => setActiveTab('OVERVIEW')}
                       className={`pb-3 text-xs font-bold transition border-b-2 flex items-center gap-1.5 whitespace-nowrap ${
                         activeTab === 'OVERVIEW'
-                          ? 'border-[#07543f] text-[#07543f] dark:text-emerald-400'
+                          ? 'border-[#007F53] text-[#007F53] dark:text-emerald-400'
                           : 'border-transparent text-gray-500 hover:text-gray-900 dark:text-slate-400 dark:hover:text-slate-200'
                       }`}
                     >
@@ -2010,7 +2011,7 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
                       onClick={() => setActiveTab('EXPENSES')}
                       className={`pb-3 text-xs font-bold transition border-b-2 flex items-center gap-1.5 whitespace-nowrap ${
                         activeTab === 'EXPENSES'
-                          ? 'border-[#07543f] text-[#07543f] dark:text-emerald-400'
+                          ? 'border-[#007F53] text-[#007F53] dark:text-emerald-400'
                           : 'border-transparent text-gray-500 hover:text-gray-900 dark:text-slate-400 dark:hover:text-slate-200'
                       }`}
                     >
@@ -2024,7 +2025,7 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
                   onClick={() => setActiveTab('CHAT')}
                   className={`pb-3 text-xs font-bold transition border-b-2 flex items-center gap-1.5 whitespace-nowrap ${
                     activeTab === 'CHAT'
-                      ? 'border-[#07543f] text-[#07543f] dark:text-emerald-400'
+                      ? 'border-[#007F53] text-[#007F53] dark:text-emerald-400'
                       : 'border-transparent text-gray-500 hover:text-gray-900 dark:text-slate-400 dark:hover:text-slate-200'
                   }`}
                 >
@@ -2041,7 +2042,7 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
                   onClick={() => setActiveTab('MEMBERS')}
                   className={`pb-3 text-xs font-bold transition border-b-2 flex items-center gap-1.5 whitespace-nowrap ${
                     activeTab === 'MEMBERS'
-                      ? 'border-[#07543f] text-[#07543f] dark:text-emerald-400'
+                      ? 'border-[#007F53] text-[#007F53] dark:text-emerald-400'
                       : 'border-transparent text-gray-500 hover:text-gray-900 dark:text-slate-400 dark:hover:text-slate-200'
                   }`}
                 >
@@ -2054,7 +2055,7 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
                     onClick={() => setActiveTab('CHILD_WALLETS')}
                     className={`pb-3 text-xs font-bold transition border-b-2 flex items-center gap-1.5 whitespace-nowrap ${
                       activeTab === 'CHILD_WALLETS'
-                        ? 'border-[#07543f] text-[#07543f] dark:text-emerald-400'
+                        ? 'border-[#007F53] text-[#007F53] dark:text-emerald-400'
                         : 'border-transparent text-gray-500 hover:text-gray-900 dark:text-slate-400 dark:hover:text-slate-200'
                     }`}
                   >
@@ -2069,7 +2070,7 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
                       onClick={() => setActiveTab('BALANCES')}
                       className={`pb-3 text-xs font-bold transition border-b-2 flex items-center gap-1.5 whitespace-nowrap ${
                         activeTab === 'BALANCES'
-                          ? 'border-[#07543f] text-[#07543f] dark:text-emerald-400'
+                          ? 'border-[#007F53] text-[#007F53] dark:text-emerald-400'
                           : 'border-transparent text-gray-500 hover:text-gray-900 dark:text-slate-400 dark:hover:text-slate-200'
                       }`}
                     >
@@ -2084,7 +2085,7 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
                     onClick={() => setActiveTab('SETTINGS')}
                     className={`pb-3 text-xs font-bold transition border-b-2 flex items-center gap-1.5 whitespace-nowrap ${
                       activeTab === 'SETTINGS'
-                        ? 'border-[#07543f] text-[#07543f] dark:text-emerald-400'
+                        ? 'border-[#007F53] text-[#007F53] dark:text-emerald-400'
                         : 'border-transparent text-gray-500 hover:text-gray-900 dark:text-slate-400 dark:hover:text-slate-200'
                     }`}
                   >
@@ -2096,7 +2097,7 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
 
               {/* Loading Details State */}
               {loadingDetails ? (
-                <div className="p-8 text-center text-xs text-[#718579] dark:text-slate-400 rounded-2xl bg-[#fafcfa] dark:bg-[#0b1c2a] border border-[#d8e3dc] dark:border-[#1b3a50]">
+                <div className="p-8 text-center text-xs text-[#64748B] dark:text-slate-400 rounded-2xl bg-[#F8FAFC] dark:bg-[#111827] border border-[#d8e3dc] dark:border-[#1E293B]">
                   Đang tải thông tin nhóm...
                 </div>
               ) : (
@@ -2107,63 +2108,63 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
                       {/* Summary Cards */}
                       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                         <div className="rounded-2xl bg-gradient-to-br from-emerald-50 to-white dark:from-emerald-950/40 dark:to-slate-900 p-4 border border-emerald-100 dark:border-emerald-800/60 shadow-2xs">
-                          <span className="text-[11px] font-semibold text-[#718579] dark:text-emerald-300/80 block">
+                          <span className="text-[11px] font-semibold text-[#64748B] dark:text-emerald-300/80 block">
                             Quỹ chung nhóm
                           </span>
-                          <strong className="text-lg font-bold text-[#07543f] dark:text-emerald-400 mt-1 block">
+                          <strong className="text-lg font-bold text-[#007F53] dark:text-emerald-400 mt-1 block">
                             {/* Quỹ chung của nhóm */}
                             {(groupFund?.balance || 0).toLocaleString('vi-VN')} đ
                           </strong>
-                          <span className="text-[10px] text-[#718579] dark:text-slate-400 mt-0.5 block">
+                          <span className="text-[10px] text-[#64748B] dark:text-slate-400 mt-0.5 block">
                             Số dư có thể chi
                           </span>
                         </div>
 
-                        <div className="rounded-2xl bg-[#f7faf8] dark:bg-slate-900 p-4 border border-[#e5ece7] dark:border-slate-800 shadow-2xs">
-                          <span className="text-[11px] font-semibold text-[#718579] dark:text-slate-400 block">
+                        <div className="rounded-2xl bg-[#F8FAFC] dark:bg-slate-900 p-4 border border-[#e5ece7] dark:border-slate-800 shadow-2xs">
+                          <span className="text-[11px] font-semibold text-[#64748B] dark:text-slate-400 block">
                             Tổng chi tiêu đã chi
                           </span>
                           <strong className="text-lg font-bold text-rose-600 dark:text-rose-400 mt-1 block">
                             {(balances?.totalGroupExpenses || selectedGroup.totalExpenses || 0).toLocaleString('vi-VN')} đ
                           </strong>
-                          <span className="text-[10px] text-[#718579] dark:text-slate-400 mt-0.5 block">
+                          <span className="text-[10px] text-[#64748B] dark:text-slate-400 mt-0.5 block">
                             {expenses.length} khoản chi
                           </span>
                         </div>
 
-                        <div className="rounded-2xl bg-[#f7faf8] dark:bg-slate-900 p-4 border border-[#e5ece7] dark:border-slate-800 shadow-2xs">
-                          <span className="text-[11px] font-semibold text-[#718579] dark:text-slate-400 block">
+                        <div className="rounded-2xl bg-[#F8FAFC] dark:bg-slate-900 p-4 border border-[#e5ece7] dark:border-slate-800 shadow-2xs">
+                          <span className="text-[11px] font-semibold text-[#64748B] dark:text-slate-400 block">
                             Thành viên
                           </span>
-                          <strong className="text-lg font-bold text-[#14261e] dark:text-slate-100 mt-1 block">
+                          <strong className="text-lg font-bold text-[#0F172A] dark:text-slate-100 mt-1 block">
                             {members.length} người
                           </strong>
-                          <span className="text-[10px] text-[#718579] dark:text-slate-400 mt-0.5 block">
+                          <span className="text-[10px] text-[#64748B] dark:text-slate-400 mt-0.5 block">
                             Đang hoạt động
                           </span>
                         </div>
 
                         {selectedGroup.groupType === 'FAMILY' ? (
-                          <div className="rounded-2xl bg-[#f7faf8] dark:bg-slate-900 p-4 border border-[#e5ece7] dark:border-slate-800 shadow-2xs">
-                            <span className="text-[11px] font-semibold text-[#718579] dark:text-slate-400 block">
+                          <div className="rounded-2xl bg-[#F8FAFC] dark:bg-slate-900 p-4 border border-[#e5ece7] dark:border-slate-800 shadow-2xs">
+                            <span className="text-[11px] font-semibold text-[#64748B] dark:text-slate-400 block">
                               Ví trẻ em ({childWallets.length})
                             </span>
                             <strong className="text-lg font-bold text-amber-600 dark:text-amber-400 mt-1 block">
                               {childWallets.reduce((acc, cw) => acc + (cw.balance || 0), 0).toLocaleString('vi-VN')} đ
                             </strong>
-                            <span className="text-[10px] text-[#718579] dark:text-slate-400 mt-0.5 block">
+                            <span className="text-[10px] text-[#64748B] dark:text-slate-400 mt-0.5 block">
                               Tổng quỹ các bé
                             </span>
                           </div>
                         ) : (
-                          <div className="rounded-2xl bg-[#f7faf8] dark:bg-slate-900 p-4 border border-[#e5ece7] dark:border-slate-800 shadow-2xs">
-                            <span className="text-[11px] font-semibold text-[#718579] dark:text-slate-400 block">
+                          <div className="rounded-2xl bg-[#F8FAFC] dark:bg-slate-900 p-4 border border-[#e5ece7] dark:border-slate-800 shadow-2xs">
+                            <span className="text-[11px] font-semibold text-[#64748B] dark:text-slate-400 block">
                               Trạng thái nợ
                             </span>
                             <strong className="text-lg font-bold text-emerald-600 dark:text-emerald-400 mt-1 block">
                               {balances?.isFullySettled ? 'Sòng phẳng' : 'Có công nợ'}
                             </strong>
-                            <span className="text-[10px] text-[#718579] dark:text-slate-400 mt-0.5 block">
+                            <span className="text-[10px] text-[#64748B] dark:text-slate-400 mt-0.5 block">
                               {balances?.simplifiedDebts?.length || 0} khoản bù trừ
                             </span>
                           </div>
@@ -2173,24 +2174,24 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
                       {/* Overview Sub-sections: Chi tiêu theo danh mục & Khoản thu chi gần đây */}
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         {/* Box 1: Chi tiêu theo danh mục (Đồng bộ bản App: Biểu đồ tròn Donut phía trên, danh sách danh mục phía dưới) */}
-                        <div className="rounded-2xl border border-[#edf3ee] dark:border-slate-800 p-4 bg-white dark:bg-slate-850 flex flex-col justify-between shadow-2xs">
+                        <div className="rounded-2xl border border-[#E2E8F0] dark:border-slate-800 p-4 bg-white dark:bg-slate-850 flex flex-col justify-between shadow-2xs">
                           <div>
                             <div className="flex items-center justify-between pb-2 border-b border-gray-100 dark:border-slate-800">
-                              <h4 className="text-xs font-bold text-[#14261e] dark:text-slate-100 uppercase tracking-wider m-0 flex items-center gap-1.5">
+                              <h4 className="text-xs font-bold text-[#0F172A] dark:text-slate-100 uppercase tracking-wider m-0 flex items-center gap-1.5">
                                 <FinanceIcon name="pie-chart" size={14} />
                                 <span>Chi tiêu theo danh mục</span>
                               </h4>
                               <button
                                 type="button"
                                 onClick={() => setActiveTab('EXPENSES')}
-                                className="text-xs font-bold text-[#07543f] dark:text-emerald-400 hover:underline cursor-pointer"
+                                className="text-xs font-bold text-[#007F53] dark:text-emerald-400 hover:underline cursor-pointer"
                               >
                                 Chi tiết
                               </button>
                             </div>
 
                             {categoryChartData.totalExp === 0 ? (
-                              <div className="py-12 text-center text-xs text-[#718579] dark:text-slate-400">
+                              <div className="py-12 text-center text-xs text-[#64748B] dark:text-slate-400">
                                 Chưa có khoản chi tiêu nào trong nhóm
                               </div>
                             ) : (
@@ -2265,7 +2266,7 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
                                         <strong className="text-gray-900 dark:text-slate-100 font-bold">
                                           {cat.amount.toLocaleString('vi-VN')} đ
                                         </strong>
-                                        <span className="text-[11px] font-bold text-[#07543f] dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 px-1.5 py-0.5 rounded">
+                                        <span className="text-[11px] font-bold text-[#007F53] dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 px-1.5 py-0.5 rounded">
                                           {Math.round(cat.percentage)}%
                                         </span>
                                       </div>
@@ -2278,23 +2279,23 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
                         </div>
 
                         {/* Box 2: Khoản thu chi gần nhất (Chỉ hiển thị 4 giao dịch) */}
-                        <div className="rounded-2xl border border-[#edf3ee] dark:border-slate-800 p-4 bg-white dark:bg-slate-850 flex flex-col gap-3 shadow-2xs">
+                        <div className="rounded-2xl border border-[#E2E8F0] dark:border-slate-800 p-4 bg-white dark:bg-slate-850 flex flex-col gap-3 shadow-2xs">
                           <div className="flex items-center justify-between">
-                            <h4 className="text-xs font-bold text-[#14261e] dark:text-slate-100 uppercase tracking-wider m-0 flex items-center gap-1.5">
+                            <h4 className="text-xs font-bold text-[#0F172A] dark:text-slate-100 uppercase tracking-wider m-0 flex items-center gap-1.5">
                               <FinanceIcon name="receipt" size={14} />
                               <span>Khoản thu chi gần đây</span>
                             </h4>
                             <button
                               type="button"
                               onClick={() => setActiveTab('EXPENSES')}
-                              className="text-xs font-bold text-[#07543f] dark:text-emerald-400 hover:underline cursor-pointer"
+                              className="text-xs font-bold text-[#007F53] dark:text-emerald-400 hover:underline cursor-pointer"
                             >
                               Xem tất cả
                             </button>
                           </div>
 
                           {recentLedgerItems.length === 0 ? (
-                            <p className="text-xs text-[#718579] dark:text-slate-400 py-6 text-center m-0">
+                            <p className="text-xs text-[#64748B] dark:text-slate-400 py-6 text-center m-0">
                               Chưa có khoản thu chi nào trong nhóm
                             </p>
                           ) : (
@@ -2302,19 +2303,19 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
                               {recentLedgerItems.slice(0, 4).map((item) => (
                                 <div
                                   key={item.id}
-                                  className="flex items-center justify-between p-2.5 rounded-xl bg-[#f7faf8] dark:bg-slate-800 border border-[#eef4f0] dark:border-slate-700/60"
+                                  className="flex items-center justify-between p-2.5 rounded-xl bg-[#F8FAFC] dark:bg-slate-800 border border-[#F1F5F9] dark:border-slate-700/60"
                                 >
                                   <div className={`mr-3 grid size-9 shrink-0 place-items-center rounded-xl border ${item.kind === 'THU' ? 'bg-emerald-50 text-emerald-700 border-emerald-200/60 dark:bg-emerald-950/40 dark:text-emerald-400 dark:border-emerald-800/50' : 'bg-rose-50 text-rose-600 border-rose-200/60 dark:bg-[#201317] dark:text-[#ff758f] dark:border-rose-900/40'}`}>
                                     <FinanceIcon name={item.kind === 'THU' ? 'wallet' : resolveCategoryIconName(item.categoryIcon, 'EXPENSE', item.categoryName)} size={16} />
                                   </div>
                                   <div className="min-w-0 flex-1 pr-2">
-                                    <p className="text-xs font-bold text-[#14261e] dark:text-slate-200 truncate m-0">
+                                    <p className="text-xs font-bold text-[#0F172A] dark:text-slate-200 truncate m-0">
                                       {item.title}
                                     </p>
-                                    <span className="text-[11px] text-[#718579] dark:text-slate-400 block mt-1">
+                                    <span className="text-[11px] text-[#64748B] dark:text-slate-400 block mt-1">
                                       {item.kind === 'THU' ? 'Nộp bởi' : item.source === 'GROUP_FUND' ? 'Nguồn: Quỹ chung · Thực hiện bởi' : 'Chi bởi'} {item.actor}
                                     </span>
-                                    <span className="mt-0.5 block whitespace-nowrap text-[11px] text-[#718579] dark:text-slate-400">{formatGroupDateTime(item.date)}</span>
+                                    <span className="mt-0.5 block whitespace-nowrap text-[11px] text-[#64748B] dark:text-slate-400">{formatGroupDateTime(item.date)}</span>
                                   </div>
                                   <strong className={`text-xs font-bold shrink-0 ${item.kind === 'THU' ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>
                                     {item.kind === 'THU' ? '+' : '-'}{item.amount.toLocaleString('vi-VN')} đ
@@ -2330,13 +2331,13 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
                       {selectedGroup.groupType !== 'FAMILY' && selectedGroup.groupType !== 'COUPLE' && balances?.simplifiedDebts && balances.simplifiedDebts.length > 0 && (
                         <div className="rounded-2xl border border-emerald-200 dark:border-emerald-800/80 p-4 bg-emerald-50/40 dark:bg-emerald-950/20 flex flex-col gap-3">
                           <div className="flex items-center justify-between">
-                            <h4 className="text-xs font-bold text-[#07543f] dark:text-emerald-300 uppercase tracking-wider m-0">
+                            <h4 className="text-xs font-bold text-[#007F53] dark:text-emerald-300 uppercase tracking-wider m-0">
                               Bù trừ công nợ cần thanh toán
                             </h4>
                             <button
                               type="button"
                               onClick={() => setActiveTab('BALANCES')}
-                              className="text-xs font-bold text-[#07543f] dark:text-emerald-400 hover:underline"
+                              className="text-xs font-bold text-[#007F53] dark:text-emerald-400 hover:underline"
                             >
                               Xem cân đối
                             </button>
@@ -2347,7 +2348,7 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
                                 key={idx}
                                 className="p-2.5 rounded-xl bg-white dark:bg-slate-850 border border-emerald-100 dark:border-emerald-800/60 shadow-2xs"
                               >
-                                <div className="flex items-start justify-between gap-2"><div className="min-w-0"><p className="text-xs font-bold text-[#14261e] dark:text-slate-200 truncate m-0">{memberName(debt.fromUserId, debt.fromUser?.fullName)} → {memberName(debt.toUserId, debt.toUser?.fullName)}</p><span className="text-[10px] text-[#718579] dark:text-slate-400">Cần bù trừ</span></div><strong className="text-xs font-bold text-[#07543f] dark:text-emerald-400 shrink-0">{debt.amount.toLocaleString('vi-VN')} đ</strong></div>
+                                <div className="flex items-start justify-between gap-2"><div className="min-w-0"><p className="text-xs font-bold text-[#0F172A] dark:text-slate-200 truncate m-0">{memberName(debt.fromUserId, debt.fromUser?.fullName)} → {memberName(debt.toUserId, debt.toUser?.fullName)}</p><span className="text-[10px] text-[#64748B] dark:text-slate-400">Cần bù trừ</span></div><strong className="text-xs font-bold text-[#007F53] dark:text-emerald-400 shrink-0">{debt.amount.toLocaleString('vi-VN')} đ</strong></div>
                               </div>
                             ))}
                           </div>
@@ -2377,7 +2378,7 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
                     }
 
                     return (
-                    <div className="flex flex-col rounded-2xl border border-[#edf3ee] dark:border-[#16364a] bg-[#f9fbf9] dark:bg-[#071622] h-[480px] relative">
+                    <div className="flex flex-col rounded-2xl border border-[#E2E8F0] dark:border-[#1E293B] bg-[#F8FAFC] dark:bg-[#0B0F19] h-[480px] relative">
                       {/* Chat messages stream */}
                       <div
                         ref={chatContainerRef}
@@ -2385,21 +2386,21 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
                         className="flex-1 overflow-y-auto p-4 flex flex-col gap-1 relative"
                       >
                         {messages.length === 0 ? (
-                          <div className="h-full flex flex-col items-center justify-center text-center text-xs text-[#718579] dark:text-slate-400">
-                            <div className="size-12 rounded-full bg-emerald-50 dark:bg-emerald-950/60 text-[#07543f] dark:text-emerald-400 grid place-items-center mb-2">
+                          <div className="h-full flex flex-col items-center justify-center text-center text-xs text-[#64748B] dark:text-slate-400">
+                            <div className="size-12 rounded-full bg-emerald-50 dark:bg-emerald-950/60 text-[#007F53] dark:text-emerald-400 grid place-items-center mb-2">
                               <FinanceIcon name="file-text" size={20} />
                             </div>
-                            <p className="font-bold text-sm text-[#14261e] dark:text-slate-200 m-0">
+                            <p className="font-bold text-sm text-[#0F172A] dark:text-slate-200 m-0">
                               Chưa có tin nhắn nào
                             </p>
-                            <p className="text-xs text-[#718579] dark:text-slate-400 mt-1 m-0">
+                            <p className="text-xs text-[#64748B] dark:text-slate-400 mt-1 m-0">
                               Hãy gửi tin nhắn đầu tiên để cùng thảo luận chi tiêu và thanh toán!
                             </p>
                           </div>
                         ) : (
                           messages
                             .filter((msg) => !hiddenMessageIds.includes(msg.id))
-                            .map((msg, index) => {
+                            .map((msg, index, visibleMsgs) => {
                             const isMe = currentUser?.id && msg.senderId === currentUser.id;
                             const isRecalled = msg.isRecalled || msg.content === 'Tin nhắn đã bị thu hồi';
                             const isEdited = !isRecalled && (msg.isEdited || (msg.updatedAt && new Date(msg.updatedAt).getTime() - new Date(msg.createdAt).getTime() > 2000));
@@ -2417,7 +2418,7 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
 
                             // Date & time divider calculation (Messenger style)
                             // If first message or diff from previous message >= 10 minutes, show timestamp separator
-                            const prevMessage = index > 0 ? messages[index - 1] : null;
+                            const prevMessage = index > 0 ? visibleMsgs[index - 1] : null;
                             const prevDiffMins = prevMessage
                               ? (new Date(msg.createdAt).getTime() - new Date(prevMessage.createdAt).getTime()) / 60000
                               : 999;
@@ -2434,7 +2435,7 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
                               showMessengerDivider ||
                               prevDiffMins >= 10;
 
-                            const nextMessage = index < messages.length - 1 ? messages[index + 1] : null;
+                            const nextMessage = index < visibleMsgs.length - 1 ? visibleMsgs[index + 1] : null;
                             const nextDiffMins = nextMessage
                               ? (new Date(nextMessage.createdAt).getTime() - new Date(msg.createdAt).getTime()) / 60000
                               : 999;
@@ -2458,7 +2459,9 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
 
                             // Find member profile to get avatar
                             const senderMember = members.find((m) => m.userId === msg.senderId);
-                            const rawAvatarUrl = isMe ? currentUser?.avatarUrl : (senderMember?.user?.avatarUrl || msg.sender?.avatarKey);
+                            const rawAvatarUrl = isMe
+                              ? currentUser?.avatarUrl
+                              : (senderMember?.user?.avatarUrl || senderMember?.user?.avatarKey || msg.sender?.avatarKey || (msg.sender as any)?.avatarUrl);
                             const resolvedAvatarUrl = rawAvatarUrl ? userApi.getAvatarUrl(rawAvatarUrl) : null;
                             const avatarInitial = (senderName || 'U').charAt(0).toUpperCase();
 
@@ -2516,8 +2519,8 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
                                       <div
                                         className={`size-8 rounded-full overflow-hidden flex items-center justify-center font-bold text-xs shadow-2xs ${
                                           isMe
-                                            ? 'bg-[#07543f] text-white'
-                                            : 'bg-emerald-100 dark:bg-slate-750 text-[#07543f] dark:text-emerald-300 border border-emerald-200 dark:border-slate-700'
+                                            ? 'bg-[#007F53] text-white'
+                                            : 'bg-emerald-100 dark:bg-slate-750 text-[#007F53] dark:text-emerald-300 border border-emerald-200 dark:border-slate-700'
                                         }`}
                                         title={senderName}
                                       >
@@ -2557,8 +2560,8 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
                                                 isRecalled
                                                   ? 'bg-gray-100 dark:bg-slate-800 text-gray-400 dark:text-slate-500 italic border border-dashed border-gray-300 dark:border-slate-700'
                                                   : isMe
-                                                    ? 'bg-[#07543f] text-white dark:bg-[#065f46] dark:text-white'
-                                                    : 'bg-white dark:bg-[#132838] text-[#14261e] dark:text-[#f1f5f9] border border-[#e6eee8] dark:border-[#1d3d54]'
+                                                    ? 'bg-[#007F53] text-white dark:bg-[#065f46] dark:text-white'
+                                                    : 'bg-white dark:bg-[#1F2937] text-[#0F172A] dark:text-[#f1f5f9] border border-[#e6eee8] dark:border-[#1E293B]'
                                               }`
                                         }`}
                                         title="Bấm để xem thời gian gửi"
@@ -2609,7 +2612,7 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
                                                     <div
                                                       key={attIdx}
                                                       className={`flex items-center justify-between gap-2 p-2 rounded-xl text-xs font-semibold ${
-                                                        isMe ? 'bg-white/15 text-white' : 'bg-gray-100 dark:bg-[#1a354b] text-gray-800 dark:text-slate-100'
+                                                        isMe ? 'bg-white/15 text-white' : 'bg-gray-100 dark:bg-[#1F2937] text-gray-800 dark:text-slate-100'
                                                       }`}
                                                     >
                                                       <a
@@ -2796,7 +2799,7 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
                                               return (
                                                 <div
                                                   key={sm.userId}
-                                                  className="size-3.5 rounded-full border border-white dark:border-slate-850 overflow-hidden bg-emerald-100 dark:bg-slate-700 text-[#07543f] dark:text-emerald-300 text-[7px] font-bold flex items-center justify-center shadow-xs"
+                                                  className="size-3.5 rounded-full border border-white dark:border-slate-850 overflow-hidden bg-emerald-100 dark:bg-slate-700 text-[#007F53] dark:text-emerald-300 text-[7px] font-bold flex items-center justify-center shadow-xs"
                                                   title={`${smName} đã xem`}
                                                 >
                                                   {smAvatar ? (
@@ -2829,7 +2832,7 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
                                           return (
                                             <div
                                               key={sm.userId}
-                                              className="size-3.5 rounded-full border border-white dark:border-slate-850 overflow-hidden bg-emerald-100 dark:bg-slate-700 text-[#07543f] dark:text-emerald-300 text-[7px] font-bold flex items-center justify-center shadow-xs"
+                                              className="size-3.5 rounded-full border border-white dark:border-slate-850 overflow-hidden bg-emerald-100 dark:bg-slate-700 text-[#007F53] dark:text-emerald-300 text-[7px] font-bold flex items-center justify-center shadow-xs"
                                               title={`${smName} đã xem`}
                                             >
                                               {smAvatar ? (
@@ -2863,7 +2866,7 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
                         <button
                           type="button"
                           onClick={scrollToBottom}
-                          className="absolute right-4 bottom-20 z-20 size-9 rounded-full bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 shadow-lg text-[#07543f] dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-slate-750 transition flex items-center justify-center animate-bounce group"
+                          className="absolute right-4 bottom-20 z-20 size-9 rounded-full bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 shadow-lg text-[#007F53] dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-slate-750 transition flex items-center justify-center animate-bounce group"
                           title="Cuộn xuống tin nhắn mới nhất"
                         >
                           <FinanceIcon name="chevron-down" size={16} className="transition group-hover:translate-y-0.5" />
@@ -2872,7 +2875,7 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
 
                       {/* Typing indicator (Ai đó đang soạn tin nhắn...) */}
                       {typingMemberNames.length > 0 && (
-                        <div className="px-4 py-1.5 flex items-center gap-2 text-xs text-[#718579] dark:text-slate-400 animate-fadeIn">
+                        <div className="px-4 py-1.5 flex items-center gap-2 text-xs text-[#64748B] dark:text-slate-400 animate-fadeIn">
                           <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-100 dark:border-emerald-800">
                             <span className="size-1.5 rounded-full bg-emerald-500 animate-bounce" style={{ animationDelay: '0ms' }} />
                             <span className="size-1.5 rounded-full bg-emerald-500 animate-bounce" style={{ animationDelay: '150ms' }} />
@@ -2919,7 +2922,7 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
                             <button
                               type="button"
                               onClick={handleSaveEditMessage}
-                              className="px-2.5 py-1 rounded-lg bg-[#07543f] hover:bg-[#064232] text-white text-xs font-semibold shadow-xs transition"
+                              className="px-2.5 py-1 rounded-lg bg-[#007F53] hover:bg-[#004D3B] text-white text-xs font-semibold shadow-xs transition"
                             >
                               Lưu
                             </button>
@@ -2946,15 +2949,15 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
                                 className="size-10 rounded-lg object-cover border border-emerald-300 dark:border-emerald-700"
                               />
                             ) : (
-                              <div className="size-10 rounded-lg bg-emerald-100 text-[#07543f] grid place-items-center">
+                              <div className="size-10 rounded-lg bg-emerald-100 text-[#007F53] grid place-items-center">
                                 <FinanceIcon name="paperclip" size={18} />
                               </div>
                             )}
                             <div className="min-w-0">
-                              <p className="text-xs font-bold text-[#14261e] dark:text-slate-100 truncate m-0">
+                              <p className="text-xs font-bold text-[#0F172A] dark:text-slate-100 truncate m-0">
                                 {selectedAttachment.name}
                               </p>
-                              <span className="text-[10px] text-[#718579] dark:text-slate-400">
+                              <span className="text-[10px] text-[#64748B] dark:text-slate-400">
                                 {(selectedAttachment.size / 1024).toFixed(1)} KB
                               </span>
                             </div>
@@ -2973,7 +2976,7 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
                       {/* Chat input form */}
                       <form
                         onSubmit={handleSendMessage}
-                        className="relative p-2 sm:p-3 border-t border-[#edf3ee] dark:border-slate-800 bg-white dark:bg-slate-900 rounded-b-2xl flex items-center gap-1.5 sm:gap-2"
+                        className="relative p-2 sm:p-3 border-t border-[#E2E8F0] dark:border-slate-800 bg-white dark:bg-slate-900 rounded-b-2xl flex items-center gap-1.5 sm:gap-2"
                       >
                         {/* Emoji Picker Popup */}
                         {showEmojiPicker && (
@@ -3004,7 +3007,7 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
                             type="button"
                             onClick={() => imageInputRef.current?.click()}
                             title="Gửi hình ảnh"
-                            className="size-8 sm:size-10 rounded-lg sm:rounded-xl border border-gray-200 dark:border-slate-700 hover:border-emerald-300 hover:bg-emerald-50 dark:hover:bg-slate-800 text-gray-500 hover:text-[#07543f] dark:text-slate-400 grid place-items-center transition shrink-0"
+                            className="size-8 sm:size-10 rounded-lg sm:rounded-xl border border-gray-200 dark:border-slate-700 hover:border-emerald-300 hover:bg-emerald-50 dark:hover:bg-slate-800 text-gray-500 hover:text-[#007F53] dark:text-slate-400 grid place-items-center transition shrink-0"
                           >
                             <FinanceIcon name="image" size={15} />
                           </button>
@@ -3014,7 +3017,7 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
                             type="button"
                             onClick={() => fileInputRef.current?.click()}
                             title="Đính kèm tệp"
-                            className="hidden sm:grid size-10 rounded-xl border border-gray-200 dark:border-slate-700 hover:border-emerald-300 hover:bg-emerald-50 dark:hover:bg-slate-800 text-gray-500 hover:text-[#07543f] dark:text-slate-400 place-items-center transition shrink-0"
+                            className="hidden sm:grid size-10 rounded-xl border border-gray-200 dark:border-slate-700 hover:border-emerald-300 hover:bg-emerald-50 dark:hover:bg-slate-800 text-gray-500 hover:text-[#007F53] dark:text-slate-400 place-items-center transition shrink-0"
                           >
                             <FinanceIcon name="paperclip" size={17} />
                           </button>
@@ -3026,8 +3029,8 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
                             title="Chèn biểu tượng cảm xúc"
                             className={`size-8 sm:size-10 rounded-lg sm:rounded-xl border transition grid place-items-center shrink-0 text-sm sm:text-base ${
                               showEmojiPicker
-                                ? 'border-emerald-500 bg-emerald-50 text-[#07543f]'
-                                : 'border-gray-200 dark:border-slate-700 hover:border-emerald-300 hover:bg-emerald-50 dark:hover:bg-slate-800 text-gray-500 hover:text-[#07543f]'
+                                ? 'border-emerald-500 bg-emerald-50 text-[#007F53]'
+                                : 'border-gray-200 dark:border-slate-700 hover:border-emerald-300 hover:bg-emerald-50 dark:hover:bg-slate-800 text-gray-500 hover:text-[#007F53]'
                             }`}
                           >
                             😊
@@ -3069,12 +3072,12 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
                               (e.target as HTMLTextAreaElement).style.height = 'auto';
                             }
                           }}
-                          className="flex-1 min-w-0 min-h-[36px] sm:min-h-[40px] max-h-[120px] py-2 px-2.5 sm:px-3.5 rounded-xl border border-gray-200 dark:border-slate-700 bg-[#f7faf8] dark:bg-slate-800 text-xs text-[#14261e] dark:text-slate-100 placeholder:text-gray-400 focus:outline-none focus:border-[#07543f] resize-none leading-relaxed transition-all"
+                          className="flex-1 min-w-0 min-h-[36px] sm:min-h-[40px] max-h-[120px] py-2 px-2.5 sm:px-3.5 rounded-xl border border-gray-200 dark:border-slate-700 bg-[#F8FAFC] dark:bg-slate-800 text-xs text-[#0F172A] dark:text-slate-100 placeholder:text-gray-400 focus:outline-none focus:border-[#007F53] resize-none leading-relaxed transition-all"
                         />
                         <button
                           type="submit"
                           disabled={isSendingMessage || (!newMessageText.trim() && !selectedAttachment)}
-                          className="h-9 sm:h-10 px-3 sm:px-4 rounded-xl bg-[#07543f] hover:bg-[#064232] disabled:opacity-50 text-xs font-bold text-white transition flex items-center justify-center gap-1 shadow-2xs shrink-0"
+                          className="h-9 sm:h-10 px-3 sm:px-4 rounded-xl bg-[#007F53] hover:bg-[#004D3B] disabled:opacity-50 text-xs font-bold text-white transition flex items-center justify-center gap-1 shadow-2xs shrink-0"
                         >
                           <FinanceIcon name="arrow" size={14} />
                           <span className="hidden sm:inline">{isUploadingAttachment ? 'Đang tải...' : 'Gửi'}</span>
@@ -3283,7 +3286,7 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
                               }}
                               className={`px-4 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${
                                 txTypeFilter === 'ALL'
-                                  ? 'bg-white dark:bg-slate-700 text-[#07543f] dark:text-emerald-400 shadow-2xs'
+                                  ? 'bg-white dark:bg-slate-700 text-[#007F53] dark:text-emerald-400 shadow-2xs'
                                   : 'text-gray-500 hover:text-gray-800 dark:text-slate-400'
                               }`}
                             >
@@ -3327,7 +3330,7 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
                                 setSelectedMonth(e.target.value);
                                 setTxCurrentPage(1);
                               }}
-                              className="h-9 px-3.5 rounded-xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-bold text-[#14261e] dark:text-slate-200 shadow-2xs outline-none focus:border-[#07543f] cursor-pointer"
+                              className="h-9 px-3.5 rounded-xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-bold text-[#0F172A] dark:text-slate-200 shadow-2xs outline-none focus:border-[#007F53] cursor-pointer"
                             >
                               {availableMonths.map((m) => (
                                 <option key={m.key} value={m.key}>
@@ -3341,13 +3344,13 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
                         {/* 3. BẢNG LỊCH SỬ GIAO DỊCH (MỖI TRANG 5 GIAO DỊCH, KHÔNG BỊ DÀI QUÁ) */}
                         {displayedList.length === 0 ? (
                           <div className="flex flex-col items-center justify-center p-12 text-center rounded-2xl bg-white dark:bg-slate-900 border border-dashed border-[#d8e3dc] dark:border-slate-800">
-                            <div className="grid size-14 place-items-center rounded-2xl bg-[#e3f4e9] text-[#07543f] dark:bg-emerald-950 dark:text-emerald-400">
+                            <div className="grid size-14 place-items-center rounded-2xl bg-[#E6F4EA] text-[#007F53] dark:bg-emerald-950 dark:text-emerald-400">
                               <FinanceIcon name="receipt" size={28} />
                             </div>
-                            <h3 className="mt-4 text-base font-bold text-[#14261e] dark:text-slate-100">
+                            <h3 className="mt-4 text-base font-bold text-[#0F172A] dark:text-slate-100">
                               Không có giao dịch nào trong {selectedMonthLabel}
                             </h3>
-                            <p className="mt-1 text-xs text-[#718579] dark:text-slate-400 max-w-sm">
+                            <p className="mt-1 text-xs text-[#64748B] dark:text-slate-400 max-w-sm">
                               Chưa có khoản thu quỹ hay chi tiêu nhóm nào phù hợp với bộ lọc hiện tại.
                             </p>
                           </div>
@@ -3402,7 +3405,7 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
                                               />
                                             </span>
                                             <div className="min-w-0 flex-1">
-                                              <p className="truncate font-bold text-[#0f172a] dark:text-slate-100 text-[12.5px] group-hover:text-[#07543f] dark:group-hover:text-emerald-400 transition-colors m-0" title={tx.title}>
+                                              <p className="truncate font-bold text-[#0f172a] dark:text-slate-100 text-[12.5px] group-hover:text-[#007F53] dark:group-hover:text-emerald-400 transition-colors m-0" title={tx.title}>
                                                 {tx.title}
                                               </p>
                                               <p className="text-[11px] text-[#64748b] dark:text-slate-400 truncate mt-0.5 m-0">
@@ -3419,7 +3422,7 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
                                               {tx.subtitle.replace(/^Bởi\s*/, '')}
                                             </p>
                                             {tx.originalExpense && (
-                                              <p className="text-[10px] text-[#718579] dark:text-slate-400 font-medium truncate mt-0.5 m-0">
+                                              <p className="text-[10px] text-[#64748B] dark:text-slate-400 font-medium truncate mt-0.5 m-0">
                                                 {tx.originalExpense.paymentSource === 'GROUP_FUND' ? 'Nguồn: Quỹ nhóm' : 'Nguồn: Ví cá nhân'}
                                               </p>
                                             )}
@@ -3475,7 +3478,7 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
                                             }}
                                             className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold transition cursor-pointer ${
                                               tx.commentCount > 0
-                                                ? 'bg-emerald-50 text-[#07543f] hover:bg-emerald-100 border border-emerald-200/80 dark:bg-emerald-950/60 dark:text-emerald-300 dark:border-emerald-800'
+                                                ? 'bg-emerald-50 text-[#007F53] hover:bg-emerald-100 border border-emerald-200/80 dark:bg-emerald-950/60 dark:text-emerald-300 dark:border-emerald-800'
                                                 : 'bg-gray-100/80 text-gray-500 hover:bg-gray-200/80 hover:text-gray-800 dark:bg-slate-800 dark:text-slate-400 dark:hover:bg-slate-700'
                                             }`}
                                             title="Xem và gửi bình luận"
@@ -3505,7 +3508,7 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
                                     type="button"
                                     disabled={safePage <= 1}
                                     onClick={() => setTxCurrentPage((p) => Math.max(1, p - 1))}
-                                    className="inline-flex h-8 items-center gap-1 rounded-lg border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 text-xs font-semibold text-[#14261e] dark:text-slate-300 hover:bg-gray-100 dark:hover:bg-slate-700 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition shadow-2xs"
+                                    className="inline-flex h-8 items-center gap-1 rounded-lg border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 text-xs font-semibold text-[#0F172A] dark:text-slate-300 hover:bg-gray-100 dark:hover:bg-slate-700 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition shadow-2xs"
                                   >
                                     <FinanceIcon name="chevron-left" size={14} />
                                     <span>Trước</span>
@@ -3520,7 +3523,7 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
                                         onClick={() => setTxCurrentPage(pageNum)}
                                         className={`size-8 rounded-lg text-xs font-bold transition cursor-pointer ${
                                           safePage === pageNum
-                                            ? 'bg-[#07543f] text-white shadow-2xs'
+                                            ? 'bg-[#007F53] text-white shadow-2xs'
                                             : 'bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 text-gray-700 dark:text-slate-300 hover:bg-gray-100 dark:hover:bg-slate-700'
                                         }`}
                                       >
@@ -3534,7 +3537,7 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
                                     type="button"
                                     disabled={safePage >= totalPages}
                                     onClick={() => setTxCurrentPage((p) => Math.min(totalPages, p + 1))}
-                                    className="inline-flex h-8 items-center gap-1 rounded-lg border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 text-xs font-semibold text-[#14261e] dark:text-slate-300 hover:bg-gray-100 dark:hover:bg-slate-700 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition shadow-2xs"
+                                    className="inline-flex h-8 items-center gap-1 rounded-lg border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 text-xs font-semibold text-[#0F172A] dark:text-slate-300 hover:bg-gray-100 dark:hover:bg-slate-700 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition shadow-2xs"
                                   >
                                     <span>Sau</span>
                                     <FinanceIcon name="chevron-right" size={14} />
@@ -3553,15 +3556,15 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
                 <div className="flex flex-col gap-4">
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                     {balances?.balances.map((member) => (
-                      <div key={member.userId} className="rounded-xl border border-[#edf3ee] p-3 text-xs">
+                      <div key={member.userId} className="rounded-xl border border-[#E2E8F0] p-3 text-xs">
                         <strong>{memberName(member.userId, member.user?.fullName)}</strong>
-                        <div className="mt-1 text-[#718579]">Đã chi cá nhân: {(member.personalExpensePaid || 0).toLocaleString('vi-VN')} đ</div>
-                        <div className="text-[#718579]">Đã nộp quỹ: {(member.fundContribution || 0).toLocaleString('vi-VN')} đ</div>
+                        <div className="mt-1 text-[#64748B]">Đã chi cá nhân: {(member.personalExpensePaid || 0).toLocaleString('vi-VN')} đ</div>
+                        <div className="text-[#64748B]">Đã nộp quỹ: {(member.fundContribution || 0).toLocaleString('vi-VN')} đ</div>
                         <div className={member.balance >= 0 ? 'mt-1 font-bold text-emerald-700' : 'mt-1 font-bold text-rose-600'}>{member.balance >= 0 ? 'Được nhận: ' : 'Cần bù: '}{Math.abs(member.balance).toLocaleString('vi-VN')} đ</div>
                       </div>
                     ))}
                   </div>
-                  <h4 className="text-sm font-bold text-[#14261e] dark:text-slate-100 m-0">
+                  <h4 className="text-sm font-bold text-[#0F172A] dark:text-slate-100 m-0">
                     Kế hoạch thanh toán tối ưu (Simplified Debts)
                   </h4>
                   {balances?.simplifiedDebts && balances.simplifiedDebts.length > 0 ? (
@@ -3571,25 +3574,25 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
                         className="flex items-center justify-between p-4 rounded-2xl border border-emerald-200 dark:border-emerald-800 bg-emerald-50/50 dark:bg-emerald-950/30"
                       >
                         <div className="flex items-center gap-3">
-                          <span className="size-8 rounded-full bg-[#07543f] text-white font-bold text-xs grid place-items-center">
+                          <span className="size-8 rounded-full bg-[#007F53] text-white font-bold text-xs grid place-items-center">
                             {idx + 1}
                           </span>
                           <div>
-                            <p className="text-xs text-[#14261e] dark:text-slate-100 font-bold m-0">
+                            <p className="text-xs text-[#0F172A] dark:text-slate-100 font-bold m-0">
                               {memberName(debt.fromUserId, debt.fromUser?.fullName)} cần bù cho {memberName(debt.toUserId, debt.toUser?.fullName)}
                             </p>
-                            <span className="text-[11px] text-[#718579]">Thanh toán để xóa nợ nhóm</span>
+                            <span className="text-[11px] text-[#64748B]">Thanh toán để xóa nợ nhóm</span>
                           </div>
                         </div>
 
-                        <strong className="text-base font-bold text-[#07543f] dark:text-emerald-400">
+                        <strong className="text-base font-bold text-[#007F53] dark:text-emerald-400">
                           {debt.amount.toLocaleString('vi-VN')} đ
                         </strong>
-                        <div className="mt-2 flex flex-wrap justify-end gap-1.5">{debt.fromUserId === currentUser?.id ? <button type="button" onClick={() => { setSettlePayeeId(debt.toUserId); setSettleAmount(String(debt.amount)); setIsSettleModalOpen(true); }} className="h-7 rounded-lg bg-[#07543f] px-2 text-[10px] font-bold text-white">Đóng tiền bù trừ</button> : <span className="inline-flex h-7 items-center rounded-lg bg-gray-100 px-2 text-[10px] font-semibold text-gray-500">Chờ {memberName(debt.fromUserId, debt.fromUser?.fullName)} thanh toán</span>}<button type="button" onClick={() => handleShareBalanceToChat(debt.fromUserId, debt.toUserId, debt.amount)} className="h-7 rounded-lg border border-emerald-300 px-2 text-[10px] font-bold text-emerald-700">Gửi vào trò chuyện</button></div>
+                        <div className="mt-2 flex flex-wrap justify-end gap-1.5">{debt.fromUserId === currentUser?.id ? <button type="button" onClick={() => { setSettlePayeeId(debt.toUserId); setSettleAmount(String(debt.amount)); setIsSettleModalOpen(true); }} className="h-7 rounded-lg bg-[#007F53] px-2 text-[10px] font-bold text-white">Đóng tiền bù trừ</button> : <span className="inline-flex h-7 items-center rounded-lg bg-gray-100 px-2 text-[10px] font-semibold text-gray-500">Chờ {memberName(debt.fromUserId, debt.fromUser?.fullName)} thanh toán</span>}<button type="button" onClick={() => handleShareBalanceToChat(debt.fromUserId, debt.toUserId, debt.amount)} className="h-7 rounded-lg border border-emerald-300 px-2 text-[10px] font-bold text-emerald-700">Gửi vào trò chuyện</button></div>
                       </div>
                     ))
                   ) : (
-                    <div className="p-8 text-center text-xs text-[#718579] dark:text-slate-400 rounded-2xl bg-[#fafcfa] dark:bg-[#0b1c2a] border border-dashed border-[#d8e3dc] dark:border-[#1b3a50]">
+                    <div className="p-8 text-center text-xs text-[#64748B] dark:text-slate-400 rounded-2xl bg-[#F8FAFC] dark:bg-[#111827] border border-dashed border-[#d8e3dc] dark:border-[#1E293B]">
                       Không có ai nợ ai. Toàn bộ chi phí nhóm đã được thanh toán cân bằng!
                     </div>
                   )}
@@ -3597,20 +3600,20 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
               )}
 
               {activeTab === 'BALANCES' && settlements.length > 0 && (
-                <section className="rounded-2xl border border-[#edf3ee] p-4">
+                <section className="rounded-2xl border border-[#E2E8F0] p-4">
                   <h4 className="text-sm font-bold m-0 mb-3">Các lượt bù trừ</h4>
                   <div className="flex flex-col gap-2">
                     {settlements.map((st) => {
                       const payerId = st.fromUserId || st.payerId;
                       const payeeId = st.toUserId || st.payeeId;
-                      return <div key={st.id} className="flex items-center justify-between gap-3 rounded-xl bg-[#fafcfa] p-3 text-xs">
+                      return <div key={st.id} className="flex items-center justify-between gap-3 rounded-xl bg-[#F8FAFC] p-3 text-xs">
                         <div>
                           <strong>{memberName(payerId, st.fromUser?.fullName || st.payer?.fullName)} → {memberName(payeeId, st.toUser?.fullName || st.payee?.fullName)}</strong>
-                          <span className="mt-0.5 block text-[#718579]">{st.settlementDate}</span>
+                          <span className="mt-0.5 block text-[#64748B]">{st.settlementDate}</span>
                         </div>
                         <div className="text-right">
                           <strong className="block">{st.amount.toLocaleString('vi-VN')} đ</strong>
-                          <span className="text-[10px] font-bold text-[#07543f]">{st.status === 'PENDING' ? 'Chờ xác nhận' : st.status === 'CONFIRMED' ? 'Đã hoàn tất' : 'Đã từ chối'}</span>
+                          <span className="text-[10px] font-bold text-[#007F53]">{st.status === 'PENDING' ? 'Chờ xác nhận' : st.status === 'CONFIRMED' ? 'Đã hoàn tất' : 'Đã từ chối'}</span>
                           {st.status === 'PENDING' && payeeId === currentUser?.id && (
                             confirmingSettlementId === st.id ? (
                               <div className="mt-2 flex gap-1"><select value={receivingAccountId} onChange={(e) => setReceivingAccountId(e.target.value)} className="h-7 max-w-32 text-[10px] border rounded"><option value="">Ví nhận</option>{personalAccounts.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}</select><button type="button" onClick={() => handleConfirmSettlement(st.id)} className="h-7 px-2 rounded bg-emerald-600 text-white text-[10px]">Đã nhận</button></div>
@@ -3629,10 +3632,10 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
                   {/* Action Header */}
                   <div className="flex items-center justify-between">
                     <div>
-                      <h4 className="text-sm font-bold text-[#14261e] dark:text-slate-100 m-0">
+                      <h4 className="text-sm font-bold text-[#0F172A] dark:text-slate-100 m-0">
                         Danh sách thành viên ({members.length})
                       </h4>
-                      <p className="text-xs text-[#718579] dark:text-slate-400 m-0 mt-0.5">
+                      <p className="text-xs text-[#64748B] dark:text-slate-400 m-0 mt-0.5">
                         Quản lý quyền hạn và thành viên trong nhóm
                       </p>
                     </div>
@@ -3640,7 +3643,7 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
                       <button
                         type="button"
                         onClick={() => setIsMemberModalOpen(true)}
-                        className="h-8 px-3.5 rounded-xl bg-[#07543f] hover:bg-[#064232] text-xs font-bold text-white transition flex items-center gap-1.5 shadow-2xs"
+                        className="h-8 px-3.5 rounded-xl bg-[#007F53] hover:bg-[#004D3B] text-xs font-bold text-white transition flex items-center gap-1.5 shadow-2xs"
                       >
                         <FinanceIcon name="plus" size={14} />
                         <span>Thêm thành viên</span>
@@ -3658,10 +3661,10 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
                       return (
                         <div
                           key={mem.userId || mem.id}
-                          className="flex items-center justify-between p-4 rounded-2xl border border-[#edf3ee] dark:border-slate-800/80 bg-white dark:bg-[#0f1d2a] shadow-2xs hover:border-emerald-200 dark:hover:border-emerald-800/50 transition"
+                          className="flex items-center justify-between p-4 rounded-2xl border border-[#E2E8F0] dark:border-slate-800/80 bg-white dark:bg-[#111827] shadow-2xs hover:border-emerald-200 dark:hover:border-emerald-800/50 transition"
                         >
                           <div className="flex items-center gap-3 min-w-0">
-                            <div className="size-11 rounded-full bg-emerald-100 dark:bg-slate-800 text-[#07543f] dark:text-emerald-400 font-bold text-sm overflow-hidden grid place-items-center shrink-0 border border-black/5 shadow-2xs">
+                            <div className="size-11 rounded-full bg-emerald-100 dark:bg-slate-800 text-[#007F53] dark:text-emerald-400 font-bold text-sm overflow-hidden grid place-items-center shrink-0 border border-black/5 shadow-2xs">
                               {resolvedMemberAvatar ? (
                                 <img
                                   src={resolvedMemberAvatar}
@@ -3677,14 +3680,14 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
                             </div>
                             <div className="min-w-0">
                               <div className="flex items-center gap-1.5">
-                                <h4 className="text-sm font-bold text-[#14261e] dark:text-slate-100 truncate m-0">
+                                <h4 className="text-sm font-bold text-[#0F172A] dark:text-slate-100 truncate m-0">
                                   {mem.user?.fullName || mem.nickname || 'Thành viên'}
                                 </h4>
                                 {isMe && (
                                   <span className="text-[10px] text-emerald-600 font-bold">(Bạn)</span>
                                 )}
                               </div>
-                              <span className="text-[11px] text-[#718579] dark:text-slate-400 truncate block">
+                              <span className="text-[11px] text-[#64748B] dark:text-slate-400 truncate block">
                                 {mem.user?.email}
                               </span>
                             </div>
@@ -3737,14 +3740,14 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
 
                   {/* Danh sách lời mời đang chờ phản hồi (Chỉ hiển thị cho Chủ nhóm & Quản trị viên) */}
                   {isLeader && sentPendingInvitations.length > 0 && (
-                    <div className="mt-4 pt-4 border-t border-[#edf3ee] dark:border-slate-800">
+                    <div className="mt-4 pt-4 border-t border-[#E2E8F0] dark:border-slate-800">
                       <div className="flex items-center justify-between mb-3">
                         <div>
                           <h4 className="text-sm font-bold text-amber-700 dark:text-amber-400 m-0 flex items-center gap-1.5">
                             <span>⏳</span>
                             <span>Lời mời đang chờ phản hồi ({sentPendingInvitations.length})</span>
                           </h4>
-                          <p className="text-xs text-[#718579] dark:text-slate-400 m-0 mt-0.5">
+                          <p className="text-xs text-[#64748B] dark:text-slate-400 m-0 mt-0.5">
                             Các thành viên đã được mời nhưng chưa xác nhận tham gia nhóm
                           </p>
                         </div>
@@ -3775,14 +3778,14 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
                                 </div>
                                 <div className="min-w-0">
                                   <div className="flex items-center gap-1.5">
-                                    <h4 className="text-xs font-bold text-[#14261e] dark:text-slate-100 truncate m-0">
+                                    <h4 className="text-xs font-bold text-[#0F172A] dark:text-slate-100 truncate m-0">
                                       {inv.inviteeName || 'Người dùng'}
                                     </h4>
                                     <span className="text-[10px] bg-amber-200/70 text-amber-900 dark:bg-amber-900 dark:text-amber-200 px-1.5 py-0.2 rounded font-semibold">
                                       {inv.role}
                                     </span>
                                   </div>
-                                  <span className="text-[11px] text-[#718579] dark:text-slate-400 truncate block">
+                                  <span className="text-[11px] text-[#64748B] dark:text-slate-400 truncate block">
                                     {inv.inviteeEmail || 'Chờ xác nhận...'}
                                   </span>
                                 </div>
@@ -3810,13 +3813,13 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
               {activeTab === 'CHILD_WALLETS' && (
                 <div className="flex flex-col gap-4">
                   {/* Card Danh sách ví trẻ em */}
-                  <div className="rounded-3xl bg-white dark:bg-slate-900 border border-[#e2ece5] dark:border-slate-800 p-5 shadow-2xs">
-                    <div className="flex items-center justify-between pb-4 border-b border-[#edf3ee] dark:border-slate-800 mb-4">
+                  <div className="rounded-3xl bg-white dark:bg-slate-900 border border-[#E2E8F0] dark:border-slate-800 p-5 shadow-2xs">
+                    <div className="flex items-center justify-between pb-4 border-b border-[#E2E8F0] dark:border-slate-800 mb-4">
                       <div>
-                        <h4 className="text-sm font-bold text-[#14261e] dark:text-slate-100 m-0">
+                        <h4 className="text-sm font-bold text-[#0F172A] dark:text-slate-100 m-0">
                           Danh sách ví trẻ em ({childWallets.length})
                         </h4>
-                        <p className="text-xs text-[#718579] dark:text-slate-400 m-0 mt-0.5">
+                        <p className="text-xs text-[#64748B] dark:text-slate-400 m-0 mt-0.5">
                           Quản lý tài khoản tiền tiêu vặt và nhiệm vụ cho từng bé
                         </p>
                       </div>
@@ -3824,7 +3827,7 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
                         <button
                           type="button"
                           onClick={() => setIsChildWalletModalOpen(true)}
-                          className="h-8 px-3.5 rounded-xl bg-[#07543f] hover:bg-[#064232] text-xs font-bold text-white transition flex items-center gap-1.5 shadow-2xs cursor-pointer"
+                          className="h-8 px-3.5 rounded-xl bg-[#007F53] hover:bg-[#004D3B] text-xs font-bold text-white transition flex items-center gap-1.5 shadow-2xs cursor-pointer"
                         >
                           <FinanceIcon name="plus" size={14} />
                           <span>Thêm ví</span>
@@ -3834,11 +3837,11 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
                       {childWallets.length === 0 ? (
-                        <div className="col-span-2 p-8 text-center text-xs text-[#718579] dark:text-slate-400 rounded-2xl bg-[#fafcfa] dark:bg-[#0b1c2a] border border-dashed border-[#d8e3dc] dark:border-[#1b3a50] flex flex-col items-center gap-2">
-                          <div className="size-12 rounded-full bg-emerald-50 dark:bg-emerald-950/60 text-[#07543f] dark:text-emerald-400 grid place-items-center">
+                        <div className="col-span-2 p-8 text-center text-xs text-[#64748B] dark:text-slate-400 rounded-2xl bg-[#F8FAFC] dark:bg-[#111827] border border-dashed border-[#d8e3dc] dark:border-[#1E293B] flex flex-col items-center gap-2">
+                          <div className="size-12 rounded-full bg-emerald-50 dark:bg-emerald-950/60 text-[#007F53] dark:text-emerald-400 grid place-items-center">
                             <span className="text-2xl">👛</span>
                           </div>
-                          <p className="font-bold text-sm text-[#14261e] dark:text-slate-200 m-0">
+                          <p className="font-bold text-sm text-[#0F172A] dark:text-slate-200 m-0">
                             Chưa có ví trẻ em nào
                           </p>
                           <p className="m-0 text-gray-500 max-w-sm">
@@ -3848,7 +3851,7 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
                             <button
                               type="button"
                               onClick={() => setIsChildWalletModalOpen(true)}
-                              className="mt-2 h-8 px-4 rounded-xl bg-[#07543f] text-xs font-bold text-white hover:bg-[#064232] transition cursor-pointer"
+                              className="mt-2 h-8 px-4 rounded-xl bg-[#007F53] text-xs font-bold text-white hover:bg-[#004D3B] transition cursor-pointer"
                             >
                               + Thêm ví cho bé
                             </button>
@@ -3862,7 +3865,7 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
                           return (
                             <div
                               key={cw.id}
-                              className="p-4 rounded-2xl border border-gray-100 dark:border-slate-800 bg-[#f8faf9] dark:bg-slate-850 hover:bg-emerald-50/30 dark:hover:bg-slate-800 transition flex flex-col gap-3 shadow-2xs"
+                              className="p-4 rounded-2xl border border-gray-100 dark:border-slate-800 bg-[#F8FAFC] dark:bg-slate-850 hover:bg-emerald-50/30 dark:hover:bg-slate-800 transition flex flex-col gap-3 shadow-2xs"
                             >
                               <div className="flex items-center justify-between">
                                 <div className="flex items-center gap-3">
@@ -3879,7 +3882,7 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
                                   </div>
                                   <div>
                                     <div className="flex items-center gap-1.5">
-                                      <h4 className="text-sm font-bold text-[#14261e] dark:text-slate-100 m-0">
+                                      <h4 className="text-sm font-bold text-[#0F172A] dark:text-slate-100 m-0">
                                         {cw.childName}
                                       </h4>
                                       {!cw.userId && !cw.childUsername && (
@@ -3888,7 +3891,7 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
                                         </span>
                                       )}
                                     </div>
-                                    <span className="text-[11px] text-[#718579] dark:text-slate-400">
+                                    <span className="text-[11px] text-[#64748B] dark:text-slate-400">
                                       {cw.age ? `${cw.age} tuổi` : 'Bé yêu'}
                                     </span>
                                   </div>
@@ -3918,14 +3921,14 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
 
                               <div className="p-3 rounded-xl bg-white dark:bg-slate-900 border border-gray-100 dark:border-slate-800 flex items-center justify-between">
                                 <div>
-                                  <span className="text-[11px] text-[#718579] block">Số dư hiện tại</span>
-                                  <strong className="text-lg font-bold text-[#07543f] dark:text-emerald-400 block">
+                                  <span className="text-[11px] text-[#64748B] block">Số dư hiện tại</span>
+                                  <strong className="text-lg font-bold text-[#007F53] dark:text-emerald-400 block">
                                     {(cw.balance || 0).toLocaleString('vi-VN')} đ
                                   </strong>
                                 </div>
                                 {Number(cw.weeklyAllowance || 0) > 0 && (
                                   <div className="text-right">
-                                    <span className="text-[11px] text-[#718579] block">Tiêu vặt tuần</span>
+                                    <span className="text-[11px] text-[#64748B] block">Tiêu vặt tuần</span>
                                     <strong className="text-xs font-bold text-gray-700 dark:text-slate-300 block">
                                       {(cw.weeklyAllowance || 0).toLocaleString('vi-VN')} đ
                                     </strong>
@@ -3943,7 +3946,7 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
                                       setDepositAmount('');
                                       setDepositNote('');
                                     }}
-                                    className="h-8 px-2 rounded-xl bg-[#07543f] text-xs font-bold text-white hover:bg-[#064232] transition flex items-center justify-center gap-1 shadow-2xs whitespace-nowrap cursor-pointer"
+                                    className="h-8 px-2 rounded-xl bg-[#007F53] text-xs font-bold text-white hover:bg-[#004D3B] transition flex items-center justify-center gap-1 shadow-2xs whitespace-nowrap cursor-pointer"
                                   >
                                     <FinanceIcon name="plus" size={12} />
                                     <span>Nạp tiền</span>
@@ -3953,7 +3956,7 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
                                 <button
                                   type="button"
                                   onClick={() => handleOpenSpendRequests(cw)}
-                                  className="h-8 px-2 rounded-xl border border-emerald-300 dark:border-emerald-800/80 bg-white dark:bg-[#071622] text-xs font-bold text-[#07543f] dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-[#0c2436] transition flex items-center justify-center gap-1 shadow-2xs whitespace-nowrap cursor-pointer"
+                                  className="h-8 px-2 rounded-xl border border-emerald-300 dark:border-emerald-800/80 bg-white dark:bg-[#0B0F19] text-xs font-bold text-[#007F53] dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-[#0c2436] transition flex items-center justify-center gap-1 shadow-2xs whitespace-nowrap cursor-pointer"
                                 >
                                   <FinanceIcon name="receipt" size={12} />
                                   <span>{isChildAccount ? 'Khoản tiền' : 'Lịch sử'}</span>
@@ -3998,16 +4001,16 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
               {activeTab === 'SETTINGS' && (
                 <div className="flex flex-col gap-6">
                   {/* Card 1: Thông tin nhóm */}
-                  <div className="rounded-3xl bg-white dark:bg-slate-900 border border-[#e2ece5] dark:border-slate-800 p-6 shadow-2xs">
+                  <div className="rounded-3xl bg-white dark:bg-slate-900 border border-[#E2E8F0] dark:border-slate-800 p-6 shadow-2xs">
                     <div className="flex items-center gap-3 mb-5">
-                      <div className="size-10 rounded-2xl bg-emerald-50 dark:bg-emerald-950/50 text-[#07543f] dark:text-emerald-400 grid place-items-center">
+                      <div className="size-10 rounded-2xl bg-emerald-50 dark:bg-emerald-950/50 text-[#007F53] dark:text-emerald-400 grid place-items-center">
                         <FinanceIcon name="settings" size={20} />
                       </div>
                       <div>
-                        <h3 className="text-sm font-bold text-[#14261e] dark:text-slate-100 m-0">
+                        <h3 className="text-sm font-bold text-[#0F172A] dark:text-slate-100 m-0">
                           Thông tin nhóm
                         </h3>
-                        <p className="text-xs text-[#718579] dark:text-slate-400 m-0">
+                        <p className="text-xs text-[#64748B] dark:text-slate-400 m-0">
                           {isLeader ? 'Quản lý và cập nhật thông tin nhóm' : 'Xem thông tin cơ bản của nhóm'}
                         </p>
                       </div>
@@ -4024,7 +4027,7 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
                           onChange={(e) => setSettingsGroupName(e.target.value)}
                           disabled={!isLeader || isSavingSettings}
                           placeholder="Nhập tên nhóm..."
-                          className="w-full h-11 px-3.5 text-xs rounded-xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100 focus:outline-hidden focus:border-[#07543f] disabled:bg-gray-100 dark:disabled:bg-slate-800/50 disabled:cursor-not-allowed"
+                          className="w-full h-11 px-3.5 text-xs rounded-xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100 focus:outline-hidden focus:border-[#007F53] disabled:bg-gray-100 dark:disabled:bg-slate-800/50 disabled:cursor-not-allowed"
                         />
                       </div>
 
@@ -4038,7 +4041,7 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
                           onChange={(e) => setSettingsGroupDesc(e.target.value)}
                           disabled={!isLeader || isSavingSettings}
                           placeholder="Mô tả mục tiêu hoạt động của nhóm..."
-                          className="w-full p-3 text-xs rounded-xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100 focus:outline-hidden focus:border-[#07543f] disabled:bg-gray-100 dark:disabled:bg-slate-800/50 disabled:cursor-not-allowed"
+                          className="w-full p-3 text-xs rounded-xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100 focus:outline-hidden focus:border-[#007F53] disabled:bg-gray-100 dark:disabled:bg-slate-800/50 disabled:cursor-not-allowed"
                         />
                       </div>
 
@@ -4050,7 +4053,7 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
                           value={settingsGroupType}
                           onChange={(e) => setSettingsGroupType(e.target.value as GroupType)}
                           disabled={!isLeader || isSavingSettings}
-                          className="w-full h-11 px-3 text-xs rounded-xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100 focus:outline-hidden focus:border-[#07543f] disabled:bg-gray-100 dark:disabled:bg-slate-800/50 disabled:cursor-not-allowed"
+                          className="w-full h-11 px-3 text-xs rounded-xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100 focus:outline-hidden focus:border-[#007F53] disabled:bg-gray-100 dark:disabled:bg-slate-800/50 disabled:cursor-not-allowed"
                         >
                           <option value="FAMILY">Gia đình (hỗ trợ ví trẻ em & nhiệm vụ)</option>
                           <option value="ROOMMATE">Bạn cùng phòng</option>
@@ -4066,7 +4069,7 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
                           <button
                             type="submit"
                             disabled={isSavingSettings}
-                            className="px-5 h-10 rounded-xl bg-[#07543f] hover:bg-[#07543f]/90 text-white font-bold text-xs transition flex items-center gap-2 cursor-pointer shadow-xs disabled:opacity-50"
+                            className="px-5 h-10 rounded-xl bg-[#007F53] hover:bg-[#007F53]/90 text-white font-bold text-xs transition flex items-center gap-2 cursor-pointer shadow-xs disabled:opacity-50"
                           >
                             <FinanceIcon name="check" size={14} />
                             <span>{isSavingSettings ? 'Đang lưu...' : 'Lưu thay đổi'}</span>
@@ -4077,16 +4080,16 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
                   </div>
 
                   {/* Card 2: Thông báo & Trải nghiệm */}
-                  <div className="rounded-3xl bg-white dark:bg-slate-900 border border-[#e2ece5] dark:border-slate-800 p-6 shadow-2xs">
+                  <div className="rounded-3xl bg-white dark:bg-slate-900 border border-[#E2E8F0] dark:border-slate-800 p-6 shadow-2xs">
                     <div className="flex items-center gap-3 mb-5">
                       <div className="size-10 rounded-2xl bg-blue-50 dark:bg-blue-950/50 text-blue-600 dark:text-blue-400 grid place-items-center">
                         <FinanceIcon name="bell" size={20} />
                       </div>
                       <div>
-                        <h3 className="text-sm font-bold text-[#14261e] dark:text-slate-100 m-0">
+                        <h3 className="text-sm font-bold text-[#0F172A] dark:text-slate-100 m-0">
                           Thông báo & Trải nghiệm
                         </h3>
-                        <p className="text-xs text-[#718579] dark:text-slate-400 m-0">
+                        <p className="text-xs text-[#64748B] dark:text-slate-400 m-0">
                           Tùy chỉnh thông báo và tính năng trong nhóm của bạn
                         </p>
                       </div>
@@ -4106,7 +4109,7 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
                           type="button"
                           onClick={() => handleToggleGroupNotification(!groupNotificationEnabled)}
                           className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-hidden ${
-                            groupNotificationEnabled ? 'bg-[#07543f]' : 'bg-gray-300 dark:bg-slate-700'
+                            groupNotificationEnabled ? 'bg-[#007F53]' : 'bg-gray-300 dark:bg-slate-700'
                           }`}
                         >
                           <span
@@ -4160,7 +4163,7 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
                         <h3 className="text-sm font-bold text-red-600 dark:text-red-400 m-0">
                           Vùng nguy hiểm
                         </h3>
-                        <p className="text-xs text-[#718579] dark:text-slate-400 m-0">
+                        <p className="text-xs text-[#64748B] dark:text-slate-400 m-0">
                           Các thao tác không thể hoàn tác với nhóm
                         </p>
                       </div>
@@ -4218,7 +4221,7 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
           )}
         </div>
           ) : (
-            <div className="rounded-3xl bg-white dark:bg-slate-900 border border-[#e2ece5] dark:border-slate-800 p-12 text-center text-xs text-[#718579]">
+            <div className="rounded-3xl bg-white dark:bg-slate-900 border border-[#E2E8F0] dark:border-slate-800 p-12 text-center text-xs text-[#64748B]">
               Chọn một nhóm ở danh sách bên trái để xem chi tiết chi tiêu và chia tiền.
             </div>
           )}
@@ -4228,8 +4231,8 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
       {isFundModalOpen && selectedGroup && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-xs" onClick={() => setIsFundModalOpen(false)}>
           <div className="w-full max-w-md rounded-3xl bg-white dark:bg-slate-900 p-6 shadow-2xl" onClick={(e) => e.stopPropagation()}>
-            <h3 className="text-base font-bold text-[#14261e] dark:text-slate-100 m-0">Nộp vào quỹ chung</h3>
-            <p className="text-xs text-[#718579] mt-1 mb-4">Tiền sẽ được trừ từ ví của bạn và cộng vào quỹ của nhóm.</p>
+            <h3 className="text-base font-bold text-[#0F172A] dark:text-slate-100 m-0">Nộp vào quỹ chung</h3>
+            <p className="text-xs text-[#64748B] mt-1 mb-4">Tiền sẽ được trừ từ ví của bạn và cộng vào quỹ của nhóm.</p>
             <form onSubmit={handleContributeToFund} className="flex flex-col gap-3">
               <select value={fundAccountId} onChange={(e) => setFundAccountId(e.target.value)} required className="w-full h-10 px-3 rounded-xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs"><option value="">Chọn ví nguồn</option>{personalAccounts.filter((a) => a.currencyCode === selectedGroup.baseCurrency).map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}</select>
               <input
@@ -4245,14 +4248,14 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
                 className="w-full h-10 px-3 rounded-xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-medium"
               />
               <input value={fundNote} onChange={(e) => setFundNote(e.target.value)} placeholder="Ghi chú (tuỳ chọn)" className="w-full h-10 px-3 rounded-xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs" />
-              <div className="flex justify-end gap-2 mt-2"><button type="button" onClick={() => setIsFundModalOpen(false)} className="h-9 px-4 rounded-xl border text-xs">Hủy</button><button type="submit" disabled={isSubmittingFund} className="h-9 px-5 rounded-xl bg-[#07543f] text-white text-xs font-bold">{isSubmittingFund ? 'Đang nộp...' : 'Nộp quỹ'}</button></div>
+              <div className="flex justify-end gap-2 mt-2"><button type="button" onClick={() => setIsFundModalOpen(false)} className="h-9 px-4 rounded-xl border text-xs">Hủy</button><button type="submit" disabled={isSubmittingFund} className="h-9 px-5 rounded-xl bg-[#007F53] text-white text-xs font-bold">{isSubmittingFund ? 'Đang nộp...' : 'Nộp quỹ'}</button></div>
             </form>
           </div>
         </div>
       )}
 
       {isEditGroupModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={() => setIsEditGroupModalOpen(false)}><div className="w-full max-w-md rounded-3xl bg-white dark:bg-slate-900 p-6 shadow-2xl" onClick={(e) => e.stopPropagation()}><h3 className="text-base font-bold m-0">Sửa thông tin nhóm</h3><form onSubmit={handleUpdateGroup} className="flex flex-col gap-3 mt-4"><input value={editGroupName} onChange={(e) => setEditGroupName(e.target.value)} required className="h-10 px-3 rounded-xl border text-sm" placeholder="Tên nhóm" /><textarea value={editGroupDesc} onChange={(e) => setEditGroupDesc(e.target.value)} className="p-3 rounded-xl border text-sm" rows={3} placeholder="Mô tả" /><div className="flex justify-end gap-2"><button type="button" onClick={() => setIsEditGroupModalOpen(false)} className="h-9 px-4 rounded-xl border text-xs">Hủy</button><button type="submit" className="h-9 px-5 rounded-xl bg-[#07543f] text-white text-xs font-bold">Lưu</button></div></form></div></div>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={() => setIsEditGroupModalOpen(false)}><div className="w-full max-w-md rounded-3xl bg-white dark:bg-slate-900 p-6 shadow-2xl" onClick={(e) => e.stopPropagation()}><h3 className="text-base font-bold m-0">Sửa thông tin nhóm</h3><form onSubmit={handleUpdateGroup} className="flex flex-col gap-3 mt-4"><input value={editGroupName} onChange={(e) => setEditGroupName(e.target.value)} required className="h-10 px-3 rounded-xl border text-sm" placeholder="Tên nhóm" /><textarea value={editGroupDesc} onChange={(e) => setEditGroupDesc(e.target.value)} className="p-3 rounded-xl border text-sm" rows={3} placeholder="Mô tả" /><div className="flex justify-end gap-2"><button type="button" onClick={() => setIsEditGroupModalOpen(false)} className="h-9 px-4 rounded-xl border text-xs">Hủy</button><button type="submit" className="h-9 px-5 rounded-xl bg-[#007F53] text-white text-xs font-bold">Lưu</button></div></form></div></div>
       )}
 
       {/* Modal 1: Create Group Modal */}
@@ -4262,19 +4265,19 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
           onClick={() => setIsCreateModalOpen(false)}
         >
           <div
-            className="w-full max-w-md rounded-3xl bg-white dark:bg-slate-900 p-6 shadow-2xl border border-[#e2ece5] dark:border-slate-800"
+            className="w-full max-w-md rounded-3xl bg-white dark:bg-slate-900 p-6 shadow-2xl border border-[#E2E8F0] dark:border-slate-800"
             onClick={(e) => e.stopPropagation()}
           >
-            <h3 className="text-base font-bold text-[#14261e] dark:text-slate-100 m-0">
+            <h3 className="text-base font-bold text-[#0F172A] dark:text-slate-100 m-0">
               Tạo nhóm chi tiêu mới
             </h3>
-            <p className="text-xs text-[#718579] mt-1 mb-4">
+            <p className="text-xs text-[#64748B] mt-1 mb-4">
               Dành cho gia đình, bạn bè đi du lịch, phòng trọ chia hóa đơn...
             </p>
 
             <form onSubmit={handleCreateGroup} className="flex flex-col gap-3.5">
               <div>
-                <label className="text-xs font-semibold text-[#14261e] dark:text-slate-300 block mb-1">
+                <label className="text-xs font-semibold text-[#0F172A] dark:text-slate-300 block mb-1">
                   Tên nhóm *
                 </label>
                 <input
@@ -4288,7 +4291,7 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
               </div>
 
               <div>
-                <label className="text-xs font-semibold text-[#14261e] dark:text-slate-300 block mb-1">
+                <label className="text-xs font-semibold text-[#0F172A] dark:text-slate-300 block mb-1">
                   Loại nhóm
                 </label>
                 <select
@@ -4306,7 +4309,7 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
               </div>
 
               <div className="order-3">
-                <label className="text-xs font-semibold text-[#14261e] dark:text-slate-300 block mb-1">
+                <label className="text-xs font-semibold text-[#0F172A] dark:text-slate-300 block mb-1">
                   Mô tả (tùy chọn)
                 </label>
                 <textarea
@@ -4319,7 +4322,7 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
               </div>
 
               <div className="order-2">
-                <label className="text-xs font-semibold text-[#14261e] dark:text-slate-300 block mb-1">Mời thành viên (tuỳ chọn)</label>
+                <label className="text-xs font-semibold text-[#0F172A] dark:text-slate-300 block mb-1">Mời thành viên (tuỳ chọn)</label>
                 <input type="email" value={createInviteQuery} onChange={(e) => setCreateInviteQuery(e.target.value)} placeholder="Nhập email chính xác để tìm" className="w-full h-10 px-3 rounded-xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs" />
                 {isSearchingCreateInvitees && <p className="text-[11px] text-gray-400 mt-1">Đang tìm...</p>}
                 {createInviteResults.map((user) => <button key={user.id} type="button" onClick={() => { setCreateInvitees((items) => [...items, { user, role: 'MEMBER' }]); setCreateInviteQuery(''); setCreateInviteResults([]); }} className="w-full mt-1 p-2 text-left rounded-lg hover:bg-emerald-50 text-xs"><strong>{user.fullName || user.username}</strong> — {user.email}</button>)}
@@ -4335,7 +4338,7 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
                 <button
                   type="submit"
                   disabled={isSubmittingGroup}
-                  className="h-9 px-5 rounded-xl bg-[#07543f] text-xs font-bold text-white hover:bg-[#064232] transition"
+                  className="h-9 px-5 rounded-xl bg-[#007F53] text-xs font-bold text-white hover:bg-[#004D3B] transition"
                 >
                   {isSubmittingGroup ? 'Đang tạo...' : 'Tạo nhóm'}
                 </button>
@@ -4352,19 +4355,19 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
           onClick={() => setIsExpenseModalOpen(false)}
         >
           <div
-            className="w-full max-w-md rounded-3xl bg-white dark:bg-slate-900 p-6 shadow-2xl border border-[#e2ece5] dark:border-slate-800"
+            className="w-full max-w-md rounded-3xl bg-white dark:bg-slate-900 p-6 shadow-2xl border border-[#E2E8F0] dark:border-slate-800"
             onClick={(e) => e.stopPropagation()}
           >
-            <h3 className="text-base font-bold text-[#14261e] dark:text-slate-100 m-0">
+            <h3 className="text-base font-bold text-[#0F172A] dark:text-slate-100 m-0">
               Ghi nhận khoản chi chung
             </h3>
-            <p className="text-xs text-[#718579] mt-1 mb-4">
+            <p className="text-xs text-[#64748B] mt-1 mb-4">
               Khoản chi sẽ tự động được chia đều cho tất cả các thành viên trong nhóm.
             </p>
 
             <form onSubmit={handleCreateExpense} className="flex flex-col gap-3.5">
               <div>
-                <label className="text-xs font-semibold text-[#14261e] dark:text-slate-300 block mb-1">
+                <label className="text-xs font-semibold text-[#0F172A] dark:text-slate-300 block mb-1">
                   Nội dung chi *
                 </label>
                 <input
@@ -4378,7 +4381,7 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
               </div>
 
               <div>
-                <label className="text-xs font-semibold text-[#14261e] dark:text-slate-300 block mb-1">
+                <label className="text-xs font-semibold text-[#0F172A] dark:text-slate-300 block mb-1">
                   Số tiền (VNĐ) *
                 </label>
                 <input
@@ -4396,12 +4399,12 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
               </div>
 
               <div>
-                <label className="text-xs font-semibold text-[#14261e] dark:text-slate-300 block mb-1">Nguồn tiền *</label>
+                <label className="text-xs font-semibold text-[#0F172A] dark:text-slate-300 block mb-1">Nguồn tiền *</label>
                 <select value={expensePaymentSource} onChange={(e) => setExpensePaymentSource(e.target.value as 'GROUP_FUND' | 'PERSONAL_ACCOUNT')} className="w-full h-10 px-3 rounded-xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-medium"><option value="GROUP_FUND">Quỹ chung của nhóm</option><option value="PERSONAL_ACCOUNT">Ví cá nhân của tôi</option></select>
               </div>
-              {expensePaymentSource === 'PERSONAL_ACCOUNT' && <div><label className="text-xs font-semibold text-[#14261e] dark:text-slate-300 block mb-1">Ví nguồn *</label><select value={expenseAccountId} onChange={(e) => setExpenseAccountId(e.target.value)} required className="w-full h-10 px-3 rounded-xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-medium"><option value="">Chọn ví cá nhân</option>{personalAccounts.filter((account) => account.currencyCode === selectedGroup?.baseCurrency).map((account) => <option key={account.id} value={account.id}>{account.name}</option>)}</select></div>}
-              <div><label className="text-xs font-semibold text-[#14261e] dark:text-slate-300 block mb-1">Danh mục chi *</label><select value={expenseCategoryId} onChange={(e) => setExpenseCategoryId(e.target.value)} required className="w-full h-10 px-3 rounded-xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-medium">{expenseCategories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}</select></div>
-              <div><label className="text-xs font-semibold text-[#14261e] dark:text-slate-300 block mb-1">Ngày chi *</label><input type="date" value={expenseDate} onChange={(e) => setExpenseDate(e.target.value)} required className="w-full h-10 px-3 rounded-xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-medium" /></div>
+              {expensePaymentSource === 'PERSONAL_ACCOUNT' && <div><label className="text-xs font-semibold text-[#0F172A] dark:text-slate-300 block mb-1">Ví nguồn *</label><select value={expenseAccountId} onChange={(e) => setExpenseAccountId(e.target.value)} required className="w-full h-10 px-3 rounded-xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-medium"><option value="">Chọn ví cá nhân</option>{personalAccounts.filter((account) => account.currencyCode === selectedGroup?.baseCurrency).map((account) => <option key={account.id} value={account.id}>{account.name}</option>)}</select></div>}
+              <div><label className="text-xs font-semibold text-[#0F172A] dark:text-slate-300 block mb-1">Danh mục chi *</label><select value={expenseCategoryId} onChange={(e) => setExpenseCategoryId(e.target.value)} required className="w-full h-10 px-3 rounded-xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-medium">{expenseCategories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}</select></div>
+              <div><label className="text-xs font-semibold text-[#0F172A] dark:text-slate-300 block mb-1">Ngày chi *</label><DatePicker value={expenseDate} onChange={(newVal) => setExpenseDate(newVal)} /></div>
               <div className="flex items-center justify-end gap-2.5 mt-2">
                 <button type="button" onClick={() => setIsExpenseModalOpen(false)}
                   className="h-9 px-4 rounded-xl border border-gray-200 dark:border-slate-700 text-xs font-semibold text-gray-700 dark:text-slate-300"
@@ -4411,7 +4414,7 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
                 <button
                   type="submit"
                   disabled={isSubmittingExpense}
-                  className="h-9 px-5 rounded-xl bg-[#07543f] text-xs font-bold text-white hover:bg-[#064232] transition"
+                  className="h-9 px-5 rounded-xl bg-[#007F53] text-xs font-bold text-white hover:bg-[#004D3B] transition"
                 >
                   {isSubmittingExpense ? 'Đang lưu...' : 'Lưu khoản chi'}
                 </button>
@@ -4432,11 +4435,11 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
           }}
         >
           <div
-            className="w-full max-w-md rounded-3xl bg-white dark:bg-slate-900 p-6 shadow-2xl border border-[#e2ece5] dark:border-slate-800"
+            className="w-full max-w-md rounded-3xl bg-white dark:bg-slate-900 p-6 shadow-2xl border border-[#E2E8F0] dark:border-slate-800"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between mb-2">
-              <h3 className="text-base font-bold text-[#14261e] dark:text-slate-100 m-0">
+              <h3 className="text-base font-bold text-[#0F172A] dark:text-slate-100 m-0">
                 Gửi lời mời tham gia nhóm
               </h3>
               <button
@@ -4447,7 +4450,7 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
                 ✕
               </button>
             </div>
-            <p className="text-xs text-[#718579] mt-0 mb-4">
+            <p className="text-xs text-[#64748B] mt-0 mb-4">
               Người được mời sẽ nhận được thông báo trong hệ thống và chỉ chính thức vào nhóm sau khi họ bấm xác nhận Đồng ý.
             </p>
 
@@ -4456,14 +4459,14 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
               {selectedUser ? (
                 <div className="p-3 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 flex items-center justify-between">
                   <div className="flex items-center gap-3">
-                    <div className="size-10 rounded-full bg-[#07543f] text-white font-bold text-sm grid place-items-center">
+                    <div className="size-10 rounded-full bg-[#007F53] text-white font-bold text-sm grid place-items-center">
                       {selectedUser.fullName?.charAt(0) || selectedUser.username?.charAt(0) || 'U'}
                     </div>
                     <div>
-                      <h4 className="text-xs font-bold text-[#14261e] dark:text-slate-100 m-0">
+                      <h4 className="text-xs font-bold text-[#0F172A] dark:text-slate-100 m-0">
                         {selectedUser.fullName || selectedUser.username}
                       </h4>
-                      <p className="text-[11px] text-[#718579] m-0">
+                      <p className="text-[11px] text-[#64748B] m-0">
                         @{selectedUser.username} • {selectedUser.email}
                       </p>
                     </div>
@@ -4482,7 +4485,7 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
               ) : (
                 /* Search Input & Dropdown */
                 <div className="relative">
-                  <label className="text-xs font-semibold text-[#14261e] dark:text-slate-300 block mb-1">
+                  <label className="text-xs font-semibold text-[#0F172A] dark:text-slate-300 block mb-1">
                     Nhập chính xác Email người dùng *
                   </label>
                   <div className="relative">
@@ -4491,7 +4494,7 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
                       value={memberSearchQuery}
                       onChange={(e) => setMemberSearchQuery(e.target.value)}
                       placeholder="VD: user@example.com..."
-                      className="w-full h-11 pl-9 pr-3 rounded-xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-medium focus:border-[#07543f] focus:outline-hidden"
+                      className="w-full h-11 pl-9 pr-3 rounded-xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-medium focus:border-[#007F53] focus:outline-hidden"
                       autoFocus
                     />
                     <div className="absolute left-3 top-3 text-gray-400">
@@ -4503,13 +4506,13 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
                       </div>
                     )}
                   </div>
-                  <p className="text-[11px] text-[#718579] dark:text-slate-400 mt-1.5 mb-0">
+                  <p className="text-[11px] text-[#64748B] dark:text-slate-400 mt-1.5 mb-0">
                     ℹ️ Để bảo mật thông tin cá nhân, hệ thống chỉ tìm kiếm khi bạn nhập đầy đủ định dạng email.
                   </p>
 
                   {/* Autocomplete Dropdown List */}
                   {isValidEmail(memberSearchQuery) && !selectedUser && (
-                    <div className="mt-1.5 max-h-56 overflow-y-auto rounded-xl border border-[#edf3ee] dark:border-slate-800 bg-white dark:bg-slate-850 shadow-xl divide-y divide-gray-100 dark:divide-slate-800">
+                    <div className="mt-1.5 max-h-56 overflow-y-auto rounded-xl border border-[#E2E8F0] dark:border-slate-800 bg-white dark:bg-slate-850 shadow-xl divide-y divide-gray-100 dark:divide-slate-800">
                       {isSearchingUsers ? (
                         <div className="p-3 text-center text-xs text-gray-400">
                           Đang kiểm tra tài khoản email...
@@ -4529,18 +4532,18 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
                             }}
                             className="w-full p-2.5 flex items-center gap-3 hover:bg-emerald-50/60 dark:hover:bg-slate-800/80 text-left transition cursor-pointer"
                           >
-                            <div className="size-9 rounded-full bg-emerald-100 dark:bg-slate-800 text-[#07543f] dark:text-emerald-400 font-bold text-xs grid place-items-center shrink-0">
+                            <div className="size-9 rounded-full bg-emerald-100 dark:bg-slate-800 text-[#007F53] dark:text-emerald-400 font-bold text-xs grid place-items-center shrink-0">
                               {u.fullName?.charAt(0) || u.username?.charAt(0) || 'U'}
                             </div>
                             <div className="flex-1 min-w-0">
-                              <p className="text-xs font-bold text-[#14261e] dark:text-slate-100 truncate m-0">
+                              <p className="text-xs font-bold text-[#0F172A] dark:text-slate-100 truncate m-0">
                                 {u.fullName || u.username}
                               </p>
-                              <p className="text-[11px] text-[#718579] truncate m-0">
+                              <p className="text-[11px] text-[#64748B] truncate m-0">
                                 {u.email}
                               </p>
                             </div>
-                            <span className="text-[11px] font-semibold text-[#07543f] shrink-0">
+                            <span className="text-[11px] font-semibold text-[#007F53] shrink-0">
                               Chọn người này
                             </span>
                           </button>
@@ -4553,7 +4556,7 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
 
               {/* Role Selection */}
               <div>
-                <label className="text-xs font-semibold text-[#14261e] dark:text-slate-300 block mb-1">
+                <label className="text-xs font-semibold text-[#0F172A] dark:text-slate-300 block mb-1">
                   Vai trò trong nhóm
                 </label>
                 <select
@@ -4581,7 +4584,7 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
                 <button
                   type="submit"
                   disabled={isSubmittingMember || !selectedUser}
-                  className="h-9 px-5 rounded-xl bg-[#07543f] text-xs font-bold text-white hover:bg-[#064232] transition disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="h-9 px-5 rounded-xl bg-[#007F53] text-xs font-bold text-white hover:bg-[#004D3B] transition disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {isSubmittingMember ? 'Đang gửi...' : 'Gửi lời mời'}
                 </button>
@@ -4598,19 +4601,19 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
           onClick={() => setIsSettleModalOpen(false)}
         >
           <div
-            className="w-full max-w-md rounded-3xl bg-white dark:bg-slate-900 p-6 shadow-2xl border border-[#e2ece5] dark:border-slate-800"
+            className="w-full max-w-md rounded-3xl bg-white dark:bg-slate-900 p-6 shadow-2xl border border-[#E2E8F0] dark:border-slate-800"
             onClick={(e) => e.stopPropagation()}
           >
-            <h3 className="text-base font-bold text-[#14261e] dark:text-slate-100 m-0">
+            <h3 className="text-base font-bold text-[#0F172A] dark:text-slate-100 m-0">
               Tạo lượt bù trừ
             </h3>
-            <p className="text-xs text-[#718579] mt-1 mb-4">
+            <p className="text-xs text-[#64748B] mt-1 mb-4">
               Chọn ví cá nhân dùng để chuyển tiền. Người nhận sẽ chọn ví nhận và xác nhận sau.
             </p>
 
             <form onSubmit={handleSettleUp} className="flex flex-col gap-3.5">
               <div>
-                <label className="text-xs font-semibold text-[#14261e] dark:text-slate-300 block mb-1">
+                <label className="text-xs font-semibold text-[#0F172A] dark:text-slate-300 block mb-1">
                   Người nhận tiền *
                 </label>
                 <select
@@ -4629,7 +4632,7 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
               </div>
 
               <div>
-                <label className="text-xs font-semibold text-[#14261e] dark:text-slate-300 block mb-1">
+                <label className="text-xs font-semibold text-[#0F172A] dark:text-slate-300 block mb-1">
                   Ví nguồn và số tiền bù trừ (VNĐ) *
                 </label>
                 <select value={settleSourceAccountId} onChange={(e) => setSettleSourceAccountId(e.target.value)} required className="w-full h-10 px-3 rounded-xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-medium mb-2"><option value="">-- Chọn ví trả tiền --</option>{personalAccounts.filter((a) => a.currencyCode === selectedGroup?.baseCurrency).map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}</select>
@@ -4658,7 +4661,7 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
                 <button
                   type="submit"
                   disabled={isSubmittingSettle}
-                  className="h-9 px-5 rounded-xl bg-[#07543f] text-xs font-bold text-white hover:bg-[#064232] transition"
+                  className="h-9 px-5 rounded-xl bg-[#007F53] text-xs font-bold text-white hover:bg-[#004D3B] transition"
                 >
                   {isSubmittingSettle ? 'Đang gửi...' : 'Tạo yêu cầu bù trừ'}
                 </button>
@@ -4675,19 +4678,19 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
           onClick={() => setEditingMember(null)}
         >
           <div
-            className="w-full max-w-md rounded-3xl bg-white dark:bg-slate-900 p-6 shadow-2xl border border-[#e2ece5] dark:border-slate-800"
+            className="w-full max-w-md rounded-3xl bg-white dark:bg-slate-900 p-6 shadow-2xl border border-[#E2E8F0] dark:border-slate-800"
             onClick={(e) => e.stopPropagation()}
           >
-            <h3 className="text-base font-bold text-[#14261e] dark:text-slate-100 m-0">
+            <h3 className="text-base font-bold text-[#0F172A] dark:text-slate-100 m-0">
               Chỉnh sửa vai trò thành viên
             </h3>
-            <p className="text-xs text-[#718579] dark:text-slate-400 mt-1 mb-4">
+            <p className="text-xs text-[#64748B] dark:text-slate-400 mt-1 mb-4">
               Cập nhật quyền hạn cho <strong>{editingMember.user?.fullName || editingMember.nickname || 'thành viên'}</strong>
             </p>
 
             <form onSubmit={handleUpdateMemberRole} className="flex flex-col gap-3.5">
               <div>
-                <label className="text-xs font-semibold text-[#14261e] dark:text-slate-300 block mb-1">
+                <label className="text-xs font-semibold text-[#0F172A] dark:text-slate-300 block mb-1">
                   Vai trò mới
                 </label>
                 <select
@@ -4711,7 +4714,7 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
                 <button
                   type="submit"
                   disabled={isSubmittingEditMember}
-                  className="h-9 px-5 rounded-xl bg-[#07543f] text-xs font-bold text-white hover:bg-[#064232] transition disabled:opacity-50"
+                  className="h-9 px-5 rounded-xl bg-[#007F53] text-xs font-bold text-white hover:bg-[#004D3B] transition disabled:opacity-50"
                 >
                   {isSubmittingEditMember ? 'Đang lưu...' : 'Lưu thay đổi'}
                 </button>
@@ -4728,16 +4731,16 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
           onClick={() => setIsChildWalletModalOpen(false)}
         >
           <div
-            className="w-full max-w-md rounded-3xl bg-white dark:bg-slate-900 p-6 shadow-2xl border border-[#e2ece5] dark:border-slate-800"
+            className="w-full max-w-md rounded-3xl bg-white dark:bg-slate-900 p-6 shadow-2xl border border-[#E2E8F0] dark:border-slate-800"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center gap-2 mb-1">
               <span className="text-xl">👶</span>
-              <h3 className="text-base font-bold text-[#14261e] dark:text-slate-100 m-0">
+              <h3 className="text-base font-bold text-[#0F172A] dark:text-slate-100 m-0">
                 Tạo ví trẻ em
               </h3>
             </div>
-            <p className="text-xs text-[#718579] dark:text-slate-400 mb-3">
+            <p className="text-xs text-[#64748B] dark:text-slate-400 mb-3">
               Quản lý tiền tiêu vặt và giáo dục tài chính sớm cho con.
             </p>
 
@@ -4748,7 +4751,7 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
                 onClick={() => setChildWalletMode('MODE_2')}
                 className={`py-2 px-3 rounded-xl text-xs font-bold transition ${
                   childWalletMode === 'MODE_2'
-                    ? 'bg-white dark:bg-slate-700 text-[#07543f] dark:text-emerald-300 shadow-2xs'
+                    ? 'bg-white dark:bg-slate-700 text-[#007F53] dark:text-emerald-300 shadow-2xs'
                     : 'text-gray-500 hover:text-gray-800 dark:text-slate-400'
                 }`}
               >
@@ -4759,7 +4762,7 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
                 onClick={() => setChildWalletMode('MODE_1')}
                 className={`py-2 px-3 rounded-xl text-xs font-bold transition ${
                   childWalletMode === 'MODE_1'
-                    ? 'bg-white dark:bg-slate-700 text-[#07543f] dark:text-emerald-300 shadow-2xs'
+                    ? 'bg-white dark:bg-slate-700 text-[#007F53] dark:text-emerald-300 shadow-2xs'
                     : 'text-gray-500 hover:text-gray-800 dark:text-slate-400'
                 }`}
               >
@@ -4792,7 +4795,7 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
                       onClick={() => setChildWalletAvatarKey('kid_boy')}
                       className={`flex-1 h-9 px-2 rounded-xl border flex items-center justify-center gap-1.5 transition cursor-pointer text-xs font-bold ${
                         childWalletAvatarKey === 'kid_boy'
-                          ? 'border-[#07543f] bg-emerald-100/70 text-[#07543f] dark:bg-emerald-950/60 dark:text-emerald-300'
+                          ? 'border-[#007F53] bg-emerald-100/70 text-[#007F53] dark:bg-emerald-950/60 dark:text-emerald-300'
                           : 'border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-gray-700 dark:text-slate-300 hover:bg-gray-50'
                       }`}
                     >
@@ -4805,7 +4808,7 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
                       onClick={() => setChildWalletAvatarKey('kid_girl')}
                       className={`flex-1 h-9 px-2 rounded-xl border flex items-center justify-center gap-1.5 transition cursor-pointer text-xs font-bold ${
                         childWalletAvatarKey === 'kid_girl'
-                          ? 'border-[#07543f] bg-emerald-100/70 text-[#07543f] dark:bg-emerald-950/60 dark:text-emerald-300'
+                          ? 'border-[#007F53] bg-emerald-100/70 text-[#007F53] dark:bg-emerald-950/60 dark:text-emerald-300'
                           : 'border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-gray-700 dark:text-slate-300 hover:bg-gray-50'
                       }`}
                     >
@@ -4832,7 +4835,7 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
               </div>
 
               <div>
-                <label className="text-xs font-semibold text-[#14261e] dark:text-slate-300 block mb-1">
+                <label className="text-xs font-semibold text-[#0F172A] dark:text-slate-300 block mb-1">
                   Tên của bé *
                 </label>
                 <input
@@ -4848,7 +4851,7 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
               {/* Mode 2: Username & Password for Child */}
               {childWalletMode === 'MODE_2' && (
                 <div className="p-3 rounded-2xl bg-emerald-50/60 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-800/60 flex flex-col gap-2.5">
-                  <span className="text-[11px] font-bold text-[#07543f] dark:text-emerald-300">
+                  <span className="text-[11px] font-bold text-[#007F53] dark:text-emerald-300">
                     🔑 Tài khoản đăng nhập của bé (Kids Mode)
                   </span>
                   <div>
@@ -4882,19 +4885,17 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-xs font-semibold text-[#14261e] dark:text-slate-300 block mb-1">
+                  <label className="text-xs font-semibold text-[#0F172A] dark:text-slate-300 block mb-1">
                     Ngày sinh của bé
                   </label>
-                  <input
-                    type="date"
+                  <DatePicker
                     value={childWalletBirth}
-                    onChange={(e) => setChildWalletBirth(e.target.value)}
-                    className="w-full h-10 px-3 rounded-xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-medium"
+                    onChange={(val) => setChildWalletBirth(val)}
                   />
                 </div>
 
                 <div>
-                  <label className="text-xs font-semibold text-[#14261e] dark:text-slate-300 block mb-1">
+                  <label className="text-xs font-semibold text-[#0F172A] dark:text-slate-300 block mb-1">
                     Tiền ban đầu (VNĐ)
                   </label>
                   <input
@@ -4912,7 +4913,7 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
               </div>
 
               <div>
-                <label className="text-xs font-semibold text-[#14261e] dark:text-slate-300 block mb-1">
+                <label className="text-xs font-semibold text-[#0F172A] dark:text-slate-300 block mb-1">
                   Tiền tiêu vặt định kỳ hàng tuần (VNĐ)
                 </label>
                 <div className="relative">
@@ -4934,7 +4935,7 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
               {/* Nguồn trích tiền tiêu vặt tuần nếu có đặt allowance */}
               {Number(childWalletAllowance || 0) > 0 && (
                 <div className="p-3 rounded-2xl bg-emerald-50/50 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-800/50 flex flex-col gap-2">
-                  <span className="text-[11px] font-bold text-[#07543f] dark:text-emerald-300">
+                  <span className="text-[11px] font-bold text-[#007F53] dark:text-emerald-300">
                     💳 Nguồn trích tiền tiêu vặt tự động
                   </span>
                   <div className="grid grid-cols-2 gap-2">
@@ -4943,7 +4944,7 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
                       onClick={() => setChildWalletAllowanceSource('PERSONAL_ACCOUNT')}
                       className={`h-8 rounded-xl border text-[11px] font-bold transition flex items-center justify-center gap-1 cursor-pointer ${
                         childWalletAllowanceSource === 'PERSONAL_ACCOUNT'
-                          ? 'border-[#07543f] bg-emerald-100/70 text-[#07543f] dark:bg-emerald-900/60 dark:text-emerald-300'
+                          ? 'border-[#007F53] bg-emerald-100/70 text-[#007F53] dark:bg-emerald-900/60 dark:text-emerald-300'
                           : 'border-gray-200 dark:border-slate-700 text-gray-600 dark:text-slate-400 bg-white dark:bg-slate-800'
                       }`}
                     >
@@ -4955,7 +4956,7 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
                       onClick={() => setChildWalletAllowanceSource('GROUP_FUND')}
                       className={`h-8 rounded-xl border text-[11px] font-bold transition flex items-center justify-center gap-1 cursor-pointer ${
                         childWalletAllowanceSource === 'GROUP_FUND'
-                          ? 'border-[#07543f] bg-emerald-100/70 text-[#07543f] dark:bg-emerald-900/60 dark:text-emerald-300'
+                          ? 'border-[#007F53] bg-emerald-100/70 text-[#007F53] dark:bg-emerald-900/60 dark:text-emerald-300'
                           : 'border-gray-200 dark:border-slate-700 text-gray-600 dark:text-slate-400 bg-white dark:bg-slate-800'
                       }`}
                     >
@@ -4989,12 +4990,12 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
 
               {/* Mode 1: Privacy Toggle */}
               {childWalletMode === 'MODE_1' && (
-                <div className="flex items-center justify-between p-3 rounded-2xl bg-[#f7faf8] dark:bg-slate-800 border border-[#edf3ee] dark:border-slate-700">
+                <div className="flex items-center justify-between p-3 rounded-2xl bg-[#F8FAFC] dark:bg-slate-800 border border-[#E2E8F0] dark:border-slate-700">
                   <div>
-                    <span className="text-xs font-semibold text-[#14261e] dark:text-slate-200 block">
+                    <span className="text-xs font-semibold text-[#0F172A] dark:text-slate-200 block">
                       Chia sẻ số dư với nhóm
                     </span>
-                    <span className="text-[10px] text-[#718579] dark:text-slate-400 block">
+                    <span className="text-[10px] text-[#64748B] dark:text-slate-400 block">
                       Cho phép mọi thành viên trong nhóm nhìn thấy số dư của bé
                     </span>
                   </div>
@@ -5002,7 +5003,7 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
                     type="checkbox"
                     checked={childShareBalance}
                     onChange={(e) => setChildShareBalance(e.target.checked)}
-                    className="size-4 accent-[#07543f] rounded cursor-pointer"
+                    className="size-4 accent-[#007F53] rounded cursor-pointer"
                   />
                 </div>
               )}
@@ -5018,7 +5019,7 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
                 <button
                   type="submit"
                   disabled={isSubmittingChildWallet || !childWalletName.trim()}
-                  className="h-9 px-5 rounded-xl bg-[#07543f] text-xs font-bold text-white hover:bg-[#064232] transition disabled:opacity-50"
+                  className="h-9 px-5 rounded-xl bg-[#007F53] text-xs font-bold text-white hover:bg-[#004D3B] transition disabled:opacity-50"
                 >
                   {isSubmittingChildWallet ? 'Đang tạo...' : 'Tạo ví cho bé'}
                 </button>
@@ -5035,17 +5036,17 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
           onClick={() => setEditingChildWallet(null)}
         >
           <div
-            className="w-full max-w-md rounded-3xl bg-white dark:bg-slate-900 p-6 shadow-2xl border border-[#e2ece5] dark:border-slate-800"
+            className="w-full max-w-md rounded-3xl bg-white dark:bg-slate-900 p-6 shadow-2xl border border-[#E2E8F0] dark:border-slate-800"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between pb-3 border-b border-gray-100 dark:border-slate-800">
               <div className="flex items-center gap-2">
                 <span className="text-xl">✏️</span>
                 <div>
-                  <h3 className="text-base font-bold text-[#14261e] dark:text-slate-100 m-0">
+                  <h3 className="text-base font-bold text-[#0F172A] dark:text-slate-100 m-0">
                     Chỉnh sửa ví trẻ em
                   </h3>
-                  <p className="text-xs text-[#718579] dark:text-slate-400 m-0">
+                  <p className="text-xs text-[#64748B] dark:text-slate-400 m-0">
                     Cập nhật thông tin và tiền tiêu vặt tuần cho bé {editingChildWallet.childName}
                   </p>
                 </div>
@@ -5084,7 +5085,7 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
                       onClick={() => setEditChildAvatarKey('kid_boy')}
                       className={`flex-1 h-9 px-2 rounded-xl border flex items-center justify-center gap-1.5 transition cursor-pointer text-xs font-bold ${
                         editChildAvatarKey === 'kid_boy'
-                          ? 'border-[#07543f] bg-emerald-100/70 text-[#07543f] dark:bg-emerald-950/60 dark:text-emerald-300'
+                          ? 'border-[#007F53] bg-emerald-100/70 text-[#007F53] dark:bg-emerald-950/60 dark:text-emerald-300'
                           : 'border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-gray-700 dark:text-slate-300 hover:bg-gray-50'
                       }`}
                     >
@@ -5097,7 +5098,7 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
                       onClick={() => setEditChildAvatarKey('kid_girl')}
                       className={`flex-1 h-9 px-2 rounded-xl border flex items-center justify-center gap-1.5 transition cursor-pointer text-xs font-bold ${
                         editChildAvatarKey === 'kid_girl'
-                          ? 'border-[#07543f] bg-emerald-100/70 text-[#07543f] dark:bg-emerald-950/60 dark:text-emerald-300'
+                          ? 'border-[#007F53] bg-emerald-100/70 text-[#007F53] dark:bg-emerald-950/60 dark:text-emerald-300'
                           : 'border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-gray-700 dark:text-slate-300 hover:bg-gray-50'
                       }`}
                     >
@@ -5124,7 +5125,7 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
               </div>
 
               <div>
-                <label className="text-xs font-semibold text-[#14261e] dark:text-slate-300 block mb-1">
+                <label className="text-xs font-semibold text-[#0F172A] dark:text-slate-300 block mb-1">
                   Tên của bé *
                 </label>
                 <input
@@ -5138,19 +5139,17 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
               </div>
 
               <div>
-                <label className="text-xs font-semibold text-[#14261e] dark:text-slate-300 block mb-1">
+                <label className="text-xs font-semibold text-[#0F172A] dark:text-slate-300 block mb-1">
                   Ngày sinh của bé
                 </label>
-                <input
-                  type="date"
+                <DatePicker
                   value={editChildBirth}
-                  onChange={(e) => setEditChildBirth(e.target.value)}
-                  className="w-full h-10 px-3 rounded-xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-medium"
+                  onChange={(val) => setEditChildBirth(val)}
                 />
               </div>
 
               <div>
-                <label className="text-xs font-semibold text-[#14261e] dark:text-slate-300 block mb-1">
+                <label className="text-xs font-semibold text-[#0F172A] dark:text-slate-300 block mb-1">
                   Tiền tiêu vặt định kỳ hàng tuần (VNĐ)
                 </label>
                 <div className="relative">
@@ -5172,7 +5171,7 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
               {/* Nguồn trích tiền tiêu vặt tuần */}
               {Number(editChildAllowance || 0) > 0 && (
                 <div className="p-3 rounded-2xl bg-emerald-50/50 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-800/50 flex flex-col gap-2">
-                  <span className="text-[11px] font-bold text-[#07543f] dark:text-emerald-300">
+                  <span className="text-[11px] font-bold text-[#007F53] dark:text-emerald-300">
                     💳 Nguồn trích tiền tiêu vặt tự động
                   </span>
                   <div className="grid grid-cols-2 gap-2">
@@ -5181,7 +5180,7 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
                       onClick={() => setEditChildAllowanceSource('PERSONAL_ACCOUNT')}
                       className={`h-8 rounded-xl border text-[11px] font-bold transition flex items-center justify-center gap-1 cursor-pointer ${
                         editChildAllowanceSource === 'PERSONAL_ACCOUNT'
-                          ? 'border-[#07543f] bg-emerald-100/70 text-[#07543f] dark:bg-emerald-900/60 dark:text-emerald-300'
+                          ? 'border-[#007F53] bg-emerald-100/70 text-[#007F53] dark:bg-emerald-900/60 dark:text-emerald-300'
                           : 'border-gray-200 dark:border-slate-700 text-gray-600 dark:text-slate-400 bg-white dark:bg-slate-800'
                       }`}
                     >
@@ -5193,7 +5192,7 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
                       onClick={() => setEditChildAllowanceSource('GROUP_FUND')}
                       className={`h-8 rounded-xl border text-[11px] font-bold transition flex items-center justify-center gap-1 cursor-pointer ${
                         editChildAllowanceSource === 'GROUP_FUND'
-                          ? 'border-[#07543f] bg-emerald-100/70 text-[#07543f] dark:bg-emerald-900/60 dark:text-emerald-300'
+                          ? 'border-[#007F53] bg-emerald-100/70 text-[#007F53] dark:bg-emerald-900/60 dark:text-emerald-300'
                           : 'border-gray-200 dark:border-slate-700 text-gray-600 dark:text-slate-400 bg-white dark:bg-slate-800'
                       }`}
                     >
@@ -5236,7 +5235,7 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
                 <button
                   type="submit"
                   disabled={isSubmittingEditChildWallet || !editChildName.trim()}
-                  className="h-9 px-5 rounded-xl bg-[#07543f] text-xs font-bold text-white hover:bg-[#064232] transition disabled:opacity-50"
+                  className="h-9 px-5 rounded-xl bg-[#007F53] text-xs font-bold text-white hover:bg-[#004D3B] transition disabled:opacity-50"
                 >
                   {isSubmittingEditChildWallet ? 'Đang lưu...' : 'Lưu thay đổi'}
                 </button>
@@ -5253,19 +5252,19 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
           onClick={() => setDepositTargetWallet(null)}
         >
           <div
-            className="w-full max-w-md rounded-3xl bg-white dark:bg-slate-900 p-6 shadow-2xl border border-[#e2ece5] dark:border-slate-800"
+            className="w-full max-w-md rounded-3xl bg-white dark:bg-slate-900 p-6 shadow-2xl border border-[#E2E8F0] dark:border-slate-800"
             onClick={(e) => e.stopPropagation()}
           >
-            <h3 className="text-base font-bold text-[#14261e] dark:text-slate-100 m-0">
+            <h3 className="text-base font-bold text-[#0F172A] dark:text-slate-100 m-0">
               Nạp tiền vào ví của bé {depositTargetWallet.childName}
             </h3>
-            <p className="text-xs text-[#718579] dark:text-slate-400 mt-1 mb-4">
+            <p className="text-xs text-[#64748B] dark:text-slate-400 mt-1 mb-4">
               Số dư hiện tại của bé: <strong>{(depositTargetWallet.balance || 0).toLocaleString('vi-VN')} đ</strong>
             </p>
 
             <form onSubmit={handleDepositChildWallet} className="flex flex-col gap-3.5">
               <div>
-                <label className="text-xs font-semibold text-[#14261e] dark:text-slate-300 block mb-1">
+                <label className="text-xs font-semibold text-[#0F172A] dark:text-slate-300 block mb-1">
                   Nguồn tiền nạp *
                 </label>
                 <div className="grid grid-cols-2 gap-2 mb-2">
@@ -5274,7 +5273,7 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
                     onClick={() => setDepositSource('PERSONAL_ACCOUNT')}
                     className={`h-9 rounded-xl border text-xs font-bold transition flex items-center justify-center gap-1.5 ${
                       depositSource === 'PERSONAL_ACCOUNT'
-                        ? 'border-[#07543f] bg-emerald-50 text-[#07543f] dark:bg-emerald-950 dark:text-emerald-300'
+                        ? 'border-[#007F53] bg-emerald-50 text-[#007F53] dark:bg-emerald-950 dark:text-emerald-300'
                         : 'border-gray-200 dark:border-slate-700 text-gray-600 dark:text-slate-400'
                     }`}
                   >
@@ -5286,7 +5285,7 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
                     onClick={() => setDepositSource('GROUP_FUND')}
                     className={`h-9 rounded-xl border text-xs font-bold transition flex items-center justify-center gap-1.5 ${
                       depositSource === 'GROUP_FUND'
-                        ? 'border-[#07543f] bg-emerald-50 text-[#07543f] dark:bg-emerald-950 dark:text-emerald-300'
+                        ? 'border-[#007F53] bg-emerald-50 text-[#007F53] dark:bg-emerald-950 dark:text-emerald-300'
                         : 'border-gray-200 dark:border-slate-700 text-gray-600 dark:text-slate-400'
                     }`}
                   >
@@ -5312,14 +5311,14 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
                 )}
 
                 {depositSource === 'GROUP_FUND' && (
-                  <p className="text-[11px] text-[#718579] dark:text-slate-400 m-0 p-2 rounded-xl bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700">
+                  <p className="text-[11px] text-[#64748B] dark:text-slate-400 m-0 p-2 rounded-xl bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700">
                     Số dư quỹ nhóm: <strong>{(groupFund?.balance || 0).toLocaleString('vi-VN')} {groupFund?.currency || selectedGroup?.baseCurrency}</strong> (Khoản nạp sẽ được ghi nhận vào lịch sử chi tiêu của nhóm).
                   </p>
                 )}
               </div>
 
               <div>
-                <label className="text-xs font-semibold text-[#14261e] dark:text-slate-300 block mb-1">
+                <label className="text-xs font-semibold text-[#0F172A] dark:text-slate-300 block mb-1">
                   Số tiền nạp (VNĐ) *
                 </label>
                 <input
@@ -5338,7 +5337,7 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
               </div>
 
               <div>
-                <label className="text-xs font-semibold text-[#14261e] dark:text-slate-300 block mb-1">
+                <label className="text-xs font-semibold text-[#0F172A] dark:text-slate-300 block mb-1">
                   Ghi chú / Lý do nạp
                 </label>
                 <input
@@ -5361,7 +5360,7 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
                 <button
                   type="submit"
                   disabled={isSubmittingDeposit || !depositAmount}
-                  className="h-9 px-5 rounded-xl bg-[#07543f] text-xs font-bold text-white hover:bg-[#064232] transition disabled:opacity-50"
+                  className="h-9 px-5 rounded-xl bg-[#007F53] text-xs font-bold text-white hover:bg-[#004D3B] transition disabled:opacity-50"
                 >
                   {isSubmittingDeposit ? 'Đang nạp...' : 'Xác nhận nạp tiền'}
                 </button>
@@ -5419,7 +5418,7 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
           onClick={() => setSelectedWalletForRequests(null)}
         >
           <div
-            className="w-full max-w-2xl rounded-3xl bg-white dark:bg-slate-900 p-6 shadow-2xl border border-[#e2ece5] dark:border-slate-800 flex flex-col max-h-[90vh]"
+            className="w-full max-w-2xl rounded-3xl bg-white dark:bg-slate-900 p-6 shadow-2xl border border-[#E2E8F0] dark:border-slate-800 flex flex-col max-h-[90vh]"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Header */}
@@ -5427,10 +5426,10 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
               <div className="flex items-center gap-2">
                 <span className="text-xl">💰</span>
                 <div>
-                  <h3 className="text-sm font-bold text-[#14261e] dark:text-slate-100 m-0">
+                  <h3 className="text-sm font-bold text-[#0F172A] dark:text-slate-100 m-0">
                     Ví của bé {selectedWalletForRequests.childName}
                   </h3>
-                  <span className="text-[11px] text-[#718579] dark:text-slate-400">
+                  <span className="text-[11px] text-[#64748B] dark:text-slate-400">
                     Số dư: <strong>{(selectedWalletForRequests.balance || 0).toLocaleString('vi-VN')} đ</strong>
                   </span>
                 </div>
@@ -5444,7 +5443,7 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
                     setSelectedSpendCategory('');
                     setIsSpendRequestModalOpen(true);
                   }}
-                  className="h-8 px-3 rounded-xl bg-[#07543f] text-xs font-bold text-white hover:bg-[#064232] transition flex items-center gap-1.5 shadow-2xs cursor-pointer"
+                  className="h-8 px-3 rounded-xl bg-[#007F53] text-xs font-bold text-white hover:bg-[#004D3B] transition flex items-center gap-1.5 shadow-2xs cursor-pointer"
                 >
                   <FinanceIcon name="plus" size={13} />
                   <span>{isChildAccount ? 'Xin tiền' : 'Ghi chi tiêu'}</span>
@@ -5459,7 +5458,7 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
                 onClick={() => setRequestsModalTab('REQUESTS')}
                 className={`px-3 py-1.5 rounded-xl text-xs font-bold transition ${
                   requestsModalTab === 'REQUESTS'
-                    ? 'bg-emerald-100 text-[#07543f] dark:bg-emerald-950 dark:text-emerald-300'
+                    ? 'bg-emerald-100 text-[#007F53] dark:bg-emerald-950 dark:text-emerald-300'
                     : 'text-gray-500 hover:text-gray-800 dark:hover:text-slate-200'
                 }`}
               >
@@ -5470,7 +5469,7 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
                 onClick={() => setRequestsModalTab('SPENDS')}
                 className={`px-3 py-1.5 rounded-xl text-xs font-bold transition ${
                   requestsModalTab === 'SPENDS'
-                    ? 'bg-emerald-100 text-[#07543f] dark:bg-emerald-950 dark:text-emerald-300'
+                    ? 'bg-emerald-100 text-[#007F53] dark:bg-emerald-950 dark:text-emerald-300'
                     : 'text-gray-500 hover:text-gray-800 dark:hover:text-slate-200'
                 }`}
               >
@@ -5481,7 +5480,7 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
             {/* List Spend Requests / Spends */}
             <div className="flex-1 overflow-y-auto py-3 flex flex-col gap-2.5">
               {isLoadingSpendRequests ? (
-                <div className="p-8 text-center text-xs text-[#718579]">Đang tải dữ liệu...</div>
+                <div className="p-8 text-center text-xs text-[#64748B]">Đang tải dữ liệu...</div>
               ) : (() => {
                 const isRequestsTab = requestsModalTab === 'REQUESTS';
                 const displayedList = spendRequests.filter((req) =>
@@ -5492,7 +5491,7 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
 
                 if (displayedList.length === 0) {
                   return (
-                    <div className="p-8 text-center text-xs text-[#718579] dark:text-slate-400 rounded-2xl bg-gray-50 dark:bg-[#071622] border border-dashed border-gray-200 dark:border-slate-850">
+                    <div className="p-8 text-center text-xs text-[#64748B] dark:text-slate-400 rounded-2xl bg-gray-50 dark:bg-[#0B0F19] border border-dashed border-gray-200 dark:border-slate-850">
                       {isRequestsTab ? 'Chưa có yêu cầu xin tiền nào từ bé.' : 'Chưa có lịch sử thu chi nào của bé.'}
                     </div>
                   );
@@ -5519,7 +5518,7 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
                   return (
                     <div
                       key={req.id}
-                      className="p-3.5 rounded-2xl bg-[#fafcfa] dark:bg-[#0b1c2a] border border-[#edf3ee] dark:border-slate-800/80 flex items-center justify-between gap-3 shadow-2xs"
+                      className="p-3.5 rounded-2xl bg-[#F8FAFC] dark:bg-[#111827] border border-[#E2E8F0] dark:border-slate-800/80 flex items-center justify-between gap-3 shadow-2xs"
                     >
                       <div className="flex items-center gap-3 min-w-0 flex-1">
                         <div className={`size-10 rounded-2xl grid place-items-center shrink-0 ${iconBg}`}>
@@ -5528,7 +5527,7 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
 
                         <div className="min-w-0 flex-1">
                           <div className="flex flex-wrap items-center gap-2">
-                            <strong className={`text-sm font-bold whitespace-nowrap ${isIncome && !isRequestsTab ? 'text-emerald-600 dark:text-emerald-400' : 'text-[#14261e] dark:text-slate-100'}`}>
+                            <strong className={`text-sm font-bold whitespace-nowrap ${isIncome && !isRequestsTab ? 'text-emerald-600 dark:text-emerald-400' : 'text-[#0F172A] dark:text-slate-100'}`}>
                               {!isRequestsTab && isIncome ? '+' : !isRequestsTab ? '-' : ''}{(req.amount || 0).toLocaleString('vi-VN')} đ
                             </strong>
                             {isRequestsTab ? (
@@ -5642,13 +5641,13 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
           }}
         >
           <div
-            className="w-full max-w-md rounded-3xl bg-white dark:bg-slate-900 p-6 shadow-2xl border border-[#e2ece5] dark:border-slate-800"
+            className="w-full max-w-md rounded-3xl bg-white dark:bg-slate-900 p-6 shadow-2xl border border-[#E2E8F0] dark:border-slate-800"
             onClick={(e) => e.stopPropagation()}
           >
-            <h3 className="text-base font-bold text-[#14261e] dark:text-slate-100 m-0">
+            <h3 className="text-base font-bold text-[#0F172A] dark:text-slate-100 m-0">
               {isChildAccount ? 'Xin tiền bố mẹ' : `Ghi khoản chi cho ví của bé ${selectedWalletForRequests.childName}`}
             </h3>
-            <p className="text-xs text-[#718579] dark:text-slate-400 mt-1 mb-4">
+            <p className="text-xs text-[#64748B] dark:text-slate-400 mt-1 mb-4">
               {isChildAccount
                 ? 'Yêu cầu sẽ được gửi đến bố mẹ trong nhóm gia đình để phê duyệt.'
                 : 'Khoản chi tiêu sẽ được trừ trực tiếp vào số dư ví của bé và lưu vào lịch sử thu chi.'}
@@ -5656,7 +5655,7 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
 
             <form onSubmit={handleCreateSpendRequest} className="flex flex-col gap-3.5">
               <div>
-                <label className="text-xs font-semibold text-[#14261e] dark:text-slate-300 block mb-1">
+                <label className="text-xs font-semibold text-[#0F172A] dark:text-slate-300 block mb-1">
                   Số tiền {isChildAccount ? 'cần xin' : 'chi tiêu'} (VNĐ) *
                 </label>
                 <input
@@ -5676,7 +5675,7 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
 
               {!isChildAccount && (
                 <div>
-                  <label className="text-xs font-semibold text-[#14261e] dark:text-slate-300 block mb-1">
+                  <label className="text-xs font-semibold text-[#0F172A] dark:text-slate-300 block mb-1">
                     Danh mục chi tiêu
                   </label>
                   <select
@@ -5695,7 +5694,7 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
               )}
 
               <div>
-                <label className="text-xs font-semibold text-[#14261e] dark:text-slate-300 block mb-1">
+                <label className="text-xs font-semibold text-[#0F172A] dark:text-slate-300 block mb-1">
                   {isChildAccount ? 'Mục đích sử dụng / Lý do xin tiền *' : 'Nội dung chi tiêu (bé mua gì, ăn uống gì...) *'}
                 </label>
                 <input
@@ -5722,7 +5721,7 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
                 <button
                   type="submit"
                   disabled={isSubmittingSpendRequest || !requestAmount || !requestDescription.trim()}
-                  className="h-9 px-5 rounded-xl bg-[#07543f] text-xs font-bold text-white hover:bg-[#064232] transition disabled:opacity-50 cursor-pointer"
+                  className="h-9 px-5 rounded-xl bg-[#007F53] text-xs font-bold text-white hover:bg-[#004D3B] transition disabled:opacity-50 cursor-pointer"
                 >
                   {isSubmittingSpendRequest
                     ? 'Đang lưu...'
@@ -5787,7 +5786,7 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
           onClick={() => setSelectedWalletForChores(null)}
         >
           <div
-            className="w-full max-w-2xl rounded-3xl bg-white dark:bg-slate-900 p-6 shadow-2xl border border-[#e2ece5] dark:border-slate-800 flex flex-col max-h-[90vh]"
+            className="w-full max-w-2xl rounded-3xl bg-white dark:bg-slate-900 p-6 shadow-2xl border border-[#E2E8F0] dark:border-slate-800 flex flex-col max-h-[90vh]"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Header */}
@@ -5795,10 +5794,10 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
               <div className="flex items-center gap-2">
                 <span className="text-xl">⭐</span>
                 <div>
-                  <h3 className="text-sm font-bold text-[#14261e] dark:text-slate-100 m-0">
+                  <h3 className="text-sm font-bold text-[#0F172A] dark:text-slate-100 m-0">
                     Nhiệm vụ của bé {selectedWalletForChores.childName}
                   </h3>
-                  <span className="text-[11px] text-[#718579] dark:text-slate-400">
+                  <span className="text-[11px] text-[#64748B] dark:text-slate-400">
                     Hoàn thành việc nhà để nhận thưởng vào ví
                   </span>
                 </div>
@@ -5818,9 +5817,9 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
             {/* List Chores */}
             <div className="flex-1 overflow-y-auto py-3 flex flex-col gap-2.5">
               {isLoadingChores ? (
-                <div className="p-8 text-center text-xs text-[#718579]">Đang tải danh sách nhiệm vụ...</div>
+                <div className="p-8 text-center text-xs text-[#64748B]">Đang tải danh sách nhiệm vụ...</div>
               ) : walletChores.length === 0 ? (
-                <div className="p-8 text-center text-xs text-[#718579] dark:text-slate-400 rounded-2xl bg-gray-50 dark:bg-[#071622] border border-dashed border-gray-200 dark:border-slate-800 flex flex-col items-center gap-2">
+                <div className="p-8 text-center text-xs text-[#64748B] dark:text-slate-400 rounded-2xl bg-gray-50 dark:bg-[#0B0F19] border border-dashed border-gray-200 dark:border-slate-800 flex flex-col items-center gap-2">
                   <span>Chưa có nhiệm vụ nào được giao cho bé.</span>
                   {!isChildAccount && (
                     <button
@@ -5838,7 +5837,7 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
                   return (
                   <div
                     key={chore.id}
-                    className="p-3.5 rounded-2xl bg-[#fafcfa] dark:bg-slate-800/80 border border-[#edf3ee] dark:border-slate-700/60 flex items-center justify-between gap-3 shadow-2xs"
+                    className="p-3.5 rounded-2xl bg-[#F8FAFC] dark:bg-slate-800/80 border border-[#E2E8F0] dark:border-slate-700/60 flex items-center justify-between gap-3 shadow-2xs"
                   >
                     <div className="flex items-center gap-3 min-w-0 flex-1">
                       <span className="size-11 shrink-0 grid place-items-center rounded-xl bg-white dark:bg-slate-700 border border-gray-200 dark:border-slate-600 p-1 shadow-2xs overflow-hidden">
@@ -5846,7 +5845,7 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
                       </span>
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-2">
-                          <strong className="text-sm font-bold text-[#14261e] dark:text-slate-100">
+                          <strong className="text-sm font-bold text-[#0F172A] dark:text-slate-100">
                             {chore.title}
                           </strong>
                         <span
@@ -5979,19 +5978,19 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
           onClick={() => setIsCreateChoreModalOpen(false)}
         >
           <div
-            className="w-full max-w-md rounded-3xl bg-white dark:bg-slate-900 p-6 shadow-2xl border border-[#e2ece5] dark:border-slate-800"
+            className="w-full max-w-md rounded-3xl bg-white dark:bg-slate-900 p-6 shadow-2xl border border-[#E2E8F0] dark:border-slate-800"
             onClick={(e) => e.stopPropagation()}
           >
-            <h3 className="text-base font-bold text-[#14261e] dark:text-slate-100 m-0">
+            <h3 className="text-base font-bold text-[#0F172A] dark:text-slate-100 m-0">
               Giao nhiệm vụ cho bé {selectedWalletForChores.childName}
             </h3>
-            <p className="text-xs text-[#718579] dark:text-slate-400 mt-1 mb-4">
+            <p className="text-xs text-[#64748B] dark:text-slate-400 mt-1 mb-4">
               Khuyến khích bé làm việc nhà để rèn luyện thói quen và nhận thưởng
             </p>
 
             <form onSubmit={handleCreateChore} className="flex flex-col gap-3">
               <div>
-                <label className="text-xs font-semibold text-[#14261e] dark:text-slate-300 block mb-1">
+                <label className="text-xs font-semibold text-[#0F172A] dark:text-slate-300 block mb-1">
                   Tên nhiệm vụ *
                 </label>
                 <input
@@ -6006,7 +6005,7 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
               </div>
 
               <div>
-                <label className="text-xs font-semibold text-[#14261e] dark:text-slate-300 block mb-1">
+                <label className="text-xs font-semibold text-[#0F172A] dark:text-slate-300 block mb-1">
                   Mô tả chi tiết (tùy chọn)
                 </label>
                 <input
@@ -6020,7 +6019,7 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-xs font-semibold text-[#14261e] dark:text-slate-300 block mb-1">
+                  <label className="text-xs font-semibold text-[#0F172A] dark:text-slate-300 block mb-1">
                     Tiền thưởng (VNĐ) *
                   </label>
                   <input
@@ -6037,21 +6036,19 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
                   />
                 </div>
                 <div>
-                  <label className="text-xs font-semibold text-[#14261e] dark:text-slate-300 block mb-1">
+                  <label className="text-xs font-semibold text-[#0F172A] dark:text-slate-300 block mb-1">
                     Hạn hoàn thành
                   </label>
-                  <input
-                    type="date"
+                  <DatePicker
                     value={choreDueDate}
-                    onChange={(e) => setChoreDueDate(e.target.value)}
-                    className="w-full h-10 px-3 rounded-xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-medium"
+                    onChange={(val) => setChoreDueDate(val)}
                   />
                 </div>
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-xs font-semibold text-[#14261e] dark:text-slate-300 block mb-1">
+                  <label className="text-xs font-semibold text-[#0F172A] dark:text-slate-300 block mb-1">
                     Tần suất
                   </label>
                   <select
@@ -6065,7 +6062,7 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
                   </select>
                 </div>
                 <div>
-                  <label className="text-xs font-semibold text-[#14261e] dark:text-slate-300 block mb-1">
+                  <label className="text-xs font-semibold text-[#0F172A] dark:text-slate-300 block mb-1">
                     Độ khó
                   </label>
                   <select
@@ -6083,7 +6080,7 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
               {/* Chọn Biểu tượng nhiệm vụ */}
               <div>
                 <div className="flex items-center justify-between mb-1.5">
-                  <label className="text-xs font-semibold text-[#14261e] dark:text-slate-300 block">
+                  <label className="text-xs font-semibold text-[#0F172A] dark:text-slate-300 block">
                     Biểu tượng nhiệm vụ
                   </label>
                   <span className="text-[11px] text-gray-400 dark:text-slate-400">
@@ -6204,19 +6201,19 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
           onClick={() => setApprovingChoreItem(null)}
         >
           <div
-            className="w-full max-w-md rounded-3xl bg-white dark:bg-slate-900 p-6 shadow-2xl border border-[#e2ece5] dark:border-slate-800"
+            className="w-full max-w-md rounded-3xl bg-white dark:bg-slate-900 p-6 shadow-2xl border border-[#E2E8F0] dark:border-slate-800"
             onClick={(e) => e.stopPropagation()}
           >
-            <h3 className="text-base font-bold text-[#14261e] dark:text-slate-100 m-0">
+            <h3 className="text-base font-bold text-[#0F172A] dark:text-slate-100 m-0">
               Duyệt thưởng nhiệm vụ cho bé {selectedWalletForChores.childName}
             </h3>
-            <p className="text-xs text-[#718579] dark:text-slate-400 mt-1 mb-4">
+            <p className="text-xs text-[#64748B] dark:text-slate-400 mt-1 mb-4">
               Nhiệm vụ: <strong>{approvingChoreItem.title}</strong> · Tiền thưởng: <strong className="text-amber-600 font-bold">+{(approvingChoreItem.rewardAmount || 0).toLocaleString('vi-VN')} đ</strong>
             </p>
 
             <form onSubmit={handleConfirmApproveChore} className="flex flex-col gap-3.5">
               <div>
-                <label className="text-xs font-semibold text-[#14261e] dark:text-slate-300 block mb-1">
+                <label className="text-xs font-semibold text-[#0F172A] dark:text-slate-300 block mb-1">
                   Nguồn tiền chi trả phần thưởng *
                 </label>
                 <div className="grid grid-cols-2 gap-2 mb-2">
@@ -6225,7 +6222,7 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
                     onClick={() => setChoreSource('PERSONAL_ACCOUNT')}
                     className={`h-9 rounded-xl border text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer ${
                       choreSource === 'PERSONAL_ACCOUNT'
-                        ? 'border-[#07543f] bg-emerald-50 text-[#07543f] dark:bg-emerald-950 dark:text-emerald-300'
+                        ? 'border-[#007F53] bg-emerald-50 text-[#007F53] dark:bg-emerald-950 dark:text-emerald-300'
                         : 'border-gray-200 dark:border-slate-700 text-gray-600 dark:text-slate-400'
                     }`}
                   >
@@ -6237,7 +6234,7 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
                     onClick={() => setChoreSource('GROUP_FUND')}
                     className={`h-9 rounded-xl border text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer ${
                       choreSource === 'GROUP_FUND'
-                        ? 'border-[#07543f] bg-emerald-50 text-[#07543f] dark:bg-emerald-950 dark:text-emerald-300'
+                        ? 'border-[#007F53] bg-emerald-50 text-[#007F53] dark:bg-emerald-950 dark:text-emerald-300'
                         : 'border-gray-200 dark:border-slate-700 text-gray-600 dark:text-slate-400'
                     }`}
                   >
@@ -6263,7 +6260,7 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
                 )}
 
                 {choreSource === 'GROUP_FUND' && (
-                  <p className="text-[11px] text-[#718579] dark:text-slate-400 m-0 p-2.5 rounded-xl bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700">
+                  <p className="text-[11px] text-[#64748B] dark:text-slate-400 m-0 p-2.5 rounded-xl bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700">
                     Số dư quỹ nhóm: <strong>{(groupFund?.balance || 0).toLocaleString('vi-VN')} {groupFund?.currency || selectedGroup?.baseCurrency}</strong> (Khoản thưởng sẽ được ghi nhận vào lịch sử chi tiêu của nhóm).
                   </p>
                 )}
@@ -6297,19 +6294,19 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
           onClick={() => setApprovingMoneyRequestItem(null)}
         >
           <div
-            className="w-full max-w-md rounded-3xl bg-white dark:bg-slate-900 p-6 shadow-2xl border border-[#e2ece5] dark:border-slate-800"
+            className="w-full max-w-md rounded-3xl bg-white dark:bg-slate-900 p-6 shadow-2xl border border-[#E2E8F0] dark:border-slate-800"
             onClick={(e) => e.stopPropagation()}
           >
-            <h3 className="text-base font-bold text-[#14261e] dark:text-slate-100 m-0">
+            <h3 className="text-base font-bold text-[#0F172A] dark:text-slate-100 m-0">
               Duyệt cấp tiền cho bé {selectedWalletForRequests.childName}
             </h3>
-            <p className="text-xs text-[#718579] dark:text-slate-400 mt-1 mb-4">
+            <p className="text-xs text-[#64748B] dark:text-slate-400 mt-1 mb-4">
               Mục đích xin tiền: <strong>{approvingMoneyRequestItem.description?.replace(/^\[MONEY_REQUEST\]\s*/, '')}</strong> · Số tiền: <strong className="text-emerald-700 font-bold">{(approvingMoneyRequestItem.amount || 0).toLocaleString('vi-VN')} đ</strong>
             </p>
 
             <form onSubmit={handleConfirmApproveMoneyRequest} className="flex flex-col gap-3.5">
               <div>
-                <label className="text-xs font-semibold text-[#14261e] dark:text-slate-300 block mb-1">
+                <label className="text-xs font-semibold text-[#0F172A] dark:text-slate-300 block mb-1">
                   Nguồn tiền chi trả *
                 </label>
                 <div className="grid grid-cols-2 gap-2 mb-2">
@@ -6318,7 +6315,7 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
                     onClick={() => setApprovalSource('PERSONAL_ACCOUNT')}
                     className={`h-9 rounded-xl border text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer ${
                       approvalSource === 'PERSONAL_ACCOUNT'
-                        ? 'border-[#07543f] bg-emerald-50 text-[#07543f] dark:bg-emerald-950 dark:text-emerald-300'
+                        ? 'border-[#007F53] bg-emerald-50 text-[#007F53] dark:bg-emerald-950 dark:text-emerald-300'
                         : 'border-gray-200 dark:border-slate-700 text-gray-600 dark:text-slate-400'
                     }`}
                   >
@@ -6330,7 +6327,7 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
                     onClick={() => setApprovalSource('GROUP_FUND')}
                     className={`h-9 rounded-xl border text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer ${
                       approvalSource === 'GROUP_FUND'
-                        ? 'border-[#07543f] bg-emerald-50 text-[#07543f] dark:bg-emerald-950 dark:text-emerald-300'
+                        ? 'border-[#007F53] bg-emerald-50 text-[#007F53] dark:bg-emerald-950 dark:text-emerald-300'
                         : 'border-gray-200 dark:border-slate-700 text-gray-600 dark:text-slate-400'
                     }`}
                   >
@@ -6356,7 +6353,7 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
                 )}
 
                 {approvalSource === 'GROUP_FUND' && (
-                  <p className="text-[11px] text-[#718579] dark:text-slate-400 m-0 p-2.5 rounded-xl bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700">
+                  <p className="text-[11px] text-[#64748B] dark:text-slate-400 m-0 p-2.5 rounded-xl bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700">
                     Số dư quỹ nhóm: <strong>{(groupFund?.balance || 0).toLocaleString('vi-VN')} {groupFund?.currency || selectedGroup?.baseCurrency}</strong> (Khoản cấp sẽ được ghi nhận vào lịch sử chi tiêu của nhóm).
                   </p>
                 )}
@@ -6511,7 +6508,7 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
       {editingCommentTarget && (
         <div className="fixed inset-0 z-[100] grid place-items-center bg-black/35 p-4" onMouseDown={() => setEditingCommentTarget(null)}>
           <form className="w-full max-w-md rounded-2xl bg-white p-5 shadow-2xl" onMouseDown={(event) => event.stopPropagation()} onSubmit={(event) => { event.preventDefault(); handleEditComment(editingCommentTarget.targetId, editingCommentTarget.comment); }}>
-            <h3 className="m-0 text-base font-bold text-[#14261e]">Chỉnh sửa bình luận</h3>
+            <h3 className="m-0 text-base font-bold text-[#0F172A]">Chỉnh sửa bình luận</h3>
             <textarea autoFocus value={editingCommentText} onChange={(event) => setEditingCommentText(event.target.value)} className="mt-3 min-h-24 w-full resize-none rounded-xl border border-emerald-200 p-3 text-sm outline-none focus:border-emerald-500" />
             <div className="mt-3 flex justify-end gap-2"><button type="button" onClick={() => setEditingCommentTarget(null)} className="rounded-lg px-3 py-2 text-sm text-slate-600">Hủy</button><button type="submit" className="rounded-lg bg-emerald-700 px-3 py-2 text-sm font-semibold text-white">Lưu chỉnh sửa</button></div>
           </form>
@@ -6565,7 +6562,7 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
                   >
                     <FinanceIcon name="chevron-left" size={15} />
                   </button>
-                  <h3 className="text-sm font-bold text-[#14261e] dark:text-slate-100 m-0">Chi tiết giao dịch</h3>
+                  <h3 className="text-sm font-bold text-[#0F172A] dark:text-slate-100 m-0">Chi tiết giao dịch</h3>
                 </div>
 
                 <div className="flex items-center gap-2">
@@ -6621,7 +6618,7 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
                       />
                     </div>
                     <div className="min-w-0 flex-1">
-                      <h4 className="text-sm font-bold text-[#14261e] dark:text-slate-100 truncate m-0" title={exp.description}>{exp.description}</h4>
+                      <h4 className="text-sm font-bold text-[#0F172A] dark:text-slate-100 truncate m-0" title={exp.description}>{exp.description}</h4>
                       <strong className="text-base font-extrabold text-[#C5221F] dark:text-rose-400 mt-0.5 block">
                         -{exp.amount.toLocaleString('vi-VN')} đ
                       </strong>
@@ -6633,7 +6630,7 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
                   <div className="grid grid-cols-2 gap-2 text-xs">
                     <div className="flex items-center justify-between rounded-lg bg-gray-50 dark:bg-slate-800/80 px-2.5 py-1.5 border border-gray-100 dark:border-slate-700/50">
                       <span className="text-gray-500 dark:text-slate-400 text-[11px] font-medium">Danh mục</span>
-                      <span className="font-bold text-[#07543f] dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 px-2 py-0.5 rounded text-[11px]">
+                      <span className="font-bold text-[#007F53] dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 px-2 py-0.5 rounded text-[11px]">
                         {catName}
                       </span>
                     </div>
@@ -6675,7 +6672,7 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
                 {selectedGroup?.groupType !== 'FAMILY' && selectedGroup?.groupType !== 'COUPLE' && (
                   <div className="rounded-xl border border-gray-100 dark:border-slate-800 bg-white dark:bg-slate-800 p-2.5 shadow-2xs">
                     <div className="flex items-center justify-between mb-1.5">
-                      <span className="text-xs font-bold text-[#14261e] dark:text-slate-100">Phân chia chi phí</span>
+                      <span className="text-xs font-bold text-[#0F172A] dark:text-slate-100">Phân chia chi phí</span>
                       <span className="text-[10px] font-bold text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 px-2 py-0.5 rounded-full">
                         Chia đều
                       </span>
@@ -6744,7 +6741,7 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
                               </div>
                               <p className="text-gray-700 dark:text-slate-300 m-0 leading-relaxed">
                                 {parent && (
-                                  <strong className="text-[#07543f] dark:text-emerald-400 mr-1">
+                                  <strong className="text-[#007F53] dark:text-emerald-400 mr-1">
                                     @{parent.user?.fullName || 'Thành viên'}
                                   </strong>
                                 )}
@@ -6777,7 +6774,7 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
                                   setReplyingTo((prev) => ({ ...prev, [exp.id]: c.id }));
                                   setInlineCommentText((prev) => ({ ...prev, [exp.id]: `@${authorName} ` }));
                                 }}
-                                className="font-semibold text-[#07543f] dark:text-emerald-400 hover:underline cursor-pointer"
+                                className="font-semibold text-[#007F53] dark:text-emerald-400 hover:underline cursor-pointer"
                               >
                                 Trả lời
                               </button>
@@ -6822,12 +6819,12 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
                       }
                     }}
                     placeholder={replyingTo[exp.id] ? 'Viết câu trả lời...' : 'Viết bình luận cho khoản chi này...'}
-                    className="flex-1 h-9 px-3.5 rounded-xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs text-gray-800 dark:text-slate-100 placeholder:text-gray-400 outline-none focus:border-[#07543f]"
+                    className="flex-1 h-9 px-3.5 rounded-xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs text-gray-800 dark:text-slate-100 placeholder:text-gray-400 outline-none focus:border-[#007F53]"
                   />
                   <button
                     type="button"
                     onClick={() => handleInlineComment(exp.id, 'GROUP_EXPENSE')}
-                    className="h-9 px-4 rounded-xl bg-[#07543f] text-white text-xs font-bold hover:bg-[#064232] transition cursor-pointer shadow-2xs"
+                    className="h-9 px-4 rounded-xl bg-[#007F53] text-white text-xs font-bold hover:bg-[#004D3B] transition cursor-pointer shadow-2xs"
                   >
                     Gửi
                   </button>
@@ -6870,7 +6867,7 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
                   >
                     <FinanceIcon name="chevron-left" size={15} />
                   </button>
-                  <h3 className="text-sm font-bold text-[#14261e] dark:text-slate-100 m-0">Chi tiết nộp quỹ</h3>
+                  <h3 className="text-sm font-bold text-[#0F172A] dark:text-slate-100 m-0">Chi tiết nộp quỹ</h3>
                 </div>
 
                 <div className="flex items-center gap-2">
@@ -6909,7 +6906,7 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
                       <FinanceIcon name="wallet" size={20} />
                     </div>
                     <div className="min-w-0 flex-1">
-                      <h4 className="text-sm font-bold text-[#14261e] dark:text-slate-100 truncate m-0">Nộp quỹ chung</h4>
+                      <h4 className="text-sm font-bold text-[#0F172A] dark:text-slate-100 truncate m-0">Nộp quỹ chung</h4>
                       <strong className="text-base font-extrabold text-[#137333] dark:text-emerald-400 mt-0.5 block">
                         +{c.amount.toLocaleString('vi-VN')} đ
                       </strong>
@@ -6921,7 +6918,7 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
                   <div className="grid grid-cols-2 gap-2 text-xs">
                     <div className="flex items-center justify-between rounded-lg bg-gray-50 dark:bg-slate-800/80 px-2.5 py-1.5 border border-gray-100 dark:border-slate-700/50">
                       <span className="text-gray-500 dark:text-slate-400 text-[11px] font-medium">Hạng mục</span>
-                      <span className="font-bold text-[#07543f] dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 px-2 py-0.5 rounded text-[11px]">
+                      <span className="font-bold text-[#007F53] dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 px-2 py-0.5 rounded text-[11px]">
                         Đóng quỹ
                       </span>
                     </div>
@@ -7004,7 +7001,7 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
                               </div>
                               <p className="text-gray-700 dark:text-slate-300 m-0 leading-relaxed">
                                 {parent && (
-                                  <strong className="text-[#07543f] dark:text-emerald-400 mr-1">
+                                  <strong className="text-[#007F53] dark:text-emerald-400 mr-1">
                                     @{parent.user?.fullName || 'Thành viên'}
                                   </strong>
                                 )}
@@ -7037,7 +7034,7 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
                                   setReplyingTo((prev) => ({ ...prev, [c.id]: comment.id }));
                                   setInlineCommentText((prev) => ({ ...prev, [c.id]: `@${authorName} ` }));
                                 }}
-                                className="font-semibold text-[#07543f] dark:text-emerald-400 hover:underline cursor-pointer"
+                                className="font-semibold text-[#007F53] dark:text-emerald-400 hover:underline cursor-pointer"
                               >
                                 Trả lời
                               </button>
@@ -7082,12 +7079,12 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
                       }
                     }}
                     placeholder={replyingTo[c.id] ? 'Viết câu trả lời...' : 'Viết bình luận cho khoản nộp quỹ này...'}
-                    className="flex-1 h-9 px-3.5 rounded-xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs text-gray-800 dark:text-slate-100 placeholder:text-gray-400 outline-none focus:border-[#07543f]"
+                    className="flex-1 h-9 px-3.5 rounded-xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs text-gray-800 dark:text-slate-100 placeholder:text-gray-400 outline-none focus:border-[#007F53]"
                   />
                   <button
                     type="button"
                     onClick={() => handleInlineComment(c.id, 'FUND_CONTRIBUTION')}
-                    className="h-9 px-4 rounded-xl bg-[#07543f] text-white text-xs font-bold hover:bg-[#064232] transition cursor-pointer shadow-2xs"
+                    className="h-9 px-4 rounded-xl bg-[#007F53] text-white text-xs font-bold hover:bg-[#004D3B] transition cursor-pointer shadow-2xs"
                   >
                     Gửi
                   </button>

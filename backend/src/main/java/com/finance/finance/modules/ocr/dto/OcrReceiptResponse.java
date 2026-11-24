@@ -25,6 +25,7 @@ public class OcrReceiptResponse {
     private String currency;
     private Double confidence;
     private Boolean needsReview;
+    private String rejectReason;
     private String aiCategoryId;
     private String aiCategoryName;
     private Double aiCategoryConfidence;

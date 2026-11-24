@@ -1678,8 +1678,12 @@ export function GroupScreen({
                       const prevMsg = index > 0 ? filteredArr[index - 1] : null;
                       const nextMsg = index < filteredArr.length - 1 ? filteredArr[index + 1] : null;
 
-                      const isSameSenderAsPrev = prevMsg && prevMsg.senderId === msg.senderId;
-                      const isSameSenderAsNext = nextMsg && nextMsg.senderId === msg.senderId;
+                      const prevSenderId = prevMsg ? String(prevMsg.senderId || prevMsg.sender?.id || '') : '';
+                      const nextSenderId = nextMsg ? String(nextMsg.senderId || nextMsg.sender?.id || '') : '';
+                      const curSenderId = String(msg.senderId || msg.sender?.id || '');
+
+                      const isSameSenderAsPrev = Boolean(prevSenderId && curSenderId && prevSenderId === curSenderId);
+                      const isSameSenderAsNext = Boolean(nextSenderId && curSenderId && nextSenderId === curSenderId);
 
                       // Tính toán vạch phân cách ngày (Messenger style như Web)
                       const prevDiffMins = prevMsg && prevMsg.createdAt && msg.createdAt
@@ -1688,11 +1692,11 @@ export function GroupScreen({
                       const showDateDivider = !prevMsg || prevDiffMins >= 10;
                       const dividerText = showDateDivider && msg.createdAt ? formatMessengerDateDivider(msg.createdAt) : '';
 
-                      // Kiểm tra xem tin nhắn tiếp theo có cùng khối liên tục (trong vòng 5 phút) hay không
+                      // Kiểm tra xem tin nhắn tiếp theo có cùng khối liên tục (trong vòng 10 phút) hay không
                       const nextDiffMins = nextMsg && nextMsg.createdAt && msg.createdAt
                         ? (new Date(nextMsg.createdAt).getTime() - new Date(msg.createdAt).getTime()) / 60000
                         : 999;
-                      const isNextInSameCluster = isSameSenderAsNext && nextDiffMins < 5;
+                      const isNextInSameCluster = isSameSenderAsNext && nextDiffMins < 10;
                       const isLastInCluster = !isNextInSameCluster;
                       const isFirstInCluster = !isSameSenderAsPrev || showDateDivider;
 
@@ -1709,7 +1713,7 @@ export function GroupScreen({
                         .replace(/^\[\[TRANSACTION\]\]/, '');
 
                       // Lấy avatar người gửi
-                      const rawAvatar = isMe ? currentUser?.avatarUrl : msg.sender?.avatarKey;
+                      const rawAvatar = isMe ? currentUser?.avatarUrl : (msg.sender?.avatarKey || (msg.sender as any)?.avatarUrl);
                       const avatarUri = rawAvatar ? userProfileApi.formatAvatarUrl(rawAvatar) : null;
 
                       // Định dạng thời gian/ngày tháng khi bấm vào tin nhắn (chuẩn Messenger)
@@ -1811,7 +1815,7 @@ export function GroupScreen({
                                   )}
                                 </View>
                               ) : (
-                                <View style={{ width: 36 }} />
+                                <View style={{ width: 36, height: 36, backgroundColor: 'transparent' }} />
                               )}
                             </View>
                           )}
@@ -5611,12 +5615,8 @@ export function GroupScreen({
                     try {
                       if (Platform.OS === 'web') {
                         // Trên Web: Tải trực tiếp qua thẻ <a>
-                        let downloadUrl = lightboxImageUrl;
-                        const filenameMatch = lightboxImageUrl.match(/[^/\\&?]+\.\w{3,4}(?=([?&].*$|$))/);
-                        const filename = filenameMatch ? filenameMatch[0] : `finora_chat_${Date.now()}.jpg`;
-                        if (filenameMatch) {
-                          downloadUrl = `${API_BASE_URL}/groups/messages/attachments/download?filename=${encodeURIComponent(filename)}`;
-                        }
+                        const downloadUrl = lightboxImageUrl;
+                        const filename = `finora_chat_${Date.now()}.jpg`;
                         const link = document.createElement('a');
                         link.href = downloadUrl;
                         link.download = filename;

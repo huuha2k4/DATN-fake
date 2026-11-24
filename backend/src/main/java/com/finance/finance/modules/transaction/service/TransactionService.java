@@ -17,7 +17,9 @@ import com.finance.finance.modules.account.exception.AccountNotFoundException;
 import com.finance.finance.modules.account.repository.AccountRepository;
 import com.finance.finance.modules.category.entity.Category;
 import com.finance.finance.modules.category.repository.CategoryRepository;
+import com.finance.finance.modules.merchant.repository.MerchantRepository;
 import com.finance.finance.modules.group.repository.ChildWalletRepository;
+import com.finance.finance.common.upload.FileUploadValidator;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -54,6 +56,8 @@ public class TransactionService {
     private final TransactionMapper transactionMapper;
     private final AccountRepository accountRepository;
     private final CategoryRepository categoryRepository;
+    private final MerchantRepository merchantRepository;
+    private final FileUploadValidator fileUploadValidator;
     private final com.finance.finance.modules.budget.repository.BudgetItemRepository budgetItemRepository;
     private final com.finance.finance.modules.notification.service.NotificationService notificationService;
     private final ChildWalletRepository childWalletRepository;
@@ -292,6 +296,11 @@ public class TransactionService {
                     request.getVersion(), transaction.getVersion());
         }
 
+        // Validate every mutable reference before reverting the old balance impact. This is
+        // intentionally fail-fast: a foreign or missing account must not leave the ledger
+        // pointing at one account while the balance mutation was applied to another one.
+        validateUpdateReferences(userId, transaction, request);
+
         // 1. Revert old balance impact before applying updated values
         revertAccountBalancesForTransaction(userId, transaction);
         
@@ -322,11 +331,11 @@ public class TransactionService {
             syncLinkedScheduleOnUpdate(updated);
             
             Account account = updated.getAccountId() != null ? 
-                    accountRepository.findById(updated.getAccountId()).orElse(null) : null;
+                    accountRepository.findByIdAndUserId(updated.getAccountId(), userId).orElse(null) : null;
             Account toAccount = updated.getToAccountId() != null ? 
-                    accountRepository.findById(updated.getToAccountId()).orElse(null) : null;
+                    accountRepository.findByIdAndUserId(updated.getToAccountId(), userId).orElse(null) : null;
             Category category = updated.getCategoryId() != null ? 
-                    categoryRepository.findById(updated.getCategoryId()).orElse(null) : null;
+                    categoryRepository.findByIdAndUserIdOrSystem(updated.getCategoryId(), userId).orElse(null) : null;
 
             return transactionMapper.toResponse(
                     updated,
@@ -389,58 +398,89 @@ public class TransactionService {
 
     private void revertAccountBalancesForTransaction(UUID userId, Transaction transaction) {
         if (transaction.getAccountId() == null) return;
-        accountRepository.findByIdAndUserId(transaction.getAccountId(), userId).ifPresent(account -> {
-            if (transaction.getType() == TransactionType.EXPENSE) {
-                account.setBalance(account.getBalance().add(transaction.getAmount()));
-                accountRepository.save(account);
-            } else if (transaction.getType() == TransactionType.INCOME) {
-                account.setBalance(account.getBalance().subtract(transaction.getAmount()));
-                accountRepository.save(account);
-            } else if (transaction.getType() == TransactionType.TRANSFER) {
-                BigDecimal revertAmount = transaction.getAmount();
-                if (transaction.getFeeAmount() != null) {
-                    revertAmount = revertAmount.add(transaction.getFeeAmount());
-                }
-                account.setBalance(account.getBalance().add(revertAmount));
-                accountRepository.save(account);
-
-                if (transaction.getToAccountId() != null) {
-                    accountRepository.findByIdAndUserId(transaction.getToAccountId(), userId).ifPresent(toAcc -> {
-                        BigDecimal toAmount = transaction.getToAmount() != null ? transaction.getToAmount() : transaction.getAmount();
-                        toAcc.setBalance(toAcc.getBalance().subtract(toAmount));
-                        accountRepository.save(toAcc);
-                    });
-                }
+        Account account = requireOwnedAccount(transaction.getAccountId(), userId, "source");
+        if (transaction.getType() == TransactionType.EXPENSE) {
+            account.setBalance(account.getBalance().add(transaction.getAmount()));
+            accountRepository.save(account);
+        } else if (transaction.getType() == TransactionType.INCOME) {
+            account.setBalance(account.getBalance().subtract(transaction.getAmount()));
+            accountRepository.save(account);
+        } else if (transaction.getType() == TransactionType.TRANSFER) {
+            BigDecimal revertAmount = transaction.getAmount();
+            if (transaction.getFeeAmount() != null) {
+                revertAmount = revertAmount.add(transaction.getFeeAmount());
             }
-        });
+            account.setBalance(account.getBalance().add(revertAmount));
+            accountRepository.save(account);
+
+            Account toAccount = requireOwnedAccount(transaction.getToAccountId(), userId, "destination");
+            BigDecimal toAmount = transaction.getToAmount() != null ? transaction.getToAmount() : transaction.getAmount();
+            toAccount.setBalance(toAccount.getBalance().subtract(toAmount));
+            accountRepository.save(toAccount);
+        }
     }
 
     private void applyAccountBalancesForTransaction(UUID userId, Transaction transaction) {
         if (transaction.getAccountId() == null) return;
-        accountRepository.findByIdAndUserId(transaction.getAccountId(), userId).ifPresent(account -> {
-            if (transaction.getType() == TransactionType.EXPENSE) {
-                account.setBalance(account.getBalance().subtract(transaction.getAmount()));
-                accountRepository.save(account);
-            } else if (transaction.getType() == TransactionType.INCOME) {
-                account.setBalance(account.getBalance().add(transaction.getAmount()));
-                accountRepository.save(account);
-            } else if (transaction.getType() == TransactionType.TRANSFER) {
-                BigDecimal deductAmount = transaction.getAmount();
-                if (transaction.getFeeAmount() != null) {
-                    deductAmount = deductAmount.add(transaction.getFeeAmount());
-                }
-                account.setBalance(account.getBalance().subtract(deductAmount));
-                accountRepository.save(account);
-
-                if (transaction.getToAccountId() != null) {
-                    accountRepository.findByIdAndUserId(transaction.getToAccountId(), userId).ifPresent(toAcc -> {
-                        BigDecimal toAmount = transaction.getToAmount() != null ? transaction.getToAmount() : transaction.getAmount();
-                        toAcc.setBalance(toAcc.getBalance().add(toAmount));
-                        accountRepository.save(toAcc);
-                    });
-                }
+        Account account = requireOwnedAccount(transaction.getAccountId(), userId, "source");
+        if (transaction.getType() == TransactionType.EXPENSE) {
+            account.setBalance(account.getBalance().subtract(transaction.getAmount()));
+            accountRepository.save(account);
+        } else if (transaction.getType() == TransactionType.INCOME) {
+            account.setBalance(account.getBalance().add(transaction.getAmount()));
+            accountRepository.save(account);
+        } else if (transaction.getType() == TransactionType.TRANSFER) {
+            BigDecimal deductAmount = transaction.getAmount();
+            if (transaction.getFeeAmount() != null) {
+                deductAmount = deductAmount.add(transaction.getFeeAmount());
             }
-        });
+            account.setBalance(account.getBalance().subtract(deductAmount));
+            accountRepository.save(account);
+
+            Account toAccount = requireOwnedAccount(transaction.getToAccountId(), userId, "destination");
+            BigDecimal toAmount = transaction.getToAmount() != null ? transaction.getToAmount() : transaction.getAmount();
+            toAccount.setBalance(toAccount.getBalance().add(toAmount));
+            accountRepository.save(toAccount);
+        }
+    }
+
+    private void validateUpdateReferences(UUID userId, Transaction transaction, UpdateTransactionRequest request) {
+        UUID sourceAccountId = request.getAccountId() != null ? request.getAccountId() : transaction.getAccountId();
+        UUID destinationAccountId = request.getToAccountId() != null ? request.getToAccountId() : transaction.getToAccountId();
+        UUID categoryId = request.getCategoryId() != null ? request.getCategoryId() : transaction.getCategoryId();
+
+        requireOwnedAccount(sourceAccountId, userId, "source");
+
+        if (transaction.getType() == TransactionType.TRANSFER) {
+            requireOwnedAccount(destinationAccountId, userId, "destination");
+            if (sourceAccountId.equals(destinationAccountId)) {
+                throw new BusinessException("Cannot transfer to the same account");
+            }
+            if (request.getCategoryId() != null) {
+                throw new BusinessException("Category must be null for TRANSFER");
+            }
+        } else {
+            if (request.getToAccountId() != null) {
+                throw new BusinessException("To account must be null for " + transaction.getType());
+            }
+            if (categoryId == null || categoryRepository.findByIdAndUserIdOrSystem(categoryId, userId).isEmpty()) {
+                throw new BusinessException("Category not found: " + categoryId);
+            }
+        }
+
+        if (request.getMerchantId() != null
+                && merchantRepository.findByIdAndUserIdOrSystem(request.getMerchantId(), userId).isEmpty()) {
+            throw new BusinessException("Merchant not found: " + request.getMerchantId());
+        }
+    }
+
+    private Account requireOwnedAccount(UUID accountId, UUID userId, String role) {
+        if (accountId == null) {
+            throw new AccountNotFoundException("Missing " + role + " account");
+        }
+        return accountRepository.findByIdAndUserId(accountId, userId)
+                .orElseThrow(() -> new AccountNotFoundException(
+                        "Cannot find owned " + role + " account: " + accountId));
     }
 
     private void syncLinkedReceiptOnUpdate(UUID userId, Transaction tx) {
@@ -928,23 +968,19 @@ public class TransactionService {
         BigDecimal totalIncome = BigDecimal.ZERO;
         BigDecimal totalExpense = BigDecimal.ZERO;
         Long transactionCount = 0L;
-        try {
-            Object raw = transactionRepository.getSummary(userId, fromDate, toDate, accountId, false);
-            Object[] summaryData = null;
-            if (raw instanceof Object[] arr) {
-                if (arr.length > 0 && arr[0] instanceof Object[] nested) {
-                    summaryData = nested;
-                } else {
-                    summaryData = arr;
-                }
+        Object raw = transactionRepository.getSummary(userId, fromDate, toDate, accountId, false);
+        Object[] summaryData = null;
+        if (raw instanceof Object[] arr) {
+            if (arr.length > 0 && arr[0] instanceof Object[] nested) {
+                summaryData = nested;
+            } else {
+                summaryData = arr;
             }
-            if (summaryData != null && summaryData.length >= 3) {
-                totalIncome = toBigDecimal(summaryData[0]);
-                totalExpense = toBigDecimal(summaryData[1]);
-                if (summaryData[2] instanceof Number num) transactionCount = num.longValue();
-            }
-        } catch (Exception e) {
-            log.warn("getSummary failed, fallback to defaults: {}", e.getMessage());
+        }
+        if (summaryData != null && summaryData.length >= 3) {
+            totalIncome = toBigDecimal(summaryData[0]);
+            totalExpense = toBigDecimal(summaryData[1]);
+            if (summaryData[2] instanceof Number num) transactionCount = num.longValue();
         }
         
         // Calculate net cash flow
@@ -1239,23 +1275,19 @@ public class TransactionService {
         BigDecimal totalExpense = BigDecimal.ZERO;
         int transactionCount = 0;
 
-        try {
-            Object raw = transactionRepository.getSummary(userId, fromDate, toDate, filter.getAccountId(), filter.getIsExcludedFromReport());
-            Object[] summaryData = null;
-            if (raw instanceof Object[] arr) {
-                if (arr.length > 0 && arr[0] instanceof Object[] nested) {
-                    summaryData = nested;
-                } else {
-                    summaryData = arr;
-                }
+        Object raw = transactionRepository.getSummary(userId, fromDate, toDate, filter.getAccountId(), filter.getIsExcludedFromReport());
+        Object[] summaryData = null;
+        if (raw instanceof Object[] arr) {
+            if (arr.length > 0 && arr[0] instanceof Object[] nested) {
+                summaryData = nested;
+            } else {
+                summaryData = arr;
             }
-            if (summaryData != null && summaryData.length >= 3) {
-                if (summaryData[0] instanceof BigDecimal bd) totalIncome = bd;
-                if (summaryData[1] instanceof BigDecimal bd) totalExpense = bd;
-                if (summaryData[2] instanceof Number num) transactionCount = num.intValue();
-            }
-        } catch (Exception e) {
-            log.warn("calculateSummary failed, fallback to defaults: {}", e.getMessage());
+        }
+        if (summaryData != null && summaryData.length >= 3) {
+            totalIncome = toBigDecimal(summaryData[0]);
+            totalExpense = toBigDecimal(summaryData[1]);
+            if (summaryData[2] instanceof Number num) transactionCount = num.intValue();
         }
         
         BigDecimal netCashFlow = totalIncome.subtract(totalExpense);
@@ -1347,23 +1379,13 @@ public class TransactionService {
         Transaction transaction = transactionRepository.findByIdAndUserId(transactionId, userId)
                 .orElseThrow(() -> new TransactionNotFoundException("Transaction not found: " + transactionId));
 
-        if (file == null || file.isEmpty()) {
-            throw new IllegalArgumentException("Tập tin tải lên không được rỗng");
-        }
-        if (file.getSize() > 15L * 1024 * 1024) {
-            throw new IllegalArgumentException("Dung lượng tập tin không được vượt quá 15MB");
-        }
-
-        String originalFilename = file.getOriginalFilename();
-        String ext = "jpg";
-        if (originalFilename != null && originalFilename.contains(".")) {
-            ext = originalFilename.substring(originalFilename.lastIndexOf('.') + 1).toLowerCase();
-        }
+        FileUploadValidator.ValidatedUpload validated =
+                fileUploadValidator.validate(file, FileUploadValidator.Policy.RECEIPT);
 
         java.nio.file.Path uploadDir = java.nio.file.Paths.get("uploads", "receipts");
         java.nio.file.Files.createDirectories(uploadDir);
 
-        String savedFilename = UUID.randomUUID() + "." + ext;
+        String savedFilename = UUID.randomUUID() + validated.extension();
         java.nio.file.Path destPath = uploadDir.resolve(savedFilename);
         java.nio.file.Files.copy(file.getInputStream(), destPath, java.nio.file.StandardCopyOption.REPLACE_EXISTING);
 

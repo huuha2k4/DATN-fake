@@ -38,6 +38,9 @@ public class User implements UserDetails {
     @Column(name = "full_name", length = 100)
     private String fullName;
     
+    @Column(name = "date_of_birth")
+    private java.time.LocalDate dateOfBirth;
+    
     @Column(name = "email_verified", nullable = false)
     @Builder.Default
     private boolean emailVerified = false;

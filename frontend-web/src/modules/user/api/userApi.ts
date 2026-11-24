@@ -2,6 +2,9 @@ import { api } from '../../core/api/api';
 
 export interface UpdateProfileRequest {
   fullName?: string;
+  username?: string;
+  password?: string;
+  dateOfBirth?: string;
   phone?: string;
   preferredCurrency?: string;
   timezone?: string;
@@ -13,6 +16,7 @@ export interface UserProfile {
   email: string;
   username: string | null;
   fullName: string;
+  dateOfBirth?: string | null;
   emailVerified: boolean;
   phone: string | null;
   mfaEnabled: boolean;

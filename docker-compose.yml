@@ -170,6 +170,27 @@ services:
       - finance_network
     restart: unless-stopped
 
+  # Demo Data Seeder Service (Profiles: demo)
+  demo-seeder:
+    build:
+      context: ./pfm-ai-service
+    container_name: demo-seeder
+    profiles: ["demo"]
+    environment:
+      POSTGRES_SERVER: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: ${POSTGRES_DB:-finance_db}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+    volumes:
+      - ./database/demo-seed:/demo-seed
+    command: ["python", "/demo-seed/seed_ecosystem.py"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - finance_network
+
 volumes:
   postgres_data:
   redis_data:

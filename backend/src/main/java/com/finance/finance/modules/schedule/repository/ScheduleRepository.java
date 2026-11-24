@@ -33,6 +33,16 @@ public interface ScheduleRepository extends JpaRepository<Schedule, Long> {
     @Query("SELECT s FROM Schedule s WHERE s.user.id = :userId AND s.deletedAt IS NULL")
     Page<Schedule> findByUserId(@Param("userId") UUID userId, Pageable pageable);
 
+    @Query("SELECT s FROM Schedule s WHERE s.user.id = :userId " +
+            "AND s.nextOccurrenceDate BETWEEN :fromDate AND :toDate " +
+            "AND s.status = :status AND s.deletedAt IS NULL")
+    Page<Schedule> findUpcomingByUserIdAndDateRange(
+            @Param("userId") UUID userId,
+            @Param("fromDate") LocalDate fromDate,
+            @Param("toDate") LocalDate toDate,
+            @Param("status") ScheduleStatus status,
+            Pageable pageable);
+
     /**
      * Lấy schedule theo status
      */

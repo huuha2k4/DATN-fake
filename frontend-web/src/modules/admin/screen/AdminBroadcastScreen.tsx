@@ -378,7 +378,7 @@ export const AdminBroadcastScreen: React.FC = () => {
             <div className="overflow-x-auto">
               <table className="w-full text-left border-collapse">
                 <thead>
-                  <tr className="border-b border-[#edf2ee] dark:border-slate-800 bg-gray-50/70 dark:bg-slate-850/60 text-[11px] font-bold text-gray-500 dark:text-slate-400 uppercase tracking-wider">
+                  <tr className="border-b border-[#E2E8F0] dark:border-slate-800 bg-gray-50/70 dark:bg-slate-850/60 text-[11px] font-bold text-gray-500 dark:text-slate-400 uppercase tracking-wider">
                     <th className="py-3.5 px-5">Loại thông báo & Lời chào mẫu</th>
                     <th className="py-3.5 px-4">Chu kỳ gửi tự động</th>
                     <th className="py-3.5 px-4">Đối tượng</th>
@@ -387,7 +387,7 @@ export const AdminBroadcastScreen: React.FC = () => {
                     <th className="py-3.5 px-5 text-center w-64">Thao tác quản trị</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-[#edf2ee] dark:divide-slate-800 text-xs">
+                <tbody className="divide-y divide-[#E2E8F0] dark:divide-slate-800 text-xs">
                   {templates.map((tpl) => {
                     const sched = formatScheduleCron(tpl.triggerEvent, tpl.scheduleCron);
 
@@ -421,7 +421,7 @@ export const AdminBroadcastScreen: React.FC = () => {
                         </td>
 
                         {/* Cột 4: Đã gửi tự động thật */}
-                        <td className="py-4 px-4 text-center font-mono font-bold text-sm text-[#07543f] dark:text-emerald-400">
+                        <td className="py-4 px-4 text-center font-mono font-bold text-sm text-[#007F53] dark:text-emerald-400">
                           {tpl.totalDispatched} lượt
                         </td>
 
@@ -616,7 +616,7 @@ export const AdminBroadcastScreen: React.FC = () => {
                 type="submit"
                 form="broadcast-form"
                 disabled={isBroadcasting}
-                className="px-6 py-2.5 rounded-xl bg-[#07543f] hover:bg-[#064232] text-white font-bold transition flex items-center gap-2 cursor-pointer shadow-sm disabled:opacity-50 text-xs"
+                className="px-6 py-2.5 rounded-xl bg-[#007F53] hover:bg-[#004D3B] text-white font-bold transition flex items-center gap-2 cursor-pointer shadow-sm disabled:opacity-50 text-xs"
               >
                 <FinanceIcon name="bell" size={16} />
                 <span>{isBroadcasting ? 'Đang phát thông báo...' : 'Phát thông báo ngay'}</span>
@@ -630,7 +630,7 @@ export const AdminBroadcastScreen: React.FC = () => {
           <div className="overflow-x-auto overflow-y-auto flex-1 custom-scrollbar">
             <table className="w-full text-left border-collapse">
               <thead className="sticky top-0 z-10">
-                <tr className="border-b border-[#edf2ee] dark:border-slate-800 bg-gray-50/95 dark:bg-slate-850/95 backdrop-blur-xs text-[11px] font-bold text-gray-500 dark:text-slate-400 uppercase tracking-wider">
+                <tr className="border-b border-[#E2E8F0] dark:border-slate-800 bg-gray-50/95 dark:bg-slate-850/95 backdrop-blur-xs text-[11px] font-bold text-gray-500 dark:text-slate-400 uppercase tracking-wider">
                   <th className="py-3.5 px-5">Tiêu đề & Nội dung</th>
                   <th className="py-3.5 px-4">Đối tượng</th>
                   <th className="py-3.5 px-4">Mức độ ưu tiên</th>
@@ -638,7 +638,7 @@ export const AdminBroadcastScreen: React.FC = () => {
                   <th className="py-3.5 px-5 text-right">Thời gian phát</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-[#edf2ee] dark:divide-slate-800 text-xs">
+              <tbody className="divide-y divide-[#E2E8F0] dark:divide-slate-800 text-xs">
                 {logs.length === 0 ? (
                   <tr>
                     <td colSpan={5} className="py-12 text-center text-gray-400">
@@ -672,7 +672,7 @@ export const AdminBroadcastScreen: React.FC = () => {
                           {item.priority === 'HIGH' || item.priority === 'URGENT' ? 'Khẩn' : 'Thường'}
                         </span>
                       </td>
-                      <td className="py-3.5 px-4 font-mono font-bold text-[#07543f] dark:text-emerald-400">
+                      <td className="py-3.5 px-4 font-mono font-bold text-[#007F53] dark:text-emerald-400">
                         {item.recipientCount} user
                       </td>
                       <td className="py-3.5 px-5 text-right text-gray-400 text-[11px]">
@@ -758,7 +758,7 @@ export const AdminBroadcastScreen: React.FC = () => {
                 <button
                   type="submit"
                   disabled={isSubmitting}
-                  className="px-5 py-2 rounded-xl bg-[#07543f] hover:bg-[#064232] text-white font-bold transition disabled:opacity-50"
+                  className="px-5 py-2 rounded-xl bg-[#007F53] hover:bg-[#004D3B] text-white font-bold transition disabled:opacity-50"
                 >
                   {isSubmitting ? 'Đang lưu...' : 'Lưu cài đặt'}
                 </button>
