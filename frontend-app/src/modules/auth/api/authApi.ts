@@ -55,6 +55,7 @@ export interface User {
   childWalletId?: string;
   childWalletGroupId?: string;
   childWalletName?: string;
+  createdAt?: string;
 }
 
 export interface AuthTokens {

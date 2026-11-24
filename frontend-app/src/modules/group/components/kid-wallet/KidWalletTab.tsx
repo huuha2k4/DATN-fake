@@ -2,12 +2,13 @@ import React from 'react';
 import { View, Text, StyleSheet, Pressable, Image, ImageBackground } from 'react-native';
 import { FinanceIcon } from '../../../core/components/FinanceIcon';
 import { userProfileApi } from '../../../profile/api/userProfileApi';
-import { ChildWalletResponse } from '../../api/groupApi';
+import { ChildWalletResponse, GroupMemberResponse } from '../../api/groupApi';
 import { resolveKidAvatarSource } from './kidAvatarPresets';
 import { useAppTheme } from '../../../../context/ThemeContext';
 
 export interface KidWalletTabProps {
   childWallets: ChildWalletResponse[];
+  members?: GroupMemberResponse[];
   onAddWalletPress: () => void;
   onWalletItemPress: (wallet: ChildWalletResponse) => void;
   onGoalPress: () => void;
@@ -37,6 +38,7 @@ function formatChildAge(wallet: ChildWalletResponse): string {
 
 export const KidWalletTab: React.FC<KidWalletTabProps> = ({
   childWallets,
+  members = [],
   onAddWalletPress,
   onWalletItemPress,
   onGoalPress,
@@ -115,7 +117,8 @@ export const KidWalletTab: React.FC<KidWalletTabProps> = ({
             </View>
           ) : (
             childWallets.map((wallet, index) => {
-              const avatarKey = wallet.avatarKey || wallet.avatarUrl;
+              const linkedMember = members.find((m) => (wallet.userId && m.userId === wallet.userId) || (m.user?.id && m.user.id === wallet.userId));
+              const avatarKey = linkedMember?.user?.avatarUrl || linkedMember?.user?.avatarKey || wallet.avatarKey || wallet.avatarUrl;
               const isGirl = avatarKey === 'kid_girl' || avatarKey?.includes('girl') || index % 2 === 1;
               const avatarSource = resolveKidAvatarSource(avatarKey, isGirl);
 

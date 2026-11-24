@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
-import { Modal, View, Text, StyleSheet, Pressable, TextInput, ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView, Image } from 'react-native';
-import { AppAlert as Alert } from '../../../../context/DialogContext';
+import { Modal, View, Text, StyleSheet, Pressable, TextInput, ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView, Image, Alert } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
 import { FinanceIcon } from '../../../core/components/FinanceIcon';
@@ -64,7 +63,7 @@ export const CreateChildWalletModal: React.FC<CreateChildWalletModalProps> = ({
       }
 
       const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        mediaTypes: ['images'],
         allowsEditing: true,
         aspect: [1, 1],
         quality: 0.85,
@@ -77,14 +76,14 @@ export const CreateChildWalletModal: React.FC<CreateChildWalletModalProps> = ({
         const fileName = asset.fileName || `kid_avatar_${Date.now()}.jpg`;
         const mimeType = asset.mimeType || 'image/jpeg';
 
-        const uploaded = await groupApi.uploadMessageAttachment(groupId, {
+        const avatarUrl = await groupApi.uploadChildWalletAvatar(groupId, {
           uri: asset.uri,
           name: fileName,
           type: mimeType,
         });
 
-        if (uploaded && uploaded.fileKey) {
-          setSelectedAvatarKey(uploaded.fileKey);
+        if (avatarUrl) {
+          setSelectedAvatarKey(avatarUrl);
         } else {
           Alert.alert('Lỗi', 'Không thể tải ảnh đại diện lên máy chủ.');
         }
@@ -292,7 +291,9 @@ export const CreateChildWalletModal: React.FC<CreateChildWalletModalProps> = ({
                   return (
                     <Pressable
                       key={preset.id}
-                      onPress={() => setSelectedAvatarKey(preset.key)}
+                      onPress={() => {
+                        setSelectedAvatarKey(preset.key);
+                      }}
                       style={[
                         styles.officialAvatarCard,
                         isDark && {
@@ -310,16 +311,6 @@ export const CreateChildWalletModal: React.FC<CreateChildWalletModalProps> = ({
                     >
                       <View style={styles.officialAvatarWrap}>
                         <Image source={preset.localSource} style={styles.officialAvatarImg} />
-                        {isSelected && (
-                          <View
-                            style={[
-                              styles.presetCheckBadge,
-                              isDark && { backgroundColor: themeColors.accentGreen },
-                            ]}
-                          >
-                            <FinanceIcon name="check" size={11} color="#FFFFFF" />
-                          </View>
-                        )}
                       </View>
                       <Text
                         style={[

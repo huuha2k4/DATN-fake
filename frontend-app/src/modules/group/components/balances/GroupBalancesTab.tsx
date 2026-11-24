@@ -180,7 +180,7 @@ export const GroupBalancesTab: React.FC<GroupBalancesTabProps> = ({
             {simplifiedDebts.map((debt, index) => {
               const fromName = getMemberDisplayName(debt.fromUserId, debt.fromUser?.fullName);
               const toName = getMemberDisplayName(debt.toUserId, debt.toUser?.fullName);
-              const fromAvatar = getMemberAvatar(debt.fromUserId, debt.fromUser?.avatarKey);
+              const fromAvatar = getMemberAvatar(debt.fromUserId, (debt.fromUser as any)?.avatarKey || (debt.fromUser as any)?.avatarUrl);
 
               const isMeBorrower = String(debt.fromUserId).toLowerCase() === currentUserIdStr;
               const isMeLender = String(debt.toUserId).toLowerCase() === currentUserIdStr;
@@ -514,11 +514,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 5,
     borderRadius: 12,
-  },
-  neutralBtnText: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: '#94A3B8',
   },
   neutralBtnText: {
     fontSize: 11.5,

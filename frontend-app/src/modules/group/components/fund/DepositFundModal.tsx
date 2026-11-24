@@ -38,7 +38,7 @@ export const DepositFundModal: React.FC<DepositFundModalProps> = ({
   const [submitting, setSubmitting] = useState(false);
   const [showAccountDropdown, setShowAccountDropdown] = useState(false);
   const [isAmountFocused, setIsAmountFocused] = useState(false);
-  const scrollRef = React.useRef<ScrollView>(null);
+  const scrollRef = React.useRef<any>(null);
 
   useEffect(() => {
     if (accounts.length > 0 && !selectedAccountId) {

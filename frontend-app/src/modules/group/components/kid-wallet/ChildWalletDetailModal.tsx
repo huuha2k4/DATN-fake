@@ -15,7 +15,7 @@ import {
 import * as ImagePicker from 'expo-image-picker';
 import { FinanceIcon, resolveCategoryIconName } from '../../../core/components/FinanceIcon';
 import { userProfileApi } from '../../../profile/api/userProfileApi';
-import { ChildWalletResponse, groupApi } from '../../api/groupApi';
+import { ChildWalletResponse, GroupMemberResponse, groupApi } from '../../api/groupApi';
 import { AccountItem } from '../../../add-transaction/api/transactionApi';
 import { AccountBadge } from '../../../accounts/components/AccountBadge';
 import {
@@ -26,7 +26,8 @@ import {
 } from './kidAvatarPresets';
 import { CHORE_ICONS, resolveChoreIconSource } from '../../../child-wallet/components/choreIcons';
 import { useAppTheme } from '../../../../context/ThemeContext';
-import { AppAlert as Alert, useAppDialog } from '../../../../context/DialogContext';
+import { useAppDialog } from '../../../../context/DialogContext';
+import { Alert } from 'react-native';
 
 export interface ChildWalletDetailModalProps {
   visible: boolean;
@@ -36,6 +37,7 @@ export interface ChildWalletDetailModalProps {
   accounts: AccountItem[];
   fundBalance?: number;
   initialTab?: 'REQUESTS' | 'SPENDS' | 'CHORES' | 'DEPOSIT' | 'SETTINGS';
+  members?: GroupMemberResponse[];
   onClose: () => void;
   onRefreshWallet: () => void;
 }
@@ -54,6 +56,7 @@ export const ChildWalletDetailModal: React.FC<ChildWalletDetailModalProps> = ({
   accounts,
   fundBalance = 0,
   initialTab,
+  members = [],
   onClose,
   onRefreshWallet,
 }) => {
@@ -89,6 +92,14 @@ export const ChildWalletDetailModal: React.FC<ChildWalletDetailModalProps> = ({
   const [editNotes, setEditNotes] = useState('');
   const [isSubmittingEdit, setIsSubmittingEdit] = useState(false);
   const [isDeletingWallet, setIsDeletingWallet] = useState(false);
+
+  // Modal Đặt lại mật khẩu cho tài khoản bé (Kids Mode)
+  const [isResetPassModalOpen, setIsResetPassModalOpen] = useState(false);
+  const [newKidPassword, setNewKidPassword] = useState('');
+  const [isSubmittingResetPass, setIsSubmittingResetPass] = useState(false);
+  const [resetPassSuccessMsg, setResetPassSuccessMsg] = useState('');
+  const [resetPassErrorMsg, setResetPassErrorMsg] = useState('');
+  const [saveSuccessMsg, setSaveSuccessMsg] = useState('');
 
   // Dữ liệu Spend Requests & Spends
   const [spendRequests, setSpendRequests] = useState<any[]>([]);
@@ -144,14 +155,17 @@ export const ChildWalletDetailModal: React.FC<ChildWalletDetailModalProps> = ({
       }
       // Khởi tạo giá trị form cài đặt theo thông tin ví hiện tại
       setEditName(wallet.childName || '');
-      setEditAvatarKey(wallet.avatarKey || null);
+      const linkedMem = (members || []).find((m) => (wallet.userId && m.userId === wallet.userId) || (m.user?.id && m.user.id === wallet.userId));
+      const initAvatar = linkedMem?.user?.avatarUrl || linkedMem?.user?.avatarKey || wallet.avatarKey || (wallet as any).avatarUrl || null;
+      setEditAvatarKey(initAvatar);
       setEditAllowance(wallet.weeklyAllowance ? formatVND(wallet.weeklyAllowance) : '');
       setEditDailyLimit(wallet.dailySpendingLimit ? formatVND(wallet.dailySpendingLimit) : '');
       setEditWeeklyLimit(wallet.monthlySpendingLimit ? formatVND(wallet.monthlySpendingLimit) : '');
       setEditRequireApprovalAbove(wallet.requireApprovalAbove ? formatVND(wallet.requireApprovalAbove) : '');
       setEditNotes(wallet.notes || '');
+      setSaveSuccessMsg('');
     }
-  }, [visible, wallet?.id, groupId, isParentManagedOnly]);
+  }, [visible, wallet?.id, groupId, isParentManagedOnly, members]);
 
   useEffect(() => {
     if (accounts && accounts.length > 0 && !selectedAccountId) {
@@ -341,7 +355,7 @@ export const ChildWalletDetailModal: React.FC<ChildWalletDetailModalProps> = ({
       }
 
       const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        mediaTypes: ['images'],
         allowsEditing: true,
         aspect: [1, 1],
         quality: 0.85,
@@ -354,19 +368,20 @@ export const ChildWalletDetailModal: React.FC<ChildWalletDetailModalProps> = ({
         const fileName = asset.fileName || `kid_avatar_${Date.now()}.jpg`;
         const mimeType = asset.mimeType || 'image/jpeg';
 
-        const uploaded = await groupApi.uploadMessageAttachment(groupId, {
+        const avatarUrl = await groupApi.uploadChildWalletAvatar(groupId, {
           uri: asset.uri,
           name: fileName,
           type: mimeType,
         });
 
-        if (uploaded && uploaded.fileKey) {
-          setEditAvatarKey(uploaded.fileKey);
+        if (avatarUrl) {
+          setEditAvatarKey(avatarUrl);
         } else {
           Alert.alert('Lỗi', 'Không thể tải ảnh đại diện lên máy chủ.');
         }
       }
     } catch (err: any) {
+      console.warn('Lỗi chọn ảnh avatar ví bé:', err);
       Alert.alert('Lỗi chọn ảnh', err?.message || 'Không thể chọn ảnh từ máy.');
     } finally {
       setUploadingEditAvatar(false);
@@ -381,22 +396,22 @@ export const ChildWalletDetailModal: React.FC<ChildWalletDetailModalProps> = ({
     }
 
     const allowanceVal = Number(editAllowance.replace(/\D/g, ''));
-    const dailyLimitVal = Number(editDailyLimit.replace(/\D/g, ''));
-    const weeklyLimitVal = Number(editWeeklyLimit.replace(/\D/g, ''));
-    const requireApprovalVal = Number(editRequireApprovalAbove.replace(/\D/g, ''));
 
     setIsSubmittingEdit(true);
+    setSaveSuccessMsg('');
     try {
-      await groupApi.updateChildWallet(groupId, wallet!.id, {
+      const updated = await groupApi.updateChildWallet(groupId, wallet!.id, {
         childName: editName.trim(),
         avatarKey: editAvatarKey || undefined,
         weeklyAllowance: allowanceVal >= 0 ? allowanceVal : undefined,
-        spendLimitDaily: dailyLimitVal > 0 ? dailyLimitVal : undefined,
-        spendLimitWeekly: weeklyLimitVal > 0 ? weeklyLimitVal : undefined,
-        requireApprovalAbove: requireApprovalVal > 0 ? requireApprovalVal : undefined,
-        notes: editNotes.trim() || undefined,
       });
-      Alert.alert('Thành công 🎉', 'Đã cập nhật cài đặt ví và đồng bộ avatar cho bé!');
+      if (updated?.avatarKey) {
+        setEditAvatarKey(updated.avatarKey);
+      }
+      setSaveSuccessMsg('✓ Đã cập nhật cài đặt ví thành công!');
+      setTimeout(() => {
+        setSaveSuccessMsg('');
+      }, 3000);
       onRefreshWallet();
     } catch (err: any) {
       Alert.alert('Lỗi cập nhật', err?.message || 'Không thể lưu cài đặt ví');
@@ -419,7 +434,6 @@ export const ChildWalletDetailModal: React.FC<ChildWalletDetailModalProps> = ({
             setIsDeletingWallet(true);
             try {
               await groupApi.deleteChildWallet(groupId, wallet!.id);
-              Alert.alert('Đã xóa ví', `Đã xóa ví của bé ${wallet?.childName} thành công.`);
               onClose();
               onRefreshWallet();
             } catch (err: any) {
@@ -433,10 +447,36 @@ export const ChildWalletDetailModal: React.FC<ChildWalletDetailModalProps> = ({
     );
   };
 
+  // Đặt lại mật khẩu tài khoản của bé
+  const handleResetPasswordSubmit = async () => {
+    setResetPassErrorMsg('');
+    setResetPassSuccessMsg('');
+    if (!newKidPassword || newKidPassword.length < 6) {
+      setResetPassErrorMsg('Mật khẩu mới của con phải có ít nhất 6 ký tự');
+      return;
+    }
+    setIsSubmittingResetPass(true);
+    try {
+      await groupApi.resetChildPassword(groupId, wallet!.id, newKidPassword);
+      setResetPassSuccessMsg('✓ Đã đổi mật khẩu thành công! Bé có thể đăng nhập bằng mật khẩu mới ngay.');
+      setNewKidPassword('');
+      setTimeout(() => {
+        setResetPassSuccessMsg('');
+        setIsResetPassModalOpen(false);
+      }, 1800);
+    } catch (err: any) {
+      setResetPassErrorMsg(err?.message || 'Không thể đặt lại mật khẩu cho con');
+    } finally {
+      setIsSubmittingResetPass(false);
+    }
+  };
+
   if (!wallet) return null;
 
-  const isGirl = wallet.avatarKey === 'kid_girl' || wallet.avatarKey?.includes('girl') || wallet.avatarUrl?.includes('girl');
-  const headerAvatarSource = resolveKidAvatarSource(wallet.avatarKey || wallet.avatarUrl, isGirl);
+  const linkedMember = members.find((m) => (wallet.userId && m.userId === wallet.userId) || (m.user?.id && m.user.id === wallet.userId));
+  const effectiveAvatarKey = wallet.avatarKey || (wallet as any).avatarUrl || linkedMember?.user?.avatarUrl || linkedMember?.user?.avatarKey;
+  const isGirl = effectiveAvatarKey === 'kid_girl' || effectiveAvatarKey?.includes('girl');
+  const headerAvatarSource = resolveKidAvatarSource(effectiveAvatarKey, isGirl);
 
   // Lọc chuẩn bản Web
   const requestsList = spendRequests.filter(
@@ -1312,7 +1352,9 @@ export const ChildWalletDetailModal: React.FC<ChildWalletDetailModalProps> = ({
                         return (
                           <Pressable
                             key={preset.id}
-                            onPress={() => setEditAvatarKey(preset.key)}
+                            onPress={() => {
+                              setEditAvatarKey(preset.key);
+                            }}
                             style={[
                               styles.officialAvatarCard,
                               isDark && {
@@ -1330,11 +1372,6 @@ export const ChildWalletDetailModal: React.FC<ChildWalletDetailModalProps> = ({
                           >
                             <View style={styles.officialAvatarWrap}>
                               <Image source={preset.localSource} style={styles.officialAvatarImg} />
-                              {isSelected && (
-                                <View style={[styles.presetCheckBadge, isDark && { backgroundColor: themeColors.accentGreen }]}>
-                                  <FinanceIcon name="check" size={11} color="#FFFFFF" />
-                                </View>
-                              )}
                             </View>
                             <Text
                               style={[
@@ -1350,6 +1387,51 @@ export const ChildWalletDetailModal: React.FC<ChildWalletDetailModalProps> = ({
                       })}
                     </View>
                   </View>
+
+                  {/* Khu vực Tài khoản đăng nhập của con & Đặt lại mật khẩu (đưa lên ngay dưới Avatar) */}
+                  {(wallet.userId || wallet.childUsername) && (
+                    <View
+                      style={[
+                        styles.settingsAvatarCard,
+                        { padding: 12, marginBottom: 14 },
+                        isDark && { backgroundColor: themeColors.surfaceSubtle, borderColor: themeColors.cardBorder },
+                      ]}
+                    >
+                      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                        <View style={{ flex: 1, marginRight: 10 }}>
+                          <Text style={[styles.inputLabel, { marginBottom: 2 }, isDark && { color: themeColors.textPrimary }]}>
+                            Tài khoản của con
+                          </Text>
+                          <Text style={{ fontSize: 13, fontWeight: '700', color: isDark ? themeColors.accentGreen : '#059669' }}>
+                            @{wallet.childUsername || 'Tài khoản liên kết'}
+                          </Text>
+                          <Text style={{ fontSize: 11, color: isDark ? themeColors.textMuted : '#64748B', marginTop: 2 }}>
+                            Con dùng tài khoản này để đăng nhập vào app Finora
+                          </Text>
+                        </View>
+                        <Pressable
+                          onPress={() => {
+                            setNewKidPassword('');
+                            setIsResetPassModalOpen(true);
+                          }}
+                          style={({ pressed }) => [
+                            styles.btnUploadImage,
+                            { paddingHorizontal: 12, paddingVertical: 8 },
+                            isDark && {
+                              backgroundColor: 'rgba(52, 211, 153, 0.15)',
+                              borderColor: 'rgba(52, 211, 153, 0.3)',
+                            },
+                            pressed && { opacity: 0.85 },
+                          ]}
+                        >
+                          <FinanceIcon name="lock" size={13} color={isDark ? themeColors.accentGreen : '#059669'} />
+                          <Text style={[styles.btnUploadImageText, isDark && { color: themeColors.accentGreen }]}>
+                            Đổi mật khẩu
+                          </Text>
+                        </Pressable>
+                      </View>
+                    </View>
+                  )}
 
                   {/* Tên bé */}
                   <View style={styles.inputGroup}>
@@ -1395,96 +1477,31 @@ export const ChildWalletDetailModal: React.FC<ChildWalletDetailModalProps> = ({
                     />
                   </View>
 
-                  {/* Hạn mức ngày & tuần */}
-                  <View style={{ flexDirection: 'row', gap: 10 }}>
-                    <View style={[styles.inputGroup, { flex: 1 }]}>
-                      <Text style={[styles.inputLabel, isDark && { color: themeColors.textSecondary }]}>Hạn mức ngày</Text>
-                      <TextInput
-                        style={[
-                          styles.notesInput,
-                          isDark && {
-                            backgroundColor: themeColors.surfaceSubtle,
-                            borderColor: themeColors.cardBorder,
-                            color: themeColors.textPrimary,
-                          },
-                        ]}
-                        keyboardType="numeric"
-                        placeholder="VD: 30.000"
-                        placeholderTextColor={isDark ? themeColors.textMuted : '#94A3B8'}
-                        value={editDailyLimit}
-                        onChangeText={(t) => {
-                          const num = t.replace(/\D/g, '');
-                          setEditDailyLimit(num ? formatVND(Number(num)) : '');
-                        }}
-                      />
-                    </View>
-
-                    <View style={[styles.inputGroup, { flex: 1 }]}>
-                      <Text style={[styles.inputLabel, isDark && { color: themeColors.textSecondary }]}>Hạn mức tháng</Text>
-                      <TextInput
-                        style={[
-                          styles.notesInput,
-                          isDark && {
-                            backgroundColor: themeColors.surfaceSubtle,
-                            borderColor: themeColors.cardBorder,
-                            color: themeColors.textPrimary,
-                          },
-                        ]}
-                        keyboardType="numeric"
-                        placeholder="VD: 500.000"
-                        placeholderTextColor={isDark ? themeColors.textMuted : '#94A3B8'}
-                        value={editWeeklyLimit}
-                        onChangeText={(t) => {
-                          const num = t.replace(/\D/g, '');
-                          setEditWeeklyLimit(num ? formatVND(Number(num)) : '');
-                        }}
-                      />
-                    </View>
-                  </View>
-
-                  {/* Yêu cầu duyệt khi chi trên */}
-                  <View style={styles.inputGroup}>
-                    <Text style={[styles.inputLabel, isDark && { color: themeColors.textSecondary }]}>
-                      Cần bố mẹ duyệt khi chi tiêu vượt quá (VND)
-                    </Text>
-                    <TextInput
-                      style={[
-                        styles.notesInput,
-                        isDark && {
-                          backgroundColor: themeColors.surfaceSubtle,
-                          borderColor: themeColors.cardBorder,
-                          color: themeColors.textPrimary,
-                        },
-                      ]}
-                      keyboardType="numeric"
-                      placeholder="VD: 20.000 (0 là luôn duyệt)"
-                      placeholderTextColor={isDark ? themeColors.textMuted : '#94A3B8'}
-                      value={editRequireApprovalAbove}
-                      onChangeText={(t) => {
-                        const num = t.replace(/\D/g, '');
-                        setEditRequireApprovalAbove(num ? formatVND(Number(num)) : '');
+                  {/* Thông báo cập nhật thành công trực tiếp không bị đơ modal */}
+                  {!!saveSuccessMsg && (
+                    <View
+                      style={{
+                        backgroundColor: isDark ? 'rgba(52, 211, 153, 0.15)' : '#DCFCE7',
+                        borderColor: isDark ? themeColors.accentGreen : '#86EFAC',
+                        borderWidth: 1,
+                        paddingVertical: 10,
+                        paddingHorizontal: 14,
+                        borderRadius: 10,
+                        marginBottom: 10,
+                        alignItems: 'center',
                       }}
-                    />
-                  </View>
-
-                  {/* Ghi chú */}
-                  <View style={styles.inputGroup}>
-                    <Text style={[styles.inputLabel, isDark && { color: themeColors.textSecondary }]}>Ghi chú nhắc nhở bé</Text>
-                    <TextInput
-                      style={[
-                        styles.notesInput,
-                        isDark && {
-                          backgroundColor: themeColors.surfaceSubtle,
-                          borderColor: themeColors.cardBorder,
-                          color: themeColors.textPrimary,
-                        },
-                      ]}
-                      placeholder="Lời nhắc nhở chi tiêu thông minh..."
-                      placeholderTextColor={isDark ? themeColors.textMuted : '#94A3B8'}
-                      value={editNotes}
-                      onChangeText={setEditNotes}
-                    />
-                  </View>
+                    >
+                      <Text
+                        style={{
+                          color: isDark ? themeColors.accentGreen : '#15803D',
+                          fontSize: 13,
+                          fontWeight: '700',
+                        }}
+                      >
+                        {saveSuccessMsg}
+                      </Text>
+                    </View>
+                  )}
 
                   {/* Nút lưu cài đặt */}
                   <Pressable
@@ -1987,6 +2004,119 @@ export const ChildWalletDetailModal: React.FC<ChildWalletDetailModalProps> = ({
                   );
                 })}
               </ScrollView>
+            </View>
+          </View>
+        </Modal>
+      )}
+
+      {/* Modal 6: Đặt lại mật khẩu cho tài khoản con (Kids Mode) */}
+      {isResetPassModalOpen && (
+        <Modal visible={true} transparent animationType="fade" onRequestClose={() => setIsResetPassModalOpen(false)}>
+          <View style={styles.subModalOverlay}>
+            <View style={[styles.subModalCard, isDark && { backgroundColor: themeColors.surface, borderColor: themeColors.cardBorder }]}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+                <Text style={[styles.subModalTitle, isDark && { color: themeColors.textPrimary }]}>
+                  Đổi mật khẩu cho bé
+                </Text>
+                <Pressable
+                  onPress={() => setIsResetPassModalOpen(false)}
+                  hitSlop={8}
+                  style={({ pressed }) => [{ padding: 4 }, pressed && { opacity: 0.6 }]}
+                >
+                  <FinanceIcon name="x" size={18} color={isDark ? themeColors.textSecondary : '#64748B'} />
+                </Pressable>
+              </View>
+
+              <Text style={[styles.subModalSub, isDark && { color: themeColors.textSecondary }]}>
+                Đặt lại mật khẩu đăng nhập mới cho bé <Text style={{ fontWeight: '700', color: isDark ? themeColors.accentGreen : '#059669' }}>{wallet?.childName}</Text> (Tài khoản: @{wallet?.childUsername}).
+              </Text>
+
+              <View style={[styles.inputGroup, { marginTop: 14 }]}>
+                <Text style={[styles.inputLabel, isDark && { color: themeColors.textSecondary }]}>Mật khẩu mới của con *</Text>
+                <TextInput
+                  style={[
+                    styles.notesInput,
+                    isDark && {
+                      backgroundColor: themeColors.surfaceSubtle,
+                      borderColor: themeColors.cardBorder,
+                      color: themeColors.textPrimary,
+                    },
+                  ]}
+                  placeholder="Nhập ít nhất 6 ký tự"
+                  placeholderTextColor={isDark ? themeColors.textMuted : '#94A3B8'}
+                  secureTextEntry
+                  value={newKidPassword}
+                  onChangeText={setNewKidPassword}
+                />
+              </View>
+
+              {/* Thông báo thành công / lỗi trực tiếp không qua dialog che khuất */}
+              {!!resetPassSuccessMsg && (
+                <View
+                  style={{
+                    backgroundColor: isDark ? 'rgba(52, 211, 153, 0.15)' : '#DCFCE7',
+                    borderColor: isDark ? themeColors.accentGreen : '#86EFAC',
+                    borderWidth: 1,
+                    paddingVertical: 10,
+                    paddingHorizontal: 12,
+                    borderRadius: 10,
+                    marginTop: 12,
+                    alignItems: 'center',
+                  }}
+                >
+                  <Text style={{ color: isDark ? themeColors.accentGreen : '#15803D', fontSize: 13, fontWeight: '700', textAlign: 'center' }}>
+                    {resetPassSuccessMsg}
+                  </Text>
+                </View>
+              )}
+
+              {!!resetPassErrorMsg && (
+                <View
+                  style={{
+                    backgroundColor: isDark ? 'rgba(239, 68, 68, 0.15)' : '#FEE2E2',
+                    borderColor: isDark ? '#F87171' : '#FCA5A5',
+                    borderWidth: 1,
+                    paddingVertical: 8,
+                    paddingHorizontal: 12,
+                    borderRadius: 10,
+                    marginTop: 12,
+                    alignItems: 'center',
+                  }}
+                >
+                  <Text style={{ color: isDark ? '#F87171' : '#DC2626', fontSize: 12, fontWeight: '600', textAlign: 'center' }}>
+                    {resetPassErrorMsg}
+                  </Text>
+                </View>
+              )}
+
+              <View style={{ flexDirection: 'row', gap: 10, marginTop: 18 }}>
+                <Pressable
+                  onPress={() => setIsResetPassModalOpen(false)}
+                  style={({ pressed }) => [
+                    styles.btnRejectOutline,
+                    isDark && { backgroundColor: themeColors.surfaceSubtle, borderColor: themeColors.cardBorder },
+                    pressed && { opacity: 0.8 },
+                  ]}
+                >
+                  <Text style={[styles.btnRejectOutlineText, isDark && { color: themeColors.textSecondary }]}>Hủy</Text>
+                </Pressable>
+
+                <Pressable
+                  onPress={handleResetPasswordSubmit}
+                  disabled={isSubmittingResetPass}
+                  style={({ pressed }) => [
+                    styles.btnApproveSolid,
+                    isDark && { backgroundColor: themeColors.accentGreen },
+                    pressed && { opacity: 0.85 },
+                  ]}
+                >
+                  {isSubmittingResetPass ? (
+                    <ActivityIndicator size="small" color="#FFFFFF" />
+                  ) : (
+                    <Text style={styles.btnApproveSolidText}>Xác nhận đổi</Text>
+                  )}
+                </Pressable>
+              </View>
             </View>
           </View>
         </Modal>

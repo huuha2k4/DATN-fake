@@ -105,7 +105,7 @@ export function AiAssistantScreen({ onBack }: Props) {
     return QUICK_QUESTIONS;
   }, [isChildAccount]);
 
-  const scrollViewRef = useRef<ScrollView>(null);
+  const scrollViewRef = useRef<any>(null);
 
   const [inputQuery, setInputQuery] = useState('');
   const [messages, setMessages] = useState<DisplayMessage[]>([]);

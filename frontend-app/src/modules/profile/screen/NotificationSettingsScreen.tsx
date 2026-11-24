@@ -61,7 +61,7 @@ export function NotificationSettingsScreen({
 
   return (
     <View style={[styles.screen, isDark && { backgroundColor: themeColors.background }]}>
-      <StatusBar barStyle={isDark ? "light-content" : "dark-content"} backgroundColor={isDark ? themeColors.background : "#FAFCFB"} />
+      <StatusBar barStyle={isDark ? "light-content" : "dark-content"} />
 
       {/* ── 1. TOP HEADER ── */}
       <View style={[styles.headerContainer, { paddingTop: Math.max(insets.top + 6, 16) }, isDark && { backgroundColor: themeColors.surface, borderBottomColor: themeColors.cardBorder }]}>

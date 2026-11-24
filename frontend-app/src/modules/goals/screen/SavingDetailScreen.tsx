@@ -112,7 +112,6 @@ export function SavingDetailScreen({ savingId, onBack }: Props) {
     <View style={[styles.screen, isDark && { backgroundColor: themeColors.background }, { paddingTop: Math.max(insets.top, 16) }]}>
       <StatusBar
         barStyle={isDark ? 'light-content' : 'dark-content'}
-        backgroundColor={isDark ? themeColors.background : '#F7FBF9'}
       />
 
       {/* TOP HEADER */}

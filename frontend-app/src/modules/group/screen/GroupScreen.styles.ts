@@ -3516,7 +3516,7 @@ export const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  chevronIcon: {
+  selectChevronIcon: {
     fontSize: 16,
     color: '#94A3B8',
     fontWeight: '800',
@@ -3578,7 +3578,7 @@ export const styles = StyleSheet.create({
     color: '#64748B',
     marginTop: 2,
   },
-  checkmarkIcon: {
+  optionCheckmarkIcon: {
     fontSize: 16,
     fontWeight: '800',
     color: '#059669',
