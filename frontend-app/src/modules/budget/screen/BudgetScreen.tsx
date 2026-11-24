@@ -526,9 +526,9 @@ export function BudgetScreen({
   const paddingTop = Math.max(insets.top, Platform.OS === 'ios' ? 44 : 12);
   const paddingBottom = Math.max(insets.bottom, 20);
 
-  const totalBudgeted = budgetOverview?.totalBudgeted || 5000000;
-  const totalSpent = budgetOverview?.totalSpent || 3200000;
-  const totalRemaining = budgetOverview?.totalRemaining || 1800000;
+  const totalBudgeted = budgetOverview?.totalBudgeted ?? 0;
+  const totalSpent = budgetOverview?.totalSpent ?? 0;
+  const totalRemaining = budgetOverview?.totalRemaining ?? 0;
   const progressRatio = totalBudgeted > 0 ? Math.min(1, totalSpent / totalBudgeted) : 0;
 
   const items = budgetOverview?.items || [];
@@ -682,7 +682,18 @@ export function BudgetScreen({
 
           {/* ── 4. DANH SÁCH TỪNG DANH MỤC (CHUẨN ẢNH THIẾT KẾ) ── */}
           <View style={[styles.categoryCardList, isDark && { backgroundColor: themeColors.surface, borderColor: themeColors.cardBorder }]}>
-            {items.map((item) => {
+            {items.length === 0 ? (
+              <View style={styles.emptyCardWrap}>
+                <FinanceIcon name="target" size={32} color={isDark ? themeColors.textSecondary : '#94A3B8'} />
+                <Text style={[styles.emptyCardTitle, isDark && { color: themeColors.textPrimary }]}>
+                  Chưa có ngân sách tháng {currentMonth}
+                </Text>
+                <Text style={[styles.emptyCardSub, isDark && { color: themeColors.textSecondary }]}>
+                  Nhấn "Thêm ngân sách" hoặc "Mẫu" ở trên để bắt đầu thiết lập hạn mức.
+                </Text>
+              </View>
+            ) : (
+              items.map((item) => {
               const itemPercent = item.percentageUsed;
               const isHigh = itemPercent >= 80;
               const percentColor = isHigh ? '#EF4444' : itemPercent >= 70 ? '#8B5CF6' : itemPercent >= 50 ? '#0EA5E9' : '#10B981';
@@ -751,7 +762,7 @@ export function BudgetScreen({
                   </View>
                 </Pressable>
               );
-            })}
+            }))}
           </View>
         </ScrollView>
       )}
@@ -1866,6 +1877,26 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     shadowOffset: { width: 0, height: 2 },
     elevation: 1,
+  },
+  emptyCardWrap: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 32,
+    paddingHorizontal: 20,
+  },
+  emptyCardTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#334155',
+    marginTop: 12,
+    marginBottom: 6,
+    textAlign: 'center',
+  },
+  emptyCardSub: {
+    fontSize: 13,
+    color: '#64748B',
+    textAlign: 'center',
+    lineHeight: 18,
   },
   categoryItemRow: {
     flexDirection: 'row',

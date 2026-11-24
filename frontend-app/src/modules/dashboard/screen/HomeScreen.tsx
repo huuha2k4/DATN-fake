@@ -228,9 +228,9 @@ export function HomeScreen({
   const monthlyExpense = dashboardData?.monthlyExpense ?? 0;
   const growthRate = dashboardData?.balanceGrowthRate ?? null;
 
-  const budgetTotal = budgetOverview?.totalBudgeted ?? (dashboardData?.budgetTotal ?? 5000000);
-  const budgetSpent = budgetOverview?.totalSpent ?? (dashboardData?.budgetSpent ?? 3200000);
-  const budgetPercent = budgetOverview?.overallPercentage ?? (dashboardData?.budgetPercent ?? Math.min(100, Math.round((budgetSpent / budgetTotal) * 100)));
+  const budgetTotal = budgetOverview?.totalBudgeted ?? (dashboardData?.budgetTotal ?? 0);
+  const budgetSpent = budgetOverview?.totalSpent ?? (dashboardData?.budgetSpent ?? 0);
+  const budgetPercent = budgetOverview?.overallPercentage ?? (budgetTotal > 0 ? Math.min(100, Math.round((budgetSpent / budgetTotal) * 100)) : 0);
 
   const recentList: DashboardTransaction[] = dashboardData?.recentTransactions && dashboardData.recentTransactions.length > 0
     ? dashboardData.recentTransactions
