@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, Modal, TextInput, Pressable, ScrollView, KeyboardAvoidingView, Platform, ActivityIndicator } from 'react-native';
 import { AppAlert as Alert } from '../../../context/DialogContext';
 import { FinanceIcon } from '../../core/components/FinanceIcon';
+import { AppDatePicker } from '../../core/components/AppDatePicker';
 import { goalsApi, GoalDetailData } from '../api/goalsApi';
 import { useAppTheme } from '../../../context/ThemeContext';
 
@@ -25,9 +26,14 @@ export function EditGoalModal({ visible, goal, onClose, onSuccess }: Props) {
   const [targetAmount, setTargetAmount] = useState(
     goal.targetAmount ? new Intl.NumberFormat('vi-VN').format(goal.targetAmount) : ''
   );
-  const [targetDate, setTargetDate] = useState(
-    goal.deadline ? goal.deadline.split('/').reverse().join('-') : '2027-12-31'
-  );
+  const [targetDate, setTargetDate] = useState<Date | null>(() => {
+    if (!goal.deadline) return new Date('2027-12-31');
+    const parts = goal.deadline.split('/');
+    if (parts.length === 3) {
+      return new Date(`${parts[2]}-${parts[1]}-${parts[0]}`);
+    }
+    return new Date(goal.deadline);
+  });
   const [description, setDescription] = useState(goal.description);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -39,9 +45,9 @@ export function EditGoalModal({ visible, goal, onClose, onSuccess }: Props) {
       );
       const parts = (goal.deadline || '').split('/');
       if (parts.length === 3) {
-        setTargetDate(`${parts[2]}-${parts[1]}-${parts[0]}`);
+        setTargetDate(new Date(`${parts[2]}-${parts[1]}-${parts[0]}`));
       } else {
-        setTargetDate(goal.deadline || '2027-12-31');
+        setTargetDate(goal.deadline ? new Date(goal.deadline) : new Date('2027-12-31'));
       }
       setDescription(goal.description);
     }
@@ -60,10 +66,18 @@ export function EditGoalModal({ visible, goal, onClose, onSuccess }: Props) {
 
     setIsSubmitting(true);
     try {
+      let isoDate: string | undefined = undefined;
+      if (targetDate) {
+        const y = targetDate.getFullYear();
+        const m = String(targetDate.getMonth() + 1).padStart(2, '0');
+        const d = String(targetDate.getDate()).padStart(2, '0');
+        isoDate = `${y}-${m}-${d}`;
+      }
+
       const ok = await goalsApi.updateGoal(goal.id, {
         name: name.trim(),
         targetAmount: target,
-        targetDate: targetDate || undefined,
+        targetDate: isoDate,
         description: description.trim() || undefined,
         version: goal.version ?? 0,
       });
@@ -156,22 +170,11 @@ export function EditGoalModal({ visible, goal, onClose, onSuccess }: Props) {
 
             {/* Thời hạn */}
             <View style={styles.field}>
-              <Text style={[styles.label, isDark && { color: themeColors.textSecondary }]}>
-                Thời hạn hoàn thành (YYYY-MM-DD)
-              </Text>
-              <TextInput
-                style={[
-                  styles.input,
-                  isDark && {
-                    backgroundColor: themeColors.surfaceSubtle,
-                    borderColor: themeColors.cardBorder,
-                    color: themeColors.textPrimary,
-                  },
-                ]}
-                placeholder="2027-12-31"
-                placeholderTextColor={isDark ? '#64748B' : '#94A3B8'}
+              <AppDatePicker
                 value={targetDate}
-                onChangeText={setTargetDate}
+                onChange={setTargetDate}
+                label="Thời hạn hoàn thành"
+                placeholder="Chọn ngày kết thúc mục tiêu"
               />
             </View>
 

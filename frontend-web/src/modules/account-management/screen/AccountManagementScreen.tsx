@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { FinanceIcon, resolveCategoryIconName, type IconName } from '../../core/components/FinanceIcon';
+import { subscribeFinAiActionCompleted } from '../../core/utils/finaiSyncEvents';
 import { 
   accountApi, 
   type AccountItem, 
@@ -116,6 +117,10 @@ export function AccountManagementScreen({ onNotify, onAccountsChange }: Props) {
 
   useEffect(() => {
     loadData();
+    const unsubscribe = subscribeFinAiActionCompleted(() => {
+      loadData();
+    });
+    return () => unsubscribe();
   }, []);
 
   useEffect(() => {
@@ -526,7 +531,7 @@ export function AccountManagementScreen({ onNotify, onAccountsChange }: Props) {
   };
 
   return (
-    <main className="wallet-management-page mx-auto flex min-h-[calc(100vh-64px)] w-full max-w-[1560px] flex-col gap-6 bg-[#f6f8f6] px-4 pb-24 pt-6 text-[#14251f] sm:px-6 lg:px-8 lg:pb-12" aria-label="Quản lý các loại ví tài chính">
+    <main className="wallet-management-page mx-auto flex min-h-[calc(100vh-64px)] w-full max-w-[1560px] flex-col gap-6 bg-[#F8FAFC] px-4 pb-24 pt-6 text-[#0F172A] sm:px-6 lg:px-8 lg:pb-12" aria-label="Quản lý các loại ví tài chính">
       {/* 1. Stunning High-End Metrics Ribbon */}
       <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
         {/* 1. Total Assets Available */}
@@ -535,21 +540,21 @@ export function AccountManagementScreen({ onNotify, onAccountsChange }: Props) {
           style={{ '--stat-accent': '#10b981' } as React.CSSProperties}
         >
           <div className="flex items-center justify-between">
-            <span className="text-[11px] font-bold tracking-widest text-[#07543f] uppercase flex items-center gap-1.5">
+            <span className="text-[11px] font-bold tracking-widest text-[#007F53] uppercase flex items-center gap-1.5">
               <span className="size-1.5 rounded-full bg-[#10b981]" />
               TỔNG TÀI SẢN KHẢ DỤNG
             </span>
-            <span className="grid size-10 place-items-center rounded-2xl bg-emerald-50 text-[#07543f] border border-emerald-100 shadow-sm">
+            <span className="grid size-10 place-items-center rounded-2xl bg-emerald-50 text-[#007F53] border border-emerald-100 shadow-sm">
               <FinanceIcon name="wallet" size={19} />
             </span>
           </div>
           <div>
-            <div className="text-3xl font-black tracking-tight text-[#07543f] sm:text-4xl">
+            <div className="text-3xl font-black tracking-tight text-[#007F53] sm:text-4xl">
               {formatVND(totalAssets)}
             </div>
             <div className="mt-2.5 flex items-center justify-between border-t border-[#ebf3ed] pt-2.5 text-[11px] text-[#6b7f73]">
               <span>Tiền mặt &amp; Tài khoản</span>
-              <span className="font-semibold text-[#07543f]">
+              <span className="font-semibold text-[#007F53]">
                 {accounts.filter(a => a.isActive !== false && a.accountType !== 'CREDIT_CARD').length} ví hoạt động
               </span>
             </div>
@@ -641,7 +646,7 @@ export function AccountManagementScreen({ onNotify, onAccountsChange }: Props) {
           <button
             type="button"
             onClick={() => handleOpenAdd('CASH')}
-            className="inline-flex h-9 items-center justify-center rounded-xl bg-[#07543f] px-4 text-xs font-semibold text-white shadow-sm transition hover:bg-[#09694e]"
+            className="inline-flex h-9 items-center justify-center rounded-xl bg-[#007F53] px-4 text-xs font-semibold text-white shadow-sm transition hover:bg-[#09694e]"
           >
             Thêm ví mới
           </button>
@@ -650,11 +655,11 @@ export function AccountManagementScreen({ onNotify, onAccountsChange }: Props) {
 
       {/* 4. Privacy & Manual Entry Banner */}
       <div className="flex items-start gap-3.5 rounded-2xl border border-[#cbe4d5] bg-gradient-to-r from-[#edf8f2] to-[#e4f5ec] p-4 text-[#1d3d2e] shadow-sm">
-        <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-[#07543f] text-[#cbf4df] shadow-sm">
+        <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-[#007F53] text-[#cbf4df] shadow-sm">
           <FinanceIcon name="shield" size={17} />
         </span>
         <div className="text-xs leading-relaxed">
-          <strong className="block text-sm font-bold text-[#07543f]">
+          <strong className="block text-sm font-bold text-[#007F53]">
             Quản lý độc lập, riêng tư &amp; Tuyệt đối an toàn
           </strong>
           Finora cho phép bạn ghi nhận và kiểm soát dòng tiền tự động qua OCR hoặc cập nhật số dư tay linh hoạt. Toàn bộ thông tin ví cá nhân không yêu cầu kết nối Open Banking trực tiếp hay tiết lộ mật khẩu ngân hàng.
@@ -663,23 +668,23 @@ export function AccountManagementScreen({ onNotify, onAccountsChange }: Props) {
 
       {/* 5. Wallet Cards Grid */}
       {loading ? (
-        <div className="flex min-h-[220px] items-center justify-center rounded-2xl border border-dashed border-[#d5dfd8] bg-white p-8 text-center text-xs text-[#718078]">
-          <FinanceIcon name="refresh" size={22} className="animate-spin text-[#07543f]" />
+        <div className="flex min-h-[220px] items-center justify-center rounded-2xl border border-dashed border-[#d5dfd8] bg-white p-8 text-center text-xs text-[#64748B]">
+          <FinanceIcon name="refresh" size={22} className="animate-spin text-[#007F53]" />
           <span className="ml-2.5 font-semibold">Đang nạp danh sách ví...</span>
         </div>
       ) : filteredAccounts.length === 0 ? (
         <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-[#ccd6cf] bg-white py-14 text-center shadow-sm">
-          <div className="grid size-14 place-items-center rounded-2xl bg-[#e3f4e9] text-[#07543f]">
+          <div className="grid size-14 place-items-center rounded-2xl bg-[#E6F4EA] text-[#007F53]">
             <FinanceIcon name="wallet" size={28} />
           </div>
           <h3 className="mt-4 text-base font-bold text-[#17261f]">Chưa có ví nào trong danh mục này</h3>
-          <p className="mt-1 max-w-sm text-xs text-[#718078]">
+          <p className="mt-1 max-w-sm text-xs text-[#64748B]">
             Bạn có thể tạo ví tiền mặt, ví điện tử MoMo / ZaloPay hoặc thẻ ngân hàng để bắt đầu theo dõi.
           </p>
           <button
             type="button"
             onClick={() => handleOpenAdd(selectedTypeFilter === 'ALL' ? 'CASH' : selectedTypeFilter as any)}
-            className="mt-4 inline-flex h-9 items-center gap-1.5 rounded-xl bg-[#07543f] px-4 text-xs font-semibold text-white shadow hover:bg-[#087557]"
+            className="mt-4 inline-flex h-9 items-center gap-1.5 rounded-xl bg-[#007F53] px-4 text-xs font-semibold text-white shadow hover:bg-[#007F53]"
           >
             <FinanceIcon name="plus" size={14} />
             Tạo ví mới ngay
@@ -789,7 +794,7 @@ export function AccountManagementScreen({ onNotify, onAccountsChange }: Props) {
                         {/* Dropdown Menu */}
                         {activeMenuId === account.id && (
                           <>
-                            <div className="absolute right-0 top-full mt-1.5 w-44 z-30 rounded-xl border border-gray-100 bg-white p-1.5 shadow-2xl animate-fadeIn text-[#14261e]">
+                            <div className="absolute right-0 top-full mt-1.5 w-44 z-30 rounded-xl border border-gray-100 bg-white p-1.5 shadow-2xl animate-fadeIn text-[#0F172A]">
                               <button
                                 type="button"
                                 onClick={(e) => {
@@ -797,9 +802,9 @@ export function AccountManagementScreen({ onNotify, onAccountsChange }: Props) {
                                   setActiveMenuId(null);
                                   handleOpenEdit(account);
                                 }}
-                                className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left text-xs font-medium text-[#14261e] hover:bg-[#f0f7f3] hover:text-[#07543f] transition whitespace-nowrap"
+                                className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left text-xs font-medium text-[#0F172A] hover:bg-[#f0f7f3] hover:text-[#007F53] transition whitespace-nowrap"
                               >
-                                <FinanceIcon name="edit" size={14} className="text-[#07543f] shrink-0" />
+                                <FinanceIcon name="edit" size={14} className="text-[#007F53] shrink-0" />
                                 <span>Sửa thông tin</span>
                               </button>
                               <button
@@ -914,15 +919,15 @@ export function AccountManagementScreen({ onNotify, onAccountsChange }: Props) {
       {/* MODAL: Thêm ví mới */}
       {isAddModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-md animate-fadeIn">
-          <div className="w-full max-w-[480px] max-h-[92vh] flex flex-col rounded-3xl bg-white dark:bg-[#0c1a24] border border-[#e2ece5] dark:border-white/10 p-5 sm:p-6 shadow-2xl transition-all overflow-hidden">
-            <div className="flex items-center justify-between border-b border-[#edf2ee] dark:border-white/10 pb-3.5 shrink-0">
+          <div className="w-full max-w-[480px] max-h-[92vh] flex flex-col rounded-3xl bg-white dark:bg-[#111827] border border-[#E2E8F0] dark:border-white/10 p-5 sm:p-6 shadow-2xl transition-all overflow-hidden">
+            <div className="flex items-center justify-between border-b border-[#E2E8F0] dark:border-white/10 pb-3.5 shrink-0">
               <div className="flex items-center gap-3">
-                <span className="grid size-10 place-items-center rounded-2xl bg-emerald-50 dark:bg-emerald-950/80 text-[#07543f] dark:text-emerald-400 border border-emerald-200/60 dark:border-emerald-800/60 shadow-xs">
+                <span className="grid size-10 place-items-center rounded-2xl bg-emerald-50 dark:bg-emerald-950/80 text-[#007F53] dark:text-emerald-400 border border-emerald-200/60 dark:border-emerald-800/60 shadow-xs">
                   <FinanceIcon name="wallet" size={18} />
                 </span>
                 <div>
-                  <h2 className="text-sm sm:text-base font-bold text-[#14261e] dark:text-white leading-tight">Thêm ví / Nguồn tiền mới</h2>
-                  <p className="text-[11px] text-[#718078] dark:text-slate-400 mt-0.5">Tạo tài khoản quản lý chi tiêu và dòng tiền</p>
+                  <h2 className="text-sm sm:text-base font-bold text-[#0F172A] dark:text-white leading-tight">Thêm ví / Nguồn tiền mới</h2>
+                  <p className="text-[11px] text-[#64748B] dark:text-slate-400 mt-0.5">Tạo tài khoản quản lý chi tiêu và dòng tiền</p>
                 </div>
               </div>
               <button
@@ -937,14 +942,14 @@ export function AccountManagementScreen({ onNotify, onAccountsChange }: Props) {
 
             <form onSubmit={handleCreateSubmit} className="mt-4 flex flex-col gap-3.5 overflow-y-auto pr-0.5 min-h-0">
               <div>
-                <label className="block text-[11px] font-bold text-[#34463b] dark:text-slate-300 mb-1.5 uppercase tracking-wider">
+                <label className="block text-[11px] font-bold text-[#334155] dark:text-slate-300 mb-1.5 uppercase tracking-wider">
                   Loại tài khoản / ví
                 </label>
                 <div className="relative">
                   <select
                     value={modalAccountCategory}
                     onChange={(e) => handleCategoryChange(e.target.value as any)}
-                    className="h-10 w-full rounded-xl border border-[#d5ded8] dark:border-white/10 bg-[#f8faf9] dark:bg-[#0f2231] px-3.5 pr-9 text-xs font-semibold text-[#14261e] dark:text-white outline-none focus:border-[#07543f] dark:focus:border-emerald-500 focus:ring-2 focus:ring-[#07543f]/15 transition appearance-none cursor-pointer"
+                    className="h-10 w-full rounded-xl border border-[#CBD5E1] dark:border-white/10 bg-[#F8FAFC] dark:bg-[#111827] px-3.5 pr-9 text-xs font-semibold text-[#0F172A] dark:text-white outline-none focus:border-[#007F53] dark:focus:border-emerald-500 focus:ring-2 focus:ring-[#007F53]/15 transition appearance-none cursor-pointer"
                   >
                     <option value="CASH">Tiền mặt (Ví tiền mặt, tiền tiêu vặt)</option>
                     <option value="BANK_ACCOUNT">Tài khoản ngân hàng</option>
@@ -966,10 +971,10 @@ export function AccountManagementScreen({ onNotify, onAccountsChange }: Props) {
               {(formData.accountType === 'BANK_ACCOUNT' || formData.accountType === 'CREDIT_CARD' || formData.accountType === 'E_WALLET') && (
                 <div>
                   <div className="flex items-center justify-between mb-1.5">
-                    <label className="block text-[11px] font-bold text-[#34463b] dark:text-slate-300 uppercase tracking-wider">
+                    <label className="block text-[11px] font-bold text-[#334155] dark:text-slate-300 uppercase tracking-wider">
                       {formData.accountType === 'E_WALLET' ? 'Chọn ví điện tử *' : 'Chọn ngân hàng *'}
                     </label>
-                    <span className="text-[11px] text-[#718078] dark:text-slate-400 font-medium">
+                    <span className="text-[11px] text-[#64748B] dark:text-slate-400 font-medium">
                       {selectedPreset ? 'Nhấn đổi để chọn lại' : 'Gõ tên hoặc mã'}
                     </span>
                   </div>
@@ -1005,10 +1010,10 @@ export function AccountManagementScreen({ onNotify, onAccountsChange }: Props) {
                           </span>
                           <div className="min-w-0">
                             <div className="flex items-center gap-1.5">
-                              <strong className="text-xs font-bold text-[#14261e] dark:text-white">
+                              <strong className="text-xs font-bold text-[#0F172A] dark:text-white">
                                 {selectedPreset.shortName}
                               </strong>
-                              <span className="rounded-md bg-emerald-100 dark:bg-emerald-900/60 px-1.5 py-0.5 text-[9px] font-bold text-[#07543f] dark:text-emerald-300">
+                              <span className="rounded-md bg-emerald-100 dark:bg-emerald-900/60 px-1.5 py-0.5 text-[9px] font-bold text-[#007F53] dark:text-emerald-300">
                                 {selectedPreset.code}
                               </span>
                             </div>
@@ -1025,14 +1030,14 @@ export function AccountManagementScreen({ onNotify, onAccountsChange }: Props) {
                             setBankSearchQuery('');
                             setIsBankPickerOpen(true);
                           }}
-                          className="shrink-0 rounded-xl border border-emerald-300/80 dark:border-emerald-700 bg-white dark:bg-[#0c1a24] px-3 py-1 text-xs font-bold text-[#07543f] dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-slate-800 transition cursor-pointer"
+                          className="shrink-0 rounded-xl border border-emerald-300/80 dark:border-emerald-700 bg-white dark:bg-[#111827] px-3 py-1 text-xs font-bold text-[#007F53] dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-slate-800 transition cursor-pointer"
                         >
                           Đổi
                         </button>
                       </div>
                     ) : (
                       /* Search Input when no bank is selected */
-                      <div className="flex items-center gap-2 rounded-xl border border-[#d5ded8] dark:border-white/10 bg-[#f8faf9] dark:bg-[#0f2231] px-3.5 h-10 focus-within:border-[#07543f] dark:focus-within:border-emerald-500 focus-within:ring-2 focus-within:ring-[#07543f]/15 transition">
+                      <div className="flex items-center gap-2 rounded-xl border border-[#CBD5E1] dark:border-white/10 bg-[#F8FAFC] dark:bg-[#111827] px-3.5 h-10 focus-within:border-[#007F53] dark:focus-within:border-emerald-500 focus-within:ring-2 focus-within:ring-[#007F53]/15 transition">
                         <FinanceIcon name="search" size={14} className="text-[#86968e] shrink-0" />
                         <input
                           type="text"
@@ -1047,7 +1052,7 @@ export function AccountManagementScreen({ onNotify, onAccountsChange }: Props) {
                             setIsBankPickerOpen(true);
                           }}
                           onFocus={() => setIsBankPickerOpen(true)}
-                          className="w-full text-xs font-medium text-[#14261e] dark:text-white placeholder:text-gray-400 dark:placeholder:text-slate-500 outline-none bg-transparent"
+                          className="w-full text-xs font-medium text-[#0F172A] dark:text-white placeholder:text-gray-400 dark:placeholder:text-slate-500 outline-none bg-transparent"
                         />
                         {bankSearchQuery && (
                           <button
@@ -1063,7 +1068,7 @@ export function AccountManagementScreen({ onNotify, onAccountsChange }: Props) {
 
                     {/* Filtered list of banks/wallets dropdown */}
                     {isBankPickerOpen && !selectedPreset && (
-                      <div className="absolute left-0 right-0 top-full z-30 mt-1.5 max-h-56 overflow-y-auto rounded-2xl border border-[#d5ded8] dark:border-white/10 bg-white dark:bg-[#0c1a24] p-1.5 shadow-2xl animate-fadeIn">
+                      <div className="absolute left-0 right-0 top-full z-30 mt-1.5 max-h-56 overflow-y-auto rounded-2xl border border-[#CBD5E1] dark:border-white/10 bg-white dark:bg-[#111827] p-1.5 shadow-2xl animate-fadeIn">
                         {(() => {
                           const targetKind = formData.accountType === 'E_WALLET' ? 'E_WALLET' : 'BANK';
                           const filtered = POPULAR_BANKS_AND_WALLETS.filter((item) => {
@@ -1079,7 +1084,7 @@ export function AccountManagementScreen({ onNotify, onAccountsChange }: Props) {
 
                           if (filtered.length === 0) {
                             return (
-                              <div className="p-3 text-center text-xs text-[#718078] dark:text-slate-400">
+                              <div className="p-3 text-center text-xs text-[#64748B] dark:text-slate-400">
                                 Không tìm thấy {formData.accountType === 'E_WALLET' ? 'ví' : 'ngân hàng'} phù hợp
                               </div>
                             );
@@ -1125,10 +1130,10 @@ export function AccountManagementScreen({ onNotify, onAccountsChange }: Props) {
                                       )}
                                     </span>
                                     <div className="min-w-0 flex-1">
-                                      <div className="font-bold text-[#14261e] dark:text-white leading-snug text-xs">
+                                      <div className="font-bold text-[#0F172A] dark:text-white leading-snug text-xs">
                                         {item.shortName}
                                       </div>
-                                      <div className="truncate text-[10px] text-[#718078] dark:text-slate-400">
+                                      <div className="truncate text-[10px] text-[#64748B] dark:text-slate-400">
                                         {item.name}
                                       </div>
                                     </div>
@@ -1151,18 +1156,18 @@ export function AccountManagementScreen({ onNotify, onAccountsChange }: Props) {
               {formData.accountType === 'CASH' ? (
                 <div className="rounded-2xl border border-emerald-200/80 dark:border-emerald-800/60 bg-emerald-50/70 dark:bg-emerald-950/40 p-3 text-xs text-[#1e5836] dark:text-emerald-300">
                   <div className="flex items-center gap-2.5">
-                    <span className="grid size-6 place-items-center rounded-lg bg-[#07543f] text-white text-xs font-bold shrink-0">
+                    <span className="grid size-6 place-items-center rounded-lg bg-[#007F53] text-white text-xs font-bold shrink-0">
                       ✓
                     </span>
                     <div className="min-w-0">
                       <span className="font-medium text-gray-600 dark:text-slate-400 text-xs">Tên ví mặc định: </span>
-                      <strong className="text-xs font-extrabold text-[#07543f] dark:text-emerald-300">Tiền mặt</strong>
+                      <strong className="text-xs font-extrabold text-[#007F53] dark:text-emerald-300">Tiền mặt</strong>
                     </div>
                   </div>
                 </div>
               ) : (
                 <div>
-                  <label className="block text-[11px] font-bold text-[#34463b] dark:text-slate-300 mb-1.5 uppercase tracking-wider">
+                  <label className="block text-[11px] font-bold text-[#334155] dark:text-slate-300 mb-1.5 uppercase tracking-wider">
                     Tên hiển thị ví / Tài khoản *
                   </label>
                   <input
@@ -1171,14 +1176,14 @@ export function AccountManagementScreen({ onNotify, onAccountsChange }: Props) {
                     placeholder="Ví dụ: Techcombank chi tiêu, MB Bank lương, MoMo..."
                     value={formData.name}
                     onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                    className="h-10 w-full rounded-xl border border-[#d5ded8] dark:border-white/10 bg-[#f8faf9] dark:bg-[#0f2231] px-3.5 text-xs font-medium text-[#14261e] dark:text-white placeholder:text-gray-400 dark:placeholder:text-slate-500 outline-none focus:border-[#07543f] dark:focus:border-emerald-500 focus:ring-2 focus:ring-[#07543f]/15 transition"
+                    className="h-10 w-full rounded-xl border border-[#CBD5E1] dark:border-white/10 bg-[#F8FAFC] dark:bg-[#111827] px-3.5 text-xs font-medium text-[#0F172A] dark:text-white placeholder:text-gray-400 dark:placeholder:text-slate-500 outline-none focus:border-[#007F53] dark:focus:border-emerald-500 focus:ring-2 focus:ring-[#007F53]/15 transition"
                   />
                 </div>
               )}
 
               <div className="grid grid-cols-5 gap-3">
                 <div className="col-span-3">
-                  <label className="block text-[11px] font-bold text-[#34463b] dark:text-slate-300 mb-1.5 uppercase tracking-wider">
+                  <label className="block text-[11px] font-bold text-[#334155] dark:text-slate-300 mb-1.5 uppercase tracking-wider">
                     Số dư ban đầu
                   </label>
                   <div className="relative">
@@ -1188,7 +1193,7 @@ export function AccountManagementScreen({ onNotify, onAccountsChange }: Props) {
                       placeholder="0"
                       value={initialBalanceInput}
                       onChange={(e) => setInitialBalanceInput(formatNumberWithDots(e.target.value))}
-                      className="h-10 w-full rounded-xl border border-[#d5ded8] dark:border-white/10 bg-[#f8faf9] dark:bg-[#0f2231] px-3.5 pr-8 text-sm font-extrabold text-[#07543f] dark:text-emerald-400 placeholder:text-gray-400 dark:placeholder:text-slate-600 outline-none focus:border-[#07543f] dark:focus:border-emerald-500 focus:ring-2 focus:ring-[#07543f]/15 transition"
+                      className="h-10 w-full rounded-xl border border-[#CBD5E1] dark:border-white/10 bg-[#F8FAFC] dark:bg-[#111827] px-3.5 pr-8 text-sm font-extrabold text-[#007F53] dark:text-emerald-400 placeholder:text-gray-400 dark:placeholder:text-slate-600 outline-none focus:border-[#007F53] dark:focus:border-emerald-500 focus:ring-2 focus:ring-[#007F53]/15 transition"
                     />
                     <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-gray-400 dark:text-slate-500">
                       ₫
@@ -1196,21 +1201,21 @@ export function AccountManagementScreen({ onNotify, onAccountsChange }: Props) {
                   </div>
                 </div>
                 <div className="col-span-2">
-                  <label className="block text-[11px] font-bold text-[#34463b] dark:text-slate-300 mb-1.5 uppercase tracking-wider">
+                  <label className="block text-[11px] font-bold text-[#334155] dark:text-slate-300 mb-1.5 uppercase tracking-wider">
                     Đơn vị tiền tệ
                   </label>
                   <input
                     type="text"
                     value={formData.currencyCode}
                     onChange={(e) => setFormData({ ...formData, currencyCode: e.target.value.toUpperCase() })}
-                    className="h-10 w-full rounded-xl border border-[#d5ded8] dark:border-white/10 bg-[#f8faf9] dark:bg-[#0f2231] px-3.5 text-xs font-bold text-gray-700 dark:text-slate-200 outline-none focus:border-[#07543f] dark:focus:border-emerald-500 focus:ring-2 focus:ring-[#07543f]/15 transition text-center uppercase"
+                    className="h-10 w-full rounded-xl border border-[#CBD5E1] dark:border-white/10 bg-[#F8FAFC] dark:bg-[#111827] px-3.5 text-xs font-bold text-gray-700 dark:text-slate-200 outline-none focus:border-[#007F53] dark:focus:border-emerald-500 focus:ring-2 focus:ring-[#007F53]/15 transition text-center uppercase"
                   />
                 </div>
               </div>
 
               {formData.accountType === 'E_WALLET' && (
                 <div>
-                  <label className="block text-[11px] font-bold text-[#34463b] dark:text-slate-300 mb-1.5 uppercase tracking-wider">
+                  <label className="block text-[11px] font-bold text-[#334155] dark:text-slate-300 mb-1.5 uppercase tracking-wider">
                     Số điện thoại đăng ký ví
                   </label>
                   <input
@@ -1218,7 +1223,7 @@ export function AccountManagementScreen({ onNotify, onAccountsChange }: Props) {
                     placeholder="Ví dụ: 0987654321"
                     value={formData.phoneNumber}
                     onChange={(e) => setFormData({ ...formData, phoneNumber: e.target.value })}
-                    className="h-10 w-full rounded-xl border border-[#d5ded8] dark:border-white/10 bg-[#f8faf9] dark:bg-[#0f2231] px-3.5 text-xs font-medium text-[#14261e] dark:text-white placeholder:text-gray-400 dark:placeholder:text-slate-500 outline-none focus:border-[#07543f] dark:focus:border-emerald-500 focus:ring-2 focus:ring-[#07543f]/15 transition"
+                    className="h-10 w-full rounded-xl border border-[#CBD5E1] dark:border-white/10 bg-[#F8FAFC] dark:bg-[#111827] px-3.5 text-xs font-medium text-[#0F172A] dark:text-white placeholder:text-gray-400 dark:placeholder:text-slate-500 outline-none focus:border-[#007F53] dark:focus:border-emerald-500 focus:ring-2 focus:ring-[#007F53]/15 transition"
                   />
                 </div>
               )}
@@ -1227,7 +1232,7 @@ export function AccountManagementScreen({ onNotify, onAccountsChange }: Props) {
                 modalAccountCategory === 'DEBIT_CARD' ? (
                   <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <label className="block text-[11px] font-bold text-[#34463b] dark:text-slate-300 mb-1.5 uppercase tracking-wider">
+                      <label className="block text-[11px] font-bold text-[#334155] dark:text-slate-300 mb-1.5 uppercase tracking-wider">
                         4 số cuối thẻ ATM *
                       </label>
                       <input
@@ -1236,11 +1241,11 @@ export function AccountManagementScreen({ onNotify, onAccountsChange }: Props) {
                         placeholder="Ví dụ: 9021"
                         value={formData.cardNumberLast4}
                         onChange={(e) => setFormData({ ...formData, cardNumberLast4: e.target.value })}
-                        className="h-10 w-full rounded-xl border border-[#d5ded8] dark:border-white/10 bg-[#f8faf9] dark:bg-[#0f2231] px-3.5 text-xs font-medium text-[#14261e] dark:text-white placeholder:text-gray-400 dark:placeholder:text-slate-500 outline-none focus:border-[#07543f] dark:focus:border-emerald-500 focus:ring-2 focus:ring-[#07543f]/15 transition"
+                        className="h-10 w-full rounded-xl border border-[#CBD5E1] dark:border-white/10 bg-[#F8FAFC] dark:bg-[#111827] px-3.5 text-xs font-medium text-[#0F172A] dark:text-white placeholder:text-gray-400 dark:placeholder:text-slate-500 outline-none focus:border-[#007F53] dark:focus:border-emerald-500 focus:ring-2 focus:ring-[#007F53]/15 transition"
                       />
                     </div>
                     <div>
-                      <label className="block text-[11px] font-bold text-[#34463b] dark:text-slate-300 mb-1.5 uppercase tracking-wider">
+                      <label className="block text-[11px] font-bold text-[#334155] dark:text-slate-300 mb-1.5 uppercase tracking-wider">
                         Số TK liên kết
                       </label>
                       <input
@@ -1248,13 +1253,13 @@ export function AccountManagementScreen({ onNotify, onAccountsChange }: Props) {
                         placeholder="10123456789"
                         value={formData.accountNumber}
                         onChange={(e) => setFormData({ ...formData, accountNumber: e.target.value })}
-                        className="h-10 w-full rounded-xl border border-[#d5ded8] dark:border-white/10 bg-[#f8faf9] dark:bg-[#0f2231] px-3.5 text-xs font-medium text-[#14261e] dark:text-white placeholder:text-gray-400 dark:placeholder:text-slate-500 outline-none focus:border-[#07543f] dark:focus:border-emerald-500 focus:ring-2 focus:ring-[#07543f]/15 transition"
+                        className="h-10 w-full rounded-xl border border-[#CBD5E1] dark:border-white/10 bg-[#F8FAFC] dark:bg-[#111827] px-3.5 text-xs font-medium text-[#0F172A] dark:text-white placeholder:text-gray-400 dark:placeholder:text-slate-500 outline-none focus:border-[#007F53] dark:focus:border-emerald-500 focus:ring-2 focus:ring-[#007F53]/15 transition"
                       />
                     </div>
                   </div>
                 ) : (
                   <div>
-                    <label className="block text-[11px] font-bold text-[#34463b] dark:text-slate-300 mb-1.5 uppercase tracking-wider">
+                    <label className="block text-[11px] font-bold text-[#334155] dark:text-slate-300 mb-1.5 uppercase tracking-wider">
                       Số tài khoản ngân hàng
                     </label>
                     <input
@@ -1262,7 +1267,7 @@ export function AccountManagementScreen({ onNotify, onAccountsChange }: Props) {
                       placeholder="Ví dụ: 10123456789"
                       value={formData.accountNumber}
                       onChange={(e) => setFormData({ ...formData, accountNumber: e.target.value })}
-                      className="h-10 w-full rounded-xl border border-[#d5ded8] dark:border-white/10 bg-[#f8faf9] dark:bg-[#0f2231] px-3.5 text-xs font-medium text-[#14261e] dark:text-white placeholder:text-gray-400 dark:placeholder:text-slate-500 outline-none focus:border-[#07543f] dark:focus:border-emerald-500 focus:ring-2 focus:ring-[#07543f]/15 transition"
+                      className="h-10 w-full rounded-xl border border-[#CBD5E1] dark:border-white/10 bg-[#F8FAFC] dark:bg-[#111827] px-3.5 text-xs font-medium text-[#0F172A] dark:text-white placeholder:text-gray-400 dark:placeholder:text-slate-500 outline-none focus:border-[#007F53] dark:focus:border-emerald-500 focus:ring-2 focus:ring-[#007F53]/15 transition"
                     />
                   </div>
                 )
@@ -1272,7 +1277,7 @@ export function AccountManagementScreen({ onNotify, onAccountsChange }: Props) {
                 <>
                   <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <label className="block text-[11px] font-bold text-[#34463b] dark:text-slate-300 mb-1.5 uppercase tracking-wider">
+                      <label className="block text-[11px] font-bold text-[#334155] dark:text-slate-300 mb-1.5 uppercase tracking-wider">
                         Hạn mức thẻ (VND) *
                       </label>
                       <input
@@ -1281,11 +1286,11 @@ export function AccountManagementScreen({ onNotify, onAccountsChange }: Props) {
                         placeholder="0"
                         value={creditLimitInput}
                         onChange={(e) => setCreditLimitInput(formatNumberWithDots(e.target.value))}
-                        className="h-10 w-full rounded-xl border border-[#d5ded8] dark:border-white/10 bg-[#f8faf9] dark:bg-[#0f2231] px-3.5 text-xs font-medium text-[#14261e] dark:text-white placeholder:text-gray-400 dark:placeholder:text-slate-500 outline-none focus:border-[#07543f] dark:focus:border-emerald-500 focus:ring-2 focus:ring-[#07543f]/15 transition"
+                        className="h-10 w-full rounded-xl border border-[#CBD5E1] dark:border-white/10 bg-[#F8FAFC] dark:bg-[#111827] px-3.5 text-xs font-medium text-[#0F172A] dark:text-white placeholder:text-gray-400 dark:placeholder:text-slate-500 outline-none focus:border-[#007F53] dark:focus:border-emerald-500 focus:ring-2 focus:ring-[#007F53]/15 transition"
                       />
                     </div>
                     <div>
-                      <label className="block text-[11px] font-bold text-[#34463b] dark:text-slate-300 mb-1.5 uppercase tracking-wider">
+                      <label className="block text-[11px] font-bold text-[#334155] dark:text-slate-300 mb-1.5 uppercase tracking-wider">
                         4 số cuối thẻ
                       </label>
                       <input
@@ -1294,14 +1299,14 @@ export function AccountManagementScreen({ onNotify, onAccountsChange }: Props) {
                         placeholder="8821"
                         value={formData.cardNumberLast4}
                         onChange={(e) => setFormData({ ...formData, cardNumberLast4: e.target.value })}
-                        className="h-10 w-full rounded-xl border border-[#d5ded8] dark:border-white/10 bg-[#f8faf9] dark:bg-[#0f2231] px-3.5 text-xs font-medium text-[#14261e] dark:text-white placeholder:text-gray-400 dark:placeholder:text-slate-500 outline-none focus:border-[#07543f] dark:focus:border-emerald-500 focus:ring-2 focus:ring-[#07543f]/15 transition"
+                        className="h-10 w-full rounded-xl border border-[#CBD5E1] dark:border-white/10 bg-[#F8FAFC] dark:bg-[#111827] px-3.5 text-xs font-medium text-[#0F172A] dark:text-white placeholder:text-gray-400 dark:placeholder:text-slate-500 outline-none focus:border-[#007F53] dark:focus:border-emerald-500 focus:ring-2 focus:ring-[#007F53]/15 transition"
                       />
                     </div>
                   </div>
 
                   <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <label className="block text-[11px] font-bold text-[#34463b] dark:text-slate-300 mb-1.5 uppercase tracking-wider">
+                      <label className="block text-[11px] font-bold text-[#334155] dark:text-slate-300 mb-1.5 uppercase tracking-wider">
                         Ngày chốt sao kê
                       </label>
                       <input
@@ -1311,11 +1316,11 @@ export function AccountManagementScreen({ onNotify, onAccountsChange }: Props) {
                         placeholder="20"
                         value={formData.billingCycleDay || ''}
                         onChange={(e) => setFormData({ ...formData, billingCycleDay: parseInt(e.target.value) || 20 })}
-                        className="h-10 w-full rounded-xl border border-[#d5ded8] dark:border-white/10 bg-[#f8faf9] dark:bg-[#0f2231] px-3.5 text-xs font-medium text-[#14261e] dark:text-white placeholder:text-gray-400 dark:placeholder:text-slate-500 outline-none focus:border-[#07543f] dark:focus:border-emerald-500 focus:ring-2 focus:ring-[#07543f]/15 transition"
+                        className="h-10 w-full rounded-xl border border-[#CBD5E1] dark:border-white/10 bg-[#F8FAFC] dark:bg-[#111827] px-3.5 text-xs font-medium text-[#0F172A] dark:text-white placeholder:text-gray-400 dark:placeholder:text-slate-500 outline-none focus:border-[#007F53] dark:focus:border-emerald-500 focus:ring-2 focus:ring-[#007F53]/15 transition"
                       />
                     </div>
                     <div>
-                      <label className="block text-[11px] font-bold text-[#34463b] dark:text-slate-300 mb-1.5 uppercase tracking-wider">
+                      <label className="block text-[11px] font-bold text-[#334155] dark:text-slate-300 mb-1.5 uppercase tracking-wider">
                         Hạn thanh toán
                       </label>
                       <input
@@ -1325,7 +1330,7 @@ export function AccountManagementScreen({ onNotify, onAccountsChange }: Props) {
                         placeholder="15"
                         value={formData.paymentDueDay || ''}
                         onChange={(e) => setFormData({ ...formData, paymentDueDay: parseInt(e.target.value) || 15 })}
-                        className="h-10 w-full rounded-xl border border-[#d5ded8] dark:border-white/10 bg-[#f8faf9] dark:bg-[#0f2231] px-3.5 text-xs font-medium text-[#14261e] dark:text-white placeholder:text-gray-400 dark:placeholder:text-slate-500 outline-none focus:border-[#07543f] dark:focus:border-emerald-500 focus:ring-2 focus:ring-[#07543f]/15 transition"
+                        className="h-10 w-full rounded-xl border border-[#CBD5E1] dark:border-white/10 bg-[#F8FAFC] dark:bg-[#111827] px-3.5 text-xs font-medium text-[#0F172A] dark:text-white placeholder:text-gray-400 dark:placeholder:text-slate-500 outline-none focus:border-[#007F53] dark:focus:border-emerald-500 focus:ring-2 focus:ring-[#007F53]/15 transition"
                       />
                     </div>
                   </div>
@@ -1333,7 +1338,7 @@ export function AccountManagementScreen({ onNotify, onAccountsChange }: Props) {
               )}
 
               <div>
-                <label className="block text-[11px] font-bold text-[#34463b] dark:text-slate-300 mb-1.5 uppercase tracking-wider">
+                <label className="block text-[11px] font-bold text-[#334155] dark:text-slate-300 mb-1.5 uppercase tracking-wider">
                   Ghi chú / Mô tả (tùy chọn)
                 </label>
                 <input
@@ -1341,11 +1346,11 @@ export function AccountManagementScreen({ onNotify, onAccountsChange }: Props) {
                   placeholder="Ví dụ: Ví tiêu vặt, Shopee Mall, cà phê cuối tuần..."
                   value={formData.description}
                   onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                  className="h-10 w-full rounded-xl border border-[#d5ded8] dark:border-white/10 bg-[#f8faf9] dark:bg-[#0f2231] px-3.5 text-xs font-medium text-[#14261e] dark:text-white placeholder:text-gray-400 dark:placeholder:text-slate-500 outline-none focus:border-[#07543f] dark:focus:border-emerald-500 focus:ring-2 focus:ring-[#07543f]/15 transition"
+                  className="h-10 w-full rounded-xl border border-[#CBD5E1] dark:border-white/10 bg-[#F8FAFC] dark:bg-[#111827] px-3.5 text-xs font-medium text-[#0F172A] dark:text-white placeholder:text-gray-400 dark:placeholder:text-slate-500 outline-none focus:border-[#007F53] dark:focus:border-emerald-500 focus:ring-2 focus:ring-[#007F53]/15 transition"
                 />
               </div>
 
-              <div className="mt-2 flex items-center justify-end gap-2.5 border-t border-[#edf2ee] dark:border-white/10 pt-4 shrink-0">
+              <div className="mt-2 flex items-center justify-end gap-2.5 border-t border-[#E2E8F0] dark:border-white/10 pt-4 shrink-0">
                 <button
                   type="button"
                   onClick={() => setIsAddModalOpen(false)}
@@ -1355,7 +1360,7 @@ export function AccountManagementScreen({ onNotify, onAccountsChange }: Props) {
                 </button>
                 <button
                   type="submit"
-                  className="h-10 rounded-xl bg-gradient-to-r from-[#07543f] to-[#0c7054] hover:from-[#064433] hover:to-[#0a5e46] px-5 text-xs font-bold text-white shadow-md shadow-emerald-900/20 active:scale-98 transition flex items-center gap-1.5 cursor-pointer"
+                  className="h-10 rounded-xl bg-gradient-to-r from-[#007F53] to-[#0c7054] hover:from-[#064433] hover:to-[#0a5e46] px-5 text-xs font-bold text-white shadow-md shadow-emerald-900/20 active:scale-98 transition flex items-center gap-1.5 cursor-pointer"
                 >
                   <FinanceIcon name="plus" size={13} />
                   <span>Tạo ví ngay</span>
@@ -1369,15 +1374,15 @@ export function AccountManagementScreen({ onNotify, onAccountsChange }: Props) {
       {/* MODAL: Sửa thông tin ví / tài khoản */}
       {isEditModalOpen && selectedAccountForEdit && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-md animate-fadeIn">
-          <div className="w-full max-w-[480px] max-h-[92vh] flex flex-col rounded-3xl bg-white dark:bg-[#0c1a24] border border-[#e2ece5] dark:border-white/10 p-5 sm:p-6 shadow-2xl transition-all overflow-hidden">
-            <div className="flex items-center justify-between border-b border-[#edf2ee] dark:border-white/10 pb-3.5 shrink-0">
+          <div className="w-full max-w-[480px] max-h-[92vh] flex flex-col rounded-3xl bg-white dark:bg-[#111827] border border-[#E2E8F0] dark:border-white/10 p-5 sm:p-6 shadow-2xl transition-all overflow-hidden">
+            <div className="flex items-center justify-between border-b border-[#E2E8F0] dark:border-white/10 pb-3.5 shrink-0">
               <div className="flex items-center gap-3">
-                <span className="grid size-10 place-items-center rounded-2xl bg-emerald-50 dark:bg-emerald-950/80 text-[#07543f] dark:text-emerald-400 border border-emerald-200/60 dark:border-emerald-800/60 shadow-xs">
+                <span className="grid size-10 place-items-center rounded-2xl bg-emerald-50 dark:bg-emerald-950/80 text-[#007F53] dark:text-emerald-400 border border-emerald-200/60 dark:border-emerald-800/60 shadow-xs">
                   <FinanceIcon name="edit" size={17} />
                 </span>
                 <div>
-                  <h2 className="text-sm sm:text-base font-bold text-[#14261e] dark:text-white leading-tight">Sửa thông tin ví / tài khoản</h2>
-                  <p className="text-[11px] text-[#718078] dark:text-slate-400 mt-0.5">{selectedAccountForEdit.name}</p>
+                  <h2 className="text-sm sm:text-base font-bold text-[#0F172A] dark:text-white leading-tight">Sửa thông tin ví / tài khoản</h2>
+                  <p className="text-[11px] text-[#64748B] dark:text-slate-400 mt-0.5">{selectedAccountForEdit.name}</p>
                 </div>
               </div>
               <button
@@ -1392,7 +1397,7 @@ export function AccountManagementScreen({ onNotify, onAccountsChange }: Props) {
 
             <form onSubmit={handleEditSubmit} className="mt-4 flex flex-col gap-3.5 overflow-y-auto pr-0.5 min-h-0">
               <div>
-                <label className="block text-[11px] font-bold text-[#34463b] dark:text-slate-300 mb-1.5 uppercase tracking-wider">
+                <label className="block text-[11px] font-bold text-[#334155] dark:text-slate-300 mb-1.5 uppercase tracking-wider">
                   Tên hiển thị ví / Tài khoản *
                 </label>
                 <input
@@ -1400,13 +1405,13 @@ export function AccountManagementScreen({ onNotify, onAccountsChange }: Props) {
                   required
                   value={editFormData.name}
                   onChange={(e) => setEditFormData({ ...editFormData, name: e.target.value })}
-                  className="h-10 w-full rounded-xl border border-[#d5ded8] dark:border-white/10 bg-[#f8faf9] dark:bg-[#0f2231] px-3.5 text-xs font-medium text-[#14261e] dark:text-white outline-none focus:border-[#07543f] dark:focus:border-emerald-500 focus:ring-2 focus:ring-[#07543f]/15 transition"
+                  className="h-10 w-full rounded-xl border border-[#CBD5E1] dark:border-white/10 bg-[#F8FAFC] dark:bg-[#111827] px-3.5 text-xs font-medium text-[#0F172A] dark:text-white outline-none focus:border-[#007F53] dark:focus:border-emerald-500 focus:ring-2 focus:ring-[#007F53]/15 transition"
                 />
               </div>
 
               {/* Số dư hiện tại (hoặc dư nợ đối với thẻ tín dụng) */}
               <div>
-                <label className="block text-[11px] font-bold text-[#34463b] dark:text-slate-300 mb-1.5 uppercase tracking-wider">
+                <label className="block text-[11px] font-bold text-[#334155] dark:text-slate-300 mb-1.5 uppercase tracking-wider">
                   {selectedAccountForEdit.accountType === 'CREDIT_CARD' ? 'Dư nợ hiện tại (VND) *' : 'Số dư hiện tại (VND) *'}
                 </label>
                 <div className="relative">
@@ -1416,14 +1421,14 @@ export function AccountManagementScreen({ onNotify, onAccountsChange }: Props) {
                     inputMode="numeric"
                     value={editBalanceInput}
                     onChange={(e) => setEditBalanceInput(formatNumberWithDots(e.target.value))}
-                    className="h-10 w-full rounded-xl border border-[#d5ded8] dark:border-white/10 bg-[#f8faf9] dark:bg-[#0f2231] px-3.5 pr-8 text-sm font-extrabold text-[#07543f] dark:text-emerald-400 outline-none focus:border-[#07543f] dark:focus:border-emerald-500 focus:ring-2 focus:ring-[#07543f]/15 transition"
+                    className="h-10 w-full rounded-xl border border-[#CBD5E1] dark:border-white/10 bg-[#F8FAFC] dark:bg-[#111827] px-3.5 pr-8 text-sm font-extrabold text-[#007F53] dark:text-emerald-400 outline-none focus:border-[#007F53] dark:focus:border-emerald-500 focus:ring-2 focus:ring-[#007F53]/15 transition"
                     placeholder="0"
                   />
                   <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-gray-400 dark:text-slate-500">
                     ₫
                   </span>
                 </div>
-                <span className="mt-1 block text-[10px] text-[#718078] dark:text-slate-400">
+                <span className="mt-1 block text-[10px] text-[#64748B] dark:text-slate-400">
                   Hệ thống sẽ tự động cập nhật số dư mới vào lịch sử ví.
                 </span>
               </div>
@@ -1431,7 +1436,7 @@ export function AccountManagementScreen({ onNotify, onAccountsChange }: Props) {
               {selectedAccountForEdit.accountType === 'CREDIT_CARD' && (
                 <>
                   <div>
-                    <label className="block text-[11px] font-bold text-[#34463b] dark:text-slate-300 mb-1.5 uppercase tracking-wider">
+                    <label className="block text-[11px] font-bold text-[#334155] dark:text-slate-300 mb-1.5 uppercase tracking-wider">
                       Hạn mức tín dụng *
                     </label>
                     <input
@@ -1439,13 +1444,13 @@ export function AccountManagementScreen({ onNotify, onAccountsChange }: Props) {
                       inputMode="numeric"
                       value={creditLimitInput}
                       onChange={(e) => setCreditLimitInput(formatNumberWithDots(e.target.value))}
-                      className="h-10 w-full rounded-xl border border-[#d5ded8] dark:border-white/10 bg-[#f8faf9] dark:bg-[#0f2231] px-3.5 text-xs font-medium text-[#14261e] dark:text-white outline-none focus:border-[#07543f] dark:focus:border-emerald-500 focus:ring-2 focus:ring-[#07543f]/15 transition"
+                      className="h-10 w-full rounded-xl border border-[#CBD5E1] dark:border-white/10 bg-[#F8FAFC] dark:bg-[#111827] px-3.5 text-xs font-medium text-[#0F172A] dark:text-white outline-none focus:border-[#007F53] dark:focus:border-emerald-500 focus:ring-2 focus:ring-[#007F53]/15 transition"
                     />
                   </div>
 
                   <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <label className="block text-[11px] font-bold text-[#34463b] dark:text-slate-300 mb-1.5 uppercase tracking-wider">
+                      <label className="block text-[11px] font-bold text-[#334155] dark:text-slate-300 mb-1.5 uppercase tracking-wider">
                         Ngày chốt sao kê
                       </label>
                       <input
@@ -1454,11 +1459,11 @@ export function AccountManagementScreen({ onNotify, onAccountsChange }: Props) {
                         max={28}
                         value={editFormData.billingCycleDay}
                         onChange={(e) => setEditFormData({ ...editFormData, billingCycleDay: parseInt(e.target.value) || 20 })}
-                        className="h-10 w-full rounded-xl border border-[#d5ded8] dark:border-white/10 bg-[#f8faf9] dark:bg-[#0f2231] px-3.5 text-xs font-medium text-[#14261e] dark:text-white outline-none focus:border-[#07543f] dark:focus:border-emerald-500 focus:ring-2 focus:ring-[#07543f]/15 transition"
+                        className="h-10 w-full rounded-xl border border-[#CBD5E1] dark:border-white/10 bg-[#F8FAFC] dark:bg-[#111827] px-3.5 text-xs font-medium text-[#0F172A] dark:text-white outline-none focus:border-[#007F53] dark:focus:border-emerald-500 focus:ring-2 focus:ring-[#007F53]/15 transition"
                       />
                     </div>
                     <div>
-                      <label className="block text-[11px] font-bold text-[#34463b] dark:text-slate-300 mb-1.5 uppercase tracking-wider">
+                      <label className="block text-[11px] font-bold text-[#334155] dark:text-slate-300 mb-1.5 uppercase tracking-wider">
                         Hạn thanh toán
                       </label>
                       <input
@@ -1467,7 +1472,7 @@ export function AccountManagementScreen({ onNotify, onAccountsChange }: Props) {
                         max={28}
                         value={editFormData.paymentDueDay}
                         onChange={(e) => setEditFormData({ ...editFormData, paymentDueDay: parseInt(e.target.value) || 15 })}
-                        className="h-10 w-full rounded-xl border border-[#d5ded8] dark:border-white/10 bg-[#f8faf9] dark:bg-[#0f2231] px-3.5 text-xs font-medium text-[#14261e] dark:text-white outline-none focus:border-[#07543f] dark:focus:border-emerald-500 focus:ring-2 focus:ring-[#07543f]/15 transition"
+                        className="h-10 w-full rounded-xl border border-[#CBD5E1] dark:border-white/10 bg-[#F8FAFC] dark:bg-[#111827] px-3.5 text-xs font-medium text-[#0F172A] dark:text-white outline-none focus:border-[#007F53] dark:focus:border-emerald-500 focus:ring-2 focus:ring-[#007F53]/15 transition"
                       />
                     </div>
                   </div>
@@ -1475,10 +1480,10 @@ export function AccountManagementScreen({ onNotify, onAccountsChange }: Props) {
               )}
 
               {/* Trạng thái hoạt động - Toggle switch Bật / Tắt */}
-              <div className="flex items-center justify-between rounded-2xl border border-[#e5ebe7] dark:border-white/10 bg-[#f8faf8] dark:bg-[#0f2231] p-3.5">
+              <div className="flex items-center justify-between rounded-2xl border border-[#E2E8F0] dark:border-white/10 bg-[#F8FAFC] dark:bg-[#111827] p-3.5">
                 <div>
-                  <span className="block text-xs font-bold text-[#14261e] dark:text-white">Trạng thái hoạt động</span>
-                  <span className="text-[11px] text-[#718078] dark:text-slate-400">
+                  <span className="block text-xs font-bold text-[#0F172A] dark:text-white">Trạng thái hoạt động</span>
+                  <span className="text-[11px] text-[#64748B] dark:text-slate-400">
                     {editFormData.isActive ? 'Đang hoạt động bình thường' : 'Đang tạm dừng theo dõi'}
                   </span>
                 </div>
@@ -1488,7 +1493,7 @@ export function AccountManagementScreen({ onNotify, onAccountsChange }: Props) {
                   aria-checked={editFormData.isActive}
                   onClick={() => setEditFormData({ ...editFormData, isActive: !editFormData.isActive })}
                   className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
-                    editFormData.isActive ? 'bg-[#07543f] dark:bg-emerald-500' : 'bg-gray-300 dark:bg-slate-700'
+                    editFormData.isActive ? 'bg-[#007F53] dark:bg-emerald-500' : 'bg-gray-300 dark:bg-slate-700'
                   }`}
                 >
                   <span
@@ -1500,7 +1505,7 @@ export function AccountManagementScreen({ onNotify, onAccountsChange }: Props) {
               </div>
 
               <div>
-                <label className="block text-[11px] font-bold text-[#34463b] dark:text-slate-300 mb-1.5 uppercase tracking-wider">
+                <label className="block text-[11px] font-bold text-[#334155] dark:text-slate-300 mb-1.5 uppercase tracking-wider">
                   Ghi chú / Mô tả
                 </label>
                 <input
@@ -1508,7 +1513,7 @@ export function AccountManagementScreen({ onNotify, onAccountsChange }: Props) {
                   placeholder="Ví dụ: Ví tiêu dùng cá nhân, chi trả hóa đơn..."
                   value={editFormData.description}
                   onChange={(e) => setEditFormData({ ...editFormData, description: e.target.value })}
-                  className="h-10 w-full rounded-xl border border-[#d5ded8] dark:border-white/10 bg-[#f8faf9] dark:bg-[#0f2231] px-3.5 text-xs font-medium text-[#14261e] dark:text-white placeholder:text-gray-400 dark:placeholder:text-slate-500 outline-none focus:border-[#07543f] dark:focus:border-emerald-500 focus:ring-2 focus:ring-[#07543f]/15 transition"
+                  className="h-10 w-full rounded-xl border border-[#CBD5E1] dark:border-white/10 bg-[#F8FAFC] dark:bg-[#111827] px-3.5 text-xs font-medium text-[#0F172A] dark:text-white placeholder:text-gray-400 dark:placeholder:text-slate-500 outline-none focus:border-[#007F53] dark:focus:border-emerald-500 focus:ring-2 focus:ring-[#007F53]/15 transition"
                 />
               </div>
 
@@ -1518,14 +1523,14 @@ export function AccountManagementScreen({ onNotify, onAccountsChange }: Props) {
                   id="editIsIncludedInTotal"
                   checked={editFormData.isIncludedInTotal}
                   onChange={(e) => setEditFormData({ ...editFormData, isIncludedInTotal: e.target.checked })}
-                  className="size-4 rounded border-gray-300 text-[#07543f] focus:ring-[#07543f] cursor-pointer"
+                  className="size-4 rounded border-gray-300 text-[#007F53] focus:ring-[#007F53] cursor-pointer"
                 />
-                <label htmlFor="editIsIncludedInTotal" className="text-xs font-semibold text-[#34463b] dark:text-slate-300 cursor-pointer">
+                <label htmlFor="editIsIncludedInTotal" className="text-xs font-semibold text-[#334155] dark:text-slate-300 cursor-pointer">
                   Tính vào tổng tài sản chung
                 </label>
               </div>
 
-              <div className="mt-2 flex items-center justify-end gap-2.5 border-t border-[#edf2ee] dark:border-white/10 pt-4 shrink-0">
+              <div className="mt-2 flex items-center justify-end gap-2.5 border-t border-[#E2E8F0] dark:border-white/10 pt-4 shrink-0">
                 <button
                   type="button"
                   onClick={() => setIsEditModalOpen(false)}
@@ -1535,7 +1540,7 @@ export function AccountManagementScreen({ onNotify, onAccountsChange }: Props) {
                 </button>
                 <button
                   type="submit"
-                  className="h-10 rounded-xl bg-gradient-to-r from-[#07543f] to-[#0c7054] hover:from-[#064433] hover:to-[#0a5e46] px-5 text-xs font-bold text-white shadow-md shadow-emerald-900/20 active:scale-98 transition flex items-center gap-1.5 cursor-pointer"
+                  className="h-10 rounded-xl bg-gradient-to-r from-[#007F53] to-[#0c7054] hover:from-[#064433] hover:to-[#0a5e46] px-5 text-xs font-bold text-white shadow-md shadow-emerald-900/20 active:scale-98 transition flex items-center gap-1.5 cursor-pointer"
                 >
                   <span>Lưu thay đổi</span>
                 </button>
@@ -1560,24 +1565,24 @@ export function AccountManagementScreen({ onNotify, onAccountsChange }: Props) {
                 <FinanceIcon name="delete" size={22} />
               </span>
               <div>
-                <h3 className="text-base font-bold text-[#14261e]">Xác nhận xóa ví?</h3>
-                <p className="text-xs text-[#718579] mt-0.5">Hành động này không thể hoàn tác</p>
+                <h3 className="text-base font-bold text-[#0F172A]">Xác nhận xóa ví?</h3>
+                <p className="text-xs text-[#64748B] mt-0.5">Hành động này không thể hoàn tác</p>
               </div>
             </div>
 
-            <div className="mt-4 rounded-xl bg-[#fafbfa] p-3.5 border border-[#edf2ee]">
+            <div className="mt-4 rounded-xl bg-[#fafbfa] p-3.5 border border-[#E2E8F0]">
               <div className="flex items-center justify-between text-xs">
-                <span className="text-[#718579]">Tên ví / thẻ:</span>
-                <span className="font-bold text-[#14261e]">{accountToDelete.name}</span>
+                <span className="text-[#64748B]">Tên ví / thẻ:</span>
+                <span className="font-bold text-[#0F172A]">{accountToDelete.name}</span>
               </div>
               <div className="mt-1.5 flex items-center justify-between text-xs">
-                <span className="text-[#718579]">Số dư hiện tại:</span>
-                <span className="font-bold text-[#07543f]">{formatVND(accountToDelete.balance)}</span>
+                <span className="text-[#64748B]">Số dư hiện tại:</span>
+                <span className="font-bold text-[#007F53]">{formatVND(accountToDelete.balance)}</span>
               </div>
             </div>
 
-            <p className="mt-3 text-xs text-[#52665a] leading-relaxed">
-              Bạn có chắc chắn muốn xóa ví <strong className="text-[#14261e]">"{accountToDelete.name}"</strong> khỏi danh sách quản lý tài chính không?
+            <p className="mt-3 text-xs text-[#475569] leading-relaxed">
+              Bạn có chắc chắn muốn xóa ví <strong className="text-[#0F172A]">"{accountToDelete.name}"</strong> khỏi danh sách quản lý tài chính không?
             </p>
 
             <div className="mt-5 flex items-center justify-end gap-2.5">
@@ -1585,7 +1590,7 @@ export function AccountManagementScreen({ onNotify, onAccountsChange }: Props) {
                 type="button"
                 disabled={isDeleting}
                 onClick={() => setAccountToDelete(null)}
-                className="h-9 rounded-xl border border-[#d5ded8] bg-white px-4 text-xs font-semibold text-[#495b50] hover:bg-[#f1f5f2] transition disabled:opacity-50"
+                className="h-9 rounded-xl border border-[#CBD5E1] bg-white px-4 text-xs font-semibold text-[#495b50] hover:bg-[#F1F5F9] transition disabled:opacity-50"
               >
                 Hủy bỏ
               </button>
@@ -1622,7 +1627,7 @@ export function AccountManagementScreen({ onNotify, onAccountsChange }: Props) {
             onClick={() => setSelectedAccountDetail(null)}
           >
             <div 
-              className="w-full max-w-md rounded-2xl bg-white dark:bg-[#0b1c2a] p-5 sm:p-6 shadow-2xl border border-gray-100 dark:border-[#1b3a50] max-h-[90vh] overflow-y-auto"
+              className="w-full max-w-md rounded-2xl bg-white dark:bg-[#111827] p-5 sm:p-6 shadow-2xl border border-gray-100 dark:border-[#1E293B] max-h-[90vh] overflow-y-auto"
               onClick={(e) => e.stopPropagation()}
             >
               {/* Header Modal */}
@@ -1633,13 +1638,13 @@ export function AccountManagementScreen({ onNotify, onAccountsChange }: Props) {
                       <img src={brandPreset.logoUrl} alt={brandPreset.shortName} className="size-full object-contain scale-110" />
                     </span>
                   ) : (
-                    <span className="grid size-11 shrink-0 place-items-center rounded-xl bg-[#e3f4e9] dark:bg-emerald-950/60 text-[#07543f] dark:text-emerald-400 border border-transparent dark:border-emerald-800/40">
+                    <span className="grid size-11 shrink-0 place-items-center rounded-xl bg-[#E6F4EA] dark:bg-emerald-950/60 text-[#007F53] dark:text-emerald-400 border border-transparent dark:border-emerald-800/40">
                       <FinanceIcon name="wallet" size={20} />
                     </span>
                   )}
                   <div>
-                    <h3 className="text-base font-bold text-[#14261e] dark:text-slate-100">{selectedAccountDetail.name}</h3>
-                    <p className="text-xs text-[#718579] dark:text-slate-400">
+                    <h3 className="text-base font-bold text-[#0F172A] dark:text-slate-100">{selectedAccountDetail.name}</h3>
+                    <p className="text-xs text-[#64748B] dark:text-slate-400">
                       {selectedAccountDetail.accountNumberMasked ? `STK: ${selectedAccountDetail.accountNumberMasked}` : (selectedAccountDetail.phoneNumber || 'Chi tiết nguồn tiền')}
                     </p>
                   </div>
@@ -1654,10 +1659,10 @@ export function AccountManagementScreen({ onNotify, onAccountsChange }: Props) {
               </div>
 
               {/* Thông tin số dư & Hạn mức */}
-              <div className="mt-4 rounded-xl bg-[#f8faf8] dark:bg-[#0e2436] p-4 border border-[#e5ebe7] dark:border-[#1b3a50] space-y-2.5 text-xs">
+              <div className="mt-4 rounded-xl bg-[#F8FAFC] dark:bg-[#111827] p-4 border border-[#E2E8F0] dark:border-[#1E293B] space-y-2.5 text-xs">
                 <div className="flex items-center justify-between">
-                  <span className="text-[#718579] dark:text-slate-400 font-medium">{isCredit ? 'Dư nợ hiện tại:' : 'Số dư khả dụng:'}</span>
-                  <span className={`text-base font-black ${isCredit ? 'text-[#e11d48] dark:text-rose-400' : 'text-[#07543f] dark:text-emerald-400'}`}>
+                  <span className="text-[#64748B] dark:text-slate-400 font-medium">{isCredit ? 'Dư nợ hiện tại:' : 'Số dư khả dụng:'}</span>
+                  <span className={`text-base font-black ${isCredit ? 'text-[#e11d48] dark:text-rose-400' : 'text-[#007F53] dark:text-emerald-400'}`}>
                     {formatVND(selectedAccountDetail.balance)}
                   </span>
                 </div>
@@ -1665,17 +1670,17 @@ export function AccountManagementScreen({ onNotify, onAccountsChange }: Props) {
                 {isCredit && selectedAccountDetail.creditLimit && selectedAccountDetail.creditLimit > 0 && (
                   <>
                     <div className="flex items-center justify-between">
-                      <span className="text-[#718579] dark:text-slate-400">Hạn mức thẻ:</span>
-                      <strong className="text-[#14261e] dark:text-slate-200">{formatVND(selectedAccountDetail.creditLimit)}</strong>
+                      <span className="text-[#64748B] dark:text-slate-400">Hạn mức thẻ:</span>
+                      <strong className="text-[#0F172A] dark:text-slate-200">{formatVND(selectedAccountDetail.creditLimit)}</strong>
                     </div>
                     <div className="flex items-center justify-between">
-                      <span className="text-[#718579] dark:text-slate-400">Hạn mức còn lại:</span>
+                      <span className="text-[#64748B] dark:text-slate-400">Hạn mức còn lại:</span>
                       <strong className="text-emerald-600 dark:text-emerald-400">
                         {formatVND(Math.max(0, selectedAccountDetail.creditLimit - selectedAccountDetail.balance))}
                       </strong>
                     </div>
                     {(selectedAccountDetail.billingCycleDay || selectedAccountDetail.paymentDueDay) && (
-                      <div className="flex items-center justify-between pt-1 border-t border-gray-200/60 dark:border-white/5 text-[11px] text-[#718579] dark:text-slate-400">
+                      <div className="flex items-center justify-between pt-1 border-t border-gray-200/60 dark:border-white/5 text-[11px] text-[#64748B] dark:text-slate-400">
                         <span>Chốt sao kê: Ngày {selectedAccountDetail.billingCycleDay || 20}</span>
                         <span className="font-semibold text-rose-600 dark:text-rose-400">Hạn thanh toán: Ngày {selectedAccountDetail.paymentDueDay || 15}</span>
                       </div>
@@ -1684,7 +1689,7 @@ export function AccountManagementScreen({ onNotify, onAccountsChange }: Props) {
                 )}
 
                 <div className="flex items-center justify-between pt-1 border-t border-gray-200/60 dark:border-white/5 text-[11px]">
-                  <span className="text-[#718579] dark:text-slate-400">Trạng thái:</span>
+                  <span className="text-[#64748B] dark:text-slate-400">Trạng thái:</span>
                   <span className={`font-bold ${selectedAccountDetail.isActive !== false ? 'text-emerald-700 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>
                     {selectedAccountDetail.isActive !== false ? 'Đang hoạt động ✓' : 'Đang tạm dừng'}
                   </span>
@@ -1694,10 +1699,10 @@ export function AccountManagementScreen({ onNotify, onAccountsChange }: Props) {
               {/* Lịch sử thanh toán và nạp tiền của ví này */}
               <div className="mt-4 pt-3 border-t border-gray-100 dark:border-white/5">
                 <div className="flex items-center justify-between mb-2">
-                  <h4 className="text-xs font-bold text-[#14261e] dark:text-slate-200">
+                  <h4 className="text-xs font-bold text-[#0F172A] dark:text-slate-200">
                     Lịch sử thanh toán và nạp tiền
                   </h4>
-                  <span className="text-[10px] text-[#718579] dark:text-slate-400">Giao dịch gần đây</span>
+                  <span className="text-[10px] text-[#64748B] dark:text-slate-400">Giao dịch gần đây</span>
                 </div>
 
                 {isLoadingAccountTx ? (
@@ -1749,7 +1754,7 @@ export function AccountManagementScreen({ onNotify, onAccountsChange }: Props) {
                             </span>
 
                             <div className="min-w-0">
-                              <p className="font-bold text-[#14261e] dark:text-slate-200 truncate m-0">
+                              <p className="font-bold text-[#0F172A] dark:text-slate-200 truncate m-0">
                                 {tx.description || tx.category?.name || 'Giao dịch'}
                               </p>
                               <span className="text-[10.5px] text-gray-500 dark:text-slate-400 block mt-0.5">
@@ -1788,7 +1793,7 @@ export function AccountManagementScreen({ onNotify, onAccountsChange }: Props) {
                     setSelectedAccountDetail(null);
                     handleOpenEdit(acc);
                   }}
-                  className="flex-1 rounded-xl border border-[#07543f] dark:border-emerald-600/50 bg-[#07543f]/5 dark:bg-emerald-950/40 py-2.5 text-xs font-semibold text-[#07543f] dark:text-emerald-300 hover:bg-[#07543f]/10 dark:hover:bg-emerald-900/40 transition flex items-center justify-center gap-1.5"
+                  className="flex-1 rounded-xl border border-[#007F53] dark:border-emerald-600/50 bg-[#007F53]/5 dark:bg-emerald-950/40 py-2.5 text-xs font-semibold text-[#007F53] dark:text-emerald-300 hover:bg-[#007F53]/10 dark:hover:bg-emerald-900/40 transition flex items-center justify-center gap-1.5"
                 >
                   <FinanceIcon name="edit" size={14} />
                   Sửa ví
@@ -1796,7 +1801,7 @@ export function AccountManagementScreen({ onNotify, onAccountsChange }: Props) {
                 <button
                   type="button"
                   onClick={() => setSelectedAccountDetail(null)}
-                  className="flex-1 rounded-xl bg-[#07543f] py-2.5 text-xs font-semibold text-white hover:bg-[#064232] transition"
+                  className="flex-1 rounded-xl bg-[#007F53] py-2.5 text-xs font-semibold text-white hover:bg-[#004D3B] transition"
                 >
                   Đóng
                 </button>

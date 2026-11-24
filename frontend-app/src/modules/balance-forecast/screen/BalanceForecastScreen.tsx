@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Dimensions,
@@ -41,6 +41,7 @@ function formatVND(amount: number): string {
 }
 
 export function BalanceForecastScreen({ onBack }: Props) {
+  const initialLoadStarted = useRef(false);
   const insets = useSafeAreaInsets();
   const { isDark, colors: themeColors } = useAppTheme();
   const [isLoading, setIsLoading] = useState(true);
@@ -77,11 +78,13 @@ export function BalanceForecastScreen({ onBack }: Props) {
   };
 
   useEffect(() => {
+    if (initialLoadStarted.current) return;
+    initialLoadStarted.current = true;
     loadData();
   }, []);
 
-  const currentBal = balanceForecast?.current_balance ?? 17229829;
-  const projectedBal = balanceForecast?.projected_end_of_month_balance ?? 17150048;
+  const currentBal = balanceForecast?.current_balance ?? 0;
+  const projectedBal = balanceForecast?.projected_end_of_month_balance ?? 0;
   const netDiff = projectedBal - currentBal;
   const chartPoints = (balanceForecast?.future_forecast || balanceForecast?.forecast_points || []).slice(0, 15);
 
@@ -96,8 +99,8 @@ export function BalanceForecastScreen({ onBack }: Props) {
   const plotH = svgHeight - padTop - padBottom;
 
   const values = chartPoints.map((pt) => pt.predicted_balance ?? currentBal);
-  const rawMin = values.length > 0 ? Math.min(...values, currentBal) : 17138674;
-  const rawMax = values.length > 0 ? Math.max(...values, currentBal) : 17172115;
+  const rawMin = values.length > 0 ? Math.min(...values, currentBal) : 0;
+  const rawMax = values.length > 0 ? Math.max(...values, currentBal) : 0;
 
   const diff = rawMax - rawMin;
   const margin = diff > 0 ? diff * 0.35 : Math.max(rawMax * 0.05, 100000);
@@ -443,7 +446,20 @@ export function BalanceForecastScreen({ onBack }: Props) {
 
         {/* Danh sách category forecast */}
         <View style={styles.categoryList}>
-          {categoryForecasts.map((cat, idx) => {
+          {categoryForecasts.length === 0 ? (
+            <View style={[styles.emptyCard, isDark && { backgroundColor: themeColors.surface, borderColor: themeColors.cardBorder }]}>
+              <View style={[styles.emptyIconCircle, isDark && { backgroundColor: themeColors.surfaceSubtle }]}>
+                <FinanceIcon name="chart-pie" size={30} color={isDark ? themeColors.textMuted : '#94A3B8'} />
+              </View>
+              <Text style={[styles.emptyTitle, isDark && { color: themeColors.textPrimary }]}>
+                Chưa có dữ liệu dự báo danh mục
+              </Text>
+              <Text style={[styles.emptySubText, isDark && { color: themeColors.textSecondary }]}>
+                Hãy ghi chép các giao dịch chi tiêu để FinAI phân tích tốc độ chi tiêu cho bạn.
+              </Text>
+            </View>
+          ) : (
+            categoryForecasts.map((cat, idx) => {
             const isDanger = (cat.risk_level || '').includes('VƯỢT');
             const iconColor = cat.category_color || '#087557';
             const iconBg = `${iconColor}15`;
@@ -517,7 +533,7 @@ export function BalanceForecastScreen({ onBack }: Props) {
                 </View>
               </View>
             );
-          })}
+          }))}
         </View>
 
         {isLoading && (
@@ -980,5 +996,36 @@ const styles = StyleSheet.create({
   loadingText: {
     fontSize: 11,
     color: '#087557',
+  },
+  emptyCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    marginTop: 8,
+  },
+  emptyIconCircle: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: '#F1F5F9',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 12,
+  },
+  emptyTitle: {
+    fontSize: 14.5,
+    fontWeight: '700',
+    color: '#0F172A',
+    marginBottom: 6,
+  },
+  emptySubText: {
+    fontSize: 12,
+    color: '#64748B',
+    textAlign: 'center',
+    lineHeight: 18,
   },
 });

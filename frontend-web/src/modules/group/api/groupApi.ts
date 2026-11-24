@@ -153,7 +153,7 @@ export interface GroupCommentResponse {
   parentCommentId?: string;
   createdAt: string;
   updatedAt?: string;
-  user?: { fullName?: string };
+  user?: { fullName?: string; avatarUrl?: string; avatarKey?: string };
 }
 
 export interface SettlementResponse {
@@ -181,6 +181,8 @@ export interface ChildWalletResponse {
   userId?: string;
   childUsername?: string;
   childName: string;
+  avatarKey?: string;
+  avatarUrl?: string;
   dateOfBirth?: string;
   age?: number;
   balance: number;
@@ -194,6 +196,8 @@ export interface ChildWalletResponse {
   spendLimitWeekly?: number;
   spentToday?: number;
   spentThisWeek?: number;
+  createdAt?: string;
+  updatedAt?: string;
   stats?: {
     totalSpentThisMonth: number;
     pendingRequestCount: number;
@@ -238,6 +242,7 @@ export interface CreateSettlementRequest {
 
 export interface CreateChildWalletRequest {
   childName: string;
+  avatarKey?: string;
   username?: string;
   password?: string;
   dateOfBirth?: string;

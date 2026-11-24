@@ -65,7 +65,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(135deg, #07543f 0%, #04392a 100%);
+  background: linear-gradient(135deg, #007F53 0%, #04392a 100%);
   color: #ffffff;
   box-shadow: 0 6px 18px rgba(7, 84, 63, 0.35);
   transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
@@ -134,13 +134,13 @@
 /* Màu sắc các nút thao tác phụ */
 .fab-scanner {
   background: #ffffff;
-  color: #07543f;
+  color: #007F53;
   border: 1.5px solid #d7e4dc;
 }
 
 .fab-scanner:hover {
   background: #f2faf6;
-  border-color: #07543f;
+  border-color: #007F53;
   box-shadow: 0 6px 18px rgba(7, 84, 63, 0.25);
 }
 
@@ -154,29 +154,29 @@
 }
 
 .fab-primary.fab-add {
-  background: linear-gradient(135deg, #07543f 0%, #04392a 100%);
+  background: linear-gradient(135deg, #007F53 0%, #04392a 100%);
   color: #ffffff;
 }
 
 .fab-primary.fab-add:hover {
-  background: linear-gradient(135deg, #098865 0%, #07543f 100%);
+  background: linear-gradient(135deg, #098865 0%, #007F53 100%);
   box-shadow: 0 6px 20px rgba(7, 84, 63, 0.4);
 }
 
 /* Chế độ tối (Dark mode) */
 html.dark .fab-scanner {
-  background-color: #0c1c28;
-  border-color: #1a3c54;
+  background-color: #111827;
+  border-color: #1E293B;
   color: #34d399;
 }
 
 html.dark .fab-scanner:hover {
-  background-color: #122838;
+  background-color: #1F2937;
 }
 
 html.dark .fab-tooltip {
   background: rgba(10, 23, 34, 0.95);
-  border: 1px solid #1a3c54;
+  border: 1px solid #1E293B;
 }
 
 html.dark .fab-tooltip::after {

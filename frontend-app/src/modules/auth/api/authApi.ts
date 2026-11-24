@@ -46,6 +46,7 @@ export interface User {
   email: string;
   username?: string;
   fullName: string;
+  dateOfBirth?: string | null;
   emailVerified: boolean;
   phone: string | null;
   avatarUrl: string | null;
@@ -505,6 +506,45 @@ export const authApi = {
       clearTimeout(timeoutId);
       if (err.name === 'AbortError') {
         throw new Error('Kết nối máy chủ quá hạn (timeout).');
+      }
+      throw err;
+    }
+  },
+
+  /**
+   * Đăng nhập hoặc đăng ký nhanh bằng Google ID Token (/api/v1/auth/google)
+   */
+  async loginWithGoogle(idToken: string): Promise<any> {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 12000);
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/auth/google`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Accept: 'application/json',
+        },
+        body: JSON.stringify({ idToken }),
+        signal: controller.signal,
+      });
+
+      clearTimeout(timeoutId);
+      const resData = await response.json();
+
+      if (!response.ok) {
+        throw new Error(resData.message || 'Đăng nhập bằng Google thất bại');
+      }
+
+      if (resData.data?.user && resData.data?.tokens) {
+        authStorage.setAuth(resData.data.user, resData.data.tokens);
+      }
+
+      return resData;
+    } catch (err: any) {
+      clearTimeout(timeoutId);
+      if (err.name === 'AbortError') {
+        throw new Error('Kết nối máy chủ xác thực Google quá hạn (timeout).');
       }
       throw err;
     }

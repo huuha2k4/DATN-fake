@@ -34,13 +34,17 @@ public class WebConfig implements WebMvcConfigurer {
 
     @Override
     public void addResourceHandlers(ResourceHandlerRegistry registry) {
-        // Serve uploaded files with cache header for high performance
-        String uploadPath = Paths.get("uploads").toAbsolutePath().toUri().toString();
-        if (!uploadPath.endsWith("/")) {
-            uploadPath += "/";
-        }
-        registry.addResourceHandler("/uploads/**")
+        addUploadResourceHandler(registry, "avatars");
+        addUploadResourceHandler(registry, "receipts");
+        // Group-message files are intentionally excluded. They are served only through
+        // short-lived signed URLs after group membership has been checked.
+    }
+
+    private void addUploadResourceHandler(ResourceHandlerRegistry registry, String directory) {
+        String uploadPath = Paths.get("uploads", directory).toAbsolutePath().toUri().toString();
+        if (!uploadPath.endsWith("/")) uploadPath += "/";
+        registry.addResourceHandler("/uploads/" + directory + "/**")
                 .addResourceLocations(uploadPath)
-                .setCachePeriod(86400 * 30); // Cache 30 days
+                .setCachePeriod(86400 * 30);
     }
 }

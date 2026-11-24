@@ -7,7 +7,7 @@ import { FinanceIcon } from '../../core/components/FinanceIcon';
 import { authStorage } from '../../auth/api/authApi';
 import {
   periodicReportsApi,
-  getFallbackReportData,
+  getEmptyReportData,
   type ReportSummaryData,
 } from '../api/periodicReportsApi';
 import { exportReportToExcelFile } from '../utils/exportReportHelper';
@@ -149,8 +149,8 @@ export function PeriodicReportsScreen({
   const [datePickerVisible, setDatePickerVisible] = useState(false);
   const [exportModalVisible, setExportModalVisible] = useState(false);
 
-  // Dữ liệu báo cáo (khởi tạo sẵn fallback để không bao giờ bị trắng màn hình)
-  const [reportData, setReportData] = useState<ReportSummaryData>(() => getFallbackReportData());
+  // Dữ liệu báo cáo
+  const [reportData, setReportData] = useState<ReportSummaryData>(() => getEmptyReportData());
   const [isLoading, setIsLoading] = useState<boolean>(false);
 
   // Nạp danh sách ví
@@ -605,7 +605,7 @@ export function PeriodicReportsScreen({
                 setExportModalVisible(false);
                 setTimeout(async () => {
                   try {
-                    const dataToExport = reportData || getFallbackReportData();
+                    const dataToExport = reportData || getEmptyReportData();
                     console.log('Bắt đầu chia sẻ Excel:', { dateRangeDisplay, selectedAccountLabel });
                     await exportReportToExcelFile(dataToExport, dateRangeDisplay, selectedAccountLabel);
                   } catch (err: any) {
@@ -634,7 +634,7 @@ export function PeriodicReportsScreen({
                 setExportModalVisible(false);
                 setTimeout(async () => {
                   try {
-                    const dataToExport = reportData || getFallbackReportData();
+                    const dataToExport = reportData || getEmptyReportData();
                     console.log('Bắt đầu chia sẻ PDF:', { dateRangeDisplay, selectedAccountLabel });
                     await exportReportToPdfHtmlFile(dataToExport, dateRangeDisplay, selectedAccountLabel);
                   } catch (err: any) {
@@ -1103,47 +1103,51 @@ function TabDanhMuc({
         <Text style={[styles.sectionCardTitle, isDark && { color: themeColors.textPrimary }]}>Bảng thống kê chi tiết danh mục</Text>
         <Text style={[styles.sectionCardSub, isDark && { color: themeColors.textSecondary }]}>Số tiền, tỷ trọng, số lần chi và mức chi tiêu trung bình</Text>
 
-        <View style={styles.tableWrap}>
-          {/* Header Bảng */}
-          <View style={[styles.tableHeaderRow, isDark && { backgroundColor: themeColors.surfaceSubtle }]}>
-            <Text style={[styles.tableColHeader, { flex: 1.5 }, isDark && { color: themeColors.textMuted }]}>Danh mục</Text>
-            <Text style={[styles.tableColHeader, { flex: 1.3, textAlign: 'right' }, isDark && { color: themeColors.textMuted }]}>Tổng chi</Text>
-            <Text style={[styles.tableColHeader, { flex: 1, textAlign: 'center' }, isDark && { color: themeColors.textMuted }]}>Tỷ trọng</Text>
-            <Text style={[styles.tableColHeader, { flex: 0.8, textAlign: 'center' }, isDark && { color: themeColors.textMuted }]}>Số lần</Text>
-            <Text style={[styles.tableColHeader, { flex: 1.4, textAlign: 'right' }, isDark && { color: themeColors.textMuted }]}>TB / lần</Text>
-          </View>
-
-          {/* Dòng dữ liệu */}
-          {report.categories.map((cat, idx) => (
-            <View key={cat.id || idx}>
-              <View style={styles.tableDataRow}>
-                <View style={[styles.tableCatNameCell, { flex: 1.5 }]}>
-                  <View style={[styles.legendDot, { backgroundColor: cat.color }]} />
-                  <Text style={[styles.tableCatText, isDark && { color: themeColors.textPrimary }]} numberOfLines={1}>{cat.name}</Text>
-                </View>
-
-                <Text style={[styles.tableAmountText, { flex: 1.3, textAlign: 'right' }, isDark && { color: themeColors.textPrimary }]}>
-                  -{formatVND(cat.amount)}
-                </Text>
-
-                <View style={{ flex: 1, alignItems: 'center' }}>
-                  <View style={[styles.tablePctBadge, isDark && { backgroundColor: 'rgba(52, 211, 153, 0.16)' }]}>
-                    <Text style={[styles.tablePctText, isDark && { color: themeColors.accentGreen }]}>{cat.percentage}.0%</Text>
-                  </View>
-                </View>
-
-                <Text style={[styles.tableCountText, { flex: 0.8, textAlign: 'center' }, isDark && { color: themeColors.textSecondary }]}>
-                  {cat.count}
-                </Text>
-
-                <Text style={[styles.tableAvgText, { flex: 1.4, textAlign: 'right' }, isDark && { color: themeColors.textMuted }]}>
-                  {formatVND(cat.avgPerTx)}
-                </Text>
-              </View>
-              {idx < report.categories.length - 1 && <View style={[styles.tableDivider, isDark && { backgroundColor: themeColors.cardBorder }]} />}
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ minWidth: '100%' }}>
+          <View style={[styles.tableWrap, { minWidth: 420 }]}>
+            {/* Header Bảng */}
+            <View style={[styles.tableHeaderRow, isDark && { backgroundColor: themeColors.surfaceSubtle }]}>
+              <Text style={[styles.tableColHeader, { flex: 1.6 }, isDark && { color: themeColors.textMuted }]}>Danh mục</Text>
+              <Text style={[styles.tableColHeader, { flex: 1.4, textAlign: 'right' }, isDark && { color: themeColors.textMuted }]}>Tổng chi</Text>
+              <Text style={[styles.tableColHeader, { flex: 1.1, textAlign: 'center' }, isDark && { color: themeColors.textMuted }]}>Tỷ trọng</Text>
+              <Text style={[styles.tableColHeader, { flex: 0.8, textAlign: 'center' }, isDark && { color: themeColors.textMuted }]}>Số lần</Text>
+              <Text style={[styles.tableColHeader, { flex: 1.3, textAlign: 'right' }, isDark && { color: themeColors.textMuted }]}>TB / lần</Text>
             </View>
-          ))}
-        </View>
+
+            {/* Dòng dữ liệu */}
+            {report.categories.map((cat, idx) => (
+              <View key={cat.id || idx}>
+                <View style={styles.tableDataRow}>
+                  <View style={[styles.tableCatNameCell, { flex: 1.6 }]}>
+                    <View style={[styles.legendDot, { backgroundColor: cat.color }]} />
+                    <Text style={[styles.tableCatText, isDark && { color: themeColors.textPrimary }]} numberOfLines={1}>{cat.name}</Text>
+                  </View>
+
+                  <Text style={[styles.tableAmountText, { flex: 1.4, textAlign: 'right' }, isDark && { color: themeColors.textPrimary }]}>
+                    -{formatVND(cat.amount)}
+                  </Text>
+
+                  <View style={{ flex: 1.1, alignItems: 'center' }}>
+                    <View style={[styles.tablePctBadge, isDark && { backgroundColor: 'rgba(52, 211, 153, 0.16)' }]}>
+                      <Text style={[styles.tablePctText, isDark && { color: themeColors.accentGreen }]}>
+                        {cat.percentage % 1 === 0 ? `${cat.percentage}%` : `${cat.percentage.toFixed(1)}%`}
+                      </Text>
+                    </View>
+                  </View>
+
+                  <Text style={[styles.tableCountText, { flex: 0.8, textAlign: 'center' }, isDark && { color: themeColors.textSecondary }]}>
+                    {cat.count}
+                  </Text>
+
+                  <Text style={[styles.tableAvgText, { flex: 1.3, textAlign: 'right' }, isDark && { color: themeColors.textMuted }]}>
+                    {formatVND(cat.avgPerTx)}
+                  </Text>
+                </View>
+                {idx < report.categories.length - 1 && <View style={[styles.tableDivider, isDark && { backgroundColor: themeColors.cardBorder }]} />}
+              </View>
+            ))}
+          </View>
+        </ScrollView>
       </View>
     </>
   );
@@ -1261,88 +1265,90 @@ function TabSoSanh({
         <Text style={[styles.sectionCardTitle, isDark && { color: themeColors.textPrimary }]}>Đối chiếu chi tiêu theo danh mục</Text>
         <Text style={[styles.sectionCardSub, isDark && { color: themeColors.textSecondary }]}>So sánh kỳ này với kỳ trước để đánh giá biến động</Text>
 
-        <View style={styles.tableWrap}>
-          {/* Table Header */}
-          <View style={[styles.tableHeaderRow, isDark && { backgroundColor: themeColors.surfaceSubtle }]}>
-            <Text style={[styles.tableColHeader, { flex: 1.4 }, isDark && { color: themeColors.textMuted }]}>Danh mục</Text>
-            <Text style={[styles.tableColHeader, { flex: 1.1, textAlign: 'right' }, isDark && { color: themeColors.textMuted }]}>Kỳ trước</Text>
-            <Text style={[styles.tableColHeader, { flex: 1.1, textAlign: 'right' }, isDark && { color: themeColors.textMuted }]}>Kỳ này</Text>
-            <Text style={[styles.tableColHeader, { flex: 1.2, textAlign: 'right' }, isDark && { color: themeColors.textMuted }]}>Chênh lệch</Text>
-            <Text style={[styles.tableColHeader, { flex: 1.1, textAlign: 'right' }, isDark && { color: themeColors.textMuted }]}>% Biến động</Text>
-          </View>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ minWidth: '100%' }}>
+          <View style={[styles.tableWrap, { minWidth: 440 }]}>
+            {/* Table Header */}
+            <View style={[styles.tableHeaderRow, isDark && { backgroundColor: themeColors.surfaceSubtle }]}>
+              <Text style={[styles.tableColHeader, { flex: 1.5 }, isDark && { color: themeColors.textMuted }]}>Danh mục</Text>
+              <Text style={[styles.tableColHeader, { flex: 1.2, textAlign: 'right' }, isDark && { color: themeColors.textMuted }]}>Kỳ trước</Text>
+              <Text style={[styles.tableColHeader, { flex: 1.2, textAlign: 'right' }, isDark && { color: themeColors.textMuted }]}>Kỳ này</Text>
+              <Text style={[styles.tableColHeader, { flex: 1.3, textAlign: 'right' }, isDark && { color: themeColors.textMuted }]}>Chênh lệch</Text>
+              <Text style={[styles.tableColHeader, { flex: 1.1, textAlign: 'right' }, isDark && { color: themeColors.textMuted }]}>% Biến động</Text>
+            </View>
 
-          {/* Table Rows */}
-          {comp?.categoryComparisons.map((c, idx) => {
-            const isIncrease = c.percentChange > 0;
-            const isDecrease = c.percentChange < 0;
+            {/* Table Rows */}
+            {comp?.categoryComparisons.map((c, idx) => {
+              const isIncrease = c.percentChange > 0;
+              const isDecrease = c.percentChange < 0;
 
-            return (
-              <View key={c.id || idx}>
-                <View style={styles.tableDataRow}>
-                  <View style={[styles.tableCatNameCell, { flex: 1.4 }]}>
-                    <View style={[styles.legendDot, { backgroundColor: c.color }]} />
-                    <Text style={[styles.tableCatText, isDark && { color: themeColors.textPrimary }]} numberOfLines={1}>{c.name}</Text>
-                  </View>
+              return (
+                <View key={c.id || idx}>
+                  <View style={styles.tableDataRow}>
+                    <View style={[styles.tableCatNameCell, { flex: 1.5 }]}>
+                      <View style={[styles.legendDot, { backgroundColor: c.color }]} />
+                      <Text style={[styles.tableCatText, isDark && { color: themeColors.textPrimary }]} numberOfLines={1}>{c.name}</Text>
+                    </View>
 
-                  <Text style={[styles.tableCompAmount, { flex: 1.1, textAlign: 'right' }, isDark && { color: themeColors.textSecondary }]}>
-                    {formatVND(c.prevAmount)}
-                  </Text>
+                    <Text style={[styles.tableCompAmount, { flex: 1.2, textAlign: 'right' }, isDark && { color: themeColors.textSecondary }]}>
+                      {formatVND(c.prevAmount)}
+                    </Text>
 
-                  <Text style={[styles.tableCompAmount, { flex: 1.1, textAlign: 'right', fontWeight: '700' }, isDark && { color: themeColors.textPrimary }]}>
-                    {formatVND(c.currentAmount)}
-                  </Text>
+                    <Text style={[styles.tableCompAmount, { flex: 1.2, textAlign: 'right', fontWeight: '700' }, isDark && { color: themeColors.textPrimary }]}>
+                      {formatVND(c.currentAmount)}
+                    </Text>
 
-                  <Text
-                    style={[
-                      styles.tableCompAmount,
-                      {
-                        flex: 1.2,
-                        textAlign: 'right',
-                        color: isDark
-                          ? (isIncrease ? '#F87171' : isDecrease ? themeColors.accentGreen : themeColors.textMuted)
-                          : (isIncrease ? '#DC2626' : isDecrease ? '#059669' : '#64748B'),
-                      },
-                    ]}
-                  >
-                    {isIncrease ? '+' : isDecrease ? '-' : ''}
-                    {formatVND(Math.abs(c.diffAmount))}
-                  </Text>
-
-                  <View style={{ flex: 1.1, alignItems: 'flex-end' }}>
-                    <View
+                    <Text
                       style={[
-                        styles.changePillSmall,
+                        styles.tableCompAmount,
                         {
-                          backgroundColor: isDark
-                            ? (isIncrease ? 'rgba(239, 68, 68, 0.16)' : isDecrease ? 'rgba(52, 211, 153, 0.16)' : themeColors.surfaceSubtle)
-                            : (isIncrease ? '#FEE2E2' : isDecrease ? '#ECFDF5' : '#F1F5F9'),
+                          flex: 1.3,
+                          textAlign: 'right',
+                          color: isDark
+                            ? (isIncrease ? '#F87171' : isDecrease ? themeColors.accentGreen : themeColors.textMuted)
+                            : (isIncrease ? '#DC2626' : isDecrease ? '#059669' : '#64748B'),
                         },
                       ]}
                     >
-                      <Text
+                      {isIncrease ? '+' : isDecrease ? '-' : ''}
+                      {formatVND(Math.abs(c.diffAmount))}
+                    </Text>
+
+                    <View style={{ flex: 1.1, alignItems: 'flex-end' }}>
+                      <View
                         style={[
-                          styles.changePillSmallText,
+                          styles.changePillSmall,
                           {
-                            color: isDark
-                              ? (isIncrease ? '#F87171' : isDecrease ? themeColors.accentGreen : themeColors.textMuted)
-                              : (isIncrease ? '#DC2626' : isDecrease ? '#059669' : '#64748B'),
+                            backgroundColor: isDark
+                              ? (isIncrease ? 'rgba(239, 68, 68, 0.16)' : isDecrease ? 'rgba(52, 211, 153, 0.16)' : themeColors.surfaceSubtle)
+                              : (isIncrease ? '#FEE2E2' : isDecrease ? '#ECFDF5' : '#F1F5F9'),
                           },
                         ]}
                       >
-                        {isIncrease
-                          ? `↑ +${Math.abs(c.percentChange)}%`
-                          : isDecrease
-                          ? `↓ -${Math.abs(c.percentChange)}%`
-                          : '→ 0%'}
-                      </Text>
+                        <Text
+                          style={[
+                            styles.changePillSmallText,
+                            {
+                              color: isDark
+                                ? (isIncrease ? '#F87171' : isDecrease ? themeColors.accentGreen : themeColors.textMuted)
+                                : (isIncrease ? '#DC2626' : isDecrease ? '#059669' : '#64748B'),
+                            },
+                          ]}
+                        >
+                          {isIncrease
+                            ? `↑ +${Math.abs(c.percentChange)}%`
+                            : isDecrease
+                            ? `↓ -${Math.abs(c.percentChange)}%`
+                            : '→ 0%'}
+                        </Text>
+                      </View>
                     </View>
                   </View>
+                  {idx < comp.categoryComparisons.length - 1 && <View style={[styles.tableDivider, isDark && { backgroundColor: themeColors.cardBorder }]} />}
                 </View>
-                {idx < comp.categoryComparisons.length - 1 && <View style={[styles.tableDivider, isDark && { backgroundColor: themeColors.cardBorder }]} />}
-              </View>
-            );
-          })}
-        </View>
+              );
+            })}
+          </View>
+        </ScrollView>
       </View>
 
       {/* Khối Nhận xét so sánh */}

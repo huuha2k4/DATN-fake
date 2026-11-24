@@ -7,7 +7,7 @@ import './AuthModal.css';
 
 interface RegisterModalProps {
   onClose: () => void;
-  onSuccess: () => void;
+  onSuccess: (authRes?: any) => void;
   onSwitchToLogin: () => void;
 }
 
@@ -349,7 +349,7 @@ export function RegisterModal({ onClose, onSuccess, onSwitchToLogin }: RegisterM
             <div className="flex-grow border-t border-gray-200 dark:border-slate-700"></div>
           </div>
           <GoogleSignInButton
-            onSuccess={onSuccess}
+            onSuccess={(res) => onSuccess(res)}
             onError={(msg) => setError(msg)}
             text="signup_with"
           />

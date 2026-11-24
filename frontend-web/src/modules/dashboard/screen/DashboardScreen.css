@@ -2,8 +2,8 @@
 
 .dashboard-content {
   animation: fadeIn 0.25s cubic-bezier(0.16, 1, 0.3, 1);
-  background-color: #f7faf8;
-  color: #14261e;
+  background-color: #F8FAFC;
+  color: #0F172A;
 }
 
 @keyframes fadeIn {
@@ -24,7 +24,7 @@
 /* Card 1: Tổng số dư khả dụng (Gradient Ngọc lục bảo sang trọng như Quản lý thu chi & Quản lý ví) */
 .overview-balance-card {
   position: relative;
-  background: linear-gradient(135deg, #053b2d 0%, #07543f 55%, #0b6c52 100%);
+  background: linear-gradient(135deg, #004D3B 0%, #007F53 55%, #009663 100%);
   border-radius: 20px;
   padding: 22px 24px;
   color: #ffffff;
@@ -73,7 +73,7 @@
   position: relative;
   background: #ffffff;
   border-radius: 18px;
-  border: 1px solid #eef2ef;
+  border: 1px solid #E2E8F0;
   padding: 22px 24px;
   display: flex;
   flex-direction: column;
@@ -93,7 +93,7 @@
   width: 42px;
   height: 42px;
   border-radius: 12px;
-  background: #e8f7f0;
+  background: #E6F4EA;
   display: grid;
   place-items: center;
   color: #10b981;
@@ -115,7 +115,7 @@
 .overview-main-panel {
   background: #ffffff;
   border-radius: 20px;
-  border: 1px solid #edf2ee;
+  border: 1px solid #E2E8F0;
   padding: 24px 26px;
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.02);
   display: flex;
@@ -130,7 +130,7 @@
 
 /* Hộp Net Savings xanh nhạt bo tròn ở dưới biểu đồ */
 .net-savings-pill-box {
-  background: #eef6f2;
+  background: #ECFDF5;
   border-radius: 14px;
   padding: 14px 18px;
   display: flex;
@@ -141,7 +141,7 @@
 /* Quick add button ở cuối danh sách giao dịch */
 .quick-add-bar-btn {
   background: #f0f6ff;
-  color: #07543f;
+  color: #007F53;
   border-radius: 14px;
   padding: 12px 16px;
   display: flex;
@@ -164,7 +164,7 @@
 .overview-account-card {
   background: #ffffff;
   border-radius: 18px;
-  border: 1px solid #edf2ee;
+  border: 1px solid #E2E8F0;
   padding: 22px 24px;
   display: flex;
   flex-direction: column;
@@ -307,18 +307,18 @@ html:not(.dark) .budget-progress-fill {
    5. DARK MODE STYLES (Tông Deep Navy & Emerald mượt mà theo Quản lý thu chi & Quản lý ví)
    ======================================================== */
 html.dark .dashboard-content {
-  background-color: #081622 !important;
+  background-color: #0B0F19 !important;
   color: #cbd5e1 !important;
 }
 
-/* Các thẻ chỉ số & khung panel: Nền xanh navy #0e2333, viền #173852 sắc nét, không bị đen xì */
+/* Các thẻ chỉ số & khung panel: Nền xanh navy #111827, viền #1E293B sắc nét, không bị đen xì */
 html.dark .overview-white-card,
 html.dark .overview-main-panel,
 html.dark .overview-account-card {
-  background-color: #0e2333 !important;
-  border-color: #173852 !important;
+  background-color: #111827 !important;
+  border-color: #1E293B !important;
   box-shadow: 0 10px 28px -6px rgba(0, 0, 0, 0.45) !important;
-  color: #e2eaf0 !important;
+  color: #F8FAFC !important;
 }
 
 /* Card 1 Tổng số dư: Giữ tông xanh lục bảo đậm đà / Forest Emerald sang trọng trong Dark Mode */
@@ -370,18 +370,18 @@ html.dark .overview-account-card .text-sub {
 
 html.dark .net-savings-pill-box {
   background: #09202f !important;
-  border: 1px solid #14354c !important;
+  border: 1px solid #1F2937 !important;
 }
 
 html.dark .quick-add-bar-btn {
-  background: #0f273b !important;
-  border: 1px solid #183e5a !important;
+  background: #111827 !important;
+  border: 1px solid #1E293B !important;
   color: #38bdf8 !important;
 }
 
 html.dark .quick-add-bar-btn:hover {
-  background: #153854 !important;
-  border-color: #22567c !important;
+  background: #1F2937 !important;
+  border-color: #1E293B !important;
   color: #7dd3fc !important;
 }
 
@@ -413,9 +413,9 @@ html.dark .tx-icon-income {
 }
 
 html.dark .tx-category-badge {
-  background-color: #0b1d2a !important;
-  color: #9cb1c1 !important;
-  border: 1px solid #16364a !important;
+  background-color: #111827 !important;
+  color: #94A3B8 !important;
+  border: 1px solid #1E293B !important;
 }
 
 html.dark .tx-amount-expense {
@@ -428,8 +428,8 @@ html.dark .tx-amount-income {
 
 /* Thanh hạn mức chi tiêu giao diện tối */
 html.dark .budget-progress-track {
-  background-color: #071520 !important;
-  border: 1px solid #132a3a !important;
+  background-color: #0B0F19 !important;
+  border: 1px solid #1F2937 !important;
 }
 
 html.dark .budget-progress-fill {

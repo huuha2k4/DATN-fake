@@ -850,7 +850,7 @@ export function FinancialRemindersScreen({ onNotify }: Props) {
 
   return (
     <main
-      className="financial-schedule-page mx-auto flex min-h-[calc(100vh-64px)] w-full max-w-[1560px] flex-col gap-6 bg-[#f6f8f6] px-3 pb-24 pt-4 text-[#14251f] sm:px-[22px] lg:px-[34px] lg:pb-10 lg:pt-6"
+      className="financial-schedule-page mx-auto flex min-h-[calc(100vh-64px)] w-full max-w-[1560px] flex-col gap-6 bg-[#F8FAFC] px-3 pb-24 pt-4 text-[#0F172A] sm:px-[22px] lg:px-[34px] lg:pb-10 lg:pt-6"
       aria-label="Lịch tài chính"
     >
       {/* 4 Cards Thống Kê Tổng Quan Đồng Bộ Chuẩn Thiết Kế */}
@@ -859,17 +859,17 @@ export function FinancialRemindersScreen({ onNotify }: Props) {
         <article className="schedule-stat-card">
           <div className="flex items-start justify-between">
             <div>
-              <p className="text-[11px] font-bold uppercase tracking-wider text-[#718078]">Lịch Đang Theo Dõi</p>
-              <p className="mt-1 text-2xl font-bold text-[#14251f]">
-                {monthlyCashflow.activeCount} <span className="text-sm font-normal text-[#718078]">lịch</span>
+              <p className="text-[11px] font-bold uppercase tracking-wider text-[#64748B]">Lịch Đang Theo Dõi</p>
+              <p className="mt-1 text-2xl font-bold text-[#0F172A]">
+                {monthlyCashflow.activeCount} <span className="text-sm font-normal text-[#64748B]">lịch</span>
               </p>
             </div>
             <span className="grid size-11 place-items-center rounded-xl bg-[#eaf0fb] text-[#2563eb]">
               <FinanceIcon name="calendar" size={20} />
             </span>
           </div>
-          <p className="text-[11px] text-[#718078]">
-            Tổng số: <strong className="text-[#14251f]">{schedules.length}</strong> chu kỳ thiết lập
+          <p className="text-[11px] text-[#64748B]">
+            Tổng số: <strong className="text-[#0F172A]">{schedules.length}</strong> chu kỳ thiết lập
           </p>
         </article>
 
@@ -877,9 +877,9 @@ export function FinancialRemindersScreen({ onNotify }: Props) {
         <article className="schedule-stat-card">
           <div className="flex items-start justify-between">
             <div>
-              <p className="text-[11px] font-bold uppercase tracking-wider text-[#718078]">Thu Nhập Dự Kiến / Tháng</p>
+              <p className="text-[11px] font-bold uppercase tracking-wider text-[#64748B]">Thu Nhập Dự Kiến / Tháng</p>
               <p className="mt-1 text-2xl font-bold text-[#059669]">
-                +{monthlyCashflow.incomeMonth.toLocaleString('vi-VN')} <span className="text-sm font-normal text-[#718078]">đ</span>
+                +{monthlyCashflow.incomeMonth.toLocaleString('vi-VN')} <span className="text-sm font-normal text-[#64748B]">đ</span>
               </p>
             </div>
             <span className="grid size-11 place-items-center rounded-xl bg-[#ecfdf5] text-[#059669]">
@@ -893,9 +893,9 @@ export function FinancialRemindersScreen({ onNotify }: Props) {
         <article className="schedule-stat-card">
           <div className="flex items-start justify-between">
             <div>
-              <p className="text-[11px] font-bold uppercase tracking-wider text-[#718078]">Cố Định Phải Chi / Tháng</p>
+              <p className="text-[11px] font-bold uppercase tracking-wider text-[#64748B]">Cố Định Phải Chi / Tháng</p>
               <p className="mt-1 text-2xl font-bold text-[#dc2626]">
-                -{monthlyCashflow.expenseMonth.toLocaleString('vi-VN')} <span className="text-sm font-normal text-[#718078]">đ</span>
+                -{monthlyCashflow.expenseMonth.toLocaleString('vi-VN')} <span className="text-sm font-normal text-[#64748B]">đ</span>
               </p>
             </div>
             <span className="grid size-11 place-items-center rounded-xl bg-[#fef2f2] text-[#dc2626]">
@@ -926,10 +926,10 @@ export function FinancialRemindersScreen({ onNotify }: Props) {
       <section className="flex flex-col gap-3 rounded-2xl border border-[#e6ece8] bg-white p-4 sm:p-5 shadow-xs">
         <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
           <div>
-            <h2 className="text-lg font-bold text-[#14251f]">
+            <h2 className="text-lg font-bold text-[#0F172A]">
               {viewMode === 'CALENDAR' ? 'Lịch Theo Tháng' : 'Danh Sách Lịch Định Kỳ'}
             </h2>
-            <p className="text-xs text-[#718078]">
+            <p className="text-xs text-[#64748B]">
               {viewMode === 'CALENDAR'
                 ? 'Theo dõi ngày đến hạn và dòng tiền định kỳ trong tháng'
                 : 'Quản lý toàn bộ các giao dịch định kỳ và nhắc nhở đang thiết lập'}
@@ -938,14 +938,14 @@ export function FinancialRemindersScreen({ onNotify }: Props) {
 
           <div className="flex flex-wrap items-center gap-3">
             {/* Chuyển chế độ xem */}
-            <div className="inline-flex h-[38px] items-center rounded-xl bg-[#f0f5f2] p-1 gap-1">
+            <div className="inline-flex h-[38px] items-center rounded-xl bg-[#F1F5F9] p-1 gap-1">
               <button
                 type="button"
                 onClick={() => setViewMode('CALENDAR')}
                 className={`h-full rounded-lg px-3.5 text-xs font-bold transition flex items-center justify-center gap-1.5 whitespace-nowrap ${
                   viewMode === 'CALENDAR'
-                    ? 'bg-[#07543f] text-white shadow-xs'
-                    : 'text-[#52665a] hover:text-[#07543f] hover:bg-[#e4ede7]'
+                    ? 'bg-[#007F53] text-white shadow-xs'
+                    : 'text-[#475569] hover:text-[#007F53] hover:bg-[#e4ede7]'
                 }`}
               >
                 <FinanceIcon name="grid" size={14} />
@@ -956,8 +956,8 @@ export function FinancialRemindersScreen({ onNotify }: Props) {
                 onClick={() => setViewMode('TIMELINE')}
                 className={`h-full rounded-lg px-3.5 text-xs font-bold transition flex items-center justify-center gap-1.5 whitespace-nowrap ${
                   viewMode === 'TIMELINE'
-                    ? 'bg-[#07543f] text-white shadow-xs'
-                    : 'text-[#52665a] hover:text-[#07543f] hover:bg-[#e4ede7]'
+                    ? 'bg-[#007F53] text-white shadow-xs'
+                    : 'text-[#475569] hover:text-[#007F53] hover:bg-[#e4ede7]'
                 }`}
               >
                 <FinanceIcon name="calendar" size={14} />
@@ -975,7 +975,7 @@ export function FinancialRemindersScreen({ onNotify }: Props) {
                 setReminderMessage('');
                 setDialogOpen(true);
               }}
-              className="inline-flex h-[30px] items-center justify-center rounded-lg bg-[#07543f] px-3.5 text-xs font-semibold text-white shadow-xs hover:bg-[#064232] transition gap-1.5"
+              className="inline-flex h-[30px] items-center justify-center rounded-lg bg-[#007F53] px-3.5 text-xs font-semibold text-white shadow-xs hover:bg-[#004D3B] transition gap-1.5"
             >
               <FinanceIcon name="plus" size={14} />
               Thêm lịch mới
@@ -984,8 +984,8 @@ export function FinancialRemindersScreen({ onNotify }: Props) {
         </div>
 
         {/* Hàng Gợi ý Tạo Nhanh được lồng gọn gàng vào cùng khối */}
-        <div className="flex flex-wrap items-center gap-2 border-t border-[#f1f5f2] pt-3">
-          <span className="text-[11px] font-bold uppercase tracking-wider text-[#718078] mr-1">Tạo nhanh:</span>
+        <div className="flex flex-wrap items-center gap-2 border-t border-[#F1F5F9] pt-3">
+          <span className="text-[11px] font-bold uppercase tracking-wider text-[#64748B] mr-1">Tạo nhanh:</span>
           {PRESETS.map((p) => (
             <button
               key={p.label}
@@ -1008,14 +1008,14 @@ export function FinancialRemindersScreen({ onNotify }: Props) {
             {/* Cột Trái: Bàn Lịch Tháng */}
             <div className="rounded-2xl border border-[#e6ece8] bg-white p-5 shadow-sm">
               <div className="flex items-center justify-between pb-4">
-                <h3 className="text-base font-bold text-[#14251f]">{monthTitle}</h3>
+                <h3 className="text-base font-bold text-[#0F172A]">{monthTitle}</h3>
 
                 <div className="flex items-center gap-1">
                   <button
                     type="button"
                     onClick={handlePrevMonth}
                     title="Tháng trước"
-                    className="grid size-8 place-items-center rounded-lg border border-[#e2e8e4] text-[#34463b] hover:bg-[#f1f5f2]"
+                    className="grid size-8 place-items-center rounded-lg border border-[#E2E8F0] text-[#334155] hover:bg-[#F1F5F9]"
                   >
                     <FinanceIcon name="chevron-left" size={16} />
                   </button>
@@ -1023,7 +1023,7 @@ export function FinancialRemindersScreen({ onNotify }: Props) {
                     type="button"
                     onClick={handleNextMonth}
                     title="Tháng sau"
-                    className="grid size-8 place-items-center rounded-lg border border-[#e2e8e4] text-[#34463b] hover:bg-[#f1f5f2]"
+                    className="grid size-8 place-items-center rounded-lg border border-[#E2E8F0] text-[#334155] hover:bg-[#F1F5F9]"
                   >
                     <FinanceIcon name="chevron-right" size={16} />
                   </button>
@@ -1031,13 +1031,13 @@ export function FinancialRemindersScreen({ onNotify }: Props) {
               </div>
 
               {/* Thứ trong tuần */}
-              <div className="grid grid-cols-7 gap-1 border-b border-[#f1f5f2] pb-2 text-center text-xs font-bold text-[#6b7c72]">
+              <div className="grid grid-cols-7 gap-1 border-b border-[#F1F5F9] pb-2 text-center text-xs font-bold text-[#6b7c72]">
                 <span>Thứ 2</span>
                 <span>Thứ 3</span>
                 <span>Thứ 4</span>
                 <span>Thứ 5</span>
                 <span>Thứ 6</span>
-                <span className="text-[#07543f]">Thứ 7</span>
+                <span className="text-[#007F53]">Thứ 7</span>
                 <span className="text-[#dc2626]">Chủ nhật</span>
               </div>
 
@@ -1064,21 +1064,21 @@ export function FinancialRemindersScreen({ onNotify }: Props) {
                           <span
                             className={`text-xs font-bold ${
                               cell.isToday
-                                ? 'grid size-5 place-items-center rounded-full bg-[#07543f] text-white'
+                                ? 'grid size-5 place-items-center rounded-full bg-[#007F53] text-white'
                                 : ''
                             }`}
                           >
                             {cell.dayNumber}
                           </span>
                           {cell.isToday && (
-                            <span className="text-[10px] font-bold text-[#07543f] leading-none">
+                            <span className="text-[10px] font-bold text-[#007F53] leading-none">
                               Hôm nay
                             </span>
                           )}
                         </div>
 
                         {cell.items.length > 0 && (
-                          <span className="rounded-full bg-[#e3f4e9] px-1.5 py-0.2 text-[9px] font-bold text-[#07543f]">
+                          <span className="rounded-full bg-[#E6F4EA] px-1.5 py-0.2 text-[9px] font-bold text-[#007F53]">
                             {cell.items.length}
                           </span>
                         )}
@@ -1105,7 +1105,7 @@ export function FinancialRemindersScreen({ onNotify }: Props) {
                           );
                         })}
                         {cell.items.length > 2 && (
-                          <span className="text-[8px] font-bold text-[#718078]">
+                          <span className="text-[8px] font-bold text-[#64748B]">
                             +{cell.items.length - 2} khoản
                           </span>
                         )}
@@ -1119,12 +1119,12 @@ export function FinancialRemindersScreen({ onNotify }: Props) {
             {/* Cột Phải: Chi tiết ngày đang chọn */}
             <aside className="flex flex-col gap-4">
               <div className="rounded-2xl border border-[#d7e9dd] bg-white p-5 shadow-sm">
-                <div className="flex items-center justify-between border-b border-[#f1f5f2] pb-3">
+                <div className="flex items-center justify-between border-b border-[#F1F5F9] pb-3">
                   <div>
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-[#07543f]">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-[#007F53]">
                       Sự kiện tài chính
                     </span>
-                    <h3 className="text-base font-bold text-[#14251f]">
+                    <h3 className="text-base font-bold text-[#0F172A]">
                       {new Date(selectedCalendarDate).toLocaleDateString('vi-VN', {
                         weekday: 'long',
                         day: 'numeric',
@@ -1137,11 +1137,11 @@ export function FinancialRemindersScreen({ onNotify }: Props) {
 
                 {selectedDateEvents.length === 0 ? (
                   <div className="py-8 text-center">
-                    <span className="grid size-12 mx-auto place-items-center rounded-full bg-[#f3f7f4] text-[#718078]">
+                    <span className="grid size-12 mx-auto place-items-center rounded-full bg-[#F1F5F9] text-[#64748B]">
                       <FinanceIcon name="calendar" size={20} />
                     </span>
-                    <p className="mt-2 text-xs font-semibold text-[#59675f]">Không có khoản đến hạn ngày này</p>
-                    <p className="text-[11px] text-[#829087]">Ngày thảnh thơi không có hóa đơn hay nhắc nhở.</p>
+                    <p className="mt-2 text-xs font-semibold text-[#64748B]">Không có khoản đến hạn ngày này</p>
+                    <p className="text-[11px] text-[#94A3B8]">Ngày thảnh thơi không có hóa đơn hay nhắc nhở.</p>
                     <button
                       type="button"
                       onClick={() => {
@@ -1149,14 +1149,14 @@ export function FinancialRemindersScreen({ onNotify }: Props) {
                         setDayOfMonth(new Date(selectedCalendarDate).getDate());
                         setDialogOpen(true);
                       }}
-                      className="mt-4 inline-flex h-[30px] items-center justify-center rounded-lg bg-[#07543f] px-3.5 text-xs font-semibold text-white shadow-xs hover:bg-[#064232] transition gap-1.5"
+                      className="mt-4 inline-flex h-[30px] items-center justify-center rounded-lg bg-[#007F53] px-3.5 text-xs font-semibold text-white shadow-xs hover:bg-[#004D3B] transition gap-1.5"
                     >
                       <FinanceIcon name="plus" size={14} />
                       Thêm lịch cho ngày này
                     </button>
                   </div>
                 ) : (
-                  <div className="mt-3 divide-y divide-[#f1f5f2]">
+                  <div className="mt-3 divide-y divide-[#F1F5F9]">
                     {selectedDateEvents.map((item) => {
                       const isIncome = item.transaction_template?.type === 'INCOME';
                       const isReminder = item.schedule_type === 'REMINDER';
@@ -1177,9 +1177,9 @@ export function FinancialRemindersScreen({ onNotify }: Props) {
                             </span>
                             <div>
                               <div className="flex items-center gap-1.5 flex-wrap">
-                                <h4 className="text-xs font-bold text-[#14251f]">{item.name}</h4>
+                                <h4 className="text-xs font-bold text-[#0F172A]">{item.name}</h4>
                                 {(() => {
-                                  const isCompleted = item.status === 'COMPLETED' || item.status === 'PAID' || item.status === 'PAID_OFF';
+                                  const isCompleted = item.status === 'COMPLETED' || (item.status as string) === 'PAID' || (item.status as string) === 'PAID_OFF';
                                   const todayStr = new Date().toISOString().split('T')[0];
                                   const isExpired = Boolean(
                                     isCompleted ||
@@ -1201,13 +1201,13 @@ export function FinancialRemindersScreen({ onNotify }: Props) {
                                     );
                                   }
                                   return (
-                                    <span className="rounded-full px-1.5 py-0.2 text-[8px] font-bold bg-[#e3f4e9] text-[#006c49] border border-emerald-200">
+                                    <span className="rounded-full px-1.5 py-0.2 text-[8px] font-bold bg-[#E6F4EA] text-[#007F53] border border-emerald-200">
                                       Đang hoạt động
                                     </span>
                                   );
                                 })()}
                               </div>
-                              <p className="text-[10px] text-[#718078]">{item.recurrence_text || 'Định kỳ'}</p>
+                              <p className="text-[10px] text-[#64748B]">{item.recurrence_text || 'Định kỳ'}</p>
                               {item.transaction_template?.amount && (
                                 <p
                                   className={`text-xs font-bold mt-0.5 ${
@@ -1224,7 +1224,7 @@ export function FinancialRemindersScreen({ onNotify }: Props) {
                           <button
                             type="button"
                             onClick={() => handleViewDetail(item)}
-                            className="rounded px-2 py-1 text-[10px] font-semibold text-[#07543f] hover:bg-[#eef7f0]"
+                            className="rounded px-2 py-1 text-[10px] font-semibold text-[#007F53] hover:bg-[#eef7f0]"
                           >
                             Chi tiết
                           </button>
@@ -1238,8 +1238,8 @@ export function FinancialRemindersScreen({ onNotify }: Props) {
 
 
               {/* Mẹo Quản lý dòng tiền */}
-              <div className="rounded-2xl border border-[#e2e8e4] bg-[#f8faf9] p-4 text-xs text-[#59675f]">
-                <div className="flex items-center gap-1.5 font-bold text-[#07543f]">
+              <div className="rounded-2xl border border-[#E2E8F0] bg-[#F8FAFC] p-4 text-xs text-[#64748B]">
+                <div className="flex items-center gap-1.5 font-bold text-[#007F53]">
                   <FinanceIcon name="spark" size={15} />
                   Lưu ý ngày thanh toán
                 </div>
@@ -1254,10 +1254,10 @@ export function FinancialRemindersScreen({ onNotify }: Props) {
           <div className="rounded-2xl border border-[#e6ece8] bg-white p-5 shadow-sm">
             {loading ? (
               <div className="flex h-40 items-center justify-center">
-                <div className="size-6 animate-spin rounded-full border-2 border-[#07543f] border-t-transparent" />
+                <div className="size-6 animate-spin rounded-full border-2 border-[#007F53] border-t-transparent" />
               </div>
             ) : allTimelineItems.length === 0 ? (
-              <div className="py-12 text-center text-xs text-[#718078]">
+              <div className="py-12 text-center text-xs text-[#64748B]">
                 Chưa có lịch nào. Hãy bấm "Thêm lịch mới" để bắt đầu!
               </div>
             ) : (
@@ -1291,12 +1291,12 @@ export function FinancialRemindersScreen({ onNotify }: Props) {
 
                         <div className="min-w-0">
                           <div className="flex flex-wrap items-center gap-2">
-                            <span className="truncate text-sm font-semibold text-[#14251f] dark:text-slate-100 group-hover:text-[#07543f] dark:group-hover:text-emerald-400">
+                            <span className="truncate text-sm font-semibold text-[#0F172A] dark:text-slate-100 group-hover:text-[#007F53] dark:group-hover:text-emerald-400">
                               {item.name}
                             </span>
                             {/* Chỉ hiển thị tag nếu đã kết thúc, đang tạm dừng hoặc đang hoạt động */}
                             {(() => {
-                              const isCompleted = item.status === 'COMPLETED' || item.status === 'PAID' || item.status === 'PAID_OFF';
+                              const isCompleted = item.status === 'COMPLETED' || (item.status as string) === 'PAID' || (item.status as string) === 'PAID_OFF';
                               const todayStr = new Date().toISOString().split('T')[0];
                               const isExpired = Boolean(
                                 isCompleted ||
@@ -1321,21 +1321,21 @@ export function FinancialRemindersScreen({ onNotify }: Props) {
                               }
 
                               return (
-                                <span className="rounded-full px-2 py-0.5 text-[9px] font-bold bg-[#e3f4e9] dark:bg-emerald-950/60 text-[#006c49] dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800/50">
+                                <span className="rounded-full px-2 py-0.5 text-[9px] font-bold bg-[#E6F4EA] dark:bg-emerald-950/60 text-[#007F53] dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800/50">
                                   Đang hoạt động
                                 </span>
                               );
                             })()}
                           </div>
 
-                          <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-[#718078] dark:text-slate-400">
-                            <span className="font-medium text-[#14251f] dark:text-slate-200">{item.recurrence_text || 'Định kỳ'}</span>
+                          <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-[#64748B] dark:text-slate-400">
+                            <span className="font-medium text-[#0F172A] dark:text-slate-200">{item.recurrence_text || 'Định kỳ'}</span>
                             {item.next_occurrence && (
                               <>
                                 <span>·</span>
                                 <span>
                                   Kế tiếp:{' '}
-                                  <strong className="text-[#07543f] dark:text-emerald-400">
+                                  <strong className="text-[#007F53] dark:text-emerald-400">
                                     {formatDate(item.next_occurrence)}
                                   </strong>
                                 </span>
@@ -1348,7 +1348,7 @@ export function FinancialRemindersScreen({ onNotify }: Props) {
                       <div className="flex items-center justify-between gap-4 sm:justify-end">
                         {amountNum > 0 && (
                           <div className="text-right">
-                            <span className="block text-[10px] text-[#718078]">Định mức</span>
+                            <span className="block text-[10px] text-[#64748B]">Định mức</span>
                             <strong
                               className={`text-base font-bold ${
                                 isIncome ? 'text-[#059669]' : 'text-[#dc2626]'
@@ -1386,10 +1386,10 @@ export function FinancialRemindersScreen({ onNotify }: Props) {
               const isPaused = selectedSchedule.status === 'PAUSED';
 
               return (
-                <div className="flex items-center justify-between border-b border-[#f1f5f2] pb-3">
+                <div className="flex items-center justify-between border-b border-[#F1F5F9] pb-3">
                   <div>
-                    <span className="text-[10px] font-bold uppercase text-[#07543f]">Hồ sơ lịch tài chính</span>
-                    <h3 className="text-base font-bold text-[#14251f]">{selectedSchedule.name}</h3>
+                    <span className="text-[10px] font-bold uppercase text-[#007F53]">Hồ sơ lịch tài chính</span>
+                    <h3 className="text-base font-bold text-[#0F172A]">{selectedSchedule.name}</h3>
                   </div>
                   <div>
                     {isExpired ? (
@@ -1401,7 +1401,7 @@ export function FinancialRemindersScreen({ onNotify }: Props) {
                         Tạm dừng
                       </span>
                     ) : (
-                      <span className="rounded-full px-2.5 py-1 text-[10px] font-bold bg-[#e3f4e9] text-[#006c49] border border-emerald-200">
+                      <span className="rounded-full px-2.5 py-1 text-[10px] font-bold bg-[#E6F4EA] text-[#007F53] border border-emerald-200">
                         Đang hoạt động
                       </span>
                     )}
@@ -1412,39 +1412,39 @@ export function FinancialRemindersScreen({ onNotify }: Props) {
 
             <div className="mt-4 space-y-2.5 text-xs">
               <div className="flex justify-between">
-                <span className="text-[#718078]">Loại lịch:</span>
-                <span className="font-bold text-[#14251f]">
+                <span className="text-[#64748B]">Loại lịch:</span>
+                <span className="font-bold text-[#0F172A]">
                   {selectedSchedule.schedule_type === 'TRANSACTION' ? 'Giao dịch định kỳ' : 'Nhắc nhở'}
                 </span>
               </div>
               <div className="flex justify-between">
-                <span className="text-[#718078]">Chu kỳ lặp:</span>
-                <span className="font-semibold text-[#07543f]">{selectedSchedule.recurrence_text}</span>
+                <span className="text-[#64748B]">Chu kỳ lặp:</span>
+                <span className="font-semibold text-[#007F53]">{selectedSchedule.recurrence_text}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-[#718078]">Kỳ tới:</span>
-                <strong className="text-[#07543f]">
+                <span className="text-[#64748B]">Kỳ tới:</span>
+                <strong className="text-[#007F53]">
                   {formatDate(selectedSchedule.next_occurrence, 'Không xác định')}
                 </strong>
               </div>
 
               {selectedSchedule.transaction_template && (
-                <div className="rounded-xl bg-[#f8faf9] p-3.5 space-y-1.5">
+                <div className="rounded-xl bg-[#F8FAFC] p-3.5 space-y-1.5">
                   <div className="flex justify-between">
-                    <span className="text-[#718078]">Số tiền:</span>
-                    <strong className="text-sm font-bold text-[#07543f]">
+                    <span className="text-[#64748B]">Số tiền:</span>
+                    <strong className="text-sm font-bold text-[#007F53]">
                       {Number(selectedSchedule.transaction_template.amount).toLocaleString('vi-VN')} đ
                     </strong>
                   </div>
                   {selectedSchedule.transaction_template.account_name && (
                     <div className="flex justify-between">
-                      <span className="text-[#718078]">Tài khoản:</span>
+                      <span className="text-[#64748B]">Tài khoản:</span>
                       <span className="font-medium">{selectedSchedule.transaction_template.account_name}</span>
                     </div>
                   )}
                   {selectedSchedule.transaction_template.category_name && (
                     <div className="flex justify-between">
-                      <span className="text-[#718078]">Danh mục:</span>
+                      <span className="text-[#64748B]">Danh mục:</span>
                       <span className="font-medium">{selectedSchedule.transaction_template.category_name}</span>
                     </div>
                   )}
@@ -1459,22 +1459,22 @@ export function FinancialRemindersScreen({ onNotify }: Props) {
               )}
 
               <div className="flex justify-between">
-                <span className="text-[#718078]">Tự động ghi nhận thu chi:</span>
+                <span className="text-[#64748B]">Tự động ghi nhận thu chi:</span>
                 <span className="font-semibold">
                   {selectedSchedule.auto_execute ? 'Bật (Tự động thực thi)' : 'Tắt (Chờ xác nhận)'}
                 </span>
               </div>
               <div className="flex justify-between">
-                <span className="text-[#718078]">Số lần đã thực thi:</span>
+                <span className="text-[#64748B]">Số lần đã thực thi:</span>
                 <span className="font-semibold">{selectedSchedule.executed_count || 0} lần</span>
               </div>
             </div>
 
-            <div className="mt-5 flex gap-2 border-t border-[#f1f5f2] pt-4">
+            <div className="mt-5 flex gap-2 border-t border-[#F1F5F9] pt-4">
               <button
                 type="button"
                 onClick={() => handleOpenEditSchedule(selectedSchedule)}
-                className="rounded-xl border border-[#07543f] bg-[#07543f] px-4 py-2.5 text-xs font-semibold text-white hover:bg-[#064735] transition shadow-sm flex items-center gap-1.5"
+                className="rounded-xl border border-[#007F53] bg-[#007F53] px-4 py-2.5 text-xs font-semibold text-white hover:bg-[#064735] transition shadow-sm flex items-center gap-1.5"
               >
                 <FinanceIcon name="edit" size={14} />
                 <span>Chỉnh sửa</span>
@@ -1500,7 +1500,7 @@ export function FinancialRemindersScreen({ onNotify }: Props) {
               <button
                 type="button"
                 onClick={() => setSelectedSchedule(null)}
-                className="btn-detail-close rounded-xl border border-[#e2e8e4] bg-[#f8faf9] px-4 py-2.5 text-xs font-semibold text-[#475569] hover:bg-[#f1f5f9] transition"
+                className="btn-detail-close rounded-xl border border-[#E2E8F0] bg-[#F8FAFC] px-4 py-2.5 text-xs font-semibold text-[#475569] hover:bg-[#f1f5f9] transition"
               >
                 Đóng
               </button>
@@ -1527,7 +1527,7 @@ export function FinancialRemindersScreen({ onNotify }: Props) {
                 Number(selectedDebtDetail.remaining_amount || 0) <= 0;
 
               return (
-                <div className="flex items-center justify-between border-b border-[#f1f5f2] pb-3">
+                <div className="flex items-center justify-between border-b border-[#F1F5F9] pb-3">
                   <div className="flex items-center gap-2.5">
                     <span
                       className={`grid size-9 place-items-center rounded-xl text-sm ${
@@ -1542,10 +1542,10 @@ export function FinancialRemindersScreen({ onNotify }: Props) {
                       />
                     </span>
                     <div>
-                      <span className="text-[10px] font-bold uppercase tracking-wider text-[#07543f]">
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-[#007F53]">
                         {selectedDebtDetail.debt_type === 'BORROWING' ? 'Khoản nợ phải trả' : 'Khoản nợ cần thu'}
                       </span>
-                      <h3 className="text-base font-bold text-[#14251f]">
+                      <h3 className="text-base font-bold text-[#0F172A]">
                         {selectedDebtDetail.debt_type === 'BORROWING'
                           ? `Trả nợ: ${selectedDebtDetail.creditor_name}`
                           : `Thu nợ: ${selectedDebtDetail.debtor_name}`}
@@ -1558,7 +1558,7 @@ export function FinancialRemindersScreen({ onNotify }: Props) {
                         Đã kết thúc
                       </span>
                     ) : (
-                      <span className="rounded-full px-2.5 py-1 text-[10px] font-bold bg-[#e3f4e9] text-[#006c49] border border-emerald-200">
+                      <span className="rounded-full px-2.5 py-1 text-[10px] font-bold bg-[#E6F4EA] text-[#007F53] border border-emerald-200">
                         Đang hoạt động
                       </span>
                     )}
@@ -1576,14 +1576,14 @@ export function FinancialRemindersScreen({ onNotify }: Props) {
 
             <div className="mt-4 space-y-2.5 text-xs">
               <div className="flex justify-between">
-                <span className="text-[#718078]">Loại lịch:</span>
-                <span className="font-bold text-[#14251f]">
+                <span className="text-[#64748B]">Loại lịch:</span>
+                <span className="font-bold text-[#0F172A]">
                   {selectedDebtDetail.debt_type === 'BORROWING' ? 'Khoản đi vay' : 'Khoản cho vay'}
                 </span>
               </div>
               <div className="flex justify-between">
-                <span className="text-[#718078]">Chu kỳ lặp:</span>
-                <span className="font-semibold text-[#07543f]">
+                <span className="text-[#64748B]">Chu kỳ lặp:</span>
+                <span className="font-semibold text-[#007F53]">
                   {selectedDebtDetail.payment_frequency === 'MONTHLY'
                     ? 'Hàng tháng'
                     : selectedDebtDetail.payment_frequency === 'WEEKLY'
@@ -1594,28 +1594,28 @@ export function FinancialRemindersScreen({ onNotify }: Props) {
                 </span>
               </div>
               <div className="flex justify-between">
-                <span className="text-[#718078]">Hạn thanh toán:</span>
-                <strong className="text-[#07543f]">
+                <span className="text-[#64748B]">Hạn thanh toán:</span>
+                <strong className="text-[#007F53]">
                   {formatDate(selectedDebtDetail.due_date, 'Không thời hạn')}
                 </strong>
               </div>
 
               {/* Thẻ chi tiết số tiền như bản app */}
-              <div className="rounded-xl bg-[#f8faf9] p-3.5 space-y-1.5 border border-[#e2eae4]">
+              <div className="rounded-xl bg-[#F8FAFC] p-3.5 space-y-1.5 border border-[#e2eae4]">
                 <div className="flex justify-between">
-                  <span className="text-[#718078]">Số tiền gốc ban đầu:</span>
-                  <strong className="text-sm font-bold text-[#14261e]">
+                  <span className="text-[#64748B]">Số tiền gốc ban đầu:</span>
+                  <strong className="text-sm font-bold text-[#0F172A]">
                     {Number(selectedDebtDetail.principal_amount || 0).toLocaleString('vi-VN')} đ
                   </strong>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-[#718078]">Đã thanh toán:</span>
+                  <span className="text-[#64748B]">Đã thanh toán:</span>
                   <strong className="font-bold text-emerald-700">
                     {Number(selectedDebtDetail.paid_amount || 0).toLocaleString('vi-VN')} đ
                   </strong>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-[#718078]">Còn lại cần thanh toán:</span>
+                  <span className="text-[#64748B]">Còn lại cần thanh toán:</span>
                   <strong className="font-bold text-rose-600">
                     {Number(selectedDebtDetail.remaining_amount || 0).toLocaleString('vi-VN')} đ
                   </strong>
@@ -1645,7 +1645,7 @@ export function FinancialRemindersScreen({ onNotify }: Props) {
             </div>
 
             {/* Các nút hành động ở chân modal */}
-            <div className="mt-5 flex items-center justify-end gap-2 border-t border-[#f1f5f2] pt-4">
+            <div className="mt-5 flex items-center justify-end gap-2 border-t border-[#F1F5F9] pt-4">
               <button
                 type="button"
                 onClick={() => {
@@ -1660,7 +1660,7 @@ export function FinancialRemindersScreen({ onNotify }: Props) {
               <button
                 type="button"
                 onClick={() => setSelectedDebtDetail(null)}
-                className="btn-detail-close rounded-xl border border-[#e2e8e4] bg-[#f8faf9] px-5 py-2.5 text-xs font-semibold text-[#475569] hover:bg-[#f1f5f9] transition cursor-pointer"
+                className="btn-detail-close rounded-xl border border-[#E2E8F0] bg-[#F8FAFC] px-5 py-2.5 text-xs font-semibold text-[#475569] hover:bg-[#f1f5f9] transition cursor-pointer"
               >
                 Đóng
               </button>
@@ -1679,12 +1679,12 @@ export function FinancialRemindersScreen({ onNotify }: Props) {
             onClick={(e) => e.stopPropagation()}
             className="custom-scrollbar max-h-[92vh] w-full max-w-lg overflow-y-auto rounded-2xl bg-white p-5 sm:p-6 shadow-2xl"
           >
-            <div className="flex items-center justify-between border-b border-[#f1f5f2] pb-2.5">
+            <div className="flex items-center justify-between border-b border-[#F1F5F9] pb-2.5">
               <div>
-                <h2 className="text-base font-bold text-[#14251f]">
+                <h2 className="text-base font-bold text-[#0F172A]">
                   {editingScheduleId ? 'Chỉnh sửa lịch tài chính' : 'Thêm lịch tài chính mới'}
                 </h2>
-                <p className="text-[11px] text-[#718078]">
+                <p className="text-[11px] text-[#64748B]">
                   {editingScheduleId
                     ? 'Cập nhật lại tần suất, số tiền hoặc nội dung thông báo'
                     : 'Lên kế hoạch giao dịch định kỳ hoặc chuông báo nhắc nợ'}
@@ -1696,7 +1696,7 @@ export function FinancialRemindersScreen({ onNotify }: Props) {
                   setDialogOpen(false);
                   setEditingScheduleId(null);
                 }}
-                className="text-xl text-[#829087] hover:text-black"
+                className="text-xl text-[#94A3B8] hover:text-black"
               >
                 ×
               </button>
@@ -1705,15 +1705,15 @@ export function FinancialRemindersScreen({ onNotify }: Props) {
             <form onSubmit={handleSaveSchedule} className="mt-3.5 space-y-3">
               {/* Chọn loại lịch */}
               <div>
-                <label className="text-xs font-semibold text-[#34463b]">Loại lịch</label>
+                <label className="text-xs font-semibold text-[#334155]">Loại lịch</label>
                 <div className="mt-1 grid grid-cols-2 gap-2">
                   <button
                     type="button"
                     onClick={() => setScheduleType('TRANSACTION')}
                     className={`flex items-center justify-center gap-2 rounded-xl border py-2 text-xs font-semibold ${
                       scheduleType === 'TRANSACTION'
-                        ? 'border-[#07543f] bg-[#e6f7ef] text-[#07543f]'
-                        : 'border-[#e2e8e4] text-[#6b7c72] hover:bg-[#f8faf9]'
+                        ? 'border-[#007F53] bg-[#e6f7ef] text-[#007F53]'
+                        : 'border-[#E2E8F0] text-[#6b7c72] hover:bg-[#F8FAFC]'
                     }`}
                   >
                     <FinanceIcon name="arrows" size={15} />
@@ -1726,7 +1726,7 @@ export function FinancialRemindersScreen({ onNotify }: Props) {
                     className={`flex items-center justify-center gap-2 rounded-xl border py-2 text-xs font-semibold ${
                       scheduleType === 'REMINDER'
                         ? 'border-[#b45309] bg-[#fff8e6] text-[#b45309]'
-                        : 'border-[#e2e8e4] text-[#6b7c72] hover:bg-[#f8faf9]'
+                        : 'border-[#E2E8F0] text-[#6b7c72] hover:bg-[#F8FAFC]'
                     }`}
                   >
                     <FinanceIcon name="bell" size={15} />
@@ -1737,25 +1737,25 @@ export function FinancialRemindersScreen({ onNotify }: Props) {
 
               {/* Tên lịch */}
               <div>
-                <label className="text-xs font-semibold text-[#34463b]">Tên khoản / Nhắc hẹn *</label>
+                <label className="text-xs font-semibold text-[#334155]">Tên khoản / Nhắc hẹn *</label>
                 <input
                   required
                   type="text"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   placeholder="Ví dụ: Tiền lương, Tiền nhà tháng 10, Đóng bảo hiểm..."
-                  className="mt-1 h-10 w-full rounded-xl border border-[#e2e8e4] bg-[#f9fbf9] px-3 text-xs outline-none focus:border-[#07543f] focus:bg-white"
+                  className="mt-1 h-10 w-full rounded-xl border border-[#E2E8F0] bg-[#F8FAFC] px-3 text-xs outline-none focus:border-[#007F53] focus:bg-white"
                 />
               </div>
 
               {/* Chu kỳ & Ngày lặp */}
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-xs font-semibold text-[#34463b]">Tần suất lặp lại</label>
+                  <label className="text-xs font-semibold text-[#334155]">Tần suất lặp lại</label>
                   <select
                     value={freq}
                     onChange={(e) => setFreq(e.target.value as any)}
-                    className="mt-1 h-10 w-full rounded-xl border border-[#e2e8e4] bg-[#f9fbf9] px-3 text-xs outline-none focus:border-[#07543f]"
+                    className="mt-1 h-10 w-full rounded-xl border border-[#E2E8F0] bg-[#F8FAFC] px-3 text-xs outline-none focus:border-[#007F53]"
                   >
                     <option value="MONTHLY">Hàng tháng</option>
                     <option value="WEEKLY">Hàng tuần</option>
@@ -1766,11 +1766,11 @@ export function FinancialRemindersScreen({ onNotify }: Props) {
 
                 {freq === 'MONTHLY' ? (
                   <div>
-                    <label className="text-xs font-semibold text-[#34463b]">Vào ngày trong tháng</label>
+                    <label className="text-xs font-semibold text-[#334155]">Vào ngày trong tháng</label>
                     <select
                       value={dayOfMonth}
                       onChange={(e) => setDayOfMonth(Number(e.target.value))}
-                      className="mt-1 h-10 w-full rounded-xl border border-[#e2e8e4] bg-[#f9fbf9] px-3 text-xs outline-none focus:border-[#07543f]"
+                      className="mt-1 h-10 w-full rounded-xl border border-[#E2E8F0] bg-[#F8FAFC] px-3 text-xs outline-none focus:border-[#007F53]"
                     >
                       {Array.from({ length: 31 }, (_, i) => i + 1).map((d) => (
                         <option key={d} value={d}>
@@ -1781,12 +1781,12 @@ export function FinancialRemindersScreen({ onNotify }: Props) {
                   </div>
                 ) : (
                   <div>
-                    <label className="text-xs font-semibold text-[#34463b]">Bắt đầu từ ngày *</label>
+                    <label className="text-xs font-semibold text-[#334155]">Bắt đầu từ ngày *</label>
                     <DatePicker
                       required
                       value={startDate}
                       onChange={(val) => setStartDate(val)}
-                      className="mt-1 h-10 w-full rounded-xl border border-[#e2e8e4] bg-[#f9fbf9] px-3 text-xs outline-none focus:border-[#07543f]"
+                      className="mt-1 h-10 w-full rounded-xl border border-[#E2E8F0] bg-[#F8FAFC] px-3 text-xs outline-none focus:border-[#007F53]"
                     />
                   </div>
                 )}
@@ -1794,7 +1794,7 @@ export function FinancialRemindersScreen({ onNotify }: Props) {
 
               {/* CHI TIẾT GIAO DỊCH (Nếu là TRANSACTION) */}
               {scheduleType === 'TRANSACTION' ? (
-                <div className="rounded-xl border border-[#e2e8e4] bg-[#fafcfa] p-3.5 space-y-3">
+                <div className="rounded-xl border border-[#E2E8F0] bg-[#F8FAFC] p-3.5 space-y-3">
                   <div className="grid grid-cols-3 gap-2">
                     {[
                       { key: 'EXPENSE' as TransactionType, label: 'Chi tiêu' },
@@ -1811,8 +1811,8 @@ export function FinancialRemindersScreen({ onNotify }: Props) {
                         }}
                         className={`rounded-xl py-2 text-center text-xs font-semibold transition ${
                           txType === t.key
-                            ? 'bg-[#07543f] text-white shadow-xs'
-                            : 'bg-white text-[#52665a] border border-[#e2e8e4] hover:bg-[#f1f5f2]'
+                            ? 'bg-[#007F53] text-white shadow-xs'
+                            : 'bg-white text-[#475569] border border-[#E2E8F0] hover:bg-[#F1F5F9]'
                         }`}
                       >
                         {t.label}
@@ -1822,25 +1822,25 @@ export function FinancialRemindersScreen({ onNotify }: Props) {
 
                   {/* Số tiền */}
                   <div>
-                    <label className="text-xs font-semibold text-[#34463b]">Số tiền (VNĐ) *</label>
+                    <label className="text-xs font-semibold text-[#334155]">Số tiền (VNĐ) *</label>
                     <input
                       required
                       type="text"
                       value={amount ? Number(amount).toLocaleString('vi-VN') : ''}
                       onChange={(e) => setAmount(e.target.value.replace(/\D/g, ''))}
                       placeholder="0"
-                      className="mt-1 h-10 w-full rounded-xl border border-[#e2e8e4] bg-white px-3 text-sm font-bold text-[#07543f] outline-none focus:border-[#07543f]"
+                      className="mt-1 h-10 w-full rounded-xl border border-[#E2E8F0] bg-white px-3 text-sm font-bold text-[#007F53] outline-none focus:border-[#007F53]"
                     />
                   </div>
 
                   {/* Tài khoản & Danh mục */}
                   <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <label className="text-xs font-semibold text-[#34463b]">Ví / Tài khoản</label>
+                      <label className="text-xs font-semibold text-[#334155]">Ví / Tài khoản</label>
                       <select
                         value={selectedAccountId}
                         onChange={(e) => setSelectedAccountId(e.target.value)}
-                        className="mt-1 h-10 w-full rounded-xl border border-[#e2e8e4] bg-white px-2 text-xs outline-none"
+                        className="mt-1 h-10 w-full rounded-xl border border-[#E2E8F0] bg-white px-2 text-xs outline-none"
                       >
                         {accounts.map((acc) => (
                           <option key={acc.id} value={acc.id}>
@@ -1852,11 +1852,11 @@ export function FinancialRemindersScreen({ onNotify }: Props) {
 
                     {txType === 'TRANSFER' ? (
                       <div>
-                        <label className="text-xs font-semibold text-[#34463b]">Đến Ví / TK</label>
+                        <label className="text-xs font-semibold text-[#334155]">Đến Ví / TK</label>
                         <select
                           value={toAccountId}
                           onChange={(e) => setToAccountId(e.target.value)}
-                          className="mt-1 h-10 w-full rounded-xl border border-[#e2e8e4] bg-white px-2 text-xs outline-none"
+                          className="mt-1 h-10 w-full rounded-xl border border-[#E2E8F0] bg-white px-2 text-xs outline-none"
                         >
                           <option value="">-- Chọn ví đích --</option>
                           {accounts
@@ -1870,11 +1870,11 @@ export function FinancialRemindersScreen({ onNotify }: Props) {
                       </div>
                     ) : (
                       <div>
-                        <label className="text-xs font-semibold text-[#34463b]">Danh mục</label>
+                        <label className="text-xs font-semibold text-[#334155]">Danh mục</label>
                         <select
                           value={selectedCategoryId}
                           onChange={(e) => setSelectedCategoryId(e.target.value)}
-                          className="mt-1 h-10 w-full rounded-xl border border-[#e2e8e4] bg-white px-2 text-xs outline-none"
+                          className="mt-1 h-10 w-full rounded-xl border border-[#E2E8F0] bg-white px-2 text-xs outline-none"
                         >
                           {categories
                             .filter((cat) => !cat.kind || cat.kind === txType)
@@ -1891,30 +1891,30 @@ export function FinancialRemindersScreen({ onNotify }: Props) {
               ) : (
                 /* NỘI DUNG NHẮC HẸN */
                 <div>
-                  <label className="text-xs font-semibold text-[#34463b]">Nội dung chuông nhắc *</label>
+                  <label className="text-xs font-semibold text-[#334155]">Nội dung chuông nhắc *</label>
                   <textarea
                     required
                     rows={3}
                     value={reminderMessage}
                     onChange={(e) => setReminderMessage(e.target.value)}
                     placeholder="Ví dụ: Nhớ thanh toán nợ trước hạn để tránh bị phạt phí trễ..."
-                    className="mt-1 w-full rounded-xl border border-[#e2e8e4] bg-[#f9fbf9] p-3 text-xs outline-none focus:border-[#07543f] focus:bg-white"
+                    className="mt-1 w-full rounded-xl border border-[#E2E8F0] bg-[#F8FAFC] p-3 text-xs outline-none focus:border-[#007F53] focus:bg-white"
                   />
                 </div>
               )}
 
               {/* Thông báo trước hạn */}
-              <div className="flex items-center justify-between rounded-xl border border-[#e2e8e4] p-3">
+              <div className="flex items-center justify-between rounded-xl border border-[#E2E8F0] p-3">
                 <div>
-                  <p className="text-xs font-semibold text-[#34463b]">Thông báo đẩy trước hạn</p>
-                  <p className="text-[10px] text-[#718078]">Nhắc nhở qua app trước khi tới ngày thanh toán</p>
+                  <p className="text-xs font-semibold text-[#334155]">Thông báo đẩy trước hạn</p>
+                  <p className="text-[10px] text-[#64748B]">Nhắc nhở qua app trước khi tới ngày thanh toán</p>
                 </div>
                 <div className="flex items-center gap-2">
                   <select
                     disabled={!notificationEnabled}
                     value={notifyBeforeHours}
                     onChange={(e) => setNotifyBeforeHours(e.target.value)}
-                    className="h-8 rounded-lg border border-[#e2e8e4] bg-white px-2 text-xs text-[#34463b] outline-none disabled:opacity-50"
+                    className="h-8 rounded-lg border border-[#E2E8F0] bg-white px-2 text-xs text-[#334155] outline-none disabled:opacity-50"
                   >
                     <option value="0">Đúng ngày đến hạn</option>
                     <option value="1">Trước 1 giờ</option>
@@ -1930,27 +1930,27 @@ export function FinancialRemindersScreen({ onNotify }: Props) {
                     type="checkbox"
                     checked={notificationEnabled}
                     onChange={(e) => setNotificationEnabled(e.target.checked)}
-                    className="size-4 rounded accent-[#07543f]"
+                    className="size-4 rounded accent-[#007F53]"
                   />
                 </div>
               </div>
 
               {/* Nút hành động */}
-              <div className="mt-5 flex justify-end gap-2 border-t border-[#f1f5f2] pt-4">
+              <div className="mt-5 flex justify-end gap-2 border-t border-[#F1F5F9] pt-4">
                 <button
                   type="button"
                   onClick={() => {
                     setDialogOpen(false);
                     setEditingScheduleId(null);
                   }}
-                  className="rounded-xl bg-[#f1f5f2] px-4 py-2 text-xs font-semibold text-[#59675f] hover:bg-[#e4ede6]"
+                  className="rounded-xl bg-[#F1F5F9] px-4 py-2 text-xs font-semibold text-[#64748B] hover:bg-[#e4ede6]"
                 >
                   Hủy
                 </button>
                 <button
                   disabled={isSubmitting}
                   type="submit"
-                  className="inline-flex items-center gap-2 rounded-xl bg-[#07543f] px-5 py-2 text-xs font-semibold text-white shadow-sm hover:bg-[#064735] disabled:opacity-50"
+                  className="inline-flex items-center gap-2 rounded-xl bg-[#007F53] px-5 py-2 text-xs font-semibold text-white shadow-sm hover:bg-[#064735] disabled:opacity-50"
                 >
                   {isSubmitting
                     ? 'Đang xử lý...'

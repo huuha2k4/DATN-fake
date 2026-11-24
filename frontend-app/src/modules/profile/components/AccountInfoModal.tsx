@@ -3,6 +3,7 @@ import { ActivityIndicator, Image, Modal, Pressable, ScrollView, StatusBar, Styl
 import { AppAlert as Alert } from '../../../context/DialogContext';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { FinanceIcon } from '../../core/components/FinanceIcon';
+import { BirthDatePicker } from '../../core/components/BirthDatePicker';
 import { userProfileApi, type UserProfileResponse } from '../api/userProfileApi';
 import { AvatarPickerModal } from './AvatarPickerModal';
 import { useAppTheme } from '../../../context/ThemeContext';
@@ -24,6 +25,9 @@ export function AccountInfoModal({
   const { isDark, colors: themeColors } = useAppTheme();
   const [fullName, setFullName] = useState(profile?.fullName || '');
   const [phone, setPhone] = useState(profile?.phone || '');
+  const [dateOfBirth, setDateOfBirth] = useState<Date | null>(
+    profile?.dateOfBirth ? new Date(profile.dateOfBirth) : null
+  );
   const [loading, setLoading] = useState(false);
   const [showAvatarPicker, setShowAvatarPicker] = useState(false);
 
@@ -32,6 +36,7 @@ export function AccountInfoModal({
     if (profile) {
       setFullName(profile.fullName || '');
       setPhone(profile.phone || '');
+      setDateOfBirth(profile.dateOfBirth ? new Date(profile.dateOfBirth) : null);
     }
   }, [profile, visible]);
 
@@ -46,9 +51,18 @@ export function AccountInfoModal({
 
     setLoading(true);
     try {
+      let dobString: string | undefined = undefined;
+      if (dateOfBirth) {
+        const y = dateOfBirth.getFullYear();
+        const m = String(dateOfBirth.getMonth() + 1).padStart(2, '0');
+        const d = String(dateOfBirth.getDate()).padStart(2, '0');
+        dobString = `${y}-${m}-${d}`;
+      }
+
       const updated = await userProfileApi.updateProfile({
         fullName: fullName.trim(),
         phone: phone.trim() || undefined,
+        dateOfBirth: dobString,
       });
 
       Alert.alert('Thành công', 'Đã lưu thay đổi hồ sơ tài khoản thành công!');
@@ -216,6 +230,16 @@ export function AccountInfoModal({
                 keyboardType="phone-pad"
                 placeholder="0912 345 678"
                 placeholderTextColor={isDark ? themeColors.textMuted : '#94A3B8'}
+              />
+            </View>
+
+            {/* Ngày sinh */}
+            <View style={styles.fieldGroup}>
+              <BirthDatePicker
+                value={dateOfBirth}
+                onChange={setDateOfBirth}
+                label="Ngày sinh"
+                placeholder="Chọn ngày sinh của bạn"
               />
             </View>
           </View>

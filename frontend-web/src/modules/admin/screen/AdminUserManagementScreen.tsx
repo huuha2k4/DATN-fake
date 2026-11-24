@@ -28,6 +28,10 @@ export const AdminUserManagementScreen: React.FC = () => {
   const [userToToggleBlock, setUserToToggleBlock] = useState<AdminUserItem | null>(null);
   const [isTogglingBlock, setIsTogglingBlock] = useState(false);
 
+  // Modal Xóa Người dùng
+  const [userToDelete, setUserToDelete] = useState<AdminUserItem | null>(null);
+  const [isDeletingUser, setIsDeletingUser] = useState(false);
+
   const [, startTransition] = useTransition();
 
   const loadUsers = async () => {
@@ -111,6 +115,25 @@ export const AdminUserManagementScreen: React.FC = () => {
     }
   };
 
+  const handleDeleteUser = (user: AdminUserItem) => {
+    setUserToDelete(user);
+  };
+
+  const confirmDeleteUser = async () => {
+    if (!userToDelete) return;
+    setIsDeletingUser(true);
+    try {
+      await adminApi.deleteUser(userToDelete.id);
+      setNotice(`Đã xóa tài khoản "${userToDelete.fullName || userToDelete.username}" thành công!`);
+      setUserToDelete(null);
+      loadUsers();
+    } catch (err: any) {
+      alert(err?.response?.data?.message || 'Xóa người dùng thất bại');
+    } finally {
+      setIsDeletingUser(false);
+    }
+  };
+
   return (
     <div className="flex flex-col gap-5">
       {notice && (
@@ -141,7 +164,7 @@ export const AdminUserManagementScreen: React.FC = () => {
             </div>
             <button
               type="submit"
-              className="h-10 px-5 rounded-xl bg-[#07543f] hover:bg-[#064232] text-white text-xs font-bold transition shrink-0 cursor-pointer shadow-xs"
+              className="h-10 px-5 rounded-xl bg-[#007F53] hover:bg-[#004D3B] text-white text-xs font-bold transition shrink-0 cursor-pointer shadow-xs"
             >
               Tìm
             </button>
@@ -181,7 +204,7 @@ export const AdminUserManagementScreen: React.FC = () => {
 
             <div className="h-10 px-3.5 rounded-xl bg-gray-100/80 dark:bg-slate-800 border border-gray-200/60 dark:border-slate-700 flex items-center justify-center shrink-0">
               <span className="text-xs text-gray-500 dark:text-slate-400">
-                Tổng: <strong className="text-[#07543f] dark:text-emerald-400 font-bold">{totalElements}</strong>
+                Tổng: <strong className="text-[#007F53] dark:text-emerald-400 font-bold">{totalElements}</strong>
               </span>
             </div>
           </div>
@@ -193,7 +216,7 @@ export const AdminUserManagementScreen: React.FC = () => {
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
-              <tr className="border-b border-[#edf2ee] dark:border-slate-800 bg-gray-50/70 dark:bg-slate-850/60 text-[11px] font-bold text-gray-500 dark:text-slate-400 uppercase tracking-wider">
+              <tr className="border-b border-[#E2E8F0] dark:border-slate-800 bg-gray-50/70 dark:bg-slate-850/60 text-[11px] font-bold text-gray-500 dark:text-slate-400 uppercase tracking-wider">
                 <th className="py-3 px-4">Người dùng</th>
                 <th className="py-3 px-4">Gói dịch vụ</th>
                 <th className="py-3 px-4">Vai trò</th>
@@ -203,7 +226,7 @@ export const AdminUserManagementScreen: React.FC = () => {
                 <th className="py-3 px-4 text-right">Thao tác</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-[#edf2ee] dark:divide-slate-800 text-xs">
+            <tbody className="divide-y divide-[#E2E8F0] dark:divide-slate-800 text-xs">
               {loading ? (
                 <tr>
                   <td colSpan={7} className="py-12 text-center text-gray-400">
@@ -230,7 +253,7 @@ export const AdminUserManagementScreen: React.FC = () => {
                       {/* Avatar + Tên + Email */}
                       <td className="py-3 px-4">
                         <div className="flex items-center gap-3">
-                          <div className="size-8 rounded-full bg-emerald-100 dark:bg-emerald-950 text-[#07543f] dark:text-emerald-300 font-bold text-xs grid place-items-center shrink-0">
+                          <div className="size-8 rounded-full bg-emerald-100 dark:bg-emerald-950 text-[#007F53] dark:text-emerald-300 font-bold text-xs grid place-items-center shrink-0">
                             {u.avatarUrl ? (
                               <img src={u.avatarUrl} alt="" className="size-full rounded-full object-cover" />
                             ) : (
@@ -238,7 +261,7 @@ export const AdminUserManagementScreen: React.FC = () => {
                             )}
                           </div>
                           <div className="min-w-0">
-                            <span className="font-bold text-[#14261e] dark:text-slate-100 block truncate">
+                            <span className="font-bold text-[#0F172A] dark:text-slate-100 block truncate">
                               {u.fullName || u.username}
                             </span>
                             <span className="text-[11px] text-gray-500 dark:text-slate-400 block truncate">
@@ -287,7 +310,7 @@ export const AdminUserManagementScreen: React.FC = () => {
                           isBlocked
                             ? 'bg-rose-50 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300 border border-rose-200'
                             : u.userStatus === 'ACTIVE'
-                            ? 'bg-emerald-50 text-[#07543f] dark:bg-emerald-950/60 dark:text-emerald-300 border border-emerald-200'
+                            ? 'bg-emerald-50 text-[#007F53] dark:bg-emerald-950/60 dark:text-emerald-300 border border-emerald-200'
                             : 'bg-amber-50 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300'
                         }`}>
                           <span className={`size-1.5 rounded-full ${isBlocked ? 'bg-rose-500' : 'bg-emerald-500'}`} />
@@ -331,10 +354,19 @@ export const AdminUserManagementScreen: React.FC = () => {
                             className={`h-7 px-2.5 rounded-lg text-[11px] font-bold transition cursor-pointer ${
                               isBlocked
                                 ? 'bg-emerald-600 hover:bg-emerald-700 text-white'
-                                : 'border border-rose-200 dark:border-rose-900 bg-rose-50 dark:bg-rose-950/40 text-rose-600 hover:bg-rose-100'
+                                : 'border border-amber-200 dark:border-amber-900 bg-amber-50 dark:bg-amber-950/40 text-amber-700 hover:bg-amber-100'
                             }`}
                           >
                             {isBlocked ? 'Mở khóa' : 'Khóa'}
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteUser(u)}
+                            className="h-7 px-2.5 rounded-lg border border-rose-200 dark:border-rose-900 bg-rose-50 dark:bg-rose-950/40 text-rose-600 hover:bg-rose-100 text-[11px] font-bold transition cursor-pointer"
+                            title="Xóa người dùng"
+                          >
+                            Xóa
                           </button>
                         </div>
                       </td>
@@ -348,7 +380,7 @@ export const AdminUserManagementScreen: React.FC = () => {
 
         {/* Phân trang */}
         {totalPages > 1 && (
-          <div className="p-3 border-t border-[#edf2ee] dark:border-slate-800 flex items-center justify-between text-xs">
+          <div className="p-3 border-t border-[#E2E8F0] dark:border-slate-800 flex items-center justify-between text-xs">
             <span className="text-gray-500">
               Trang {page + 1} / {totalPages}
             </span>
@@ -377,10 +409,10 @@ export const AdminUserManagementScreen: React.FC = () => {
       {/* Modal Cập nhật Người dùng / Nâng cấp Gói */}
       {editingUser && (
         <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="w-full max-w-md rounded-2xl bg-white dark:bg-slate-900 border border-[#e2ece5] dark:border-slate-800 p-6 shadow-xl flex flex-col gap-4 animate-in fade-in zoom-in-95">
+          <div className="w-full max-w-md rounded-2xl bg-white dark:bg-slate-900 border border-[#E2E8F0] dark:border-slate-800 p-6 shadow-xl flex flex-col gap-4 animate-in fade-in zoom-in-95">
             <div className="flex items-center justify-between pb-2 border-b border-gray-100 dark:border-slate-800">
               <div>
-                <h3 className="text-base font-bold text-[#14261e] dark:text-slate-100 m-0">
+                <h3 className="text-base font-bold text-[#0F172A] dark:text-slate-100 m-0">
                   Cập nhật Tài khoản Người dùng
                 </h3>
                 <p className="text-xs text-gray-500 dark:text-slate-400 m-0 mt-0.5">
@@ -483,7 +515,7 @@ export const AdminUserManagementScreen: React.FC = () => {
                   id="emailVerified"
                   checked={editVerified}
                   onChange={(e) => setEditVerified(e.target.checked)}
-                  className="size-4 accent-[#07543f]"
+                  className="size-4 accent-[#007F53]"
                 />
                 <label htmlFor="emailVerified" className="text-xs text-gray-700 dark:text-slate-300 font-medium cursor-pointer">
                   Đánh dấu Email đã xác thực (Hỗ trợ khi user không nhận được OTP)
@@ -501,7 +533,7 @@ export const AdminUserManagementScreen: React.FC = () => {
                 <button
                   type="submit"
                   disabled={isSubmitting}
-                  className="h-8 px-4 rounded-xl bg-[#07543f] hover:bg-[#064232] text-white text-xs font-bold transition disabled:opacity-50"
+                  className="h-8 px-4 rounded-xl bg-[#007F53] hover:bg-[#004D3B] text-white text-xs font-bold transition disabled:opacity-50"
                 >
                   {isSubmitting ? 'Đang lưu...' : 'Lưu thay đổi'}
                 </button>
@@ -530,6 +562,24 @@ export const AdminUserManagementScreen: React.FC = () => {
         isDeleting={isTogglingBlock}
         onConfirm={confirmToggleBlockUser}
         onClose={() => setUserToToggleBlock(null)}
+      />
+
+      {/* CONFIRM DELETE USER MODAL */}
+      <ConfirmDeleteModal
+        isOpen={Boolean(userToDelete)}
+        title="Xác nhận xóa tài khoản người dùng"
+        subtitle="Hành động này sẽ vô hiệu hóa và chuyển tài khoản vào danh sách đã xóa"
+        itemName={userToDelete?.fullName || userToDelete?.username}
+        itemTypeLabel="Người dùng"
+        message={
+          userToDelete
+            ? `Bạn có chắc chắn muốn XÓA tài khoản "${userToDelete.fullName || userToDelete.username}" (${userToDelete.email}) khỏi hệ thống không?`
+            : ''
+        }
+        confirmText="Xóa tài khoản"
+        isDeleting={isDeletingUser}
+        onConfirm={confirmDeleteUser}
+        onClose={() => setUserToDelete(null)}
       />
     </div>
   );

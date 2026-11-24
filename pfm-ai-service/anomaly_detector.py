@@ -213,6 +213,7 @@ class AnomalyDetector:
             db.close()
 
 # Khởi tạo singleton detector
+from anomaly_engine import AnomalyDetector as AnomalyDetector
 detector = AnomalyDetector(contamination=0.03)
 
 if __name__ == "__main__":

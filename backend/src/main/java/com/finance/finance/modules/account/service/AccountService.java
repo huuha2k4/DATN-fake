@@ -319,8 +319,8 @@ public class AccountService {
         Account account = accountRepository.findByIdAndUserId(accountId, userId)
                 .orElseThrow(() -> new AccountNotFoundException("Không tìm thấy tài khoản"));
 
-        // Check version
-        if (!account.getVersion().equals(version)) {
+        // Check version (nếu version != null và version > 0 mới kiểm tra strict)
+        if (version != null && version > 0 && !account.getVersion().equals(version)) {
             throw new IllegalStateException("Dữ liệu đã bị thay đổi bởi người khác. Vui lòng tải lại.");
         }
 
@@ -328,17 +328,28 @@ public class AccountService {
         Long transactionCount = accountRepository.countTransactionsByAccountId(accountId);
         
         if (transactionCount > 0) {
-            if (moveTransactionsTo == null) {
-                throw new AccountHasTransactionsException(transactionCount);
+            if (moveTransactionsTo != null) {
+                // Validate target account exists
+                Account targetAccount = accountRepository.findByIdAndUserId(moveTransactionsTo, userId)
+                        .orElseThrow(() -> new AccountNotFoundException("Tài khoản đích không tồn tại"));
+
+                // Move transactions to target account
+                transactionRepository.moveTransactionsToAccount(accountId, moveTransactionsTo);
+                log.info("Moved {} transactions from account {} to {}", transactionCount, accountId, moveTransactionsTo);
+            } else {
+                // Tự động tìm 1 tài khoản khác còn hoạt động của user để chuyển các giao dịch sang, hoặc cho phép soft delete
+                Account defaultFallback = accountRepository.findAllByUserId(userId).stream()
+                        .filter(a -> !a.getId().equals(accountId) && Boolean.TRUE.equals(a.getIsActive()))
+                        .findFirst()
+                        .orElse(null);
+
+                if (defaultFallback != null) {
+                    transactionRepository.moveTransactionsToAccount(accountId, defaultFallback.getId());
+                    log.info("Auto-moved {} transactions from account {} to fallback account {}", transactionCount, accountId, defaultFallback.getId());
+                } else {
+                    log.info("Account {} has {} transactions, soft deleting without fallback account", accountId, transactionCount);
+                }
             }
-
-            // Validate target account exists
-            Account targetAccount = accountRepository.findByIdAndUserId(moveTransactionsTo, userId)
-                    .orElseThrow(() -> new AccountNotFoundException("Tài khoản đích không tồn tại"));
-
-            // Move transactions to target account
-            transactionRepository.moveTransactionsToAccount(accountId, moveTransactionsTo);
-            log.info("Moved {} transactions from account {} to {}", transactionCount, accountId, moveTransactionsTo);
         }
 
         // Soft delete

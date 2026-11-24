@@ -809,11 +809,30 @@ export const POPULAR_BANKS_AND_WALLETS: BankOrWalletPreset[] = [
 export function findBankOrWalletPreset(query?: string): BankOrWalletPreset | undefined {
   if (!query) return undefined;
   const q = query.trim().toUpperCase();
-  return POPULAR_BANKS_AND_WALLETS.find(
+
+  // 1. Khớp chính xác hoàn toàn trước
+  const exact = POPULAR_BANKS_AND_WALLETS.find(
     (item) =>
       item.code.toUpperCase() === q ||
       item.shortName.toUpperCase() === q ||
-      q.includes(item.shortName.toUpperCase()) ||
-      item.name.toUpperCase().includes(q)
+      item.name.toUpperCase() === q
   );
+  if (exact) return exact;
+
+  // 2. Khớp theo ranh giới từ (Word Boundary)
+  const words = q.split(/[\s,._-]+/).filter(Boolean);
+
+  const byShortName = POPULAR_BANKS_AND_WALLETS.find((item) => {
+    const sn = item.shortName.toUpperCase();
+    return words.includes(sn) || q.includes(sn);
+  });
+  if (byShortName) return byShortName;
+
+  const byCode = POPULAR_BANKS_AND_WALLETS.find((item) => {
+    const c = item.code.toUpperCase();
+    return words.includes(c);
+  });
+  if (byCode) return byCode;
+
+  return POPULAR_BANKS_AND_WALLETS.find((item) => item.name.toUpperCase().includes(q));
 }

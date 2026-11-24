@@ -118,7 +118,7 @@ export const AdminLayout: React.FC = () => {
   const currentDateFormatted = formatCurrentDate(new Date());
 
   return (
-    <div className="dashboard-layout min-h-screen bg-[#f6f8f6] dark:bg-[#0b151e] text-[#14261e] dark:text-slate-100 antialiased">
+    <div className="dashboard-layout min-h-screen bg-[#F8FAFC] dark:bg-[#0B0F19] text-[#0F172A] dark:text-slate-100 antialiased">
       {/* Mobile backdrop */}
       {isSidebarOpen && (
         <div
@@ -163,7 +163,7 @@ export const AdminLayout: React.FC = () => {
                     className={({ isActive }) =>
                       `admin-nav-item flex items-center justify-between px-3.5 py-2 rounded-xl text-[13px] font-semibold transition ${
                         isActive
-                          ? 'bg-[#07543f] text-white font-bold shadow-xs'
+                          ? 'bg-[#007F53] text-white font-bold shadow-xs'
                           : 'text-gray-600 dark:text-slate-400 hover:bg-gray-100 dark:hover:bg-slate-800'
                       }`
                     }
@@ -186,7 +186,7 @@ export const AdminLayout: React.FC = () => {
         </div>
 
         {/* Nút Đăng xuất ở chân Sidebar */}
-        <div className="sidebar-bottom pt-3 border-t border-[#e9eeea] dark:border-slate-800 mt-2">
+        <div className="sidebar-bottom pt-3 border-t border-[#E2E8F0] dark:border-slate-800 mt-2">
           <button
             type="button"
             onClick={handleLogout}
@@ -207,7 +207,7 @@ export const AdminLayout: React.FC = () => {
             {/* Nút đóng/mở trên Mobile */}
             <button
               type="button"
-              className="mobile-sidebar-toggle flex md:hidden items-center justify-center p-2 rounded-xl text-[#244034] hover:bg-[#eaf3ee] dark:text-[#cbd5e1] dark:hover:bg-[#122838] transition-colors"
+              className="mobile-sidebar-toggle flex md:hidden items-center justify-center p-2 rounded-xl text-[#244034] hover:bg-[#eaf3ee] dark:text-[#cbd5e1] dark:hover:bg-[#1F2937] transition-colors"
               onClick={handleToggleSidebar}
               aria-label="Mở menu danh mục"
             >
@@ -217,7 +217,7 @@ export const AdminLayout: React.FC = () => {
             {/* Nút thu vào / mở ra trên Desktop */}
             <button
               type="button"
-              className="desktop-sidebar-toggle hidden md:flex items-center justify-center size-8 p-1 text-[#43574c] hover:text-[#07543f] hover:bg-[#eef5f1] dark:text-[#94a3b8] dark:hover:text-white dark:hover:bg-[#1e293b] rounded-lg transition-colors cursor-pointer"
+              className="desktop-sidebar-toggle hidden md:flex items-center justify-center size-8 p-1 text-[#43574c] hover:text-[#007F53] hover:bg-[#eef5f1] dark:text-[#94a3b8] dark:hover:text-white dark:hover:bg-[#1e293b] rounded-lg transition-colors cursor-pointer"
               onClick={handleToggleSidebar}
               title={isSidebarCollapsed ? 'Mở rộng thanh điều hướng' : 'Thu gọn thanh điều hướng'}
               aria-label={isSidebarCollapsed ? 'Mở rộng thanh điều hướng' : 'Thu gọn thanh điều hướng'}
@@ -227,7 +227,7 @@ export const AdminLayout: React.FC = () => {
 
             <div className="flex flex-col justify-center">
               <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
-                <h1 className="header-page-title text-[15px] sm:text-[19px] font-bold tracking-tight leading-tight m-0 line-clamp-1 text-[#14261e] dark:text-slate-100">
+                <h1 className="header-page-title text-[15px] sm:text-[19px] font-bold tracking-tight leading-tight m-0 line-clamp-1 text-[#0F172A] dark:text-slate-100">
                   {currentInfo.title}
                 </h1>
                 <span className="user-tier-badge" title="Quyền hạn: SUPER ADMIN">

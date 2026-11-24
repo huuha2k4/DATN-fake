@@ -31,7 +31,7 @@ export const AdminCategoriesScreen: React.FC = () => {
   const [formCode, setFormCode] = useState('');
   const [formKind, setFormKind] = useState<'INCOME' | 'EXPENSE'>('EXPENSE');
   const [formIcon, setFormIcon] = useState('cart');
-  const [formColor, setFormColor] = useState('#07543f');
+  const [formColor, setFormColor] = useState('#007F53');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [modalNotice, setModalNotice] = useState('');
 
@@ -58,7 +58,7 @@ export const AdminCategoriesScreen: React.FC = () => {
     setFormCode('');
     setFormKind('EXPENSE');
     setFormIcon('cart');
-    setFormColor('#07543f');
+    setFormColor('#007F53');
     setModalNotice('');
     setIsModalOpen(true);
   };
@@ -69,7 +69,7 @@ export const AdminCategoriesScreen: React.FC = () => {
     setFormCode(cat.code || '');
     setFormKind(cat.kind);
     setFormIcon(cat.icon || 'tag');
-    setFormColor(cat.color || '#07543f');
+    setFormColor(cat.color || '#007F53');
     setModalNotice('');
     setIsModalOpen(true);
   };
@@ -173,7 +173,7 @@ export const AdminCategoriesScreen: React.FC = () => {
             {/* Khối thống kê số lượng */}
             <div className="h-10 px-3.5 rounded-xl bg-gray-100/80 dark:bg-slate-800 border border-gray-200/60 dark:border-slate-700 flex items-center justify-center shrink-0">
               <span className="text-xs text-gray-500 dark:text-slate-400">
-                Tổng: <strong className="text-[#07543f] dark:text-emerald-400 font-bold">{filteredCategories.length}</strong>
+                Tổng: <strong className="text-[#007F53] dark:text-emerald-400 font-bold">{filteredCategories.length}</strong>
               </span>
             </div>
 
@@ -181,7 +181,7 @@ export const AdminCategoriesScreen: React.FC = () => {
             <button
               type="button"
               onClick={openCreateModal}
-              className="h-10 px-4 rounded-xl bg-[#07543f] hover:bg-[#064232] text-white text-xs font-bold flex items-center gap-1.5 transition shrink-0 cursor-pointer shadow-xs"
+              className="h-10 px-4 rounded-xl bg-[#007F53] hover:bg-[#004D3B] text-white text-xs font-bold flex items-center gap-1.5 transition shrink-0 cursor-pointer shadow-xs"
             >
               <span className="text-sm font-bold">+</span>
               <span>Thêm danh mục</span>
@@ -195,7 +195,7 @@ export const AdminCategoriesScreen: React.FC = () => {
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
-              <tr className="border-b border-[#edf2ee] dark:border-slate-800 bg-gray-50/70 dark:bg-slate-850/60 text-[11px] font-bold text-gray-500 dark:text-slate-400 uppercase tracking-wider">
+              <tr className="border-b border-[#E2E8F0] dark:border-slate-800 bg-gray-50/70 dark:bg-slate-850/60 text-[11px] font-bold text-gray-500 dark:text-slate-400 uppercase tracking-wider">
                 <th className="py-3.5 px-5">Biểu tượng & Tên danh mục</th>
                 <th className="py-3.5 px-4">Mã nhận diện (Code)</th>
                 <th className="py-3.5 px-4">Phân loại</th>
@@ -203,7 +203,7 @@ export const AdminCategoriesScreen: React.FC = () => {
                 <th className="py-3.5 px-5 text-right">Thao tác</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-[#edf2ee] dark:divide-slate-800 text-xs">
+            <tbody className="divide-y divide-[#E2E8F0] dark:divide-slate-800 text-xs">
               {loading ? (
                 <tr>
                   <td colSpan={5} className="py-12 text-center text-gray-400">
@@ -422,7 +422,7 @@ export const AdminCategoriesScreen: React.FC = () => {
                 <button
                   type="submit"
                   disabled={isSubmitting}
-                  className="px-5 py-2 rounded-xl bg-[#07543f] hover:bg-[#064232] text-white font-bold transition disabled:opacity-50"
+                  className="px-5 py-2 rounded-xl bg-[#007F53] hover:bg-[#004D3B] text-white font-bold transition disabled:opacity-50"
                 >
                   {isSubmitting ? 'Đang lưu...' : 'Lưu danh mục'}
                 </button>

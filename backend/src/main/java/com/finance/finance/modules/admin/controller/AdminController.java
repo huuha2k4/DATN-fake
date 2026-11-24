@@ -60,6 +60,12 @@ public class AdminController {
         return ResponseEntity.ok(updated);
     }
 
+    @DeleteMapping("/users/{userId}")
+    public ResponseEntity<java.util.Map<String, String>> deleteUser(@PathVariable("userId") UUID userId) {
+        adminService.deleteUser(userId);
+        return ResponseEntity.ok(java.util.Map.of("message", "Đã xóa người dùng thành công"));
+    }
+
     // 3. Vai trò & Phân quyền
     @GetMapping("/roles")
     public ResponseEntity<java.util.List<com.finance.finance.modules.admin.dto.response.AdminRoleStatResponse>> getRoles() {
@@ -184,5 +190,11 @@ public class AdminController {
     ) {
         String value = body.getOrDefault("value", "");
         return ResponseEntity.ok(adminService.updateSetting(key, value));
+    }
+
+    // 12. Quản lý AI & Thống kê FinAI Engine
+    @GetMapping("/ai/stats")
+    public ResponseEntity<Object> getAiStats() {
+        return ResponseEntity.ok(adminService.getAiAdminStats());
     }
 }

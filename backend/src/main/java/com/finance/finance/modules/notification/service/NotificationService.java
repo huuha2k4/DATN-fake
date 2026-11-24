@@ -132,9 +132,6 @@ public class NotificationService {
         log.info("Listing notifications for user: {}, isRead: {}, type: {}, priority: {}", 
                 userId, isRead, type, priority);
 
-        // Đảm bảo thông báo Báo cáo tài chính tuần của tuần trước luôn được khởi tạo/cập nhật theo đúng dữ liệu giao dịch thật
-        ensureWeeklyFinancialReportNotification(userId);
-
         Pageable pageable = PageRequest.of(page - 1, pageSize);
         Page<Notification> notificationsPage = notificationRepository.findByUserIdWithFilters(
                 userId, isRead, type, priority, pageable

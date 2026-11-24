@@ -58,7 +58,7 @@ export const AdminDashboardScreen: React.FC = () => {
         {/* Card 1: NGƯỜI DÙNG */}
         <article className="overview-white-card">
           <div className="flex items-center justify-between">
-            <span className="text-[11px] font-bold tracking-wider text-[#63756b] dark:text-slate-400 uppercase">
+            <span className="text-[11px] font-bold tracking-wider text-[#64748B] dark:text-slate-400 uppercase">
               NGƯỜI DÙNG
             </span>
             <span className="icon-box-mint">
@@ -67,13 +67,13 @@ export const AdminDashboardScreen: React.FC = () => {
           </div>
 
           <div className="my-2">
-            <div className="text-3xl sm:text-[34px] font-black text-[#14261e] dark:text-slate-100 tracking-tight text-headline flex items-baseline gap-1">
+            <div className="text-3xl sm:text-[34px] font-black text-[#0F172A] dark:text-slate-100 tracking-tight text-headline flex items-baseline gap-1">
               <span>{data.totalUsers.toLocaleString('vi-VN')}</span>
             </div>
           </div>
 
-          <div className="flex items-center gap-2 text-xs text-[#718078] dark:text-slate-400 text-sub flex-wrap">
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-[#e8f7f0] dark:bg-emerald-950/60 px-2.5 py-0.5 text-[11px] font-bold text-[#07543f] dark:text-emerald-300">
+          <div className="flex items-center gap-2 text-xs text-[#64748B] dark:text-slate-400 text-sub flex-wrap">
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-[#E6F4EA] dark:bg-emerald-950/60 px-2.5 py-0.5 text-[11px] font-bold text-[#007F53] dark:text-emerald-300">
               <span className="size-1.5 rounded-full bg-[#10b981]" />
               +{data.newUsersToday} hôm nay
             </span>
@@ -84,7 +84,7 @@ export const AdminDashboardScreen: React.FC = () => {
         {/* Card 2: SỐ HOẠT ĐỘNG */}
         <article className="overview-white-card">
           <div className="flex items-center justify-between">
-            <span className="text-[11px] font-bold tracking-wider text-[#63756b] dark:text-slate-400 uppercase">
+            <span className="text-[11px] font-bold tracking-wider text-[#64748B] dark:text-slate-400 uppercase">
               SỐ HOẠT ĐỘNG
             </span>
             <span className="icon-box-mint">
@@ -93,13 +93,13 @@ export const AdminDashboardScreen: React.FC = () => {
           </div>
 
           <div className="my-2">
-            <div className="text-3xl sm:text-[34px] font-black text-[#14261e] dark:text-slate-100 tracking-tight text-headline flex items-baseline gap-1">
+            <div className="text-3xl sm:text-[34px] font-black text-[#0F172A] dark:text-slate-100 tracking-tight text-headline flex items-baseline gap-1">
               <span>{data.activeUsers.toLocaleString('vi-VN')}</span>
             </div>
           </div>
 
-          <div className="flex items-center gap-3 text-xs text-[#718078] dark:text-slate-400 text-sub">
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-[#e8f7f0] dark:bg-emerald-950/60 px-2.5 py-0.5 text-[11px] font-bold text-[#07543f] dark:text-emerald-300">
+          <div className="flex items-center gap-3 text-xs text-[#64748B] dark:text-slate-400 text-sub">
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-[#E6F4EA] dark:bg-emerald-950/60 px-2.5 py-0.5 text-[11px] font-bold text-[#007F53] dark:text-emerald-300">
               <span className="size-1.5 rounded-full bg-[#10b981]" />
               Tài khoản tương tác
             </span>
@@ -109,7 +109,7 @@ export const AdminDashboardScreen: React.FC = () => {
         {/* Card 3: GÓI TRẢ PHÍ */}
         <article className="overview-white-card">
           <div className="flex items-center justify-between">
-            <span className="text-[11px] font-bold tracking-wider text-[#63756b] dark:text-slate-400 uppercase">
+            <span className="text-[11px] font-bold tracking-wider text-[#64748B] dark:text-slate-400 uppercase">
               GÓI TRẢ PHÍ
             </span>
             <span className="icon-box-mint">
@@ -118,15 +118,15 @@ export const AdminDashboardScreen: React.FC = () => {
           </div>
 
           <div className="my-2">
-            <div className="text-3xl sm:text-[34px] font-black text-[#14261e] dark:text-slate-100 tracking-tight text-headline flex items-baseline gap-1">
+            <div className="text-3xl sm:text-[34px] font-black text-[#0F172A] dark:text-slate-100 tracking-tight text-headline flex items-baseline gap-1">
               <span>{(data.premiumUsers + data.enterpriseUsers).toLocaleString('vi-VN')}</span>
             </div>
           </div>
 
-          <div className="flex items-center gap-1.5 text-[11px] text-[#718078] dark:text-slate-400 text-sub">
+          <div className="flex items-center gap-1.5 text-[11px] text-[#64748B] dark:text-slate-400 text-sub">
             <span>{data.freeUsers} Free</span>
             <span>·</span>
-            <span className="text-[#07543f] dark:text-emerald-400 font-semibold">{data.premiumUsers} Premium</span>
+            <span className="text-[#007F53] dark:text-emerald-400 font-semibold">{data.premiumUsers} Premium</span>
             <span>·</span>
             <span className="text-purple-600 dark:text-purple-400 font-semibold">{data.enterpriseUsers} Enterprise</span>
           </div>
@@ -135,7 +135,7 @@ export const AdminDashboardScreen: React.FC = () => {
         {/* Card 4: KHỐI LƯỢNG SỬ DỤNG */}
         <article className="overview-white-card">
           <div className="flex items-center justify-between">
-            <span className="text-[11px] font-bold tracking-wider text-[#63756b] dark:text-slate-400 uppercase">
+            <span className="text-[11px] font-bold tracking-wider text-[#64748B] dark:text-slate-400 uppercase">
               KHỐI LƯỢNG SỬ DỤNG
             </span>
             <span className="icon-box-mint">
@@ -144,12 +144,12 @@ export const AdminDashboardScreen: React.FC = () => {
           </div>
 
           <div className="my-2">
-            <div className="text-3xl sm:text-[34px] font-black text-[#14261e] dark:text-slate-100 tracking-tight text-headline flex items-baseline gap-1">
+            <div className="text-3xl sm:text-[34px] font-black text-[#0F172A] dark:text-slate-100 tracking-tight text-headline flex items-baseline gap-1">
               <span>{data.totalReceiptsScanned.toLocaleString('vi-VN')}</span>
             </div>
           </div>
 
-          <div className="flex items-center gap-2 text-xs text-[#718078] dark:text-slate-400 text-sub">
+          <div className="flex items-center gap-2 text-xs text-[#64748B] dark:text-slate-400 text-sub">
             <span>Hóa đơn quét</span>
             <span>·</span>
             <span>{data.totalGroups} nhóm tạo</span>
@@ -164,27 +164,27 @@ export const AdminDashboardScreen: React.FC = () => {
           <div>
             <div className="flex items-start justify-between">
               <div>
-                <h2 className="text-lg font-bold text-[#14261e] dark:text-slate-100 text-headline">
+                <h2 className="text-lg font-bold text-[#0F172A] dark:text-slate-100 text-headline">
                   Tăng trưởng Người dùng 7 ngày gần nhất
                 </h2>
-                <p className="text-xs text-[#718078] dark:text-slate-400 text-sub mt-0.5">
+                <p className="text-xs text-[#64748B] dark:text-slate-400 text-sub mt-0.5">
                   Số tài khoản mới đăng ký theo ngày
                 </p>
               </div>
-              <span className="text-xs font-bold text-[#07543f] dark:text-emerald-400 bg-[#e8f7f0] dark:bg-emerald-950/60 px-2.5 py-1 rounded-lg">
+              <span className="text-xs font-bold text-[#007F53] dark:text-emerald-400 bg-[#E6F4EA] dark:bg-emerald-950/60 px-2.5 py-1 rounded-lg">
                 Tuần hiện tại
               </span>
             </div>
 
             {/* Khung vẽ cột biểu đồ */}
-            <div className="mt-8 flex h-[250px] sm:h-[270px] items-end justify-around gap-2 sm:gap-5 border-b border-[#edf2ee] pb-4 dark:border-[#122432]">
+            <div className="mt-8 flex h-[250px] sm:h-[270px] items-end justify-around gap-2 sm:gap-5 border-b border-[#E2E8F0] pb-4 dark:border-[#1E293B]">
               {data.userGrowth.map((point) => {
                 // Chiều cao chuẩn xác theo tỷ lệ max
                 const heightPct = point.count > 0 ? Math.max(18, Math.round((point.count / maxGrowth) * 85)) : 0;
                 return (
                   <div key={point.date} className="flex flex-col items-center gap-3 flex-1 h-full justify-end group">
                     {/* Số lượng hiển thị trên đỉnh cột */}
-                    <span className={`text-[11px] font-bold transition ${point.count > 0 ? 'text-[#07543f] dark:text-emerald-400 font-extrabold' : 'text-gray-400 dark:text-slate-600'}`}>
+                    <span className={`text-[11px] font-bold transition ${point.count > 0 ? 'text-[#007F53] dark:text-emerald-400 font-extrabold' : 'text-gray-400 dark:text-slate-600'}`}>
                       {point.count}
                     </span>
 
@@ -202,7 +202,7 @@ export const AdminDashboardScreen: React.FC = () => {
                     </div>
 
                     {/* Ngày tháng dưới chân cột */}
-                    <span className="text-[11px] font-semibold text-[#718078] dark:text-slate-400 truncate whitespace-nowrap">
+                    <span className="text-[11px] font-semibold text-[#64748B] dark:text-slate-400 truncate whitespace-nowrap">
                       {point.date.slice(5)}
                     </span>
                   </div>
@@ -216,7 +216,7 @@ export const AdminDashboardScreen: React.FC = () => {
         <div className="xl:col-span-5 flex flex-col gap-5 justify-between">
           {/* Box 1: Cơ cấu gói */}
           <article className="overview-main-panel !p-5 flex-1 flex flex-col justify-between">
-            <h3 className="text-sm font-bold text-[#14261e] dark:text-slate-100 text-headline m-0 mb-3">
+            <h3 className="text-sm font-bold text-[#0F172A] dark:text-slate-100 text-headline m-0 mb-3">
               Cơ cấu Gói Hội viên
             </h3>
             <div className="flex flex-col gap-3.5 my-auto">
@@ -264,10 +264,10 @@ export const AdminDashboardScreen: React.FC = () => {
           {/* Box 2: Hạ tầng máy chủ */}
           <article className="overview-main-panel !p-5 flex-1 flex flex-col justify-between">
             <div className="flex items-center justify-between mb-2">
-              <h3 className="text-sm font-bold text-[#14261e] dark:text-slate-100 text-headline m-0">
+              <h3 className="text-sm font-bold text-[#0F172A] dark:text-slate-100 text-headline m-0">
                 Hạ tầng Máy chủ
               </h3>
-              <span className="flex items-center gap-1.5 text-[11px] text-emerald-600 dark:text-emerald-400 font-bold bg-[#e8f7f0] dark:bg-emerald-950/60 px-2.5 py-0.5 rounded-full">
+              <span className="flex items-center gap-1.5 text-[11px] text-emerald-600 dark:text-emerald-400 font-bold bg-[#E6F4EA] dark:bg-emerald-950/60 px-2.5 py-0.5 rounded-full">
                 <span className="size-2 rounded-full bg-[#10b981] animate-pulse" />
                 Hoạt động tốt
               </span>

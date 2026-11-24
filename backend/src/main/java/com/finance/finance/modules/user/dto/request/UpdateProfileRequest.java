@@ -15,6 +15,15 @@ public class UpdateProfileRequest {
     
     @Size(max = 100, message = "Full name must not exceed 100 characters")
     private String fullName;
+
+    @Size(min = 4, max = 20, message = "Username must be between 4 and 20 characters")
+    @Pattern(regexp = "^[a-zA-Z0-9_]*$", message = "Username must contain only letters, numbers, and underscores")
+    private String username;
+
+    @Size(min = 6, max = 100, message = "Password must be at least 6 characters")
+    private String password;
+
+    private java.time.LocalDate dateOfBirth;
     
     @Size(max = 20, message = "Phone number must not exceed 20 characters")
     @Pattern(regexp = "^[0-9+\\-\\s()]*$", message = "Invalid phone number format")

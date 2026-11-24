@@ -675,64 +675,34 @@ export const periodicReportsApi = {
       };
     } catch (e) {
       console.warn('Lỗi lấy dữ liệu báo cáo tài chính:', e);
-      // Fallback dữ liệu mẫu đẹp nếu backend chưa có giao dịch
-      return getFallbackReportData();
+      return getEmptyReportData();
     }
   },
 };
 
-export function getFallbackReportData(): ReportSummaryData {
+export function getEmptyReportData(): ReportSummaryData {
   return {
-    totalIncome: 9550002,
-    totalExpense: 847000,
-    netCashFlow: 8703002,
-    averageDailyExpense: 28233,
-    savingRate: 91,
-    transactionCount: 20,
+    totalIncome: 0,
+    totalExpense: 0,
+    netCashFlow: 0,
+    averageDailyExpense: 0,
+    savingRate: 0,
+    transactionCount: 0,
     aiInsight: {
-      status: 'POSITIVE',
-      text: 'Dòng tiền kỳ này đang dương 8.703.002 đ. Hạng mục tiêu biểu là "Ăn uống" (36%). Khuyến nghị trích 30% thặng dư này cho quỹ tích lũy dài hạn.',
+      status: 'NEUTRAL',
+      text: 'Chưa có đủ dữ liệu giao dịch trong khoảng thời gian này để FinAI phân tích insight.',
     },
-    dailyTrend: [
-      { date: '01/11', fullDate: '2026-11-01', income: 0, expense: 50000 },
-      { date: '05/11', fullDate: '2026-11-05', income: 9550002, expense: 200000 },
-      { date: '08/11', fullDate: '2026-11-08', income: 0, expense: 500000 },
-      { date: '16/11', fullDate: '2026-11-16', income: 0, expense: 97000 },
-      { date: '23/11', fullDate: '2026-11-23', income: 0, expense: 0 },
-      { date: '30/11', fullDate: '2026-11-30', income: 0, expense: 0 },
-    ],
-    topTransactions: [
-      { id: '1', title: 'Nộp quỹ nhóm: Đại gia đình', sub: '08/11/2026 • Tiền mặt', date: '08/11/2026', wallet: 'Tiền mặt', amount: 500000, type: 'EXPENSE', icon: 'users', categoryName: 'Chi phí khác' },
-      { id: '2', title: 'Trả nợ cho: Vay anh Long', sub: '09/11/2026 • Vietcombank', date: '09/11/2026', wallet: 'Vietcombank', amount: 200000, type: 'EXPENSE', icon: 'credit-card', categoryName: 'Trả nợ' },
-      { id: '3', title: 'Đóng góp vào mục tiêu: Nhà', sub: '09/11/2026 • Tiết kiệm', date: '09/11/2026', wallet: 'Tiết kiệm', amount: 10000, type: 'EXPENSE', icon: 'home', categoryName: 'Tiết kiệm' },
-      { id: '4', title: 'Mua cơm', sub: '07/11/2026 • Ăn uống', date: '07/11/2026', wallet: 'Tiền mặt', amount: 25000, type: 'EXPENSE', icon: 'utensils', categoryName: 'Ăn uống' },
-      { id: '5', title: 'Khoản chi', sub: '07/11/2026 • Ăn uống', date: '07/11/2026', wallet: 'Tiền mặt', amount: 20000, type: 'EXPENSE', icon: 'shopping-bag', categoryName: 'Ăn uống' },
-    ],
-    categories: [
-      { id: 'c1', name: 'Ăn uống', color: '#10B981', icon: 'utensils', amount: 305000, percentage: 36, count: 8, avgPerTx: 38125 },
-      { id: 'c2', name: 'Di chuyển', color: '#0EA5E9', icon: 'car', amount: 200000, percentage: 24, count: 1, avgPerTx: 200000 },
-      { id: 'c3', name: 'Trả nợ', color: '#F59E0B', icon: 'credit-card', amount: 200000, percentage: 24, count: 1, avgPerTx: 200000 },
-      { id: 'c4', name: 'Gia đình & Con cái', color: '#3B82F6', icon: 'users', amount: 132000, percentage: 16, count: 3, avgPerTx: 44000 },
-      { id: 'c5', name: 'Tiết kiệm, đầu tư', color: '#8B5CF6', icon: 'piggy-bank', amount: 10000, percentage: 1, count: 1, avgPerTx: 10000 },
-    ],
+    dailyTrend: [],
+    topTransactions: [],
+    categories: [],
     comparison: {
-      prevIncome: 228000,
-      prevExpense: 763456,
-      prevNet: -535456,
-      incomeChangePercent: 4174,
-      expenseChangePercent: 11,
-      categoryComparisons: [
-        { id: 'c1', name: 'Ăn uống', color: '#10B981', prevAmount: 50000, currentAmount: 305000, diffAmount: 255000, percentChange: 510 },
-        { id: 'c2', name: 'Di chuyển', color: '#0EA5E9', prevAmount: 0, currentAmount: 200000, diffAmount: 200000, percentChange: 100 },
-        { id: 'c3', name: 'Trả nợ', color: '#F59E0B', prevAmount: 123456, currentAmount: 200000, diffAmount: 76544, percentChange: 62 },
-        { id: 'c4', name: 'Gia đình & Con cái', color: '#3B82F6', prevAmount: 170000, currentAmount: 132000, diffAmount: -38000, percentChange: -22 },
-        { id: 'c5', name: 'Tiết kiệm, đầu tư', color: '#8B5CF6', prevAmount: 10000, currentAmount: 10000, diffAmount: 0, percentChange: 0 },
-      ],
-      notes: [
-        'Tổng chi tiêu tăng 11% so với kỳ trước.',
-        'Ăn uống tăng mạnh nhất (+510%).',
-        'Gia đình & Con cái giảm 22%.',
-      ],
+      prevIncome: 0,
+      prevExpense: 0,
+      prevNet: 0,
+      incomeChangePercent: 0,
+      expenseChangePercent: 0,
+      categoryComparisons: [],
+      notes: ['Chưa có dữ liệu so sánh cho kỳ này.'],
     },
   };
 }

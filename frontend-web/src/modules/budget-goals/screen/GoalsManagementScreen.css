@@ -65,7 +65,7 @@
   border-radius: 9999px;
   font-size: 13.5px;
   font-weight: 700;
-  color: #006747;
+  color: #007F53;
   border: none;
   background: transparent;
   cursor: pointer;
@@ -77,7 +77,7 @@
 }
 
 .goal-tab-switch-btn.is-active {
-  background: #006747;
+  background: #007F53;
   color: #ffffff !important;
   box-shadow: 0 4px 12px rgba(0, 103, 71, 0.28);
 }

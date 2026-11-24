@@ -99,7 +99,7 @@ export function ChildMoneyRequestsScreen({ onNotify }: Props) {
 
     try {
       setSubmitting(true)
-      await groupApi.createChildSpendRequest(groupId, walletId, {
+      await groupApi.createSpendRequest(groupId, walletId, {
         amount: numericAmount,
         description: `[MONEY_REQUEST] ${description.trim()}`,
       })
@@ -241,7 +241,7 @@ export function ChildMoneyRequestsScreen({ onNotify }: Props) {
               onClick={() => setActiveTab('ALL')}
               className={`rounded-lg px-3 py-1.5 text-xs font-bold whitespace-nowrap transition cursor-pointer ${
                 activeTab === 'ALL'
-                  ? 'bg-white dark:bg-slate-700 text-[#07543f] dark:text-emerald-300 shadow-2xs'
+                  ? 'bg-white dark:bg-slate-700 text-[#007F53] dark:text-emerald-300 shadow-2xs'
                   : 'text-gray-500 dark:text-slate-400 hover:text-gray-800 dark:hover:text-slate-200'
               }`}
             >
@@ -289,7 +289,7 @@ export function ChildMoneyRequestsScreen({ onNotify }: Props) {
                 placeholder="Tìm nội dung xin tiền..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="h-9 w-full rounded-xl border border-gray-200 dark:border-slate-700 bg-gray-50/70 dark:bg-slate-800/80 pl-8 pr-8 text-xs text-gray-800 dark:text-slate-100 placeholder:text-gray-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-[#07543f] dark:focus:ring-emerald-500"
+                className="h-9 w-full rounded-xl border border-gray-200 dark:border-slate-700 bg-gray-50/70 dark:bg-slate-800/80 pl-8 pr-8 text-xs text-gray-800 dark:text-slate-100 placeholder:text-gray-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-[#007F53] dark:focus:ring-emerald-500"
               />
               <span className="absolute left-2.5 top-2.5 text-gray-400">
                 <FinanceIcon name="search" size={13} />
@@ -330,7 +330,7 @@ export function ChildMoneyRequestsScreen({ onNotify }: Props) {
                     }}
                     className={`flex w-full items-center justify-between rounded-lg px-2.5 py-1.5 text-xs transition cursor-pointer ${
                       selectedMonth === 'ALL'
-                        ? 'bg-emerald-50 dark:bg-emerald-950/60 font-bold text-[#07543f] dark:text-emerald-400'
+                        ? 'bg-emerald-50 dark:bg-emerald-950/60 font-bold text-[#007F53] dark:text-emerald-400'
                         : 'text-gray-700 dark:text-slate-200 hover:bg-gray-50 dark:hover:bg-slate-700/60'
                     }`}
                   >
@@ -352,7 +352,7 @@ export function ChildMoneyRequestsScreen({ onNotify }: Props) {
                         }}
                         className={`flex w-full items-center justify-between rounded-lg px-2.5 py-1.5 text-xs transition cursor-pointer ${
                           isSelected
-                            ? 'bg-emerald-50 dark:bg-emerald-950/60 font-bold text-[#07543f] dark:text-emerald-400'
+                            ? 'bg-emerald-50 dark:bg-emerald-950/60 font-bold text-[#007F53] dark:text-emerald-400'
                             : 'text-gray-700 dark:text-slate-200 hover:bg-gray-50 dark:hover:bg-slate-700/60'
                         }`}
                       >
@@ -368,7 +368,7 @@ export function ChildMoneyRequestsScreen({ onNotify }: Props) {
             <button
               type="button"
               onClick={() => setIsModalOpen(true)}
-              className="h-9 px-3.5 rounded-xl bg-[#07543f] hover:bg-[#064232] dark:bg-emerald-600 dark:hover:bg-emerald-500 text-white text-xs font-bold transition shadow-xs flex items-center gap-1.5 shrink-0 cursor-pointer"
+              className="h-9 px-3.5 rounded-xl bg-[#007F53] hover:bg-[#004D3B] dark:bg-emerald-600 dark:hover:bg-emerald-500 text-white text-xs font-bold transition shadow-xs flex items-center gap-1.5 shrink-0 cursor-pointer"
             >
               <FinanceIcon name="plus" size={13} />
               <span>Xin tiền</span>
@@ -396,7 +396,7 @@ export function ChildMoneyRequestsScreen({ onNotify }: Props) {
             <button
               type="button"
               onClick={() => setIsModalOpen(true)}
-              className="inline-flex items-center gap-1.5 h-9 px-4 rounded-xl bg-[#07543f] hover:bg-[#064232] dark:bg-emerald-600 dark:hover:bg-emerald-500 text-white text-xs font-bold transition shadow-xs cursor-pointer"
+              className="inline-flex items-center gap-1.5 h-9 px-4 rounded-xl bg-[#007F53] hover:bg-[#004D3B] dark:bg-emerald-600 dark:hover:bg-emerald-500 text-white text-xs font-bold transition shadow-xs cursor-pointer"
             >
               <FinanceIcon name="plus" size={13} />
               <span>Gửi yêu cầu xin tiền ngay</span>
@@ -504,7 +504,7 @@ export function ChildMoneyRequestsScreen({ onNotify }: Props) {
                         <button
                           type="button"
                           onClick={() => setSelectedRequest(item)}
-                          className="grid size-7 place-items-center rounded-lg text-slate-400 hover:bg-emerald-50 hover:text-[#07543f] dark:hover:bg-slate-800 transition cursor-pointer mx-auto"
+                          className="grid size-7 place-items-center rounded-lg text-slate-400 hover:bg-emerald-50 hover:text-[#007F53] dark:hover:bg-slate-800 transition cursor-pointer mx-auto"
                           title="Xem chi tiết yêu cầu"
                         >
                           <FinanceIcon name="eye" size={15} />
@@ -658,10 +658,10 @@ export function ChildMoneyRequestsScreen({ onNotify }: Props) {
                   <img src={moneyRequestApproved} alt="Xin tiền" className="size-full object-contain" />
                 </div>
                 <div>
-                  <h3 className="text-sm font-bold text-[#14261e] dark:text-slate-100 m-0">
+                  <h3 className="text-sm font-bold text-[#0F172A] dark:text-slate-100 m-0">
                     Xin tiền bố mẹ
                   </h3>
-                  <span className="text-[11px] text-[#718579] dark:text-slate-400">
+                  <span className="text-[11px] text-[#64748B] dark:text-slate-400">
                     Gửi yêu cầu xin tiền tiêu vặt hoặc mua sắm
                   </span>
                 </div>
@@ -690,7 +690,7 @@ export function ChildMoneyRequestsScreen({ onNotify }: Props) {
                       setAmount(raw)
                     }}
                     placeholder="0"
-                    className="w-full h-11 px-3.5 rounded-xl border border-gray-200 dark:border-slate-700 bg-gray-50/50 dark:bg-slate-800/80 text-base font-black text-emerald-600 dark:text-emerald-400 placeholder:text-gray-300 dark:placeholder:text-slate-600 focus:outline-none focus:ring-2 focus:ring-[#07543f] dark:focus:ring-emerald-500"
+                    className="w-full h-11 px-3.5 rounded-xl border border-gray-200 dark:border-slate-700 bg-gray-50/50 dark:bg-slate-800/80 text-base font-black text-emerald-600 dark:text-emerald-400 placeholder:text-gray-300 dark:placeholder:text-slate-600 focus:outline-none focus:ring-2 focus:ring-[#007F53] dark:focus:ring-emerald-500"
                     required
                     autoFocus
                   />
@@ -726,7 +726,7 @@ export function ChildMoneyRequestsScreen({ onNotify }: Props) {
                   onChange={(e) => setDescription(e.target.value)}
                   placeholder="Ví dụ: Mua bút màu, sách bài tập, đóng tiền quỹ lớp, ăn sáng..."
                   rows={3}
-                  className="w-full p-3 rounded-xl border border-gray-200 dark:border-slate-700 bg-gray-50/50 dark:bg-slate-800/80 text-xs font-medium text-gray-800 dark:text-slate-100 placeholder:text-gray-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-[#07543f] dark:focus:ring-emerald-500 resize-none"
+                  className="w-full p-3 rounded-xl border border-gray-200 dark:border-slate-700 bg-gray-50/50 dark:bg-slate-800/80 text-xs font-medium text-gray-800 dark:text-slate-100 placeholder:text-gray-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-[#007F53] dark:focus:ring-emerald-500 resize-none"
                   required
                 />
               </div>
@@ -743,7 +743,7 @@ export function ChildMoneyRequestsScreen({ onNotify }: Props) {
                 <button
                   type="submit"
                   disabled={submitting || !amount || !description.trim()}
-                  className="px-5 py-2.5 rounded-xl bg-[#07543f] hover:bg-[#064232] dark:bg-emerald-600 dark:hover:bg-emerald-500 text-xs font-bold text-white transition shadow-sm flex items-center gap-2 disabled:opacity-50 cursor-pointer"
+                  className="px-5 py-2.5 rounded-xl bg-[#007F53] hover:bg-[#004D3B] dark:bg-emerald-600 dark:hover:bg-emerald-500 text-xs font-bold text-white transition shadow-sm flex items-center gap-2 disabled:opacity-50 cursor-pointer"
                 >
                   <FinanceIcon name="plus" size={14} />
                   <span>{submitting ? 'Đang gửi...' : 'Gửi yêu cầu tới bố mẹ'}</span>

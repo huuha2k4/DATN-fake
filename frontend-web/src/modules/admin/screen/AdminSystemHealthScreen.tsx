@@ -108,7 +108,7 @@ export const AdminSystemHealthScreen: React.FC = () => {
         {/* TRẠNG THÁI HỆ THỐNG */}
         <article className="overview-white-card">
           <div className="flex items-center justify-between">
-            <span className="text-[11px] font-bold tracking-wider text-[#63756b] dark:text-slate-400 uppercase">
+            <span className="text-[11px] font-bold tracking-wider text-[#64748B] dark:text-slate-400 uppercase">
               TÌNH TRẠNG HỆ THỐNG
             </span>
             <span className={`size-2.5 rounded-full ${isUp ? 'bg-[#10b981] animate-pulse' : 'bg-rose-500'}`} />
@@ -118,7 +118,7 @@ export const AdminSystemHealthScreen: React.FC = () => {
               {isUp ? 'HOẠT ĐỘNG TỐT' : 'CÓ CẢNH BÁO'}
             </div>
           </div>
-          <div className="text-xs text-[#718078] dark:text-slate-400">
+          <div className="text-xs text-[#64748B] dark:text-slate-400">
             Khởi động lúc: {data?.startTime}
           </div>
         </article>
@@ -126,7 +126,7 @@ export const AdminSystemHealthScreen: React.FC = () => {
         {/* BỘ NHỚ JVM HEAP THẬT */}
         <article className="overview-white-card">
           <div className="flex items-center justify-between">
-            <span className="text-[11px] font-bold tracking-wider text-[#63756b] dark:text-slate-400 uppercase">
+            <span className="text-[11px] font-bold tracking-wider text-[#64748B] dark:text-slate-400 uppercase">
               BỘ NHỚ JVM HEAP
             </span>
             <span className="icon-box-mint">
@@ -134,7 +134,7 @@ export const AdminSystemHealthScreen: React.FC = () => {
             </span>
           </div>
           <div className="my-2">
-            <div className="text-2xl sm:text-[28px] font-black text-[#14261e] dark:text-slate-100 tracking-tight">
+            <div className="text-2xl sm:text-[28px] font-black text-[#0F172A] dark:text-slate-100 tracking-tight">
               {data?.memory.heapUsedMB} <span className="text-sm font-semibold text-gray-500">/ {data?.memory.heapMaxMB} MB</span>
             </div>
           </div>
@@ -156,7 +156,7 @@ export const AdminSystemHealthScreen: React.FC = () => {
         {/* POSTGRESQL DATABASE THẬT */}
         <article className="overview-white-card">
           <div className="flex items-center justify-between">
-            <span className="text-[11px] font-bold tracking-wider text-[#63756b] dark:text-slate-400 uppercase">
+            <span className="text-[11px] font-bold tracking-wider text-[#64748B] dark:text-slate-400 uppercase">
               POSTGRESQL LATENCY
             </span>
             <span className="icon-box-mint">
@@ -164,11 +164,11 @@ export const AdminSystemHealthScreen: React.FC = () => {
             </span>
           </div>
           <div className="my-2">
-            <div className="text-2xl sm:text-[28px] font-black text-[#07543f] dark:text-emerald-400 tracking-tight">
+            <div className="text-2xl sm:text-[28px] font-black text-[#007F53] dark:text-emerald-400 tracking-tight">
               {data?.database.pingTimeMs} ms
             </div>
           </div>
-          <div className="text-xs text-[#718078] dark:text-slate-400">
+          <div className="text-xs text-[#64748B] dark:text-slate-400">
             {data?.database.status === 'CONNECTED' ? 'Kết nối ổn định (SELECT 1 OK)' : 'Lỗi kết nối DB'}
           </div>
         </article>
@@ -176,7 +176,7 @@ export const AdminSystemHealthScreen: React.FC = () => {
         {/* THỜI GIAN HOẠT ĐỘNG (UPTIME) THẬT */}
         <article className="overview-white-card">
           <div className="flex items-center justify-between">
-            <span className="text-[11px] font-bold tracking-wider text-[#63756b] dark:text-slate-400 uppercase">
+            <span className="text-[11px] font-bold tracking-wider text-[#64748B] dark:text-slate-400 uppercase">
               THỜI GIAN HOẠT ĐỘNG
             </span>
             <span className="size-9 rounded-xl grid place-items-center bg-purple-100 text-purple-700 dark:bg-purple-950/60 dark:text-purple-300">
@@ -188,7 +188,7 @@ export const AdminSystemHealthScreen: React.FC = () => {
               {data ? formatUptime(data.uptimeSeconds) : '0'}
             </div>
           </div>
-          <div className="text-xs text-[#718078] dark:text-slate-400 flex items-center justify-between">
+          <div className="text-xs text-[#64748B] dark:text-slate-400 flex items-center justify-between">
             <span>Cập nhật lúc:</span>
             <strong>{lastRefreshed.toLocaleTimeString('vi-VN')}</strong>
           </div>

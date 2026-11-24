@@ -233,13 +233,14 @@ public class ChildManagementService {
             throw new ResourceNotFoundException("Request does not belong to this wallet");
         }
 
-        if (spendRequest.getStatus() != SpendRequestStatus.PENDING) {
-            throw new IllegalStateException("Request is not pending");
-        }
-
         // Get wallet
         ChildWallet wallet = walletRepository.findById(walletId)
                 .orElseThrow(() -> new ResourceNotFoundException("Child wallet not found"));
+        validateWalletBelongsToGroup(wallet, groupId);
+
+        if (spendRequest.getStatus() != SpendRequestStatus.PENDING) {
+            throw new IllegalStateException("Request is not pending");
+        }
 
         boolean isMoneyRequest = spendRequest.getDescription().startsWith(MONEY_REQUEST_PREFIX);
         String fundSource = request.getSource() != null ? request.getSource() : "PERSONAL_ACCOUNT";
@@ -346,6 +347,10 @@ public class ChildManagementService {
             throw new ResourceNotFoundException("Request does not belong to this wallet");
         }
 
+        ChildWallet wallet = walletRepository.findById(walletId)
+                .orElseThrow(() -> new ResourceNotFoundException("Child wallet not found"));
+        validateWalletBelongsToGroup(wallet, groupId);
+
         if (spendRequest.getStatus() != SpendRequestStatus.PENDING) {
             throw new IllegalStateException("Request is not pending");
         }
@@ -358,8 +363,7 @@ public class ChildManagementService {
 
         spendRequest = spendRequestRepository.save(spendRequest);
 
-        ChildWallet wallet = walletRepository.findById(walletId).orElse(null);
-        if (wallet != null && wallet.getUserId() != null) {
+        if (wallet.getUserId() != null) {
             try {
                 String reason = request.getReason() != null && !request.getReason().isBlank() ? " Lý do: " + request.getReason() : "";
                 notificationService.createNotification(
@@ -377,6 +381,12 @@ public class ChildManagementService {
         }
 
         return buildSpendRequestResponse(spendRequest);
+    }
+
+    private void validateWalletBelongsToGroup(ChildWallet wallet, UUID groupId) {
+        if (!groupId.equals(wallet.getGroupId()) || wallet.getDeletedAt() != null) {
+            throw new ResourceNotFoundException("Wallet does not belong to this group");
+        }
     }
 
     @Transactional

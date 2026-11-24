@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -47,6 +47,7 @@ function formatVND(amount: number): string {
 }
 
 export function SpendingAnalysisScreen({ onBack, onNavigateToTab }: Props) {
+  const initialLoadStarted = useRef(false);
   const insets = useSafeAreaInsets();
   const { isDark, colors: themeColors } = useAppTheme();
   const [activeTab, setActiveTab] = useState<AnalysisTabType>('overview');
@@ -100,6 +101,8 @@ export function SpendingAnalysisScreen({ onBack, onNavigateToTab }: Props) {
   };
 
   useEffect(() => {
+    if (initialLoadStarted.current) return;
+    initialLoadStarted.current = true;
     loadData();
   }, []);
 

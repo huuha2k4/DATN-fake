@@ -57,7 +57,7 @@ export function DashboardHeaderSection({ onNotify, onOpenProfile, onOpenChangePa
         {onToggleSidebar && (
           <button
             type="button"
-            className="mobile-sidebar-toggle flex md:hidden items-center justify-center p-2 rounded-xl text-[#244034] hover:bg-[#eaf3ee] dark:text-[#cbd5e1] dark:hover:bg-[#122838] transition-colors"
+            className="mobile-sidebar-toggle flex md:hidden items-center justify-center p-2 rounded-xl text-[#244034] hover:bg-[#eaf3ee] dark:text-[#cbd5e1] dark:hover:bg-[#1F2937] transition-colors"
             onClick={onToggleSidebar}
             aria-label="Mở menu danh mục"
           >
@@ -69,7 +69,7 @@ export function DashboardHeaderSection({ onNotify, onOpenProfile, onOpenChangePa
         {onToggleSidebar && (
           <button
             type="button"
-            className="desktop-sidebar-toggle hidden md:flex items-center justify-center size-8 p-1 text-[#43574c] hover:text-[#07543f] hover:bg-[#eef5f1] dark:text-[#94a3b8] dark:hover:text-white dark:hover:bg-[#1e293b] rounded-lg transition-colors cursor-pointer"
+            className="desktop-sidebar-toggle hidden md:flex items-center justify-center size-8 p-1 text-[#43574c] hover:text-[#007F53] hover:bg-[#eef5f1] dark:text-[#94a3b8] dark:hover:text-white dark:hover:bg-[#1e293b] rounded-lg transition-colors cursor-pointer"
             onClick={onToggleSidebar}
             title={isSidebarCollapsed ? 'Mở rộng thanh điều hướng' : 'Thu gọn thanh điều hướng'}
             aria-label={isSidebarCollapsed ? 'Mở rộng thanh điều hướng' : 'Thu gọn thanh điều hướng'}
@@ -84,7 +84,7 @@ export function DashboardHeaderSection({ onNotify, onOpenProfile, onOpenChangePa
               {currentInfo.title}
             </h1>
             {isWalletPage && (
-              <span id="wallet-count-pill" className="inline-flex items-center gap-1.5 rounded-full bg-[#e3f4e9] px-2.5 py-0.5 text-[11px] font-semibold text-[#07543f]">
+              <span id="wallet-count-pill" className="inline-flex items-center gap-1.5 rounded-full bg-[#E6F4EA] px-2.5 py-0.5 text-[11px] font-semibold text-[#007F53]">
                 <span className="size-2 rounded-full bg-[#10b981]" />
                 <span id="wallet-count-text">{walletCount ?? 0} nguồn tiền đang theo dõi</span>
               </span>

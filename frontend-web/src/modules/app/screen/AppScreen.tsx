@@ -44,12 +44,17 @@ import { AdminSystemHealthScreen } from '../../admin/screen/AdminSystemHealthScr
 import { AdminSettingsScreen } from '../../admin/screen/AdminSettingsScreen'
 import { AdminPlaceholderScreen } from '../../admin/screen/AdminPlaceholderScreen'
 import { isAuthenticated, clearAuthData, getStoredUser } from '../../auth/api/authApi'
+import { accountApi } from '../../account-management/api/accountApi'
+import { FinoraOnboardingWalkthroughWeb } from '../../onboarding/components/FinoraOnboardingWalkthrough'
+import { CompleteProfileModalWeb } from '../../onboarding/components/CompleteProfileModal'
 
 export default function AppScreen() {
   const [isLoggedIn, setIsLoggedIn] = useState(false)
   const [notice, setNotice] = useState('')
   const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false)
   const [walletCount, setWalletCount] = useState<number | null>(null)
+  const [showOnboardingWizard, setShowOnboardingWizard] = useState(false)
+  const [showCompleteProfile, setShowCompleteProfile] = useState(false)
   const [isMobileNavOpen, setIsMobileNavOpen] = useState(false)
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState<boolean>(() => {
     return localStorage.getItem('sidebar_collapsed') === 'true'
@@ -90,6 +95,9 @@ export default function AppScreen() {
     const checkAuth = () => {
       const authenticated = isAuthenticated()
       setIsLoggedIn(authenticated)
+      if (authenticated) {
+        checkOnboardingStatus()
+      }
     }
     
     checkAuth()
@@ -104,6 +112,24 @@ export default function AppScreen() {
     }
   }, [])
 
+  const checkOnboardingStatus = async () => {
+    const user = getStoredUser()
+    if (!user || user.systemRole === 'ADMIN' || user.childAccount) return
+
+    try {
+      const accounts = await accountApi.getAccounts()
+      // Nếu user chưa có ví nào (accounts rỗng hoặc 0), luôn luôn bật Onboarding Walkthrough để thiết lập ví
+      if (!accounts || accounts.length === 0) {
+        setShowOnboardingWizard(true)
+      } else {
+        setShowOnboardingWizard(false)
+        localStorage.setItem(`finora_onboarding_done_${user.id}`, 'true')
+      }
+    } catch {
+      // Ignored
+    }
+  }
+
   // Close mobile sidebar on route change
   useEffect(() => {
     setIsMobileNavOpen(false);
@@ -116,13 +142,20 @@ export default function AppScreen() {
     return () => clearTimeout(timer)
   }, [notice])
 
-  const handleAuthenticated = () => {
+  const handleAuthenticated = (authRes?: any) => {
     setIsLoggedIn(true)
     const currentUser = getStoredUser()
     if (currentUser?.systemRole === 'ADMIN') {
       navigate('/admin')
     } else {
       navigate('/dashboard')
+      if (authRes?.data?.isNewUser) {
+        setShowCompleteProfile(true)
+      } else {
+        setTimeout(() => {
+          checkOnboardingStatus()
+        }, 300)
+      }
     }
   }
 
@@ -303,6 +336,39 @@ export default function AppScreen() {
         isOpen={isPasswordModalOpen}
         onClose={() => setIsPasswordModalOpen(false)}
         onSuccess={(msg) => setNotice(msg)}
+      />
+
+      {/* Hoàn thiện hồ sơ khi đăng ký mới bằng Google */}
+      <CompleteProfileModalWeb
+        isOpen={showCompleteProfile}
+        onSuccess={() => {
+          setShowCompleteProfile(false)
+          setTimeout(() => {
+            checkOnboardingStatus()
+          }, 300)
+        }}
+        onSkip={() => {
+          setShowCompleteProfile(false)
+          setTimeout(() => {
+            checkOnboardingStatus()
+          }, 300)
+        }}
+      />
+
+      {/* Onboarding Setup Walkthrough 7 bước chuẩn Finora */}
+      <FinoraOnboardingWalkthroughWeb
+        isOpen={showOnboardingWizard}
+        userName={storedUser?.fullName}
+        onClose={() => {
+          setShowOnboardingWizard(false)
+          if (storedUser?.id) {
+            localStorage.setItem(`finora_onboarding_done_${storedUser.id}`, 'true')
+          }
+          // Kích hoạt cập nhật lại số lượng ví trên thanh header / dashboard
+          accountApi.getAccounts().then((accs) => {
+            setWalletCount(accs.length)
+          })
+        }}
       />
       
       {notice && <div className="toast" role="status"><span className="toast-check">✓</span>{notice}<button type="button" aria-label="Đóng thông báo" onClick={() => setNotice('')}>×</button></div>}

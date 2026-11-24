@@ -1,24 +1,45 @@
 import React, { useEffect, useRef, useState, useMemo } from 'react';
-import { ActivityIndicator, Image, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import {
+  ActivityIndicator,
+  Image,
+  Keyboard,
+  KeyboardAvoidingView,
+  Modal,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from 'react-native';
 import { AppAlert as Alert } from '../../../context/DialogContext';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { FinanceIcon } from '../../core/components/FinanceIcon';
 import { authStorage } from '../../auth/api/authApi';
 import {
-  aiAssistantApi,
-  type ChatMessage,
-  type ChatSessionItem,
-} from '../api/aiChatApi';
+  finAiAgentApi,
+  FinAiActionResponse,
+  FinAiConversationSummary,
+} from '../api/finAiAgentApi';
+import { finAiSyncEmitter } from '../api/finAiSyncEmitter';
+import { FinAiActionCard } from '../components/FinAiActionCard';
 import { useAppTheme } from '../../../context/ThemeContext';
 
 const finAiAvatarImg = require('../../../assets/finai-avatar.png');
 const finAiBannerHeroImg = require('../../../assets/icons/finai_banner_hero.png');
 
+interface DisplayMessage {
+  id: string;
+  author: 'user' | 'assistant';
+  text: string;
+  actions?: FinAiActionResponse[];
+}
+
 type Props = {
   onBack: () => void;
 };
 
-// 4 câu hỏi nhanh mẫu thông minh đồng bộ bản web
 const QUICK_QUESTIONS = [
   {
     title: 'Tổng chi tiêu tháng này',
@@ -33,10 +54,10 @@ const QUICK_QUESTIONS = [
     icon: 'trend',
   },
   {
-    title: 'Ví của con & Tiền tiêu vặt',
-    desc: 'Kiểm tra số dư, chi tiêu & xin tiền của bé',
-    prompt: 'Ví của con/bé còn bao nhiêu tiền và gần đây bé có xin tiền hay chi tiêu gì không?',
-    icon: 'wallet',
+    title: 'Ghi chi tiêu ăn uống 50k',
+    desc: 'Đề xuất tạo giao dịch ăn trưa hôm nay',
+    prompt: 'Tạo giúp tôi giao dịch vừa ăn trưa hết 50000 tiền mặt',
+    icon: 'receipt',
   },
   {
     title: 'Lời khuyên 50/30/20',
@@ -68,9 +89,9 @@ export function AiAssistantScreen({ onBack }: Props) {
           icon: 'receipt',
         },
         {
-          title: 'Hoạt động gần đây',
-          desc: 'Xem các khoản nạp ví, thưởng và chi tiêu',
-          prompt: 'Liệt kê các hoạt động và giao dịch gần đây trong ví của em.',
+          title: 'Ghi chép tiền tiêu vặt',
+          desc: 'Tạo giao dịch mua đồ dùng học tập',
+          prompt: 'Em vừa mua bút thước hết 20000 tiền mặt, ghi giúp em nhé',
           icon: 'clock',
         },
         {
@@ -83,17 +104,37 @@ export function AiAssistantScreen({ onBack }: Props) {
     }
     return QUICK_QUESTIONS;
   }, [isChildAccount]);
+
   const scrollViewRef = useRef<ScrollView>(null);
 
   const [inputQuery, setInputQuery] = useState('');
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [messages, setMessages] = useState<DisplayMessage[]>([]);
   const [isLoading, setIsLoading] = useState(false);
-  const [currentSessionId, setCurrentSessionId] = useState<string | undefined>(undefined);
+  const [currentConversationId, setCurrentConversationId] = useState<string | undefined>(undefined);
+  const [isProcessingAction, setIsProcessingAction] = useState(false);
 
   // Modal lịch sử hội thoại
   const [isHistoryModalVisible, setIsHistoryModalVisible] = useState(false);
-  const [sessions, setSessions] = useState<ChatSessionItem[]>([]);
-  const [loadingSessions, setLoadingSessions] = useState(false);
+  const [conversations, setConversations] = useState<FinAiConversationSummary[]>([]);
+  const [loadingConversations, setLoadingConversations] = useState(false);
+
+  // Theo dõi trạng thái bàn phím để loại bỏ phần hở đệm đáy trên iOS
+  const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
+
+  useEffect(() => {
+    const showSub = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow',
+      () => setIsKeyboardVisible(true)
+    );
+    const hideSub = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide',
+      () => setIsKeyboardVisible(false)
+    );
+    return () => {
+      showSub.remove();
+      hideSub.remove();
+    };
+  }, []);
 
   // Cuộn xuống tin nhắn mới nhất
   const scrollToBottom = () => {
@@ -106,28 +147,48 @@ export function AiAssistantScreen({ onBack }: Props) {
     scrollToBottom();
   }, [messages, isLoading]);
 
-  // Nạp danh sách sessions khi mở modal lịch sử
+  // Nạp danh sách conversations khi mở modal lịch sử
   const handleOpenHistory = async () => {
     setIsHistoryModalVisible(true);
-    setLoadingSessions(true);
+    setLoadingConversations(true);
     try {
-      const data = await aiAssistantApi.getSessions();
-      setSessions(data);
+      const data = await finAiAgentApi.getConversations();
+      setConversations(data || []);
     } catch {
       // ignore
     } finally {
-      setLoadingSessions(false);
+      setLoadingConversations(false);
     }
   };
 
-  // Chọn 1 session cũ để tiếp tục trò chuyện
-  const handleSelectSession = async (session: ChatSessionItem) => {
-    setCurrentSessionId(session.id);
+  // Chọn 1 conversation cũ để tiếp tục trò chuyện
+  const handleSelectConversation = async (conv: FinAiConversationSummary) => {
+    setCurrentConversationId(conv.conversationId);
     setIsHistoryModalVisible(false);
     setIsLoading(true);
     try {
-      const msgs = await aiAssistantApi.getSessionMessages(session.id);
-      setMessages(msgs);
+      const detail = await finAiAgentApi.getConversation(conv.conversationId);
+      const allActions = detail.actions || [];
+      const actionMap = new Map<string, FinAiActionResponse>();
+      allActions.forEach((act) => actionMap.set(act.actionId, act));
+
+      const loadedMsgs: DisplayMessage[] = (detail.messages || []).map((m, idx) => {
+        let msgActions: FinAiActionResponse[] | undefined = undefined;
+        if (m.actions && m.actions.length > 0) {
+          msgActions = m.actions;
+        } else if (m.actionIds && m.actionIds.length > 0) {
+          msgActions = m.actionIds.map((id) => actionMap.get(id)!).filter(Boolean);
+        }
+
+        return {
+          id: m.id || `msg-${idx}`,
+          author: m.author,
+          text: m.text,
+          actions: msgActions && msgActions.length > 0 ? msgActions : undefined,
+        };
+      });
+
+      setMessages(loadedMsgs);
     } catch {
       Alert.alert('Thông báo', 'Không thể tải lịch sử cuộc trò chuyện này.');
     } finally {
@@ -137,12 +198,133 @@ export function AiAssistantScreen({ onBack }: Props) {
 
   // Bắt đầu cuộc trò chuyện mới
   const handleNewChat = () => {
-    setCurrentSessionId(undefined);
+    setCurrentConversationId(undefined);
     setMessages([]);
     setIsHistoryModalVisible(false);
   };
 
-  // Gửi tin nhắn đến FinAI Copilot
+  // Cập nhật trạng thái của 1 action trong danh sách tin nhắn
+  const updateActionInMessages = (updatedAction: FinAiActionResponse) => {
+    setMessages((prev) =>
+      prev.map((msg) => {
+        if (!msg.actions || msg.actions.length === 0) return msg;
+        const exists = msg.actions.some((a) => a.actionId === updatedAction.actionId);
+        if (!exists) return msg;
+        return {
+          ...msg,
+          actions: msg.actions.map((a) =>
+            a.actionId === updatedAction.actionId ? updatedAction : a
+          ),
+        };
+      })
+    );
+  };
+
+  // Polling cho action đang EXECUTING hoặc CONFIRMED
+  const pollActionUntilComplete = async (actionId: string) => {
+    const maxPolls = 15; // 15 x 2s = 30s
+    let pollCount = 0;
+
+    const interval = setInterval(async () => {
+      pollCount++;
+      try {
+        const latest = await finAiAgentApi.getAction(actionId);
+        updateActionInMessages(latest);
+
+        if (latest.status === 'COMPLETED') {
+          clearInterval(interval);
+          setIsProcessingAction(false);
+          finAiSyncEmitter.emit({
+            actionId: latest.actionId,
+            toolName: latest.toolName,
+            status: latest.status,
+            result: latest.result,
+          });
+        } else if (
+          latest.status === 'FAILED' ||
+          latest.status === 'CANCELLED' ||
+          latest.status === 'EXPIRED'
+        ) {
+          clearInterval(interval);
+          setIsProcessingAction(false);
+        } else if (pollCount >= maxPolls) {
+          clearInterval(interval);
+          setIsProcessingAction(false);
+        }
+      } catch {
+        if (pollCount >= maxPolls) {
+          clearInterval(interval);
+          setIsProcessingAction(false);
+        }
+      }
+    }, 2000);
+  };
+
+  // Xác nhận thực thi Action (create_transaction, create_budget, etc.)
+  const handleConfirmAction = async (actionId: string) => {
+    if (isProcessingAction) return;
+    setIsProcessingAction(true);
+
+    try {
+      const res = await finAiAgentApi.confirmAction(actionId);
+      updateActionInMessages(res);
+
+      if (res.status === 'COMPLETED') {
+        setIsProcessingAction(false);
+        finAiSyncEmitter.emit({
+          actionId: res.actionId,
+          toolName: res.toolName,
+          status: res.status,
+          result: res.result,
+        });
+        Alert.alert('Thành công', 'Hành động đã được thực hiện thành công!');
+      } else if (res.status === 'EXECUTING' || res.status === 'CONFIRMED') {
+        pollActionUntilComplete(actionId);
+      } else {
+        setIsProcessingAction(false);
+      }
+    } catch (err: any) {
+      setIsProcessingAction(false);
+      // Timeout hoặc network: khôi phục trạng thái từ server trước khi báo lỗi
+      try {
+        const check = await finAiAgentApi.getAction(actionId);
+        updateActionInMessages(check);
+        if (check.status === 'COMPLETED') {
+          finAiSyncEmitter.emit({
+            actionId: check.actionId,
+            toolName: check.toolName,
+            status: check.status,
+            result: check.result,
+          });
+          Alert.alert('Thành công', 'Hành động đã được ghi nhận hoàn thành!');
+          return;
+        }
+      } catch {
+        // bỏ qua
+      }
+      Alert.alert(
+        'Không thể hoàn thành',
+        err?.message || 'Có lỗi xảy ra khi xác nhận hành động. Vui lòng thử lại.'
+      );
+    }
+  };
+
+  // Hủy bỏ Action
+  const handleCancelAction = async (actionId: string) => {
+    if (isProcessingAction) return;
+    setIsProcessingAction(true);
+
+    try {
+      const res = await finAiAgentApi.cancelAction(actionId);
+      updateActionInMessages(res);
+    } catch (err: any) {
+      Alert.alert('Lỗi', err?.message || 'Không thể hủy đề xuất vào lúc này.');
+    } finally {
+      setIsProcessingAction(false);
+    }
+  };
+
+  // Gửi tin nhắn đến FinAI Agent
   const handleSend = async (customText?: string) => {
     const textToSend = (customText || inputQuery).trim();
     if (!textToSend || isLoading) return;
@@ -150,7 +332,7 @@ export function AiAssistantScreen({ onBack }: Props) {
     setInputQuery('');
 
     // Thêm câu hỏi của user vào danh sách tin nhắn
-    const userMsg: ChatMessage = {
+    const userMsg: DisplayMessage = {
       id: `user-${Date.now()}`,
       author: 'user',
       text: textToSend,
@@ -160,24 +342,52 @@ export function AiAssistantScreen({ onBack }: Props) {
     scrollToBottom();
 
     try {
-      const res = await aiAssistantApi.sendMessage(textToSend, currentSessionId);
-      if (res.sessionId) {
-        setCurrentSessionId(res.sessionId);
+      const res = await finAiAgentApi.sendMessage(textToSend, currentConversationId);
+      if (res.conversationId) {
+        setCurrentConversationId(res.conversationId);
       }
 
-      const aiMsg: ChatMessage = {
+      const aiMsg: DisplayMessage = {
         id: `ai-${Date.now()}`,
         author: 'assistant',
-        text: res.answer,
+        text: res.message || 'Tôi đã xử lý yêu cầu của bạn.',
+        actions: res.actions && res.actions.length > 0 ? res.actions : undefined,
       };
       setMessages((prev) => [...prev, aiMsg]);
     } catch (err: any) {
-      const errorMsg: ChatMessage = {
-        id: `err-${Date.now()}`,
-        author: 'assistant',
-        text: 'Xin lỗi bạn, kết nối tới máy chủ AI đang gặp gián đoạn. Vui lòng kiểm tra lại dịch vụ AI hoặc thử lại sau giây lát!',
-      };
-      setMessages((prev) => [...prev, errorMsg]);
+      // Timeout recovery: thử kiểm tra conversation xem server đã lưu chưa
+      let recovered = false;
+      if (currentConversationId) {
+        try {
+          const detail = await finAiAgentApi.getConversation(currentConversationId);
+          if (detail.messages && detail.messages.length > messages.length) {
+            const lastMsg = detail.messages[detail.messages.length - 1];
+            if (lastMsg.author === 'assistant') {
+              const recoveredAiMsg: DisplayMessage = {
+                id: lastMsg.id || `ai-${Date.now()}`,
+                author: 'assistant',
+                text: lastMsg.text,
+                actions: detail.actions || [],
+              };
+              setMessages((prev) => [...prev, recoveredAiMsg]);
+              recovered = true;
+            }
+          }
+        } catch {
+          // recovery failed
+        }
+      }
+
+      if (!recovered) {
+        const errorMsg: DisplayMessage = {
+          id: `err-${Date.now()}`,
+          author: 'assistant',
+          text:
+            err?.message ||
+            'Xin lỗi bạn, kết nối tới máy chủ FinAI đang gặp gián đoạn. Vui lòng kiểm tra lại mạng hoặc thử lại sau giây lát!',
+        };
+        setMessages((prev) => [...prev, errorMsg]);
+      }
     } finally {
       setIsLoading(false);
       scrollToBottom();
@@ -212,7 +422,7 @@ export function AiAssistantScreen({ onBack }: Props) {
             hitSlop={12}
             style={[styles.backBtn, isDark && { backgroundColor: themeColors.surfaceSubtle }]}
           >
-            <FinanceIcon name="chevron-left" size={22} color={isDark ? themeColors.accentGreen : "#064E3B"} />
+            <FinanceIcon name="chevron-left" size={22} color={isDark ? themeColors.accentGreen : '#064E3B'} />
           </Pressable>
           <View style={styles.copilotBadge}>
             <View
@@ -224,8 +434,8 @@ export function AiAssistantScreen({ onBack }: Props) {
               <Image source={finAiAvatarImg} style={styles.avatarMiniImg} resizeMode="cover" />
             </View>
             <View>
-              <Text style={[styles.headerTitle, isDark && { color: themeColors.textPrimary }]}>FinAI Copilot</Text>
-              <Text style={[styles.headerSubtitle, isDark && { color: themeColors.textSecondary }]}>Trợ lý tài chính thông minh</Text>
+              <Text style={[styles.headerTitle, isDark && { color: themeColors.textPrimary }]}>FinAI Agent</Text>
+              <Text style={[styles.headerSubtitle, isDark && { color: themeColors.textSecondary }]}>Trợ lý điều hướng tài chính</Text>
             </View>
           </View>
         </View>
@@ -240,7 +450,7 @@ export function AiAssistantScreen({ onBack }: Props) {
             ]}
             hitSlop={8}
           >
-            <FinanceIcon name="clock" size={20} color={isDark ? themeColors.accentGreen : "#064E3B"} />
+            <FinanceIcon name="clock" size={20} color={isDark ? themeColors.accentGreen : '#064E3B'} />
           </Pressable>
 
           <Pressable
@@ -264,7 +474,6 @@ export function AiAssistantScreen({ onBack }: Props) {
         {/* Banner giới thiệu FinAI khi chưa có tin nhắn */}
         {messages.length === 0 && (
           <View style={styles.welcomeIntroBox}>
-            {/* Banner Robot FinAI sóng xanh lượn ngang */}
             <View style={styles.heroBannerWrapper}>
               <Image
                 source={finAiBannerHeroImg}
@@ -273,7 +482,6 @@ export function AiAssistantScreen({ onBack }: Props) {
               />
             </View>
 
-            {/* Tiêu đề chào mừng */}
             <Text style={[styles.welcomeMainTitle, isDark && { color: themeColors.textPrimary }]}>
               Xin chào! Tôi có thể giúp gì cho{' '}
               <Text style={[styles.welcomeHighlightTitle, isDark && { color: themeColors.accentGreen }]}>tài chính</Text> của bạn?
@@ -281,7 +489,7 @@ export function AiAssistantScreen({ onBack }: Props) {
             <View style={[styles.titleUnderline, isDark && { backgroundColor: themeColors.accentGreen }]} />
 
             <Text style={[styles.welcomeSubDesc, isDark && { color: themeColors.textSecondary }]}>
-              Tôi được kết nối trực tiếp với dòng tiền, ngân sách và lịch sử giao dịch của bạn để phân tích và đưa ra tư vấn chính xác.
+              Tôi có thể tra cứu chi tiêu, phân tích ngân sách và đề xuất tạo giao dịch, dự toán chi tiêu tự động với sự xác nhận từ bạn.
             </Text>
 
             {/* Grid các câu hỏi gợi ý nhanh */}
@@ -299,7 +507,7 @@ export function AiAssistantScreen({ onBack }: Props) {
                 >
                   <View style={styles.quickCardHeader}>
                     <View style={[styles.quickIconWrap, isDark && { backgroundColor: 'rgba(52, 211, 153, 0.16)' }]}>
-                      <FinanceIcon name={q.icon as any} size={16} color={isDark ? themeColors.accentGreen : "#059669"} />
+                      <FinanceIcon name={q.icon as any} size={16} color={isDark ? themeColors.accentGreen : '#059669'} />
                     </View>
                     <Text style={[styles.quickCardTitle, isDark && { color: themeColors.textPrimary }]}>{q.title}</Text>
                   </View>
@@ -344,7 +552,7 @@ export function AiAssistantScreen({ onBack }: Props) {
               >
                 {!isUser && (
                   <View style={styles.aiTagRow}>
-                    <Text style={[styles.aiTagText, isDark && { color: themeColors.accentGreen }]}>✦ FinAI Advisor</Text>
+                    <Text style={[styles.aiTagText, isDark && { color: themeColors.accentGreen }]}>✦ FinAI Agent</Text>
                   </View>
                 )}
                 <Text
@@ -356,6 +564,21 @@ export function AiAssistantScreen({ onBack }: Props) {
                 >
                   {renderFormattedText(m.text)}
                 </Text>
+
+                {/* Render Action Proposal Cards if any */}
+                {m.actions && m.actions.length > 0 && (
+                  <View style={styles.actionsContainer}>
+                    {m.actions.map((act) => (
+                      <FinAiActionCard
+                        key={act.actionId}
+                        action={act}
+                        onConfirm={handleConfirmAction}
+                        onCancel={handleCancelAction}
+                        isProcessing={isProcessingAction}
+                      />
+                    ))}
+                  </View>
+                )}
               </View>
             </View>
           );
@@ -380,8 +603,10 @@ export function AiAssistantScreen({ onBack }: Props) {
                 isDark && { backgroundColor: themeColors.surface, borderColor: themeColors.cardBorder },
               ]}
             >
-              <ActivityIndicator size="small" color={isDark ? themeColors.accentGreen : "#059669"} />
-              <Text style={[styles.typingText, isDark && { color: themeColors.accentGreen }]}>FinAI đang phân tích tài chính của bạn...</Text>
+              <ActivityIndicator size="small" color={isDark ? themeColors.accentGreen : '#059669'} />
+              <Text style={[styles.typingText, isDark && { color: themeColors.accentGreen }]}>
+                FinAI đang xử lý yêu cầu của bạn...
+              </Text>
             </View>
           </View>
         )}
@@ -391,7 +616,7 @@ export function AiAssistantScreen({ onBack }: Props) {
       <View
         style={[
           styles.composerContainer,
-          { paddingBottom: Math.max(insets.bottom, 12) },
+          { paddingBottom: isKeyboardVisible ? 6 : Math.max(insets.bottom, 12) },
           isDark && { backgroundColor: themeColors.background, borderTopColor: themeColors.cardBorder },
         ]}
       >
@@ -404,8 +629,8 @@ export function AiAssistantScreen({ onBack }: Props) {
           <TextInput
             value={inputQuery}
             onChangeText={setInputQuery}
-            placeholder="Hỏi FinAI về chi tiêu, ngân sách, số dư..."
-            placeholderTextColor={isDark ? themeColors.textMuted : "#94A3B8"}
+            placeholder="Hỏi hoặc bảo FinAI..."
+            placeholderTextColor={isDark ? themeColors.textMuted : '#94A3B8'}
             style={[styles.composerInput, isDark && { color: themeColors.textPrimary }]}
             multiline
             maxLength={500}
@@ -431,13 +656,13 @@ export function AiAssistantScreen({ onBack }: Props) {
         </View>
       </View>
 
-      {/* ── MODAL LỊCH SỬ HỘI THOẠI (CHAT SESSIONS) ── */}
+      {/* ── MODAL LỊCH SỬ HỘI THOẠI (CHAT CONVERSATIONS) ── */}
       <Modal visible={isHistoryModalVisible} transparent animationType="slide">
         <View style={styles.modalOverlay}>
           <View style={[styles.modalSheet, isDark && { backgroundColor: themeColors.surface }]}>
             <View style={[styles.modalHeader, isDark && { borderBottomColor: themeColors.cardBorder }]}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                <FinanceIcon name="clock" size={20} color={isDark ? themeColors.accentGreen : "#059669"} />
+                <FinanceIcon name="clock" size={20} color={isDark ? themeColors.accentGreen : '#059669'} />
                 <Text style={[styles.modalTitle, isDark && { color: themeColors.textPrimary }]}>Lịch sử hội thoại</Text>
               </View>
               <Pressable onPress={() => setIsHistoryModalVisible(false)} hitSlop={10}>
@@ -446,26 +671,26 @@ export function AiAssistantScreen({ onBack }: Props) {
             </View>
 
             <ScrollView style={styles.sessionsList} showsVerticalScrollIndicator={false}>
-              {loadingSessions ? (
+              {loadingConversations ? (
                 <View style={styles.sessionsLoadingBox}>
-                  <ActivityIndicator size="small" color={isDark ? themeColors.accentGreen : "#00A86B"} />
+                  <ActivityIndicator size="small" color={isDark ? themeColors.accentGreen : '#00A86B'} />
                   <Text style={[styles.sessionsLoadingText, isDark && { color: themeColors.textSecondary }]}>Đang nạp lịch sử...</Text>
                 </View>
-              ) : sessions.length === 0 ? (
+              ) : conversations.length === 0 ? (
                 <View style={styles.emptySessionsBox}>
                   <Text style={styles.emptySessionsEmoji}>💬</Text>
                   <Text style={[styles.emptySessionsTitle, isDark && { color: themeColors.textPrimary }]}>Chưa có cuộc trò chuyện nào</Text>
                   <Text style={[styles.emptySessionsDesc, isDark && { color: themeColors.textSecondary }]}>
-                    Bắt đầu nhắn tin với FinAI để lưu lại lịch sử tư vấn tài chính.
+                    Bắt đầu nhắn tin với FinAI để lưu lại lịch sử tư vấn và hành động tài chính.
                   </Text>
                 </View>
               ) : (
-                sessions.map((sess) => {
-                  const isCurrent = currentSessionId === sess.id;
+                conversations.map((conv) => {
+                  const isCurrent = currentConversationId === conv.conversationId;
                   return (
                     <Pressable
-                      key={sess.id}
-                      onPress={() => handleSelectSession(sess)}
+                      key={conv.conversationId}
+                      onPress={() => handleSelectConversation(conv)}
                       style={({ pressed }) => [
                         styles.sessionItemRow,
                         isDark && { backgroundColor: themeColors.surfaceSubtle, borderColor: themeColors.cardBorder },
@@ -499,10 +724,10 @@ export function AiAssistantScreen({ onBack }: Props) {
                             ]}
                             numberOfLines={1}
                           >
-                            {sess.title || 'Cuộc hội thoại tài chính'}
+                            {conv.title || 'Cuộc hội thoại tài chính'}
                           </Text>
                           <Text style={[styles.sessionDate, isDark && { color: themeColors.textMuted }]}>
-                            {sess.created_at ? new Date(sess.created_at).toLocaleDateString('vi-VN') : 'Gần đây'}
+                            {conv.createdAt ? new Date(conv.createdAt).toLocaleDateString('vi-VN') : 'Gần đây'}
                           </Text>
                         </View>
                       </View>
@@ -578,33 +803,24 @@ const styles = StyleSheet.create({
     backgroundColor: '#ECFDF5',
     borderWidth: 1.5,
     borderColor: '#A7F3D0',
-    justifyContent: 'center',
     alignItems: 'center',
+    justifyContent: 'center',
     overflow: 'hidden',
   },
   avatarMiniImg: {
-    width: '100%',
-    height: '100%',
-    borderRadius: 20,
-  },
-  finAiAvatarImg: {
-    width: '100%',
-    height: '100%',
-    borderRadius: 16,
-  },
-  finAiAvatarImgLarge: {
-    width: '100%',
-    height: '100%',
+    width: 36,
+    height: 36,
+    borderRadius: 18,
   },
   headerTitle: {
-    color: '#0F172A',
     fontSize: 16,
-    fontWeight: '800',
+    fontWeight: '700',
+    color: '#064E3B',
+    letterSpacing: -0.3,
   },
   headerSubtitle: {
-    color: '#64748B',
-    fontSize: 11,
-    fontWeight: '500',
+    fontSize: 12,
+    color: '#059669',
     marginTop: 1,
   },
   headerRightActions: {
@@ -617,75 +833,70 @@ const styles = StyleSheet.create({
     height: 36,
     borderRadius: 18,
     backgroundColor: '#F0FDF4',
-    justifyContent: 'center',
     alignItems: 'center',
+    justifyContent: 'center',
   },
   headerBtnPrimary: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: 4,
     backgroundColor: '#059669',
     paddingHorizontal: 12,
     paddingVertical: 7,
-    borderRadius: 16,
-    gap: 4,
-    shadowColor: '#059669',
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    elevation: 2,
+    borderRadius: 18,
   },
   newChatText: {
-    color: '#FFFFFF',
     fontSize: 12,
-    fontWeight: '800',
+    fontWeight: '600',
+    color: '#FFFFFF',
+  },
+  pressed: {
+    opacity: 0.7,
   },
   chatScrollContent: {
     padding: 16,
     paddingBottom: 24,
-    gap: 14,
   },
   welcomeIntroBox: {
     alignItems: 'center',
     paddingVertical: 10,
-    paddingHorizontal: 12,
   },
   heroBannerWrapper: {
     width: '100%',
-    height: 140,
+    height: 120,
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 4,
-    marginBottom: 10,
+    marginBottom: 8,
   },
   heroBannerImage: {
     width: '100%',
-    height: '100%',
+    height: 120,
   },
   welcomeMainTitle: {
-    fontSize: 20,
-    fontWeight: '900',
+    fontSize: 19,
+    fontWeight: '800',
     color: '#0F172A',
     textAlign: 'center',
-    lineHeight: 28,
-    marginTop: 6,
+    lineHeight: 27,
+    marginBottom: 6,
+    paddingHorizontal: 8,
   },
   welcomeHighlightTitle: {
     color: '#059669',
-    fontWeight: '900',
   },
   titleUnderline: {
-    width: 60,
+    width: 48,
     height: 3,
-    backgroundColor: '#10B981',
+    backgroundColor: '#059669',
     borderRadius: 2,
-    marginTop: 4,
     marginBottom: 12,
   },
   welcomeSubDesc: {
     fontSize: 13,
     color: '#64748B',
     textAlign: 'center',
-    lineHeight: 20,
-    maxWidth: '92%',
+    lineHeight: 19,
+    paddingHorizontal: 12,
     marginBottom: 20,
   },
   quickGrid: {
@@ -694,18 +905,14 @@ const styles = StyleSheet.create({
   },
   quickCard: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    padding: 14,
-    borderWidth: 1.2,
+    borderRadius: 14,
+    padding: 12,
+    borderWidth: 1,
     borderColor: '#E2E8F0',
-    shadowColor: '#000',
-    shadowOpacity: 0.03,
-    shadowRadius: 6,
-    elevation: 1,
   },
   quickCardPressed: {
-    borderColor: '#059669',
     backgroundColor: '#F0FDF4',
+    borderColor: '#059669',
   },
   quickCardHeader: {
     flexDirection: 'row',
@@ -717,24 +924,25 @@ const styles = StyleSheet.create({
     width: 28,
     height: 28,
     borderRadius: 8,
-    backgroundColor: '#E8F8F0',
-    justifyContent: 'center',
+    backgroundColor: '#ECFDF5',
     alignItems: 'center',
+    justifyContent: 'center',
   },
   quickCardTitle: {
-    fontSize: 13.5,
-    fontWeight: '800',
-    color: '#1E293B',
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#0F172A',
   },
   quickCardDesc: {
-    fontSize: 11.5,
+    fontSize: 12,
     color: '#64748B',
-    lineHeight: 16,
+    lineHeight: 17,
   },
   messageRow: {
     flexDirection: 'row',
+    marginVertical: 6,
+    gap: 10,
     alignItems: 'flex-start',
-    gap: 8,
   },
   messageRowUser: {
     justifyContent: 'flex-end',
@@ -746,131 +954,129 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: '#E8F8F0',
+    backgroundColor: '#ECFDF5',
     borderWidth: 1,
     borderColor: '#A7F3D0',
-    justifyContent: 'center',
     alignItems: 'center',
-    marginTop: 2,
+    justifyContent: 'center',
     overflow: 'hidden',
+    marginTop: 2,
+  },
+  finAiAvatarImg: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
   },
   bubble: {
     maxWidth: '82%',
-    paddingHorizontal: 15,
-    paddingVertical: 12,
-    borderRadius: 18,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 16,
   },
   bubbleUser: {
-    backgroundColor: '#074838',
+    backgroundColor: '#059669',
     borderBottomRightRadius: 4,
   },
   bubbleAi: {
     backgroundColor: '#FFFFFF',
-    borderBottomLeftRadius: 4,
+    borderTopLeftRadius: 4,
     borderWidth: 1,
     borderColor: '#E2E8F0',
-    shadowColor: '#000',
-    shadowOpacity: 0.03,
-    shadowRadius: 6,
-    elevation: 1,
   },
   aiTagRow: {
     marginBottom: 4,
   },
   aiTagText: {
     fontSize: 10,
-    fontWeight: '800',
+    fontWeight: '700',
     color: '#059669',
-    textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
   messageText: {
-    fontSize: 13.5,
+    fontSize: 14,
     lineHeight: 20,
   },
   messageTextUser: {
     color: '#FFFFFF',
-    fontWeight: '600',
   },
   messageTextAi: {
     color: '#1E293B',
-    fontWeight: '500',
+  },
+  actionsContainer: {
+    marginTop: 8,
+    width: '100%',
   },
   typingBubble: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    paddingVertical: 10,
+    paddingVertical: 12,
   },
   typingText: {
-    fontSize: 12,
+    fontSize: 13,
     color: '#059669',
-    fontWeight: '600',
+    fontStyle: 'italic',
   },
   composerContainer: {
     backgroundColor: '#FFFFFF',
     borderTopWidth: 1,
-    borderTopColor: '#E2E8F0',
-    paddingHorizontal: 14,
-    paddingTop: 8,
+    borderTopColor: '#F1F5F9',
+    paddingHorizontal: 16,
+    paddingTop: 10,
   },
   composerBar: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#F8FAFC',
     borderRadius: 22,
-    borderWidth: 1.2,
+    borderWidth: 1,
     borderColor: '#E2E8F0',
-    paddingLeft: 14,
-    paddingRight: 5,
-    paddingVertical: Platform.OS === 'ios' ? 4 : 2,
-    minHeight: 44,
-    gap: 6,
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+    gap: 8,
   },
   composerInput: {
     flex: 1,
     fontSize: 14,
     color: '#0F172A',
-    maxHeight: 100,
-    paddingTop: Platform.OS === 'ios' ? 8 : 6,
-    paddingBottom: Platform.OS === 'ios' ? 8 : 6,
-    textAlignVertical: 'center',
+    maxHeight: 90,
+    paddingVertical: 4,
   },
   sendBtn: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    justifyContent: 'center',
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     alignItems: 'center',
+    justifyContent: 'center',
   },
   sendBtnActive: {
-    backgroundColor: '#00A86B',
+    backgroundColor: '#059669',
   },
   sendBtnDisabled: {
     backgroundColor: '#CBD5E1',
   },
   sendIcon: {
     color: '#FFFFFF',
-    fontSize: 20,
-    fontWeight: '900',
+    fontSize: 18,
+    fontWeight: '700',
     lineHeight: 22,
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.45)',
+    backgroundColor: 'rgba(15, 23, 42, 0.45)',
     justifyContent: 'flex-end',
   },
   modalSheet: {
     backgroundColor: '#FFFFFF',
-    borderTopLeftRadius: 26,
-    borderTopRightRadius: 26,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
     maxHeight: '80%',
     paddingBottom: 24,
   },
   modalHeader: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
+    justifyContent: 'space-between',
     paddingHorizontal: 20,
     paddingVertical: 16,
     borderBottomWidth: 1,
@@ -878,61 +1084,61 @@ const styles = StyleSheet.create({
   },
   modalTitle: {
     fontSize: 16,
-    fontWeight: '800',
+    fontWeight: '700',
     color: '#0F172A',
   },
   modalCloseText: {
-    fontSize: 13.5,
-    fontWeight: '700',
+    fontSize: 14,
+    fontWeight: '600',
     color: '#64748B',
   },
   sessionsList: {
-    padding: 16,
-    maxHeight: 380,
+    paddingHorizontal: 16,
+    paddingTop: 12,
   },
   sessionsLoadingBox: {
-    paddingVertical: 30,
+    paddingVertical: 32,
     alignItems: 'center',
-    gap: 8,
+    gap: 10,
   },
   sessionsLoadingText: {
-    fontSize: 12.5,
+    fontSize: 13,
     color: '#64748B',
   },
   emptySessionsBox: {
-    paddingVertical: 36,
+    paddingVertical: 40,
     alignItems: 'center',
+    paddingHorizontal: 24,
   },
   emptySessionsEmoji: {
-    fontSize: 32,
-    marginBottom: 8,
+    fontSize: 36,
+    marginBottom: 10,
   },
   emptySessionsTitle: {
-    fontSize: 14.5,
-    fontWeight: '800',
-    color: '#1E293B',
-    marginBottom: 4,
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#0F172A',
+    marginBottom: 6,
   },
   emptySessionsDesc: {
-    fontSize: 12,
+    fontSize: 13,
     color: '#64748B',
     textAlign: 'center',
-    maxWidth: 240,
+    lineHeight: 19,
   },
   sessionItemRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical: 12,
-    paddingHorizontal: 12,
-    borderRadius: 14,
-    marginBottom: 6,
+    padding: 12,
+    borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#F1F5F9',
-    backgroundColor: '#FAFCFB',
+    borderColor: '#E2E8F0',
+    backgroundColor: '#FFFFFF',
+    marginBottom: 8,
   },
   sessionItemRowActive: {
-    borderColor: '#A7F3D0',
+    borderColor: '#059669',
     backgroundColor: '#F0FDF4',
   },
   sessionItemLeft: {
@@ -944,56 +1150,52 @@ const styles = StyleSheet.create({
   sessionIconBox: {
     width: 32,
     height: 32,
-    borderRadius: 10,
+    borderRadius: 8,
     backgroundColor: '#F1F5F9',
-    justifyContent: 'center',
     alignItems: 'center',
+    justifyContent: 'center',
   },
   sessionIconBoxActive: {
-    backgroundColor: '#E8F8F0',
+    backgroundColor: '#ECFDF5',
   },
   sessionTitle: {
     fontSize: 13,
-    fontWeight: '700',
-    color: '#334155',
+    fontWeight: '600',
+    color: '#1E293B',
   },
   sessionTitleActive: {
-    color: '#064E3B',
+    color: '#059669',
   },
   sessionDate: {
-    fontSize: 10.5,
+    fontSize: 11,
     color: '#94A3B8',
     marginTop: 2,
   },
   currentSessionTag: {
-    fontSize: 10,
-    fontWeight: '800',
+    fontSize: 11,
+    fontWeight: '600',
     color: '#059669',
-    backgroundColor: '#D1FAE5',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
+    backgroundColor: '#ECFDF5',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
     borderRadius: 6,
   },
   modalFooter: {
     paddingHorizontal: 16,
-    paddingTop: 10,
+    paddingTop: 12,
   },
   startNewChatBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 6,
-    backgroundColor: '#00A86B',
-    borderRadius: 16,
-    paddingVertical: 14,
+    gap: 8,
+    backgroundColor: '#059669',
+    paddingVertical: 12,
+    borderRadius: 12,
   },
   startNewChatBtnText: {
-    color: '#FFFFFF',
     fontSize: 14,
-    fontWeight: '800',
-  },
-  pressed: {
-    opacity: 0.85,
-    transform: [{ scale: 0.98 }],
+    fontWeight: '700',
+    color: '#FFFFFF',
   },
 });

@@ -2,7 +2,7 @@ import os
 from datetime import datetime, date
 from dotenv import load_dotenv
 from sqlalchemy import (
-    create_engine, Column, String, Float, DateTime, Date, ForeignKey, Boolean, Text
+    create_engine, Column, String, Float, Integer, DateTime, Date, ForeignKey, Boolean, Text
 )
 from sqlalchemy.orm import declarative_base, sessionmaker, relationship
 
@@ -110,6 +110,8 @@ class Transaction(Base):
     note = Column(Text, nullable=True)
     description_raw = Column(String(500), nullable=True)
     deleted_at = Column(DateTime(timezone=True), nullable=True)
+    updated_at = Column(DateTime(timezone=True), nullable=True, default=datetime.utcnow)
+    version = Column(Integer, nullable=False, default=0)
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)

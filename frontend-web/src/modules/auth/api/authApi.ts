@@ -25,6 +25,7 @@ export interface User {
   email: string;
   username?: string;
   fullName: string;
+  dateOfBirth?: string | null;
   emailVerified: boolean;
   phone: string | null;
   avatarUrl: string | null;
@@ -48,6 +49,7 @@ export interface AuthResponse {
   data: {
     user: User;
     tokens: AuthTokens;
+    isNewUser?: boolean;
   };
   message?: string;
 }
@@ -226,6 +228,18 @@ export const clearAuthData = () => {
 export const getStoredUser = (): User | null => {
   const userData = localStorage.getItem('user');
   return userData ? JSON.parse(userData) : null;
+};
+
+export const getStoredTokens = (): AuthTokens | null => {
+  const accessToken = localStorage.getItem('access_token');
+  const refreshToken = localStorage.getItem('refresh_token');
+  if (!accessToken) return null;
+  return {
+    access_token: accessToken,
+    refresh_token: refreshToken || '',
+    token_type: 'Bearer',
+    expires_in: 3600,
+  };
 };
 
 export const isAuthenticated = (): boolean => {

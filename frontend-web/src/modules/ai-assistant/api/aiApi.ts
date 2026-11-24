@@ -1,4 +1,4 @@
-import axios from 'axios';
+import { api } from '../../core/api/api';
 import { getStoredUser } from '../../auth/api/authApi';
 
 export interface ChatResponse {
@@ -169,7 +169,7 @@ function getCurrentUserId(userId?: string): string {
 export async function sendChatMessage(question: string, userId?: string, sessionId?: string): Promise<{ answer: string; sessionId?: string }> {
   const currentUserId = getCurrentUserId(userId);
   try {
-    const response = await axios.post<ChatResponse>('/api/chat', {
+    const response = await api.post<ChatResponse>('/chat', {
       question,
       user_id: currentUserId,
       session_id: sessionId,
@@ -187,7 +187,7 @@ export async function sendChatMessage(question: string, userId?: string, session
 export async function getChatSessions(userId?: string): Promise<ChatSessionItem[]> {
   const currentUserId = getCurrentUserId(userId);
   try {
-    const response = await axios.get<ChatSessionItem[]>('/api/chat/sessions?user_id=' + currentUserId);
+    const response = await api.get<ChatSessionItem[]>('/chat/sessions?user_id=' + currentUserId);
     return response.data || [];
   } catch (error) {
     console.error('Lỗi khi lấy lịch sử hội thoại:', error);
@@ -197,7 +197,7 @@ export async function getChatSessions(userId?: string): Promise<ChatSessionItem[
 
 export async function getSessionMessages(sessionId: string): Promise<ChatMessageItem[]> {
   try {
-    const response = await axios.get<ChatMessageItem[]>('/api/chat/sessions/' + sessionId + '/messages');
+    const response = await api.get<ChatMessageItem[]>('/chat/sessions/' + sessionId + '/messages');
     return response.data || [];
   } catch (error) {
     console.error('Lỗi khi lấy tin nhắn session:', error);
@@ -207,7 +207,7 @@ export async function getSessionMessages(sessionId: string): Promise<ChatMessage
 
 export async function deleteChatSession(sessionId: string): Promise<boolean> {
   try {
-    await axios.delete('/api/chat/sessions/' + sessionId);
+    await api.delete('/chat/sessions/' + sessionId);
     return true;
   } catch (error) {
     console.error('Lỗi khi xóa session:', error);
@@ -218,18 +218,18 @@ export async function deleteChatSession(sessionId: string): Promise<boolean> {
 /**
  * Lấy hồ sơ hành vi chi tiêu (AI 2: Persona, 50/30/20, Radar Scores)
  */
-export async function getBehaviorProfile(userId?: string): Promise<BehaviorProfileResponse> {
-  const currentUserId = getCurrentUserId(userId);
-  const response = await axios.get<BehaviorProfileResponse>(`/api/behavior/profile?user_id=${currentUserId}`);
+export async function getBehaviorProfile(_userId?: string): Promise<BehaviorProfileResponse> {
+  void _userId;
+  const response = await api.get<BehaviorProfileResponse>('/api/behavior/profile', { baseURL: '/' });
   return response.data;
 }
 
 /**
  * Lấy danh sách giao dịch bất thường (AI 4: Isolation Forest)
  */
-export async function getSpendingAnomalies(userId?: string): Promise<AnomalyItem[]> {
-  const currentUserId = getCurrentUserId(userId);
-  const response = await axios.get<AnomalyItem[]>(`/api/anomalies?user_id=${currentUserId}`);
+export async function getSpendingAnomalies(_userId?: string): Promise<AnomalyItem[]> {
+  void _userId;
+  const response = await api.get<AnomalyItem[]>('/api/anomalies', { baseURL: '/' });
   return response.data || [];
 }
 
@@ -237,55 +237,50 @@ export async function getSpendingAnomalies(userId?: string): Promise<AnomalyItem
  * Kiểm tra xem một giao dịch thêm mới có dấu hiệu bất thường không
  */
 export async function checkTransactionAnomaly(amount: number, categoryId?: string, hour?: number) {
-  const response = await axios.post('/api/anomalies/check', {
+  const response = await api.post('/api/anomalies/check', {
     amount,
     category_id: categoryId || 'cat_food',
     hour: hour !== undefined ? hour : new Date().getHours(),
-  });
+  }, { baseURL: '/' });
   return response.data;
 }
 
 /**
  * Lấy danh sách đề xuất tài chính & điểm sức khỏe từ AI (AI 5)
  */
-export async function getAiRecommendations(userId?: string): Promise<RecommendationResponse> {
-  const currentUserId = getCurrentUserId(userId);
-  const response = await axios.get<RecommendationResponse>(`/api/recommendations?user_id=${currentUserId}`);
+export async function getAiRecommendations(_userId?: string): Promise<RecommendationResponse> {
+  void _userId;
+  const response = await api.get<RecommendationResponse>('/api/recommendations', { baseURL: '/' });
   return response.data;
 }
 
 /**
  * Lấy dự báo số dư tài khoản đến cuối tháng (AI 3: Facebook Prophet)
  */
-export async function getBalanceForecast(days: number = 30, userId?: string): Promise<BalanceForecastResponse> {
-  const currentUserId = getCurrentUserId(userId);
-  const response = await axios.get<BalanceForecastResponse>(`/api/forecast/balance?user_id=${currentUserId}&days=${days}&refresh=${Date.now()}`, {
-    headers: { 'Cache-Control': 'no-cache' },
-  });
+export async function getBalanceForecast(days: number = 30, _userId?: string): Promise<BalanceForecastResponse> {
+  void _userId;
+  const response = await api.get<BalanceForecastResponse>(`/api/forecast/balance?days=${days}`, { baseURL: '/' });
   return response.data;
 }
 
 /**
  * Lấy dự báo chi tiêu cho một danh mục đến cuối tháng (AI 3)
  */
-export async function getCategoryForecast(category?: string, userId?: string): Promise<CategoryForecastResponse> {
-  const currentUserId = getCurrentUserId(userId);
-  const categoryQuery = category ? `&category=${encodeURIComponent(category)}` : '';
-  const response = await axios.get<CategoryForecastResponse>(`/api/forecast/category?user_id=${currentUserId}${categoryQuery}&refresh=${Date.now()}`, {
-    headers: { 'Cache-Control': 'no-cache' },
-  });
+export async function getCategoryForecast(category?: string, _userId?: string): Promise<CategoryForecastResponse> {
+  void _userId;
+  const categoryQuery = category ? `?category=${encodeURIComponent(category)}` : '';
+  const response = await api.get<CategoryForecastResponse>(`/api/forecast/category${categoryQuery}`, { baseURL: '/' });
   return response.data;
 }
 
-export async function getTopCategoryForecasts(limit: number = 3, userId?: string): Promise<TopCategoryForecastsResponse> {
-  const currentUserId = getCurrentUserId(userId);
-  const response = await axios.get<TopCategoryForecastsResponse>(
-    `/api/forecast/categories?user_id=${currentUserId}&limit=${limit}&refresh=${Date.now()}`,
-    { headers: { 'Cache-Control': 'no-cache' } },
+export async function getTopCategoryForecasts(limit: number = 3, _userId?: string): Promise<TopCategoryForecastsResponse> {
+  void _userId;
+  const response = await api.get<TopCategoryForecastsResponse>(
+    `/api/forecast/categories?limit=${limit}`,
+    { baseURL: '/' },
   );
   return response.data;
 }
-
 
 export interface GoalForecastItem {
   goal_id: string;
@@ -308,10 +303,8 @@ export interface GoalForecastResponse {
 /**
  * Lấy dự báo tiến độ hoàn thành các mục tiêu tài chính từ AI
  */
-export async function getGoalsForecast(userId?: string): Promise<GoalForecastResponse> {
-  const currentUserId = getCurrentUserId(userId);
-  const response = await axios.get<GoalForecastResponse>(`/api/forecast/goals?user_id=${currentUserId}&refresh=${Date.now()}`, {
-    headers: { 'Cache-Control': 'no-cache' },
-  });
+export async function getGoalsForecast(_userId?: string): Promise<GoalForecastResponse> {
+  void _userId;
+  const response = await api.get<GoalForecastResponse>('/api/forecast/goals', { baseURL: '/' });
   return response.data;
 }

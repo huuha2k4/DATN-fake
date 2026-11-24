@@ -24,6 +24,7 @@ import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
@@ -50,13 +51,15 @@ public class SecurityConfig {
                         // Public endpoints
                         .requestMatchers("/api/v1/auth/**").permitAll()
                         .requestMatchers("/api/v1/public/**").permitAll()
+                        // Authenticated service-to-service context is verified by the FinAI internal controller.
+                        .requestMatchers("/api/internal/v1/finai/**").permitAll()
                         .requestMatchers("/api/v1/test/**").permitAll()  // Test endpoints
                         .requestMatchers(HttpMethod.GET, "/api/v1/health").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/v1/accounts/types").permitAll()
                         .requestMatchers("/actuator/health/**").permitAll()  // Docker healthcheck
                         .requestMatchers("/error").permitAll()  // Error page
-                        .requestMatchers("/uploads/**").permitAll()  // Static files (avatars, etc.)
-                        .requestMatchers(HttpMethod.GET, "/api/v1/groups/messages/attachments/download").permitAll()
+                        .requestMatchers("/uploads/avatars/**", "/uploads/receipts/**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/v1/groups/*/messages/attachments/*").permitAll()
                         
                         // Admin endpoints
                         .requestMatchers("/api/v1/admin/**").hasRole("ADMIN")
@@ -74,16 +77,26 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOriginPatterns(Arrays.asList(
+        
+        List<String> origins = new ArrayList<>(Arrays.asList(
             "http://localhost:*",
             "http://127.0.0.1:*",
             "https://*.ngrok-free.dev",
-            "http://180.93.193.138:*",
+            "http://79.182.10.21:*",
             "https://finora.3congian.top",
             "https://*.ngrok-free.app",
             "https://*.ngrok.io",
             "https://*.ngrok.app"
         ));
+        
+        if (allowedOrigins != null && !allowedOrigins.trim().isEmpty()) {
+            Arrays.stream(allowedOrigins.split(","))
+                .map(String::trim)
+                .filter(origin -> !origin.isEmpty() && !origins.contains(origin))
+                .forEach(origins::add);
+        }
+        
+        configuration.setAllowedOriginPatterns(origins);
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(Arrays.asList("*"));
         configuration.setExposedHeaders(Arrays.asList("Authorization", "X-Total-Count", "X-Page-Number"));

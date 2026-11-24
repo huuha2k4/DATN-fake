@@ -1,7 +1,7 @@
 import * as FileSystem from 'expo-file-system/legacy';
 import { Share, Platform } from 'react-native';
 import { AppAlert as Alert } from '../../../context/DialogContext';
-import type { TransactionItem } from '../api/transactionsApi';
+import type { TransactionItem } from '../screen/TransactionsScreen';
 
 interface ExportFilterOptions {
   monthLabel: string;

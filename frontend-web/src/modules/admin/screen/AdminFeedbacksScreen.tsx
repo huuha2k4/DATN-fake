@@ -106,7 +106,7 @@ export const AdminFeedbacksScreen: React.FC = () => {
         {/* TỔNG PHẢN HỒI */}
         <article className="overview-white-card">
           <div className="flex items-center justify-between">
-            <span className="text-[11px] font-bold tracking-wider text-[#63756b] dark:text-slate-400 uppercase">
+            <span className="text-[11px] font-bold tracking-wider text-[#64748B] dark:text-slate-400 uppercase">
               TỔNG YÊU CẦU HỖ TRỢ
             </span>
             <span className="icon-box-mint">
@@ -114,11 +114,11 @@ export const AdminFeedbacksScreen: React.FC = () => {
             </span>
           </div>
           <div className="my-2">
-            <div className="text-3xl sm:text-[34px] font-black text-[#14261e] dark:text-slate-100 tracking-tight">
+            <div className="text-3xl sm:text-[34px] font-black text-[#0F172A] dark:text-slate-100 tracking-tight">
               {feedbacks.length}
             </div>
           </div>
-          <div className="text-xs text-[#718078] dark:text-slate-400">
+          <div className="text-xs text-[#64748B] dark:text-slate-400">
             Ý kiến đóng góp & yêu cầu từ người dùng
           </div>
         </article>
@@ -126,7 +126,7 @@ export const AdminFeedbacksScreen: React.FC = () => {
         {/* CHỜ XỬ LÝ (PENDING) */}
         <article className="overview-white-card">
           <div className="flex items-center justify-between">
-            <span className="text-[11px] font-bold tracking-wider text-[#63756b] dark:text-slate-400 uppercase">
+            <span className="text-[11px] font-bold tracking-wider text-[#64748B] dark:text-slate-400 uppercase">
               CHỜ GIẢI QUYẾT
             </span>
             <span className="size-9 rounded-xl grid place-items-center bg-rose-100 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300">
@@ -138,7 +138,7 @@ export const AdminFeedbacksScreen: React.FC = () => {
               {pendingCount}
             </div>
           </div>
-          <div className="text-xs text-[#718078] dark:text-slate-400">
+          <div className="text-xs text-[#64748B] dark:text-slate-400">
             Cần ban quản trị phản hồi sớm
           </div>
         </article>
@@ -146,7 +146,7 @@ export const AdminFeedbacksScreen: React.FC = () => {
         {/* ĐANG XỬ LÝ (IN PROGRESS) */}
         <article className="overview-white-card">
           <div className="flex items-center justify-between">
-            <span className="text-[11px] font-bold tracking-wider text-[#63756b] dark:text-slate-400 uppercase">
+            <span className="text-[11px] font-bold tracking-wider text-[#64748B] dark:text-slate-400 uppercase">
               ĐANG TIẾP NHẬN
             </span>
             <span className="size-9 rounded-xl grid place-items-center bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300">
@@ -158,7 +158,7 @@ export const AdminFeedbacksScreen: React.FC = () => {
               {inProgressCount}
             </div>
           </div>
-          <div className="text-xs text-[#718078] dark:text-slate-400">
+          <div className="text-xs text-[#64748B] dark:text-slate-400">
             Đang được chuyển sang bộ phận kỹ thuật
           </div>
         </article>
@@ -166,7 +166,7 @@ export const AdminFeedbacksScreen: React.FC = () => {
         {/* ĐÃ GIẢI QUYẾT (RESOLVED) */}
         <article className="overview-white-card">
           <div className="flex items-center justify-between">
-            <span className="text-[11px] font-bold tracking-wider text-[#63756b] dark:text-slate-400 uppercase">
+            <span className="text-[11px] font-bold tracking-wider text-[#64748B] dark:text-slate-400 uppercase">
               ĐÃ XỬ LÝ XONG
             </span>
             <span className="size-9 rounded-xl grid place-items-center bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300">
@@ -174,11 +174,11 @@ export const AdminFeedbacksScreen: React.FC = () => {
             </span>
           </div>
           <div className="my-2">
-            <div className="text-3xl sm:text-[34px] font-black text-[#07543f] dark:text-emerald-400 tracking-tight">
+            <div className="text-3xl sm:text-[34px] font-black text-[#007F53] dark:text-emerald-400 tracking-tight">
               {resolvedCount}
             </div>
           </div>
-          <div className="text-xs text-[#718078] dark:text-slate-400">
+          <div className="text-xs text-[#64748B] dark:text-slate-400">
             Đã giải đáp hoàn tất cho người dùng
           </div>
         </article>
@@ -230,14 +230,14 @@ export const AdminFeedbacksScreen: React.FC = () => {
 
             <div className="h-10 px-3.5 rounded-xl bg-gray-100/80 dark:bg-slate-800 border border-gray-200/60 dark:border-slate-700 flex items-center justify-center shrink-0">
               <span className="text-xs text-gray-500 dark:text-slate-400">
-                Tổng: <strong className="text-[#07543f] dark:text-emerald-400 font-bold">{filteredFeedbacks.length}</strong>
+                Tổng: <strong className="text-[#007F53] dark:text-emerald-400 font-bold">{filteredFeedbacks.length}</strong>
               </span>
             </div>
 
             <button
               type="button"
               onClick={loadFeedbacks}
-              className="h-10 px-4 rounded-xl bg-[#07543f] hover:bg-[#064232] text-white text-xs font-bold transition shrink-0 cursor-pointer shadow-xs"
+              className="h-10 px-4 rounded-xl bg-[#007F53] hover:bg-[#004D3B] text-white text-xs font-bold transition shrink-0 cursor-pointer shadow-xs"
             >
               Làm mới
             </button>
@@ -250,7 +250,7 @@ export const AdminFeedbacksScreen: React.FC = () => {
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
-              <tr className="border-b border-[#edf2ee] dark:border-slate-800 bg-gray-50/70 dark:bg-slate-850/60 text-[11px] font-bold text-gray-500 dark:text-slate-400 uppercase tracking-wider">
+              <tr className="border-b border-[#E2E8F0] dark:border-slate-800 bg-gray-50/70 dark:bg-slate-850/60 text-[11px] font-bold text-gray-500 dark:text-slate-400 uppercase tracking-wider">
                 <th className="py-3.5 px-5">Người gửi</th>
                 <th className="py-3.5 px-4">Tiêu đề & Nội dung</th>
                 <th className="py-3.5 px-4">Phân loại</th>
@@ -259,7 +259,7 @@ export const AdminFeedbacksScreen: React.FC = () => {
                 <th className="py-3.5 px-5 text-right">Thao tác</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-[#edf2ee] dark:divide-slate-800 text-xs">
+            <tbody className="divide-y divide-[#E2E8F0] dark:divide-slate-800 text-xs">
               {loading ? (
                 <tr>
                   <td colSpan={6} className="py-12 text-center text-gray-400">
@@ -293,7 +293,7 @@ export const AdminFeedbacksScreen: React.FC = () => {
                       {/* Cột 1: Người gửi */}
                       <td className="py-3.5 px-5">
                         <div className="flex items-center gap-3">
-                          <div className="size-9 rounded-full bg-[#07543f] text-white font-bold text-xs grid place-items-center shadow-xs shrink-0">
+                          <div className="size-9 rounded-full bg-[#007F53] text-white font-bold text-xs grid place-items-center shadow-xs shrink-0">
                             {fb.userFullName?.charAt(0) || 'U'}
                           </div>
                           <div>
@@ -355,7 +355,7 @@ export const AdminFeedbacksScreen: React.FC = () => {
                         <button
                           type="button"
                           onClick={() => openReplyModal(fb)}
-                          className="px-3.5 py-1.5 rounded-lg bg-[#07543f] hover:bg-[#064232] text-white font-bold transition cursor-pointer text-xs shadow-xs"
+                          className="px-3.5 py-1.5 rounded-lg bg-[#007F53] hover:bg-[#004D3B] text-white font-bold transition cursor-pointer text-xs shadow-xs"
                         >
                           {fb.adminReply ? 'Sửa phản hồi' : 'Trả lời'}
                         </button>
@@ -474,7 +474,7 @@ export const AdminFeedbacksScreen: React.FC = () => {
                 <button
                   type="submit"
                   disabled={isSubmitting}
-                  className="px-5 py-2 rounded-xl bg-[#07543f] hover:bg-[#064232] text-white font-bold transition disabled:opacity-50"
+                  className="px-5 py-2 rounded-xl bg-[#007F53] hover:bg-[#004D3B] text-white font-bold transition disabled:opacity-50"
                 >
                   {isSubmitting ? 'Đang gửi...' : 'Gửi phản hồi'}
                 </button>

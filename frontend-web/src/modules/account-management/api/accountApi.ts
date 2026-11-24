@@ -41,6 +41,7 @@ export interface AccountStats {
 export interface AccountItem {
   id: string;
   name: string;
+  type?: AccountTypeCode;
   accountType: AccountTypeCode;
   currencyCode: string;
   balance: number;

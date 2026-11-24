@@ -699,23 +699,12 @@ export function GroupScreen({
           setPersonalAccounts(accs);
           if (!expAccountId) setExpAccountId(accs[0].id);
         } else {
-          // Dự phòng ví mặc định nếu tài khoản chưa có hoặc API lỗi
-          const fallbackAccs = [
-            { id: 'wallet_cash', name: 'Tiền mặt', accountType: 'CASH' as any, currencyCode: 'VND', balance: 500000 },
-            { id: 'wallet_momo', name: 'Ví MoMo', accountType: 'E_WALLET' as any, currencyCode: 'VND', balance: 1250000 },
-            { id: 'wallet_bank', name: 'Tài khoản Ngân hàng', accountType: 'BANK' as any, currencyCode: 'VND', balance: 3500000 },
-          ];
-          setPersonalAccounts(fallbackAccs);
-          if (!expAccountId) setExpAccountId(fallbackAccs[0].id);
+          setPersonalAccounts([]);
+          setExpAccountId('');
         }
       }).catch(() => {
-        const fallbackAccs = [
-          { id: 'wallet_cash', name: 'Tiền mặt', accountType: 'CASH' as any, currencyCode: 'VND', balance: 500000 },
-          { id: 'wallet_momo', name: 'Ví MoMo', accountType: 'E_WALLET' as any, currencyCode: 'VND', balance: 1250000 },
-          { id: 'wallet_bank', name: 'Tài khoản Ngân hàng', accountType: 'BANK' as any, currencyCode: 'VND', balance: 3500000 },
-        ];
-        setPersonalAccounts(fallbackAccs);
-        if (!expAccountId) setExpAccountId(fallbackAccs[0].id);
+        setPersonalAccounts([]);
+        setExpAccountId('');
       });
 
       transactionApi.getCategories('EXPENSE').then((cats) => {
@@ -723,29 +712,12 @@ export function GroupScreen({
           setCategoriesList(cats);
           if (!expCategoryId) setExpCategoryId(cats[0].id);
         } else {
-          // Dự phòng danh mục mặc định
-          const fallbackCats = [
-            { id: 'cat_food', name: 'Ăn uống', kind: 'EXPENSE' as const, icon: 'utensils', color: '#EF4444' },
-            { id: 'cat_shopping', name: 'Mua sắm', kind: 'EXPENSE' as const, icon: 'shopping-cart', color: '#EC4899' },
-            { id: 'cat_bill', name: 'Hóa đơn & Điện nước', kind: 'EXPENSE' as const, icon: 'bolt', color: '#F59E0B' },
-            { id: 'cat_travel', name: 'Đi lại & Xăng xe', kind: 'EXPENSE' as const, icon: 'car', color: '#3B82F6' },
-            { id: 'cat_entertainment', name: 'Giải trí', kind: 'EXPENSE' as const, icon: 'gamepad', color: '#8B5CF6' },
-            { id: 'cat_other', name: 'Khác', kind: 'EXPENSE' as const, icon: 'more', color: '#6B7280' },
-          ];
-          setCategoriesList(fallbackCats);
-          if (!expCategoryId) setExpCategoryId(fallbackCats[0].id);
+          setCategoriesList([]);
+          setExpCategoryId('');
         }
       }).catch(() => {
-        const fallbackCats = [
-          { id: 'cat_food', name: 'Ăn uống', kind: 'EXPENSE' as const, icon: 'utensils', color: '#EF4444' },
-          { id: 'cat_shopping', name: 'Mua sắm', kind: 'EXPENSE' as const, icon: 'shopping-cart', color: '#EC4899' },
-          { id: 'cat_bill', name: 'Hóa đơn & Điện nước', kind: 'EXPENSE' as const, icon: 'bolt', color: '#F59E0B' },
-          { id: 'cat_travel', name: 'Đi lại & Xăng xe', kind: 'EXPENSE' as const, icon: 'car', color: '#3B82F6' },
-          { id: 'cat_entertainment', name: 'Giải trí', kind: 'EXPENSE' as const, icon: 'gamepad', color: '#8B5CF6' },
-          { id: 'cat_other', name: 'Khác', kind: 'EXPENSE' as const, icon: 'more', color: '#6B7280' },
-        ];
-        setCategoriesList(fallbackCats);
-        if (!expCategoryId) setExpCategoryId(fallbackCats[0].id);
+        setCategoriesList([]);
+        setExpCategoryId('');
       });
 
       // Nạp comment cho các khoản chi và các khoản nộp quỹ
@@ -1678,8 +1650,12 @@ export function GroupScreen({
                       const prevMsg = index > 0 ? filteredArr[index - 1] : null;
                       const nextMsg = index < filteredArr.length - 1 ? filteredArr[index + 1] : null;
 
-                      const isSameSenderAsPrev = prevMsg && prevMsg.senderId === msg.senderId;
-                      const isSameSenderAsNext = nextMsg && nextMsg.senderId === msg.senderId;
+                      const prevSenderId = prevMsg ? String(prevMsg.senderId || prevMsg.sender?.id || '') : '';
+                      const nextSenderId = nextMsg ? String(nextMsg.senderId || nextMsg.sender?.id || '') : '';
+                      const curSenderId = String(msg.senderId || msg.sender?.id || '');
+
+                      const isSameSenderAsPrev = Boolean(prevSenderId && curSenderId && prevSenderId === curSenderId);
+                      const isSameSenderAsNext = Boolean(nextSenderId && curSenderId && nextSenderId === curSenderId);
 
                       // Tính toán vạch phân cách ngày (Messenger style như Web)
                       const prevDiffMins = prevMsg && prevMsg.createdAt && msg.createdAt
@@ -1688,11 +1664,11 @@ export function GroupScreen({
                       const showDateDivider = !prevMsg || prevDiffMins >= 10;
                       const dividerText = showDateDivider && msg.createdAt ? formatMessengerDateDivider(msg.createdAt) : '';
 
-                      // Kiểm tra xem tin nhắn tiếp theo có cùng khối liên tục (trong vòng 5 phút) hay không
+                      // Kiểm tra xem tin nhắn tiếp theo có cùng khối liên tục (trong vòng 10 phút) hay không
                       const nextDiffMins = nextMsg && nextMsg.createdAt && msg.createdAt
                         ? (new Date(nextMsg.createdAt).getTime() - new Date(msg.createdAt).getTime()) / 60000
                         : 999;
-                      const isNextInSameCluster = isSameSenderAsNext && nextDiffMins < 5;
+                      const isNextInSameCluster = isSameSenderAsNext && nextDiffMins < 10;
                       const isLastInCluster = !isNextInSameCluster;
                       const isFirstInCluster = !isSameSenderAsPrev || showDateDivider;
 
@@ -1709,7 +1685,7 @@ export function GroupScreen({
                         .replace(/^\[\[TRANSACTION\]\]/, '');
 
                       // Lấy avatar người gửi
-                      const rawAvatar = isMe ? currentUser?.avatarUrl : msg.sender?.avatarKey;
+                      const rawAvatar = isMe ? currentUser?.avatarUrl : (msg.sender?.avatarKey || (msg.sender as any)?.avatarUrl);
                       const avatarUri = rawAvatar ? userProfileApi.formatAvatarUrl(rawAvatar) : null;
 
                       // Định dạng thời gian/ngày tháng khi bấm vào tin nhắn (chuẩn Messenger)
@@ -1811,7 +1787,7 @@ export function GroupScreen({
                                   )}
                                 </View>
                               ) : (
-                                <View style={{ width: 36 }} />
+                                <View style={{ width: 36, height: 36, backgroundColor: 'transparent' }} />
                               )}
                             </View>
                           )}
@@ -5611,12 +5587,8 @@ export function GroupScreen({
                     try {
                       if (Platform.OS === 'web') {
                         // Trên Web: Tải trực tiếp qua thẻ <a>
-                        let downloadUrl = lightboxImageUrl;
-                        const filenameMatch = lightboxImageUrl.match(/[^/\\&?]+\.\w{3,4}(?=([?&].*$|$))/);
-                        const filename = filenameMatch ? filenameMatch[0] : `finora_chat_${Date.now()}.jpg`;
-                        if (filenameMatch) {
-                          downloadUrl = `${API_BASE_URL}/groups/messages/attachments/download?filename=${encodeURIComponent(filename)}`;
-                        }
+                        const downloadUrl = lightboxImageUrl;
+                        const filename = `finora_chat_${Date.now()}.jpg`;
                         const link = document.createElement('a');
                         link.href = downloadUrl;
                         link.download = filename;

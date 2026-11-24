@@ -72,9 +72,16 @@ public class AuthService {
     private final ChildWalletRepository childWalletRepository;
     private final com.finance.finance.modules.notification.service.NotificationService notificationService;
     private final com.finance.finance.modules.auth.repository.OAuthAccountRepository oauthAccountRepository;
+    private final javax.sql.DataSource dataSource;
 
     @Value("${app.oauth2.google.client-id:}")
     private String googleClientId;
+
+    @Value("${app.oauth2.google.ios-client-id:}")
+    private String googleIosClientId;
+
+    @Value("${app.oauth2.google.android-client-id:}")
+    private String googleAndroidClientId;
 
     @Value("${app.security.max-login-attempts:5}")
     private int maxLoginAttempts;
@@ -702,24 +709,32 @@ public class AuthService {
     public AuthResponse authenticateWithGoogle(com.finance.finance.modules.auth.dto.request.GoogleAuthRequest request, HttpServletRequest httpRequest) {
         log.info("Processing Google authentication");
 
+        java.util.List<String> validAudiences = new java.util.ArrayList<>();
+        if (googleClientId != null && !googleClientId.isBlank()) validAudiences.add(googleClientId.trim());
+        if (googleIosClientId != null && !googleIosClientId.isBlank()) validAudiences.add(googleIosClientId.trim());
+        if (googleAndroidClientId != null && !googleAndroidClientId.isBlank()) validAudiences.add(googleAndroidClientId.trim());
+
+        log.info("Processing Google authentication with validAudiences: {}", validAudiences);
+
         com.google.api.client.googleapis.auth.oauth2.GoogleIdTokenVerifier verifier =
                 new com.google.api.client.googleapis.auth.oauth2.GoogleIdTokenVerifier.Builder(
                         new com.google.api.client.http.javanet.NetHttpTransport(),
                         new com.google.api.client.json.gson.GsonFactory()
                 )
-                .setAudience(java.util.Collections.singletonList(googleClientId))
+                .setAudience(validAudiences)
                 .build();
 
         com.google.api.client.googleapis.auth.oauth2.GoogleIdToken idToken;
         try {
             idToken = verifier.verify(request.getIdToken());
         } catch (Exception e) {
-            log.error("Failed to verify Google ID Token: {}", e.getMessage());
-            throw new com.finance.finance.common.exception.BusinessException("Token Google không hợp lệ hoặc đã hết hạn");
+            log.error("Failed to verify Google ID Token: {}", e.getMessage(), e);
+            throw new com.finance.finance.common.exception.BusinessException("Token Google không hợp lệ hoặc đã hết hạn: " + e.getMessage());
         }
 
         if (idToken == null) {
-            throw new com.finance.finance.common.exception.BusinessException("Xác thực Google thất bại");
+            log.warn("GoogleIdToken is null after verifier.verify for token length={}", request.getIdToken() != null ? request.getIdToken().length() : 0);
+            throw new com.finance.finance.common.exception.BusinessException("Xác thực Google thất bại (Token không khớp audience hoặc không hợp lệ)");
         }
 
         com.google.api.client.googleapis.auth.oauth2.GoogleIdToken.Payload payload = idToken.getPayload();
@@ -734,15 +749,18 @@ public class AuthService {
         }
 
         // Tìm user theo email hoặc theo OAuth account
-        User user = userRepository.findByEmail(email).orElse(null);
+        User user = userRepository.findByEmailAndDeletedAtIsNull(email).orElse(null);
+        boolean isNewRegistration = false;
 
         if (user == null) {
+            isNewRegistration = true;
             // Đăng ký mới qua Google
             String usernameCandidate = email.split("@")[0].replaceAll("[^a-zA-Z0-9_]", "");
             if (usernameCandidate.length() < 3) usernameCandidate = "user" + System.currentTimeMillis() % 10000;
             String uniqueUsername = usernameCandidate;
             int counter = 1;
-            while (userRepository.existsByUsername(uniqueUsername)) {
+            while (userRepository.findActiveUserByUsername(uniqueUsername).isPresent()
+                    || userRepository.existsByUsername(uniqueUsername)) {
                 uniqueUsername = usernameCandidate + counter++;
             }
 
@@ -819,6 +837,7 @@ public class AuthService {
                 .refreshToken(refreshToken.getToken())
                 .tokenType("Bearer")
                 .expiresIn(jwtTokenProvider.getAccessTokenExpiration() / 1000)
+                .isNewUser(isNewRegistration)
                 .message("Đăng nhập bằng Google thành công")
                 .build();
     }

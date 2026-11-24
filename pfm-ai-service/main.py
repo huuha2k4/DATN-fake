@@ -1,9 +1,13 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Header, HTTPException
 from fastapi.responses import HTMLResponse
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
-from typing import Optional
+from pydantic import BaseModel, Field
+from typing import Optional, Any
 from agent import run_chat
+from action_agent import (
+    GeminiNetworkError, GeminiQuotaError, GeminiTimeoutError, ToolExecutionError, ToolRequiredError,
+    ToolTimeoutError, run_action_chat,
+)
 from database import resolve_user_id
 
 app = FastAPI(
@@ -19,6 +23,29 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+@app.middleware("http")
+async def require_internal_authentication(request, call_next):
+    """Fail closed for every Python API; browsers must enter through Spring Boot."""
+    import hmac
+    import logging
+    import os
+    import time
+    started = time.perf_counter()
+    if request.url.path.startswith("/api/"):
+        expected = os.getenv("FINAI_SERVICE_SECRET", "")
+        supplied = request.headers.get("X-FinAI-Service-Secret", "")
+        if len(expected) < 32 or not hmac.compare_digest(supplied, expected):
+            from fastapi.responses import JSONResponse
+            return JSONResponse(status_code=401, content={"detail": "Invalid service credentials"})
+    response = await call_next(request)
+    if request.url.path.startswith(("/api/forecast", "/api/behavior", "/api/anomal", "/api/recommend")):
+        logging.getLogger("finora.analytics").info(
+            "[AI_HTTP] path=%s, status=%s, total=%.2fms",
+            request.url.path, response.status_code, (time.perf_counter() - started) * 1000.0,
+        )
+    return response
 
 HTML_CHAT_UI = """<!DOCTYPE html>
 <html lang="vi">
@@ -691,6 +718,58 @@ class ChatResponse(BaseModel):
     status: str
     session_id: Optional[str] = None
 
+
+class ActionHistoryItem(BaseModel):
+    role: str
+    content: str
+
+
+class ActionChatRequest(BaseModel):
+    conversationId: str
+    message: str
+    contextToken: str
+    temporalContext: dict[str, str]
+    history: list[ActionHistoryItem] = []
+
+
+class ActionProposal(BaseModel):
+    toolName: str
+    arguments: dict[str, Any]
+    planId: Optional[str] = None
+
+
+class ActionChatResponse(BaseModel):
+    message: str
+    proposals: list[ActionProposal] = []
+
+
+@app.post("/api/v1/agent/chat", response_model=ActionChatResponse)
+def action_agent_chat(request: ActionChatRequest, x_finai_service_secret: str = Header(default="")):
+    """Trusted Spring entry point. The opaque context token is never sent to Gemini."""
+    import hmac
+    import os
+    expected_secret = os.getenv("FINAI_SERVICE_SECRET", "")
+    if len(expected_secret) < 32 or not hmac.compare_digest(x_finai_service_secret, expected_secret):
+        raise HTTPException(status_code=401, detail="Invalid service credentials")
+    try:
+        result = run_action_chat(
+            message=request.message,
+            context_token=request.contextToken,
+            temporal_context=request.temporalContext,
+            history=[item.model_dump() for item in request.history],
+        )
+        return ActionChatResponse(**result)
+    except GeminiQuotaError:
+        raise HTTPException(status_code=429, detail="Gemini quota is temporarily exhausted")
+    except GeminiNetworkError:
+        raise HTTPException(status_code=503, detail="Gemini network is temporarily unavailable")
+    except (GeminiTimeoutError, ToolTimeoutError):
+        raise HTTPException(status_code=504, detail="FinAI request timed out")
+    except (ToolExecutionError, ToolRequiredError):
+        raise HTTPException(status_code=502, detail="Financial data could not be retrieved")
+    except Exception:
+        raise HTTPException(status_code=502, detail="FinAI orchestration failed")
+
 @app.get("/api/chat/sessions")
 def get_user_chat_sessions(user_id: str = "test_user_01"):
     """Lấy danh sách các cuộc trò chuyện của user từ database"""
@@ -869,6 +948,7 @@ def api_top_category_forecasts(user_id: str = "test_user_01", limit: int = 3):
         category_ids = [row[0] for row in (
             db.query(Transaction.category_id)
             .filter(Transaction.user_id == user_id, Transaction.type == "EXPENSE",
+                    Transaction.deleted_at.is_(None),
                     Transaction.occurred_at >= month_start)
             .group_by(Transaction.category_id)
             .order_by(func.sum(Transaction.amount).desc())
@@ -898,9 +978,10 @@ def api_forecast_goals(user_id: str = "test_user_01", goal_name: Optional[str] =
 from anomaly_detector import detector
 
 class AnomalyCheckRequest(BaseModel):
-    amount: float
+    amount: float = Field(gt=0)
     category_id: Optional[str] = "cat_food"
-    hour: Optional[int] = 12
+    hour: Optional[int] = Field(default=12, ge=0, le=23)
+    user_id: Optional[str] = None
 
 @app.get("/api/anomalies")
 def api_get_anomalies(user_id: str = "test_user_01"):
@@ -916,11 +997,12 @@ def api_check_anomaly(req: AnomalyCheckRequest):
     API Kiểm tra một giao dịch mới xem có dấu hiệu bất thường không (Isolation Forest).
     """
     from datetime import datetime
-    dummy_dt = datetime.now().replace(hour=req.hour or 12)
+    dummy_dt = datetime.now().replace(hour=req.hour if req.hour is not None else 12)
     return detector.inspect_transaction(
         amount=req.amount,
         category_id=req.category_id,
-        occurred_at=dummy_dt
+        occurred_at=dummy_dt,
+        user_id=req.user_id,
     )
 
 # --- CÁC ENDPOINT AI 2 (PHÂN TÍCH HÀNH VI CHI TIÊU - BEHAVIOR PROFILING) ---

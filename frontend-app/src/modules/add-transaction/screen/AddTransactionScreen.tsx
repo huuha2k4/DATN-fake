@@ -14,10 +14,12 @@ import {
   LayoutGrid,
   ScanText,
   ShoppingCart,
+  Users,
   Wallet,
   X,
 } from 'lucide-react-native';
 import { FinanceIcon, resolveCategoryIconName } from '../../core/components/FinanceIcon';
+import { AppDateTimePicker } from '../../core/components/AppDateTimePicker';
 import {
   transactionApi,
   type AccountItem,
@@ -128,17 +130,48 @@ export function AddTransactionScreen({ onBack, onSaved, onOpenInvoiceScanner }: 
           return;
         }
 
-        const [cats, accs] = await Promise.all([
+        const [cats, accs, userGroups] = await Promise.all([
           transactionApi.getCategories(),
           transactionApi.getAccounts(),
+          groupApi.getGroups().catch(() => []),
         ]);
+
+        // Lấy thông tin quỹ các nhóm (nếu có)
+        const groupFundAccounts: AccountItem[] = [];
+        if (Array.isArray(userGroups) && userGroups.length > 0) {
+          const fundResults = await Promise.all(
+            userGroups.map(async (g) => {
+              try {
+                const fund = await groupApi.getFund(g.id);
+                return { group: g, fund };
+              } catch {
+                return null;
+              }
+            })
+          );
+
+          fundResults.forEach((res) => {
+            if (res && res.fund) {
+              groupFundAccounts.push({
+                id: `group_fund:${res.group.id}`,
+                name: `Quỹ ${res.group.name}`,
+                accountType: 'GROUP_FUND',
+                currencyCode: 'VND',
+                balance: Number(res.fund.balance || 0),
+              });
+            }
+          });
+        }
+
+        const combinedAccounts = [...accs, ...groupFundAccounts];
+
         if (isMounted) {
           setCategories(cats);
-          setAccounts(accs);
-          if (accs.length > 0) {
-            setSelectedAccountId(accs[0].id);
-            if (accs.length > 1) {
-              setToAccountId(accs[1].id);
+          setAccounts(combinedAccounts);
+          if (combinedAccounts.length > 0) {
+            setSelectedAccountId(combinedAccounts[0].id);
+            if (combinedAccounts.length > 1) {
+              setToAccountId(combinedAccounts[1].id);
             }
           }
         }
@@ -281,6 +314,48 @@ export function AddTransactionScreen({ onBack, onSaved, onOpenInvoiceScanner }: 
       const finalTime = isCustomDateTime
         ? `${time}:00`
         : `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')}`;
+
+      // Xử lý nếu chọn Ví Quỹ Gia đình / Quỹ Nhóm
+      if (selectedAccountId.startsWith('group_fund:')) {
+        const groupId = selectedAccountId.replace('group_fund:', '');
+        if (type === 'TRANSFER') {
+          Alert.alert('Không hỗ trợ', 'Hiện chưa hỗ trợ tính năng chuyển khoản trực tiếp với Quỹ nhóm.');
+          return;
+        }
+        if (type === 'INCOME') {
+          Alert.alert('Chưa hỗ trợ', 'Để đóng quỹ, vui lòng sử dụng tính năng Đóng góp quỹ trực tiếp trong nhóm.');
+          return;
+        }
+
+        // Lấy danh sách thành viên để chia đều khoản chi nhóm (splitMethod: EQUAL)
+        const members = await groupApi.getMembers(groupId).catch(() => []);
+        const validMembers = Array.isArray(members) && members.length > 0 ? members : [{ userId: user?.id || '' }];
+        const splitAmount = Math.round(numericAmount / validMembers.length);
+        const splits = validMembers.map((m) => ({
+          userId: m.userId,
+          amount: splitAmount,
+        }));
+
+        await groupApi.createExpense(groupId, {
+          description: description.trim() || selectedCategoryObj?.name || 'Chi tiêu quỹ gia đình',
+          amount: numericAmount,
+          currency: 'VND',
+          paidByUserId: user?.id || '',
+          paymentSource: 'GROUP_FUND',
+          categoryId: selectedCategoryId || undefined,
+          splitMethod: 'EQUAL',
+          expenseDate: finalDate,
+          notes: description.trim() || undefined,
+          splits,
+        });
+
+        Alert.alert(
+          'Thành công',
+          `Đã ghi nhận khoản chi ${formatVND(numericAmount)} ₫ vào Quỹ nhóm!`,
+          [{ text: 'Xong', onPress: onSaved }]
+        );
+        return;
+      }
 
       const res = await transactionApi.createTransaction({
         transactionType: type,
@@ -613,6 +688,13 @@ export function AddTransactionScreen({ onBack, onSaved, onOpenInvoiceScanner }: 
             <View style={styles.accountCardTop}>
               <View style={styles.selectCardLeft}>
                 {(() => {
+                  if (selectedAccountId.startsWith('group_fund:')) {
+                    return (
+                      <View style={[styles.cashWalletIconBox, { backgroundColor: isDark ? 'rgba(16, 185, 129, 0.2)' : '#DCFCE7' }]}>
+                        <Users size={23} color={isDark ? '#34D399' : '#15803D'} strokeWidth={2.2} />
+                      </View>
+                    );
+                  }
                   const preset = findBankOrWalletPreset(selectedAccountObj?.name);
                   if (preset?.logoUrl) {
                     return (
@@ -747,33 +829,18 @@ export function AddTransactionScreen({ onBack, onSaved, onOpenInvoiceScanner }: 
           </View>
 
           {isCustomDateTime && (
-            <View style={styles.timeDateInputsRow}>
-              <View style={styles.timeCol}>
-                <Text style={[styles.microLabel, isDark && { color: themeColors.textSecondary }]}>Giờ thực hiện</Text>
-                <TextInput
-                  value={time}
-                  onChangeText={setTime}
-                  placeholder="HH:mm"
-                  placeholderTextColor={isDark ? '#64748B' : '#94A3B8'}
-                  style={[
-                    styles.timeDateInput,
-                    isDark && { backgroundColor: themeColors.surfaceSubtle, borderColor: themeColors.cardBorder, color: themeColors.textPrimary },
-                  ]}
-                />
-              </View>
-              <View style={styles.dateCol}>
-                <Text style={[styles.microLabel, isDark && { color: themeColors.textSecondary }]}>Ngày giao dịch</Text>
-                <TextInput
-                  value={date}
-                  onChangeText={setDate}
-                  placeholder="DD/MM/YYYY"
-                  placeholderTextColor={isDark ? '#64748B' : '#94A3B8'}
-                  style={[
-                    styles.timeDateInput,
-                    isDark && { backgroundColor: themeColors.surfaceSubtle, borderColor: themeColors.cardBorder, color: themeColors.textPrimary },
-                  ]}
-                />
-              </View>
+            <View style={{ marginTop: 12 }}>
+              <AppDateTimePicker
+                label=""
+                isDark={isDark}
+                onChange={(_, dateStr, timeStr) => {
+                  const parts = dateStr.split('-');
+                  if (parts.length === 3) {
+                    setDate(`${parts[2]}/${parts[1]}/${parts[0]}`);
+                  }
+                  setTime(timeStr);
+                }}
+              />
             </View>
           )}
         </View>
@@ -920,7 +987,11 @@ export function AddTransactionScreen({ onBack, onSaved, onOpenInvoiceScanner }: 
                       isSelected && (isDark ? { backgroundColor: themeColors.surfaceSubtle } : styles.accountItemRowActive),
                     ]}
                   >
-                    {preset?.logoUrl ? (
+                    {acc.id.startsWith('group_fund:') ? (
+                      <View style={[styles.cashWalletIconBox, { width: 38, height: 38, backgroundColor: isDark ? 'rgba(16, 185, 129, 0.2)' : '#DCFCE7' }]}>
+                        <Users size={18} color={isDark ? '#34D399' : '#15803D'} strokeWidth={2.4} />
+                      </View>
+                    ) : preset?.logoUrl ? (
                       <View style={styles.modalAccountBrandLogo}>
                         <Image
                           source={{ uri: preset.logoUrl }}

@@ -8,6 +8,7 @@ import {
 } from '../../cash-flow-management/api/transactionApi'
 import { accountApi, type AccountItem } from '../../account-management/api/accountApi'
 import { formatDate } from '../../core/utils/dateUtils'
+import { DatePicker } from '../../core/components/DatePicker'
 import { groupApi, type GroupFundResponse, type GroupMemberResponse, type GroupResponse, type ChildWalletResponse } from '../../group/api/groupApi'
 import { getStoredUser } from '../../auth/api/authApi'
 
@@ -428,27 +429,27 @@ export function AddTransactionScreen({ onCancel, onNotify, onOpenInvoiceScanner 
 
   if (loadingMetadata) {
     return (
-      <main className="mx-auto flex min-h-[calc(100vh-64px)] w-full max-w-4xl items-center justify-center p-8 text-xs text-[#718579]">
+      <main className="mx-auto flex min-h-[calc(100vh-64px)] w-full max-w-4xl items-center justify-center p-8 text-xs text-[#64748B]">
         <div className="flex flex-col items-center gap-3">
-          <FinanceIcon name="refresh" size={28} className="animate-spin text-[#07543f]" />
-          <span className="font-semibold text-sm text-[#14261e]">Đang tải dữ liệu ví & danh mục...</span>
+          <FinanceIcon name="refresh" size={28} className="animate-spin text-[#007F53]" />
+          <span className="font-semibold text-sm text-[#0F172A]">Đang tải dữ liệu ví & danh mục...</span>
         </div>
       </main>
     )
   }
 
   return (
-    <main className="mx-auto flex h-[calc(100vh-68px)] max-h-[calc(100vh-68px)] w-full flex-1 flex-col bg-[#f6f8f6] dark:bg-[#07131e] p-3 text-[#14251f] dark:text-slate-100 sm:p-4 lg:p-5 overflow-hidden">
+    <main className="mx-auto flex h-[calc(100vh-68px)] max-h-[calc(100vh-68px)] w-full flex-1 flex-col bg-[#F8FAFC] dark:bg-[#0B0F19] p-3 text-[#0F172A] dark:text-slate-100 sm:p-4 lg:p-5 overflow-hidden">
       {/* Two-Column Responsive Workspace: fills 100% height without trailing empty space */}
       <div className="grid w-full h-full flex-1 gap-4 lg:grid-cols-12 items-stretch min-h-0">
         {/* LEFT COLUMN: Main Form Container (chiếm tỷ lệ rộng 58% - 66%) */}
-        <div className="lg:col-span-7 xl:col-span-7 2xl:col-span-8 flex flex-col h-full justify-between rounded-2xl border border-[#e2ece5] dark:border-white/10 bg-white dark:bg-[#0c1a24] shadow-md overflow-hidden min-h-0">
+        <div className="lg:col-span-7 xl:col-span-7 2xl:col-span-8 flex flex-col h-full justify-between rounded-2xl border border-[#E2E8F0] dark:border-white/10 bg-white dark:bg-[#111827] shadow-md overflow-hidden min-h-0">
           {/* HERO BANNER: Type Toggle & Big Amount Display */}
           <div className={`relative px-6 py-4 text-white transition-all duration-300 shrink-0 overflow-hidden ${
               type === 'EXPENSE'
                 ? 'bg-gradient-to-br from-[#dc2626] via-[#b91c1c] to-[#991b1b]'
                 : type === 'INCOME'
-                  ? 'bg-gradient-to-br from-[#059669] via-[#047857] to-[#065f46]'
+                  ? 'bg-gradient-to-br from-[#059669] via-[#007F53] to-[#065f46]'
                   : 'bg-gradient-to-br from-[#0284c7] via-[#0369a1] to-[#075985]'
             }`}>
             {/* Ảnh nền sóng 3D theo loại giao dịch giống hệt Mobile App */}
@@ -490,7 +491,7 @@ export function AddTransactionScreen({ onCancel, onNotify, onOpenInvoiceScanner 
                       : 'text-white/85 hover:text-white hover:bg-white/10'
                   }`}
                 >
-                  <FinanceIcon name="income" size={13} color={type === 'INCOME' ? '#047857' : 'currentColor'} />
+                  <FinanceIcon name="income" size={13} color={type === 'INCOME' ? '#007F53' : 'currentColor'} />
                   <span>Tiền thu</span>
                 </button>
 
@@ -601,11 +602,11 @@ export function AddTransactionScreen({ onCancel, onNotify, onOpenInvoiceScanner 
               <div className="grid gap-4 sm:grid-cols-2">
                 {/* Account / Wallet Dropdown Picker */}
                 <div className="relative" ref={accountPickerRef}>
-                  <label className="mb-1.5 flex items-center justify-between text-xs font-bold text-[#14261e] dark:text-slate-200">
+                  <label className="mb-1.5 flex items-center justify-between text-xs font-bold text-[#0F172A] dark:text-slate-200">
                     <span>{type === 'TRANSFER' ? 'Từ tài khoản (Nguồn)' : 'Nguồn tiền thanh toán'}</span>
                     {(selectedAccountObj || selectedGroupFund) && (
-                      <span className="text-[11px] font-medium text-[#718579] dark:text-slate-400">
-                        Số dư: <strong className="text-[#07543f] dark:text-emerald-400">{formatAmount(selectedSourceBalance)} ₫</strong>
+                      <span className="text-[11px] font-medium text-[#64748B] dark:text-slate-400">
+                        Số dư: <strong className="text-[#007F53] dark:text-emerald-400">{formatAmount(selectedSourceBalance)} ₫</strong>
                       </span>
                     )}
                   </label>
@@ -619,23 +620,23 @@ export function AddTransactionScreen({ onCancel, onNotify, onOpenInvoiceScanner 
                       setIsCategoryPickerOpen(false)
                       setIsToAccountPickerOpen(false)
                     }}
-                    className={`flex h-11 w-full items-center justify-between rounded-xl border bg-[#f9fbf9] dark:bg-slate-800/80 px-3.5 text-left transition ${
+                    className={`flex h-11 w-full items-center justify-between rounded-xl border bg-[#F8FAFC] dark:bg-slate-800/80 px-3.5 text-left transition ${
                       isChildAccount
-                        ? 'border-[#d5ded8] bg-[#f0f5f2] dark:bg-slate-800 cursor-default'
+                        ? 'border-[#CBD5E1] bg-[#F1F5F9] dark:bg-slate-800 cursor-default'
                         : isAccountPickerOpen
-                        ? 'border-[#07543f] bg-white ring-2 ring-[#07543f]/20 dark:border-emerald-500 dark:bg-slate-800 dark:ring-emerald-500/20'
-                        : 'border-[#d5ded8] hover:border-[#b0c2b7] dark:border-slate-700 dark:hover:border-slate-600'
+                        ? 'border-[#007F53] bg-white ring-2 ring-[#007F53]/20 dark:border-emerald-500 dark:bg-slate-800 dark:ring-emerald-500/20'
+                        : 'border-[#CBD5E1] hover:border-[#94A3B8] dark:border-slate-700 dark:hover:border-slate-600'
                     }`}
                   >
                     <div className="flex items-center gap-3 min-w-0">
-                      <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-emerald-50 text-[#07543f] border border-emerald-100 dark:bg-emerald-950/60 dark:text-emerald-400 dark:border-emerald-800/40">
+                      <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-emerald-50 text-[#007F53] border border-emerald-100 dark:bg-emerald-950/60 dark:text-emerald-400 dark:border-emerald-800/40">
                         <FinanceIcon name="wallet" size={16} />
                       </span>
                       <div className="min-w-0">
-                        <p className="truncate text-xs font-bold text-[#14261e] dark:text-slate-100">
+                        <p className="truncate text-xs font-bold text-[#0F172A] dark:text-slate-100">
                           {selectedGroupFund ? `Quỹ chung · ${selectedGroupFund.name}` : selectedAccountObj?.name || (isChildAccount ? 'Ví của bé' : 'Chọn nguồn tiền')}
                         </p>
-                        <p className="text-[11px] text-[#718579] dark:text-slate-400 truncate">
+                        <p className="text-[11px] text-[#64748B] dark:text-slate-400 truncate">
                           {selectedGroupFund ? `Số dư quỹ: ${formatAmount(selectedGroupFundBalance)} ₫ · Ghi trong nhóm` : `${selectedAccountObj?.currencyCode || 'VND'} · Số dư: ${formatAmount(selectedAccountObj?.balance || 0)} ₫`}
                         </p>
                       </div>
@@ -648,7 +649,7 @@ export function AddTransactionScreen({ onCancel, onNotify, onOpenInvoiceScanner 
 
                   {/* Account Dropdown Menu */}
                   {!isChildAccount && isAccountPickerOpen && (
-                    <div className="absolute left-0 right-0 top-full mt-1.5 z-40 max-h-56 overflow-y-auto rounded-2xl border border-[#d5ded8] dark:border-slate-700 bg-white dark:bg-[#0c1a24] p-1.5 shadow-2xl animate-fadeIn">
+                    <div className="absolute left-0 right-0 top-full mt-1.5 z-40 max-h-56 overflow-y-auto rounded-2xl border border-[#CBD5E1] dark:border-slate-700 bg-white dark:bg-[#111827] p-1.5 shadow-2xl animate-fadeIn">
                       {accounts.map((acc) => {
                         const isSelected = selectedAccountId === acc.id
                         return (
@@ -660,7 +661,7 @@ export function AddTransactionScreen({ onCancel, onNotify, onOpenInvoiceScanner 
                               setSelectedGroupFundId('')
                               setIsAccountPickerOpen(false)
                             }}
-                            className={`flex w-full items-center justify-between rounded-xl px-3 py-2 text-left transition ${isSelected ? 'bg-emerald-50 text-[#07543f] dark:bg-emerald-950/60 dark:text-emerald-300' : 'hover:bg-[#f3f7f4] text-[#14261e] dark:text-slate-200 dark:hover:bg-slate-800 dark:hover:text-white'
+                            className={`flex w-full items-center justify-between rounded-xl px-3 py-2 text-left transition ${isSelected ? 'bg-emerald-50 text-[#007F53] dark:bg-emerald-950/60 dark:text-emerald-300' : 'hover:bg-[#F1F5F9] text-[#0F172A] dark:text-slate-200 dark:hover:bg-slate-800 dark:hover:text-white'
                               }`}
                           >
                             <div className="flex items-center gap-2.5 truncate">
@@ -672,17 +673,17 @@ export function AddTransactionScreen({ onCancel, onNotify, onOpenInvoiceScanner 
                                 <p className="text-[10px] text-gray-500 dark:text-slate-400">{formatAmount(acc.balance)} ₫</p>
                               </div>
                             </div>
-                            {isSelected && <span className="font-bold text-[#07543f] dark:text-emerald-400 ml-2">✓</span>}
+                            {isSelected && <span className="font-bold text-[#007F53] dark:text-emerald-400 ml-2">✓</span>}
                           </button>
                         )
                       })}
                       {type === 'EXPENSE' && groups.length > 0 && <div>
-                        <p className="px-3 pt-3 pb-1 text-[10px] font-bold uppercase tracking-wide text-[#718579] dark:text-slate-400">Quỹ chung của nhóm</p>
+                        <p className="px-3 pt-3 pb-1 text-[10px] font-bold uppercase tracking-wide text-[#64748B] dark:text-slate-400">Quỹ chung của nhóm</p>
                         {groups.map((group) => {
                           const isSelected = selectedGroupFundId === group.id
                           return (
-                            <button key={group.id} type="button" onClick={() => { setSelectedGroupFundId(group.id); setSelectedAccountId(''); setIsAccountPickerOpen(false) }} className={isSelected ? 'flex w-full items-center justify-between rounded-xl bg-emerald-50 px-3 py-2 text-left text-[#07543f] dark:bg-emerald-950/60 dark:text-emerald-300' : 'flex w-full items-center justify-between rounded-xl px-3 py-2 text-left text-[#14261e] dark:text-slate-200 hover:bg-[#f3f7f4] dark:hover:bg-slate-800 dark:hover:text-white'}>
-                              <div className="flex items-center gap-2.5 truncate"><span className="grid size-7 place-items-center rounded-lg bg-emerald-50 text-[#07543f] dark:bg-emerald-950/60 dark:text-emerald-400 shrink-0"><FinanceIcon name="users" size={14} /></span><div className="truncate"><p className="truncate text-xs font-bold">Quỹ · {group.name}</p><p className="text-[10px] text-gray-500 dark:text-slate-400">Số dư quỹ: {formatAmount(groupFunds[group.id]?.balance || 0)} ₫</p></div></div>{isSelected && <span className="font-bold text-[#07543f] dark:text-emerald-400 ml-2">✓</span>}
+                            <button key={group.id} type="button" onClick={() => { setSelectedGroupFundId(group.id); setSelectedAccountId(''); setIsAccountPickerOpen(false) }} className={isSelected ? 'flex w-full items-center justify-between rounded-xl bg-emerald-50 px-3 py-2 text-left text-[#007F53] dark:bg-emerald-950/60 dark:text-emerald-300' : 'flex w-full items-center justify-between rounded-xl px-3 py-2 text-left text-[#0F172A] dark:text-slate-200 hover:bg-[#F1F5F9] dark:hover:bg-slate-800 dark:hover:text-white'}>
+                              <div className="flex items-center gap-2.5 truncate"><span className="grid size-7 place-items-center rounded-lg bg-emerald-50 text-[#007F53] dark:bg-emerald-950/60 dark:text-emerald-400 shrink-0"><FinanceIcon name="users" size={14} /></span><div className="truncate"><p className="truncate text-xs font-bold">Quỹ · {group.name}</p><p className="text-[10px] text-gray-500 dark:text-slate-400">Số dư quỹ: {formatAmount(groupFunds[group.id]?.balance || 0)} ₫</p></div></div>{isSelected && <span className="font-bold text-[#007F53] dark:text-emerald-400 ml-2">✓</span>}
                             </button>
                           )
                         })}
@@ -694,11 +695,11 @@ export function AddTransactionScreen({ onCancel, onNotify, onOpenInvoiceScanner 
                 {/* If TRANSFER: Destination Account. If EXPENSE/INCOME: Category Picker */}
                 {type === 'TRANSFER' ? (
                   <div className="relative" ref={toAccountPickerRef}>
-                    <label className="mb-1.5 flex items-center justify-between text-xs font-bold text-[#14261e] dark:text-slate-200">
+                    <label className="mb-1.5 flex items-center justify-between text-xs font-bold text-[#0F172A] dark:text-slate-200">
                       <span>Đến tài khoản (Đích)</span>
                       {toAccountObj && (
-                        <span className="text-[11px] font-medium text-[#718579] dark:text-slate-400">
-                          Số dư: <strong className="text-[#07543f] dark:text-emerald-400">{formatAmount(toAccountObj.balance)} ₫</strong>
+                        <span className="text-[11px] font-medium text-[#64748B] dark:text-slate-400">
+                          Số dư: <strong className="text-[#007F53] dark:text-emerald-400">{formatAmount(toAccountObj.balance)} ₫</strong>
                         </span>
                       )}
                     </label>
@@ -710,9 +711,9 @@ export function AddTransactionScreen({ onCancel, onNotify, onOpenInvoiceScanner 
                         setIsAccountPickerOpen(false)
                         setIsCategoryPickerOpen(false)
                       }}
-                      className={`flex h-11 w-full items-center justify-between rounded-xl border bg-[#f9fbf9] dark:bg-slate-800/80 px-3.5 text-left transition ${isToAccountPickerOpen
-                          ? 'border-[#07543f] bg-white ring-2 ring-[#07543f]/20 dark:border-sky-500 dark:bg-slate-800 dark:ring-sky-500/20'
-                          : 'border-[#d5ded8] hover:border-[#b0c2b7] dark:border-slate-700 dark:hover:border-slate-600'
+                      className={`flex h-11 w-full items-center justify-between rounded-xl border bg-[#F8FAFC] dark:bg-slate-800/80 px-3.5 text-left transition ${isToAccountPickerOpen
+                          ? 'border-[#007F53] bg-white ring-2 ring-[#007F53]/20 dark:border-sky-500 dark:bg-slate-800 dark:ring-sky-500/20'
+                          : 'border-[#CBD5E1] hover:border-[#94A3B8] dark:border-slate-700 dark:hover:border-slate-600'
                         }`}
                     >
                       <div className="flex items-center gap-3 min-w-0">
@@ -720,10 +721,10 @@ export function AddTransactionScreen({ onCancel, onNotify, onOpenInvoiceScanner 
                           <FinanceIcon name="arrows" size={16} />
                         </span>
                         <div className="min-w-0">
-                          <p className="truncate text-xs font-bold text-[#14261e] dark:text-slate-100">
+                          <p className="truncate text-xs font-bold text-[#0F172A] dark:text-slate-100">
                             {toAccountObj?.name || 'Chọn ví nhận'}
                           </p>
-                          <p className="text-[11px] text-[#718579] dark:text-slate-400 truncate">
+                          <p className="text-[11px] text-[#64748B] dark:text-slate-400 truncate">
                             Số dư hiện tại: {formatAmount(toAccountObj?.balance || 0)} ₫
                           </p>
                         </div>
@@ -734,7 +735,7 @@ export function AddTransactionScreen({ onCancel, onNotify, onOpenInvoiceScanner 
 
                     {/* To Account Dropdown */}
                     {isToAccountPickerOpen && (
-                      <div className="absolute left-0 right-0 top-full mt-1.5 z-40 max-h-56 overflow-y-auto rounded-2xl border border-[#d5ded8] dark:border-slate-700 bg-white dark:bg-[#0c1a24] p-1.5 shadow-2xl animate-fadeIn">
+                      <div className="absolute left-0 right-0 top-full mt-1.5 z-40 max-h-56 overflow-y-auto rounded-2xl border border-[#CBD5E1] dark:border-slate-700 bg-white dark:bg-[#111827] p-1.5 shadow-2xl animate-fadeIn">
                         {accounts.filter((a) => a.id !== selectedAccountId).map((acc) => {
                           const isSelected = toAccountId === acc.id
                           return (
@@ -745,7 +746,7 @@ export function AddTransactionScreen({ onCancel, onNotify, onOpenInvoiceScanner 
                                 setToAccountId(acc.id)
                                 setIsToAccountPickerOpen(false)
                               }}
-                              className={`flex w-full items-center justify-between rounded-xl px-3 py-2 text-left transition ${isSelected ? 'bg-sky-50 text-sky-800 dark:bg-sky-950/60 dark:text-sky-300' : 'hover:bg-[#f3f7f4] text-[#14261e] dark:text-slate-200 dark:hover:bg-slate-800 dark:hover:text-white'
+                              className={`flex w-full items-center justify-between rounded-xl px-3 py-2 text-left transition ${isSelected ? 'bg-sky-50 text-sky-800 dark:bg-sky-950/60 dark:text-sky-300' : 'hover:bg-[#F1F5F9] text-[#0F172A] dark:text-slate-200 dark:hover:bg-slate-800 dark:hover:text-white'
                                 }`}
                             >
                               <div className="flex items-center gap-2.5 truncate">
@@ -767,9 +768,9 @@ export function AddTransactionScreen({ onCancel, onNotify, onOpenInvoiceScanner 
                 ) : (
                   /* Category Picker */
                   <div className="relative" ref={categoryPickerRef}>
-                    <label className="mb-1.5 flex items-center justify-between text-xs font-bold text-[#14261e] dark:text-slate-200">
+                    <label className="mb-1.5 flex items-center justify-between text-xs font-bold text-[#0F172A] dark:text-slate-200">
                       <span>Phân loại danh mục</span>
-                      <span className="text-[11px] text-[#718579] dark:text-slate-400">{filteredCategories.length} danh mục</span>
+                      <span className="text-[11px] text-[#64748B] dark:text-slate-400">{filteredCategories.length} danh mục</span>
                     </label>
 
                     <button
@@ -779,9 +780,9 @@ export function AddTransactionScreen({ onCancel, onNotify, onOpenInvoiceScanner 
                         setIsAccountPickerOpen(false)
                         setIsToAccountPickerOpen(false)
                       }}
-                      className={`flex h-11 w-full items-center justify-between rounded-xl border bg-[#f9fbf9] dark:bg-slate-800/80 px-3.5 text-left transition ${isCategoryPickerOpen
-                          ? 'border-[#07543f] bg-white ring-2 ring-[#07543f]/20 dark:border-emerald-500 dark:bg-slate-800 dark:ring-emerald-500/20'
-                          : 'border-[#d5ded8] hover:border-[#b0c2b7] dark:border-slate-700 dark:hover:border-slate-600'
+                      className={`flex h-11 w-full items-center justify-between rounded-xl border bg-[#F8FAFC] dark:bg-slate-800/80 px-3.5 text-left transition ${isCategoryPickerOpen
+                          ? 'border-[#007F53] bg-white ring-2 ring-[#007F53]/20 dark:border-emerald-500 dark:bg-slate-800 dark:ring-emerald-500/20'
+                          : 'border-[#CBD5E1] hover:border-[#94A3B8] dark:border-slate-700 dark:hover:border-slate-600'
                         }`}
                     >
                       <div className="flex items-center gap-3 min-w-0">
@@ -795,10 +796,10 @@ export function AddTransactionScreen({ onCancel, onNotify, onOpenInvoiceScanner 
                           {renderCategoryIcon(selectedCategoryObj?.icon, type, 16, selectedCategoryObj?.name)}
                         </span>
                         <div className="min-w-0">
-                          <p className="truncate text-xs font-bold text-[#14261e] dark:text-slate-100">
+                          <p className="truncate text-xs font-bold text-[#0F172A] dark:text-slate-100">
                             {selectedCategoryObj?.name || 'Chọn danh mục'}
                           </p>
-                          <p className="text-[11px] text-[#718579] dark:text-slate-400 truncate">
+                          <p className="text-[11px] text-[#64748B] dark:text-slate-400 truncate">
                             {type === 'EXPENSE' ? 'Danh mục chi tiêu' : 'Danh mục thu nhập'}
                           </p>
                         </div>
@@ -809,7 +810,7 @@ export function AddTransactionScreen({ onCancel, onNotify, onOpenInvoiceScanner 
 
                     {/* Category Dropdown Grid */}
                     {isCategoryPickerOpen && (
-                      <div className="absolute left-0 right-0 top-full mt-1.5 z-40 max-h-64 overflow-y-auto rounded-2xl border border-[#d5ded8] dark:border-slate-700 bg-white dark:bg-[#0c1a24] p-2 shadow-2xl animate-fadeIn">
+                      <div className="absolute left-0 right-0 top-full mt-1.5 z-40 max-h-64 overflow-y-auto rounded-2xl border border-[#CBD5E1] dark:border-slate-700 bg-white dark:bg-[#111827] p-2 shadow-2xl animate-fadeIn">
                         <div className="grid grid-cols-2 gap-1.5">
                           {filteredCategories.map((cat) => {
                             const isSelected = selectedCategoryId === cat.id
@@ -822,8 +823,8 @@ export function AddTransactionScreen({ onCancel, onNotify, onOpenInvoiceScanner 
                                   setIsCategoryPickerOpen(false)
                                 }}
                                 className={`flex items-center gap-2 rounded-xl p-2 text-left transition border ${isSelected
-                                    ? 'border-[#07543f] bg-emerald-50 text-[#07543f] dark:border-emerald-600 dark:bg-emerald-950/60 dark:text-emerald-400 font-bold'
-                                    : 'border-transparent hover:bg-[#f3f7f4] text-[#14261e] dark:text-slate-200 dark:hover:bg-slate-800 dark:hover:text-white'
+                                    ? 'border-[#007F53] bg-emerald-50 text-[#007F53] dark:border-emerald-600 dark:bg-emerald-950/60 dark:text-emerald-400 font-bold'
+                                    : 'border-transparent hover:bg-[#F1F5F9] text-[#0F172A] dark:text-slate-200 dark:hover:bg-slate-800 dark:hover:text-white'
                                   }`}
                               >
                                 <span
@@ -847,15 +848,15 @@ export function AddTransactionScreen({ onCancel, onNotify, onOpenInvoiceScanner 
               </div>
 
               {/* Row 2: Date & Time Section with Modern Toggle Switch */}
-              <div className="rounded-2xl border border-[#e2ece5] dark:border-white/10 bg-[#f8faf8] dark:bg-white/5 p-3.5 space-y-3">
+              <div className="rounded-2xl border border-[#E2E8F0] dark:border-white/10 bg-[#F8FAFC] dark:bg-white/5 p-3.5 space-y-3">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <FinanceIcon name="calendar" size={15} className="text-[#07543f] dark:text-emerald-400" />
+                    <FinanceIcon name="calendar" size={15} className="text-[#007F53] dark:text-emerald-400" />
                     <div>
-                      <span className="text-xs font-bold text-[#14261e] dark:text-slate-100 block">
+                      <span className="text-xs font-bold text-[#0F172A] dark:text-slate-100 block">
                         Tự động ghi nhận theo thời gian hiện tại
                       </span>
-                      <span className="text-[11px] text-[#718579] dark:text-slate-400 block">
+                      <span className="text-[11px] text-[#64748B] dark:text-slate-400 block">
                         {isCustomDateTime
                           ? 'Đang bật tùy chỉnh ngày & giờ cho giao dịch trong quá khứ'
                           : `Tự động lấy chính xác lúc bấm "Lưu" (hôm nay ~${time})`}
@@ -864,7 +865,7 @@ export function AddTransactionScreen({ onCancel, onNotify, onOpenInvoiceScanner 
                   </div>
 
                   <div className="flex items-center gap-2">
-                    <span className="text-[11px] font-semibold text-[#718579] dark:text-slate-400 hidden sm:inline">
+                    <span className="text-[11px] font-semibold text-[#64748B] dark:text-slate-400 hidden sm:inline">
                       {isCustomDateTime ? 'Chỉnh thủ công' : 'Tự động'}
                     </span>
                     <button
@@ -881,7 +882,7 @@ export function AddTransactionScreen({ onCancel, onNotify, onOpenInvoiceScanner 
                         }
                       }}
                       className={`relative inline-flex h-5 w-10 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
-                        isCustomDateTime ? 'bg-[#07543f] dark:bg-emerald-600' : 'bg-[#cbd7cf] dark:bg-slate-700'
+                        isCustomDateTime ? 'bg-[#007F53] dark:bg-emerald-600' : 'bg-[#CBD5E1] dark:bg-slate-700'
                       }`}
                       title={isCustomDateTime ? 'Tắt tùy chỉnh để tự động lấy giờ hiện tại' : 'Gạt để chỉnh ngày và giờ cho giao dịch quá khứ'}
                     >
@@ -896,28 +897,26 @@ export function AddTransactionScreen({ onCancel, onNotify, onOpenInvoiceScanner 
                 </div>
 
                 {isCustomDateTime && (
-                  <div className="grid gap-3 pt-2.5 border-t border-[#e2ece5] dark:border-white/10 sm:grid-cols-2 animate-fadeIn">
+                  <div className="grid gap-3 pt-2.5 border-t border-[#E2E8F0] dark:border-white/10 sm:grid-cols-2 animate-fadeIn">
                     <div>
-                      <label className="mb-1 block text-xs font-bold text-[#14261e] dark:text-slate-200">
+                      <label className="mb-1 block text-xs font-bold text-[#0F172A] dark:text-slate-200">
                         Ngày giao dịch
                       </label>
-                      <input
-                        type="date"
+                      <DatePicker
                         value={date}
-                        onChange={(e) => setDate(e.target.value)}
-                        className="h-10 w-full rounded-xl border border-[#d5ded8] dark:border-slate-700 bg-white dark:bg-slate-800 px-3.5 text-xs font-medium text-[#14261e] dark:text-slate-100 outline-none focus:border-[#07543f] focus:ring-1 focus:ring-[#07543f] transition"
+                        onChange={(newDate) => setDate(newDate)}
                       />
                     </div>
 
                     <div>
-                      <label className="mb-1 block text-xs font-bold text-[#14261e] dark:text-slate-200">
+                      <label className="mb-1 block text-xs font-bold text-[#0F172A] dark:text-slate-200">
                         Thời gian thực hiện
                       </label>
                       <input
                         type="time"
                         value={time}
                         onChange={(e) => setTime(e.target.value)}
-                        className="h-10 w-full rounded-xl border border-[#d5ded8] dark:border-slate-700 bg-white dark:bg-slate-800 px-3.5 text-xs font-medium text-[#14261e] dark:text-slate-100 outline-none focus:border-[#07543f] focus:ring-1 focus:ring-[#07543f] transition"
+                        className="h-10 w-full rounded-xl border border-[#CBD5E1] dark:border-slate-700 bg-white dark:bg-slate-800 px-3.5 text-xs font-medium text-[#0F172A] dark:text-slate-100 outline-none focus:border-[#007F53] focus:ring-1 focus:ring-[#007F53] transition"
                       />
                     </div>
                   </div>
@@ -926,7 +925,7 @@ export function AddTransactionScreen({ onCancel, onNotify, onOpenInvoiceScanner 
 
               {/* Row 3: Description Note */}
               <div>
-                <label className="mb-1.5 block text-xs font-bold text-[#14261e] dark:text-slate-200">
+                <label className="mb-1.5 block text-xs font-bold text-[#0F172A] dark:text-slate-200">
                   Ghi chú / Diễn giải
                 </label>
                 <input
@@ -934,20 +933,20 @@ export function AddTransactionScreen({ onCancel, onNotify, onOpenInvoiceScanner 
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
                   placeholder="Ví dụ: Ăn trưa bún bò, Đổ xăng xe máy, Tiền thưởng dự án..."
-                  className="h-10 w-full rounded-xl border border-[#d5ded8] dark:border-slate-700 bg-[#f9fbf9] dark:bg-slate-800/80 px-3.5 text-xs text-[#14261e] dark:text-slate-100 outline-none placeholder:text-gray-400 dark:placeholder:text-slate-500 focus:border-[#07543f] focus:bg-white dark:focus:bg-slate-800 focus:ring-1 focus:ring-[#07543f] transition"
+                  className="h-10 w-full rounded-xl border border-[#CBD5E1] dark:border-slate-700 bg-[#F8FAFC] dark:bg-slate-800/80 px-3.5 text-xs text-[#0F172A] dark:text-slate-100 outline-none placeholder:text-gray-400 dark:placeholder:text-slate-500 focus:border-[#007F53] focus:bg-white dark:focus:bg-slate-800 focus:ring-1 focus:ring-[#007F53] transition"
                 />
               </div>
 
               {/* Row 4: Recurring Monthly Switch & Receipt Attachment */}
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 rounded-xl border border-[#e2ece5] dark:border-white/10 bg-[#f8faf8] dark:bg-white/5 px-3.5 py-2">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 rounded-xl border border-[#E2E8F0] dark:border-white/10 bg-[#F8FAFC] dark:bg-white/5 px-3.5 py-2">
                 <div className="flex items-center gap-3 text-xs">
-                  <span className="text-[#718579] dark:text-slate-400">Lặp lại giao dịch hàng tháng:</span>
+                  <span className="text-[#64748B] dark:text-slate-400">Lặp lại giao dịch hàng tháng:</span>
                   <button
                     type="button"
                     role="switch"
                     aria-checked={recurring}
                     onClick={() => setRecurring(!recurring)}
-                    className={`relative inline-flex h-5 w-10 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${recurring ? 'bg-[#07543f] dark:bg-emerald-600' : 'bg-[#cbd7cf] dark:bg-slate-700'
+                    className={`relative inline-flex h-5 w-10 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${recurring ? 'bg-[#007F53] dark:bg-emerald-600' : 'bg-[#CBD5E1] dark:bg-slate-700'
                       }`}
                   >
                     <span
@@ -967,8 +966,8 @@ export function AddTransactionScreen({ onCancel, onNotify, onOpenInvoiceScanner 
                     className="hidden"
                   />
                   {fileName ? (
-                    <div className="inline-flex items-center gap-2 rounded-xl border border-emerald-300 dark:border-emerald-700 bg-emerald-50/80 dark:bg-emerald-950/60 px-3 py-1.5 text-xs font-semibold text-[#07543f] dark:text-emerald-300 shadow-2xs">
-                      <FinanceIcon name="receipt" size={14} className="text-[#07543f] dark:text-emerald-400" />
+                    <div className="inline-flex items-center gap-2 rounded-xl border border-emerald-300 dark:border-emerald-700 bg-emerald-50/80 dark:bg-emerald-950/60 px-3 py-1.5 text-xs font-semibold text-[#007F53] dark:text-emerald-300 shadow-2xs">
+                      <FinanceIcon name="receipt" size={14} className="text-[#007F53] dark:text-emerald-400" />
                       <span className="max-w-[170px] truncate" title={fileName}>{fileName}</span>
                       <button
                         type="button"
@@ -987,7 +986,7 @@ export function AddTransactionScreen({ onCancel, onNotify, onOpenInvoiceScanner 
                     <button
                       type="button"
                       onClick={() => fileRef.current?.click()}
-                      className="inline-flex items-center gap-1.5 rounded-xl border border-[#cbe0d3] dark:border-slate-700 bg-white dark:bg-slate-800 px-3.5 py-1.5 text-xs font-bold text-[#07543f] dark:text-emerald-400 shadow-2xs hover:bg-[#eaf4ee] dark:hover:bg-slate-700 hover:border-[#07543f] active:scale-95 transition"
+                      className="inline-flex items-center gap-1.5 rounded-xl border border-[#E2E8F0] dark:border-slate-700 bg-white dark:bg-slate-800 px-3.5 py-1.5 text-xs font-bold text-[#007F53] dark:text-emerald-400 shadow-2xs hover:bg-[#E6F4EA] dark:hover:bg-slate-700 hover:border-[#007F53] active:scale-95 transition"
                     >
                       <FinanceIcon name="receipt" size={14} />
                       <span>+ Đính kèm ảnh hóa đơn</span>
@@ -1005,7 +1004,7 @@ export function AddTransactionScreen({ onCancel, onNotify, onOpenInvoiceScanner 
             </div>
 
             {/* Footer Action Buttons: Pinned cleanly at bottom */}
-            <div className="flex flex-col-reverse justify-end gap-2.5 border-t border-[#edf0ed] dark:border-[#1e293b] bg-[#fafcfa] dark:bg-[#0f172a] p-3 sm:p-4 sm:flex-row shrink-0">
+            <div className="flex flex-col-reverse justify-end gap-2.5 border-t border-[#E2E8F0] dark:border-[#1e293b] bg-[#F8FAFC] dark:bg-[#0f172a] p-3 sm:p-4 sm:flex-row shrink-0">
               <button
                 type="button"
                 disabled={submitting}
@@ -1018,14 +1017,14 @@ export function AddTransactionScreen({ onCancel, onNotify, onOpenInvoiceScanner 
                 type="button"
                 disabled={submitting}
                 onClick={() => handleSaveTransaction(true)}
-                className="h-10 rounded-xl bg-[#e3f4e9] dark:bg-emerald-950/60 dark:text-emerald-300 dark:hover:bg-emerald-900/60 dark:border dark:border-emerald-800/50 px-6 text-xs font-bold text-[#07543f] hover:bg-[#d2edd9] transition"
+                className="h-10 rounded-xl bg-[#E6F4EA] dark:bg-emerald-950/60 dark:text-emerald-300 dark:hover:bg-emerald-900/60 dark:border dark:border-emerald-800/50 px-6 text-xs font-bold text-[#007F53] hover:bg-[#D1FAE5] transition"
               >
                 Lưu &amp; Tiếp tục thêm
               </button>
               <button
                 type="submit"
                 disabled={submitting}
-                className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-[#07543f] hover:bg-[#0b6c52] px-8 text-xs font-bold text-white shadow-md transition disabled:opacity-50"
+                className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-[#007F53] hover:bg-[#009663] px-8 text-xs font-bold text-white shadow-md transition disabled:opacity-50"
               >
                 <FinanceIcon name="plus" size={15} />
                 <span>{submitting ? 'Đang lưu vào ví...' : 'Lưu giao dịch ngay'}</span>
@@ -1037,29 +1036,29 @@ export function AddTransactionScreen({ onCancel, onNotify, onOpenInvoiceScanner 
         {/* RIGHT COLUMN: 2 Cards (chiếm tỷ lệ cân đối 33% - 42%) */}
         <div className="lg:col-span-5 xl:col-span-5 2xl:col-span-4 flex flex-col h-full gap-4 min-h-0">
           {/* Card 1: Số tiền còn lại / Dự tính số dư */}
-          <div className="flex flex-col justify-between rounded-2xl border border-[#e2ece5] bg-white p-5 shadow-sm dark:border-white/5 dark:bg-[#0c1a24] shrink-0">
-            <div className="flex items-center justify-between pb-3 border-b border-[#edf2ee] dark:border-white/5">
+          <div className="flex flex-col justify-between rounded-2xl border border-[#E2E8F0] bg-white p-5 shadow-sm dark:border-white/5 dark:bg-[#111827] shrink-0">
+            <div className="flex items-center justify-between pb-3 border-b border-[#E2E8F0] dark:border-white/5">
               <div className="flex items-center gap-2.5">
-                <span className="grid size-8 place-items-center rounded-xl bg-[#e3f4e9] text-[#07543f] dark:bg-emerald-950/60 dark:text-emerald-400 font-bold">
+                <span className="grid size-8 place-items-center rounded-xl bg-[#E6F4EA] text-[#007F53] dark:bg-emerald-950/60 dark:text-emerald-400 font-bold">
                   <FinanceIcon name="trend" size={16} />
                 </span>
                 <div>
-                  <h3 className="text-sm font-bold text-[#14261e] dark:text-slate-100">Dự tính số dư sau khi lưu</h3>
-                  <p className="text-[11px] text-[#718579] dark:text-slate-400">{selectedGroupFund ? `Quỹ chung: ${selectedGroupFund.name}` : `Tài khoản: ${selectedAccountObj?.name || 'Chưa chọn'}`}</p>
+                  <h3 className="text-sm font-bold text-[#0F172A] dark:text-slate-100">Dự tính số dư sau khi lưu</h3>
+                  <p className="text-[11px] text-[#64748B] dark:text-slate-400">{selectedGroupFund ? `Quỹ chung: ${selectedGroupFund.name}` : `Tài khoản: ${selectedAccountObj?.name || 'Chưa chọn'}`}</p>
                 </div>
               </div>
             </div>
 
             <div className="mt-3.5 flex flex-col gap-2.5">
               <div className="flex items-center justify-between text-xs">
-                <span className="text-[#718579] dark:text-slate-400">Số dư hiện tại:</span>
-                <strong className="text-[#14261e] dark:text-slate-100 font-bold">
+                <span className="text-[#64748B] dark:text-slate-400">Số dư hiện tại:</span>
+                <strong className="text-[#0F172A] dark:text-slate-100 font-bold">
                   {formatAmount(selectedSourceBalance)} ₫
                 </strong>
               </div>
 
               <div className="flex items-center justify-between text-xs">
-                <span className="text-[#718579] dark:text-slate-400">
+                <span className="text-[#64748B] dark:text-slate-400">
                   {type === 'INCOME' ? 'Số tiền nhận:' : type === 'TRANSFER' ? 'Số tiền chuyển đi:' : 'Số tiền muốn chi:'}
                 </span>
                 <strong className={type === 'INCOME' ? 'text-emerald-600 dark:text-emerald-400 font-bold' : 'text-rose-600 dark:text-rose-400 font-bold'}>
@@ -1067,11 +1066,11 @@ export function AddTransactionScreen({ onCancel, onNotify, onOpenInvoiceScanner 
                 </strong>
               </div>
 
-              <div className="my-1 border-t border-dashed border-[#d5ded8] dark:border-slate-800" />
+              <div className="my-1 border-t border-dashed border-[#CBD5E1] dark:border-slate-800" />
 
               <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-[#14261e] dark:text-slate-100">Số dư còn lại dự kiến:</span>
-                <span className={`text-base font-black ${projectedBalance < 0 ? 'text-rose-600 dark:text-rose-400' : 'text-[#07543f] dark:text-emerald-400'}`}>
+                <span className="text-xs font-bold text-[#0F172A] dark:text-slate-100">Số dư còn lại dự kiến:</span>
+                <span className={`text-base font-black ${projectedBalance < 0 ? 'text-rose-600 dark:text-rose-400' : 'text-[#007F53] dark:text-emerald-400'}`}>
                   {formatAmount(Math.max(0, projectedBalance))} ₫
                 </span>
               </div>
@@ -1085,24 +1084,24 @@ export function AddTransactionScreen({ onCancel, onNotify, onOpenInvoiceScanner 
           </div>
 
           {/* Card 2: Bảng giao dịch gần đây fills the rest */}
-          <div className="flex flex-1 flex-col rounded-2xl border border-[#e2ece5] bg-white p-5 shadow-sm dark:border-white/5 dark:bg-[#0c1a24] overflow-hidden min-h-0">
-            <div className="flex items-center justify-between pb-3 border-b border-[#edf2ee] dark:border-white/5 shrink-0">
+          <div className="flex flex-1 flex-col rounded-2xl border border-[#E2E8F0] bg-white p-5 shadow-sm dark:border-white/5 dark:bg-[#111827] overflow-hidden min-h-0">
+            <div className="flex items-center justify-between pb-3 border-b border-[#E2E8F0] dark:border-white/5 shrink-0">
               <div>
-                <h3 className="text-sm font-bold text-[#14261e] dark:text-slate-100">Giao dịch gần đây</h3>
-                <p className="text-[11px] text-[#718579] dark:text-slate-400">Lịch sử ghi chép thu chi mới nhất</p>
+                <h3 className="text-sm font-bold text-[#0F172A] dark:text-slate-100">Giao dịch gần đây</h3>
+                <p className="text-[11px] text-[#64748B] dark:text-slate-400">Lịch sử ghi chép thu chi mới nhất</p>
               </div>
               <button
                 type="button"
                 onClick={onCancel}
-                className="text-xs font-bold text-[#07543f] hover:underline dark:text-emerald-400"
+                className="text-xs font-bold text-[#007F53] hover:underline dark:text-emerald-400"
               >
                 Xem tất cả →
               </button>
             </div>
 
-            <div className="mt-2 flex flex-1 flex-col divide-y divide-[#edf2ee] dark:divide-white/5 overflow-y-auto pr-1">
+            <div className="mt-2 flex flex-1 flex-col divide-y divide-[#E2E8F0] dark:divide-white/5 overflow-y-auto pr-1">
               {recentTransactions.length === 0 ? (
-                <div className="grid h-full place-items-center text-center text-xs text-[#718579] dark:text-slate-400">
+                <div className="grid h-full place-items-center text-center text-xs text-[#64748B] dark:text-slate-400">
                   Chưa có giao dịch nào được ghi nhận gần đây.
                 </div>
               ) : (
@@ -1135,10 +1134,10 @@ export function AddTransactionScreen({ onCancel, onNotify, onOpenInvoiceScanner 
                           {renderCategoryIcon(tx.category?.icon, tx.transactionType, 15, tx.category?.name)}
                         </span>
                         <div className="min-w-0">
-                          <p className="truncate text-xs font-bold text-[#14261e] dark:text-slate-200">
+                          <p className="truncate text-xs font-bold text-[#0F172A] dark:text-slate-200">
                             {tx.description || tx.category?.name || 'Giao dịch'}
                           </p>
-                          <p className="text-[11px] text-[#718579] dark:text-slate-400 truncate">
+                          <p className="text-[11px] text-[#64748B] dark:text-slate-400 truncate">
                             {tx.accountName || 'Ví chính'} {tx.category?.name ? `· ${tx.category.name}` : ''}
                           </p>
                         </div>

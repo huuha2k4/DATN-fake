@@ -36,6 +36,12 @@ public class UserController {
         return ResponseEntity.ok(users);
     }
     
+    @GetMapping("/check-username")
+    public ResponseEntity<java.util.Map<String, Boolean>> checkUsernameAvailability(@RequestParam("username") String username) {
+        boolean available = userService.isUsernameAvailable(username);
+        return ResponseEntity.ok(java.util.Map.of("available", available));
+    }
+
     @PutMapping("/me")
     public ResponseEntity<UserResponse> updateProfile(
             Authentication authentication,

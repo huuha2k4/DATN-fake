@@ -68,6 +68,7 @@ public class JwtTokenProvider {
     public UUID getUserIdFromToken(String token) {
         Claims claims = Jwts.parser()
                 .verifyWith(secretKey)
+                .requireIssuer(issuer)
                 .build()
                 .parseSignedClaims(token)
                 .getPayload();
@@ -77,6 +78,7 @@ public class JwtTokenProvider {
     public String getEmailFromToken(String token) {
         Claims claims = Jwts.parser()
                 .verifyWith(secretKey)
+                .requireIssuer(issuer)
                 .build()
                 .parseSignedClaims(token)
                 .getPayload();
@@ -87,6 +89,7 @@ public class JwtTokenProvider {
         try {
             Jwts.parser()
                     .verifyWith(secretKey)
+                    .requireIssuer(issuer)
                     .build()
                     .parseSignedClaims(token);
             return true;

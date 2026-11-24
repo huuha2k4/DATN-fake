@@ -1,7 +1,10 @@
 import React, { useState } from 'react';
-import { StatusBar, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
+import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { BottomNav, TabKey } from './src/components/BottomNav';
+import { FloatingChatIcons } from './src/components/FloatingChatIcons';
+import { floatingChatEmitter } from './src/components/floatingChatEmitter';
 import { AddTransactionScreen } from './src/modules/add-transaction/screen/AddTransactionScreen';
 import { AccountsScreen } from './src/modules/accounts/screen/AccountsScreen';
 import { AiAssistantScreen } from './src/modules/ai-assistant/screen/AiAssistantScreen';
@@ -13,6 +16,10 @@ import { LoginScreen } from './src/modules/auth/screen/LoginScreen';
 import { RegisterScreen } from './src/modules/auth/screen/RegisterScreen';
 import { ForgotPasswordScreen } from './src/modules/auth/screen/ForgotPasswordScreen';
 import { authApi, authStorage } from './src/modules/auth/api/authApi';
+import { accountApi } from './src/modules/accounts/api/accountApi';
+import { FinoraOnboardingWalkthrough } from './src/modules/onboarding/components/FinoraOnboardingWalkthrough';
+import { CompleteProfileModal } from './src/modules/onboarding/components/CompleteProfileModal';
+import { Modal } from 'react-native';
 import { ScanInvoiceScreen } from './src/modules/scan-invoice/screen/ScanInvoiceScreen';
 import { SpendingAnalysisScreen } from './src/modules/spending-analysis/screen/SpendingAnalysisScreen';
 import { PeriodicReportsScreen } from './src/modules/periodic-reports/screen/PeriodicReportsScreen';
@@ -71,6 +78,8 @@ function AppContent() {
   const [showProfile, setShowProfile] = React.useState(false);
   const [isProfileSubPageOpen, setIsProfileSubPageOpen] = React.useState(false);
   const [isGroupDetailOpen, setIsGroupDetailOpen] = React.useState(false);
+  const [showOnboardingWizard, setShowOnboardingWizard] = React.useState(false);
+  const [showCompleteProfile, setShowCompleteProfile] = React.useState(false);
   const [groupNavTarget, setGroupNavTarget] = React.useState<{
     groupId?: string;
     groupName?: string;
@@ -78,6 +87,22 @@ function AppContent() {
     kidWalletId?: string;
     kidSubTab?: 'REQUESTS' | 'SPENDS' | 'CHORES' | 'DEPOSIT' | 'SETTINGS';
   } | null>(null);
+
+  const checkInitialOnboarding = React.useCallback(async (user?: any) => {
+    try {
+      const curUser = user || authStorage.getUser();
+      // Không áp dụng cho tài khoản trẻ em
+      if (curUser?.childAccount) return;
+
+      const accounts = await accountApi.getAccounts();
+      console.log('[Onboarding] checkInitialOnboarding accounts:', accounts?.length);
+      if (!accounts || accounts.length === 0) {
+        setShowOnboardingWizard(true);
+      }
+    } catch (e) {
+      console.log('[Onboarding] checkInitialOnboarding error:', e);
+    }
+  }, []);
 
   // Tự động nạp phiên đăng nhập bền vững (duy trì phiên, tự thu hồi nếu sau 3 ngày không vào)
   React.useEffect(() => {
@@ -90,22 +115,30 @@ function AppContent() {
     authStorage.loadPersistedSession().then((session) => {
       if (session && session.user && session.tokens) {
         setHasStarted(true);
+        // Delay nhẹ để đảm bảo token đã sẵn sàng trong bộ nhớ
+        setTimeout(() => {
+          checkInitialOnboarding(session.user);
+        }, 200);
       }
     });
-  }, []);
+  }, [checkInitialOnboarding]);
 
   if (showRegister) {
     return (
       <View style={{ flex: 1, backgroundColor: isDark ? themeColors.background : '#ffffff' }}>
-        <StatusBar
-          barStyle={isDark ? 'light-content' : 'dark-content'}
-          backgroundColor={isDark ? themeColors.background : '#ffffff'}
-        />
+        <StatusBar style={isDark ? 'light' : 'dark'} />
         <RegisterScreen
           onBack={() => setShowRegister(false)}
-          onSuccess={() => {
+          onSuccess={(authResult?: any) => {
             setShowRegister(false);
             setHasStarted(true);
+            if (authResult?.data?.isNewUser) {
+              setShowCompleteProfile(true);
+            } else {
+              setTimeout(() => {
+                checkInitialOnboarding();
+              }, 300);
+            }
           }}
           onSwitchToLogin={() => {
             setShowRegister(false);
@@ -119,15 +152,19 @@ function AppContent() {
   if (showLogin) {
     return (
       <View style={{ flex: 1, backgroundColor: isDark ? themeColors.background : '#ffffff' }}>
-        <StatusBar
-          barStyle={isDark ? 'light-content' : 'dark-content'}
-          backgroundColor={isDark ? themeColors.background : '#ffffff'}
-        />
+        <StatusBar style={isDark ? 'light' : 'dark'} />
         <LoginScreen
           onBack={() => setShowLogin(false)}
-          onSuccess={() => {
+          onSuccess={(authResult?: any) => {
             setShowLogin(false);
             setHasStarted(true);
+            if (authResult?.data?.isNewUser) {
+              setShowCompleteProfile(true);
+            } else {
+              setTimeout(() => {
+                checkInitialOnboarding();
+              }, 300);
+            }
           }}
           onSwitchToRegister={() => {
             setShowLogin(false);
@@ -141,10 +178,7 @@ function AppContent() {
   if (!hasStarted) {
     return (
       <View style={{ flex: 1, backgroundColor: isDark ? themeColors.background : '#FAFCFB' }}>
-        <StatusBar
-          barStyle={isDark ? 'light-content' : 'dark-content'}
-          backgroundColor={isDark ? themeColors.background : '#FAFCFB'}
-        />
+        <StatusBar style={isDark ? 'light' : 'dark'} />
         <SplashScreen
           onStart={() => setShowRegister(true)}
           onLogin={() => setShowLogin(true)}
@@ -156,10 +190,7 @@ function AppContent() {
   if (showChildWallet) {
     return (
       <View style={{ flex: 1, backgroundColor: isDark ? themeColors.background : '#F8FAFC' }}>
-        <StatusBar
-          barStyle={isDark ? 'light-content' : 'dark-content'}
-          backgroundColor={isDark ? themeColors.background : '#F8FAFC'}
-        />
+        <StatusBar style={isDark ? 'light' : 'dark'} />
         <ChildWalletScreen
           onBack={() => setShowChildWallet(false)}
           onAddTransaction={() => {
@@ -332,7 +363,11 @@ function AppContent() {
           onNavigate={(target) => {
             setShowNotifications(false);
             if (target.tab) {
-              setActiveTab(target.tab);
+              if (target.tab === 'profile') {
+                setShowProfile(true);
+              } else {
+                setActiveTab(target.tab as TabKey);
+              }
             }
             if (target.groupTarget) {
               setGroupNavTarget(target.groupTarget);
@@ -427,22 +462,68 @@ function AppContent() {
   const screen = {
     home: (
       <HomeScreen
-        onViewTransactions={() => setActiveTab('transactions')}
-        onAddTransaction={() => setShowAddTransaction(true)}
-        onScanInvoice={() => setShowScanInvoice(true)}
-        onViewGoals={() => setActiveTab('goals')}
-        onViewBudget={() => setActiveTab('budget')}
-        onViewDebts={() => setShowDebts(true)}
-        onViewReminders={() => setShowReminders(true)}
-        onViewAiAssistant={() => setShowAiAssistant(true)}
-        onViewAccounts={() => setShowAccounts(true)}
-        onViewSpendingAnalysis={() => setShowSpendingAnalysis(true)}
-        onViewPeriodicReports={() => setShowPeriodicReports(true)}
-        onViewBalanceForecast={() => setShowBalanceForecast(true)}
-        onViewChildWallet={() => setShowChildWallet(true)}
-        onViewChildChores={() => setShowChildChores(true)}
-        onViewChildRequests={() => setShowChildRequests(true)}
+        onViewTransactions={() => {
+          floatingChatEmitter.emitClose();
+          setActiveTab('transactions');
+        }}
+        onAddTransaction={() => {
+          floatingChatEmitter.emitClose();
+          setShowAddTransaction(true);
+        }}
+        onScanInvoice={() => {
+          floatingChatEmitter.emitClose();
+          setShowScanInvoice(true);
+        }}
+        onViewGoals={() => {
+          floatingChatEmitter.emitClose();
+          setActiveTab('goals');
+        }}
+        onViewBudget={() => {
+          floatingChatEmitter.emitClose();
+          setActiveTab('budget');
+        }}
+        onViewDebts={() => {
+          floatingChatEmitter.emitClose();
+          setShowDebts(true);
+        }}
+        onViewReminders={() => {
+          floatingChatEmitter.emitClose();
+          setShowReminders(true);
+        }}
+        onViewAiAssistant={() => {
+          floatingChatEmitter.emitClose();
+          setShowAiAssistant(true);
+        }}
+        onViewAccounts={() => {
+          floatingChatEmitter.emitClose();
+          setShowAccounts(true);
+        }}
+        onViewSpendingAnalysis={() => {
+          floatingChatEmitter.emitClose();
+          setShowSpendingAnalysis(true);
+        }}
+        onViewPeriodicReports={() => {
+          floatingChatEmitter.emitClose();
+          setShowPeriodicReports(true);
+        }}
+        onViewBalanceForecast={() => {
+          floatingChatEmitter.emitClose();
+          setShowBalanceForecast(true);
+        }}
+        onViewChildWallet={() => {
+          floatingChatEmitter.emitClose();
+          setShowChildWallet(true);
+        }}
+        onViewChildChores={() => {
+          floatingChatEmitter.emitClose();
+          setShowChildChores(true);
+        }}
+        onViewChildRequests={() => {
+          floatingChatEmitter.emitClose();
+          setShowChildRequests(true);
+        }}
         onViewGroupFamily={() => {
+          floatingChatEmitter.emitClose();
           const user = authStorage.getUser();
           if (user?.childAccount && user.childWalletGroupId) {
             setGroupNavTarget({
@@ -452,14 +533,23 @@ function AppContent() {
           }
           setActiveTab('group');
         }}
-        onNotifications={() => setShowNotifications(true)}
-        onProfile={() => setShowProfile(true)}
+        onNotifications={() => {
+          floatingChatEmitter.emitClose();
+          setShowNotifications(true);
+        }}
+        onProfile={() => {
+          floatingChatEmitter.emitClose();
+          setShowProfile(true);
+        }}
       />
     ),
     transactions: (
       <TransactionsScreen
         onBack={() => setActiveTab('home')}
-        onAddTransaction={() => setShowAddTransaction(true)}
+        onAddTransaction={() => {
+          floatingChatEmitter.emitClose();
+          setShowAddTransaction(true);
+        }}
       />
     ),
     group: (
@@ -480,8 +570,14 @@ function AppContent() {
     budget: (
       <BudgetScreen
         onBack={() => setActiveTab('home')}
-        onNavigateToReports={() => setShowPeriodicReports(true)}
-        onNavigateToSettings={() => setShowProfile(true)}
+        onNavigateToReports={() => {
+          floatingChatEmitter.emitClose();
+          setShowPeriodicReports(true);
+        }}
+        onNavigateToSettings={() => {
+          floatingChatEmitter.emitClose();
+          setShowProfile(true);
+        }}
       />
     ),
     goals: <GoalsScreen onBack={() => setActiveTab('home')} />,
@@ -500,6 +596,7 @@ function AppContent() {
         <BottomNav
           activeTab={activeTab}
           onChange={(tab) => {
+            floatingChatEmitter.emitClose();
             const curUser = authStorage.getUser();
             if (tab === 'group' && curUser?.childAccount && curUser.childWalletGroupId) {
               setGroupNavTarget({
@@ -512,12 +609,69 @@ function AppContent() {
             setActiveTab(tab);
           }}
           onScanInvoice={() => {
+            floatingChatEmitter.emitClose();
             setScanInvoiceInitialStep('CAMERA');
             setShowScanInvoice(true);
           }}
-          onProfile={() => setShowProfile(true)}
+          onProfile={() => {
+            floatingChatEmitter.emitClose();
+            setShowProfile(true);
+          }}
         />
       )}
+
+      {/* 2 Icon tròn nổi ở góc dưới: Chat Nhóm (trên) & Chat AI FinAI (dưới) */}
+      <FloatingChatIcons
+        visible={!showOnboardingWizard && !(activeTab === 'group' && isGroupDetailOpen)}
+        onOpenAiChat={() => setShowAiAssistant(true)}
+        onOpenGroupChat={(groupId, groupName) => {
+          setGroupNavTarget({
+            groupId,
+            groupName,
+            tab: 'CHAT',
+          });
+          setActiveTab('group');
+        }}
+      />
+
+      {/* Modal Hoàn thiện hồ sơ khi đăng ký mới bằng Google */}
+      <Modal
+        visible={showCompleteProfile}
+        animationType="slide"
+        transparent={false}
+        onRequestClose={() => {}}
+      >
+        <CompleteProfileModal
+          visible={showCompleteProfile}
+          onSuccess={() => {
+            setShowCompleteProfile(false);
+            setTimeout(() => {
+              checkInitialOnboarding();
+            }, 300);
+          }}
+          onSkip={() => {
+            setShowCompleteProfile(false);
+            setTimeout(() => {
+              checkInitialOnboarding();
+            }, 300);
+          }}
+        />
+      </Modal>
+
+      {/* Onboarding Walkthrough 7 màn hình sóng chuẩn Finora */}
+      <Modal
+        visible={showOnboardingWizard}
+        animationType="fade"
+        transparent={false}
+        onRequestClose={() => {}}
+      >
+        <FinoraOnboardingWalkthrough
+          userName={authStorage.getUser()?.fullName}
+          onComplete={() => {
+            setShowOnboardingWizard(false);
+          }}
+        />
+      </Modal>
       <StatusBar style={isDarkStatusBar ? 'dark' : 'light'} />
     </View>
   );

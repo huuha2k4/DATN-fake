@@ -85,7 +85,7 @@
 
 :root[data-theme='dark'] .privacy-hero-meta,
 .dark .privacy-hero-meta {
-  color: #7b96a8;
+  color: #94A3B8;
 }
 
 .dot-divider {
@@ -458,7 +458,7 @@
 
 .sec-badge-card strong {
   font-size: 0.95rem;
-  color: #047857;
+  color: #007F53;
   font-weight: 800;
 }
 
@@ -563,7 +563,7 @@
 
 :root[data-theme='dark'] .contact-label,
 .dark .contact-label {
-  color: #7b96a8;
+  color: #94A3B8;
 }
 
 .contact-val {

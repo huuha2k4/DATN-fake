@@ -40,80 +40,19 @@ export interface GoalDetailData {
 }
 
 export const fallbackGoalDetail: GoalDetailData = {
-  id: 'goal-study-laptop',
-  title: 'Mua laptop học tập',
-  category: 'Học tập',
-  description: 'Tiết kiệm để mua laptop phục vụ học tập và làm đồ án.',
-  percentage: 75.0,
-  currentAmount: 15000000,
-  targetAmount: 20000000,
-  deadline: '30/04/2027',
-  daysRemaining: 173,
-  additionalNeeded: 5000000,
-  icon: 'cap',
-  history: [
-    {
-      id: 'hist-1',
-      title: 'Tiết kiệm định kỳ',
-      date: '08:30 • 01/11/2026',
-      amount: 2000000,
-      type: 'deposit',
-      note: 'Trích từ lương tháng 10 vào quỹ laptop',
-      accountName: 'Tài khoản chính (VPBank)',
-    },
-    {
-      id: 'hist-2',
-      title: 'Tiết kiệm định kỳ',
-      date: '14:15 • 25/10/2026',
-      amount: 3000000,
-      type: 'deposit',
-      note: 'Tiết kiệm thưởng dự án',
-      accountName: 'Ví điện tử MoMo',
-    },
-    {
-      id: 'hist-3',
-      title: 'Tiết kiệm định kỳ',
-      date: '09:00 • 10/10/2026',
-      amount: 1500000,
-      type: 'deposit',
-      note: 'Nộp tiết kiệm đầu kỳ',
-      accountName: 'Tài khoản Techcombank',
-    },
-  ],
+  id: '',
+  title: 'Mục tiêu tài chính',
+  category: 'Khác',
+  description: '',
+  percentage: 0,
+  currentAmount: 0,
+  targetAmount: 0,
+  additionalNeeded: 0,
+  icon: 'other',
+  history: [],
 };
 
-export const fallbackGoals: GoalItem[] = [
-  {
-    id: 'goal-1',
-    title: 'Mua laptop mới',
-    targetAmount: 15000000,
-    currentAmount: 8000000,
-    deadline: '31/01/2027',
-    percentage: 53,
-    icon: 'shopping',
-    category: 'Mua sắm lớn',
-  },
-  {
-    id: 'goal-2',
-    title: 'Du lịch Đà Nẵng',
-    targetAmount: 5000000,
-    currentAmount: 3000000,
-    deadline: '30/06/2027',
-    percentage: 60,
-    icon: 'travel',
-    category: 'Du lịch',
-  },
-  {
-    id: 'goal-3',
-    title: 'Mua xe máy',
-    targetAmount: 25000000,
-    currentAmount: 1000000,
-    deadline: '31/12/2027',
-    percentage: 4,
-    icon: 'shopping',
-    category: 'Mua sắm lớn',
-  },
-];
+export const fallbackGoals: GoalItem[] = [];
 
 export interface SavingItem {
   id: string;
@@ -125,26 +64,7 @@ export interface SavingItem {
   description?: string;
 }
 
-export const fallbackSavings: SavingItem[] = [
-  {
-    id: 'saving-1',
-    title: 'Tiết kiệm tự do',
-    subtitle: 'Tích lũy không giới hạn',
-    currentAmount: 4500000,
-    category: 'Tiết kiệm tự do',
-    icon: 'saving_free',
-    description: 'Tích lũy tài chính tự do, không áp lực mục tiêu hay thời hạn.',
-  },
-  {
-    id: 'saving-2',
-    title: 'Quỹ dự phòng',
-    subtitle: 'Dành cho tình huống bất ngờ',
-    currentAmount: 2000000,
-    category: 'Quỹ dự phòng khẩn cấp',
-    icon: 'saving_emergency',
-    description: 'Dành cho tình huống y tế, bất ngờ hoặc khẩn cấp trong cuộc sống.',
-  },
-];
+export const fallbackSavings: SavingItem[] = [];
 
 export const goalsApi = {
   async getGoals(): Promise<{ goals: GoalItem[]; savings: SavingItem[]; totalAccumulated: number; totalGoalsAmount: number; totalSavingsAmount: number }> {

@@ -4,6 +4,7 @@ import { jsPDF } from 'jspdf';
 import html2canvas from 'html2canvas';
 import ExcelJS from 'exceljs';
 import { FinanceIcon, type IconName } from '../../core/components/FinanceIcon';
+import { DatePicker } from '../../core/components/DatePicker';
 import { reportApi, type TransactionSummaryResponse, type PeriodFlowItem } from '../api/reportApi';
 import { transactionApi, type TransactionItem } from '../../cash-flow-management/api/transactionApi';
 import { accountApi, type AccountItem } from '../../account-management/api/accountApi';
@@ -24,8 +25,8 @@ const PRESET_PERIODS = [
 ];
 
 const CATEGORY_COLORS = [
-  '#07543f', '#168361', '#e3a33d', '#478ac1', '#8971bb',
-  '#c94e62', '#e67832', '#087557', '#526159', '#6366f1'
+  '#007F53', '#168361', '#e3a33d', '#478ac1', '#8971bb',
+  '#c94e62', '#e67832', '#007F53', '#526159', '#6366f1'
 ];
 
 function formatCurrency(amount: number | undefined | null): string {
@@ -215,6 +216,7 @@ export function FinancialReportsDashboardScreen({ onNotify }: Props) {
               id: kidWallet.id,
               name: `Ví của ${kidWallet.childName || user.fullName || 'bé'}`,
               type: 'CASH',
+              accountType: 'CASH',
               currencyCode: kidWallet.currency || 'VND',
               balance: kidWallet.balance || 0,
               icon: 'wallet',
@@ -664,7 +666,7 @@ export function FinancialReportsDashboardScreen({ onNotify }: Props) {
       const prevCat = prevCatMap.get(key);
 
       const name = currentCat?.categoryName || prevCat?.categoryName || 'Danh mục';
-      const color = currentCat?.color || '#047857';
+      const color = currentCat?.color || '#007F53';
       const currentAmount = currentCat?.totalAmount || 0;
       const prevAmount = prevCat?.totalAmount || 0;
       const diffAmount = currentAmount - prevAmount;
@@ -785,7 +787,7 @@ export function FinancialReportsDashboardScreen({ onNotify }: Props) {
                 headerDiv.style.marginBottom = '12px';
                 headerDiv.style.fontFamily = "'Plus Jakarta Sans', 'Inter', sans-serif";
                 headerDiv.innerHTML = `
-                  <div style="font-weight: 800; font-size: 13px; color: #07543f; letter-spacing: 0.5px;">
+                  <div style="font-weight: 800; font-size: 13px; color: #007F53; letter-spacing: 0.5px;">
                     FINORA · QUẢN LÝ TÀI CHÍNH CÁ NHÂN & GIA ĐÌNH
                   </div>
                   <div style="font-size: 11px; font-weight: 600; color: #64748b;">
@@ -814,7 +816,7 @@ export function FinancialReportsDashboardScreen({ onNotify }: Props) {
                   <div style="font-size: 10px; font-weight: 600; color: #64748b;">
                     Thời gian xuất báo cáo: ${nowStr} (Hệ thống Finora)
                   </div>
-                  <div style="font-size: 10px; font-weight: 700; color: #07543f;">
+                  <div style="font-size: 10px; font-weight: 700; color: #007F53;">
                     Báo cáo ${tabName}
                   </div>
                 `;
@@ -882,7 +884,7 @@ export function FinancialReportsDashboardScreen({ onNotify }: Props) {
                   htmlEl.style.outlineColor = 'transparent';
                 }
                 if (isUnsupportedColor((style as any).fill)) {
-                  (htmlEl.style as any).fill = '#047857';
+                  (htmlEl.style as any).fill = '#007F53';
                 }
                 if (isUnsupportedColor((style as any).stroke)) {
                   (htmlEl.style as any).stroke = 'transparent';
@@ -1354,7 +1356,7 @@ export function FinancialReportsDashboardScreen({ onNotify }: Props) {
   const isChild = Boolean(user?.childAccount);
 
   return (
-    <main className="mx-auto flex min-h-[calc(100vh-64px)] w-full max-w-[1560px] flex-col gap-4 px-3 pb-24 pt-4 text-[#14251f] sm:px-6 lg:px-8 lg:pb-8 dark:text-slate-100" aria-label="Báo cáo và thống kê tài chính">
+    <main className="mx-auto flex min-h-[calc(100vh-64px)] w-full max-w-[1560px] flex-col gap-4 px-3 pb-24 pt-4 text-[#0F172A] sm:px-6 lg:px-8 lg:pb-8 dark:text-slate-100" aria-label="Báo cáo và thống kê tài chính">
       {/* HÀNG 1: TABS CHỨC NĂNG (THU - CHI / DANH MỤC / SO SÁNH) & NÚT XUẤT BÁO CÁO */}
       <section className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         {/* TABS CHÍNH: Thu - Chi | Danh mục | So sánh */}
@@ -1381,7 +1383,7 @@ export function FinancialReportsDashboardScreen({ onNotify }: Props) {
             className="reports-action-btn"
             title="Xuất bảng số liệu ra file Excel (.xls)"
           >
-            <FinanceIcon name="download" size={15} className="text-[#07543f] dark:text-[#34d399]" />
+            <FinanceIcon name="download" size={15} className="text-[#007F53] dark:text-[#34d399]" />
             <span>Xuất Excel</span>
           </button>
           <button
@@ -1391,7 +1393,7 @@ export function FinancialReportsDashboardScreen({ onNotify }: Props) {
             className={`reports-action-btn ${isExportingPdf ? 'opacity-60 cursor-not-allowed' : ''}`}
             title="Chụp nguyên bản giao diện và lưu thành file PDF"
           >
-            <FinanceIcon name="file-text" size={15} className="text-[#07543f] dark:text-[#34d399]" />
+            <FinanceIcon name="file-text" size={15} className="text-[#007F53] dark:text-[#34d399]" />
             <span>{isExportingPdf ? 'Đang xuất...' : 'Xuất PDF'}</span>
           </button>
         </div>
@@ -1414,37 +1416,27 @@ export function FinancialReportsDashboardScreen({ onNotify }: Props) {
         </div>
 
         {/* Nhóm 2: Date Picker Input (chiều cao chuẩn h-11) */}
-        <div className="reports-date-picker-box md:col-span-4">
-          <FinanceIcon name="calendar" size={16} className="text-[#07543f] dark:text-[#34d399] shrink-0" />
-          <div className="relative flex-1 flex items-center justify-center">
-            <span className="text-xs font-bold text-[#14261e] dark:text-slate-100 pointer-events-none">
-              {formatDateToVN(dateRange.fromDate)}
-            </span>
-            <input
-              type="date"
+        <div className="reports-date-picker-box md:col-span-4 flex items-center gap-2">
+          <FinanceIcon name="calendar" size={16} className="text-[#007F53] dark:text-[#34d399] shrink-0" />
+          <div className="flex-1">
+            <DatePicker
               value={dateRange.fromDate}
-              onChange={(e) => {
+              onChange={(newVal) => {
                 setSelectedPeriod('custom');
-                setDateRange(prev => ({ ...prev, fromDate: e.target.value }));
+                setDateRange(prev => ({ ...prev, fromDate: newVal }));
               }}
-              className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
-              title="Chọn ngày bắt đầu (dd/mm/yyyy)"
+              placeholder="Từ ngày"
             />
           </div>
-          <span className="text-[#07543f] dark:text-[#34d399] font-bold select-none">→</span>
-          <div className="relative flex-1 flex items-center justify-center">
-            <span className="text-xs font-bold text-[#14261e] dark:text-slate-100 pointer-events-none">
-              {formatDateToVN(dateRange.toDate)}
-            </span>
-            <input
-              type="date"
+          <span className="text-[#007F53] dark:text-[#34d399] font-bold select-none">→</span>
+          <div className="flex-1">
+            <DatePicker
               value={dateRange.toDate}
-              onChange={(e) => {
+              onChange={(newVal) => {
                 setSelectedPeriod('custom');
-                setDateRange(prev => ({ ...prev, toDate: e.target.value }));
+                setDateRange(prev => ({ ...prev, toDate: newVal }));
               }}
-              className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
-              title="Chọn ngày kết thúc (dd/mm/yyyy)"
+              placeholder="Đến ngày"
             />
           </div>
         </div>
@@ -1459,20 +1451,20 @@ export function FinancialReportsDashboardScreen({ onNotify }: Props) {
             aria-label="Lọc theo tài khoản hoặc ví"
           >
             <div className="flex items-center gap-2.5 truncate">
-              <FinanceIcon name="wallet" size={16} className="text-[#07543f] dark:text-[#34d399] shrink-0" />
-              <span className="truncate text-xs font-bold text-[#14261e] dark:text-slate-100">
+              <FinanceIcon name="wallet" size={16} className="text-[#007F53] dark:text-[#34d399] shrink-0" />
+              <span className="truncate text-xs font-bold text-[#0F172A] dark:text-slate-100">
                 {selectedAccountId
                   ? accounts.find((a) => a.id === selectedAccountId)?.name || 'Tài khoản'
                   : `Tất cả tài khoản / ví (${accounts.length})`}
               </span>
             </div>
-            <span className={`text-[10px] text-[#5d7568] dark:text-[#8da6b8] transition-transform duration-200 ${isWalletDropdownOpen ? 'rotate-180' : ''}`}>
+            <span className={`text-[10px] text-[#5d7568] dark:text-[#94A3B8] transition-transform duration-200 ${isWalletDropdownOpen ? 'rotate-180' : ''}`}>
               ▼
             </span>
           </button>
 
           {isWalletDropdownOpen && (
-            <div className="absolute left-0 right-0 top-full mt-1.5 z-50 rounded-2xl border border-[#d5ded8] dark:border-[#173852] bg-white dark:bg-[#0e2333] p-1.5 shadow-xl max-h-60 overflow-y-auto animate-fadeIn">
+            <div className="absolute left-0 right-0 top-full mt-1.5 z-50 rounded-2xl border border-[#CBD5E1] dark:border-[#1E293B] bg-white dark:bg-[#111827] p-1.5 shadow-xl max-h-60 overflow-y-auto animate-fadeIn">
               <button
                 type="button"
                 onClick={() => {
@@ -1480,15 +1472,15 @@ export function FinancialReportsDashboardScreen({ onNotify }: Props) {
                   setIsWalletDropdownOpen(false);
                 }}
                 className={`flex w-full items-center justify-between rounded-xl px-3 py-2 text-xs font-semibold text-left transition cursor-pointer ${selectedAccountId === ''
-                  ? 'bg-emerald-50 text-[#07543f] dark:bg-emerald-950/60 dark:text-emerald-300 font-bold'
-                  : 'text-[#14261e] dark:text-slate-200 hover:bg-gray-50 dark:hover:bg-[#122c40]'
+                  ? 'bg-emerald-50 text-[#007F53] dark:bg-emerald-950/60 dark:text-emerald-300 font-bold'
+                  : 'text-[#0F172A] dark:text-slate-200 hover:bg-gray-50 dark:hover:bg-[#122c40]'
                   }`}
               >
                 <span>Tất cả tài khoản / ví ({accounts.length})</span>
-                {selectedAccountId === '' && <span className="text-[#07543f] dark:text-emerald-400 font-bold">✓</span>}
+                {selectedAccountId === '' && <span className="text-[#007F53] dark:text-emerald-400 font-bold">✓</span>}
               </button>
 
-              <div className="my-1 border-t border-[#edf2ee] dark:border-[#173852]" />
+              <div className="my-1 border-t border-[#E2E8F0] dark:border-[#1E293B]" />
 
               {accounts.map((acc) => {
                 const isSelected = selectedAccountId === acc.id;
@@ -1501,15 +1493,15 @@ export function FinancialReportsDashboardScreen({ onNotify }: Props) {
                       setIsWalletDropdownOpen(false);
                     }}
                     className={`flex w-full items-center justify-between rounded-xl px-3 py-2 text-xs text-left transition cursor-pointer ${isSelected
-                      ? 'bg-emerald-50 text-[#07543f] dark:bg-emerald-950/60 dark:text-emerald-300 font-bold'
-                      : 'text-[#14261e] dark:text-slate-200 hover:bg-gray-50 dark:hover:bg-[#122c40]'
+                      ? 'bg-emerald-50 text-[#007F53] dark:bg-emerald-950/60 dark:text-emerald-300 font-bold'
+                      : 'text-[#0F172A] dark:text-slate-200 hover:bg-gray-50 dark:hover:bg-[#122c40]'
                       }`}
                   >
                     <div className="flex items-center gap-2 truncate">
                       <span className="size-2 rounded-full bg-emerald-500 shrink-0" />
                       <span className="truncate">{acc.name}</span>
                     </div>
-                    {isSelected && <span className="text-[#07543f] dark:text-emerald-400 font-bold">✓</span>}
+                    {isSelected && <span className="text-[#007F53] dark:text-emerald-400 font-bold">✓</span>}
                   </button>
                 );
               })}
@@ -1520,7 +1512,7 @@ export function FinancialReportsDashboardScreen({ onNotify }: Props) {
 
       {/* LOADING INDICATOR */}
       {loading && (
-        <div className="flex items-center justify-center gap-2 rounded-xl bg-[#e6f4ec] py-2 text-xs font-medium text-[#07543f] dark:bg-[#07543f]/30 dark:text-[#a8ebca]">
+        <div className="flex items-center justify-center gap-2 rounded-xl bg-[#e6f4ec] py-2 text-xs font-medium text-[#007F53] dark:bg-[#07543f]/30 dark:text-[#a8ebca]">
           <span className="inline-block animate-spin">⚙</span>
           <span>Đang cập nhật số liệu báo cáo mới nhất...</span>
         </div>
@@ -1612,15 +1604,15 @@ export function FinancialReportsDashboardScreen({ onNotify }: Props) {
 
         {/* 4. FINAI ADVISOR - THANH ĐÁNH GIÁ TÀI CHÍNH TRỰC QUAN */}
         <section className="reports-advisor-card">
-          <span className="grid size-8 shrink-0 place-items-center rounded-xl bg-[#07543f] text-[#a8ebca]">
+          <span className="grid size-8 shrink-0 place-items-center rounded-xl bg-[#007F53] text-[#a8ebca]">
             <FinanceIcon name="spark" size={16} />
           </span>
           <div className="flex flex-1 flex-col gap-0.5 sm:flex-row sm:items-center sm:justify-between">
             <p className="reports-advisor-text">
-              <strong className="font-black text-[#07543f] dark:text-[#6ee7b7]">FinAI Nhận định: </strong>
+              <strong className="font-black text-[#007F53] dark:text-[#6ee7b7]">FinAI Nhận định: </strong>
               {summary.netCashFlow > 0 ? (
                 <>
-                  Dòng tiền kỳ này đang dương <strong className="font-bold text-[#07543f] dark:text-[#34d399]">{formatCurrency(summary.netCashFlow)}</strong>.
+                  Dòng tiền kỳ này đang dương <strong className="font-bold text-[#007F53] dark:text-[#34d399]">{formatCurrency(summary.netCashFlow)}</strong>.
                   {categories.length > 0 && ` Hạng mục tiêu biểu là "${categories[0].categoryName}" (${categories[0].percentage.toFixed(0)}%).`}
                   {' '}Khuyến nghị trích 30% thặng dư này cho quỹ tích lũy dài hạn.
                 </>
@@ -1647,7 +1639,7 @@ export function FinancialReportsDashboardScreen({ onNotify }: Props) {
               {/* VÒNG DONUT CƠ CẤU CHI TIÊU (5 CỘT) */}
               <article className="reports-card flex flex-col justify-between lg:col-span-5">
                 <div>
-                  <header className="flex items-center justify-between gap-2 border-b border-[#edf2ee] pb-3 dark:border-[#1e293b]">
+                  <header className="flex items-center justify-between gap-2 border-b border-[#E2E8F0] pb-3 dark:border-[#1e293b]">
                     <div>
                       <h2 className="reports-title-dark text-base sm:text-lg">Tỷ Trọng Cơ Cấu Chi Tiêu</h2>
                       <p className="reports-subtitle text-xs">Biểu đồ phân bổ tỷ lệ theo từng nhóm chi phí</p>
@@ -1694,7 +1686,7 @@ export function FinancialReportsDashboardScreen({ onNotify }: Props) {
                                   <strong className="text-xs font-black truncate max-w-[70px] text-[#0f172a] dark:text-white">
                                     {formatShortCurrency(activeSlice.totalAmount)}
                                   </strong>
-                                  <span className="text-[10px] font-extrabold text-[#07543f] dark:text-[#34d399]">
+                                  <span className="text-[10px] font-extrabold text-[#007F53] dark:text-[#34d399]">
                                     {activeSlice.percentage.toFixed(1)}%
                                   </span>
                                   <span className="text-[9px] font-semibold text-slate-500 truncate max-w-[65px]">
@@ -1706,7 +1698,7 @@ export function FinancialReportsDashboardScreen({ onNotify }: Props) {
                           ) : (
                             <>
                               <strong className="text-sm font-black">{formatShortCurrency(summary.totalExpense)}</strong>
-                              <span className="text-[10px] font-bold uppercase tracking-wider text-[#07543f] dark:text-[#34d399] truncate max-w-[80px]" title={currentPeriodLabel}>
+                              <span className="text-[10px] font-bold uppercase tracking-wider text-[#007F53] dark:text-[#34d399] truncate max-w-[80px]" title={currentPeriodLabel}>
                                 {periodShortLabel}
                               </span>
                             </>
@@ -1735,7 +1727,7 @@ export function FinancialReportsDashboardScreen({ onNotify }: Props) {
                                   <span className="truncate reports-cat-name dark:text-[#e2e8f0]">{item.categoryName}</span>
                                 </span>
                                 <span className="text-right font-extrabold text-[#0f172a] dark:text-white">
-                                  {formatCurrency(item.totalAmount)} <span className="font-extrabold text-[#047857] dark:text-[#34d399]">({item.percentage.toFixed(1)}%)</span>
+                                  {formatCurrency(item.totalAmount)} <span className="font-extrabold text-[#007F53] dark:text-[#34d399]">({item.percentage.toFixed(1)}%)</span>
                                 </span>
                               </div>
                             );
@@ -1749,7 +1741,7 @@ export function FinancialReportsDashboardScreen({ onNotify }: Props) {
                 <div className="reports-sub-footer mt-4">
                   {categories.length > 0 ? (
                     <span className="text-[#334155] dark:text-[#94a3b8] font-semibold">
-                      Nhóm chiếm tỷ trọng cao nhất: <strong className="font-extrabold text-[#0f172a] dark:text-white">{categories[0].categoryName}</strong> (<strong className="font-black text-[#047857] dark:text-[#34d399]">{categories[0].percentage.toFixed(1)}%</strong>).
+                      Nhóm chiếm tỷ trọng cao nhất: <strong className="font-extrabold text-[#0f172a] dark:text-white">{categories[0].categoryName}</strong> (<strong className="font-black text-[#007F53] dark:text-[#34d399]">{categories[0].percentage.toFixed(1)}%</strong>).
                     </span>
                   ) : (
                     <span className="text-[#334155] dark:text-[#94a3b8]">Chưa phát sinh dữ liệu chi tiêu.</span>
@@ -1760,12 +1752,12 @@ export function FinancialReportsDashboardScreen({ onNotify }: Props) {
               {/* BẢNG CHI TIẾT CỤ THỂ TOÀN BỘ CÁC DANH MỤC TRONG KỲ (7 CỘT) */}
               <article className="reports-card flex flex-col justify-between lg:col-span-7">
                 <div>
-                  <header className="flex items-center justify-between gap-2 border-b border-[#edf2ee] pb-3 dark:border-[#1e293b]">
+                  <header className="flex items-center justify-between gap-2 border-b border-[#E2E8F0] pb-3 dark:border-[#1e293b]">
                     <div>
                       <h2 className="reports-title-dark text-base sm:text-lg">Bảng Thống Kê Chi Tiết Danh Mục</h2>
                       <p className="reports-subtitle text-xs">Số tiền, tỷ trọng, số lần chi và mức chi tiêu trung bình</p>
                     </div>
-                    <span className="text-xs font-bold text-[#07543f] dark:text-[#34d399]">
+                    <span className="text-xs font-bold text-[#007F53] dark:text-[#34d399]">
                       Tổng chi: {formatCurrency(summary.totalExpense)}
                     </span>
                   </header>
@@ -1817,7 +1809,7 @@ export function FinancialReportsDashboardScreen({ onNotify }: Props) {
                   </div>
                 </div>
 
-                <footer className="mt-3 border-t border-[#edf2ee] pt-2.5 text-[11.5px] reports-tx-footer dark:border-[#1e293b]">
+                <footer className="mt-3 border-t border-[#E2E8F0] pt-2.5 text-[11.5px] reports-tx-footer dark:border-[#1e293b]">
                   Thống kê toàn bộ {categories.length} nhóm danh mục chi tiêu trong kỳ
                 </footer>
               </article>
@@ -1832,7 +1824,7 @@ export function FinancialReportsDashboardScreen({ onNotify }: Props) {
               <div className="reports-card p-4">
                 <span className="text-xs font-bold text-[#5d7568] dark:text-[#94a3b8]">Biến Động Thu Nhập</span>
                 <div className="mt-2 flex items-baseline justify-between">
-                  <span className="text-xl font-black text-[#047857] dark:text-[#34d399]">
+                  <span className="text-xl font-black text-[#007F53] dark:text-[#34d399]">
                     {formatCurrency(summary.totalIncome)}
                   </span>
                   <span className={`inline-flex items-center text-xs font-extrabold px-2 py-0.5 rounded-md ${comparisonData.incomeDelta >= 0 ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300' : 'bg-rose-100 text-rose-800 dark:bg-rose-950/60 dark:text-rose-300'
@@ -1866,7 +1858,7 @@ export function FinancialReportsDashboardScreen({ onNotify }: Props) {
               <div className="reports-card p-4">
                 <span className="text-xs font-bold text-[#5d7568] dark:text-[#94a3b8]">Dòng Tiền Ròng So Sánh</span>
                 <div className="mt-2 flex items-baseline justify-between">
-                  <span className={`text-xl font-black ${summary.netCashFlow >= 0 ? 'text-[#047857] dark:text-[#34d399]' : 'text-[#e11d48] dark:text-rose-400'}`}>
+                  <span className={`text-xl font-black ${summary.netCashFlow >= 0 ? 'text-[#007F53] dark:text-[#34d399]' : 'text-[#e11d48] dark:text-rose-400'}`}>
                     {summary.netCashFlow >= 0 ? '+' : ''}{formatCurrency(summary.netCashFlow)}
                   </span>
                   <span className={`inline-flex items-center text-xs font-extrabold px-2 py-0.5 rounded-md ${summary.netCashFlow >= comparisonData.prevSum.netCashFlow ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300' : 'bg-rose-100 text-rose-800 dark:bg-rose-950/60 dark:text-rose-300'
@@ -1882,12 +1874,12 @@ export function FinancialReportsDashboardScreen({ onNotify }: Props) {
 
             {/* HÀNG 2: BẢNG SO SÁNH ĐỐI CHIẾU CHI TIÊU TỪNG DANH MỤC */}
             <article className="reports-card overflow-hidden">
-              <header className="mb-4 flex flex-col justify-between gap-1 sm:flex-row sm:items-center border-b border-[#edf2ee] pb-3 dark:border-[#1e293b]">
+              <header className="mb-4 flex flex-col justify-between gap-1 sm:flex-row sm:items-center border-b border-[#E2E8F0] pb-3 dark:border-[#1e293b]">
                 <div>
                   <h2 className="reports-title-dark text-base sm:text-lg">Đối Chiếu Chi Tiêu Theo Danh Mục (Kỳ Này vs Kỳ Trước)</h2>
                   <p className="reports-subtitle text-xs">Theo dõi mức tăng giảm chi tiêu của từng nhóm danh mục để kiểm soát ngân sách</p>
                 </div>
-                <span className="text-xs font-bold text-[#07543f] dark:text-[#34d399]">
+                <span className="text-xs font-bold text-[#007F53] dark:text-[#34d399]">
                   {comparisonData.comparedCategories.length} nhóm đối chiếu
                 </span>
               </header>
@@ -1957,7 +1949,7 @@ export function FinancialReportsDashboardScreen({ onNotify }: Props) {
                 </table>
               </div>
 
-              <footer className="mt-3 border-t border-[#edf2ee] pt-2.5 text-[11.5px] reports-tx-footer dark:border-[#1e293b]">
+              <footer className="mt-3 border-t border-[#E2E8F0] pt-2.5 text-[11.5px] reports-tx-footer dark:border-[#1e293b]">
                 Đối chiếu trực tiếp {comparisonData.comparedCategories.length} nhóm danh mục giữa kỳ hiện tại và kỳ liền kề trước đó
               </footer>
             </article>
@@ -1978,7 +1970,7 @@ export function FinancialReportsDashboardScreen({ onNotify }: Props) {
                     </p>
                   </div>
                   <div className="reports-legend-pill">
-                    <span className="flex items-center gap-1.5"><i className="size-2.5 rounded-full" style={{ backgroundColor: '#047857' }} />Thu</span>
+                    <span className="flex items-center gap-1.5"><i className="size-2.5 rounded-full" style={{ backgroundColor: '#007F53' }} />Thu</span>
                     <span className="flex items-center gap-1.5"><i className="size-2.5 rounded-full" style={{ backgroundColor: '#e11d48' }} />Chi</span>
                   </div>
                 </header>
@@ -1986,7 +1978,7 @@ export function FinancialReportsDashboardScreen({ onNotify }: Props) {
                 {/* BIỂU ĐỒ BAR CHART RỘNG RÃI */}
                 <div className="relative mt-6 h-[260px] sm:h-[280px]" role="img" aria-label="Biểu đồ thu chi">
                   {/* Trục kẻ ngang */}
-                  <div className="absolute inset-0 flex flex-col justify-between pb-7 text-[11px] font-semibold text-[#5d7568] dark:text-[#8da6b8]">
+                  <div className="absolute inset-0 flex flex-col justify-between pb-7 text-[11px] font-semibold text-[#5d7568] dark:text-[#94A3B8]">
                     {[maxBarValue, maxBarValue * 0.75, maxBarValue * 0.5, maxBarValue * 0.25, 0].map((v, i) => (
                       <div key={i} className="flex items-center gap-2">
                         <span className="w-10 text-right">{formatShortCurrency(v)}</span>
@@ -1998,7 +1990,7 @@ export function FinancialReportsDashboardScreen({ onNotify }: Props) {
                   {/* Vùng cột dữ liệu */}
                   <div className="absolute bottom-7 left-12 right-0 top-0 flex items-end gap-0.5 sm:gap-1">
                     {trendData.length === 0 ? (
-                      <div className="flex h-full w-full items-center justify-center text-xs font-medium text-[#5d7568] dark:text-[#8da6b8]">
+                      <div className="flex h-full w-full items-center justify-center text-xs font-medium text-[#5d7568] dark:text-[#94A3B8]">
                         Chưa có dữ liệu chu kỳ
                       </div>
                     ) : (
@@ -2015,7 +2007,7 @@ export function FinancialReportsDashboardScreen({ onNotify }: Props) {
                               className="w-[45%] rounded-t-sm transition-all group-hover:brightness-110 shadow-xs"
                               style={{
                                 height: item.income > 0 ? `${incomePct}%` : '2px',
-                                backgroundColor: item.income > 0 ? '#047857' : '#d1fae5',
+                                backgroundColor: item.income > 0 ? '#007F53' : '#d1fae5',
                                 opacity: item.income > 0 ? 1 : 0.4
                               }}
                             />
@@ -2034,7 +2026,7 @@ export function FinancialReportsDashboardScreen({ onNotify }: Props) {
                   </div>
 
                   {/* Trục hoành nhãn mốc ngày/tháng */}
-                  <div className="absolute bottom-0 left-12 right-0 flex justify-between text-[10px] font-bold text-[#5d7568] dark:text-[#8da6b8]">
+                  <div className="absolute bottom-0 left-12 right-0 flex justify-between text-[10px] font-bold text-[#5d7568] dark:text-[#94A3B8]">
                     {trendData.length <= 12 ? (
                       trendData.map(item => (
                         <span key={item.date} className="truncate">{formatChartDateLabel(item.date)}</span>
@@ -2051,7 +2043,7 @@ export function FinancialReportsDashboardScreen({ onNotify }: Props) {
                         {trendData[Math.floor(trendData.length * 0.75)] && (
                           <span>{formatChartDateLabel(trendData[Math.floor(trendData.length * 0.75)].date)}</span>
                         )}
-                        <span className="font-extrabold text-[#07543f] dark:text-[#34d399]">
+                        <span className="font-extrabold text-[#007F53] dark:text-[#34d399]">
                           {formatChartDateLabel(trendData[trendData.length - 1]?.date || '')}
                         </span>
                       </>
@@ -2063,7 +2055,7 @@ export function FinancialReportsDashboardScreen({ onNotify }: Props) {
               {/* Chú thích chân biểu đồ */}
               <footer className="reports-sub-footer mt-4">
                 <span className="flex items-center gap-1.5 truncate">
-                  <FinanceIcon name="trend" size={14} className="text-[#047857] dark:text-[#34d399] shrink-0" />
+                  <FinanceIcon name="trend" size={14} className="text-[#007F53] dark:text-[#34d399] shrink-0" />
                   <span className="text-[#334155] dark:text-[#94a3b8] font-bold">Khoản chi lớn nhất:</span>
                   <strong className="text-[#0f172a] dark:text-white truncate font-extrabold ml-1">
                     {summary.largestExpense ? `${summary.largestExpense.description || 'Chi tiêu'} (${formatCurrency(summary.largestExpense.amount)})` : 'Không có'}
@@ -2122,7 +2114,7 @@ export function FinancialReportsDashboardScreen({ onNotify }: Props) {
                                   <strong className="text-[11px] font-black truncate max-w-[65px] text-[#0f172a] dark:text-white">
                                     {formatShortCurrency(activeSlice.totalAmount)}
                                   </strong>
-                                  <span className="text-[9px] font-extrabold text-[#07543f] dark:text-[#34d399]">
+                                  <span className="text-[9px] font-extrabold text-[#007F53] dark:text-[#34d399]">
                                     {activeSlice.percentage.toFixed(1)}%
                                   </span>
                                 </>
@@ -2131,7 +2123,7 @@ export function FinancialReportsDashboardScreen({ onNotify }: Props) {
                           ) : (
                             <>
                               <strong className="text-xs font-black">{formatShortCurrency(summary.totalExpense)}</strong>
-                              <span className="text-[9px] font-bold uppercase tracking-wider text-[#07543f] dark:text-[#34d399] truncate max-w-[68px]" title={currentPeriodLabel}>
+                              <span className="text-[9px] font-bold uppercase tracking-wider text-[#007F53] dark:text-[#34d399] truncate max-w-[68px]" title={currentPeriodLabel}>
                                 {periodShortLabel}
                               </span>
                             </>
@@ -2159,7 +2151,7 @@ export function FinancialReportsDashboardScreen({ onNotify }: Props) {
                                   <span className="truncate reports-cat-name dark:text-[#e2e8f0]">{item.categoryName}</span>
                                 </span>
                                 <span className="text-right font-extrabold text-[#0f172a] dark:text-white">
-                                  {formatShortCurrency(item.totalAmount)} <span className="font-extrabold text-[#047857] dark:text-[#34d399]">({item.percentage.toFixed(0)}%)</span>
+                                  {formatShortCurrency(item.totalAmount)} <span className="font-extrabold text-[#007F53] dark:text-[#34d399]">({item.percentage.toFixed(0)}%)</span>
                                 </span>
                               </div>
                             );
@@ -2173,7 +2165,7 @@ export function FinancialReportsDashboardScreen({ onNotify }: Props) {
                 <div className="reports-sub-footer">
                   {categories.length > 0 ? (
                     <span className="text-[#334155] dark:text-[#94a3b8] font-semibold">
-                      Nhóm <strong className="font-extrabold text-[#0f172a] dark:text-white">{categories[0].categoryName}</strong> chiếm cao nhất (<strong className="font-black text-[#047857] dark:text-[#34d399]">{categories[0].percentage.toFixed(1)}%</strong>).
+                      Nhóm <strong className="font-extrabold text-[#0f172a] dark:text-white">{categories[0].categoryName}</strong> chiếm cao nhất (<strong className="font-black text-[#007F53] dark:text-[#34d399]">{categories[0].percentage.toFixed(1)}%</strong>).
                     </span>
                   ) : (
                     <span className="text-[#334155] dark:text-[#94a3b8]">Ghi nhận giao dịch để kích hoạt phân tích cơ cấu chi tiêu.</span>
@@ -2183,7 +2175,7 @@ export function FinancialReportsDashboardScreen({ onNotify }: Props) {
 
               <article className="reports-card flex flex-col justify-between lg:col-span-7">
                 <div>
-                  <header className="flex items-center justify-between gap-3 border-b border-[#edf2ee] pb-3 dark:border-[#1e293b]">
+                  <header className="flex items-center justify-between gap-3 border-b border-[#E2E8F0] pb-3 dark:border-[#1e293b]">
                     <div>
                       <h2 className="reports-title-dark text-base sm:text-lg">Top 5 Khoản Chi Tiêu Lớn Nhất</h2>
                       <p className="reports-subtitle text-xs">5 khoản chi phát sinh đáng chú ý nhất trong kỳ</p>
@@ -2218,7 +2210,7 @@ export function FinancialReportsDashboardScreen({ onNotify }: Props) {
                   </div>
                 </div>
 
-                <footer className="mt-3 border-t border-[#edf2ee] pt-2.5 text-[11.5px] reports-tx-footer dark:border-[#1e293b]">
+                <footer className="mt-3 border-t border-[#E2E8F0] pt-2.5 text-[11.5px] reports-tx-footer dark:border-[#1e293b]">
                   Hiển thị {visibleTransactions.length} khoản chi lớn nhất trong kỳ
                 </footer>
               </article>

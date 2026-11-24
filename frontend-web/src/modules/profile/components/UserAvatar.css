@@ -52,7 +52,7 @@
 .user-tier-clickable:hover {
   background: #d1fae5;
   border-color: #34d399;
-  color: #047857;
+  color: #007F53;
   transform: translateY(-1px);
   box-shadow: 0 3px 8px rgba(16, 185, 129, 0.18);
 }
@@ -87,7 +87,7 @@
 }
 
 .greeting-status-highlight {
-  color: #087557;
+  color: #007F53;
   font-weight: 600;
 }
 
@@ -118,7 +118,7 @@
   width: 48px;
   height: 48px;
   border-radius: 50%;
-  background: linear-gradient(135deg, #07543f 0%, #10b981 100%);
+  background: linear-gradient(135deg, #007F53 0%, #10b981 100%);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -234,11 +234,11 @@
 
 .menu-item-row:hover {
   background: #f1f7f4;
-  color: #07543f;
+  color: #007F53;
 }
 
 .menu-item-row:hover .menu-item-icon {
-  color: #07543f;
+  color: #007F53;
 }
 
 .menu-item-row.logout-item {

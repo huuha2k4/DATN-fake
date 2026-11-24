@@ -18,7 +18,7 @@
 /* Hero Net Worth Gradient Card */
 .net-worth-hero-card {
   position: relative;
-  background: linear-gradient(135deg, #053b2d 0%, #07543f 50%, #0c7257 100%);
+  background: linear-gradient(135deg, #004D3B 0%, #007F53 50%, #0c7257 100%);
   border-radius: 20px;
   overflow: hidden;
   box-shadow: 0 12px 32px -8px rgba(7, 84, 63, 0.35);
@@ -54,7 +54,7 @@
   position: relative;
   background: #ffffff;
   border-radius: 20px;
-  border: 1px solid #e2ece5;
+  border: 1px solid #E2E8F0;
   padding: 24px;
   display: flex;
   flex-direction: column;
@@ -72,7 +72,7 @@
   left: 0;
   right: 0;
   height: 4px;
-  background: var(--stat-accent, #07543f);
+  background: var(--stat-accent, #007F53);
   border-top-left-radius: 20px;
   border-top-right-radius: 20px;
 }
@@ -227,13 +227,13 @@
 }
 
 .filter-tab-pill.is-active {
-  background: #07543f;
+  background: #007F53;
   color: #ffffff;
   box-shadow: 0 4px 12px rgba(7, 84, 63, 0.22);
 }
 
 .filter-tab-pill:not(.is-active) {
-  background: #f3f7f4;
+  background: #F1F5F9;
   color: #495e52;
 }
 
@@ -270,7 +270,7 @@
 
 /* Bank Selection Dropdown / Grid */
 .bank-picker-box {
-  border: 1px solid #d5ded8;
+  border: 1px solid #CBD5E1;
   border-radius: 14px;
   background: #fafcfb;
   overflow: hidden;
@@ -295,7 +295,7 @@
 }
 
 .bank-option-btn.is-selected {
-  background: #e3f4e9;
+  background: #E6F4EA;
   border-color: #a7dfbc;
 }
 /* ==========================================================================
@@ -303,13 +303,13 @@
    ========================================================================== */
 
 html.dark .wallet-management-page {
-  background-color: #081622 !important;
+  background-color: #0B0F19 !important;
 }
 
-/* 1. Ba thẻ Metric trên cùng trong Dark Mode: Nền xanh navy rõ rệt #0e2333 */
+/* 1. Ba thẻ Metric trên cùng trong Dark Mode: Nền xanh navy rõ rệt #111827 */
 html.dark .wallet-stat-card {
-  background: #0e2333 !important;
-  border-color: #173852 !important;
+  background: #111827 !important;
+  border-color: #1E293B !important;
   box-shadow: 0 10px 28px -6px rgba(0, 0, 0, 0.45) !important;
 }
 
@@ -319,7 +319,7 @@ html.dark .wallet-stat-card::before {
 
 /* Thẻ Tài sản khả dụng: Xanh Navy điểm ngọc */
 html.dark .wallet-stat-card.is-assets {
-  background: radial-gradient(circle at top left, rgba(16, 185, 129, 0.12) 0%, transparent 70%), #0e2333 !important;
+  background: radial-gradient(circle at top left, rgba(16, 185, 129, 0.12) 0%, transparent 70%), #111827 !important;
   border-color: #1b454e !important;
 }
 
@@ -334,16 +334,16 @@ html.dark .wallet-stat-card.is-assets .bg-emerald-50 {
 }
 
 html.dark .wallet-stat-card.is-assets .border-t {
-  border-color: #16364a !important;
+  border-color: #1E293B !important;
 }
 
 html.dark .wallet-stat-card.is-assets .text-\[\#6b7f73\] {
-  color: #8da6b8 !important;
+  color: #94A3B8 !important;
 }
 
 /* Thẻ Dư nợ thẻ & Nợ */
 html.dark .wallet-stat-card.is-debts {
-  background: radial-gradient(circle at top left, rgba(244, 63, 94, 0.12) 0%, transparent 70%), #0e2333 !important;
+  background: radial-gradient(circle at top left, rgba(244, 63, 94, 0.12) 0%, transparent 70%), #111827 !important;
   border-color: #442232 !important;
 }
 
@@ -358,7 +358,7 @@ html.dark .wallet-stat-card.is-debts .bg-rose-50 {
 }
 
 html.dark .wallet-stat-card.is-debts .border-t {
-  border-color: #16364a !important;
+  border-color: #1E293B !important;
 }
 
 html.dark .wallet-stat-card.is-debts .text-\[\#8c6769\] {
@@ -393,8 +393,8 @@ html.dark .net-worth-hero-card .bg-white\/15 {
 
 /* 2. Thanh lọc Filter & Nút thêm ví chuẩn theo ảnh mẫu */
 html.dark section.rounded-2xl.border.bg-white {
-  background-color: #0b1a26 !important;
-  border-color: #132a3a !important;
+  background-color: #0B0F19 !important;
+  border-color: #1F2937 !important;
 }
 
 /* Nút Active (như Tất cả nguồn tiền): Tông xanh ngọc lục bảo Emerald bo tròn mềm mại */
@@ -408,22 +408,22 @@ html.dark .filter-tab-pill.is-active {
 
 /* Các nút nhóm còn lại: Tông xanh đen tối bo tròn như viên thuốc, chữ xám xanh dịu */
 html.dark .filter-tab-pill:not(.is-active) {
-  background: #0f2433 !important;
-  color: #9cb1c1 !important;
-  border: 1px solid #183549 !important;
+  background: #111827 !important;
+  color: #94A3B8 !important;
+  border: 1px solid #1E293B !important;
   border-radius: 999px !important;
 }
 
 html.dark .filter-tab-pill:not(.is-active):hover {
-  background: #143044 !important;
-  color: #e2eaf0 !important;
-  border-color: #204660 !important;
+  background: #1F2937 !important;
+  color: #F8FAFC !important;
+  border-color: #1E293B !important;
 }
 
 /* 3. Banner Bảo mật / Quyền riêng tư */
 html.dark .wallet-management-page div[class*="from-[#edf8f2]"] {
-  background: linear-gradient(90deg, #0b2b3a 0%, #0c2334 100%) !important;
-  border-color: #174864 !important;
+  background: linear-gradient(90deg, #0b2b3a 0%, #111827 100%) !important;
+  border-color: #1E293B !important;
   color: #bae6fd !important;
 }
 
@@ -466,14 +466,14 @@ html.dark .wallet-item-card.is-cash {
 html.dark .wallet-balance-box {
   background: rgba(8, 22, 34, 0.88) !important;
   border-color: rgba(255, 255, 255, 0.12) !important;
-  color: #e2eaf0 !important;
+  color: #F8FAFC !important;
 }
 
 /* Empty State / Loading State */
 html.dark .wallet-management-page div.border-dashed.bg-white {
-  background-color: #0e2333 !important;
-  border-color: #1b415e !important;
-  color: #93b1c6 !important;
+  background-color: #111827 !important;
+  border-color: #1E293B !important;
+  color: #94A3B8 !important;
 }
 
 

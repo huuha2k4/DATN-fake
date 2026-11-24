@@ -9,13 +9,16 @@ import sys
 import os
 import json
 import re
+import time
 from datetime import datetime, date
 from typing import Dict, Any, List, Optional
 import numpy as np
 from dotenv import load_dotenv
 from sqlalchemy import func
+from sqlalchemy.orm import joinedload
 from database import SessionLocal, Transaction, Account, Category, Budget, BudgetItem, Goal, resolve_user_id
 from behavior_profiler import profiler
+from analytics_runtime import Timings
 
 load_dotenv()
 
@@ -57,12 +60,15 @@ class FinancialRecommender:
 
 
     def generate_recommendations(self, user_id: str = "test_user_01") -> Dict[str, Any]:
+        timings = Timings("AI5")
         db = SessionLocal()
         try:
             user_id = resolve_user_id(user_id, db)
             # 1. Thu thập dữ liệu từ AI 2 (Hồ sơ hành vi)
-            behavior_data = profiler.analyze_user(user_id=user_id)
+            with timings.measure("behavior_profile"):
+                behavior_data = profiler.analyze_user(user_id=user_id)
             if behavior_data.get("status") != "SUCCESS":
+                timings.log(status="insufficient")
                 return {
                     "status": "COLD_START",
                     "message": "Chưa đủ dữ liệu để sinh khuyến nghị cá nhân hóa.",
@@ -77,8 +83,11 @@ class FinancialRecommender:
             top_cats = behavior_data.get("top_categories", [])
 
             # 2. Thu thập dữ liệu tài sản & tài khoản hiện tại
-            accounts = db.query(Account).filter(Account.user_id == user_id).all()
-            total_liquid_balance = sum(a.current_balance for a in accounts)
+            db_started = time.perf_counter()
+            total_liquid_balance = float(
+                db.query(func.coalesce(func.sum(Account.balance), 0))
+                .filter(Account.user_id == user_id).scalar() or 0
+            )
 
             # 3. Thu thập dữ liệu mục tiêu tài chính (Goals)
             goals = db.query(Goal).filter(Goal.user_id == user_id, Goal.status == "ACTIVE").all()
@@ -90,18 +99,20 @@ class FinancialRecommender:
             current_year = datetime.now().year
             budget = (
                 db.query(Budget)
-                .filter(Budget.user_id == user_id)
+                .options(joinedload(Budget.items).joinedload(BudgetItem.category))
+                .filter(Budget.user_id == user_id, Budget.start_date <= date.today(), Budget.end_date >= date.today())
                 .order_by(Budget.start_date.desc())
                 .first()
             )
             budget_items = budget.items if budget else []
+            timings.values["db_query"] = (time.perf_counter() - db_started) * 1000.0
 
             # Tính mức chi tiêu trung bình tháng
-            monthly_income = summary.get("total_income", 15000000.0) / max(1, len(top_cats)) if summary.get("total_income", 0) > 0 else 15000000.0
+            observation_days = max(1, int(behavior_data.get("metrics", {}).get("observation_days", 1)))
+            observation_months = max(observation_days / 30.4375, 1.0 / 30.4375)
+            monthly_income = float(summary.get("total_income") or 0) / observation_months
             # Giả định ước lượng chi tiêu 1 tháng thông thường
-            monthly_expense = float(summary.get("total_expense", 10000000.0)) / 3.0 # Lịch sử 3 tháng gần nhất
-            if monthly_expense <= 0:
-                monthly_expense = 8000000.0
+            monthly_expense = float(summary.get("total_expense") or 0) / observation_months
 
             recommendations = []
             health_score_components = []
@@ -112,7 +123,7 @@ class FinancialRecommender:
             dining_pct = dining.get("dining_percentage", 0.0)
             dining_amount = dining.get("dining_amount", 0.0)
             # Chi tiêu ăn uống trung bình 1 tháng
-            monthly_dining = dining_amount / 3.0 if dining_amount > 0 else 5000000.0
+            monthly_dining = dining_amount / observation_months if dining_amount > 0 else 0.0
             cut_rate = 0.15
             monthly_savings_from_cut = round(monthly_dining * cut_rate)
             annual_savings = monthly_savings_from_cut * 12
@@ -132,7 +143,7 @@ class FinancialRecommender:
                     "action_steps": [
                         "Chuẩn bị bữa trưa mang đi làm/đi học 2-3 buổi trong tuần thay vì ăn ngoài.",
                         "Hạn chế đặt đồ ăn qua các ứng dụng giao hàng vào các ngày trong tuần (giảm phí ship và phụ phí).",
-                        "Đặt hạn mức chi tiêu ăn uống ngoài giờ tối đa 50.000 VND/ngày."
+                        f"Theo dõi hạn mức ăn uống thực tế và đặt mục tiêu giảm {cut_rate * 100:.0f}%, không dùng một mức tiền mặc định cho mọi người."
                     ]
                 })
                 health_score_components.append(15)
@@ -146,7 +157,8 @@ class FinancialRecommender:
             target_savings_rate = 20.0 # Chuẩn 50/30/20
 
             if savings_rate < target_savings_rate:
-                needed_savings_monthly = round(monthly_expense * 0.25)
+                current_monthly_savings = monthly_income - monthly_expense
+                needed_savings_monthly = round(max(0.0, monthly_income * 0.20 - current_monthly_savings))
                 recommendations.append({
                     "id": "REC_BOOST_SAVINGS",
                     "title": "Tăng tỷ lệ tiết kiệm hàng tháng lên tối thiểu 20%",
@@ -174,12 +186,12 @@ class FinancialRecommender:
                     "priority": "LOW",
                     "icon": "📈",
                     "badge_color": "#10b981",
-                    "impact_monthly_vnd": round(total_liquid_balance * 0.05 / 12),
-                    "summary": f"Tỷ lệ tích lũy của bạn rất tốt ({savings_rate}%). Hãy chuyển bớt tiền nhàn rỗi sang tài khoản sinh lời.",
-                    "explanation": f"Số dư tài khoản vãng lai của bạn hiện đạt {total_liquid_balance:,.0f} VND. Để tiền trong tài khoản thanh toán chỉ hưởng lãi suất 0.1%/năm. Chuyển vào kênh sinh lời 4-5%/năm sẽ đem lại thêm thu nhập thụ động.",
+                    "impact_monthly_vnd": 0,
+                    "summary": f"Tỷ lệ tích lũy quan sát được là {savings_rate}%. Có thể rà soát phần tiền thực sự nhàn rỗi sau khi giữ đủ quỹ dự phòng.",
+                    "explanation": f"Tổng số dư thanh khoản hiện ghi nhận là {total_liquid_balance:,.0f} VND. Hệ thống không tự giả định lãi suất hoặc mức sinh lời; hãy so sánh điều kiện thực tế trước khi quyết định.",
                     "action_steps": [
                         "Duy trì trong tài khoản thanh toán số tiền đủ chi tiêu 1 tháng.",
-                        "Số tiền còn lại gửi vào chứng chỉ tiền gửi hoặc tài khoản tiết kiệm online để sinh lời 4-6%/năm."
+                        "So sánh lãi suất, kỳ hạn, phí và điều kiện rút trước hạn đang áp dụng trước khi chọn sản phẩm."
                     ]
                 })
                 health_score_components.append(30)
@@ -245,7 +257,7 @@ class FinancialRecommender:
                     "explanation": f"Hạn mức hiện tại của danh mục {top_over['category']} đang bị căng thẳng ({top_over['spent']:,.0f}/{top_over['limit']:,.0f} VND). Bạn cần điều chỉnh hành vi tiêu dùng ngay hoặc tái phân bổ ngân sách từ các danh mục còn dư thừa.",
                     "action_steps": [
                         f"Tạm dừng các khoản chi mới cho {top_over['category']} trong thời gian còn lại của chu kỳ ngân sách.",
-                        f"Chuyển bớt 300.000 - 500.000 VND từ danh mục chưa tiêu hết sang {top_over['category']} để không bị vỡ kế hoạch chung.",
+                        f"Chỉ tái phân bổ từ danh mục còn dư nếu số dư ngân sách thực tế cho phép.",
                         "Xem xét nâng hạn mức danh mục này trong tháng sau nếu đây là nhu cầu thực sự cần thiết."
                     ]
                 })
@@ -295,22 +307,26 @@ class FinancialRecommender:
             # 6. Đoạn văn tổng hợp lời khuyên từ Cố vấn AI (Template cơ sở)
             persona_title = persona.get("title", "Người dùng PFM")
             baseline_overall_advice = (
-                f"Dựa trên hồ sơ hành vi '{persona_title}' và xu hướng chi tiêu thực tế, "
-                f"điểm sức khỏe tài chính của bạn đạt {total_health_score}/100 ({health_rating}). "
-                f"Hành động quan trọng nhất hiện nay là tập trung cắt giảm ~15% chi phí ăn uống ngoài hàng "
-                f"(tiết kiệm thêm ~{monthly_savings_from_cut:,.0f} VND/tháng) và dồn số tiền này hoàn thiện "
-                f"Quỹ dự phòng khẩn cấp trước khi giải ngân cho các mục tiêu mua sắm lớn."
+                f"Dựa trên hồ sơ hành vi '{persona_title}' và dữ liệu quan sát được, "
+                f"điểm sức khỏe tài chính đạt {total_health_score}/100 ({health_rating}). "
+                "Các đề xuất bên dưới được sắp theo mức ưu tiên và chỉ dùng số liệu thực tế hiện có."
             )
 
-            # 7. Nâng cấp lời khuyên bằng LLM (Gemini/Local) để văn phong tự nhiên, sắc sảo, cá nhân hóa
-            overall_advice, recommendations = self._enhance_with_llm(
-                persona=persona,
-                summary=summary,
-                dining=dining,
-                rule_50=rule_50_30_20,
-                recommendations=recommendations,
-                baseline_overall_advice=baseline_overall_advice
+            # Financial calculations and recommendation text stay deterministic;
+            # AI 5 does not call an LLM or allow it to rewrite numeric evidence.
+            overall_advice = baseline_overall_advice
+            recommendations.sort(
+                key=lambda item: {"HIGH": 0, "MEDIUM": 1, "LOW": 2}.get(item.get("priority"), 3)
             )
+            deduplicated = []
+            seen = set()
+            for recommendation in recommendations:
+                identity = (recommendation.get("type"), recommendation.get("category"))
+                if identity not in seen:
+                    seen.add(identity)
+                    deduplicated.append(recommendation)
+            recommendations = deduplicated
+            timings.log(recommendations=len(recommendations))
 
             return {
                 "status": "SUCCESS",

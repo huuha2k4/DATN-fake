@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { authApi, saveAuthData } from '../api/authApi';
 
 interface GoogleSignInButtonProps {
-  onSuccess: () => void;
+  onSuccess: (res?: any) => void;
   onError: (msg: string) => void;
   text?: 'signin_with' | 'signup_with' | 'continue_with';
 }
@@ -74,7 +74,7 @@ export function GoogleSignInButton({ onSuccess, onError, text = 'continue_with' 
     try {
       const res = await authApi.loginWithGoogle(response.credential);
       saveAuthData(res.data.user, res.data.tokens);
-      onSuccess();
+      onSuccess(res);
     } catch (err: any) {
       onError(err?.message || 'Đăng nhập bằng Google thất bại. Vui lòng thử lại.');
     } finally {

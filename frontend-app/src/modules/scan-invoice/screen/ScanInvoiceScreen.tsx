@@ -25,6 +25,7 @@ import {
   Store,
   Tag,
   Trash2,
+  Users,
   Wallet,
   X,
   Zap,
@@ -32,11 +33,14 @@ import {
   Target,
 } from 'lucide-react-native';
 import { FinanceIcon, resolveCategoryIconName } from '../../core/components/FinanceIcon';
+import { AppDateTimePicker } from '../../core/components/AppDateTimePicker';
 import {
   transactionApi,
   type AccountItem,
   type CategoryItem,
 } from '../../add-transaction/api/transactionApi';
+import { groupApi } from '../../group/api/groupApi';
+import { authStorage } from '../../auth/api/authApi';
 import { ocrApi, type OcrReceiptResult } from '../api';
 import { useAppTheme } from '../../../context/ThemeContext';
 
@@ -349,8 +353,9 @@ export function ScanInvoiceScreen({
   const { isDark, colors: themeColors } = useAppTheme();
   const [step, setStep] = useState<StepMode>(initialStep);
 
-  // States dữ liệu từ Backend (chỉ hiển thị các hóa đơn đã tạo giao dịch & trừ tiền)
-  const [recentReceipts, setRecentReceipts] = useState<OcrReceiptResult[]>([]);
+  // States dữ liệu từ Backend
+  const [allReceipts, setAllReceipts] = useState<OcrReceiptResult[]>([]);
+  const [historyTab, setHistoryTab] = useState<'ALL' | 'PAID' | 'DRAFT'>('ALL');
   const [categories, setCategories] = useState<CategoryItem[]>([]);
   const [accounts, setAccounts] = useState<AccountItem[]>([]);
   const [showAllHistory, setShowAllHistory] = useState(false);
@@ -391,11 +396,40 @@ export function ScanInvoiceScreen({
 
   const loadInitialData = useCallback(async () => {
     try {
-      const [cats, accs, receipts] = await Promise.all([
+      const [cats, accs, receipts, userGroups] = await Promise.all([
         transactionApi.getCategories('EXPENSE'),
         transactionApi.getAccounts(),
         ocrApi.getReceipts(1, 20),
+        groupApi.getGroups().catch(() => []),
       ]);
+
+      const groupFundAccounts: AccountItem[] = [];
+      if (Array.isArray(userGroups) && userGroups.length > 0) {
+        const fundResults = await Promise.all(
+          userGroups.map(async (g) => {
+            try {
+              const fund = await groupApi.getFund(g.id);
+              return { group: g, fund };
+            } catch {
+              return null;
+            }
+          })
+        );
+
+        fundResults.forEach((res) => {
+          if (res && res.fund) {
+            groupFundAccounts.push({
+              id: `group_fund:${res.group.id}`,
+              name: `Quỹ ${res.group.name}`,
+              accountType: 'GROUP_FUND',
+              currencyCode: 'VND',
+              balance: Number(res.fund.balance || 0),
+            });
+          }
+        });
+      }
+
+      const combinedAccounts = [...accs, ...groupFundAccounts];
 
       if (cats.length > 0) {
         setCategories(cats);
@@ -403,13 +437,12 @@ export function ScanInvoiceScreen({
         setSelectedCategoryId(foodCat.id);
       }
 
-      if (accs.length > 0) {
-        setAccounts(accs);
-        setSelectedAccountId(accs[0].id);
+      if (combinedAccounts.length > 0) {
+        setAccounts(combinedAccounts);
+        setSelectedAccountId(combinedAccounts[0].id);
       }
 
-      const paidReceipts = receipts.filter((r) => Boolean(r.transactionId || r.kind === 'paid'));
-      setRecentReceipts(paidReceipts);
+      setAllReceipts(receipts);
     } catch {
       // Giữ danh sách rỗng nếu offline
     }
@@ -475,9 +508,27 @@ export function ScanInvoiceScreen({
         asset.mimeType || 'image/jpeg',
         asset.fileName || `invoice_${Date.now()}.jpg`
       );
+
+      // --- Xử lý các kind bị từ chối như trên bản Web ---
+      const REJECTED_KINDS = ['not_receipt', 'low_quality', 'handwritten', 'draft'];
+      if (REJECTED_KINDS.includes(result.kind)) {
+        const rejectMessages: Record<string, string> = {
+          not_receipt: 'Ảnh không phải hóa đơn hoặc biên lai hợp lệ. Vui lòng chụp lại đúng hóa đơn thanh toán.',
+          low_quality: 'Ảnh chụp quá mờ hoặc thiếu thông tin quan trọng. Vui lòng chụp lại rõ nét hơn.',
+          handwritten: 'Hóa đơn chữ viết tay chưa được hỗ trợ nhận diện tự động. Vui lòng nhập giao dịch thủ công.',
+          draft: 'Đây là phiếu tạm tính chưa thanh toán. Vui lòng quét hóa đơn/biên lai cuối cùng.',
+        };
+        Alert.alert(
+          'Không thể xử lý hóa đơn',
+          result.rejectReason || rejectMessages[result.kind] || 'Vui lòng thử lại với ảnh khác rõ nét hơn.'
+        );
+        return;
+      }
+
       applyReceiptToResult(result, asset.uri);
-      // Không thêm vào Hóa đơn gần đây khi mới chỉ quét — chỉ khi người dùng bấm "Tạo giao dịch" và trừ tiền mới hiện vào Hóa đơn gần đây
-    } catch {
+      // Reload lại danh sách hóa đơn
+      ocrApi.getReceipts(1, 20).then((res) => setAllReceipts(res)).catch(() => {});
+    } catch (err: any) {
       // Nếu máy chủ OCR chưa chạy hoặc lỗi mạng, vẫn hiển thị kết quả trích xuất thông minh với ảnh vừa chụp
       const now = new Date();
       const fallbackResult: OcrReceiptResult = {
@@ -622,6 +673,40 @@ export function ScanInvoiceScreen({
 
     setSubmitting(true);
     try {
+      const isGroupFund = targetAccountId.startsWith('group_fund:');
+
+      if (isGroupFund) {
+        const groupId = targetAccountId.replace('group_fund:', '');
+        const user = authStorage.getUser();
+        const members = await groupApi.getMembers(groupId).catch(() => []);
+        const validMembers = Array.isArray(members) && members.length > 0 ? members : [{ userId: user?.id || '' }];
+        const splitAmount = Math.round(cleanAmount / validMembers.length);
+        const splits = validMembers.map((m) => ({
+          userId: m.userId,
+          amount: splitAmount,
+        }));
+
+        await groupApi.createExpense(groupId, {
+          description: merchant.trim() || selectedCategoryObj?.name || 'Hóa đơn chi tiêu nhóm',
+          amount: cleanAmount,
+          currency: 'VND',
+          paidByUserId: user?.id || '',
+          paymentSource: 'GROUP_FUND',
+          categoryId: selectedCategoryId || undefined,
+          splitMethod: 'EQUAL',
+          expenseDate: dateStr.slice(0, 10),
+          notes: note.trim() || undefined,
+          splits,
+        });
+
+        Alert.alert(
+          'Thành công',
+          `Đã ghi nhận hóa đơn ${cleanAmount.toLocaleString('vi-VN')} ₫ vào Quỹ nhóm!`,
+          [{ text: 'Đóng', onPress: onBack }]
+        );
+        return;
+      }
+
       const isServerReceipt =
         currentReceipt?.id &&
         !currentReceipt.id.startsWith('local-') &&
@@ -655,13 +740,12 @@ export function ScanInvoiceScreen({
         }
       }
 
-      // Cập nhật lại danh sách hóa đơn gần đây (chỉ lấy các hóa đơn đã tạo giao dịch & trừ tiền)
+      // Cập nhật lại danh sách hóa đơn gần đây
       const updatedList = await ocrApi.getReceipts(1, 20);
-      const paidList = updatedList.filter((r) => Boolean(r.transactionId || r.kind === 'paid'));
-      if (paidList.length > 0) {
-        setRecentReceipts(paidList);
+      if (updatedList.length > 0) {
+        setAllReceipts(updatedList);
       } else {
-        setRecentReceipts((prev) => [
+        setAllReceipts((prev) => [
           {
             id: `saved-${Date.now()}`,
             imageUrl: previewUri || undefined,
@@ -704,7 +788,19 @@ export function ScanInvoiceScreen({
   };
 
   const confidencePercent = Math.round(((currentReceipt?.confidence ?? 0.98) || 0.98) * 100);
-  const displayedReceipts = showAllHistory ? recentReceipts : recentReceipts.slice(0, 3);
+
+  // Lọc danh sách hóa đơn theo tab: Tất cả / Đã tạo giao dịch / Chưa tạo giao dịch
+  const filteredReceipts = useMemo(() => {
+    if (historyTab === 'PAID') {
+      return allReceipts.filter((r) => Boolean(r.transactionId || r.kind === 'paid'));
+    }
+    if (historyTab === 'DRAFT') {
+      return allReceipts.filter((r) => !r.transactionId && r.kind !== 'paid');
+    }
+    return allReceipts;
+  }, [allReceipts, historyTab]);
+
+  const displayedReceipts = showAllHistory ? filteredReceipts : filteredReceipts.slice(0, 3);
 
   // ============================================================================
   // MÀN HÌNH 2: CHỤP HÓA ĐƠN (KHUNG NGẮM CAMERA VIEWFINDER - ẢNH MẪU 2)
@@ -900,6 +996,15 @@ export function ScanInvoiceScreen({
             </Pressable>
           </View>
 
+          {/* Cảnh báo cần kiểm tra lại nếu AI gắn nhãn needsReview hoặc loại draft */}
+          {currentReceipt?.needsReview && (
+            <View style={styles.reviewWarningBox}>
+              <Text style={styles.reviewWarningText}>
+                ⚠️ Hóa đơn có một số thông tin cần bạn kiểm tra lại trước khi tạo giao dịch.
+              </Text>
+            </View>
+          )}
+
           {/* 2. Thẻ Thông tin trích xuất (AI) */}
           <View style={[styles.extractedCard, isDark && { backgroundColor: themeColors.surface, borderColor: themeColors.cardBorder }]}>
             {/* Dòng tiêu đề: ✨ Thông tin trích xuất (AI) | [✓ Độ tin cậy: 98%] */}
@@ -917,29 +1022,39 @@ export function ScanInvoiceScreen({
 
             {/* Dòng 1: Thời gian */}
             <View style={[styles.extractedFieldRow, isDark && { borderBottomColor: themeColors.cardBorder }]}>
-              <View style={styles.fieldLabelLeft}>
-                <Calendar size={18} color={isDark ? themeColors.accentGreen : '#15803D'} strokeWidth={2.1} />
-                <Text style={[styles.fieldLabelText, isDark && { color: themeColors.textSecondary }]}>Thời gian</Text>
-              </View>
               {isEditingResult ? (
-                <View style={styles.inlineEditRow}>
-                  <TextInput
-                    value={dateStr}
-                    onChangeText={setDateStr}
-                    placeholder="YYYY-MM-DD"
-                    placeholderTextColor={isDark ? themeColors.textSecondary : '#94A3B8'}
-                    style={[styles.inlineSmallInput, isDark && { backgroundColor: themeColors.surfaceSubtle, borderColor: themeColors.cardBorder, color: themeColors.textPrimary }]}
-                  />
-                  <TextInput
-                    value={timeStr}
-                    onChangeText={setTimeStr}
-                    placeholder="HH:mm"
-                    placeholderTextColor={isDark ? themeColors.textSecondary : '#94A3B8'}
-                    style={[styles.inlineSmallInput, { width: 64 }, isDark && { backgroundColor: themeColors.surfaceSubtle, borderColor: themeColors.cardBorder, color: themeColors.textPrimary }]}
+                <View style={{ flex: 1, paddingVertical: 4 }}>
+                  <AppDateTimePicker
+                    value={(() => {
+                      try {
+                        const d = new Date(`${dateStr}T${timeStr || '00:00'}:00`);
+                        return isNaN(d.getTime()) ? new Date() : d;
+                      } catch {
+                        return new Date();
+                      }
+                    })()}
+                    onChange={(newDate) => {
+                      if (newDate) {
+                        const y = newDate.getFullYear();
+                        const m = String(newDate.getMonth() + 1).padStart(2, '0');
+                        const d = String(newDate.getDate()).padStart(2, '0');
+                        const hh = String(newDate.getHours()).padStart(2, '0');
+                        const mm = String(newDate.getMinutes()).padStart(2, '0');
+                        setDateStr(`${y}-${m}-${d}`);
+                        setTimeStr(`${hh}:${mm}`);
+                      }
+                    }}
+                    label="Thời gian hóa đơn"
                   />
                 </View>
               ) : (
-                <Text style={[styles.fieldValueStrong, isDark && { color: themeColors.textPrimary }]}>{formatDisplayDateTime(dateStr, timeStr)}</Text>
+                <>
+                  <View style={styles.fieldLabelLeft}>
+                    <Calendar size={18} color={isDark ? themeColors.accentGreen : '#15803D'} strokeWidth={2.1} />
+                    <Text style={[styles.fieldLabelText, isDark && { color: themeColors.textSecondary }]}>Thời gian</Text>
+                  </View>
+                  <Text style={[styles.fieldValueStrong, isDark && { color: themeColors.textPrimary }]}>{formatDisplayDateTime(dateStr, timeStr)}</Text>
+                </>
               )}
             </View>
 
@@ -1209,7 +1324,11 @@ export function ScanInvoiceScreen({
                     >
                       <View style={styles.pickerOptionLeft}>
                         <View style={[styles.pickerIconCircle, isDark && { backgroundColor: themeColors.surfaceSubtle }]}>
-                          <Wallet size={17} color={isDark ? themeColors.accentGreen : '#059669'} />
+                          {acc.id.startsWith('group_fund:') ? (
+                            <Users size={17} color={isDark ? themeColors.accentGreen : '#059669'} />
+                          ) : (
+                            <Wallet size={17} color={isDark ? themeColors.accentGreen : '#059669'} />
+                          )}
                         </View>
                         <View>
                           <Text style={[styles.pickerOptionName, isDark && { color: themeColors.textPrimary }]}>{acc.name}</Text>
@@ -1335,14 +1454,14 @@ export function ScanInvoiceScreen({
           )}
         </Pressable>
 
-        {/* 5. Danh sách Hóa đơn gần đây (chỉ hiển thị hóa đơn đã tạo giao dịch & trừ tiền) */}
+        {/* 5. Danh sách Hóa đơn gần đây kèm Tabs bộ lọc đồng bộ với Web */}
         <View style={styles.recentSectionHeader}>
           <View style={styles.recentHeaderLeft}>
             <Clock size={18} color={isDark ? themeColors.accentGreen : '#065F46'} strokeWidth={2.3} />
-            <Text style={[styles.recentHeaderTitle, isDark && { color: themeColors.textPrimary }]}>Hóa đơn gần đây</Text>
+            <Text style={[styles.recentHeaderTitle, isDark && { color: themeColors.textPrimary }]}>Lịch sử hóa đơn</Text>
           </View>
 
-          {recentReceipts.length > 3 && (
+          {filteredReceipts.length > 3 && (
             <Pressable
               onPress={() => setShowAllHistory((prev) => !prev)}
               style={styles.viewAllBtn}
@@ -1356,14 +1475,80 @@ export function ScanInvoiceScreen({
           )}
         </View>
 
+        {/* Tab lọc: Tất cả | Đã lưu | Chưa lưu */}
+        <View style={styles.historyFilterTabsRow}>
+          <Pressable
+            onPress={() => setHistoryTab('ALL')}
+            style={[
+              styles.historyTabPill,
+              historyTab === 'ALL' && styles.historyTabPillActive,
+              isDark && historyTab !== 'ALL' && { backgroundColor: themeColors.surface, borderColor: themeColors.cardBorder },
+            ]}
+          >
+            <Text
+              style={[
+                styles.historyTabPillText,
+                historyTab === 'ALL' && styles.historyTabPillTextActive,
+                isDark && historyTab !== 'ALL' && { color: themeColors.textSecondary },
+              ]}
+            >
+              Tất cả ({allReceipts.length})
+            </Text>
+          </Pressable>
+
+          <Pressable
+            onPress={() => setHistoryTab('PAID')}
+            style={[
+              styles.historyTabPill,
+              historyTab === 'PAID' && styles.historyTabPillActive,
+              isDark && historyTab !== 'PAID' && { backgroundColor: themeColors.surface, borderColor: themeColors.cardBorder },
+            ]}
+          >
+            <Text
+              style={[
+                styles.historyTabPillText,
+                historyTab === 'PAID' && styles.historyTabPillTextActive,
+                isDark && historyTab !== 'PAID' && { color: themeColors.textSecondary },
+              ]}
+            >
+              Đã tạo ({allReceipts.filter((r) => Boolean(r.transactionId || r.kind === 'paid')).length})
+            </Text>
+          </Pressable>
+
+          <Pressable
+            onPress={() => setHistoryTab('DRAFT')}
+            style={[
+              styles.historyTabPill,
+              historyTab === 'DRAFT' && styles.historyTabPillActive,
+              isDark && historyTab !== 'DRAFT' && { backgroundColor: themeColors.surface, borderColor: themeColors.cardBorder },
+            ]}
+          >
+            <Text
+              style={[
+                styles.historyTabPillText,
+                historyTab === 'DRAFT' && styles.historyTabPillTextActive,
+                isDark && historyTab !== 'DRAFT' && { color: themeColors.textSecondary },
+              ]}
+            >
+              Chưa tạo ({allReceipts.filter((r) => !r.transactionId && r.kind !== 'paid').length})
+            </Text>
+          </Pressable>
+        </View>
+
         <View style={[styles.recentListCard, isDark && { backgroundColor: themeColors.surface, borderColor: themeColors.cardBorder }]}>
           {displayedReceipts.length === 0 ? (
             <View style={{ paddingVertical: 28, paddingHorizontal: 16, alignItems: 'center' }}>
               <Text style={[{ fontSize: 13.5, fontWeight: '600', color: '#475569', textAlign: 'center' }, isDark && { color: themeColors.textSecondary }]}>
-                Chưa có hóa đơn nào được tạo giao dịch
+                {historyTab === 'PAID'
+                  ? 'Chưa có hóa đơn nào đã tạo giao dịch'
+                  : historyTab === 'DRAFT'
+                  ? 'Không có hóa đơn nào đang chờ tạo'
+                  : 'Chưa có hóa đơn nào trong lịch sử'}
               </Text>
               <Text style={[{ fontSize: 12, color: '#94A3B8', textAlign: 'center', marginTop: 4 }, isDark && { color: themeColors.textSecondary, opacity: 0.8 }]}>
-                Các hóa đơn sau khi bạn bấm "Tạo giao dịch" và trừ tiền sẽ hiển thị tại đây.
+                {historyTab === 'PAID'
+                  ? 'Các hóa đơn sau khi bạn bấm "Tạo giao dịch" và trừ tiền sẽ hiển thị tại đây.'
+                  : 'Hãy chụp hoặc tải lên hóa đơn để AI tự động trích xuất chi tiêu.'}
               </Text>
             </View>
           ) : (
@@ -1410,13 +1595,20 @@ export function ScanInvoiceScreen({
                     </Text>
                   </View>
 
-                  {/* Số tiền âm màu đỏ & Badge Đã xử lý */}
+                  {/* Số tiền & Badge trạng thái */}
                   <View style={styles.recentInfoRight}>
                     <Text style={[styles.recentItemAmount, isDark && { color: '#F87171' }]}>-{formatVND(amountNum)}</Text>
-                    <View style={[styles.processedBadge, isDark && { backgroundColor: '#064E3B' }]}>
-                      <Check size={11} color={isDark ? themeColors.accentGreen : '#15803D'} strokeWidth={3} />
-                      <Text style={[styles.processedBadgeText, isDark && { color: themeColors.accentGreen }]}>Đã xử lý</Text>
-                    </View>
+                    {item.transactionId || item.kind === 'paid' ? (
+                      <View style={[styles.processedBadge, isDark && { backgroundColor: '#064E3B' }]}>
+                        <Check size={11} color={isDark ? themeColors.accentGreen : '#15803D'} strokeWidth={3} />
+                        <Text style={[styles.processedBadgeText, isDark && { color: themeColors.accentGreen }]}>Đã lưu</Text>
+                      </View>
+                    ) : (
+                      <View style={[styles.draftBadge, isDark && { backgroundColor: '#451A03' }]}>
+                        <Clock size={11} color={isDark ? '#FBBF24' : '#D97706'} strokeWidth={2.4} />
+                        <Text style={[styles.draftBadgeText, isDark && { color: '#FBBF24' }]}>Chưa lưu</Text>
+                      </View>
+                    )}
                   </View>
                 </Pressable>
               );
@@ -1726,6 +1918,68 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '700',
     color: '#15803D',
+  },
+  draftBadge: {
+    marginTop: 4,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    paddingHorizontal: 8,
+    paddingVertical: 2.5,
+    borderRadius: 999,
+    backgroundColor: '#FEF3C7',
+  },
+  draftBadgeText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#D97706',
+  },
+
+  /* ── TABS BỘ LỌC LỊCH SỬ HÓA ĐƠN ── */
+  historyFilterTabsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 12,
+  },
+  historyTabPill: {
+    paddingHorizontal: 13,
+    paddingVertical: 6,
+    borderRadius: 999,
+    backgroundColor: '#F1F5F9',
+    borderWidth: 1,
+    borderColor: 'transparent',
+  },
+  historyTabPillActive: {
+    backgroundColor: '#DCFCE7',
+    borderColor: '#86EFAC',
+  },
+  historyTabPillText: {
+    fontSize: 12.5,
+    fontWeight: '600',
+    color: '#64748B',
+  },
+  historyTabPillTextActive: {
+    color: '#166534',
+    fontWeight: '700',
+  },
+
+  /* ── BANNER CẢNH BÁO KIỂM TRA LẠI (AI) ── */
+  reviewWarningBox: {
+    marginHorizontal: 16,
+    marginTop: 10,
+    marginBottom: 6,
+    padding: 10,
+    borderRadius: 12,
+    backgroundColor: '#FEF3C7',
+    borderWidth: 1,
+    borderColor: '#FDE68A',
+  },
+  reviewWarningText: {
+    fontSize: 12.5,
+    fontWeight: '600',
+    color: '#B45309',
+    lineHeight: 18,
   },
 
   /* ── MÀN 2: CAMERA VIEWFINDER ── */

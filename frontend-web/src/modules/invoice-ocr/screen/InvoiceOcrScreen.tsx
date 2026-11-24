@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type ChangeEvent, type DragEvent } from 'react';
 import { FinanceIcon } from '../../core/components/FinanceIcon';
+import { DatePicker } from '../../core/components/DatePicker';
 import { ocrApi, type OcrReceiptResult } from '../api/ocrApi';
 import { accountApi, type AccountItem } from '../../account-management/api/accountApi';
 import { transactionApi, type CategoryItem } from '../../cash-flow-management/api/transactionApi';
@@ -128,7 +129,7 @@ export function InvoiceOcrScreen({ onCancel, onNotify }: Props) {
         setSelectedAccountId(accs[0].id);
       }
       setCategories(cats);
-      const list = (receiptsResp.receipts || []).filter((r) => Boolean(r.transactionId || r.kind === 'paid'));
+      const list = receiptsResp.receipts || [];
       setRecentReceipts(list);
     } catch {
       onNotify('Không thể nạp dữ liệu tài khoản và danh mục');
@@ -144,7 +145,7 @@ export function InvoiceOcrScreen({ onCancel, onNotify }: Props) {
   const reloadReceipts = async () => {
     try {
       const resp = await ocrApi.getReceipts();
-      setRecentReceipts((resp.receipts || []).filter((r) => Boolean(r.transactionId || r.kind === 'paid')));
+      setRecentReceipts(resp.receipts || []);
     } catch {
       // Ignore background reload errors
     }
@@ -337,24 +338,27 @@ export function InvoiceOcrScreen({ onCancel, onNotify }: Props) {
     onNotify(`Đã nạp hóa đơn: ${r.merchantName || 'Hóa đơn'}`);
   };
 
-  // Filter receipts list (only confirmed/paid receipts are kept in recentReceipts)
+  // Filter receipts list
   const filteredReceipts = useMemo(() => {
     return recentReceipts.filter((r) => {
-      const isPaid = Boolean(r.transactionId || r.kind === 'paid');
-      if (!isPaid) return false;
-
       const matchesSearch =
         !historySearch.trim() ||
         `${r.merchantName || ''} ${r.aiCategoryName || ''} ${r.totalAmount || ''}`
           .toLowerCase()
           .includes(historySearch.toLowerCase());
 
-      return matchesSearch;
+      const isPaid = Boolean(r.transactionId || r.kind === 'paid');
+      const matchesTab =
+        historyTab === 'ALL' ||
+        (historyTab === 'PAID' && isPaid) ||
+        (historyTab === 'DRAFT' && !isPaid);
+
+      return matchesSearch && matchesTab;
     });
-  }, [recentReceipts, historySearch]);
+  }, [recentReceipts, historySearch, historyTab]);
 
   return (
-    <main className="ocr-workspace-page mx-auto flex h-[calc(100vh-68px)] max-h-[calc(100vh-68px)] w-full flex-1 flex-col bg-[#f6f8f6] dark:bg-[#07131e] p-2 sm:p-3 lg:p-4 pb-6 sm:pb-6 text-[#14251f] dark:text-slate-100 overflow-hidden">
+    <main className="ocr-workspace-page mx-auto flex h-[calc(100vh-68px)] max-h-[calc(100vh-68px)] w-full flex-1 flex-col bg-[#F8FAFC] dark:bg-[#0B0F19] p-2 sm:p-3 lg:p-4 pb-6 sm:pb-6 text-[#0F172A] dark:text-slate-100 overflow-hidden">
       {/* Hidden File Input */}
       <input
         ref={fileInputRef}
@@ -388,7 +392,7 @@ export function InvoiceOcrScreen({ onCancel, onNotify }: Props) {
                 <span className="text-xs font-bold text-gray-800 dark:text-white uppercase tracking-wider">
                   {previewUrl ? 'Hóa đơn gốc' : 'Ảnh hóa đơn'}
                 </span>
-                <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 dark:bg-emerald-950/80 px-2 py-0.5 text-[10px] font-bold text-[#07543f] dark:text-emerald-400 border border-emerald-200/80 dark:border-emerald-800/60">
+                <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 dark:bg-emerald-950/80 px-2 py-0.5 text-[10px] font-bold text-[#007F53] dark:text-emerald-400 border border-emerald-200/80 dark:border-emerald-800/60">
                   <span className="size-1.5 rounded-full bg-emerald-500 animate-pulse" />
                   FinAI Vision
                 </span>
@@ -419,7 +423,7 @@ export function InvoiceOcrScreen({ onCancel, onNotify }: Props) {
           </div>
 
           {/* Main Image Body */}
-          <div className="flex-1 p-3 sm:p-4 flex flex-col min-h-0 overflow-hidden bg-[#f8faf9] dark:bg-[#07131e]/60">
+          <div className="flex-1 p-3 sm:p-4 flex flex-col min-h-0 overflow-hidden bg-[#F8FAFC] dark:bg-[#0B0F19]/60">
             {!previewUrl ? (
               /* DROPZONE WHEN NO IMAGE */
               <div
@@ -429,32 +433,32 @@ export function InvoiceOcrScreen({ onCancel, onNotify }: Props) {
                 onClick={() => fileInputRef.current?.click()}
                 className={`relative flex flex-col items-center justify-center h-full rounded-xl border-2 border-dashed transition-all cursor-pointer p-6 text-center ${
                   isDragOver
-                    ? 'border-[#07543f] bg-emerald-50/80 dark:bg-emerald-950/30 scale-[0.99]'
-                    : 'border-[#cfded4] dark:border-slate-800 bg-white dark:bg-slate-900/50 hover:bg-emerald-50/40 dark:hover:bg-slate-900 hover:border-[#07543f]/60'
+                    ? 'border-[#007F53] bg-emerald-50/80 dark:bg-emerald-950/30 scale-[0.99]'
+                    : 'border-[#cfded4] dark:border-slate-800 bg-white dark:bg-slate-900/50 hover:bg-emerald-50/40 dark:hover:bg-slate-900 hover:border-[#007F53]/60'
                 }`}
               >
-                <div className="size-16 rounded-2xl bg-emerald-100 dark:bg-emerald-950 text-[#07543f] dark:text-emerald-300 grid place-items-center mb-3 shadow-inner">
+                <div className="size-16 rounded-2xl bg-emerald-100 dark:bg-emerald-950 text-[#007F53] dark:text-emerald-300 grid place-items-center mb-3 shadow-inner">
                   <FinanceIcon name="receipt" size={30} />
                 </div>
                 <h3 className="text-sm font-bold text-[#17261f] dark:text-white">
                   Kéo và thả ảnh hóa đơn vào đây
                 </h3>
-                <p className="mt-1 text-xs text-[#718078] dark:text-slate-400 max-w-sm">
-                  hoặc <span className="font-bold text-[#07543f] dark:text-emerald-400 underline underline-offset-2">bấm vào đây để chọn ảnh</span> từ máy
+                <p className="mt-1 text-xs text-[#64748B] dark:text-slate-400 max-w-sm">
+                  hoặc <span className="font-bold text-[#007F53] dark:text-emerald-400 underline underline-offset-2">bấm vào đây để chọn ảnh</span> từ máy
                 </p>
 
-                <div className="mt-4 flex flex-wrap items-center justify-center gap-1.5 text-[10px] text-[#718078] dark:text-slate-500 font-medium">
-                  <span className="px-2 py-0.5 rounded-md bg-[#f1f5f2] dark:bg-slate-800 border border-[#e2ece5] dark:border-slate-700">JPG</span>
-                  <span className="px-2 py-0.5 rounded-md bg-[#f1f5f2] dark:bg-slate-800 border border-[#e2ece5] dark:border-slate-700">PNG</span>
-                  <span className="px-2 py-0.5 rounded-md bg-[#f1f5f2] dark:bg-slate-800 border border-[#e2ece5] dark:border-slate-700">WEBP</span>
-                  <span className="px-2 py-0.5 rounded-md bg-[#f1f5f2] dark:bg-slate-800 border border-[#e2ece5] dark:border-slate-700">Tối đa 15MB</span>
+                <div className="mt-4 flex flex-wrap items-center justify-center gap-1.5 text-[10px] text-[#64748B] dark:text-slate-500 font-medium">
+                  <span className="px-2 py-0.5 rounded-md bg-[#F1F5F9] dark:bg-slate-800 border border-[#E2E8F0] dark:border-slate-700">JPG</span>
+                  <span className="px-2 py-0.5 rounded-md bg-[#F1F5F9] dark:bg-slate-800 border border-[#E2E8F0] dark:border-slate-700">PNG</span>
+                  <span className="px-2 py-0.5 rounded-md bg-[#F1F5F9] dark:bg-slate-800 border border-[#E2E8F0] dark:border-slate-700">WEBP</span>
+                  <span className="px-2 py-0.5 rounded-md bg-[#F1F5F9] dark:bg-slate-800 border border-[#E2E8F0] dark:border-slate-700">Tối đa 15MB</span>
                 </div>
 
-                <div className="mt-6 w-full max-w-sm rounded-xl bg-[#f9fbf9] dark:bg-slate-900 border border-[#e2ece5] dark:border-slate-800 p-3 text-left">
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-[#07543f] dark:text-emerald-400 block mb-1">
+                <div className="mt-6 w-full max-w-sm rounded-xl bg-[#F8FAFC] dark:bg-slate-900 border border-[#E2E8F0] dark:border-slate-800 p-3 text-left">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-[#007F53] dark:text-emerald-400 block mb-1">
                     Gợi ý chụp nét:
                   </span>
-                  <p className="text-[11px] text-[#59675f] dark:text-slate-400 leading-relaxed">
+                  <p className="text-[11px] text-[#64748B] dark:text-slate-400 leading-relaxed">
                     Chụp đủ sáng, thẳng góc, nhìn rõ tên cửa hàng và tổng tiền để AI nhận diện chính xác nhất.
                   </p>
                 </div>
@@ -635,7 +639,7 @@ export function InvoiceOcrScreen({ onCancel, onNotify }: Props) {
                         Danh mục chi tiêu
                       </span>
                       {scanResult?.aiCategoryName && (
-                        <span className="text-[10px] font-bold text-[#07543f] dark:text-emerald-400 flex items-center gap-1">
+                        <span className="text-[10px] font-bold text-[#007F53] dark:text-emerald-400 flex items-center gap-1">
                           <FinanceIcon name="spark" size={10} />
                           AI gợi ý
                         </span>
@@ -650,12 +654,12 @@ export function InvoiceOcrScreen({ onCancel, onNotify }: Props) {
                       }}
                       className={`h-[42px] w-full rounded-[13px] border px-3 text-left transition flex items-center justify-between cursor-pointer ${
                         isCategoryDropdownOpen
-                          ? 'border-[#07543f] dark:border-emerald-500 bg-white dark:bg-[#142b3d] ring-2 ring-[#07543f]/20'
-                          : 'border-[#e1ece4] dark:border-white/10 bg-[#f8faf9] dark:bg-[#0f2231] hover:bg-white dark:hover:bg-[#142b3d] hover:border-[#c4dacf]'
+                          ? 'border-[#007F53] dark:border-emerald-500 bg-white dark:bg-[#1F2937] ring-2 ring-[#007F53]/20'
+                          : 'border-[#e1ece4] dark:border-white/10 bg-[#F8FAFC] dark:bg-[#111827] hover:bg-white dark:hover:bg-[#1F2937] hover:border-[#c4dacf]'
                       }`}
                     >
                       <div className="flex items-center gap-2.5 min-w-0">
-                        <div className="size-6 rounded-lg bg-emerald-100/80 dark:bg-emerald-950 text-[#07543f] dark:text-emerald-300 grid place-items-center shrink-0">
+                        <div className="size-6 rounded-lg bg-emerald-100/80 dark:bg-emerald-950 text-[#007F53] dark:text-emerald-300 grid place-items-center shrink-0">
                           <FinanceIcon name="shopping-bag" size={13} />
                         </div>
                         <span className="truncate text-xs font-bold text-gray-800 dark:text-white">
@@ -666,14 +670,14 @@ export function InvoiceOcrScreen({ onCancel, onNotify }: Props) {
                         name="arrow"
                         size={12}
                         className={`rotate-90 text-gray-400 transition-transform duration-200 shrink-0 ${
-                          isCategoryDropdownOpen ? '-rotate-90 text-[#07543f] dark:text-emerald-400' : ''
+                          isCategoryDropdownOpen ? '-rotate-90 text-[#007F53] dark:text-emerald-400' : ''
                         }`}
                       />
                     </button>
 
                     {/* Popup Menu */}
                     {isCategoryDropdownOpen && (
-                      <div className="absolute top-full left-0 right-0 mt-1 z-50 max-h-56 overflow-y-auto rounded-xl border border-[#d8e3dc] dark:border-slate-700 bg-white dark:bg-[#0e2333] p-1.5 shadow-xl animate-fadeIn">
+                      <div className="absolute top-full left-0 right-0 mt-1 z-50 max-h-56 overflow-y-auto rounded-xl border border-[#d8e3dc] dark:border-slate-700 bg-white dark:bg-[#111827] p-1.5 shadow-xl animate-fadeIn">
                         <div className="flex flex-col gap-1">
                           {categories.map((c) => {
                             const isSelected = c.id === selectedCategoryId;
@@ -688,8 +692,8 @@ export function InvoiceOcrScreen({ onCancel, onNotify }: Props) {
                                 }}
                                 className={`flex items-center justify-between rounded-lg px-2.5 py-2 text-left transition text-xs font-semibold cursor-pointer ${
                                   isSelected
-                                    ? 'bg-emerald-50 dark:bg-emerald-950/60 text-[#07543f] dark:text-emerald-300 font-bold border border-emerald-200/80 dark:border-emerald-800/60'
-                                    : 'text-gray-700 dark:text-slate-200 hover:bg-[#f3f7f4] dark:hover:bg-slate-800/80 border border-transparent'
+                                    ? 'bg-emerald-50 dark:bg-emerald-950/60 text-[#007F53] dark:text-emerald-300 font-bold border border-emerald-200/80 dark:border-emerald-800/60'
+                                    : 'text-gray-700 dark:text-slate-200 hover:bg-[#F1F5F9] dark:hover:bg-slate-800/80 border border-transparent'
                                 }`}
                               >
                                 <div className="flex items-center gap-2 min-w-0">
@@ -731,12 +735,12 @@ export function InvoiceOcrScreen({ onCancel, onNotify }: Props) {
                       }}
                       className={`h-[42px] w-full rounded-[13px] border px-3 text-left transition flex items-center justify-between cursor-pointer ${
                         isAccountDropdownOpen
-                          ? 'border-[#07543f] dark:border-emerald-500 bg-white dark:bg-[#142b3d] ring-2 ring-[#07543f]/20'
-                          : 'border-[#e1ece4] dark:border-white/10 bg-[#f8faf9] dark:bg-[#0f2231] hover:bg-white dark:hover:bg-[#142b3d] hover:border-[#c4dacf]'
+                          ? 'border-[#007F53] dark:border-emerald-500 bg-white dark:bg-[#1F2937] ring-2 ring-[#007F53]/20'
+                          : 'border-[#e1ece4] dark:border-white/10 bg-[#F8FAFC] dark:bg-[#111827] hover:bg-white dark:hover:bg-[#1F2937] hover:border-[#c4dacf]'
                       }`}
                     >
                       <div className="flex items-center gap-2.5 min-w-0">
-                        <div className="size-6 rounded-lg bg-emerald-100/80 dark:bg-emerald-950 text-[#07543f] dark:text-emerald-300 grid place-items-center shrink-0">
+                        <div className="size-6 rounded-lg bg-emerald-100/80 dark:bg-emerald-950 text-[#007F53] dark:text-emerald-300 grid place-items-center shrink-0">
                           <FinanceIcon name="wallet" size={13} />
                         </div>
                         <div className="min-w-0 truncate">
@@ -749,14 +753,14 @@ export function InvoiceOcrScreen({ onCancel, onNotify }: Props) {
                         name="arrow"
                         size={12}
                         className={`rotate-90 text-gray-400 transition-transform duration-200 shrink-0 ${
-                          isAccountDropdownOpen ? '-rotate-90 text-[#07543f] dark:text-emerald-400' : ''
+                          isAccountDropdownOpen ? '-rotate-90 text-[#007F53] dark:text-emerald-400' : ''
                         }`}
                       />
                     </button>
 
                     {/* Popup Menu */}
                     {isAccountDropdownOpen && (
-                      <div className="absolute top-full left-0 right-0 mt-1 z-50 max-h-56 overflow-y-auto rounded-xl border border-[#d8e3dc] dark:border-slate-700 bg-white dark:bg-[#0e2333] p-1.5 shadow-xl animate-fadeIn">
+                      <div className="absolute top-full left-0 right-0 mt-1 z-50 max-h-56 overflow-y-auto rounded-xl border border-[#d8e3dc] dark:border-slate-700 bg-white dark:bg-[#111827] p-1.5 shadow-xl animate-fadeIn">
                         <div className="flex flex-col gap-1">
                           {accounts.map((a) => {
                             const isSelected = a.id === selectedAccountId;
@@ -770,15 +774,15 @@ export function InvoiceOcrScreen({ onCancel, onNotify }: Props) {
                                 }}
                                 className={`flex items-center justify-between rounded-lg px-2.5 py-2 text-left transition text-xs cursor-pointer ${
                                   isSelected
-                                    ? 'bg-emerald-50 dark:bg-emerald-950/60 text-[#07543f] dark:text-emerald-300 font-bold border border-emerald-200/80 dark:border-emerald-800/60'
-                                    : 'text-gray-700 dark:text-slate-200 hover:bg-[#f3f7f4] dark:hover:bg-slate-800/80 border border-transparent'
+                                    ? 'bg-emerald-50 dark:bg-emerald-950/60 text-[#007F53] dark:text-emerald-300 font-bold border border-emerald-200/80 dark:border-emerald-800/60'
+                                    : 'text-gray-700 dark:text-slate-200 hover:bg-[#F1F5F9] dark:hover:bg-slate-800/80 border border-transparent'
                                 }`}
                               >
                                 <div className="flex items-center gap-2 min-w-0">
                                   <FinanceIcon name="bank" size={13} className="text-gray-400 shrink-0" />
                                   <span className="truncate font-semibold">{a.name}</span>
                                 </div>
-                                <span className="text-[11px] font-bold text-[#07543f] dark:text-emerald-400 shrink-0">
+                                <span className="text-[11px] font-bold text-[#007F53] dark:text-emerald-400 shrink-0">
                                   {Number(a.balance || 0).toLocaleString('vi-VN')} {a.currencyCode || 'VND'}
                                 </span>
                               </button>
@@ -792,46 +796,11 @@ export function InvoiceOcrScreen({ onCancel, onNotify }: Props) {
                   {/* Ngày hóa đơn */}
                   <label className="ocr-field-label">
                     <span>Ngày hóa đơn</span>
-                    <div className="ocr-input-icon-group">
-                      <input
-                        type="text"
-                        value={formatIsoToDdMmYyyy(date)}
-                        onChange={(e) => {
-                          const val = e.target.value;
-                          const iso = parseDdMmYyyyToIso(val);
-                          setDate(iso);
-                        }}
-                        placeholder=""
-                        className="ocr-field-control font-mono"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => {
-                          if (datePickerInputRef.current) {
-                            try {
-                              datePickerInputRef.current.showPicker();
-                            } catch {
-                              datePickerInputRef.current.focus();
-                            }
-                          }
-                        }}
-                        className="ocr-input-icon-btn"
-                        title="Chọn ngày từ lịch"
-                      >
-                        <FinanceIcon name="calendar" size={15} />
-                      </button>
-                      <input
-                        ref={datePickerInputRef}
-                        type="date"
-                        value={date.length === 10 ? date : ''}
-                        onChange={(e) => {
-                          if (e.target.value) setDate(e.target.value);
-                        }}
-                        className="sr-only"
-                        tabIndex={-1}
-                        aria-hidden="true"
-                      />
-                    </div>
+                    <DatePicker
+                      value={date.length === 10 ? date : ''}
+                      onChange={(newVal) => setDate(newVal)}
+                      placeholder="dd/mm/yyyy"
+                    />
                   </label>
 
                   {/* Giờ giao dịch */}
@@ -923,9 +892,23 @@ export function InvoiceOcrScreen({ onCancel, onNotify }: Props) {
                   <button
                     type="button"
                     onClick={() => setHistoryTab('ALL')}
-                    className="ocr-filter-pill is-active"
+                    className={`ocr-filter-pill ${historyTab === 'ALL' ? 'is-active' : ''}`}
                   >
-                    Đã tạo giao dịch ({recentReceipts.length})
+                    Tất cả
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setHistoryTab('PAID')}
+                    className={`ocr-filter-pill ${historyTab === 'PAID' ? 'is-active' : ''}`}
+                  >
+                    Đã lưu
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setHistoryTab('DRAFT')}
+                    className={`ocr-filter-pill ${historyTab === 'DRAFT' ? 'is-active' : ''}`}
+                  >
+                    Chưa lưu
                   </button>
                 </div>
               </div>
@@ -933,8 +916,8 @@ export function InvoiceOcrScreen({ onCancel, onNotify }: Props) {
               {/* Scrollable Receipts List */}
               <div className="flex-1 overflow-y-auto p-3 flex flex-col gap-2">
                 {loadingReceipts ? (
-                  <div className="py-12 text-center text-xs text-[#718579] flex flex-col items-center gap-2">
-                    <span className="size-5 rounded-full border-2 border-[#07543f] border-t-transparent animate-spin" />
+                  <div className="py-12 text-center text-xs text-[#64748B] flex flex-col items-center gap-2">
+                    <span className="size-5 rounded-full border-2 border-[#007F53] border-t-transparent animate-spin" />
                     <span>Đang tải danh sách hóa đơn...</span>
                   </div>
                 ) : filteredReceipts.length === 0 ? (
@@ -1009,7 +992,7 @@ export function InvoiceOcrScreen({ onCancel, onNotify }: Props) {
                           </div>
                         </div>
 
-                        <div className="flex items-center justify-between border-t border-[#edf3ef] dark:border-slate-800/80 pt-1.5 text-[11px]">
+                        <div className="flex items-center justify-between border-t border-[#E2E8F0] dark:border-slate-800/80 pt-1.5 text-[11px]">
                           <div className="flex items-center gap-1.5">
                             {r.aiCategoryName && (
                               <span className="rounded-md bg-gray-100 dark:bg-slate-800 px-1.5 py-0.5 text-[9px] font-semibold text-gray-600 dark:text-slate-300">
@@ -1019,7 +1002,7 @@ export function InvoiceOcrScreen({ onCancel, onNotify }: Props) {
                             <span
                               className={`rounded-md px-1.5 py-0.5 text-[9px] font-bold ${
                                 isPaid
-                                  ? 'bg-emerald-100 dark:bg-emerald-950/80 text-[#07543f] dark:text-emerald-300'
+                                  ? 'bg-emerald-100 dark:bg-emerald-950/80 text-[#007F53] dark:text-emerald-300'
                                   : 'bg-amber-100 dark:bg-amber-950/80 text-amber-800 dark:text-amber-300'
                               }`}
                             >
@@ -1028,7 +1011,7 @@ export function InvoiceOcrScreen({ onCancel, onNotify }: Props) {
                           </div>
 
                           <div className="flex items-center gap-2">
-                            <span className="font-black text-xs text-[#07543f] dark:text-emerald-400">
+                            <span className="font-black text-xs text-[#007F53] dark:text-emerald-400">
                               {r.totalAmount != null ? `-${Number(r.totalAmount).toLocaleString('vi-VN')} ₫` : '—'}
                             </span>
 
@@ -1040,7 +1023,7 @@ export function InvoiceOcrScreen({ onCancel, onNotify }: Props) {
                                   handleSelectRecentReceipt(r);
                                   setActiveRightTab('FORM');
                                 }}
-                                className="px-2 py-0.5 rounded-md bg-[#07543f] text-white text-[10px] font-bold hover:bg-[#064232] transition flex items-center gap-1 shadow-2xs"
+                                className="px-2 py-0.5 rounded-md bg-[#007F53] text-white text-[10px] font-bold hover:bg-[#004D3B] transition flex items-center gap-1 shadow-2xs"
                                 title="Mở biểu mẫu để chỉnh sửa hoặc lưu giao dịch"
                               >
                                 <span>Vào form</span>

@@ -58,7 +58,7 @@
   display: inline-flex;
   align-items: center;
   gap: 0.5rem;
-  background: #07543f;
+  background: #007F53;
   color: #ffffff;
   padding: 0.625rem 1.25rem;
   border-radius: 0.625rem;
@@ -71,7 +71,7 @@
 }
 
 .btn-create-feedback:hover {
-  background: #064232;
+  background: #004D3B;
   transform: translateY(-1px);
 }
 
@@ -122,7 +122,7 @@
 }
 
 .help-tab-btn.active-dark {
-  background: #07543f;
+  background: #007F53;
   color: #ffffff;
   font-weight: 700;
   box-shadow: 0 2px 6px rgba(7, 84, 63, 0.2);
@@ -154,7 +154,7 @@
   height: 48px;
   border-radius: 50%;
   background: #d1fae5;
-  color: #047857;
+  color: #007F53;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -174,7 +174,7 @@
 
 .faq-ai-banner-sub {
   font-size: 0.85rem;
-  color: #047857;
+  color: #007F53;
   margin: 0 0 0.85rem 0;
   line-height: 1.45;
 }
@@ -183,7 +183,7 @@
   display: inline-flex;
   align-items: center;
   gap: 0.5rem;
-  background: #047857;
+  background: #007F53;
   color: #ffffff;
   padding: 0.5rem 1rem;
   border-radius: 0.5rem;
@@ -261,7 +261,7 @@
 }
 
 .faq-accordion-item.expanded .faq-accordion-question {
-  color: #07543f;
+  color: #007F53;
   font-weight: 700;
 }
 
@@ -274,7 +274,7 @@
 }
 
 .faq-accordion-arrow.rotated {
-  color: #07543f;
+  color: #007F53;
 }
 
 .faq-accordion-body {
@@ -327,7 +327,7 @@
   display: inline-flex;
   align-items: center;
   gap: 0.5rem;
-  background: #07543f;
+  background: #007F53;
   color: #ffffff;
   padding: 0.625rem 1.15rem;
   border-radius: 0.625rem;
@@ -339,7 +339,7 @@
 }
 
 .faq-contact-btn:hover {
-  background: #064232;
+  background: #004D3B;
   transform: translateY(-1px);
 }
 
@@ -444,7 +444,7 @@
   padding: 0.625rem 1.5rem;
   border-radius: 0.5rem;
   border: none;
-  background: #07543f;
+  background: #007F53;
   color: #ffffff;
   font-weight: 600;
   font-size: 0.875rem;
@@ -453,7 +453,7 @@
 }
 
 .btn-primary:hover {
-  background: #064232;
+  background: #004D3B;
 }
 
 .feedback-alert.error {
@@ -696,15 +696,15 @@ html.dark .faq-accordion-item,
 html[data-theme='dark'] .faq-accordion-item,
 html.dark .faq-contact-card,
 html[data-theme='dark'] .faq-contact-card {
-  background: #0e2333 !important;
-  border-color: #173852 !important;
+  background: #111827 !important;
+  border-color: #1E293B !important;
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25) !important;
 }
 
 html.dark .help-tabs-pill,
 html[data-theme='dark'] .help-tabs-pill {
-  background: #0a1b27 !important;
-  border-color: #173852 !important;
+  background: #0B0F19 !important;
+  border-color: #1E293B !important;
 }
 
 html.dark .help-tab-btn,
@@ -769,7 +769,7 @@ html[data-theme='dark'] .faq-accordion-item.expanded .faq-accordion-question {
 
 html.dark .faq-accordion-body,
 html[data-theme='dark'] .faq-accordion-body {
-  border-top-color: #173852 !important;
+  border-top-color: #1E293B !important;
 }
 
 html.dark .faq-accordion-body p,
@@ -834,7 +834,7 @@ html.dark .form-select,
 html[data-theme='dark'] .form-select,
 html.dark .form-textarea,
 html[data-theme='dark'] .form-textarea {
-  background: #0a1b27 !important;
+  background: #0B0F19 !important;
   border-color: #1e3a4d !important;
   color: #f1f5f9 !important;
 }
@@ -851,7 +851,7 @@ html[data-theme='dark'] .form-textarea:focus {
 
 html.dark .form-select option,
 html[data-theme='dark'] .form-select option {
-  background: #0e2333 !important;
+  background: #111827 !important;
   color: #f1f5f9 !important;
 }
 

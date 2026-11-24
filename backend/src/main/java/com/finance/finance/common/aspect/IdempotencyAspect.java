@@ -147,8 +147,10 @@ public class IdempotencyAspect {
     private String extractRequestBody(ProceedingJoinPoint joinPoint) {
         Object[] args = joinPoint.getArgs();
         for (Object arg : args) {
-            // Skip primitives, strings, and Spring framework objects
+            // Authentication principals are controller arguments too, but are not
+            // part of the request payload and must not be used as its hash.
             if (arg != null && 
+                !(arg instanceof User) &&
                 !arg.getClass().isPrimitive() &&
                 !arg.getClass().getName().startsWith("java.") &&
                 !arg.getClass().getName().startsWith("org.springframework.") &&

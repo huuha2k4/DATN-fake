@@ -204,21 +204,21 @@ export function NotificationScreen({ onNotify }: NotificationScreenProps) {
   return (
     <main className="mx-auto flex min-h-[calc(100vh-64px)] w-full max-w-5xl flex-col gap-5 p-4 sm:p-6 lg:p-8">
       {/* Header Banner */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 rounded-2xl bg-white dark:bg-slate-900 border border-[#e2ece5] dark:border-slate-800 p-5 shadow-xs">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 rounded-2xl bg-white dark:bg-slate-900 border border-[#E2E8F0] dark:border-slate-800 p-5 shadow-xs">
         <div className="flex items-center gap-3.5">
-          <div className="grid size-12 place-items-center rounded-2xl bg-emerald-50 text-[#07543f] border border-emerald-100">
+          <div className="grid size-12 place-items-center rounded-2xl bg-emerald-50 text-[#007F53] border border-emerald-100">
             <FinanceIcon name="bell" size={24} />
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <h1 className="text-lg font-bold text-[#14261e] dark:text-slate-100 m-0">Trung tâm Thông báo</h1>
+              <h1 className="text-lg font-bold text-[#0F172A] dark:text-slate-100 m-0">Trung tâm Thông báo</h1>
               {unreadCount > 0 && (
-                <span className="rounded-full bg-emerald-100 dark:bg-emerald-950/80 px-2.5 py-0.5 text-xs font-bold text-[#07543f] dark:text-emerald-400">
+                <span className="rounded-full bg-emerald-100 dark:bg-emerald-950/80 px-2.5 py-0.5 text-xs font-bold text-[#007F53] dark:text-emerald-400">
                   {unreadCount} chưa đọc
                 </span>
               )}
             </div>
-            <p className="text-xs text-[#718579] dark:text-slate-400 mt-1 m-0">
+            <p className="text-xs text-[#64748B] dark:text-slate-400 mt-1 m-0">
               Cập nhật nhắc nhở tài chính, biến động ngân sách, công nợ và mục tiêu tiết kiệm
             </p>
           </div>
@@ -229,7 +229,7 @@ export function NotificationScreen({ onNotify }: NotificationScreenProps) {
             <button
               type="button"
               onClick={handleMarkAllRead}
-              className="h-9 px-3.5 rounded-xl border border-emerald-200 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-950/50 text-xs font-semibold text-[#07543f] dark:text-emerald-300 hover:bg-emerald-100 transition"
+              className="h-9 px-3.5 rounded-xl border border-emerald-200 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-950/50 text-xs font-semibold text-[#007F53] dark:text-emerald-300 hover:bg-emerald-100 transition"
             >
               Đánh dấu tất cả đã đọc
             </button>
@@ -239,29 +239,29 @@ export function NotificationScreen({ onNotify }: NotificationScreenProps) {
 
       {/* Summary KPI Strip */}
       <div className="grid grid-cols-3 gap-3">
-        <div className="rounded-xl border border-[#e2ece5] dark:border-slate-800 bg-white dark:bg-slate-900 p-3.5 flex items-center justify-between">
+        <div className="rounded-xl border border-[#E2E8F0] dark:border-slate-800 bg-white dark:bg-slate-900 p-3.5 flex items-center justify-between">
           <div>
-            <p className="text-[11px] text-[#718579] dark:text-slate-400 font-medium">Tổng thông báo</p>
-            <strong className="text-base font-bold text-[#14261e] dark:text-slate-100">{notifications.length}</strong>
+            <p className="text-[11px] text-[#64748B] dark:text-slate-400 font-medium">Tổng thông báo</p>
+            <strong className="text-base font-bold text-[#0F172A] dark:text-slate-100">{notifications.length}</strong>
           </div>
           <span className="grid size-8 place-items-center rounded-lg bg-gray-100 dark:bg-slate-800 text-gray-600 dark:text-slate-400">
             <FinanceIcon name="bell" size={16} />
           </span>
         </div>
 
-        <div className="rounded-xl border border-[#e2ece5] dark:border-slate-800 bg-white dark:bg-slate-900 p-3.5 flex items-center justify-between">
+        <div className="rounded-xl border border-[#E2E8F0] dark:border-slate-800 bg-white dark:bg-slate-900 p-3.5 flex items-center justify-between">
           <div>
-            <p className="text-[11px] text-[#718579] dark:text-slate-400 font-medium">Chưa đọc</p>
-            <strong className="text-base font-bold text-[#07543f] dark:text-emerald-400">{unreadCount}</strong>
+            <p className="text-[11px] text-[#64748B] dark:text-slate-400 font-medium">Chưa đọc</p>
+            <strong className="text-base font-bold text-[#007F53] dark:text-emerald-400">{unreadCount}</strong>
           </div>
-          <span className="grid size-8 place-items-center rounded-lg bg-emerald-50 dark:bg-emerald-950/60 text-[#07543f] dark:text-emerald-400">
+          <span className="grid size-8 place-items-center rounded-lg bg-emerald-50 dark:bg-emerald-950/60 text-[#007F53] dark:text-emerald-400">
             <FinanceIcon name="spark" size={16} />
           </span>
         </div>
 
-        <div className="rounded-xl border border-[#e2ece5] dark:border-slate-800 bg-white dark:bg-slate-900 p-3.5 flex items-center justify-between">
+        <div className="rounded-xl border border-[#E2E8F0] dark:border-slate-800 bg-white dark:bg-slate-900 p-3.5 flex items-center justify-between">
           <div>
-            <p className="text-[11px] text-[#718579] dark:text-slate-400 font-medium">Ưu tiên cao</p>
+            <p className="text-[11px] text-[#64748B] dark:text-slate-400 font-medium">Ưu tiên cao</p>
             <strong className="text-base font-bold text-rose-600 dark:text-rose-400">{highPriorityCount}</strong>
           </div>
           <span className="grid size-8 place-items-center rounded-lg bg-rose-50 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400">
@@ -271,13 +271,13 @@ export function NotificationScreen({ onNotify }: NotificationScreenProps) {
       </div>
 
       {/* Filter Tabs */}
-      <div className="flex flex-wrap items-center gap-1.5 border-b border-[#e2ece5] dark:border-slate-800 pb-2">
+      <div className="flex flex-wrap items-center gap-1.5 border-b border-[#E2E8F0] dark:border-slate-800 pb-2">
         <button
           type="button"
           onClick={() => setActiveTab('ALL')}
           className={`h-8 px-3.5 rounded-full text-xs font-semibold transition ${
             activeTab === 'ALL'
-              ? 'bg-[#07543f] text-white shadow-xs'
+              ? 'bg-[#007F53] text-white shadow-xs'
               : 'bg-white dark:bg-slate-800 text-gray-600 dark:text-slate-400 hover:bg-gray-100'
           }`}
         >
@@ -288,7 +288,7 @@ export function NotificationScreen({ onNotify }: NotificationScreenProps) {
           onClick={() => setActiveTab('UNREAD')}
           className={`h-8 px-3.5 rounded-full text-xs font-semibold transition ${
             activeTab === 'UNREAD'
-              ? 'bg-[#07543f] text-white shadow-xs'
+              ? 'bg-[#007F53] text-white shadow-xs'
               : 'bg-white dark:bg-slate-800 text-gray-600 dark:text-slate-400 hover:bg-gray-100'
           }`}
         >
@@ -299,7 +299,7 @@ export function NotificationScreen({ onNotify }: NotificationScreenProps) {
           onClick={() => setActiveTab('HIGH')}
           className={`h-8 px-3.5 rounded-full text-xs font-semibold transition ${
             activeTab === 'HIGH'
-              ? 'bg-[#07543f] text-white shadow-xs'
+              ? 'bg-[#007F53] text-white shadow-xs'
               : 'bg-white dark:bg-slate-800 text-gray-600 dark:text-slate-400 hover:bg-gray-100'
           }`}
         >
@@ -310,7 +310,7 @@ export function NotificationScreen({ onNotify }: NotificationScreenProps) {
           onClick={() => setActiveTab('BUDGET')}
           className={`h-8 px-3.5 rounded-full text-xs font-semibold transition ${
             activeTab === 'BUDGET'
-              ? 'bg-[#07543f] text-white shadow-xs'
+              ? 'bg-[#007F53] text-white shadow-xs'
               : 'bg-white dark:bg-slate-800 text-gray-600 dark:text-slate-400 hover:bg-gray-100'
           }`}
         >
@@ -321,7 +321,7 @@ export function NotificationScreen({ onNotify }: NotificationScreenProps) {
           onClick={() => setActiveTab('GOAL')}
           className={`h-8 px-3.5 rounded-full text-xs font-semibold transition ${
             activeTab === 'GOAL'
-              ? 'bg-[#07543f] text-white shadow-xs'
+              ? 'bg-[#007F53] text-white shadow-xs'
               : 'bg-white dark:bg-slate-800 text-gray-600 dark:text-slate-400 hover:bg-gray-100'
           }`}
         >
@@ -332,7 +332,7 @@ export function NotificationScreen({ onNotify }: NotificationScreenProps) {
           onClick={() => setActiveTab('DEBT')}
           className={`h-8 px-3.5 rounded-full text-xs font-semibold transition ${
             activeTab === 'DEBT'
-              ? 'bg-[#07543f] text-white shadow-xs'
+              ? 'bg-[#007F53] text-white shadow-xs'
               : 'bg-white dark:bg-slate-800 text-gray-600 dark:text-slate-400 hover:bg-gray-100'
           }`}
         >
@@ -344,16 +344,16 @@ export function NotificationScreen({ onNotify }: NotificationScreenProps) {
       <div className="flex flex-col gap-2.5">
         {loading ? (
           <div className="flex flex-col items-center justify-center p-12 text-gray-400 text-xs">
-            <FinanceIcon name="refresh" size={24} className="animate-spin text-[#07543f]" />
+            <FinanceIcon name="refresh" size={24} className="animate-spin text-[#007F53]" />
             <span className="mt-2">Đang tải thông báo...</span>
           </div>
         ) : filteredNotifications.length === 0 ? (
-          <div className="flex flex-col items-center justify-center rounded-2xl bg-white dark:bg-slate-900 border border-[#e2ece5] dark:border-slate-800 p-12 text-center">
+          <div className="flex flex-col items-center justify-center rounded-2xl bg-white dark:bg-slate-900 border border-[#E2E8F0] dark:border-slate-800 p-12 text-center">
             <div className="grid size-14 place-items-center rounded-2xl bg-gray-100 dark:bg-slate-800 text-gray-500 mb-3">
               <FinanceIcon name="bell" size={24} />
             </div>
-            <h3 className="text-sm font-bold text-[#14261e] dark:text-slate-200">Không có thông báo nào</h3>
-            <p className="text-xs text-[#718579] dark:text-slate-400 mt-1">
+            <h3 className="text-sm font-bold text-[#0F172A] dark:text-slate-200">Không có thông báo nào</h3>
+            <p className="text-xs text-[#64748B] dark:text-slate-400 mt-1">
               Bạn đã xem hết các thông báo trong mục này.
             </p>
           </div>
@@ -367,7 +367,7 @@ export function NotificationScreen({ onNotify }: NotificationScreenProps) {
                 className={`group flex items-start justify-between gap-4 rounded-2xl border p-4 transition cursor-pointer ${
                   !item.is_read
                     ? 'bg-[#f4fbf6] dark:bg-emerald-950/20 border-[#cde8d5] dark:border-emerald-800/40 shadow-2xs'
-                    : 'bg-white dark:bg-slate-900 border-[#e5ede7] dark:border-slate-800 hover:bg-[#fafcfa] dark:hover:bg-slate-850'
+                    : 'bg-white dark:bg-slate-900 border-[#e5ede7] dark:border-slate-800 hover:bg-[#F8FAFC] dark:hover:bg-slate-850'
                 } ${item.priority === 'HIGH' ? 'border-l-4 border-l-rose-500' : ''}`}
               >
                 <div className="flex items-start gap-3.5 min-w-0">
@@ -377,11 +377,11 @@ export function NotificationScreen({ onNotify }: NotificationScreenProps) {
 
                   <div className="min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <span className="text-[10px] font-bold uppercase tracking-wider text-[#718579] dark:text-slate-400">
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-[#64748B] dark:text-slate-400">
                         {visual.label}
                       </span>
                       <span className="text-[11px] text-gray-400">·</span>
-                      <span className="text-[11px] text-[#718579] dark:text-slate-400">
+                      <span className="text-[11px] text-[#64748B] dark:text-slate-400">
                         {formatRelativeTime(item.created_at)}
                       </span>
                       {item.priority === 'HIGH' && (
@@ -391,7 +391,7 @@ export function NotificationScreen({ onNotify }: NotificationScreenProps) {
                       )}
                     </div>
 
-                    <h4 className="text-sm font-bold text-[#14261e] dark:text-slate-100 mt-0.5">
+                    <h4 className="text-sm font-bold text-[#0F172A] dark:text-slate-100 mt-0.5">
                       {item.title}
                     </h4>
                     <p className="text-xs text-[#516458] dark:text-slate-300 mt-1 leading-relaxed">
@@ -400,7 +400,7 @@ export function NotificationScreen({ onNotify }: NotificationScreenProps) {
 
                     {item.action_text && (
                       <div className="mt-2.5">
-                        <span className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800 px-3 py-1 text-xs font-bold text-[#07543f] dark:text-emerald-300 hover:bg-emerald-100 transition">
+                        <span className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800 px-3 py-1 text-xs font-bold text-[#007F53] dark:text-emerald-300 hover:bg-emerald-100 transition">
                           {item.action_text} →
                         </span>
                       </div>
