@@ -699,23 +699,12 @@ export function GroupScreen({
           setPersonalAccounts(accs);
           if (!expAccountId) setExpAccountId(accs[0].id);
         } else {
-          // Dự phòng ví mặc định nếu tài khoản chưa có hoặc API lỗi
-          const fallbackAccs = [
-            { id: 'wallet_cash', name: 'Tiền mặt', accountType: 'CASH' as any, currencyCode: 'VND', balance: 500000 },
-            { id: 'wallet_momo', name: 'Ví MoMo', accountType: 'E_WALLET' as any, currencyCode: 'VND', balance: 1250000 },
-            { id: 'wallet_bank', name: 'Tài khoản Ngân hàng', accountType: 'BANK' as any, currencyCode: 'VND', balance: 3500000 },
-          ];
-          setPersonalAccounts(fallbackAccs);
-          if (!expAccountId) setExpAccountId(fallbackAccs[0].id);
+          setPersonalAccounts([]);
+          setExpAccountId('');
         }
       }).catch(() => {
-        const fallbackAccs = [
-          { id: 'wallet_cash', name: 'Tiền mặt', accountType: 'CASH' as any, currencyCode: 'VND', balance: 500000 },
-          { id: 'wallet_momo', name: 'Ví MoMo', accountType: 'E_WALLET' as any, currencyCode: 'VND', balance: 1250000 },
-          { id: 'wallet_bank', name: 'Tài khoản Ngân hàng', accountType: 'BANK' as any, currencyCode: 'VND', balance: 3500000 },
-        ];
-        setPersonalAccounts(fallbackAccs);
-        if (!expAccountId) setExpAccountId(fallbackAccs[0].id);
+        setPersonalAccounts([]);
+        setExpAccountId('');
       });
 
       transactionApi.getCategories('EXPENSE').then((cats) => {
@@ -723,29 +712,12 @@ export function GroupScreen({
           setCategoriesList(cats);
           if (!expCategoryId) setExpCategoryId(cats[0].id);
         } else {
-          // Dự phòng danh mục mặc định
-          const fallbackCats = [
-            { id: 'cat_food', name: 'Ăn uống', kind: 'EXPENSE' as const, icon: 'utensils', color: '#EF4444' },
-            { id: 'cat_shopping', name: 'Mua sắm', kind: 'EXPENSE' as const, icon: 'shopping-cart', color: '#EC4899' },
-            { id: 'cat_bill', name: 'Hóa đơn & Điện nước', kind: 'EXPENSE' as const, icon: 'bolt', color: '#F59E0B' },
-            { id: 'cat_travel', name: 'Đi lại & Xăng xe', kind: 'EXPENSE' as const, icon: 'car', color: '#3B82F6' },
-            { id: 'cat_entertainment', name: 'Giải trí', kind: 'EXPENSE' as const, icon: 'gamepad', color: '#8B5CF6' },
-            { id: 'cat_other', name: 'Khác', kind: 'EXPENSE' as const, icon: 'more', color: '#6B7280' },
-          ];
-          setCategoriesList(fallbackCats);
-          if (!expCategoryId) setExpCategoryId(fallbackCats[0].id);
+          setCategoriesList([]);
+          setExpCategoryId('');
         }
       }).catch(() => {
-        const fallbackCats = [
-          { id: 'cat_food', name: 'Ăn uống', kind: 'EXPENSE' as const, icon: 'utensils', color: '#EF4444' },
-          { id: 'cat_shopping', name: 'Mua sắm', kind: 'EXPENSE' as const, icon: 'shopping-cart', color: '#EC4899' },
-          { id: 'cat_bill', name: 'Hóa đơn & Điện nước', kind: 'EXPENSE' as const, icon: 'bolt', color: '#F59E0B' },
-          { id: 'cat_travel', name: 'Đi lại & Xăng xe', kind: 'EXPENSE' as const, icon: 'car', color: '#3B82F6' },
-          { id: 'cat_entertainment', name: 'Giải trí', kind: 'EXPENSE' as const, icon: 'gamepad', color: '#8B5CF6' },
-          { id: 'cat_other', name: 'Khác', kind: 'EXPENSE' as const, icon: 'more', color: '#6B7280' },
-        ];
-        setCategoriesList(fallbackCats);
-        if (!expCategoryId) setExpCategoryId(fallbackCats[0].id);
+        setCategoriesList([]);
+        setExpCategoryId('');
       });
 
       // Nạp comment cho các khoản chi và các khoản nộp quỹ

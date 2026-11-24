@@ -2255,6 +2255,7 @@ const styles = StyleSheet.create({
     alignItems: 'flex-end',
     gap: 8,
     width: '100%',
+    marginBottom: 10,
   },
   messageRowUser: {
     justifyContent: 'flex-end',

@@ -99,7 +99,7 @@ export function ChildMoneyRequestsScreen({ onNotify }: Props) {
 
     try {
       setSubmitting(true)
-      await groupApi.createChildSpendRequest(groupId, walletId, {
+      await groupApi.createSpendRequest(groupId, walletId, {
         amount: numericAmount,
         description: `[MONEY_REQUEST] ${description.trim()}`,
       })

@@ -1213,21 +1213,6 @@ export function TransactionsScreen({ onBack, onAddTransaction }: Props) {
         )}
       </ScrollView>
 
-      {/* ── NÚT TẠO GIAO DỊCH MỚI NỔI NỔI BẬT GÓC DƯỚI ── */}
-      <Pressable
-        onPress={onAddTransaction}
-        style={({ pressed }) => [
-          styles.floatingAddBtn,
-          { bottom: Math.max(insets.bottom, 16) + 65 },
-          pressed && styles.floatingAddBtnPressed,
-        ]}
-        accessibilityRole="button"
-        accessibilityLabel="Thêm giao dịch mới"
-      >
-        <Text style={styles.floatingAddIcon}>+</Text>
-        <Text style={styles.floatingAddText}>Thêm giao dịch</Text>
-      </Pressable>
-
       {/* ── MODAL CHỌN THÁNG LỌC ── */}
       <Modal visible={monthModalVisible} transparent animationType="slide">
         <View style={styles.modalOverlay}>

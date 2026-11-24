@@ -1,5 +1,5 @@
 import React, { useRef, useState, useEffect } from 'react';
-import { DayPicker, DateRange } from 'react-day-picker';
+import { DayPicker, type DateRange } from 'react-day-picker';
 import { format, parse, isValid } from 'date-fns';
 import { vi } from 'date-fns/locale';
 import { FinanceIcon } from './FinanceIcon';

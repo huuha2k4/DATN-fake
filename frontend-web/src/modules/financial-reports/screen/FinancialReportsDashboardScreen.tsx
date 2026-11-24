@@ -216,6 +216,7 @@ export function FinancialReportsDashboardScreen({ onNotify }: Props) {
               id: kidWallet.id,
               name: `Ví của ${kidWallet.childName || user.fullName || 'bé'}`,
               type: 'CASH',
+              accountType: 'CASH',
               currencyCode: kidWallet.currency || 'VND',
               balance: kidWallet.balance || 0,
               icon: 'wallet',

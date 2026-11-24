@@ -379,6 +379,7 @@ export function GoalsManagementScreen({ onNotify }: Props) {
               id: childWalletRes.id,
               name: `Ví của ${childWalletRes.childName || currentUser.fullName || 'bé'}`,
               type: 'CASH',
+              accountType: 'CASH',
               currencyCode: childWalletRes.currency || 'VND',
               balance: childWalletRes.balance || 0,
               icon: 'wallet',

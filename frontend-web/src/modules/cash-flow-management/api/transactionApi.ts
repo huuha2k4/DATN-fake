@@ -99,7 +99,7 @@ export interface CategoryItem {
   kind: 'INCOME' | 'EXPENSE';
   icon?: string;
   color?: string;
-  isSystem: boolean;
+  isSystem?: boolean;
   parentId?: string;
   displayOrder?: number;
 }

@@ -75,6 +75,7 @@ export interface DebtDetailResponse {
   months_remaining?: number;
   description?: string;
   note?: string;
+  notes?: string;
   attachment_url?: string;
   payment_history?: PaymentHistoryItem[];
 }

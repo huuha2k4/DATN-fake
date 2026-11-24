@@ -66,7 +66,7 @@ export function MiniAIChatWidget({ isOpen, onClose, onOpenFullPage }: MiniAIChat
   const [conversationId, setConversationId] = useState<string | null>(null)
   const [actionProcessingId, setActionProcessingId] = useState<string | null>(null)
   const chatEndRef = useRef<HTMLDivElement>(null)
-  const pollingRef = useRef<Record<string, NodeJS.Timeout>>({})
+  const pollingRef = useRef<Record<string, ReturnType<typeof setInterval>>>({})
 
   useEffect(() => {
     if (isOpen) {

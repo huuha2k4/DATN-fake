@@ -32,25 +32,21 @@ export function useGoogleAuth(onSuccess?: (authResult?: any) => void): UseGoogle
     ? `com.googleusercontent.apps.${iosClientId.replace('.apps.googleusercontent.com', '')}`
     : undefined;
 
-  // Xác định redirectUri chuẩn:
-  // - Nếu chạy trong Expo Go hoặc môi trường dev: sử dụng AuthSession proxy URI
-  //   (đã đăng ký trên Google Cloud: https://auth.expo.io/@anonymous/finora-personal-finance)
-  // - Nếu chạy iOS build độc lập: dùng reversedClientId:/oauthredirect
-  // - Nếu chạy Android build độc lập (com.finora.app): dùng com.finora.app:/oauthredirect
-  const redirectUri = Platform.OS === 'ios' && !isExpoGo && iosReversedClientId
+  // Xác định redirectUri chuẩn theo scheme của ứng dụng:
+  // - Trên iOS: dùng reversed client ID chuẩn của Google (com.googleusercontent.apps.<ID>:/oauthredirect)
+  // - Trên Android: dùng custom scheme finora:/oauthredirect
+  const redirectUri = Platform.OS === 'ios' && iosReversedClientId
     ? `${iosReversedClientId}:/oauthredirect`
-    : isExpoGo
-    ? 'https://auth.expo.io/@anonymous/finora-personal-finance'
     : makeRedirectUri({
         scheme: 'finora',
         path: 'oauthredirect',
       });
 
   const [request, response, promptAsync] = Google.useIdTokenAuthRequest({
-    clientId: isExpoGo ? webClientId : Platform.select({ ios: iosClientId, android: androidClientId, default: webClientId }),
+    clientId: Platform.select({ ios: iosClientId, android: androidClientId, default: webClientId }),
     webClientId: webClientId,
     iosClientId: iosClientId,
-    androidClientId: isExpoGo ? webClientId : androidClientId,
+    androidClientId: androidClientId,
     redirectUri: redirectUri,
     scopes: ['profile', 'email'],
   });

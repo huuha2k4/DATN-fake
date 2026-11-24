@@ -344,7 +344,6 @@ export function DebtManagementScreen({ onNotify }: Props) {
     setFormDayOfMonth(new Date().getDate());
     setFormDayOfWeek(1);
     setFormFirstPaymentDate('');
-    setSyncToCalendar(true);
     setFormNotifyDaysBefore(1);
     setSelectedAccountId('');
   };

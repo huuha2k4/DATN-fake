@@ -62,7 +62,7 @@ export const notificationSettingsStorage = {
     const token = authStorage.getToken();
     if (token) {
       try {
-        const res = await fetch(`${API_BASE_URL}/api/v1/notifications/settings`, {
+        const res = await fetch(`${API_BASE_URL}/notifications/settings`, {
           headers: {
             Authorization: `Bearer ${token}`,
             'Content-Type': 'application/json',
@@ -137,7 +137,7 @@ export const notificationSettingsStorage = {
     // 2. Đồng bộ ngầm lên server
     const token = authStorage.getToken();
     if (token) {
-      fetch(`${API_BASE_URL}/api/v1/notifications/settings`, {
+      fetch(`${API_BASE_URL}/notifications/settings`, {
         method: 'PUT',
         headers: {
           Authorization: `Bearer ${token}`,

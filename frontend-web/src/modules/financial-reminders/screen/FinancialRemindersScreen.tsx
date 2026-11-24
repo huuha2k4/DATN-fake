@@ -1179,7 +1179,7 @@ export function FinancialRemindersScreen({ onNotify }: Props) {
                               <div className="flex items-center gap-1.5 flex-wrap">
                                 <h4 className="text-xs font-bold text-[#0F172A]">{item.name}</h4>
                                 {(() => {
-                                  const isCompleted = item.status === 'COMPLETED' || item.status === 'PAID' || item.status === 'PAID_OFF';
+                                  const isCompleted = item.status === 'COMPLETED' || (item.status as string) === 'PAID' || (item.status as string) === 'PAID_OFF';
                                   const todayStr = new Date().toISOString().split('T')[0];
                                   const isExpired = Boolean(
                                     isCompleted ||
@@ -1296,7 +1296,7 @@ export function FinancialRemindersScreen({ onNotify }: Props) {
                             </span>
                             {/* Chỉ hiển thị tag nếu đã kết thúc, đang tạm dừng hoặc đang hoạt động */}
                             {(() => {
-                              const isCompleted = item.status === 'COMPLETED' || item.status === 'PAID' || item.status === 'PAID_OFF';
+                              const isCompleted = item.status === 'COMPLETED' || (item.status as string) === 'PAID' || (item.status as string) === 'PAID_OFF';
                               const todayStr = new Date().toISOString().split('T')[0];
                               const isExpired = Boolean(
                                 isCompleted ||

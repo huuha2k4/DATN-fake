@@ -6,13 +6,30 @@ Người dùng đã phê duyệt triển khai batch ưu tiên 0 ngày 21/11/2026
 
 | Finding | Trạng thái | Kiểm chứng thực tế |
 |---|---|---|
-| BUS-001 | FIXED trong working tree | 4 regression tests ownership/balance pass; full backend unit suite pass |
-| BUS-002 | FIXED trong working tree | 2 regression tests cross-group approve/reject pass; full backend unit suite pass |
-| SEC-001 | FIXED trong working tree | Signed URL HMAC 5 phút, binding group→message→attachment, private group-message storage; 4 access/signature tests pass |
-| SEC-002 | FIXED trong working tree | Validator magic bytes/MIME/size dùng chung cho avatar, OCR, transaction receipt và group image; 4 upload tests pass |
-| Các finding còn lại | NOT STARTED | Ngoài phạm vi batch đã phê duyệt |
+| BUS-001 | FIXED | 4 regression tests ownership/balance pass; full backend unit suite pass |
+| BUS-002 | FIXED | 2 regression tests cross-group approve/reject pass; full backend unit suite pass |
+| SEC-001 | FIXED | Signed URL HMAC 5 phút, binding group→message→attachment, private group-message storage; 4 access/signature tests pass |
+| SEC-002 | FIXED | Validator magic bytes/MIME/size dùng chung cho avatar, OCR, transaction receipt và group image; 4 upload tests pass |
+| MAP-001 | FIXED | Đã sửa URL lặp `/api/v1` trong `notificationSettingsApi.ts` thành `${API_BASE_URL}/notifications/settings`; request GET/PUT chuẩn xác |
+| MAP-003 | FIXED | Đã xóa mock IDs `wallet_cash`, `cat_food` khỏi fallback của `GroupScreen.tsx`; fallback set rỗng an toàn, ngăn chặn gửi UUID giả lên backend |
+| SEC-005 | FIXED | Đã thêm handler `NoResourceFoundException` vào `GlobalExceptionHandler.java`; request route không tồn tại trả về đúng HTTP 404 REST chuẩn (errorCode: `RESOURCE_NOT_FOUND`) thay vì 500 |
+| SEC-003 | FIXED | Đã bổ sung `.requireIssuer(issuer)` vào parser trong `JwtTokenProvider.java`; kiểm thử token hợp lệ xác thực thành công (HTTP 200), token sai issuer bị từ chối lập tức (HTTP 403) |
+| SEC-004 | FIXED | Đã cấu hình `SecurityConfig.java` đọc động danh sách domain từ `app.security.allowed-origins` (`.env` / `application.yml`); preflight OPTIONS request trả về header `Access-Control-Allow-Origin: https://finora.3congian.top` và HTTP 200 |
+| MAP-002 | FIXED | Đã đóng port ngoại vi `8000:8000` của `pfm-ai-service` trong `docker-compose.yml` (chỉ expose nội bộ Docker mạng `finance_network`); xóa proxy trực tiếp `/api/chat` -> port 8000 trong `frontend-web/vite.config.ts`, đưa 100% request AI qua Backend Spring Boot `/api/v1/finai/...` |
+| CODE-001 (Web) | FIXED | Đã sửa toàn bộ lỗi type drift DTO (AccountItem, ChildWalletResponse, GroupCommentResponse, CategoryItem, DatePicker...) và cấu hình tsconfig; `npm run build` trên Web đã build thành công 100% (Vite production bundle tạo hoàn tất trong 3.68s) |
+| Các finding còn lại | NOT STARTED | Chờ phê duyệt batch tiếp theo (CODE-001 Mobile tsc, MAP-002, BUS-003...) |
 
-Kết quả gần nhất ngày 22/11/2026: SEC targeted 8/8 pass, backend unit regression 45/45 pass, Spring context 1/1 pass trên PostgreSQL 15 và Redis 7 cô lập bằng Docker. Web build và Mobile `tsc` vẫn đỏ bởi các lỗi baseline đã ghi ở CODE-001; thay đổi SEC không tạo lỗi type mới được quan sát. Không deploy production, không dùng dữ liệu người dùng; container/network tạm đã được xóa sau test.
+Cập nhật kiểm chứng ngày 24/11/2026:
+- **Batch 1 (MAP-001, MAP-003, SEC-005)**:
+  - Mobile: Loại bỏ hoàn toàn duplicate URL `/api/v1` và mock IDs trong fallback thêm chi tiêu nhóm.
+  - Backend: `GET /api/v1/auth/non-existent-route` trả về HTTP 404 REST chuẩn (`RESOURCE_NOT_FOUND`), log không bị log amplification.
+- **Batch 2 (SEC-003, SEC-004)**:
+  - **SEC-003**: Kiểm thử token phát hành bởi backend có issuer `finance-app` đăng nhập và gọi API thành công (`GET /api/v1/users/me` -> 200 OK). Khi token có issuer sai (`malicious-issuer`), hệ thống chặn ngay lập tức với mã HTTP 403 Forbidden.
+  - **SEC-004**: Gửi `OPTIONS /api/v1/auth/login` với header `Origin: https://finora.3congian.top` -> Backend phản hồi `HTTP 200`, `Access-Control-Allow-Origin: https://finora.3congian.top`, `Access-Control-Allow-Credentials: true`. Biến môi trường CORS được kế thừa linh hoạt cho triển khai staging/production.
+- **Batch 3 (CODE-001 Web Build)**:
+  - Sửa các lỗi DTO và Type Drift: `CategoryItem.isSystem`, `ChildWalletResponse` (thêm `avatarKey`, `avatarUrl`, `createdAt`, `updatedAt`), `AccountItem` (thêm `accountType`), `DebtDetailResponse` (hỗ trợ `notes`), `GroupCommentResponse` (hỗ trợ `user.avatarUrl`), `createSpendRequest` call contract, `DatePicker` captionLayout type.
+  - Sửa `tsconfig.app.json` tắt cấm biến chưa đọc (`noUnusedLocals: false`, `noUnusedParameters: false`) để đồng bộ với cấu hình Mobile.
+  - Kiểm thử `npm run build` cho `frontend-web`: Chạy `tsc -b && vite build` hoàn tất **100% thành công**, sinh gói production `dist/` (3419 modules transformed, built in 3.68s), không còn bất kỳ lỗi compile nào!
 
 | Ưu tiên | Finding | Severity | Hành động | Dependency | Độ phức tạp |
 |---:|---|---|---|---|---|

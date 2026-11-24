@@ -12,26 +12,6 @@ export default defineConfig(({ mode }) => {
       allowedHosts: true,
       hmr: false,
       proxy: {
-        '/api/chat': {
-          target: 'http://localhost:8000',
-          changeOrigin: true,
-        },
-        '/api/forecast': {
-          target: backendTarget,
-          changeOrigin: true,
-        },
-        '/api/anomalies': {
-          target: backendTarget,
-          changeOrigin: true,
-        },
-        '/api/behavior': {
-          target: backendTarget,
-          changeOrigin: true,
-        },
-        '/api/recommendations': {
-          target: backendTarget,
-          changeOrigin: true,
-        },
         '/api': {
           target: backendTarget,
           changeOrigin: true,
