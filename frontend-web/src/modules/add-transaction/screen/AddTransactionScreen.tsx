@@ -439,9 +439,9 @@ export function AddTransactionScreen({ onCancel, onNotify, onOpenInvoiceScanner 
   }
 
   return (
-    <main className="mx-auto flex h-[calc(100vh-68px)] max-h-[calc(100vh-68px)] w-full flex-1 flex-col bg-[#F8FAFC] dark:bg-[#0B0F19] p-3 text-[#0F172A] dark:text-slate-100 sm:p-4 lg:p-5 overflow-hidden">
+    <main className="mx-auto flex min-h-[calc(100vh-68px)] lg:h-[calc(100vh-68px)] lg:max-h-[calc(100vh-68px)] w-full flex-1 flex-col bg-[#F8FAFC] dark:bg-[#0B0F19] p-3 text-[#0F172A] dark:text-slate-100 sm:p-4 lg:p-5 overflow-y-auto lg:overflow-hidden">
       {/* Two-Column Responsive Workspace: fills 100% height without trailing empty space */}
-      <div className="grid w-full h-full flex-1 gap-4 lg:grid-cols-12 items-stretch min-h-0">
+      <div className="grid w-full flex-1 gap-4 lg:grid-cols-12 items-stretch min-h-0">
         {/* LEFT COLUMN: Main Form Container (chiếm tỷ lệ rộng 58% - 66%) */}
         <div className="lg:col-span-7 xl:col-span-7 2xl:col-span-8 flex flex-col h-full justify-between rounded-2xl border border-[#E2E8F0] dark:border-white/10 bg-white dark:bg-[#111827] shadow-md overflow-hidden min-h-0">
           {/* HERO BANNER: Type Toggle & Big Amount Display */}

@@ -24,6 +24,9 @@ export function GoogleSignInButton({ onSuccess, onError, text = 'continue_with' 
     let checkInterval: any = null;
 
     const initGoogleGIS = () => {
+      if (!GOOGLE_CLIENT_ID) {
+        return false;
+      }
       if (!window.google || !window.google.accounts || !window.google.accounts.id) {
         return false;
       }
@@ -32,15 +35,20 @@ export function GoogleSignInButton({ onSuccess, onError, text = 'continue_with' 
         window.google.accounts.id.initialize({
           client_id: GOOGLE_CLIENT_ID,
           callback: handleCredentialResponse,
+          ux_mode: 'popup',
+          use_fedcm_for_prompt: false,
+          use_fedcm_for_button: false,
           auto_select: false,
           cancel_on_tap_outside: true,
         });
 
         if (hiddenBtnRef.current) {
           hiddenBtnRef.current.innerHTML = '';
+          const containerWidth = Math.max(hiddenBtnRef.current.offsetWidth || 400, 320);
           window.google.accounts.id.renderButton(hiddenBtnRef.current, {
             type: 'standard',
             size: 'large',
+            width: containerWidth,
           });
         }
         setReady(true);
@@ -84,40 +92,40 @@ export function GoogleSignInButton({ onSuccess, onError, text = 'continue_with' 
 
   const handleButtonClick = () => {
     if (loading) return;
-    
-    // Ưu tiên kích hoạt click vào button thật của Google trong hidden container
-    if (hiddenBtnRef.current) {
-      const gBtn = hiddenBtnRef.current.querySelector('div[role="button"]') as HTMLElement;
-      if (gBtn) {
-        gBtn.click();
-        return;
-      }
+
+    if (!GOOGLE_CLIENT_ID) {
+      onError('Thiếu cấu hình Google Client ID (VITE_GOOGLE_CLIENT_ID).');
+      return;
     }
 
-    // Dự phòng gọi prompt One Tap
+    // Dự phòng gọi prompt One Tap nếu nút iframe của Google chưa kịp overlay
     if (window.google?.accounts?.id) {
       window.google.accounts.id.prompt();
     } else {
-      onError('Dịch vụ Google đang tải, vui lòng thử lại sau giây lát.');
+      onError('Dịch vụ Google đang tải hoặc bị trình chặn quảng cáo chặn, vui lòng thử lại.');
     }
   };
 
   const buttonLabel = text === 'signup_with' ? 'Đăng ký bằng Google' : 'Đăng nhập bằng Google';
 
   return (
-    <div className="w-full relative">
-      {/* Hidden native Google button */}
+    <div className="w-full relative overflow-hidden rounded-xl">
+      {/* Transparent real Google GIS button overlay so user click hits Google iframe directly */}
       <div
         ref={hiddenBtnRef}
-        aria-hidden="true"
+        aria-label={buttonLabel}
         style={{
           position: 'absolute',
-          opacity: 0,
-          pointerEvents: 'none',
-          zIndex: -1,
-          width: 0,
-          height: 0,
+          inset: 0,
+          opacity: !loading && ready ? 0.001 : 0,
+          pointerEvents: !loading && ready ? 'auto' : 'none',
+          zIndex: 10,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
           overflow: 'hidden',
+          cursor: 'pointer',
+          transform: 'scale(1.35)',
         }}
       />
 

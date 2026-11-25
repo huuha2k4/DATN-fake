@@ -2,7 +2,7 @@ import os
 from datetime import datetime, date
 from dotenv import load_dotenv
 from sqlalchemy import (
-    create_engine, Column, String, Float, Integer, DateTime, Date, ForeignKey, Boolean, Text
+    create_engine, Column, String, Float, Numeric, Integer, DateTime, Date, ForeignKey, Boolean, Text
 )
 from sqlalchemy.orm import declarative_base, sessionmaker, relationship
 
@@ -80,7 +80,7 @@ class Account(Base):
     user_id = Column(String, nullable=False, index=True)
     name = Column(String(100), nullable=False)
     account_type = Column("account_type", String(20), nullable=True)
-    balance = Column("balance", Float, nullable=False, default=0.0)
+    balance = Column("balance", Numeric(19, 4), nullable=False, default=0.0)
     currency_code = Column(String(3), default="VND")
 
     @property
@@ -101,10 +101,10 @@ class Transaction(Base):
     account_id = Column(String, ForeignKey("core.accounts.id" if is_postgres else "accounts.id"), nullable=False)
     category_id = Column(String, ForeignKey("core.categories.id" if is_postgres else "categories.id"), nullable=True)
     type = Column(String(30), nullable=False) # EXPENSE, INCOME, TRANSFER
-    amount = Column(Float, nullable=False)
+    amount = Column(Numeric(19, 4), nullable=False)
     currency_code = Column(String(3), default="VND")
-    exchange_rate = Column(Float, default=1.0)
-    base_amount = Column(Float, nullable=True)
+    exchange_rate = Column(Numeric(18, 6), default=1.0)
+    base_amount = Column(Numeric(19, 4), nullable=True)
     occurred_at = Column(DateTime(timezone=True), nullable=False, default=datetime.utcnow)
     occurred_date = Column(Date, nullable=True)
     note = Column(Text, nullable=True)
@@ -187,7 +187,7 @@ class ChildWallet(Base):
     group_id = Column(String, nullable=False)
     user_id = Column(String, nullable=True, index=True)
     child_name = Column(String(150), nullable=False)
-    balance = Column("balance", Float, nullable=False, default=0.0)
+    balance = Column("balance", Numeric(19, 4), nullable=False, default=0.0)
     currency = Column(String(3), default="VND")
     weekly_allowance = Column(Float, nullable=True, default=0.0)
 

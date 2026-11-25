@@ -36,6 +36,15 @@ import com.finance.finance.modules.user.repository.UserRepository;
 import com.finance.finance.modules.notification.service.NotificationService;
 import com.finance.finance.common.enums.NotificationType;
 import com.finance.finance.common.enums.NotificationPriority;
+import com.finance.finance.common.upload.FileUploadValidator;
+import com.finance.finance.common.upload.ImageCompressionHelper;
+import com.finance.finance.common.exception.BusinessException;
+import org.springframework.web.multipart.MultipartFile;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.nio.file.StandardCopyOption;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
@@ -50,6 +59,7 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 
 @Slf4j
@@ -70,6 +80,30 @@ public class ChildWalletService {
     private final GroupExpenseRepository groupExpenseRepository;
     private final GroupRepository groupRepository;
     private final ObjectMapper objectMapper;
+    private final FileUploadValidator fileUploadValidator;
+    private final ImageCompressionHelper imageCompressionHelper;
+
+    private static final String UPLOAD_DIR = "uploads/avatars";
+
+    @Transactional
+    public String uploadChildWalletAvatar(UUID groupId, MultipartFile file, UUID currentUserId) {
+        validateAdminOrOwner(groupId, currentUserId);
+        try {
+            FileUploadValidator.ValidatedUpload validated =
+                    fileUploadValidator.validate(file, FileUploadValidator.Policy.AVATAR);
+
+            Path uploadPath = Paths.get(UPLOAD_DIR);
+            ImageCompressionHelper.SavedImage savedImage = imageCompressionHelper.saveCompressed(
+                    file, uploadPath, "child_wallet_" + UUID.randomUUID(), validated, 512, 0.82f);
+
+            String avatarUrl = "/" + UPLOAD_DIR + "/" + savedImage.filename();
+            log.info("Child wallet avatar uploaded successfully: {}", avatarUrl);
+            return avatarUrl;
+        } catch (IOException e) {
+            log.error("Failed to store child wallet avatar file", e);
+            throw new BusinessException("Không thể lưu ảnh đại diện ví bé");
+        }
+    }
 
     @Transactional
     public ChildWalletResponse createWallet(UUID groupId, CreateChildWalletRequest request, UUID currentUserId) {
@@ -559,6 +593,15 @@ public class ChildWalletService {
             age = java.time.Period.between(wallet.getDateOfBirth(), java.time.LocalDate.now()).getYears();
         }
 
+        // Resolve real-time avatarKey from linked User if child account exists
+        String effectiveAvatarKey = wallet.getAvatarKey();
+        if (wallet.getUserId() != null) {
+            Optional<User> linkedUser = userRepository.findById(wallet.getUserId());
+            if (linkedUser.isPresent() && linkedUser.get().getAvatarUrl() != null && !linkedUser.get().getAvatarUrl().isBlank()) {
+                effectiveAvatarKey = linkedUser.get().getAvatarUrl();
+            }
+        }
+
         return ChildWalletResponse.builder()
                 .id(wallet.getId())
                 .groupId(wallet.getGroupId())
@@ -567,7 +610,7 @@ public class ChildWalletService {
                 .childName(wallet.getChildName())
                 .dateOfBirth(wallet.getDateOfBirth())
                 .age(age)
-                .avatarKey(wallet.getAvatarKey())
+                .avatarKey(effectiveAvatarKey)
                 .currency(wallet.getCurrency() != null ? wallet.getCurrency() : "VND")
                 .balance(wallet.getBalance())
                 .weeklyAllowance(wallet.getWeeklyAllowance())

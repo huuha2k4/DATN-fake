@@ -195,7 +195,7 @@ export function ForgotPasswordModal({
         <Pressable style={styles.backdrop} onPress={onClose} />
 
         <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
           style={styles.keyboardWrap}
         >
           <View style={[styles.sheet, isDark && { backgroundColor: themeColors.surface, borderColor: themeColors.cardBorder, borderWidth: 1 }]}>

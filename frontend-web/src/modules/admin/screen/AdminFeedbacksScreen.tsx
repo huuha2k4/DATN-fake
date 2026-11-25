@@ -88,10 +88,10 @@ export const AdminFeedbacksScreen: React.FC = () => {
     if (!search.trim()) return true;
     const q = search.toLowerCase();
     return (
-      fb.title.toLowerCase().includes(q) ||
-      fb.content.toLowerCase().includes(q) ||
-      fb.userFullName.toLowerCase().includes(q) ||
-      fb.userEmail.toLowerCase().includes(q)
+      (fb.title ?? '').toLowerCase().includes(q) ||
+      (fb.content ?? '').toLowerCase().includes(q) ||
+      (fb.userFullName ?? '').toLowerCase().includes(q) ||
+      (fb.userEmail ?? '').toLowerCase().includes(q)
     );
   });
 
@@ -223,9 +223,12 @@ export const AdminFeedbacksScreen: React.FC = () => {
             >
               <option value="">Tất cả Phân loại</option>
               <option value="BUG">Báo lỗi (Bug)</option>
-              <option value="FEATURE_REQUEST">Đề xuất tính năng</option>
+              <option value="FEATURE">Đề xuất tính năng</option>
+              <option value="QUESTION">Hỏi đáp / Hỗ trợ</option>
               <option value="PAYMENT">Thanh toán & Gói cước</option>
-              <option value="GENERAL">Khác</option>
+              <option value="OTHER">Khác</option>
+              <option value="FEATURE_REQUEST">Đề xuất tính năng (Legacy)</option>
+              <option value="GENERAL">Chung (Legacy)</option>
             </select>
 
             <div className="h-10 px-3.5 rounded-xl bg-gray-100/80 dark:bg-slate-800 border border-gray-200/60 dark:border-slate-700 flex items-center justify-center shrink-0">
@@ -250,7 +253,7 @@ export const AdminFeedbacksScreen: React.FC = () => {
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
-              <tr className="border-b border-[#E2E8F0] dark:border-slate-800 bg-gray-50/70 dark:bg-slate-850/60 text-[11px] font-bold text-gray-500 dark:text-slate-400 uppercase tracking-wider">
+              <tr className="border-b border-[#E2E8F0] dark:border-slate-800 bg-gray-50/70 dark:bg-slate-900/60 text-[11px] font-bold text-gray-500 dark:text-slate-400 uppercase tracking-wider">
                 <th className="py-3.5 px-5">Người gửi</th>
                 <th className="py-3.5 px-4">Tiêu đề & Nội dung</th>
                 <th className="py-3.5 px-4">Phân loại</th>
@@ -325,7 +328,15 @@ export const AdminFeedbacksScreen: React.FC = () => {
                       {/* Cột 3: Phân loại */}
                       <td className="py-3.5 px-4">
                         <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-bold bg-gray-100 dark:bg-slate-800 text-gray-700 dark:text-slate-300">
-                          {fb.category === 'BUG' ? 'Báo lỗi' : fb.category === 'FEATURE_REQUEST' ? 'Góp ý' : fb.category === 'PAYMENT' ? 'Thanh toán' : 'Khác'}
+                          {fb.category === 'BUG'
+                            ? 'Báo lỗi'
+                            : fb.category === 'FEATURE' || fb.category === 'FEATURE_REQUEST'
+                            ? 'Đề xuất tính năng'
+                            : fb.category === 'QUESTION' || fb.category === 'GENERAL'
+                            ? 'Hỏi đáp'
+                            : fb.category === 'PAYMENT'
+                            ? 'Thanh toán'
+                            : 'Khác'}
                         </span>
                       </td>
 

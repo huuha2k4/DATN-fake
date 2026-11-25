@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { getStoredUser } from '../../auth/api/authApi';
 import { userApi } from '../../user/api/userApi';
 import { FinanceIcon } from '../../core/components/FinanceIcon';
@@ -39,6 +40,7 @@ function formatCurrentDate(date: Date): string {
 
 export function UserAvatar({ onOpenProfile, onOpenChangePassword, onOpenFeedback, onLogout, isAdmin = false, onNotify: _onNotify }: UserAvatarProps) {
   const [dropdownOpen, setDropdownOpen] = useState(false);
+  const navigate = useNavigate();
   const [currentTime, setCurrentTime] = useState(new Date());
   const [user, setUser] = useState<any>(() => getStoredUser());
   const containerRef = useRef<HTMLDivElement>(null);
@@ -121,7 +123,7 @@ export function UserAvatar({ onOpenProfile, onOpenChangePassword, onOpenFeedback
               type="button"
               className="user-tier-badge user-tier-clickable"
               onClick={() => {
-                window.location.href = '/pricing';
+                navigate('/pricing');
               }}
               title="Xem & Nâng cấp các gói hội viên Finora"
               aria-label="Xem các gói hội viên Finora"
@@ -206,7 +208,7 @@ export function UserAvatar({ onOpenProfile, onOpenChangePassword, onOpenFeedback
                 if (onOpenFeedback) {
                   onOpenFeedback();
                 } else {
-                  window.location.href = '/feedback';
+                  navigate('/feedback');
                 }
               }}
             >

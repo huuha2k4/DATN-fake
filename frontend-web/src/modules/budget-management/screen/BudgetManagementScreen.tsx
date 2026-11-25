@@ -658,8 +658,8 @@ export function BudgetManagementScreen({ onNotify }: Props) {
                     className="fixed inset-0 z-40"
                     onClick={() => setIsMonthDropdownOpen(false)}
                   />
-                  <div className="absolute right-0 top-full mt-1.5 z-50 w-44 rounded-2xl border border-[#e2eae4] bg-white p-1.5 shadow-xl transition-all max-h-60 overflow-y-auto">
-                    <div className="px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-[#64748B]">
+                  <div className="absolute right-0 top-full mt-1.5 z-50 w-44 rounded-2xl border border-[#e2eae4] dark:border-slate-700 bg-white dark:bg-slate-900 p-1.5 shadow-xl transition-all max-h-60 overflow-y-auto">
+                    <div className="px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-[#64748B] dark:text-slate-400">
                       Chọn kỳ ngân sách
                     </div>
                     {availableMonths.map((m) => {

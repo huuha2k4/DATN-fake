@@ -17,7 +17,13 @@ Người dùng đã phê duyệt triển khai batch ưu tiên 0 ngày 21/11/2026
 | SEC-004 | FIXED | Đã cấu hình `SecurityConfig.java` đọc động danh sách domain từ `app.security.allowed-origins` (`.env` / `application.yml`); preflight OPTIONS request trả về header `Access-Control-Allow-Origin: https://finora.3congian.top` và HTTP 200 |
 | MAP-002 | FIXED | Đã đóng port ngoại vi `8000:8000` của `pfm-ai-service` trong `docker-compose.yml` (chỉ expose nội bộ Docker mạng `finance_network`); xóa proxy trực tiếp `/api/chat` -> port 8000 trong `frontend-web/vite.config.ts`, đưa 100% request AI qua Backend Spring Boot `/api/v1/finai/...` |
 | CODE-001 (Web) | FIXED | Đã sửa toàn bộ lỗi type drift DTO (AccountItem, ChildWalletResponse, GroupCommentResponse, CategoryItem, DatePicker...) và cấu hình tsconfig; `npm run build` trên Web đã build thành công 100% (Vite production bundle tạo hoàn tất trong 3.68s) |
-| Các finding còn lại | NOT STARTED | Chờ phê duyệt batch tiếp theo (CODE-001 Mobile tsc, MAP-002, BUS-003...) |
+| ARCH-001 | FIXED | Bổ sung `HealthController` xử lý `GET /api/v1/health` trả về JSON `{status: "UP", service: "finora-backend"}`; cấu hình Nginx route `/actuator/health` proxy trực tiếp tới Spring Boot Actuator backend thật thay vì rơi vào false-positive SPA |
+| CODE-001 (Mobile) | FIXED | `npx --prefix frontend-app tsc --noEmit` pass 0 lỗi |
+| BUS-003 / CODE-003 | FIXED | Bỏ `try/catch` nuốt lỗi tại các sync tài chính (`TransactionService`, `GroupExpenseService`) để rollback đồng bộ khi lỗi DB/constraint; giữ notification là best-effort; regression test rollback pass |
+| CODE-004 | FIXED | Batch lookup `categoryRepository.findAllById` trong `TransactionService.getTransactionSummary` (xóa N+1 `findById`); regression test verify `findById` không bị gọi |
+| BUS-004 | FIXED | Đổi mapping `Account.balance`, `Transaction.amount/base_amount` sang `Numeric(19, 4)` và `exchange_rate` sang `Numeric(18, 6)` trong `pfm-ai-service/database.py`; `test_action_agent.py` 43/43 pass & round-trip `Decimal` đạt |
+| TEST-001 | IN_PROGRESS | 52/52 unit tests Backend pass (`mvnw test -Dtest=!FinanceApplicationTests` với `-javaagent`, gồm `JwtTokenProviderTest`, `GroupExpenseServiceSyncTest`, `TransactionServiceOwnershipTest`, đồng thời vá `JwtTokenProvider.validateToken` bắt `JwtException` khi sai `issuer`); 43/43 Python unit tests pass; E2E staging & DB integration tests chờ môi trường staging |
+| CODE-002 / PERF-001 / PERF-002 / ARCH-002 | DEFERRED | Hạng mục kiến trúc/hạ tầng (tách god files, Redis shared cache, MinIO, E2E/load harness staging) cần kế hoạch refactor & hạ tầng riêng |
 
 Cập nhật kiểm chứng ngày 24/11/2026:
 - **Batch 1 (MAP-001, MAP-003, SEC-005)**:

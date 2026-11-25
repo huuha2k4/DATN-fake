@@ -1,52 +1,58 @@
-import { useState, useEffect } from 'react'
+import { lazy, Suspense, useState, useEffect } from 'react'
 import { Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom'
-import { AddTransactionScreen } from '../../add-transaction/screen/AddTransactionScreen'
-import { AccountManagementScreen } from '../../account-management/screen/AccountManagementScreen'
-import { AIAssistantScreen } from '../../ai-assistant/screen/AIAssistantScreen'
-import { BudgetManagementScreen } from '../../budget-management/screen/BudgetManagementScreen'
-import { GoalsManagementScreen } from '../../budget-goals/screen/GoalsManagementScreen'
-import { CashFlowManagementScreen } from '../../cash-flow-management/screen/CashFlowManagementScreen'
-import { DashboardScreen } from '../../dashboard/screen/DashboardScreen'
-import { FinancialReportsDashboardScreen } from '../../financial-reports/screen/FinancialReportsDashboardScreen'
-import { FinancialForecastScreen } from '../../financial-forecast/screen/FinancialForecastScreen'
-import { FinancialRemindersScreen } from '../../financial-reminders/screen/FinancialRemindersScreen'
-import { InvoiceOcrScreen } from '../../invoice-ocr/screen/InvoiceOcrScreen'
-import { SpendingAnalysisScreen } from '../../spending-analysis/screen/SpendingAnalysisScreen'
-import { DebtManagementScreen } from '../../debt-management/screen/DebtManagementScreen'
-import { GroupManagementScreen } from '../../group/screen/GroupManagementScreen'
 import { DashboardHeaderSection } from '../../core/components/DashboardHeaderSection'
 import { FinancialNavigationSection } from '../../core/components/FinancialNavigationSection'
 import { FloatingActions } from '../../core/components/FloatingActions'
 import { LandingScreen } from '../../auth/screen/LandingScreen'
-import { ProfileScreen } from '../../profile/screen/ProfileScreen'
 import { ChangePasswordModal } from '../../profile/components/ChangePasswordModal'
-import { NotificationScreen } from '../../notification/screen/NotificationScreen'
-import { ChildWalletScreen } from '../../child-wallet/screen/ChildWalletScreen'
-import { ChildChoresScreen } from '../../child-wallet/screen/ChildChoresScreen'
-import { ChildMoneyRequestsScreen } from '../../child-wallet/screen/ChildMoneyRequestsScreen'
-import { UserFeedbackScreen } from '../../feedback/screen/UserFeedbackScreen'
-import { PricingScreen } from '../../pricing/screen/PricingScreen'
-import { PrivacyPolicyScreen } from '../../legal/screen/PrivacyPolicyScreen'
-import { TermsOfServiceScreen } from '../../legal/screen/TermsOfServiceScreen'
 import { AdminGuard } from '../../admin/components/AdminGuard'
 import { AdminLayout } from '../../admin/components/AdminLayout'
-import { AdminDashboardScreen } from '../../admin/screen/AdminDashboardScreen'
-import { AdminUserManagementScreen } from '../../admin/screen/AdminUserManagementScreen'
-import { AdminRolesScreen } from '../../admin/screen/AdminRolesScreen'
-import { AdminCategoriesScreen } from '../../admin/screen/AdminCategoriesScreen'
-import { AdminAIManagementScreen } from '../../admin/screen/AdminAIManagementScreen'
-import { AdminOcrManagementScreen } from '../../admin/screen/AdminOcrManagementScreen'
-import { AdminAnalyticsScreen } from '../../admin/screen/AdminAnalyticsScreen'
-import { AdminFeedbacksScreen } from '../../admin/screen/AdminFeedbacksScreen'
-import { AdminBroadcastScreen } from '../../admin/screen/AdminBroadcastScreen'
-import { AdminAuditLogsScreen } from '../../admin/screen/AdminAuditLogsScreen'
-import { AdminSystemHealthScreen } from '../../admin/screen/AdminSystemHealthScreen'
-import { AdminSettingsScreen } from '../../admin/screen/AdminSettingsScreen'
-import { AdminPlaceholderScreen } from '../../admin/screen/AdminPlaceholderScreen'
 import { isAuthenticated, clearAuthData, getStoredUser } from '../../auth/api/authApi'
 import { accountApi } from '../../account-management/api/accountApi'
 import { FinoraOnboardingWalkthroughWeb } from '../../onboarding/components/FinoraOnboardingWalkthrough'
 import { CompleteProfileModalWeb } from '../../onboarding/components/CompleteProfileModal'
+
+const AddTransactionScreen = lazy(() => import('../../add-transaction/screen/AddTransactionScreen').then(m => ({ default: m.AddTransactionScreen })))
+const AccountManagementScreen = lazy(() => import('../../account-management/screen/AccountManagementScreen').then(m => ({ default: m.AccountManagementScreen })))
+const AIAssistantScreen = lazy(() => import('../../ai-assistant/screen/AIAssistantScreen').then(m => ({ default: m.AIAssistantScreen })))
+const BudgetManagementScreen = lazy(() => import('../../budget-management/screen/BudgetManagementScreen').then(m => ({ default: m.BudgetManagementScreen })))
+const GoalsManagementScreen = lazy(() => import('../../budget-goals/screen/GoalsManagementScreen').then(m => ({ default: m.GoalsManagementScreen })))
+const CashFlowManagementScreen = lazy(() => import('../../cash-flow-management/screen/CashFlowManagementScreen').then(m => ({ default: m.CashFlowManagementScreen })))
+const DashboardScreen = lazy(() => import('../../dashboard/screen/DashboardScreen').then(m => ({ default: m.DashboardScreen })))
+const FinancialReportsDashboardScreen = lazy(() => import('../../financial-reports/screen/FinancialReportsDashboardScreen').then(m => ({ default: m.FinancialReportsDashboardScreen })))
+const FinancialForecastScreen = lazy(() => import('../../financial-forecast/screen/FinancialForecastScreen').then(m => ({ default: m.FinancialForecastScreen })))
+const FinancialRemindersScreen = lazy(() => import('../../financial-reminders/screen/FinancialRemindersScreen').then(m => ({ default: m.FinancialRemindersScreen })))
+const InvoiceOcrScreen = lazy(() => import('../../invoice-ocr/screen/InvoiceOcrScreen').then(m => ({ default: m.InvoiceOcrScreen })))
+const SpendingAnalysisScreen = lazy(() => import('../../spending-analysis/screen/SpendingAnalysisScreen').then(m => ({ default: m.SpendingAnalysisScreen })))
+const DebtManagementScreen = lazy(() => import('../../debt-management/screen/DebtManagementScreen').then(m => ({ default: m.DebtManagementScreen })))
+const GroupManagementScreen = lazy(() => import('../../group/screen/GroupManagementScreen').then(m => ({ default: m.GroupManagementScreen })))
+const ProfileScreen = lazy(() => import('../../profile/screen/ProfileScreen').then(m => ({ default: m.ProfileScreen })))
+const NotificationScreen = lazy(() => import('../../notification/screen/NotificationScreen').then(m => ({ default: m.NotificationScreen })))
+const ChildWalletScreen = lazy(() => import('../../child-wallet/screen/ChildWalletScreen').then(m => ({ default: m.ChildWalletScreen })))
+const ChildChoresScreen = lazy(() => import('../../child-wallet/screen/ChildChoresScreen').then(m => ({ default: m.ChildChoresScreen })))
+const ChildMoneyRequestsScreen = lazy(() => import('../../child-wallet/screen/ChildMoneyRequestsScreen').then(m => ({ default: m.ChildMoneyRequestsScreen })))
+const UserFeedbackScreen = lazy(() => import('../../feedback/screen/UserFeedbackScreen').then(m => ({ default: m.UserFeedbackScreen })))
+const PricingScreen = lazy(() => import('../../pricing/screen/PricingScreen').then(m => ({ default: m.PricingScreen })))
+const PrivacyPolicyScreen = lazy(() => import('../../legal/screen/PrivacyPolicyScreen').then(m => ({ default: m.PrivacyPolicyScreen })))
+const TermsOfServiceScreen = lazy(() => import('../../legal/screen/TermsOfServiceScreen').then(m => ({ default: m.TermsOfServiceScreen })))
+const AdminDashboardScreen = lazy(() => import('../../admin/screen/AdminDashboardScreen').then(m => ({ default: m.AdminDashboardScreen })))
+const AdminUserManagementScreen = lazy(() => import('../../admin/screen/AdminUserManagementScreen').then(m => ({ default: m.AdminUserManagementScreen })))
+const AdminRolesScreen = lazy(() => import('../../admin/screen/AdminRolesScreen').then(m => ({ default: m.AdminRolesScreen })))
+const AdminCategoriesScreen = lazy(() => import('../../admin/screen/AdminCategoriesScreen').then(m => ({ default: m.AdminCategoriesScreen })))
+const AdminAIManagementScreen = lazy(() => import('../../admin/screen/AdminAIManagementScreen').then(m => ({ default: m.AdminAIManagementScreen })))
+const AdminOcrManagementScreen = lazy(() => import('../../admin/screen/AdminOcrManagementScreen').then(m => ({ default: m.AdminOcrManagementScreen })))
+const AdminAnalyticsScreen = lazy(() => import('../../admin/screen/AdminAnalyticsScreen').then(m => ({ default: m.AdminAnalyticsScreen })))
+const AdminFeedbacksScreen = lazy(() => import('../../admin/screen/AdminFeedbacksScreen').then(m => ({ default: m.AdminFeedbacksScreen })))
+const AdminBroadcastScreen = lazy(() => import('../../admin/screen/AdminBroadcastScreen').then(m => ({ default: m.AdminBroadcastScreen })))
+const AdminAuditLogsScreen = lazy(() => import('../../admin/screen/AdminAuditLogsScreen').then(m => ({ default: m.AdminAuditLogsScreen })))
+const AdminSystemHealthScreen = lazy(() => import('../../admin/screen/AdminSystemHealthScreen').then(m => ({ default: m.AdminSystemHealthScreen })))
+const AdminSettingsScreen = lazy(() => import('../../admin/screen/AdminSettingsScreen').then(m => ({ default: m.AdminSettingsScreen })))
+
+const RouteSuspenseFallback = () => (
+  <div className="flex min-h-[50vh] w-full items-center justify-center p-8 text-sm font-medium text-slate-500 dark:text-slate-400">
+    Đang tải màn hình...
+  </div>
+)
 
 export default function AppScreen() {
   const [isLoggedIn, setIsLoggedIn] = useState(false)
@@ -173,7 +179,7 @@ export default function AppScreen() {
     return <TermsOfServiceScreen />
   }
   if (location.pathname === '/pricing') {
-    return <PricingScreen onNotify={setNotice} />
+    return <Suspense fallback={<RouteSuspenseFallback />}><PricingScreen onNotify={setNotice} /></Suspense>
   }
 
   // 2. Nếu chưa đăng nhập thì hiển thị Landing Page
@@ -188,6 +194,7 @@ export default function AppScreen() {
   if (isAdminAccount) {
     return (
       <AdminGuard>
+        <Suspense fallback={<RouteSuspenseFallback />}>
         <Routes>
           <Route path="/admin" element={<AdminLayout />}>
             <Route index element={<AdminDashboardScreen />} />
@@ -207,6 +214,7 @@ export default function AppScreen() {
           {/* Mọi route khác khi Admin đăng nhập đều tự động chuyển về /admin */}
           <Route path="*" element={<Navigate to="/admin" replace />} />
         </Routes>
+        </Suspense>
       </AdminGuard>
     )
   }
@@ -290,6 +298,7 @@ export default function AppScreen() {
           isSidebarCollapsed={isSidebarCollapsed}
         />
         
+        <Suspense fallback={<RouteSuspenseFallback />}>
         <Routes>
           {isChildAccount && !childAllowedRoutes.has(location.pathname) && <Route path="*" element={<Navigate to="/dashboard" replace />} />}
           <Route path="/" element={<DashboardScreen onNotify={setNotice} onAddTransaction={() => navigate('/add-transaction')} />} />
@@ -318,7 +327,9 @@ export default function AppScreen() {
           {!isChildAccount && <Route path="/analysis" element={<SpendingAnalysisScreen onNotify={setNotice} />} />}
           {!isChildAccount && <Route path="/wallets" element={<AccountManagementScreen onNotify={setNotice} onAccountsChange={setWalletCount} />} />}
           {!isChildAccount && <Route path="/accounts" element={<AccountManagementScreen onNotify={setNotice} onAccountsChange={setWalletCount} />} />}
+          <Route path="*" element={<Navigate to="/dashboard" replace />} />
         </Routes>
+        </Suspense>
       </div>
 
       {/* Floating Action Buttons */}

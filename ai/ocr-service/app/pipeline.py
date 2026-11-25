@@ -99,6 +99,13 @@ _MIN_TEXT_LENGTH = 20           # Ít hơn 20 ký tự → ảnh quá mờ / kh�
 _MIN_ITEMS_FOR_RECEIPT = 3      # Ít hơn 3 block text → không đủ cấu trúc hóa đơn
 
 
+def _has_keyword(text_norm: str, kw: str) -> bool:
+    """Match keyword with word boundaries so short tokens like 'vat'/'bill'/'mst' don't match 'avatar'/'private'/'billion'."""
+    import re
+    pattern = r"(?<![a-z0-9])" + re.escape(kw) + r"(?![a-z0-9])"
+    return bool(re.search(pattern, text_norm))
+
+
 def _detect_image_type(
     all_text_norm: str,
     raw_text: str,
@@ -115,6 +122,8 @@ def _detect_image_type(
         "handwritten" — ảnh viết tay, khó trích xuất tự động → cần xem xét thủ công
         "draft"       — phiếu tạm tính → từ chối
     """
+    import re
+
     text_len = len(raw_text.replace(" ", "").replace("\n", ""))
 
     # --- Kiểm tra chất lượng ảnh trước ---
@@ -125,28 +134,40 @@ def _detect_image_type(
         return "low_quality"
 
     # --- Kiểm tra viết tay ---
-    if any(kw in all_text_norm for kw in _HANDWRITTEN_SIGNALS):
+    if any(_has_keyword(all_text_norm, kw) for kw in _HANDWRITTEN_SIGNALS):
         return "handwritten"
     # Heuristic viết tay: confidence OCR trung bình thấp + rất ít text có cấu trúc
     if confidence < 0.45 and item_count < 8:
         return "handwritten"
 
     # --- Kiểm tra dấu hiệu KHÔNG phải hóa đơn ---
-    not_receipt_hits = sum(1 for kw in _NOT_RECEIPT_KEYWORDS if kw in all_text_norm)
+    not_receipt_hits = sum(1 for kw in _NOT_RECEIPT_KEYWORDS if _has_keyword(all_text_norm, kw))
     if not_receipt_hits >= 2:
         return "not_receipt"
 
-    # --- Kiểm tra keyword mạnh — chỉ cần 1 là đủ ---
-    for kw in _RECEIPT_STRONG_KEYWORDS:
-        if kw in all_text_norm:
-            return "receipt"
+    has_money = bool(re.search(r"\d{1,3}[.,]\d{3}", raw_text))
+    strong_hits = sum(1 for kw in _RECEIPT_STRONG_KEYWORDS if _has_keyword(all_text_norm, kw))
+    support_hits = sum(1 for kw in _RECEIPT_SUPPORT_KEYWORDS if _has_keyword(all_text_norm, kw))
 
-    # --- Kiểm tra kết hợp keyword hỗ trợ ---
-    support_hits = sum(1 for kw in _RECEIPT_SUPPORT_KEYWORDS if kw in all_text_norm)
+    # Nếu có dấu hiệu web/văn bản mà không có ít nhất 2 tín hiệu hóa đơn + số tiền -> từ chối
+    if not_receipt_hits >= 1 and (strong_hits < 2 or not has_money):
+        return "not_receipt"
+
+    # --- Kiểm tra keyword mạnh (dùng word boundary) ---
+    # Các từ khóa tiêu đề rõ ràng: chỉ cần 1 kèm có số hoặc support >= 1
+    _EXPLICIT_HEADER_KEYWORDS = (
+        "hoa don", "hoadon", "phieu tinh tien", "phieu thanh toan",
+        "phieu ban hang", "bien lai", "invoice", "receipt",
+    )
+    if any(_has_keyword(all_text_norm, kw) for kw in _EXPLICIT_HEADER_KEYWORDS):
+        return "receipt"
+
+    # Với các từ khóa tổng/thuế chung chung ("vat", "bill", "mst", "thanh toan"...):
+    # Bắt buộc phải có số tiền hợp lệ HOẶC có thêm tín hiệu hỗ trợ để tránh ảnh web/chuyển khoản/ảnh chụp màn hình
+    if strong_hits >= 1 and (has_money or support_hits >= 1 or strong_hits >= 2):
+        return "receipt"
 
     # Có số tiền (dạng X.XXX hoặc XXX,XXX) + ít nhất 2 keyword hỗ trợ → hóa đơn
-    import re
-    has_money = bool(re.search(r"\d{1,3}[.,]\d{3}", raw_text))
     if has_money and support_hits >= 2:
         return "receipt"
 

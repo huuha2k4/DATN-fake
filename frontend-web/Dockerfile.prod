@@ -32,8 +32,8 @@ RUN rm -rf ./*
 # Copy built files from builder
 COPY --from=builder /app/dist .
 
-# Copy nginx config (optional, if you have custom config)
-# COPY nginx.conf /etc/nginx/conf.d/default.conf
+# Copy nginx config (SPA fallback try_files $uri $uri/ /index.html)
+COPY nginx.conf /etc/nginx/conf.d/default.conf
 
 # Expose port
 EXPOSE 80

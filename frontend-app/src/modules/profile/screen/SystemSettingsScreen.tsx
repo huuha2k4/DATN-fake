@@ -288,7 +288,7 @@ export function SystemSettingsScreen({ onBack }: SystemSettingsScreenProps) {
       </ScrollView>
 
       {/* ── MODAL CHỌN CHỦ ĐỀ ── */}
-      <Modal visible={themeModalVisible} transparent animationType="fade">
+      <Modal visible={themeModalVisible} transparent animationType="fade" onRequestClose={() => setThemeModalVisible(false)}>
         <Pressable style={styles.modalBackdrop} onPress={() => setThemeModalVisible(false)}>
           <View style={[styles.modalSheet, isDark && { backgroundColor: themeColors.surface }]}>
             <Text style={[styles.modalTitle, isDark && { color: themeColors.textPrimary }]}>Chọn chủ đề giao diện</Text>

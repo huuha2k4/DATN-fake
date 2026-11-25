@@ -677,12 +677,14 @@ function TabThuChi({
   isDark?: boolean;
   themeColors?: any;
 }) {
-  // Tìm giá trị max để vẽ biểu đồ cột và các mốc trục Y
+  const [chartMode, setChartMode] = useState<'EXPENSE' | 'INCOME'>('EXPENSE');
+
+  // Tìm giá trị max theo chế độ Chi / Thu để không bị cột lương đè dẹt cột chi tiêu
   const { maxBarValue, yAxisLabels } = useMemo(() => {
     let max = 100000;
     report.dailyTrend.forEach((d) => {
-      if (d.income > max) max = d.income;
-      if (d.expense > max) max = d.expense;
+      const val = chartMode === 'INCOME' ? d.income : d.expense;
+      if (val > max) max = val;
     });
     // Làm tròn lên mốc chẵn
     const magnitude = Math.pow(10, Math.floor(Math.log10(max)));
@@ -709,7 +711,7 @@ function TabThuChi({
     ];
 
     return { maxBarValue: roundedMax, yAxisLabels: labels };
-  }, [report.dailyTrend]);
+  }, [report.dailyTrend, chartMode]);
 
   return (
     <>
@@ -807,22 +809,83 @@ function TabThuChi({
         </View>
       )}
 
-      {/* Thẻ Biểu đồ Cột Thu - Chi Theo Ngày */}
+      {/* Thẻ Biểu đồ Cột Thu / Chi Theo Ngày */}
       <View style={[styles.sectionCard, isDark && { backgroundColor: themeColors.surface, borderColor: themeColors.cardBorder }]}>
         <View style={styles.chartHeaderRow}>
-          <View>
-            <Text style={[styles.sectionCardTitle, isDark && { color: themeColors.textPrimary }]}>Biến động Thu - Chi Theo Ngày</Text>
+          <View style={{ flex: 1, paddingRight: 8 }}>
+            <Text style={[styles.sectionCardTitle, isDark && { color: themeColors.textPrimary }]}>
+              {chartMode === 'INCOME' ? 'Biến động Thu Nhập Theo Ngày' : 'Biến động Chi Tiêu Theo Ngày'}
+            </Text>
             <Text style={[styles.sectionCardSub, isDark && { color: themeColors.textSecondary }]}>{dateRangeDisplay || 'Kỳ đã chọn'}</Text>
           </View>
-          <View style={styles.chartLegend}>
-            <View style={styles.legendItem}>
-              <View style={[styles.legendDot, { backgroundColor: isDark ? themeColors.accentGreen : '#059669' }]} />
-              <Text style={[styles.legendLabel, isDark && { color: themeColors.textSecondary }]}>Thu</Text>
-            </View>
-            <View style={styles.legendItem}>
-              <View style={[styles.legendDot, { backgroundColor: isDark ? '#F87171' : '#DC2626' }]} />
-              <Text style={[styles.legendLabel, isDark && { color: themeColors.textSecondary }]}>Chi</Text>
-            </View>
+          <View
+            style={[
+              {
+                flexDirection: 'row',
+                alignItems: 'center',
+                backgroundColor: isDark ? themeColors.surfaceSubtle : '#F1F5F9',
+                borderRadius: 10,
+                padding: 3,
+                gap: 4,
+              },
+            ]}
+          >
+            <Pressable
+              onPress={() => setChartMode('EXPENSE')}
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                gap: 5,
+                paddingHorizontal: 10,
+                paddingVertical: 5,
+                borderRadius: 8,
+                backgroundColor: chartMode === 'EXPENSE' ? '#DC2626' : 'transparent',
+              }}
+            >
+              <View
+                style={[
+                  styles.legendDot,
+                  { backgroundColor: chartMode === 'EXPENSE' ? '#FFFFFF' : (isDark ? '#F87171' : '#DC2626') },
+                ]}
+              />
+              <Text
+                style={{
+                  fontSize: 11.5,
+                  fontWeight: '700',
+                  color: chartMode === 'EXPENSE' ? '#FFFFFF' : (isDark ? themeColors.textSecondary : '#475569'),
+                }}
+              >
+                Chi
+              </Text>
+            </Pressable>
+            <Pressable
+              onPress={() => setChartMode('INCOME')}
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                gap: 5,
+                paddingHorizontal: 10,
+                paddingVertical: 5,
+                borderRadius: 8,
+                backgroundColor: chartMode === 'INCOME' ? '#059669' : 'transparent',
+              }}
+            >
+              <View
+                style={[
+                  styles.legendDot,
+                  { backgroundColor: chartMode === 'INCOME' ? '#FFFFFF' : (isDark ? themeColors.accentGreen : '#059669') },
+                ]}
+              />
+              <Text
+                style={{
+                  fontSize: 11.5,
+                  fontWeight: '700',
+                  color: chartMode === 'INCOME' ? '#FFFFFF' : (isDark ? themeColors.textSecondary : '#475569'),
+                }}
+              >
+                Thu
+              </Text>
+            </Pressable>
           </View>
         </View>
 
@@ -835,7 +898,7 @@ function TabThuChi({
             ))}
           </View>
 
-          {/* Khung vẽ các cặp cột */}
+          {/* Khung vẽ các cột */}
           <View style={styles.barsArea}>
             <View style={[styles.gridLine, isDark && { backgroundColor: themeColors.cardBorder }]} />
             <View style={[styles.gridLine, { top: '25%' }, isDark && { backgroundColor: themeColors.cardBorder }]} />
@@ -847,21 +910,19 @@ function TabThuChi({
             {report.dailyTrend.length <= 7 ? (
               <View style={styles.weekBarsContainer}>
                 {report.dailyTrend.map((d, idx) => {
-                  const incomeH = Math.min(100, Math.max(0, (d.income / maxBarValue) * 100));
-                  const expenseH = Math.min(100, Math.max(0, (d.expense / maxBarValue) * 100));
-                  const isZero = d.income === 0 && d.expense === 0;
+                  const val = chartMode === 'INCOME' ? d.income : d.expense;
+                  const barH = Math.min(100, Math.max(0, (val / maxBarValue) * 100));
+                  const barColor = chartMode === 'INCOME'
+                    ? (isDark ? themeColors.accentGreen : '#059669')
+                    : (isDark ? '#F87171' : '#DC2626');
 
                   return (
                     <View key={idx} style={styles.weekBarGroup}>
                       <View style={styles.weekBarsPair}>
-                        {d.income > 0 ? (
-                          <View style={[styles.weekBarCol, { height: `${incomeH}%`, backgroundColor: isDark ? themeColors.accentGreen : '#059669' }]} />
-                        ) : null}
-                        {d.expense > 0 ? (
-                          <View style={[styles.weekBarCol, { height: `${expenseH}%`, backgroundColor: isDark ? '#F87171' : '#DC2626' }]} />
-                        ) : null}
-                        {isZero && (
-                          <View style={[styles.weekBarCol, { height: 2, backgroundColor: isDark ? themeColors.cardBorder : '#E2E8F0' }]} />
+                        {val > 0 ? (
+                          <View style={[styles.weekBarCol, { width: 12, height: `${barH}%`, backgroundColor: barColor }]} />
+                        ) : (
+                          <View style={[styles.weekBarCol, { width: 12, height: 2, backgroundColor: isDark ? themeColors.cardBorder : '#E2E8F0' }]} />
                         )}
                       </View>
                       <Text style={[styles.weekXLabel, isDark && { color: themeColors.textMuted }]}>{d.date}</Text>
@@ -870,25 +931,23 @@ function TabThuChi({
                 })}
               </View>
             ) : (
-              // KHI LÀ THÁNG (30 ngày): 30 cột thanh mảnh kèm 5 mốc ngày ngang ở đáy
+              // KHI LÀ THÁNG (30 ngày): 30 cột kèm nhãn ngày căn thẳng dưới đúng cột
               <>
                 <View style={styles.barsFitRow}>
                   {report.dailyTrend.map((d, idx) => {
-                    const incomeH = Math.min(100, Math.max(0, (d.income / maxBarValue) * 100));
-                    const expenseH = Math.min(100, Math.max(0, (d.expense / maxBarValue) * 100));
-                    const isZero = d.income === 0 && d.expense === 0;
+                    const val = chartMode === 'INCOME' ? d.income : d.expense;
+                    const barH = Math.min(100, Math.max(0, (val / maxBarValue) * 100));
+                    const barColor = chartMode === 'INCOME'
+                      ? (isDark ? themeColors.accentGreen : '#059669')
+                      : (isDark ? '#F87171' : '#DC2626');
 
                     return (
                       <View key={idx} style={styles.fitBarItem}>
                         <View style={styles.fitBarsPair}>
-                          {d.income > 0 ? (
-                            <View style={[styles.fitBarCol, { height: `${incomeH}%`, backgroundColor: isDark ? themeColors.accentGreen : '#059669' }]} />
-                          ) : null}
-                          {d.expense > 0 ? (
-                            <View style={[styles.fitBarCol, { height: `${expenseH}%`, backgroundColor: isDark ? '#F87171' : '#DC2626' }]} />
-                          ) : null}
-                          {isZero && (
-                            <View style={[styles.fitBarCol, { height: 2, backgroundColor: isDark ? themeColors.cardBorder : '#E2E8F0' }]} />
+                          {val > 0 ? (
+                            <View style={[styles.fitBarCol, { width: 6, height: `${barH}%`, backgroundColor: barColor }]} />
+                          ) : (
+                            <View style={[styles.fitBarCol, { width: 6, height: 2, backgroundColor: isDark ? themeColors.cardBorder : '#E2E8F0' }]} />
                           )}
                         </View>
                       </View>
@@ -897,34 +956,38 @@ function TabThuChi({
                 </View>
 
                 <View style={styles.xAxisRow}>
-                  {(() => {
-                    if (report.dailyTrend.length === 0) return null;
+                  {report.dailyTrend.map((item, idx) => {
                     const total = report.dailyTrend.length;
-                    const indices = [
-                      0,
-                      Math.floor(total * 0.25),
-                      Math.floor(total * 0.5),
-                      Math.floor(total * 0.75),
-                      total - 1,
-                    ];
-                    // Khử trùng lặp index nếu ít ngày
-                    const uniqueIndices = Array.from(new Set(indices)).sort((a, b) => a - b);
-                    return uniqueIndices.map((i) => {
-                      const item = report.dailyTrend[i];
-                      let label = item.date;
-                      if (item.fullDate) {
-                        const parts = item.fullDate.split('-');
-                        if (parts.length === 3) {
-                          label = `${parts[2]}/${parts[1]}`;
-                        }
+                    const isLast = idx === total - 1;
+                    const showLabel =
+                      total <= 12 ||
+                      idx === 0 ||
+                      isLast ||
+                      (idx % 6 === 0 && total - 1 - idx >= 4);
+                    let label = item.date;
+                    if (item.fullDate) {
+                      const parts = item.fullDate.split('-');
+                      if (parts.length === 3) {
+                        label = `${parts[2]}/${parts[1]}`;
                       }
-                      return (
-                        <Text key={i} style={[styles.xAxisLabelMonth, isDark && { color: themeColors.textMuted }]}>
-                          {label}
-                        </Text>
-                      );
-                    });
-                  })()}
+                    }
+                    return (
+                      <View key={idx} style={{ flex: 1, alignItems: 'center', overflow: 'visible' }}>
+                        {showLabel ? (
+                          <Text
+                            numberOfLines={1}
+                            style={[
+                              styles.xAxisLabelMonth,
+                              isDark && { color: themeColors.textMuted },
+                              isLast && { color: isDark ? themeColors.accentGreen : '#059669', fontWeight: '800' },
+                            ]}
+                          >
+                            {label}
+                          </Text>
+                        ) : null}
+                      </View>
+                    );
+                  })}
                 </View>
               </>
             )}

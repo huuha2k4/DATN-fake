@@ -11,6 +11,7 @@ import com.finance.finance.modules.group.entity.*;
 import com.finance.finance.modules.group.repository.*;
 import com.finance.finance.common.upload.AttachmentUrlSigner;
 import com.finance.finance.common.upload.FileUploadValidator;
+import com.finance.finance.common.upload.ImageCompressionHelper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.io.Resource;
@@ -80,6 +81,7 @@ public class GroupMessageService {
     private final com.fasterxml.jackson.databind.ObjectMapper objectMapper;
     private final FileUploadValidator fileUploadValidator;
     private final AttachmentUrlSigner attachmentUrlSigner;
+    private final ImageCompressionHelper imageCompressionHelper;
 
     @Transactional
     public MessageResponse.AttachmentSummary uploadAttachment(UUID groupId, MultipartFile file, UUID currentUserId) throws IOException {
@@ -91,32 +93,16 @@ public class GroupMessageService {
                 fileUploadValidator.validate(file, FileUploadValidator.Policy.GROUP_IMAGE);
 
         Path uploadPath = Paths.get(ATTACHMENT_UPLOAD_DIR);
-        if (!Files.exists(uploadPath)) {
-            Files.createDirectories(uploadPath);
-        }
-
         String originalFilename = sanitizeDisplayName(file.getOriginalFilename());
 
-        String newFilename = groupId + "_" + UUID.randomUUID() + validated.extension();
-        Path filePath = uploadPath.resolve(newFilename);
-        Files.copy(file.getInputStream(), filePath, StandardCopyOption.REPLACE_EXISTING);
+        ImageCompressionHelper.SavedImage savedImage = imageCompressionHelper.saveCompressed(
+                file, uploadPath, groupId + "_" + UUID.randomUUID(), validated, 1600, 0.82f);
 
-        String fileKey = "/" + ATTACHMENT_UPLOAD_DIR + "/" + newFilename;
-        String mimeType = validated.contentType();
-        long fileSize = file.getSize();
-
-        Integer width = null;
-        Integer height = null;
-        if (mimeType != null && mimeType.startsWith("image/")) {
-            try {
-                java.awt.image.BufferedImage bimg = javax.imageio.ImageIO.read(filePath.toFile());
-                if (bimg != null) {
-                    width = bimg.getWidth();
-                    height = bimg.getHeight();
-                }
-            } catch (Exception ignored) {
-            }
-        }
+        String fileKey = "/" + ATTACHMENT_UPLOAD_DIR + "/" + savedImage.filename();
+        String mimeType = savedImage.contentType();
+        long fileSize = savedImage.sizeBytes();
+        Integer width = savedImage.width();
+        Integer height = savedImage.height();
 
         return MessageResponse.AttachmentSummary.builder()
                 .fileKey(fileKey)

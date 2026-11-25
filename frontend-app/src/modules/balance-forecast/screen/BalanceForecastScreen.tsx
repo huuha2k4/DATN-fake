@@ -267,7 +267,7 @@ export function BalanceForecastScreen({ onBack }: Props) {
               // Chuyển đổi định dạng ngày YYYY-MM-DD sang DD/MM/YYYY chuẩn tiếng Việt
               cleanSummary = cleanSummary.replace(/(\d{4})-(\d{2})-(\d{2})/g, '$3/$2/$1');
 
-              return cleanSummary || 'Dự báo số dư đến ngày 25/11/2026: 17.150.048 VND (dao động trong khoảng 16.654.266 – 17.622.204 VND).';
+              return cleanSummary || 'Chưa có đủ dữ liệu giao dịch để lập dự báo chi tiết.';
             })()}
           </Text>
           <Text style={[styles.chartTrendLine, isDark && { color: themeColors.accentGreen }]}>

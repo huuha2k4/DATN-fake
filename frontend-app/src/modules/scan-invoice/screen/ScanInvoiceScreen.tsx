@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Animated, Easing, Image, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { AccessibilityInfo, ActivityIndicator, Animated, Easing, Image, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { AppAlert as Alert } from '../../../context/DialogContext';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Circle, Defs, LinearGradient, Path, Rect, Stop } from 'react-native-svg';
@@ -134,22 +134,32 @@ function OcrHeroIllustration({ isDark: propIsDark }: { isDark?: boolean }) {
   const laserY = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
-    Animated.loop(
-      Animated.sequence([
-        Animated.timing(laserY, {
-          toValue: 1,
-          duration: 1800,
-          easing: Easing.inOut(Easing.quad),
-          useNativeDriver: true,
-        }),
-        Animated.timing(laserY, {
-          toValue: 0,
-          duration: 1800,
-          easing: Easing.inOut(Easing.quad),
-          useNativeDriver: true,
-        }),
-      ])
-    ).start();
+    let anim: Animated.CompositeAnimation | null = null;
+    let cancelled = false;
+    AccessibilityInfo.isReduceMotionEnabled().then((reduceMotion) => {
+      if (cancelled || reduceMotion) return;
+      anim = Animated.loop(
+        Animated.sequence([
+          Animated.timing(laserY, {
+            toValue: 1,
+            duration: 1800,
+            easing: Easing.inOut(Easing.quad),
+            useNativeDriver: true,
+          }),
+          Animated.timing(laserY, {
+            toValue: 0,
+            duration: 1800,
+            easing: Easing.inOut(Easing.quad),
+            useNativeDriver: true,
+          }),
+        ])
+      );
+      anim.start();
+    }).catch(() => {});
+    return () => {
+      cancelled = true;
+      anim?.stop();
+    };
   }, [laserY]);
 
   const translateY = laserY.interpolate({
@@ -526,25 +536,16 @@ export function ScanInvoiceScreen({
       }
 
       applyReceiptToResult(result, asset.uri);
-      // Reload lại danh sách hóa đơn
-      ocrApi.getReceipts(1, 20).then((res) => setAllReceipts(res)).catch(() => {});
+      // Đưa ngay hóa đơn vừa quét vào đầu danh sách Lịch sử (dù chưa thêm giao dịch) và đồng bộ lại từ server
+      setAllReceipts((prev) => [result, ...prev.filter((item) => item.id !== result.id)]);
+      ocrApi.getReceipts(1, 20).then((res) => {
+        if (res.length > 0) setAllReceipts(res);
+      }).catch(() => {});
     } catch (err: any) {
-      // Nếu máy chủ OCR chưa chạy hoặc lỗi mạng, vẫn hiển thị kết quả trích xuất thông minh với ảnh vừa chụp
-      const now = new Date();
-      const fallbackResult: OcrReceiptResult = {
-        id: `local-${Date.now()}`,
-        imageUrl: asset.uri,
-        kind: 'draft',
-        merchantName: 'WinMart+',
-        transactionDate: now.toISOString().split('T')[0],
-        transactionTime: `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`,
-        totalAmount: 120000,
-        currency: 'VND',
-        confidence: 0.98,
-        needsReview: false,
-        aiCategoryName: 'Ăn uống',
-      };
-      applyReceiptToResult(fallbackResult, asset.uri);
+      Alert.alert(
+        'Không thể quét hóa đơn',
+        err?.message || 'Ảnh không hợp lệ hoặc không thể kết nối máy chủ OCR. Vui lòng thử lại.'
+      );
     } finally {
       setScanning(false);
     }

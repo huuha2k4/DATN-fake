@@ -15,6 +15,7 @@ type Props = { onNotify: (message: string) => void };
 
 const TABS = ['Thu - Chi', 'Danh mục', 'So sánh'];
 const PRESET_PERIODS = [
+  { label: 'Tuần này', value: 'this_week' },
   { label: 'Tuần trước', value: 'last_week' },
   { label: 'Tháng này', value: 'this_month' },
   { label: 'Tháng trước', value: 'last_month' },
@@ -85,6 +86,7 @@ function getCategoryIcon(name: string): IconName {
 export function FinancialReportsDashboardScreen({ onNotify }: Props) {
   const [searchParams] = useSearchParams();
   const [activeTab, setActiveTab] = useState('Thu - Chi');
+  const [cashflowChartMode, setCashflowChartMode] = useState<'EXPENSE' | 'INCOME'>('EXPENSE');
 
   // Helper format ngày theo giờ địa phương YYYY-MM-DD chuẩn xác không bị lệch timezone UTC
   const formatLocalDate = (d: Date): string => {
@@ -168,7 +170,14 @@ export function FinancialReportsDashboardScreen({ onNotify }: Props) {
     let from = '';
     let to = '';
 
-    if (val === 'last_week') {
+    if (val === 'this_week') {
+      const day = now.getDay();
+      const diffToMonday = day === 0 ? -6 : 1 - day;
+      const monday = new Date(now.getFullYear(), now.getMonth(), now.getDate() + diffToMonday);
+      const sunday = new Date(monday.getFullYear(), monday.getMonth(), monday.getDate() + 6);
+      from = formatLocalDate(monday);
+      to = formatLocalDate(sunday);
+    } else if (val === 'last_week') {
       const lw = getLastWeekRange();
       from = lw.fromDate;
       to = lw.toDate;
@@ -244,7 +253,7 @@ export function FinancialReportsDashboardScreen({ onNotify }: Props) {
 
   // Xác định xem khoảng thời gian hiện tại có phải là 1 tháng (chu kỳ ngắn) hay nhiều tháng
   const isSingleMonthPeriod = useMemo(() => {
-    if (selectedPeriod === 'last_week' || selectedPeriod === 'this_month' || selectedPeriod === 'last_month') return true;
+    if (selectedPeriod === 'this_week' || selectedPeriod === 'last_week' || selectedPeriod === 'this_month' || selectedPeriod === 'last_month') return true;
     if (!dateRange.fromDate || !dateRange.toDate) return true;
     const start = new Date(dateRange.fromDate);
     const end = new Date(dateRange.toDate);
@@ -256,18 +265,19 @@ export function FinancialReportsDashboardScreen({ onNotify }: Props) {
   const { currentPeriodLabel, periodShortLabel, currentReportYear } = useMemo(() => {
     const year = dateRange.toDate ? dateRange.toDate.split('-')[0] : new Date().getFullYear().toString();
 
-    if (selectedPeriod === 'last_week') {
+    if (selectedPeriod === 'this_week' || selectedPeriod === 'last_week') {
+      const baseLabel = selectedPeriod === 'this_week' ? 'Tuần này' : 'Tuần trước';
       if (dateRange.fromDate && dateRange.toDate) {
         const fParts = dateRange.fromDate.split('-');
         const tParts = dateRange.toDate.split('-');
         const rangeText = `${fParts[2]}/${fParts[1]} - ${tParts[2]}/${tParts[1]}`;
         return {
-          currentPeriodLabel: `Tuần trước (${rangeText})`,
+          currentPeriodLabel: `${baseLabel} (${rangeText})`,
           periodShortLabel: rangeText,
           currentReportYear: year,
         };
       }
-      return { currentPeriodLabel: 'Tuần trước', periodShortLabel: 'Tuần trước', currentReportYear: year };
+      return { currentPeriodLabel: baseLabel, periodShortLabel: baseLabel, currentReportYear: year };
     }
 
     if (selectedPeriod === 'this_month') {
@@ -373,7 +383,7 @@ export function FinancialReportsDashboardScreen({ onNotify }: Props) {
         try {
           const ledger = await groupApi.getSpendRequests(user.childWalletGroupId, user.childWalletId);
           const approvedLedger = ledger.filter(item => item.status === 'APPROVED');
-          
+
           // Lọc theo ngày dateRange nếu có
           const filteredLedger = approvedLedger.filter(item => {
             const itemDate = item.createdAt ? item.createdAt.slice(0, 10) : '';
@@ -1342,13 +1352,23 @@ export function FinancialReportsDashboardScreen({ onNotify }: Props) {
     return Math.max(-100, Math.min(100, Math.round(rate)));
   }, [summary.totalIncome, summary.totalExpense]);
 
-  // Chuẩn bị max cho Bar chart xu hướng
+  // Chuẩn bị max cho Bar chart xu hướng theo từng chế độ Thu / Chi để không bị lệch tỷ lệ
   const maxBarValue = useMemo(() => {
-    if (!trendData.length) return 10_000_000;
+    if (!trendData.length) return 1_000_000;
     const maxVal = Math.max(
-      ...trendData.map(d => Math.max(d.income, d.expense))
+      ...trendData.map(d => (cashflowChartMode === 'INCOME' ? d.income : d.expense))
     );
-    return maxVal > 0 ? maxVal * 1.15 : 10_000_000;
+    return maxVal > 0 ? maxVal * 1.15 : 1_000_000;
+  }, [trendData, cashflowChartMode]);
+
+  const peakIncomePeriod = useMemo(() => {
+    let best: { date: string; income: number } | null = null;
+    for (const d of trendData) {
+      if (d.income > 0 && (!best || d.income > best.income)) {
+        best = { date: d.date, income: d.income };
+      }
+    }
+    return best;
   }, [trendData]);
 
   const visibleTransactions = topTransactions.slice(0, 5);
@@ -1402,8 +1422,8 @@ export function FinancialReportsDashboardScreen({ onNotify }: Props) {
       {/* HÀNG 2: THANH BỘ LỌC DỮ LIỆU - CHIỀU CAO ĐỒNG BỘ 44PX (H-11), ĐẸP MẮT CẢ SÁNG VÀ TỐI */}
       <section className="reports-filter-container grid grid-cols-1 gap-2.5 md:grid-cols-12 md:items-center">
         {/* Nhóm 1: Preset Buttons (chiều cao chuẩn h-11 bằng 2 ô bên cạnh) */}
-        <div className="reports-preset-group md:col-span-5">
-          {PRESET_PERIODS.slice(0, 4).map(p => (
+        <div className="reports-preset-group md:col-span-12 lg:col-span-7">
+          {PRESET_PERIODS.slice(0, 6).map(p => (
             <button
               key={p.value}
               type="button"
@@ -1415,10 +1435,10 @@ export function FinancialReportsDashboardScreen({ onNotify }: Props) {
           ))}
         </div>
 
-        {/* Nhóm 2: Date Picker Input (chiều cao chuẩn h-11) */}
-        <div className="reports-date-picker-box md:col-span-4 flex items-center gap-2">
-          <FinanceIcon name="calendar" size={16} className="text-[#007F53] dark:text-[#34d399] shrink-0" />
-          <div className="flex-1">
+        {/* Nhóm 2: Date Picker Input (gọn gàng, bỏ 2 icon lịch thừa bên trong) */}
+        <div className="reports-date-picker-box md:col-span-7 lg:col-span-3 flex items-center gap-1.5">
+          <FinanceIcon name="calendar" size={15} className="text-[#007F53] dark:text-[#34d399] shrink-0" />
+          <div className="flex-1 min-w-0">
             <DatePicker
               value={dateRange.fromDate}
               onChange={(newVal) => {
@@ -1426,10 +1446,12 @@ export function FinancialReportsDashboardScreen({ onNotify }: Props) {
                 setDateRange(prev => ({ ...prev, fromDate: newVal }));
               }}
               placeholder="Từ ngày"
+              hideIcon
+              className="!px-2 !py-1.5 !text-xs !justify-center !rounded-lg"
             />
           </div>
-          <span className="text-[#007F53] dark:text-[#34d399] font-bold select-none">→</span>
-          <div className="flex-1">
+          <span className="text-[#007F53] dark:text-[#34d399] font-bold text-xs select-none shrink-0">→</span>
+          <div className="flex-1 min-w-0">
             <DatePicker
               value={dateRange.toDate}
               onChange={(newVal) => {
@@ -1437,12 +1459,14 @@ export function FinancialReportsDashboardScreen({ onNotify }: Props) {
                 setDateRange(prev => ({ ...prev, toDate: newVal }));
               }}
               placeholder="Đến ngày"
+              hideIcon
+              className="!px-2 !py-1.5 !text-xs !justify-center !rounded-lg"
             />
           </div>
         </div>
 
-        {/* Nhóm 3: Account / Wallet Filter - Custom Dropdown cao cấp, hỗ trợ Dark/Light mode và icon */}
-        <div className="md:col-span-3 relative" ref={walletDropdownRef}>
+        {/* Nhóm 3: Account / Wallet Filter - Thu gọn nhẹ trên desktop để nhường chỗ cho thanh ngày */}
+        <div className="md:col-span-5 lg:col-span-2 relative" ref={walletDropdownRef}>
           <button
             type="button"
             onClick={() => setIsWalletDropdownOpen((prev) => !prev)}
@@ -1762,8 +1786,8 @@ export function FinancialReportsDashboardScreen({ onNotify }: Props) {
                     </span>
                   </header>
 
-                  <div className="mt-2 w-full">
-                    <table className="reports-table w-full text-xs">
+                  <div className="mt-2 w-full overflow-x-auto">
+                    <table className="reports-table w-full text-xs min-w-[580px]">
                       <thead>
                         <tr>
                           <th className="px-3 py-2.5 text-left text-[11px] whitespace-nowrap min-w-[130px]">Danh mục</th>
@@ -1884,8 +1908,8 @@ export function FinancialReportsDashboardScreen({ onNotify }: Props) {
                 </span>
               </header>
 
-              <div className="w-full">
-                <table className="reports-table w-full text-xs">
+              <div className="w-full overflow-x-auto">
+                <table className="reports-table w-full text-xs min-w-[640px]">
                   <thead>
                     <tr>
                       <th className="px-3 py-2.5 text-left text-[11px] whitespace-nowrap min-w-[130px]">Danh mục</th>
@@ -1927,10 +1951,10 @@ export function FinancialReportsDashboardScreen({ onNotify }: Props) {
                             </td>
                             <td className="px-1.5 py-2.5 text-center whitespace-nowrap">
                               <span className={`inline-flex items-center rounded-md px-2 py-0.5 text-[11px] font-bold ${isUp
-                                  ? 'bg-rose-100 text-rose-700 dark:bg-rose-950/50 dark:text-rose-300'
-                                  : isSame
-                                    ? 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300'
-                                    : 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300'
+                                ? 'bg-rose-100 text-rose-700 dark:bg-rose-950/50 dark:text-rose-300'
+                                : isSame
+                                  ? 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300'
+                                  : 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300'
                                 }`}>
                                 {isUp ? '↑ +' : isSame ? '' : '↓ '}{item.pctChange}%
                               </span>
@@ -1963,60 +1987,94 @@ export function FinancialReportsDashboardScreen({ onNotify }: Props) {
                 <header className="flex flex-col justify-between gap-2 sm:flex-row sm:items-center">
                   <div>
                     <h2 className="reports-title-dark text-base sm:text-lg">
-                      {isSingleMonthPeriod ? `Biến động Thu - Chi Theo Ngày (${formatDateToVN(dateRange.fromDate)} → ${formatDateToVN(dateRange.toDate)})` : `Biến động Thu - Chi Theo Tháng (Năm ${currentReportYear})`}
+                      {cashflowChartMode === 'INCOME'
+                        ? (isSingleMonthPeriod ? `Biến động Thu Nhập Theo Ngày (${formatDateToVN(dateRange.fromDate)} → ${formatDateToVN(dateRange.toDate)})` : `Biến động Thu Nhập Theo Tháng (Năm ${currentReportYear})`)
+                        : (isSingleMonthPeriod ? `Biến động Chi Tiêu Theo Ngày (${formatDateToVN(dateRange.fromDate)} → ${formatDateToVN(dateRange.toDate)})` : `Biến động Chi Tiêu Theo Tháng (Năm ${currentReportYear})`)}
                     </h2>
                     <p className="reports-subtitle text-xs">
-                      {isSingleMonthPeriod ? 'Chi tiết dòng tiền vào và ra toàn bộ các ngày trong kỳ' : 'Đối chiếu dòng tiền vào và ra qua các chu kỳ tháng'}
+                      {cashflowChartMode === 'INCOME'
+                        ? (isSingleMonthPeriod ? 'Chi tiết dòng tiền thu vào toàn bộ các ngày trong kỳ' : 'Theo dõi dòng tiền thu vào qua các chu kỳ tháng')
+                        : (isSingleMonthPeriod ? 'Chi tiết dòng tiền chi ra toàn bộ các ngày trong kỳ' : 'Theo dõi dòng tiền chi ra qua các chu kỳ tháng')}
                     </p>
                   </div>
-                  <div className="reports-legend-pill">
-                    <span className="flex items-center gap-1.5"><i className="size-2.5 rounded-full" style={{ backgroundColor: '#007F53' }} />Thu</span>
-                    <span className="flex items-center gap-1.5"><i className="size-2.5 rounded-full" style={{ backgroundColor: '#e11d48' }} />Chi</span>
+                  <div className="inline-flex items-center self-start sm:self-auto rounded-xl bg-[#F1F5F9] dark:bg-slate-800/90 p-1 gap-1 border border-[#E2E8F0] dark:border-slate-700" role="tablist" aria-label="Chọn biểu đồ Thu hoặc Chi">
+                    <button
+                      type="button"
+                      role="tab"
+                      aria-selected={cashflowChartMode === 'EXPENSE'}
+                      onClick={() => setCashflowChartMode('EXPENSE')}
+                      className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold transition cursor-pointer ${cashflowChartMode === 'EXPENSE'
+                          ? 'bg-[#e11d48] text-white shadow-xs'
+                          : 'text-[#475569] dark:text-slate-300 hover:text-[#e11d48] dark:hover:text-rose-400 hover:bg-white/70 dark:hover:bg-slate-700/70'
+                        }`}
+                    >
+                      <i className={`size-2 rounded-full ${cashflowChartMode === 'EXPENSE' ? 'bg-white' : 'bg-[#e11d48]'}`} />
+                      Chi
+                    </button>
+                    <button
+                      type="button"
+                      role="tab"
+                      aria-selected={cashflowChartMode === 'INCOME'}
+                      onClick={() => setCashflowChartMode('INCOME')}
+                      className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold transition cursor-pointer ${cashflowChartMode === 'INCOME'
+                          ? 'bg-[#007F53] text-white shadow-xs'
+                          : 'text-[#475569] dark:text-slate-300 hover:text-[#007F53] dark:hover:text-emerald-400 hover:bg-white/70 dark:hover:bg-slate-700/70'
+                        }`}
+                    >
+                      <i className={`size-2 rounded-full ${cashflowChartMode === 'INCOME' ? 'bg-white' : 'bg-[#007F53]'}`} />
+                      Thu
+                    </button>
                   </div>
                 </header>
 
                 {/* BIỂU ĐỒ BAR CHART RỘNG RÃI */}
-                <div className="relative mt-6 h-[260px] sm:h-[280px]" role="img" aria-label="Biểu đồ thu chi">
-                  {/* Trục kẻ ngang */}
-                  <div className="absolute inset-0 flex flex-col justify-between pb-7 text-[11px] font-semibold text-[#5d7568] dark:text-[#94A3B8]">
-                    {[maxBarValue, maxBarValue * 0.75, maxBarValue * 0.5, maxBarValue * 0.25, 0].map((v, i) => (
-                      <div key={i} className="flex items-center gap-2">
-                        <span className="w-10 text-right">{formatShortCurrency(v)}</span>
+                <div className="relative mt-6 h-[260px] sm:h-[280px]" role="img" aria-label={cashflowChartMode === 'INCOME' ? 'Biểu đồ thu nhập' : 'Biểu đồ chi tiêu'}>
+                  {/* Trục kẻ ngang căn chính xác tuyệt đối với đáy và đỉnh vùng cột (top-2 bottom-8) */}
+                  <div className="pointer-events-none absolute inset-x-0 bottom-8 top-2">
+                    {[
+                      { val: maxBarValue, pct: 0 },
+                      { val: maxBarValue * 0.75, pct: 25 },
+                      { val: maxBarValue * 0.5, pct: 50 },
+                      { val: maxBarValue * 0.25, pct: 75 },
+                      { val: 0, pct: 100 },
+                    ].map((tick, i) => (
+                      <div
+                        key={i}
+                        className="absolute left-0 right-0 flex -translate-y-1/2 items-center gap-2 text-[11px] font-semibold text-[#5d7568] dark:text-[#94A3B8]"
+                        style={{ top: `${tick.pct}%` }}
+                      >
+                        <span className="w-10 text-right leading-none">{formatShortCurrency(tick.val)}</span>
                         <span className="reports-chart-line" />
                       </div>
                     ))}
                   </div>
 
-                  {/* Vùng cột dữ liệu */}
-                  <div className="absolute bottom-7 left-12 right-0 top-0 flex items-end gap-0.5 sm:gap-1">
+                  {/* Vùng cột dữ liệu khớp 100% khung top-2 bottom-8 của lưới */}
+                  <div className="absolute bottom-8 left-12 right-0 top-2 flex items-end gap-0.5 sm:gap-1">
                     {trendData.length === 0 ? (
                       <div className="flex h-full w-full items-center justify-center text-xs font-medium text-[#5d7568] dark:text-[#94A3B8]">
                         Chưa có dữ liệu chu kỳ
                       </div>
                     ) : (
                       trendData.map((item) => {
-                        const incomePct = Math.min(100, Math.max(3, (item.income / maxBarValue) * 100));
-                        const expensePct = Math.min(100, Math.max(3, (item.expense / maxBarValue) * 100));
+                        const isIncomeMode = cashflowChartMode === 'INCOME';
+                        const val = isIncomeMode ? item.income : item.expense;
+                        const pct = Math.min(100, Math.max(3, (val / maxBarValue) * 100));
+                        const barColor = isIncomeMode
+                          ? (val > 0 ? '#007F53' : '#d1fae5')
+                          : (val > 0 ? '#e11d48' : '#ffe4e6');
                         return (
                           <div
                             key={item.date}
-                            className="flex h-full flex-1 min-w-0 items-end justify-center gap-0.5 group cursor-pointer"
-                            title={`${item.date}: Thu ${formatCurrency(item.income)} | Chi ${formatCurrency(item.expense)}`}
+                            className="flex h-full flex-1 min-w-0 items-end justify-center group cursor-pointer"
+                            title={`${formatChartDateLabel(item.date)}: ${isIncomeMode ? 'Thu' : 'Chi'} ${formatCurrency(val)}`}
                           >
                             <span
-                              className="w-[45%] rounded-t-sm transition-all group-hover:brightness-110 shadow-xs"
+                              className="w-[65%] max-w-[26px] rounded-t-sm transition-all group-hover:brightness-110 shadow-xs"
                               style={{
-                                height: item.income > 0 ? `${incomePct}%` : '2px',
-                                backgroundColor: item.income > 0 ? '#007F53' : '#d1fae5',
-                                opacity: item.income > 0 ? 1 : 0.4
-                              }}
-                            />
-                            <span
-                              className="w-[45%] rounded-t-sm transition-all group-hover:brightness-110 shadow-xs"
-                              style={{
-                                height: item.expense > 0 ? `${expensePct}%` : '2px',
-                                backgroundColor: item.expense > 0 ? '#e11d48' : '#ffe4e6',
-                                opacity: item.expense > 0 ? 1 : 0.4
+                                height: val > 0 ? `${pct}%` : '2px',
+                                backgroundColor: barColor,
+                                opacity: val > 0 ? 1 : 0.35
                               }}
                             />
                           </div>
@@ -2025,42 +2083,52 @@ export function FinancialReportsDashboardScreen({ onNotify }: Props) {
                     )}
                   </div>
 
-                  {/* Trục hoành nhãn mốc ngày/tháng */}
-                  <div className="absolute bottom-0 left-12 right-0 flex justify-between text-[10px] font-bold text-[#5d7568] dark:text-[#94A3B8]">
-                    {trendData.length <= 12 ? (
-                      trendData.map(item => (
-                        <span key={item.date} className="truncate">{formatChartDateLabel(item.date)}</span>
-                      ))
-                    ) : (
-                      <>
-                        <span>{formatChartDateLabel(trendData[0]?.date || '')}</span>
-                        {trendData[Math.floor(trendData.length * 0.25)] && (
-                          <span>{formatChartDateLabel(trendData[Math.floor(trendData.length * 0.25)].date)}</span>
-                        )}
-                        {trendData[Math.floor(trendData.length * 0.5)] && (
-                          <span>{formatChartDateLabel(trendData[Math.floor(trendData.length * 0.5)].date)}</span>
-                        )}
-                        {trendData[Math.floor(trendData.length * 0.75)] && (
-                          <span>{formatChartDateLabel(trendData[Math.floor(trendData.length * 0.75)].date)}</span>
-                        )}
-                        <span className="font-extrabold text-[#007F53] dark:text-[#34d399]">
-                          {formatChartDateLabel(trendData[trendData.length - 1]?.date || '')}
-                        </span>
-                      </>
-                    )}
+                  {/* Trục hoành nhãn mốc ngày/tháng căn thẳng hàng chính xác dưới từng cột */}
+                  <div className="absolute bottom-0 left-12 right-0 flex items-center gap-0.5 sm:gap-1 text-[10px] font-bold text-[#5d7568] dark:text-[#94A3B8]">
+                    {trendData.map((item, idx) => {
+                      const isLast = idx === trendData.length - 1;
+                      const showLabel =
+                        trendData.length <= 15 ||
+                        idx === 0 ||
+                        isLast ||
+                        (idx % 5 === 0 && trendData.length - 1 - idx >= 3);
+                      return (
+                        <div key={item.date} className="flex-1 min-w-0 flex justify-center overflow-visible">
+                          {showLabel && (
+                            <span
+                              className={`whitespace-nowrap ${
+                                isLast ? 'font-extrabold text-[#007F53] dark:text-[#34d399]' : ''
+                              }`}
+                            >
+                              {formatChartDateLabel(item.date)}
+                            </span>
+                          )}
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
               </div>
 
               {/* Chú thích chân biểu đồ */}
               <footer className="reports-sub-footer mt-4">
-                <span className="flex items-center gap-1.5 truncate">
-                  <FinanceIcon name="trend" size={14} className="text-[#007F53] dark:text-[#34d399] shrink-0" />
-                  <span className="text-[#334155] dark:text-[#94a3b8] font-bold">Khoản chi lớn nhất:</span>
-                  <strong className="text-[#0f172a] dark:text-white truncate font-extrabold ml-1">
-                    {summary.largestExpense ? `${summary.largestExpense.description || 'Chi tiêu'} (${formatCurrency(summary.largestExpense.amount)})` : 'Không có'}
-                  </strong>
-                </span>
+                {cashflowChartMode === 'EXPENSE' ? (
+                  <span className="flex items-center gap-1.5 truncate">
+                    <FinanceIcon name="trend" size={14} className="text-[#e11d48] dark:text-rose-400 shrink-0" />
+                    <span className="text-[#334155] dark:text-[#94a3b8] font-bold">Khoản chi lớn nhất:</span>
+                    <strong className="text-[#0f172a] dark:text-white truncate font-extrabold ml-1">
+                      {summary.largestExpense ? `${summary.largestExpense.description || 'Chi tiêu'} (${formatCurrency(summary.largestExpense.amount)})` : 'Không có'}
+                    </strong>
+                  </span>
+                ) : (
+                  <span className="flex items-center gap-1.5 truncate">
+                    <FinanceIcon name="trend" size={14} className="text-[#007F53] dark:text-[#34d399] shrink-0" />
+                    <span className="text-[#334155] dark:text-[#94a3b8] font-bold">Mốc thu cao nhất:</span>
+                    <strong className="text-[#0f172a] dark:text-white truncate font-extrabold ml-1">
+                      {peakIncomePeriod ? `${formatChartDateLabel(peakIncomePeriod.date)} (${formatCurrency(peakIncomePeriod.income)})` : 'Không có'}
+                    </strong>
+                  </span>
+                )}
               </footer>
             </article>
 

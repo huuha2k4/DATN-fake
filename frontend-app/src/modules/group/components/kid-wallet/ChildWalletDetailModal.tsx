@@ -488,8 +488,18 @@ export const ChildWalletDetailModal: React.FC<ChildWalletDetailModalProps> = ({
     (r) => !r.description?.startsWith('[MONEY_REQUEST] ') && r.status !== 'PENDING'
   );
 
+  const handleParentRequestClose = () => {
+    if (isResetPassModalOpen) { setIsResetPassModalOpen(false); return; }
+    if (showAccountPickerModal) { setShowAccountPickerModal(false); return; }
+    if (isCreateSpendOpen) { setIsCreateSpendOpen(false); return; }
+    if (isCreateChoreOpen) { setIsCreateChoreOpen(false); return; }
+    if (rejectingReq) { setRejectingReq(null); return; }
+    if (approvingReq) { setApprovingReq(null); return; }
+    onClose();
+  };
+
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={handleParentRequestClose}>
       <KeyboardAvoidingView
         style={styles.modalOverlay}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
@@ -815,12 +825,12 @@ export const ChildWalletDetailModal: React.FC<ChildWalletDetailModalProps> = ({
                                 <Text style={[styles.itemDateText, isDark && { color: themeColors.textSecondary }]}>
                                   {req.createdAt
                                     ? new Date(req.createdAt).toLocaleString('vi-VN', {
-                                        hour: '2-digit',
-                                        minute: '2-digit',
-                                        day: '2-digit',
-                                        month: '2-digit',
-                                        year: 'numeric',
-                                      })
+                                      hour: '2-digit',
+                                      minute: '2-digit',
+                                      day: '2-digit',
+                                      month: '2-digit',
+                                      year: 'numeric',
+                                    })
                                     : 'Vừa xong'}
                                 </Text>
                               </View>
@@ -907,8 +917,8 @@ export const ChildWalletDetailModal: React.FC<ChildWalletDetailModalProps> = ({
                       const iconName = isDeposit
                         ? 'wallet'
                         : isChoreReward
-                        ? 'star'
-                        : resolveCategoryIconName(req.categoryIcon || req.category?.icon, 'EXPENSE', `${req.categoryName || req.category?.name || ''} ${cleanDesc}`);
+                          ? 'star'
+                          : resolveCategoryIconName(req.categoryIcon || req.category?.icon, 'EXPENSE', `${req.categoryName || req.category?.name || ''} ${cleanDesc}`);
 
                       return (
                         <View
@@ -982,12 +992,12 @@ export const ChildWalletDetailModal: React.FC<ChildWalletDetailModalProps> = ({
                               <Text style={[styles.itemDateText, isDark && { color: themeColors.textSecondary }]}>
                                 {req.createdAt
                                   ? new Date(req.createdAt).toLocaleString('vi-VN', {
-                                      hour: '2-digit',
-                                      minute: '2-digit',
-                                      day: '2-digit',
-                                      month: '2-digit',
-                                      year: 'numeric',
-                                    })
+                                    hour: '2-digit',
+                                    minute: '2-digit',
+                                    day: '2-digit',
+                                    month: '2-digit',
+                                    year: 'numeric',
+                                  })
                                   : 'Gần đây'}
                               </Text>
                             </View>
@@ -1303,7 +1313,7 @@ export const ChildWalletDetailModal: React.FC<ChildWalletDetailModalProps> = ({
                     ]}
                   >
                     <Text style={[styles.inputLabel, isDark && { color: themeColors.textSecondary }]}>Ảnh đại diện ví của bé</Text>
-                    
+
                     <View style={styles.avatarPreviewRow}>
                       <View style={styles.avatarCircleWrap}>
                         <Image
@@ -1551,7 +1561,7 @@ export const ChildWalletDetailModal: React.FC<ChildWalletDetailModalProps> = ({
 
       {/* MODAL DUYỆT CẤP TIỀN CHO BÉ (CHUẨN WEB: CHỌN NGUỒN TIỀN) */}
       {approvingReq && (
-        <Modal visible={true} transparent animationType="fade" onRequestClose={() => setApprovingReq(null)}>
+        <View style={[StyleSheet.absoluteFill, { zIndex: 9999, elevation: 9999 }]}>
           <View style={styles.subModalOverlay}>
             <View style={[styles.subModalCard, isDark && { backgroundColor: themeColors.surface, borderColor: themeColors.cardBorder }]}>
               <Text style={[styles.subModalTitle, isDark && { color: themeColors.textPrimary }]}>
@@ -1641,12 +1651,12 @@ export const ChildWalletDetailModal: React.FC<ChildWalletDetailModalProps> = ({
               </View>
             </View>
           </View>
-        </Modal>
+        </View>
       )}
 
       {/* MODAL TỪ CHỐI YÊU CẦU (KÈM LÝ DO) */}
       {rejectingReq && (
-        <Modal visible={true} transparent animationType="fade" onRequestClose={() => setRejectingReq(null)}>
+        <View style={[StyleSheet.absoluteFill, { zIndex: 9999, elevation: 9999 }]}>
           <View style={styles.subModalOverlay}>
             <View style={[styles.subModalCard, isDark && { backgroundColor: themeColors.surface, borderColor: themeColors.cardBorder }]}>
               <Text style={[styles.subModalTitle, isDark && { color: themeColors.textPrimary }]}>Từ chối yêu cầu xin tiền</Text>
@@ -1694,12 +1704,12 @@ export const ChildWalletDetailModal: React.FC<ChildWalletDetailModalProps> = ({
               </View>
             </View>
           </View>
-        </Modal>
+        </View>
       )}
 
       {/* MODAL GIAO NHIỆM VỤ MỚI CHO BÉ */}
       {isCreateChoreOpen && (
-        <Modal visible={true} transparent animationType="slide" onRequestClose={() => setIsCreateChoreOpen(false)}>
+        <View style={[StyleSheet.absoluteFill, { zIndex: 9999, elevation: 9999 }]}>
           <View style={styles.subModalOverlay}>
             <View style={[styles.subModalCard, isDark && { backgroundColor: themeColors.surface, borderColor: themeColors.cardBorder }]}>
               <Text style={[styles.subModalTitle, isDark && { color: themeColors.textPrimary }]}>
@@ -1850,12 +1860,12 @@ export const ChildWalletDetailModal: React.FC<ChildWalletDetailModalProps> = ({
               </View>
             </View>
           </View>
-        </Modal>
+        </View>
       )}
 
       {/* MODAL GHI CHI TIÊU CHO BÉ (CHUẨN BẢN WEB) */}
       {isCreateSpendOpen && (
-        <Modal visible={true} transparent animationType="slide" onRequestClose={() => setIsCreateSpendOpen(false)}>
+        <View style={[StyleSheet.absoluteFill, { zIndex: 9999, elevation: 9999 }]}>
           <View style={styles.subModalOverlay}>
             <View style={[styles.subModalCard, isDark && { backgroundColor: themeColors.surface, borderColor: themeColors.cardBorder }]}>
               <Text style={[styles.subModalTitle, isDark && { color: themeColors.textPrimary }]}>
@@ -1931,87 +1941,85 @@ export const ChildWalletDetailModal: React.FC<ChildWalletDetailModalProps> = ({
               </View>
             </View>
           </View>
-        </Modal>
+        </View>
       )}
 
       {/* OVERLAY POPUP DROPDOWN CHỌN VÍ CÁ NHÂN (CHUẨN FORM TRANG NỢ) */}
       {showAccountPickerModal && (
-        <Modal visible={true} transparent animationType="fade" onRequestClose={() => setShowAccountPickerModal(false)}>
-          <View style={[StyleSheet.absoluteFill, styles.pickerModalBackdrop, { zIndex: 9999, elevation: 9999 }]}>
-            <Pressable
-              style={StyleSheet.absoluteFill}
-              onPress={() => setShowAccountPickerModal(false)}
-            />
+        <View style={[StyleSheet.absoluteFill, styles.pickerModalBackdrop, { zIndex: 9999, elevation: 9999 }]}>
+          <Pressable
+            style={StyleSheet.absoluteFill}
+            onPress={() => setShowAccountPickerModal(false)}
+          />
+          <View
+            style={[
+              styles.pickerModalBox,
+              isDark && {
+                backgroundColor: themeColors.surface,
+                borderColor: themeColors.cardBorder,
+                borderWidth: 1,
+              },
+            ]}
+          >
             <View
               style={[
-                styles.pickerModalBox,
-                isDark && {
-                  backgroundColor: themeColors.surface,
-                  borderColor: themeColors.cardBorder,
-                  borderWidth: 1,
-                },
+                styles.pickerModalHeader,
+                isDark && { borderBottomColor: themeColors.divider },
               ]}
             >
-              <View
-                style={[
-                  styles.pickerModalHeader,
-                  isDark && { borderBottomColor: themeColors.divider },
-                ]}
-              >
-                <Text style={[styles.pickerModalTitle, isDark && { color: themeColors.textPrimary }]}>
-                  Chọn nguồn ví trích tiền
-                </Text>
-                <Pressable onPress={() => setShowAccountPickerModal(false)} hitSlop={10}>
-                  <FinanceIcon name="close" size={18} color={isDark ? themeColors.textSecondary : '#64748B'} />
-                </Pressable>
-              </View>
-
-              <ScrollView style={{ maxHeight: 360 }} showsVerticalScrollIndicator={false}>
-                {(accounts || []).map((acc) => {
-                  const isSelected = (selectedAccountId || (accounts && accounts[0]?.id)) === acc.id;
-                  return (
-                    <Pressable
-                      key={acc.id}
-                      onPress={() => {
-                        setSelectedAccountId(acc.id);
-                        setShowAccountPickerModal(false);
-                      }}
-                      style={[
-                        styles.pickerItemRow,
-                        isDark && { borderBottomColor: themeColors.divider },
-                        isSelected && (isDark ? { backgroundColor: 'rgba(52, 211, 153, 0.15)' } : styles.pickerItemRowActive),
-                      ]}
-                    >
-                      <AccountBadge account={acc} size={36} />
-                      <View style={{ flex: 1, marginLeft: 12 }}>
-                        <Text
-                          style={[
-                            styles.pickerItemText,
-                            isDark && { color: themeColors.textPrimary },
-                            isSelected && (isDark ? { color: themeColors.accentGreen, fontWeight: '800' } : styles.pickerItemTextActive),
-                          ]}
-                        >
-                          {acc.name}
-                        </Text>
-                        <Text style={[styles.pickerItemSub, isDark && { color: themeColors.textSecondary }]}>
-                          Số dư: <Text style={{ color: isDark ? themeColors.accentGreen : '#059669', fontWeight: '800' }}>{formatVND(acc.balance)} đ</Text>
-                        </Text>
-                      </View>
-                      {isSelected && (
-                        <FinanceIcon name="check" size={18} color={isDark ? themeColors.accentGreen : '#0E964E'} />
-                      )}
-                    </Pressable>
-                  );
-                })}
-              </ScrollView>
+              <Text style={[styles.pickerModalTitle, isDark && { color: themeColors.textPrimary }]}>
+                Chọn nguồn ví trích tiền
+              </Text>
+              <Pressable onPress={() => setShowAccountPickerModal(false)} hitSlop={10}>
+                <FinanceIcon name="close" size={18} color={isDark ? themeColors.textSecondary : '#64748B'} />
+              </Pressable>
             </View>
+
+            <ScrollView style={{ maxHeight: 360 }} showsVerticalScrollIndicator={false}>
+              {(accounts || []).map((acc) => {
+                const isSelected = (selectedAccountId || (accounts && accounts[0]?.id)) === acc.id;
+                return (
+                  <Pressable
+                    key={acc.id}
+                    onPress={() => {
+                      setSelectedAccountId(acc.id);
+                      setShowAccountPickerModal(false);
+                    }}
+                    style={[
+                      styles.pickerItemRow,
+                      isDark && { borderBottomColor: themeColors.divider },
+                      isSelected && (isDark ? { backgroundColor: 'rgba(52, 211, 153, 0.15)' } : styles.pickerItemRowActive),
+                    ]}
+                  >
+                    <AccountBadge account={acc} size={36} />
+                    <View style={{ flex: 1, marginLeft: 12 }}>
+                      <Text
+                        style={[
+                          styles.pickerItemText,
+                          isDark && { color: themeColors.textPrimary },
+                          isSelected && (isDark ? { color: themeColors.accentGreen, fontWeight: '800' } : styles.pickerItemTextActive),
+                        ]}
+                      >
+                        {acc.name}
+                      </Text>
+                      <Text style={[styles.pickerItemSub, isDark && { color: themeColors.textSecondary }]}>
+                        Số dư: <Text style={{ color: isDark ? themeColors.accentGreen : '#059669', fontWeight: '800' }}>{formatVND(acc.balance)} đ</Text>
+                      </Text>
+                    </View>
+                    {isSelected && (
+                      <FinanceIcon name="check" size={18} color={isDark ? themeColors.accentGreen : '#0E964E'} />
+                    )}
+                  </Pressable>
+                );
+              })}
+            </ScrollView>
           </View>
-        </Modal>
+        </View>
       )}
 
       {/* Modal 6: Đặt lại mật khẩu cho tài khoản con (Kids Mode) */}
       {isResetPassModalOpen && (
-        <Modal visible={true} transparent animationType="fade" onRequestClose={() => setIsResetPassModalOpen(false)}>
+        <View style={[StyleSheet.absoluteFill, { zIndex: 9999, elevation: 9999 }]}>
           <View style={styles.subModalOverlay}>
             <View style={[styles.subModalCard, isDark && { backgroundColor: themeColors.surface, borderColor: themeColors.cardBorder }]}>
               <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
@@ -2119,7 +2127,7 @@ export const ChildWalletDetailModal: React.FC<ChildWalletDetailModalProps> = ({
               </View>
             </View>
           </View>
-        </Modal>
+        </View>
       )}
     </Modal>
   );

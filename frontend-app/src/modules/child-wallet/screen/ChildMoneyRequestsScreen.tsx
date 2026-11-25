@@ -10,6 +10,8 @@ import {
   ActivityIndicator,
   Modal,
   Image,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { ChevronLeft, Clock, Plus, CheckCircle2, XCircle, Hourglass, Wallet } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -474,8 +476,8 @@ export function ChildMoneyRequestsScreen({ onBack }: Props) {
       </ScrollView>
 
       {/* Modal Xin tiền */}
-      <Modal visible={showModal} transparent animationType="slide">
-        <View style={styles.sheetOverlay}>
+      <Modal visible={showModal} transparent animationType="slide" onRequestClose={() => setShowModal(false)}>
+        <KeyboardAvoidingView style={styles.sheetOverlay} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
           <Pressable style={styles.modalBackdrop} onPress={() => setShowModal(false)} />
           <View
             style={[
@@ -581,7 +583,7 @@ export function ChildMoneyRequestsScreen({ onBack }: Props) {
               </Pressable>
             </View>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
 
       {/* Modal Chi tiết Yêu cầu xin tiền */}

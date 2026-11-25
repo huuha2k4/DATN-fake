@@ -16,6 +16,7 @@ export const AdminUserManagementScreen: React.FC = () => {
 
   // Modal Sửa/Nâng cấp Người dùng
   const [editingUser, setEditingUser] = useState<AdminUserItem | null>(null);
+  const [editFullName, setEditFullName] = useState<string>('');
   const [editStatus, setEditStatus] = useState<string>('ACTIVE');
   const [editRole, setEditRole] = useState<string>('USER');
   const [editTier, setEditTier] = useState<string>('FREE');
@@ -67,6 +68,7 @@ export const AdminUserManagementScreen: React.FC = () => {
 
   const handleOpenEdit = (user: AdminUserItem) => {
     setEditingUser(user);
+    setEditFullName(user.fullName || '');
     setEditStatus(user.userStatus);
     setEditRole(user.systemRole);
     setEditTier(user.subscriptionTier);
@@ -80,6 +82,7 @@ export const AdminUserManagementScreen: React.FC = () => {
     try {
       setIsSubmitting(true);
       const updated = await adminApi.updateUser(editingUser.id, {
+        fullName: editFullName.trim() || undefined,
         userStatus: editStatus,
         systemRole: editRole,
         subscriptionTier: editTier,
@@ -216,7 +219,7 @@ export const AdminUserManagementScreen: React.FC = () => {
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
-              <tr className="border-b border-[#E2E8F0] dark:border-slate-800 bg-gray-50/70 dark:bg-slate-850/60 text-[11px] font-bold text-gray-500 dark:text-slate-400 uppercase tracking-wider">
+              <tr className="border-b border-[#E2E8F0] dark:border-slate-800 bg-gray-50/70 dark:bg-slate-900/60 text-[11px] font-bold text-gray-500 dark:text-slate-400 uppercase tracking-wider">
                 <th className="py-3 px-4">Người dùng</th>
                 <th className="py-3 px-4">Gói dịch vụ</th>
                 <th className="py-3 px-4">Vai trò</th>
@@ -436,7 +439,8 @@ export const AdminUserManagementScreen: React.FC = () => {
                 </label>
                 <input
                   type="text"
-                  defaultValue={editingUser.fullName}
+                  value={editFullName}
+                  onChange={(e) => setEditFullName(e.target.value)}
                   name="fullName"
                   className="w-full h-9 px-3 rounded-xl border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-800 text-xs text-gray-900 dark:text-slate-100"
                 />

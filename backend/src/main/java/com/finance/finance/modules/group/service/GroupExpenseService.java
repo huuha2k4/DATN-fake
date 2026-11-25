@@ -208,31 +208,27 @@ public class GroupExpenseService {
 
         expense = groupExpenseRepository.save(expense);
 
-        // Đồng bộ ngược lại sang Transaction cá nhân nếu chi tiêu nhóm được gắn personalTransactionId
+        // Đồng bộ ngược lại sang Transaction cá nhân nếu chi tiêu nhóm được gắn personalTransactionId (fail-fast để rollback đồng bộ)
         if (expense.getPersonalTransactionId() != null) {
-            try {
-                final GroupExpense expFinal = expense;
-                transactionRepository.findById(expense.getPersonalTransactionId()).ifPresent(tx -> {
-                    boolean changed = false;
-                    if (request.getAmount() != null) {
-                        tx.setAmount(request.getAmount());
-                        changed = true;
-                    }
-                    if (request.getDescription() != null) {
-                        tx.setDescriptionRaw("Chi cho nhóm: " + expFinal.getDescription());
-                        changed = true;
-                    }
-                    if (request.getExpenseDate() != null) {
-                        tx.setOccurredDate(request.getExpenseDate());
-                        changed = true;
-                    }
-                    if (changed) {
-                        transactionRepository.save(tx);
-                    }
-                });
-            } catch (Exception ex) {
-                log.error("Failed to sync personal transaction on group expense update", ex);
-            }
+            final GroupExpense expFinal = expense;
+            transactionRepository.findById(expense.getPersonalTransactionId()).ifPresent(tx -> {
+                boolean changed = false;
+                if (request.getAmount() != null) {
+                    tx.setAmount(request.getAmount());
+                    changed = true;
+                }
+                if (request.getDescription() != null) {
+                    tx.setDescriptionRaw("Chi cho nhóm: " + expFinal.getDescription());
+                    changed = true;
+                }
+                if (request.getExpenseDate() != null) {
+                    tx.setOccurredDate(request.getExpenseDate());
+                    changed = true;
+                }
+                if (changed) {
+                    transactionRepository.save(tx);
+                }
+            });
         }
 
         // Update splits if provided

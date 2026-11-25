@@ -57,11 +57,12 @@ export const AdminOcrManagementScreen: React.FC = () => {
   const receipts = data?.recentReceipts || [];
 
   const filteredReceipts = receipts.filter((r) => {
+    const q = search.trim().toLowerCase();
     const matchSearch =
-      !search.trim() ||
-      r.merchantName.toLowerCase().includes(search.toLowerCase()) ||
-      r.userFullName.toLowerCase().includes(search.toLowerCase()) ||
-      r.userEmail.toLowerCase().includes(search.toLowerCase());
+      !q ||
+      (r.merchantName ?? '').toLowerCase().includes(q) ||
+      (r.userFullName ?? '').toLowerCase().includes(q) ||
+      (r.userEmail ?? '').toLowerCase().includes(q);
 
     const matchReview =
       reviewFilter === 'ALL' ||
@@ -116,7 +117,7 @@ export const AdminOcrManagementScreen: React.FC = () => {
           </div>
           <div className="my-2">
             <div className="text-3xl sm:text-[34px] font-black text-[#007F53] dark:text-emerald-400 tracking-tight">
-              {data ? `${Math.round((data.averageConfidence || 0.88) * 100)}%` : '0%'}
+              {data ? `${Math.round((data.averageConfidence ?? 0) * 100)}%` : '0%'}
             </div>
           </div>
           <div className="text-xs text-[#64748B] dark:text-slate-400">
@@ -214,7 +215,7 @@ export const AdminOcrManagementScreen: React.FC = () => {
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
-              <tr className="border-b border-[#E2E8F0] dark:border-slate-800 bg-gray-50/70 dark:bg-slate-850/60 text-[11px] font-bold text-gray-500 dark:text-slate-400 uppercase tracking-wider">
+              <tr className="border-b border-[#E2E8F0] dark:border-slate-800 bg-gray-50/70 dark:bg-slate-900/60 text-[11px] font-bold text-gray-500 dark:text-slate-400 uppercase tracking-wider">
                 <th className="py-3.5 px-5">Hóa đơn quét (Merchant)</th>
                 <th className="py-3.5 px-4">Người tải lên</th>
                 <th className="py-3.5 px-4">Phân loại AI</th>
@@ -322,7 +323,7 @@ export const AdminOcrManagementScreen: React.FC = () => {
 
         {/* Thanh phân trang Pagination */}
         {filteredReceipts.length > 0 && (
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-3 px-5 py-3 border-t border-[#E2E8F0] dark:border-slate-800 bg-gray-50/50 dark:bg-slate-850/40 text-xs">
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-3 px-5 py-3 border-t border-[#E2E8F0] dark:border-slate-800 bg-gray-50/50 dark:bg-slate-900/40 text-xs">
             <span className="text-gray-500 dark:text-slate-400 text-[11px]">
               Hiển thị <strong className="text-gray-800 dark:text-slate-200 font-bold">{(currentPage - 1) * pageSize + 1} - {Math.min(currentPage * pageSize, filteredReceipts.length)}</strong> trên tổng số <strong className="text-gray-800 dark:text-slate-200 font-bold">{filteredReceipts.length}</strong> hóa đơn
             </span>

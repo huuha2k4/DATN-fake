@@ -423,7 +423,7 @@ export function AIAssistantScreen({ onNotify }: { onNotify: (message: string) =>
               </div>
               <h1 className="welcome-title">Xin chào! Tôi có thể giúp gì cho bạn hôm nay?</h1>
               <p className="welcome-desc">
-                FinAI có thể tra cứu chi tiêu, dự báo số dư và **trực tiếp chuẩn bị giao dịch, ngân sách** theo yêu cầu của bạn.
+                FinAI có thể tra cứu chi tiêu, dự báo số dư và <strong>trực tiếp chuẩn bị giao dịch, ngân sách</strong> theo yêu cầu của bạn.
               </p>
 
               <div className="quick-prompts-grid">

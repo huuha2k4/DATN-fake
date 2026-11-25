@@ -406,7 +406,7 @@ export function AiAssistantScreen({ onBack }: Props) {
   return (
     <KeyboardAvoidingView
       style={[styles.screen, isDark && { backgroundColor: themeColors.background }]}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
       {/* ── 1. HEADER NỀN TRẮNG TINH TẾ ĐỒNG BỘ MẪU ── */}
       <View

@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type ChangeEvent, type DragEvent } from 'react';
 import { FinanceIcon } from '../../core/components/FinanceIcon';
+import { ConfirmDeleteModal } from '../../core/components/ConfirmDeleteModal';
 import { DatePicker } from '../../core/components/DatePicker';
 import { ocrApi, type OcrReceiptResult } from '../api/ocrApi';
 import { accountApi, type AccountItem } from '../../account-management/api/accountApi';
@@ -213,6 +214,7 @@ export function InvoiceOcrScreen({ onCancel, onNotify }: Props) {
 
       const reviewNote = result.needsReview ? ' — cần kiểm tra lại' : '';
       onNotify(`✅ Quét thành công: ${result.merchantName || file.name}${reviewNote}`);
+      setRecentReceipts((prev) => [result, ...prev.filter((item) => item.id !== result.id)]);
       reloadReceipts();
     } catch (err: any) {
       const msg = err?.response?.data?.message || err?.message || 'Không thể quét hóa đơn. Vui lòng thử lại.';
@@ -304,19 +306,30 @@ export function InvoiceOcrScreen({ onCancel, onNotify }: Props) {
     }
   };
 
+  const [receiptToDeleteId, setReceiptToDeleteId] = useState<string | null>(null);
+  const [isDeletingReceipt, setIsDeletingReceipt] = useState(false);
+
   // Delete a receipt from history
-  const handleDeleteReceipt = async (e: React.MouseEvent, id: string) => {
+  const handleDeleteReceipt = (e: React.MouseEvent, id: string) => {
     e.stopPropagation();
-    if (!confirm('Bạn có chắc chắn muốn xóa bản ghi hóa đơn này khỏi lịch sử?')) return;
+    setReceiptToDeleteId(id);
+  };
+
+  const confirmDeleteReceipt = async () => {
+    if (!receiptToDeleteId) return;
+    setIsDeletingReceipt(true);
     try {
-      await ocrApi.deleteReceipt(id);
+      await ocrApi.deleteReceipt(receiptToDeleteId);
       onNotify('Đã xóa hóa đơn khỏi lịch sử');
-      if (scanResult?.id === id) {
+      if (scanResult?.id === receiptToDeleteId) {
         resetCurrentScan();
       }
+      setReceiptToDeleteId(null);
       reloadReceipts();
     } catch {
       onNotify('Không thể xóa hóa đơn');
+    } finally {
+      setIsDeletingReceipt(false);
     }
   };
 
@@ -358,7 +371,7 @@ export function InvoiceOcrScreen({ onCancel, onNotify }: Props) {
   }, [recentReceipts, historySearch, historyTab]);
 
   return (
-    <main className="ocr-workspace-page mx-auto flex h-[calc(100vh-68px)] max-h-[calc(100vh-68px)] w-full flex-1 flex-col bg-[#F8FAFC] dark:bg-[#0B0F19] p-2 sm:p-3 lg:p-4 pb-6 sm:pb-6 text-[#0F172A] dark:text-slate-100 overflow-hidden">
+    <main className="ocr-workspace-page mx-auto flex min-h-[calc(100vh-68px)] lg:h-[calc(100vh-68px)] lg:max-h-[calc(100vh-68px)] w-full flex-1 flex-col bg-[#F8FAFC] dark:bg-[#0B0F19] p-2 sm:p-3 lg:p-4 pb-6 sm:pb-6 text-[#0F172A] dark:text-slate-100 overflow-y-auto lg:overflow-hidden">
       {/* Hidden File Input */}
       <input
         ref={fileInputRef}
@@ -369,7 +382,7 @@ export function InvoiceOcrScreen({ onCancel, onNotify }: Props) {
       />
 
       {/* TWO-COLUMN WORKSPACE: Clean, full-height, maximizing space */}
-      <div className="grid w-full h-full flex-1 gap-3 sm:gap-4 lg:grid-cols-12 items-stretch min-h-0 overflow-hidden">
+      <div className="grid w-full flex-1 gap-3 sm:gap-4 lg:grid-cols-12 items-stretch min-h-0">
         
         {/* LEFT COLUMN (6 COLS): Large Receipt Image Viewer / Upload Dropzone */}
         <div className="lg:col-span-6 xl:col-span-6 2xl:col-span-6 ocr-panel-card">
@@ -1055,10 +1068,11 @@ export function InvoiceOcrScreen({ onCancel, onNotify }: Props) {
             <button
               type="button"
               onClick={() => setLightboxOpen(false)}
-              className="size-9 rounded-full bg-white/20 hover:bg-white/35 text-white grid place-items-center transition backdrop-blur-sm cursor-pointer shadow-lg"
+              className="size-11 rounded-full bg-white/20 hover:bg-white/35 text-white grid place-items-center transition backdrop-blur-sm cursor-pointer shadow-lg"
               title="Đóng"
+              aria-label="Đóng xem ảnh hóa đơn"
             >
-              <FinanceIcon name="close" size={16} />
+              <FinanceIcon name="close" size={18} />
             </button>
           </div>
 
@@ -1072,6 +1086,16 @@ export function InvoiceOcrScreen({ onCancel, onNotify }: Props) {
           </div>
         </div>
       )}
+
+      <ConfirmDeleteModal
+        isOpen={Boolean(receiptToDeleteId)}
+        title="Xóa bản ghi hóa đơn?"
+        subtitle="Hành động này không thể hoàn tác"
+        message="Bạn có chắc chắn muốn xóa bản ghi hóa đơn này khỏi lịch sử?"
+        isDeleting={isDeletingReceipt}
+        onConfirm={confirmDeleteReceipt}
+        onClose={() => !isDeletingReceipt && setReceiptToDeleteId(null)}
+      />
     </main>
   );
 }

@@ -147,7 +147,7 @@ export const AdminAIManagementScreen: React.FC = () => {
             <span className="p-2 bg-teal-50 dark:bg-teal-950/40 text-teal-600 dark:text-teal-400 rounded-lg">🛡️</span>
           </div>
           <div className="mt-3 text-2xl font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-2">
-            <span>HOẠT ĐỘNG</span>
+            <span>{loading ? 'ĐANG KIỂM TRA...' : error ? 'MẤT KẾT NỐI' : data?.status ? String(data.status).toUpperCase() : 'KHÔNG XÁC ĐỊNH'}</span>
           </div>
           <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
             FastAPI :8000 · Dockerized

@@ -105,13 +105,13 @@ export const DateRangePicker: React.FC<WebDateRangePickerProps> = ({
       </div>
 
       {isOpen && (
-        <div className="absolute top-full left-0 z-50 mt-2 p-3 bg-white dark:bg-slate-900 rounded-2xl shadow-xl border border-slate-200 dark:border-slate-800 animate-in fade-in-50 zoom-in-95">
+        <div className="fixed left-3 right-3 sm:left-0 sm:right-auto sm:absolute top-auto sm:top-full z-50 mt-2 p-3 bg-white dark:bg-slate-900 rounded-2xl shadow-xl border border-slate-200 dark:border-slate-800 animate-in fade-in-50 zoom-in-95 max-w-[calc(100vw-24px)] overflow-x-auto">
           <DayPicker
             mode="range"
             selected={selectedRange}
             onSelect={handleSelect}
             locale={vi}
-            numberOfMonths={2}
+            numberOfMonths={typeof window !== 'undefined' && window.innerWidth < 640 ? 1 : 2}
             className="finora-calendar"
           />
         </div>

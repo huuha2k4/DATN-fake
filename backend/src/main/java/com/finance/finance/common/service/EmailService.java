@@ -559,7 +559,10 @@ public class EmailService {
         if ("ADMIN".equalsIgnoreCase(role)) roleText = "Quản trị viên";
         else if ("VIEWER".equalsIgnoreCase(role)) roleText = "Người theo dõi";
 
-        String groupLink = "https://finora.3congian.com/groups";
+        String baseUrl = (frontendUrl != null && !frontendUrl.isBlank() && !frontendUrl.contains("localhost"))
+                ? frontendUrl.replaceAll("/+$", "")
+                : "https://finora.3congian.top";
+        String groupLink = baseUrl + "/groups";
 
         return String.format("""
             <!DOCTYPE html>

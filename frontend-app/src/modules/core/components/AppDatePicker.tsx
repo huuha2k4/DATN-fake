@@ -11,6 +11,7 @@ import {
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import { FinanceIcon } from './FinanceIcon';
 import { formatDisplayDate, toApiDateString, parseLocalDate } from '../utils/datePickerUtils';
+import { useAppTheme } from '../../../context/ThemeContext';
 
 export interface AppDatePickerProps {
   /** Giá trị ngày: Date object hoặc chuỗi 'YYYY-MM-DD' / 'DD/MM/YYYY' */
@@ -39,12 +40,14 @@ export const AppDatePicker: React.FC<AppDatePickerProps> = ({
   placeholder = 'Chọn ngày (dd/mm/yyyy)',
   minDate,
   maxDate,
-  isDark = false,
+  isDark: propIsDark,
   disabled = false,
   style,
   error,
   required = false,
 }) => {
+  const { isDark: themeIsDark } = useAppTheme();
+  const isDark = propIsDark ?? themeIsDark;
   const currentDate = value ? (value instanceof Date ? value : parseLocalDate(value)) : new Date();
   const [showPicker, setShowPicker] = useState(false);
   const [tempDate, setTempDate] = useState<Date>(currentDate);

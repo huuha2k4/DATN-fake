@@ -186,7 +186,8 @@ export const AdminAnalyticsScreen: React.FC = () => {
             </div>
 
             {/* Khung Biểu đồ cột */}
-            <div className="mt-8 flex h-[260px] items-end justify-around gap-1.5 sm:gap-3 border-b border-[#E2E8F0] pb-4 dark:border-[#1E293B]">
+            <div className="mt-8 overflow-x-auto pb-2">
+              <div className="flex h-[260px] min-w-[520px] items-end justify-around gap-1.5 sm:gap-3 border-b border-[#E2E8F0] pb-4 dark:border-[#1E293B]">
               {data.activityTrend.map((pt) => {
                 const txHeight = Math.max(12, Math.round((pt.transactionCount / maxActivity) * 85));
                 const userHeight = pt.newUsers > 0 ? Math.max(12, Math.round((pt.newUsers / maxActivity) * 85)) : 0;
@@ -220,6 +221,7 @@ export const AdminAnalyticsScreen: React.FC = () => {
                   </div>
                 );
               })}
+              </div>
             </div>
           </div>
         </article>

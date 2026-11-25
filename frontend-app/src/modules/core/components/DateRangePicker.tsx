@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -11,6 +11,7 @@ import {
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import { FinanceIcon } from './FinanceIcon';
 import { formatDisplayDate, toApiDateString, parseLocalDate } from '../utils/datePickerUtils';
+import { useAppTheme } from '../../../context/ThemeContext';
 
 export interface DateRangePickerProps {
   startDate?: Date | string | null;
@@ -29,15 +30,29 @@ export const DateRangePicker: React.FC<DateRangePickerProps> = ({
   endDate,
   onChange,
   label = 'Khoảng thời gian',
-  isDark = false,
+  isDark: propIsDark,
   style,
 }) => {
+  const { isDark: themeIsDark } = useAppTheme();
+  const isDark = propIsDark ?? themeIsDark;
   const currentStart = startDate ? (startDate instanceof Date ? startDate : parseLocalDate(startDate)) : new Date();
   const currentEnd = endDate ? (endDate instanceof Date ? endDate : parseLocalDate(endDate)) : new Date();
 
   const [activePicker, setActivePicker] = useState<'start' | 'end' | null>(null);
   const [tempStart, setTempStart] = useState<Date>(currentStart);
   const [tempEnd, setTempEnd] = useState<Date>(currentEnd);
+
+  useEffect(() => {
+    if (startDate) {
+      setTempStart(startDate instanceof Date ? startDate : parseLocalDate(startDate));
+    }
+  }, [startDate]);
+
+  useEffect(() => {
+    if (endDate) {
+      setTempEnd(endDate instanceof Date ? endDate : parseLocalDate(endDate));
+    }
+  }, [endDate]);
 
   const displayStart = startDate ? formatDisplayDate(startDate) : 'Từ ngày';
   const displayEnd = endDate ? formatDisplayDate(endDate) : 'Đến ngày';

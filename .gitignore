@@ -36,3 +36,6 @@ Thumbs.db
 
 # Kiro agent artifacts
 .agents/
+
+# Local AI skills
+skills-lock.json

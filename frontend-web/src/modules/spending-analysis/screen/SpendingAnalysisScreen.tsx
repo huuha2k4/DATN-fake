@@ -87,9 +87,11 @@ export function SpendingAnalysisScreen({ onNotify }: Props) {
   const [profile, setProfile] = useState<BehaviorProfileResponse | null>(null)
   const [anomalies, setAnomalies] = useState<AnomalyItem[]>([])
   const [recommendations, setRecommendations] = useState<RecommendationResponse | null>(null)
+  const [errorMessage, setErrorMessage] = useState<string | null>(null)
 
-  const loadData = async () => {
+  const loadData = async (): Promise<boolean> => {
     setIsLoading(true)
+    setErrorMessage(null)
     try {
       const [profileData, anomaliesData, recsData] = await Promise.allSettled([
         getBehaviorProfile(),
@@ -97,10 +99,22 @@ export function SpendingAnalysisScreen({ onNotify }: Props) {
         getAiRecommendations(),
       ])
 
+      const allRejected =
+        profileData.status === 'rejected' &&
+        anomaliesData.status === 'rejected' &&
+        recsData.status === 'rejected'
+
+      if (allRejected) {
+        const msg = 'Không thể kết nối đến AI Service để phân tích chi tiêu.'
+        setErrorMessage(msg)
+        onNotify(msg)
+        return false
+      }
+
       if (profileData.status === 'fulfilled' && profileData.value) {
         setProfile(profileData.value)
       } else {
-        setProfile(defaultFallbackProfile)
+        setProfile((prev) => prev || defaultFallbackProfile)
       }
       if (anomaliesData.status === 'fulfilled' && anomaliesData.value) {
         setAnomalies(Array.isArray(anomaliesData.value) ? anomaliesData.value : ((anomaliesData.value as any)?.anomalies || []))
@@ -108,10 +122,12 @@ export function SpendingAnalysisScreen({ onNotify }: Props) {
       if (recsData.status === 'fulfilled' && recsData.value) {
         setRecommendations(recsData.value)
       }
+      return true
     } catch (err) {
       console.error('Lỗi tải dữ liệu AI:', err)
-      setProfile((prev) => prev || defaultFallbackProfile)
-      onNotify('Không thể kết nối đến AI Service, hiển thị dữ liệu mặc định.')
+      setErrorMessage('Không thể kết nối đến AI Service. Vui lòng thử lại.')
+      onNotify('Không thể kết nối đến AI Service.')
+      return false
     } finally {
       setIsLoading(false)
     }
@@ -124,8 +140,10 @@ export function SpendingAnalysisScreen({ onNotify }: Props) {
   }, [])
 
   const refreshAnalysis = async () => {
-    await loadData()
-    onNotify('Phân tích hành vi AI đã được cập nhật thành công!')
+    const ok = await loadData()
+    if (ok) {
+      onNotify('Phân tích hành vi AI đã được cập nhật thành công!')
+    }
   }
 
   const persona = profile?.persona
@@ -175,6 +193,18 @@ export function SpendingAnalysisScreen({ onNotify }: Props) {
       </div>
 
       {/* TRẠNG THÁI ĐANG PHÂN TÍCH DỮ LIỆU TỪ AI */}
+      {errorMessage && (
+        <div role="alert" className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-rose-200 dark:border-rose-900/50 bg-rose-50 dark:bg-rose-950/30 px-4 py-3 text-xs font-medium text-rose-700 dark:text-rose-300">
+          <span>{errorMessage}</span>
+          <button
+            type="button"
+            onClick={refreshAnalysis}
+            className="rounded-lg bg-rose-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-rose-700 transition cursor-pointer"
+          >
+            Thử lại
+          </button>
+        </div>
+      )}
       {isLoading && !profile ? (
         <div className="flex min-h-[380px] flex-col items-center justify-center rounded-2xl border border-[#e2e8f0] dark:border-[#1E293B] bg-white dark:bg-[#1F2937] p-8 text-center shadow-sm dark:shadow-[0_12px_28px_rgba(0,0,0,0.35)]">
           <div className="relative mb-4 grid size-16 place-items-center rounded-2xl bg-emerald-500/10 text-[#10b981]">

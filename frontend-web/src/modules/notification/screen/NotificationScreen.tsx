@@ -206,7 +206,7 @@ export function NotificationScreen({ onNotify }: NotificationScreenProps) {
       {/* Header Banner */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 rounded-2xl bg-white dark:bg-slate-900 border border-[#E2E8F0] dark:border-slate-800 p-5 shadow-xs">
         <div className="flex items-center gap-3.5">
-          <div className="grid size-12 place-items-center rounded-2xl bg-emerald-50 text-[#007F53] border border-emerald-100">
+          <div className="grid size-12 place-items-center rounded-2xl bg-emerald-50 dark:bg-emerald-950/60 text-[#007F53] dark:text-emerald-400 border border-emerald-100 dark:border-emerald-900/50">
             <FinanceIcon name="bell" size={24} />
           </div>
           <div>
@@ -238,7 +238,7 @@ export function NotificationScreen({ onNotify }: NotificationScreenProps) {
       </div>
 
       {/* Summary KPI Strip */}
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         <div className="rounded-xl border border-[#E2E8F0] dark:border-slate-800 bg-white dark:bg-slate-900 p-3.5 flex items-center justify-between">
           <div>
             <p className="text-[11px] text-[#64748B] dark:text-slate-400 font-medium">Tổng thông báo</p>
@@ -278,7 +278,7 @@ export function NotificationScreen({ onNotify }: NotificationScreenProps) {
           className={`h-8 px-3.5 rounded-full text-xs font-semibold transition ${
             activeTab === 'ALL'
               ? 'bg-[#007F53] text-white shadow-xs'
-              : 'bg-white dark:bg-slate-800 text-gray-600 dark:text-slate-400 hover:bg-gray-100'
+              : 'bg-white dark:bg-slate-800 text-gray-600 dark:text-slate-300 hover:bg-gray-100 dark:hover:bg-slate-700'
           }`}
         >
           Tất cả ({notifications.length})
@@ -289,7 +289,7 @@ export function NotificationScreen({ onNotify }: NotificationScreenProps) {
           className={`h-8 px-3.5 rounded-full text-xs font-semibold transition ${
             activeTab === 'UNREAD'
               ? 'bg-[#007F53] text-white shadow-xs'
-              : 'bg-white dark:bg-slate-800 text-gray-600 dark:text-slate-400 hover:bg-gray-100'
+              : 'bg-white dark:bg-slate-800 text-gray-600 dark:text-slate-300 hover:bg-gray-100 dark:hover:bg-slate-700'
           }`}
         >
           Chưa đọc ({unreadCount})
@@ -300,7 +300,7 @@ export function NotificationScreen({ onNotify }: NotificationScreenProps) {
           className={`h-8 px-3.5 rounded-full text-xs font-semibold transition ${
             activeTab === 'HIGH'
               ? 'bg-[#007F53] text-white shadow-xs'
-              : 'bg-white dark:bg-slate-800 text-gray-600 dark:text-slate-400 hover:bg-gray-100'
+              : 'bg-white dark:bg-slate-800 text-gray-600 dark:text-slate-300 hover:bg-gray-100 dark:hover:bg-slate-700'
           }`}
         >
           Quan trọng ({highPriorityCount})
@@ -311,7 +311,7 @@ export function NotificationScreen({ onNotify }: NotificationScreenProps) {
           className={`h-8 px-3.5 rounded-full text-xs font-semibold transition ${
             activeTab === 'BUDGET'
               ? 'bg-[#007F53] text-white shadow-xs'
-              : 'bg-white dark:bg-slate-800 text-gray-600 dark:text-slate-400 hover:bg-gray-100'
+              : 'bg-white dark:bg-slate-800 text-gray-600 dark:text-slate-300 hover:bg-gray-100 dark:hover:bg-slate-700'
           }`}
         >
           Ngân sách
@@ -322,7 +322,7 @@ export function NotificationScreen({ onNotify }: NotificationScreenProps) {
           className={`h-8 px-3.5 rounded-full text-xs font-semibold transition ${
             activeTab === 'GOAL'
               ? 'bg-[#007F53] text-white shadow-xs'
-              : 'bg-white dark:bg-slate-800 text-gray-600 dark:text-slate-400 hover:bg-gray-100'
+              : 'bg-white dark:bg-slate-800 text-gray-600 dark:text-slate-300 hover:bg-gray-100 dark:hover:bg-slate-700'
           }`}
         >
           Mục tiêu
@@ -333,7 +333,7 @@ export function NotificationScreen({ onNotify }: NotificationScreenProps) {
           className={`h-8 px-3.5 rounded-full text-xs font-semibold transition ${
             activeTab === 'DEBT'
               ? 'bg-[#007F53] text-white shadow-xs'
-              : 'bg-white dark:bg-slate-800 text-gray-600 dark:text-slate-400 hover:bg-gray-100'
+              : 'bg-white dark:bg-slate-800 text-gray-600 dark:text-slate-300 hover:bg-gray-100 dark:hover:bg-slate-700'
           }`}
         >
           Công nợ
@@ -367,7 +367,7 @@ export function NotificationScreen({ onNotify }: NotificationScreenProps) {
                 className={`group flex items-start justify-between gap-4 rounded-2xl border p-4 transition cursor-pointer ${
                   !item.is_read
                     ? 'bg-[#f4fbf6] dark:bg-emerald-950/20 border-[#cde8d5] dark:border-emerald-800/40 shadow-2xs'
-                    : 'bg-white dark:bg-slate-900 border-[#e5ede7] dark:border-slate-800 hover:bg-[#F8FAFC] dark:hover:bg-slate-850'
+                    : 'bg-white dark:bg-slate-900 border-[#e5ede7] dark:border-slate-800 hover:bg-[#F8FAFC] dark:hover:bg-slate-900'
                 } ${item.priority === 'HIGH' ? 'border-l-4 border-l-rose-500' : ''}`}
               >
                 <div className="flex items-start gap-3.5 min-w-0">

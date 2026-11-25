@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -11,6 +11,7 @@ import {
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import { FinanceIcon } from './FinanceIcon';
 import { formatDisplayDate, formatDisplayTime, parseLocalDate } from '../utils/datePickerUtils';
+import { useAppTheme } from '../../../context/ThemeContext';
 
 export interface AppDateTimePickerProps {
   value?: Date | string | null;
@@ -29,16 +30,24 @@ export const AppDateTimePicker: React.FC<AppDateTimePickerProps> = ({
   value,
   onChange,
   label = 'Thời gian giao dịch',
-  isDark = false,
+  isDark: propIsDark,
   disabled = false,
   style,
 }) => {
+  const { isDark: themeIsDark } = useAppTheme();
+  const isDark = propIsDark ?? themeIsDark;
   const currentDate = value ? (value instanceof Date ? value : parseLocalDate(value)) : new Date();
 
   // Mode: 'date' | 'time'
   const [pickerMode, setPickerMode] = useState<'date' | 'time'>('date');
   const [showPicker, setShowPicker] = useState(false);
   const [selectedDateTime, setSelectedDateTime] = useState<Date>(currentDate);
+
+  useEffect(() => {
+    if (value) {
+      setSelectedDateTime(value instanceof Date ? value : parseLocalDate(value));
+    }
+  }, [value]);
 
   const displayDate = formatDisplayDate(selectedDateTime);
   const displayTime = formatDisplayTime(selectedDateTime);

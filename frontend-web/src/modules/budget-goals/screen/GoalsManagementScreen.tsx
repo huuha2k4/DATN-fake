@@ -643,7 +643,7 @@ export function GoalsManagementScreen({ onNotify }: Props) {
       {/* 2. 3 Ô THỐNG KÊ TRÊN CÙNG: Tổng tích lũy, Theo mục tiêu, Tiết kiệm tự do (Chuẩn 100% theo ảnh) */}
       <section className="grid gap-4 sm:grid-cols-3" aria-label="Thống kê mục tiêu & tích lũy">
         {/* Ô 1: Tổng tiền đã tích lũy */}
-        <article className="flex min-h-[105px] items-center justify-between rounded-2xl border border-gray-100 dark:border-slate-800 bg-white dark:bg-slate-850 p-4 sm:p-5 shadow-xs">
+        <article className="flex min-h-[105px] items-center justify-between rounded-2xl border border-gray-100 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 sm:p-5 shadow-xs">
           <div className="flex items-center gap-3.5 min-w-0">
             <span className="grid size-12 shrink-0 place-items-center rounded-2xl bg-[#e6f9f0] text-[#00a86b] dark:bg-emerald-950/60 dark:text-emerald-400">
               <FinanceIcon name="wallet" size={22} color="#00a86b" />
@@ -668,7 +668,7 @@ export function GoalsManagementScreen({ onNotify }: Props) {
         </article>
 
         {/* Ô 2: Theo mục tiêu đã tích lũy */}
-        <article className="flex min-h-[105px] items-center justify-between rounded-2xl border border-gray-100 dark:border-slate-800 bg-white dark:bg-slate-850 p-4 sm:p-5 shadow-xs">
+        <article className="flex min-h-[105px] items-center justify-between rounded-2xl border border-gray-100 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 sm:p-5 shadow-xs">
           <div className="flex items-center gap-3.5 min-w-0">
             <span className="grid size-12 shrink-0 place-items-center rounded-2xl bg-[#e6f9f0] text-[#00a86b] dark:bg-emerald-950/60 dark:text-emerald-400">
               <FinanceIcon name="target" size={22} color="#00a86b" />
@@ -685,7 +685,7 @@ export function GoalsManagementScreen({ onNotify }: Props) {
         </article>
 
         {/* Ô 3: Tiết kiệm tự do & Quỹ dự phòng */}
-        <article className="flex min-h-[105px] items-center justify-between rounded-2xl border border-gray-100 dark:border-slate-800 bg-white dark:bg-slate-850 p-4 sm:p-5 shadow-xs">
+        <article className="flex min-h-[105px] items-center justify-between rounded-2xl border border-gray-100 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 sm:p-5 shadow-xs">
           <div className="flex items-center gap-3.5 min-w-0">
             <span className="grid size-12 shrink-0 place-items-center rounded-2xl bg-[#e6f9f0] text-[#00a86b] dark:bg-emerald-950/60 dark:text-emerald-400">
               <FinanceIcon name="piggy-bank" size={22} color="#00a86b" />
@@ -727,7 +727,7 @@ export function GoalsManagementScreen({ onNotify }: Props) {
             </div>
 
             {goalsList.length === 0 ? (
-              <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-gray-200 dark:border-gray-700 bg-white dark:bg-slate-850 py-12 text-center p-4">
+              <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-gray-200 dark:border-gray-700 bg-white dark:bg-slate-900 py-12 text-center p-4">
                 <img src="/goal_cat_shopping_3d.png" alt="Mục tiêu trống" className="size-14 object-contain mb-2.5 opacity-80" />
                 <h4 className="text-xs font-bold text-gray-700 dark:text-gray-300">Chưa có mục tiêu nào</h4>
                 <p className="text-[11px] text-gray-400 mt-0.5 mb-3">Đặt mục tiêu mua sắm, du lịch, học tập...</p>
@@ -751,7 +751,7 @@ export function GoalsManagementScreen({ onNotify }: Props) {
                     <div
                       key={g.id}
                       onClick={() => openGoalDetail(g)}
-                      className="flex items-center gap-4 p-4 rounded-2xl border border-gray-100 dark:border-slate-800 bg-white dark:bg-slate-850 shadow-[0_2px_8px_rgba(0,0,0,0.02)] hover:shadow-md transition-all cursor-pointer group"
+                      className="flex items-center gap-4 p-4 rounded-2xl border border-gray-100 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-[0_2px_8px_rgba(0,0,0,0.02)] hover:shadow-md transition-all cursor-pointer group"
                     >
                       <div className="size-16 shrink-0 rounded-2xl flex items-center justify-center overflow-hidden">
                         <img src={imgSrc} alt={g.name} className="size-full object-contain" />
@@ -826,7 +826,7 @@ export function GoalsManagementScreen({ onNotify }: Props) {
             </div>
 
             {savingsList.length === 0 ? (
-              <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-gray-200 dark:border-gray-700 bg-white dark:bg-slate-850 py-12 text-center p-4">
+              <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-gray-200 dark:border-gray-700 bg-white dark:bg-slate-900 py-12 text-center p-4">
                 <img src="/saving_cat_free_3d.png" alt="Tiết kiệm trống" className="size-14 object-contain mb-2.5 opacity-80" />
                 <h4 className="text-xs font-bold text-gray-700 dark:text-gray-300">Chưa có khoản tiết kiệm nào</h4>
                 <p className="text-[11px] text-gray-400 mt-0.5 mb-3">Tạo quỹ dự phòng khẩn cấp, tiết kiệm tự do...</p>

@@ -88,6 +88,17 @@
   animation: notificationFadeDown 0.22s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
+@media (max-width: 640px) {
+  .notification-panel {
+    position: fixed;
+    top: 64px;
+    left: 12px;
+    right: 12px;
+    width: auto;
+    max-width: none;
+  }
+}
+
 @keyframes notificationFadeDown {
   from {
     opacity: 0;
@@ -159,21 +170,30 @@
 /* Filter tabs */
 .notification-tabs {
   display: flex;
-  padding: 6px 14px;
+  align-items: center;
+  padding: 8px 14px;
   background-color: #f7faf7;
   border-bottom: 1px solid #E2E8F0;
   gap: 6px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.notification-tabs::-webkit-scrollbar {
+  display: none;
 }
 
 .notification-tab-btn {
   padding: 5px 12px;
   border-radius: 9999px;
-  font-size: 11px;
+  font-size: 11.5px;
   font-weight: 600;
   border: 1px solid transparent;
   background: transparent;
   color: #617369;
   cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
   transition: all 0.15s;
 }
 
@@ -183,10 +203,10 @@
 }
 
 .notification-tab-btn.is-active {
-  background-color: #ffffff;
-  color: #007F53;
-  border-color: #d1ded6;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  background-color: #007F53;
+  color: #ffffff;
+  border-color: #007F53;
+  box-shadow: 0 1px 3px rgba(0, 127, 83, 0.25);
 }
 
 /* Notification List */
@@ -461,9 +481,10 @@ html.dark .notification-tab-btn:hover {
 }
 
 html.dark .notification-tab-btn.is-active {
-  background-color: #1e293b;
-  color: #34d399;
-  border-color: #334155;
+  background-color: #007F53;
+  color: #ffffff;
+  border-color: #059669;
+  box-shadow: 0 1px 4px rgba(0, 127, 83, 0.35);
 }
 
 html.dark .notification-item {

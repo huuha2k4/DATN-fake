@@ -10,6 +10,7 @@ import com.finance.finance.modules.debt.service.DebtService;
 import com.finance.finance.modules.debt.dto.response.DebtListResponse;
 import com.finance.finance.common.enums.*;
 import com.finance.finance.modules.goal.service.GoalService;
+import com.finance.finance.modules.group.repository.ChildWalletRepository;
 import com.finance.finance.modules.group.service.*;
 import com.finance.finance.modules.schedule.service.ScheduleService;
 import com.finance.finance.modules.schedule.service.RecurrenceService;
@@ -47,6 +48,7 @@ class FinAiToolExecutorTest {
     @Mock GroupFundService groupFunds;
     @Mock GroupSettlementService settlements;
     @Mock ChildWalletService childWallets;
+    @Mock ChildWalletRepository childWalletRepository;
     @Mock AccountRepository accountRepository;
     @Mock CategoryRepository categoryRepository;
     @Mock BudgetRepository budgetRepository;

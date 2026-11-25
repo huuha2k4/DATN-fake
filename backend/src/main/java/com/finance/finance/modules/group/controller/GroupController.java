@@ -445,7 +445,7 @@ public class GroupController {
                                 .filename(downloadName, java.nio.charset.StandardCharsets.UTF_8)
                                 .build().toString())
                 .header("X-Content-Type-Options", "nosniff")
-                .header(HttpHeaders.CACHE_CONTROL, "private, no-store")
+                .header(HttpHeaders.CACHE_CONTROL, "private, max-age=3600, immutable")
                 .body(download.resource());
     }
 
@@ -542,6 +542,15 @@ public class GroupController {
     // ============================================================
     // 6. CHILD WALLETS (7 endpoints)
     // ============================================================
+
+    @PostMapping(value = "/{groupId}/child-wallets/avatar", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<Map<String, String>> uploadChildWalletAvatar(
+            @PathVariable UUID groupId,
+            @RequestParam("file") MultipartFile file,
+            @AuthenticationPrincipal User currentUser) {
+        String avatarUrl = childWalletService.uploadChildWalletAvatar(groupId, file, currentUser.getId());
+        return ResponseEntity.ok(Map.of("avatarUrl", avatarUrl, "fileKey", avatarUrl));
+    }
 
     @PostMapping("/{groupId}/child-wallets")
     public ResponseEntity<ChildWalletResponse> createChildWallet(

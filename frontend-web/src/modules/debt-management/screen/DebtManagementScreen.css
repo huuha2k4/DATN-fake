@@ -5,6 +5,32 @@
   min-height: calc(100vh - 68px);
 }
 
+@media (max-width: 768px) {
+  .debt-page-container {
+    padding: 14px 12px 90px !important;
+  }
+
+  .debt-stats-grid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .debt-filter-bar {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+  }
+
+  .debt-filter-bar > div {
+    width: 100%;
+  }
+
+  .debt-filter-bar button {
+    flex: 1;
+    justify-content: center;
+  }
+}
+
 .debt-stats-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));

@@ -195,7 +195,7 @@ export const AdminCategoriesScreen: React.FC = () => {
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
-              <tr className="border-b border-[#E2E8F0] dark:border-slate-800 bg-gray-50/70 dark:bg-slate-850/60 text-[11px] font-bold text-gray-500 dark:text-slate-400 uppercase tracking-wider">
+              <tr className="border-b border-[#E2E8F0] dark:border-slate-800 bg-gray-50/70 dark:bg-slate-900/60 text-[11px] font-bold text-gray-500 dark:text-slate-400 uppercase tracking-wider">
                 <th className="py-3.5 px-5">Biểu tượng & Tên danh mục</th>
                 <th className="py-3.5 px-4">Mã nhận diện (Code)</th>
                 <th className="py-3.5 px-4">Phân loại</th>

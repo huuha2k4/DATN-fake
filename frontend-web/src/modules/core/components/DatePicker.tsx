@@ -17,6 +17,8 @@ export interface WebDatePickerProps {
   captionLayout?: 'dropdown' | 'dropdown-months' | 'dropdown-years' | 'label';
   /** Hướng mở: 'auto' (tự tính theo màn hình), 'top' (mở lên trên), 'bottom' (mở xuống dưới) */
   placement?: 'auto' | 'top' | 'bottom';
+  /** Ẩn icon lịch bên phải khi dùng trong thanh lọc gọn */
+  hideIcon?: boolean;
 }
 
 /**
@@ -37,6 +39,7 @@ export const DatePicker: React.FC<WebDatePickerProps> = ({
   disabled = false,
   captionLayout = 'dropdown',
   placement = 'auto',
+  hideIcon = false,
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [openUpward, setOpenUpward] = useState(false);
@@ -127,9 +130,11 @@ export const DatePicker: React.FC<WebDatePickerProps> = ({
           {displayString || placeholder}
         </span>
 
-        <span className="text-slate-400 group-hover:text-emerald-600 flex items-center pointer-events-none ml-2">
-          <FinanceIcon name="calendar" size={17} />
-        </span>
+        {!hideIcon && (
+          <span className="text-slate-400 group-hover:text-emerald-600 flex items-center pointer-events-none ml-2">
+            <FinanceIcon name="calendar" size={17} />
+          </span>
+        )}
       </div>
 
       {/* Popover Calendar (Compact & Smart Responsive) */}

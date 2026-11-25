@@ -664,6 +664,10 @@ export const groupApi = {
     return res.data?.data || res.data;
   },
 
+  async resetChildPassword(groupId: string, walletId: string, newPassword: string): Promise<void> {
+    await api.put(`/groups/${groupId}/child-wallets/${walletId}/reset-password`, { newPassword });
+  },
+
   async depositChildWallet(
     groupId: string,
     walletId: string,
@@ -758,6 +762,17 @@ export const groupApi = {
 
   async deleteMessage(groupId: string, messageId: string): Promise<void> {
     await api.delete(`/groups/${groupId}/messages/${messageId}`);
+  },
+
+  async uploadChildWalletAvatar(groupId: string, file: File): Promise<string> {
+    const formData = new FormData();
+    formData.append('file', file);
+    const res = await api.post(`/groups/${groupId}/child-wallets/avatar`, formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+    return res.data?.avatarUrl || res.data?.fileKey || res.data?.data?.avatarUrl || '';
   },
 
   async uploadMessageAttachment(groupId: string, file: File): Promise<MessageAttachmentItem> {

@@ -206,7 +206,7 @@ export const AdminSettingsScreen: React.FC = () => {
 
       {errorMsg && (
         <div className="p-3.5 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800/60 rounded-2xl flex items-center gap-2 text-rose-800 dark:text-rose-300 text-xs font-semibold shadow-xs">
-          <FinanceIcon name="alert" size={16} />
+          <FinanceIcon name="alert-circle" size={16} />
           <span>{errorMsg}</span>
         </div>
       )}
