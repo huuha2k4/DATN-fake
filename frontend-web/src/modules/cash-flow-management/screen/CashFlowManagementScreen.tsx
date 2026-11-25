@@ -993,7 +993,7 @@ export function CashFlowManagementScreen({ onNotify, onAddTransaction }: Props) 
 
                   {/* Menu thả xuống */}
                   {isCategoryDropdownOpen && (
-                    <div className="absolute left-0 top-full mt-1 z-40 w-full min-w-[190px] max-h-52 overflow-y-auto rounded-xl border border-[#CBD5E1] bg-white p-1 shadow-xl animate-fadeIn">
+                    <div className="absolute left-0 top-full mt-1 z-40 w-full min-w-[190px] max-h-52 overflow-y-auto rounded-xl border border-[#CBD5E1] dark:border-slate-700 bg-white dark:bg-slate-900 p-1 shadow-xl animate-fadeIn">
                       <button
                         type="button"
                         onClick={() => {
@@ -1090,7 +1090,7 @@ export function CashFlowManagementScreen({ onNotify, onAddTransaction }: Props) 
 
                 {/* Menu thả xuống */}
                 {!isChildAccount && isAccountDropdownOpen && (
-                  <div className="absolute left-0 top-full mt-1 z-40 w-full min-w-[190px] max-h-52 overflow-y-auto rounded-xl border border-[#CBD5E1] bg-white p-1 shadow-xl animate-fadeIn">
+                  <div className="absolute left-0 top-full mt-1 z-40 w-full min-w-[190px] max-h-52 overflow-y-auto rounded-xl border border-[#CBD5E1] dark:border-slate-700 bg-white dark:bg-slate-900 p-1 shadow-xl animate-fadeIn">
                     <button
                       type="button"
                       onClick={() => {
@@ -1174,7 +1174,7 @@ export function CashFlowManagementScreen({ onNotify, onAddTransaction }: Props) 
 
                 {/* Menu thả xuống */}
                 {isMonthDropdownOpen && (
-                  <div className="absolute left-0 top-full mt-1 z-40 w-full min-w-[170px] max-h-52 overflow-y-auto rounded-xl border border-[#CBD5E1] bg-white p-1 shadow-xl animate-fadeIn">
+                  <div className="absolute left-0 top-full mt-1 z-40 w-full min-w-[170px] max-h-52 overflow-y-auto rounded-xl border border-[#CBD5E1] dark:border-slate-700 bg-white dark:bg-slate-900 p-1 shadow-xl animate-fadeIn">
                     <button
                       type="button"
                       onClick={() => {

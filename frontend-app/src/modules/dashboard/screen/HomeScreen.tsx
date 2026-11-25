@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { RefreshControl, ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
+import { RefreshControl, ScrollView, StyleSheet, Text, TouchableOpacity, useWindowDimensions, View } from 'react-native';
 import { AppAlert as Alert } from '../../../context/DialogContext';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { fetchDashboardData, type DashboardSummary, type DashboardTransaction } from '../api/dashboardApi';
@@ -70,20 +70,28 @@ export function HomeScreen({
 
   const [showBalance, setShowBalance] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [isInitialLoading, setIsInitialLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [dashboardData, setDashboardData] = useState<DashboardSummary | null>(null);
   const [budgetOverview, setBudgetOverview] = useState<{ totalBudgeted: number; totalSpent: number; overallPercentage: number } | null>(null);
   const [kidWalletData, setKidWalletData] = useState<any>(null);
 
   const loadData = useCallback(async (isRefresh = false) => {
     if (isRefresh) setRefreshing(true);
+    setLoadError(null);
     try {
       const now = new Date();
       if (isChildAccount && currentUser?.childWalletGroupId && currentUser?.childWalletId) {
         // Nạp dữ liệu ví trẻ em trực tiếp từ API child-wallets & spend-requests
-        const [kWallet, spendRequests] = await Promise.all([
-          groupApi.getChildWallet(currentUser.childWalletGroupId, currentUser.childWalletId).catch(() => null),
-          groupApi.getSpendRequests(currentUser.childWalletGroupId, currentUser.childWalletId).catch(() => []),
+        const [kWalletRes, spendRes] = await Promise.allSettled([
+          groupApi.getChildWallet(currentUser.childWalletGroupId, currentUser.childWalletId),
+          groupApi.getSpendRequests(currentUser.childWalletGroupId, currentUser.childWalletId),
         ]);
+        if (kWalletRes.status === 'rejected' && spendRes.status === 'rejected') {
+          throw new Error('Không thể tải dữ liệu ví của bé. Vui lòng kéo xuống để thử lại.');
+        }
+        const kWallet = kWalletRes.status === 'fulfilled' ? kWalletRes.value : null;
+        const spendRequests = spendRes.status === 'fulfilled' ? spendRes.value : [];
         if (kWallet) setKidWalletData(kWallet);
 
         // Chuyển đổi các giao dịch thực tế của bé (nạp tiền, thưởng việc nhà, xin tiền được duyệt, chi tiêu)
@@ -206,10 +214,11 @@ export function HomeScreen({
           });
         }
       }
-    } catch {
-      // Fallback
+    } catch (err: any) {
+      setLoadError(err?.message || 'Không thể kết nối máy chủ. Số dư hiển thị có thể chưa được cập nhật.');
     } finally {
       setRefreshing(false);
+      setIsInitialLoading(false);
     }
   }, [isChildAccount, currentUser]);
 
@@ -284,6 +293,49 @@ export function HomeScreen({
           isChildAccount={isChildAccount}
         />
       </View>
+
+      {/* ── 2. THÔNG BÁO LỖI KẾT NỐI HOẶC ĐANG TẢI ── */}
+      {loadError && (
+        <View
+          style={{
+            marginHorizontal: 16,
+            marginTop: 12,
+            padding: 12,
+            borderRadius: 14,
+            backgroundColor: isDark ? 'rgba(239, 68, 68, 0.14)' : '#FEF2F2',
+            borderWidth: 1,
+            borderColor: isDark ? 'rgba(248, 113, 113, 0.35)' : '#FECACA',
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: 10,
+          }}
+        >
+          <Text style={{ flex: 1, fontSize: 12.5, fontWeight: '600', color: isDark ? '#FCA5A5' : '#B91C1C' }}>
+            {loadError}
+          </Text>
+          <TouchableOpacity
+            onPress={() => loadData(true)}
+            accessibilityRole="button"
+            accessibilityLabel="Thử tải lại dữ liệu trang chủ"
+            style={{
+              paddingHorizontal: 12,
+              paddingVertical: 7,
+              borderRadius: 10,
+              backgroundColor: isDark ? '#EF4444' : '#DC2626',
+            }}
+          >
+            <Text style={{ fontSize: 12, fontWeight: '700', color: '#FFFFFF' }}>Thử lại</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+      {isInitialLoading && !dashboardData && !loadError && (
+        <View style={{ marginHorizontal: 16, marginTop: 12, padding: 12, borderRadius: 14, backgroundColor: themeColors.surface, borderWidth: 1, borderColor: themeColors.cardBorder }}>
+          <Text style={{ fontSize: 12.5, color: themeColors.textSecondary, textAlign: 'center' }}>
+            Đang đồng bộ dữ liệu tài chính...
+          </Text>
+        </View>
+      )}
 
       {/* ── 2. CARD NGÂN SÁCH THÁNG (ẨN ĐỐI VỚI VÍ TRẺ EM) ── */}
       {!isChildAccount && (

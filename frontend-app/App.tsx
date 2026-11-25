@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { BackHandler, Platform, StyleSheet, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { BottomNav, TabKey } from './src/components/BottomNav';
@@ -122,6 +122,48 @@ function AppContent() {
       }
     });
   }, [checkInitialOnboarding]);
+
+  // Chuẩn hóa nút Back phần cứng Android: quay lại màn hình trước thay vì thoát thẳng app
+  React.useEffect(() => {
+    if (Platform.OS !== 'android') return;
+    const sub = BackHandler.addEventListener('hardwareBackPress', () => {
+      if (showForgotPassword) { setShowForgotPassword(false); return true; }
+      if (showRegister) { setShowRegister(false); return true; }
+      if (showLogin) { setShowLogin(false); return true; }
+      if (showChildWallet) { setShowChildWallet(false); return true; }
+      if (showChildChores) { setShowChildChores(false); return true; }
+      if (showChildRequests) { setShowChildRequests(false); return true; }
+      if (showAddTransaction) { setShowAddTransaction(false); return true; }
+      if (showScanInvoice) { setShowScanInvoice(false); return true; }
+      if (showReminders) { setShowReminders(false); return true; }
+      if (showAiAssistant) { setShowAiAssistant(false); return true; }
+      if (showAccounts) { setShowAccounts(false); return true; }
+      if (showDebts) { setShowDebts(false); return true; }
+      if (showSpendingAnalysis) { setShowSpendingAnalysis(false); return true; }
+      if (showPeriodicReports) {
+        setShowPeriodicReports(false);
+        setPeriodicReportsInitialParams(null);
+        return true;
+      }
+      if (showBalanceForecast) { setShowBalanceForecast(false); return true; }
+      if (showNotifications) { setShowNotifications(false); return true; }
+      if (showProfile && !isProfileSubPageOpen) { setShowProfile(false); return true; }
+      if (hasStarted && activeTab !== 'home' && !isGroupDetailOpen) {
+        setActiveTab('home');
+        return true;
+      }
+      return false;
+    });
+    return () => sub.remove();
+  }, [
+    hasStarted, activeTab, isGroupDetailOpen, isProfileSubPageOpen,
+    showForgotPassword, showRegister, showLogin,
+    showChildWallet, showChildChores, showChildRequests,
+    showAddTransaction, showScanInvoice, showReminders,
+    showAiAssistant, showAccounts, showDebts,
+    showSpendingAnalysis, showPeriodicReports, showBalanceForecast,
+    showNotifications, showProfile,
+  ]);
 
   if (showRegister) {
     return (

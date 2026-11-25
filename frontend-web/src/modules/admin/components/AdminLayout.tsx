@@ -203,7 +203,7 @@ export const AdminLayout: React.FC = () => {
         {/* Topbar: Tiêu đề trang bên trái, Theme + Profile bên phải (như bên user) */}
         <header className="topbar sticky top-0 z-10 flex min-h-16 items-center justify-between gap-3 !pl-3.5 !pr-6 backdrop-blur">
           {/* Left: Nút thu vào / đẩy ra cột sidebar và tiêu đề trang (chuẩn DashboardHeaderSection) */}
-          <div className="flex items-center gap-2 py-2">
+          <div className="flex items-center gap-2 py-2 min-w-0 flex-1">
             {/* Nút đóng/mở trên Mobile */}
             <button
               type="button"

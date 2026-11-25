@@ -1762,8 +1762,8 @@ export function FinancialReportsDashboardScreen({ onNotify }: Props) {
                     </span>
                   </header>
 
-                  <div className="mt-2 w-full">
-                    <table className="reports-table w-full text-xs">
+                  <div className="mt-2 w-full overflow-x-auto">
+                    <table className="reports-table w-full text-xs min-w-[580px]">
                       <thead>
                         <tr>
                           <th className="px-3 py-2.5 text-left text-[11px] whitespace-nowrap min-w-[130px]">Danh mục</th>
@@ -1884,8 +1884,8 @@ export function FinancialReportsDashboardScreen({ onNotify }: Props) {
                 </span>
               </header>
 
-              <div className="w-full">
-                <table className="reports-table w-full text-xs">
+              <div className="w-full overflow-x-auto">
+                <table className="reports-table w-full text-xs min-w-[640px]">
                   <thead>
                     <tr>
                       <th className="px-3 py-2.5 text-left text-[11px] whitespace-nowrap min-w-[130px]">Danh mục</th>

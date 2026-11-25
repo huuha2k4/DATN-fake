@@ -160,8 +160,8 @@ export function NotificationDropdown({ onNotify }: NotificationDropdownProps) {
   useEffect(() => {
     fetchNotifications();
 
-    // Real-time polling for notifications (every 10 seconds)
-    const interval = setInterval(async () => {
+    const poll = async () => {
+      if (typeof document !== 'undefined' && document.hidden) return;
       try {
         const res = await notificationApi.getNotifications({ page_size: 15 });
         if (res.notifications) {
@@ -171,9 +171,19 @@ export function NotificationDropdown({ onNotify }: NotificationDropdownProps) {
       } catch {
         // Silently ignore background polling failure
       }
-    }, 10000);
+    };
 
-    return () => clearInterval(interval);
+    const handleVisibility = () => {
+      if (!document.hidden) poll();
+    };
+
+    const interval = setInterval(poll, 10000);
+    document.addEventListener('visibilitychange', handleVisibility);
+
+    return () => {
+      clearInterval(interval);
+      document.removeEventListener('visibilitychange', handleVisibility);
+    };
   }, []);
 
   // Close dropdown on outside click
@@ -202,7 +212,11 @@ export function NotificationDropdown({ onNotify }: NotificationDropdownProps) {
         prev.map((n) => (n.id === item.id ? { ...n, is_read: true } : n))
       );
       setUnreadCount((c) => Math.max(0, c - 1));
-      await notificationApi.markAsRead(item.id);
+      try {
+        await notificationApi.markAsRead(item.id);
+      } catch {
+        // Keep UI responsive
+      }
     }
 
     // Open detail modal to read full content
@@ -214,8 +228,12 @@ export function NotificationDropdown({ onNotify }: NotificationDropdownProps) {
   const handleMarkAllRead = async () => {
     setNotifications((prev) => prev.map((n) => ({ ...n, is_read: true })));
     setUnreadCount(0);
-    await notificationApi.markAllAsRead();
-    if (onNotify) onNotify('Đã đánh dấu tất cả thông báo là đã đọc');
+    try {
+      await notificationApi.markAllAsRead();
+      if (onNotify) onNotify('Đã đánh dấu tất cả thông báo là đã đọc');
+    } catch {
+      if (onNotify) onNotify('Không thể cập nhật trạng thái thông báo');
+    }
   };
 
   return (

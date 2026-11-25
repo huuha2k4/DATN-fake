@@ -52,7 +52,7 @@ export function DashboardHeaderSection({ onNotify, onOpenProfile, onOpenChangePa
   return (
     <header className="topbar sticky top-0 z-30 flex min-h-16 items-center justify-between gap-3 !pl-3.5 !pr-6 backdrop-blur">
       {/* Left: Nút thu vào / đẩy ra cột sidebar và tiêu đề trang */}
-      <div className="flex items-center gap-2 py-2">
+      <div className="flex items-center gap-2 py-2 min-w-0 flex-1">
         {/* Nút đóng/mở trên Mobile */}
         {onToggleSidebar && (
           <button
@@ -84,14 +84,14 @@ export function DashboardHeaderSection({ onNotify, onOpenProfile, onOpenChangePa
               {currentInfo.title}
             </h1>
             {isWalletPage && (
-              <span id="wallet-count-pill" className="inline-flex items-center gap-1.5 rounded-full bg-[#E6F4EA] px-2.5 py-0.5 text-[11px] font-semibold text-[#007F53]">
+              <span id="wallet-count-pill" className="inline-flex items-center gap-1.5 rounded-full bg-[#E6F4EA] dark:bg-emerald-950/60 px-2.5 py-0.5 text-[11px] font-semibold text-[#007F53] dark:text-emerald-300">
                 <span className="size-2 rounded-full bg-[#10b981]" />
                 <span id="wallet-count-text">{walletCount ?? 0} nguồn tiền đang theo dõi</span>
               </span>
             )}
           </div>
           {currentInfo.subtitle && (
-            <p className="text-[12px] text-[#71847a] font-normal hidden sm:block mt-0.5 m-0">
+            <p className="text-[12px] text-[#71847a] dark:text-slate-400 font-normal hidden sm:block mt-0.5 m-0">
               {currentInfo.subtitle}
             </p>
           )}

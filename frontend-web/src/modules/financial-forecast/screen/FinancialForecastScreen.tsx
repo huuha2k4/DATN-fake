@@ -37,9 +37,11 @@ export function FinancialForecastScreen({ onNotify }: Props) {
   const [balanceForecast, setBalanceForecast] = useState<BalanceForecastResponse | null>(null)
   const [categoryForecasts, setCategoryForecasts] = useState<CategoryForecastResponse[]>([])
   const [goalsForecast, setGoalsForecast] = useState<GoalForecastResponse | null>(null)
+  const [errorMessage, setErrorMessage] = useState<string | null>(null)
 
   const loadForecast = async (showFeedback = false) => {
     setIsLoading(true)
+    setErrorMessage(null)
     try {
       const [balRes, categoriesRes, goalRes] = await Promise.allSettled([
         getBalanceForecast(30),
@@ -47,10 +49,22 @@ export function FinancialForecastScreen({ onNotify }: Props) {
         getGoalsForecast(),
       ])
 
+      const allRejected =
+        balRes.status === 'rejected' &&
+        categoriesRes.status === 'rejected' &&
+        goalRes.status === 'rejected'
+
+      if (allRejected) {
+        const msg = 'Không thể kết nối đến AI Service để tải dự báo số dư.'
+        setErrorMessage(msg)
+        onNotify(msg)
+        return
+      }
+
       if (balRes.status === 'fulfilled' && balRes.value) {
         setBalanceForecast(balRes.value)
       } else {
-        setBalanceForecast(defaultFallbackForecast)
+        setBalanceForecast((prev) => prev || defaultFallbackForecast)
       }
       if (categoriesRes.status === 'fulfilled' && categoriesRes.value) {
         const val = categoriesRes.value as any
@@ -72,8 +86,8 @@ export function FinancialForecastScreen({ onNotify }: Props) {
       }
     } catch (err) {
       console.error('Lỗi khi tải dự báo tài chính:', err)
-      setBalanceForecast((prev) => prev || defaultFallbackForecast)
-      onNotify('Không thể kết nối đến AI Service, hiển thị dữ liệu ước tính.')
+      setErrorMessage('Không thể kết nối đến AI Service. Vui lòng thử lại.')
+      onNotify('Không thể kết nối đến AI Service.')
     } finally {
       setIsLoading(false)
     }
@@ -92,6 +106,18 @@ export function FinancialForecastScreen({ onNotify }: Props) {
 
   return (
     <main className="mx-auto flex min-h-[calc(100vh-64px)] w-full max-w-[1560px] flex-col gap-5 bg-[#F8FAFC] dark:bg-[#0B0F19] px-3 pb-24 pt-4 text-[#0F172A] dark:text-[#F8FAFC] sm:px-[22px] lg:px-[34px] lg:pb-10" aria-label="Dự báo tài chính">
+      {errorMessage && (
+        <div role="alert" className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-rose-200 dark:border-rose-900/50 bg-rose-50 dark:bg-rose-950/30 px-4 py-3 text-xs font-medium text-rose-700 dark:text-rose-300">
+          <span>{errorMessage}</span>
+          <button
+            type="button"
+            onClick={() => loadForecast(true)}
+            className="rounded-lg bg-rose-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-rose-700 transition cursor-pointer"
+          >
+            Thử lại
+          </button>
+        </div>
+      )}
       {/* 3 THẺ TỔNG QUAN DỰ BÁO SỐ DƯ TỪ AI */}
       <section aria-label="Tổng quan dự báo" className="grid gap-3.5 md:grid-cols-3">
         <article className="flex min-h-[140px] flex-col justify-between rounded-2xl border border-[#e2e8f0] dark:border-[#1E293B] bg-white dark:bg-[#1F2937] p-5 shadow-sm dark:shadow-[0_8px_20px_rgba(0,0,0,0.35)] transition-all hover:border-[#cbd5e1] dark:hover:border-[#2b5170]">

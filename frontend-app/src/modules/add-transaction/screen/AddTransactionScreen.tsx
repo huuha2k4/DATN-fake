@@ -435,7 +435,7 @@ export function AddTransactionScreen({ onBack, onSaved, onOpenInvoiceScanner }: 
   return (
     <KeyboardAvoidingView
       style={[styles.screen, isDark && { backgroundColor: themeColors.background }]}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
       {/* Dải sóng trang trí mờ ở đáy màn hình đúng theo ảnh mẫu */}
       <Image

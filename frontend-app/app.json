@@ -6,7 +6,7 @@
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./src/modules/app/assets/icon.png",
-    "userInterfaceStyle": "light",
+    "userInterfaceStyle": "automatic",
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.finora.app"
@@ -19,8 +19,8 @@
         "backgroundImage": "./src/modules/app/assets/android-icon-background.png",
         "monochromeImage": "./src/modules/app/assets/android-icon-monochrome.png"
       },
-      "softwareKeyboardLayoutMode": "pan",
-      "predictiveBackGestureEnabled": false
+      "softwareKeyboardLayoutMode": "resize",
+      "predictiveBackGestureEnabled": true
     },
     "plugins": [
       "expo-web-browser",

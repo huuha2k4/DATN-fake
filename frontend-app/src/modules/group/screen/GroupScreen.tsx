@@ -1554,7 +1554,7 @@ export function GroupScreen({
               styles.chatViewportContainer,
               isDark && { backgroundColor: themeColors.background },
             ]}
-            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
             keyboardVerticalOffset={0}
           >
               <ScrollView
@@ -1576,10 +1576,10 @@ export function GroupScreen({
                 }}
               >
               {messages.filter((m) => !hiddenMessageIds.includes(m.id)).length === 0 ? (
-                <View style={styles.detailEmptyCard}>
+                <View style={[styles.detailEmptyCard, isDark && { backgroundColor: themeColors.surface, borderColor: themeColors.cardBorder }]}>
                   <Text style={{ fontSize: 32, marginBottom: 8 }}>💬</Text>
-                  <Text style={styles.detailEmptyTitle}>Chưa có cuộc trò chuyện nào</Text>
-                  <Text style={styles.detailEmptySub}>
+                  <Text style={[styles.detailEmptyTitle, isDark && { color: themeColors.textPrimary }]}>Chưa có cuộc trò chuyện nào</Text>
+                  <Text style={[styles.detailEmptySub, isDark && { color: themeColors.textSecondary }]}>
                     Hãy gửi tin nhắn đầu tiên để cùng lên kế hoạch chi tiêu và thảo luận cùng mọi người!
                   </Text>
                 </View>
@@ -3716,10 +3716,10 @@ export function GroupScreen({
         )}
 
         {/* ── MODAL CHỌN KHOẢN CHI CHUNG (CHO NHÓM) ĐẶT NGAY TRONG VIEW CHI TIẾT ── */}
-        <Modal visible={expenseModalVisible} transparent animationType="slide">
+        <Modal visible={expenseModalVisible} transparent animationType="slide" onRequestClose={() => setExpenseModalVisible(false)}>
           <KeyboardAvoidingView
             style={{ flex: 1 }}
-            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
           >
             <View style={styles.modalOverlay}>
               <View

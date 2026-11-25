@@ -206,6 +206,7 @@ export function LandingScreen({ onAuthenticated }: LandingScreenProps) {
                 className="landing-theme-toggle"
                 onClick={toggleTheme}
                 title={isDark ? 'Chuyển sang giao diện Sáng' : 'Chuyển sang giao diện Tối'}
+                aria-label={isDark ? 'Chuyển sang giao diện Sáng' : 'Chuyển sang giao diện Tối'}
               >
                 {isDark ? (
                   <Sun size={17} strokeWidth={2.2} className="theme-toggle-sun-icon" />
@@ -786,8 +787,17 @@ export function LandingScreen({ onAuthenticated }: LandingScreenProps) {
               {faqs.map((faq, idx) => (
                 <div
                   key={idx}
+                  role="button"
+                  tabIndex={0}
+                  aria-expanded={expandedFaq === idx}
                   className={`faq-modern-item ${expandedFaq === idx ? 'expanded' : ''}`}
                   onClick={() => toggleFaq(idx)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault()
+                      toggleFaq(idx)
+                    }
+                  }}
                 >
                   <div className="faq-item-question">
                     <span>{faq.q}</span>

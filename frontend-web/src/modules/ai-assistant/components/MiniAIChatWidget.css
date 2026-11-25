@@ -470,6 +470,30 @@ body.dark .mini-ai-input:focus {
   box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.15);
 }
 
+/* ========================================================
+   RESPONSIVE CHO THIẾT BỊ DI ĐỘNG (<= 768px)
+   ======================================================== */
+@media (max-width: 768px) {
+  .mini-ai-chat-window {
+    right: 12px;
+    bottom: 84px;
+    width: calc(100vw - 24px);
+    max-width: 420px;
+    height: 75vh;
+    max-height: 580px;
+    border-radius: 18px;
+  }
+
+  .mini-msg-row {
+    max-width: 96%;
+  }
+
+  .mini-ai-quick-grid {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+}
+
 @keyframes miniPopIn {
   from {
     opacity: 0;

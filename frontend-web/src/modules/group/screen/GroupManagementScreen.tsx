@@ -277,6 +277,11 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
   const [editChildAllowanceAccountId, setEditChildAllowanceAccountId] = useState('');
   const [isSubmittingEditChildWallet, setIsSubmittingEditChildWallet] = useState(false);
 
+  // Reset Child Password Modal State
+  const [resetPassWallet, setResetPassWallet] = useState<ChildWalletResponse | null>(null);
+  const [newChildPassword, setNewChildPassword] = useState('');
+  const [isSubmittingResetPass, setIsSubmittingResetPass] = useState(false);
+
   // Spend Request (Xin tiền bố mẹ) State
   const [selectedWalletForRequests, setSelectedWalletForRequests] = useState<ChildWalletResponse | null>(null);
   const [requestsModalTab, setRequestsModalTab] = useState<'REQUESTS' | 'SPENDS'>('REQUESTS');
@@ -1258,12 +1263,12 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
         setIsUploadingCreateAvatar(true);
       }
 
-      const uploaded = await groupApi.uploadMessageAttachment(selectedGroup.id, file);
-      if (uploaded && uploaded.fileKey) {
+      const avatarUrl = await groupApi.uploadChildWalletAvatar(selectedGroup.id, file);
+      if (avatarUrl) {
         if (isEdit) {
-          setEditChildAvatarKey(uploaded.fileKey);
+          setEditChildAvatarKey(avatarUrl);
         } else {
-          setChildWalletAvatarKey(uploaded.fileKey);
+          setChildWalletAvatarKey(avatarUrl);
         }
         onNotify('Đã tải ảnh đại diện lên thành công!');
       } else {
@@ -1284,7 +1289,9 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
   const handleOpenEditChildWallet = (wallet: ChildWalletResponse) => {
     setEditingChildWallet(wallet);
     setEditChildName(wallet.childName || '');
-    setEditChildAvatarKey(wallet.avatarKey || (wallet.childName?.toLowerCase().includes('gái') || wallet.childName?.toLowerCase().includes('hân') ? 'kid_girl' : 'kid_boy'));
+    const linkedMember = members.find((m) => (wallet.userId && m.userId === wallet.userId) || (m.user?.id && m.user.id === wallet.userId));
+    const effectiveAvatar = linkedMember?.user?.avatarUrl || linkedMember?.user?.avatarKey || wallet.avatarKey;
+    setEditChildAvatarKey(effectiveAvatar || (wallet.childName?.toLowerCase().includes('gái') || wallet.childName?.toLowerCase().includes('hân') ? 'kid_girl' : 'kid_boy'));
     setEditChildBirth(wallet.dateOfBirth || '');
     setEditChildAllowance(wallet.weeklyAllowance ? String(wallet.weeklyAllowance) : '');
     setEditChildAllowanceSource(wallet.allowanceSource || 'PERSONAL_ACCOUNT');
@@ -1321,6 +1328,29 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
       onNotify(msg);
     } finally {
       setIsSubmittingEditChildWallet(false);
+    }
+  };
+
+  // Handle Reset Child Password
+  const handleResetChildPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedGroup || !resetPassWallet) return;
+    if (!newChildPassword || newChildPassword.length < 6) {
+      onNotify('Mật khẩu mới của con phải có ít nhất 6 ký tự');
+      return;
+    }
+
+    try {
+      setIsSubmittingResetPass(true);
+      await groupApi.resetChildPassword(selectedGroup.id, resetPassWallet.id, newChildPassword);
+      onNotify(`Đã đặt lại mật khẩu thành công cho bé "${resetPassWallet.childName}". Bé có thể đăng nhập bằng mật khẩu mới này!`);
+      setResetPassWallet(null);
+      setNewChildPassword('');
+    } catch (err: any) {
+      const msg = err.response?.data?.message || 'Không thể đặt lại mật khẩu cho con';
+      onNotify(msg);
+    } finally {
+      setIsSubmittingResetPass(false);
     }
   };
 
@@ -2015,7 +2045,7 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
                           : 'border-transparent text-gray-500 hover:text-gray-900 dark:text-slate-400 dark:hover:text-slate-200'
                       }`}
                     >
-                      <FinanceIcon name="receipt" size={15} />
+                      <FinanceIcon name="file-text" size={15} />
                       <span>Thu & chi</span>
                     </button>
                   </>
@@ -2174,7 +2204,7 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
                       {/* Overview Sub-sections: Chi tiêu theo danh mục & Khoản thu chi gần đây */}
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         {/* Box 1: Chi tiêu theo danh mục (Đồng bộ bản App: Biểu đồ tròn Donut phía trên, danh sách danh mục phía dưới) */}
-                        <div className="rounded-2xl border border-[#E2E8F0] dark:border-slate-800 p-4 bg-white dark:bg-slate-850 flex flex-col justify-between shadow-2xs">
+                        <div className="rounded-2xl border border-[#E2E8F0] dark:border-slate-800 p-4 bg-white dark:bg-slate-900 flex flex-col justify-between shadow-2xs">
                           <div>
                             <div className="flex items-center justify-between pb-2 border-b border-gray-100 dark:border-slate-800">
                               <h4 className="text-xs font-bold text-[#0F172A] dark:text-slate-100 uppercase tracking-wider m-0 flex items-center gap-1.5">
@@ -2279,7 +2309,7 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
                         </div>
 
                         {/* Box 2: Khoản thu chi gần nhất (Chỉ hiển thị 4 giao dịch) */}
-                        <div className="rounded-2xl border border-[#E2E8F0] dark:border-slate-800 p-4 bg-white dark:bg-slate-850 flex flex-col gap-3 shadow-2xs">
+                        <div className="rounded-2xl border border-[#E2E8F0] dark:border-slate-800 p-4 bg-white dark:bg-slate-900 flex flex-col gap-3 shadow-2xs">
                           <div className="flex items-center justify-between">
                             <h4 className="text-xs font-bold text-[#0F172A] dark:text-slate-100 uppercase tracking-wider m-0 flex items-center gap-1.5">
                               <FinanceIcon name="receipt" size={14} />
@@ -2346,7 +2376,7 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
                             {balances.simplifiedDebts.slice(0, 4).map((debt, idx) => (
                               <div
                                 key={idx}
-                                className="p-2.5 rounded-xl bg-white dark:bg-slate-850 border border-emerald-100 dark:border-emerald-800/60 shadow-2xs"
+                                className="p-2.5 rounded-xl bg-white dark:bg-slate-900 border border-emerald-100 dark:border-emerald-800/60 shadow-2xs"
                               >
                                 <div className="flex items-start justify-between gap-2"><div className="min-w-0"><p className="text-xs font-bold text-[#0F172A] dark:text-slate-200 truncate m-0">{memberName(debt.fromUserId, debt.fromUser?.fullName)} → {memberName(debt.toUserId, debt.toUser?.fullName)}</p><span className="text-[10px] text-[#64748B] dark:text-slate-400">Cần bù trừ</span></div><strong className="text-xs font-bold text-[#007F53] dark:text-emerald-400 shrink-0">{debt.amount.toLocaleString('vi-VN')} đ</strong></div>
                               </div>
@@ -2520,7 +2550,7 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
                                         className={`size-8 rounded-full overflow-hidden flex items-center justify-center font-bold text-xs shadow-2xs ${
                                           isMe
                                             ? 'bg-[#007F53] text-white'
-                                            : 'bg-emerald-100 dark:bg-slate-750 text-[#007F53] dark:text-emerald-300 border border-emerald-200 dark:border-slate-700'
+                                            : 'bg-emerald-100 dark:bg-slate-700 text-[#007F53] dark:text-emerald-300 border border-emerald-200 dark:border-slate-700'
                                         }`}
                                         title={senderName}
                                       >
@@ -2673,7 +2703,7 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
                                               {/* Popover Actions Menu - No icons as requested */}
                                               {activeMenuMessageId === msg.id && (
                                                 <div
-                                                  className={`absolute bottom-full mb-1 z-30 min-w-[145px] p-1.5 rounded-xl bg-white dark:bg-slate-850 border border-gray-200 dark:border-slate-750 shadow-xl flex flex-col gap-0.5 text-xs animate-fadeIn ${
+                                                  className={`absolute bottom-full mb-1 z-30 min-w-[145px] p-1.5 rounded-xl bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-700 shadow-xl flex flex-col gap-0.5 text-xs animate-fadeIn ${
                                                     isMe ? 'right-0' : 'left-0'
                                                   }`}
                                                   onClick={(e) => e.stopPropagation()}
@@ -2767,7 +2797,7 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
                                           e.stopPropagation();
                                           setViewingReactionModalMessage(msg);
                                         }}
-                                        className={`flex items-center gap-0.5 -mt-2 px-1.5 py-0.5 rounded-full bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 shadow-xs text-[11px] z-10 cursor-pointer hover:bg-gray-50 dark:hover:bg-slate-750 transition ${
+                                        className={`flex items-center gap-0.5 -mt-2 px-1.5 py-0.5 rounded-full bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 shadow-xs text-[11px] z-10 cursor-pointer hover:bg-gray-50 dark:hover:bg-slate-700 transition ${
                                           isMe ? 'mr-1 self-end' : 'ml-1 self-start'
                                         }`}
                                         title="Bấm để xem ai đã thả cảm xúc"
@@ -2799,7 +2829,7 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
                                               return (
                                                 <div
                                                   key={sm.userId}
-                                                  className="size-3.5 rounded-full border border-white dark:border-slate-850 overflow-hidden bg-emerald-100 dark:bg-slate-700 text-[#007F53] dark:text-emerald-300 text-[7px] font-bold flex items-center justify-center shadow-xs"
+                                                  className="size-3.5 rounded-full border border-white dark:border-slate-900 overflow-hidden bg-emerald-100 dark:bg-slate-700 text-[#007F53] dark:text-emerald-300 text-[7px] font-bold flex items-center justify-center shadow-xs"
                                                   title={`${smName} đã xem`}
                                                 >
                                                   {smAvatar ? (
@@ -2832,7 +2862,7 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
                                           return (
                                             <div
                                               key={sm.userId}
-                                              className="size-3.5 rounded-full border border-white dark:border-slate-850 overflow-hidden bg-emerald-100 dark:bg-slate-700 text-[#007F53] dark:text-emerald-300 text-[7px] font-bold flex items-center justify-center shadow-xs"
+                                              className="size-3.5 rounded-full border border-white dark:border-slate-900 overflow-hidden bg-emerald-100 dark:bg-slate-700 text-[#007F53] dark:text-emerald-300 text-[7px] font-bold flex items-center justify-center shadow-xs"
                                               title={`${smName} đã xem`}
                                             >
                                               {smAvatar ? (
@@ -2866,7 +2896,7 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
                         <button
                           type="button"
                           onClick={scrollToBottom}
-                          className="absolute right-4 bottom-20 z-20 size-9 rounded-full bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 shadow-lg text-[#007F53] dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-slate-750 transition flex items-center justify-center animate-bounce group"
+                          className="absolute right-4 bottom-20 z-20 size-9 rounded-full bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 shadow-lg text-[#007F53] dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-slate-700 transition flex items-center justify-center animate-bounce group"
                           title="Cuộn xuống tin nhắn mới nhất"
                         >
                           <FinanceIcon name="chevron-down" size={16} className="transition group-hover:translate-y-0.5" />
@@ -2980,7 +3010,7 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
                       >
                         {/* Emoji Picker Popup */}
                         {showEmojiPicker && (
-                          <div className="absolute bottom-14 left-2 sm:left-3 z-30 p-2.5 rounded-2xl bg-white dark:bg-slate-850 border border-gray-200 dark:border-slate-700 shadow-xl max-w-[280px]">
+                          <div className="absolute bottom-14 left-2 sm:left-3 z-30 p-2.5 rounded-2xl bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-700 shadow-xl max-w-[280px]">
                             <div className="text-[10px] font-bold text-gray-500 mb-1.5 px-1">Biểu cảm nhanh</div>
                             <div className="grid grid-cols-6 gap-1.5 text-lg">
                               {['👍', '❤️', '😂', '😮', '😢', '😡', '👏', '🎉', '🔥', '✨', '💸', '💰', '🍔', '☕', '👶', '🙏', '💯', '👌'].map((emoji) => (
@@ -2991,7 +3021,7 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
                                     setNewMessageText((prev) => prev + emoji);
                                     setShowEmojiPicker(false);
                                   }}
-                                  className="size-8 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-750 flex items-center justify-center transition text-base"
+                                  className="size-8 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-700 flex items-center justify-center transition text-base"
                                 >
                                   {emoji}
                                 </button>
@@ -3357,7 +3387,7 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
                         ) : (
                           <div className="overflow-hidden rounded-2xl border border-[#e2e8f0] dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm w-full">
                             <div className="overflow-x-auto w-full">
-                              <table className="w-full table-fixed text-left">
+                              <table className="w-full min-w-[820px] table-fixed text-left">
                                 <thead className="bg-[#f8fafc] dark:bg-slate-800/80 text-[11px] font-bold tracking-wider text-[#64748b] dark:text-slate-400 border-b border-[#e2e8f0] dark:border-slate-800">
                                   <tr>
                                     <th className="w-[28%] px-3.5 py-3">GIAO DỊCH &amp; HẠNG MỤC</th>
@@ -3859,13 +3889,15 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
                         </div>
                       ) : (
                         childWallets.map((cw, idx) => {
-                          const isGirl = cw.avatarKey === 'kid_girl' || cw.avatarKey?.includes('girl') || idx % 2 === 1;
-                          const avatarSrc = getKidAvatarSrc(cw.avatarKey, isGirl);
+                          const linkedMember = members.find((m) => (cw.userId && m.userId === cw.userId) || (m.user?.id && m.user.id === cw.userId));
+                          const effectiveAvatar = linkedMember?.user?.avatarUrl || linkedMember?.user?.avatarKey || cw.avatarKey;
+                          const isGirl = effectiveAvatar === 'kid_girl' || effectiveAvatar?.includes('girl') || idx % 2 === 1;
+                          const avatarSrc = getKidAvatarSrc(effectiveAvatar, isGirl);
 
                           return (
                             <div
                               key={cw.id}
-                              className="p-4 rounded-2xl border border-gray-100 dark:border-slate-800 bg-[#F8FAFC] dark:bg-slate-850 hover:bg-emerald-50/30 dark:hover:bg-slate-800 transition flex flex-col gap-3 shadow-2xs"
+                              className="p-4 rounded-2xl border border-gray-100 dark:border-slate-800 bg-[#F8FAFC] dark:bg-slate-900 hover:bg-emerald-50/30 dark:hover:bg-slate-800 transition flex flex-col gap-3 shadow-2xs"
                             >
                               <div className="flex items-center justify-between">
                                 <div className="flex items-center gap-3">
@@ -3958,7 +3990,7 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
                                   onClick={() => handleOpenSpendRequests(cw)}
                                   className="h-8 px-2 rounded-xl border border-emerald-300 dark:border-emerald-800/80 bg-white dark:bg-[#0B0F19] text-xs font-bold text-[#007F53] dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-[#0c2436] transition flex items-center justify-center gap-1 shadow-2xs whitespace-nowrap cursor-pointer"
                                 >
-                                  <FinanceIcon name="receipt" size={12} />
+                                  <FinanceIcon name="file-text" size={12} />
                                   <span>{isChildAccount ? 'Khoản tiền' : 'Lịch sử'}</span>
                                 </button>
 
@@ -4512,7 +4544,7 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
 
                   {/* Autocomplete Dropdown List */}
                   {isValidEmail(memberSearchQuery) && !selectedUser && (
-                    <div className="mt-1.5 max-h-56 overflow-y-auto rounded-xl border border-[#E2E8F0] dark:border-slate-800 bg-white dark:bg-slate-850 shadow-xl divide-y divide-gray-100 dark:divide-slate-800">
+                    <div className="mt-1.5 max-h-56 overflow-y-auto rounded-xl border border-[#E2E8F0] dark:border-slate-800 bg-white dark:bg-slate-900 shadow-xl divide-y divide-gray-100 dark:divide-slate-800">
                       {isSearchingUsers ? (
                         <div className="p-3 text-center text-xs text-gray-400">
                           Đang kiểm tra tài khoản email...
@@ -5224,6 +5256,34 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
                 </div>
               )}
 
+              {/* Thông tin tài khoản con & Đổi mật khẩu (Mode 2) */}
+              {(editingChildWallet.userId || editingChildWallet.childUsername) && (
+                <div className="p-3 rounded-2xl bg-emerald-50/60 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-800/60 flex items-center justify-between gap-3">
+                  <div>
+                    <span className="text-[11px] font-bold text-[#007F53] dark:text-emerald-300 block">
+                      Tài khoản đăng nhập của con
+                    </span>
+                    <span className="text-xs font-bold text-gray-800 dark:text-slate-100 block">
+                      @{editingChildWallet.childUsername || 'Tài khoản liên kết'}
+                    </span>
+                    <span className="text-[10px] text-gray-500 dark:text-slate-400 block mt-0.5">
+                      Bé dùng tài khoản này để đăng nhập vào app Finora
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setResetPassWallet(editingChildWallet);
+                      setNewChildPassword('');
+                    }}
+                    className="h-8 px-3 rounded-xl border border-emerald-500 bg-white dark:bg-slate-800 text-emerald-700 dark:text-emerald-300 text-xs font-bold hover:bg-emerald-50 dark:hover:bg-slate-700 transition flex items-center gap-1.5 shrink-0 cursor-pointer shadow-2xs"
+                  >
+                    <FinanceIcon name="lock" size={12} />
+                    <span>Đổi mật khẩu</span>
+                  </button>
+                </div>
+              )}
+
               <div className="flex items-center justify-end gap-2.5 mt-2">
                 <button
                   type="button"
@@ -5238,6 +5298,69 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
                   className="h-9 px-5 rounded-xl bg-[#007F53] text-xs font-bold text-white hover:bg-[#004D3B] transition disabled:opacity-50"
                 >
                   {isSubmittingEditChildWallet ? 'Đang lưu...' : 'Lưu thay đổi'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal: Đặt lại mật khẩu cho con */}
+      {resetPassWallet && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-xs"
+          onClick={() => setResetPassWallet(null)}
+        >
+          <div
+            className="w-full max-w-sm rounded-3xl bg-white dark:bg-slate-900 p-6 shadow-2xl border border-[#E2E8F0] dark:border-slate-800"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="text-base font-bold text-[#0F172A] dark:text-slate-100 m-0">
+                Đổi mật khẩu cho bé
+              </h3>
+              <button
+                type="button"
+                onClick={() => setResetPassWallet(null)}
+                className="size-8 rounded-full flex items-center justify-center text-gray-400 hover:text-gray-600 dark:hover:text-slate-200 hover:bg-gray-100 dark:hover:bg-slate-800 transition"
+              >
+                ✕
+              </button>
+            </div>
+            <p className="text-xs text-[#64748B] dark:text-slate-400 mb-4">
+              Đặt lại mật khẩu cho bé <strong className="text-emerald-700 dark:text-emerald-400">{resetPassWallet.childName}</strong> (Tài khoản: @{resetPassWallet.childUsername}).
+            </p>
+
+            <form onSubmit={handleResetChildPassword} className="flex flex-col gap-3.5">
+              <div>
+                <label className="text-xs font-semibold text-[#0F172A] dark:text-slate-300 block mb-1">
+                  Mật khẩu mới của con * (ít nhất 6 ký tự)
+                </label>
+                <input
+                  type="password"
+                  value={newChildPassword}
+                  onChange={(e) => setNewChildPassword(e.target.value)}
+                  placeholder="••••••"
+                  className="w-full h-10 px-3 rounded-xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-medium"
+                  required
+                  minLength={6}
+                />
+              </div>
+
+              <div className="flex items-center justify-end gap-2.5 mt-2">
+                <button
+                  type="button"
+                  onClick={() => setResetPassWallet(null)}
+                  className="h-9 px-4 rounded-xl border border-gray-200 dark:border-slate-700 text-xs font-semibold text-gray-700 dark:text-slate-300 cursor-pointer"
+                >
+                  Hủy
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSubmittingResetPass || !newChildPassword || newChildPassword.length < 6}
+                  className="h-9 px-5 rounded-xl bg-[#007F53] text-xs font-bold text-white hover:bg-[#004D3B] transition disabled:opacity-50 cursor-pointer"
+                >
+                  {isSubmittingResetPass ? 'Đang cập nhật...' : 'Xác nhận đổi'}
                 </button>
               </div>
             </form>
@@ -5491,7 +5614,7 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
 
                 if (displayedList.length === 0) {
                   return (
-                    <div className="p-8 text-center text-xs text-[#64748B] dark:text-slate-400 rounded-2xl bg-gray-50 dark:bg-[#0B0F19] border border-dashed border-gray-200 dark:border-slate-850">
+                    <div className="p-8 text-center text-xs text-[#64748B] dark:text-slate-400 rounded-2xl bg-gray-50 dark:bg-[#0B0F19] border border-dashed border-gray-200 dark:border-slate-900">
                       {isRequestsTab ? 'Chưa có yêu cầu xin tiền nào từ bé.' : 'Chưa có lịch sử thu chi nào của bé.'}
                     </div>
                   );
@@ -6608,7 +6731,7 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
               </div>
 
               {/* PHẦN TRÊN: THÔNG TIN GIAO DỊCH (Cố định, thu nhỏ gọn, không trượt) */}
-              <div className="shrink-0 px-5 pt-3 pb-2.5 space-y-2 border-b border-gray-100 dark:border-slate-800 bg-[#fbfdfc] dark:bg-slate-850/60">
+              <div className="shrink-0 px-5 pt-3 pb-2.5 space-y-2 border-b border-gray-100 dark:border-slate-800 bg-[#fbfdfc] dark:bg-slate-900/60">
                 <div className="rounded-xl border border-gray-100 dark:border-slate-800 bg-white dark:bg-slate-800 p-3 shadow-2xs">
                   <div className="flex items-center gap-3">
                     <div className="grid size-10 shrink-0 place-items-center rounded-xl bg-[#FCE8E6] text-[#C5221F] dark:bg-rose-950/60 dark:text-rose-400 shadow-2xs">
@@ -6899,7 +7022,7 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
               </div>
 
               {/* PHẦN TRÊN: THÔNG TIN NỘP QUỸ (Cố định, thu nhỏ gọn, không trượt) */}
-              <div className="shrink-0 px-5 pt-3 pb-2.5 space-y-2 border-b border-gray-100 dark:border-slate-800 bg-[#fbfdfc] dark:bg-slate-850/60">
+              <div className="shrink-0 px-5 pt-3 pb-2.5 space-y-2 border-b border-gray-100 dark:border-slate-800 bg-[#fbfdfc] dark:bg-slate-900/60">
                 <div className="rounded-xl border border-emerald-100 dark:border-slate-800 bg-white dark:bg-slate-800 p-3 shadow-2xs">
                   <div className="flex items-center gap-3">
                     <div className="grid size-10 shrink-0 place-items-center rounded-xl bg-[#E6F4EA] text-[#137333] dark:bg-emerald-950/60 dark:text-emerald-400 shadow-2xs">

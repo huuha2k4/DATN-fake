@@ -36,7 +36,7 @@ export function BudgetCard({
       onPress={onPress}
       style={({ pressed }) => [
         styles.card,
-        { width: cardWidth, height: BANNER_HEIGHT },
+        { width: cardWidth, minHeight: BANNER_HEIGHT },
         isDark && {
           backgroundColor: '#081711',
           borderWidth: 1,

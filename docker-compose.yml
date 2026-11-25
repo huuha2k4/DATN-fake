@@ -139,27 +139,21 @@ services:
       - finance_network
     restart: unless-stopped
 
-  # React Web Frontend (Admin Dashboard)
+  # React Web Frontend (Production build served via Nginx, works for both local & server)
   frontend-web:
     build:
       context: ./frontend-web
-      dockerfile: Dockerfile.dev
+      dockerfile: Dockerfile.prod
+      args:
+        - VITE_API_URL=${VITE_API_URL:-/api/v1}
+        - VITE_GOOGLE_CLIENT_ID=${VITE_GOOGLE_CLIENT_ID}
     container_name: frontend-web
     environment:
-      - VITE_API_URL=${VITE_API_URL}
+      - VITE_API_URL=${VITE_API_URL:-/api/v1}
       - VITE_GOOGLE_CLIENT_ID=${VITE_GOOGLE_CLIENT_ID}
     # Port chỉ dùng internal, không expose ra ngoài
     expose:
-      - "5173"
-    volumes:
-      - ./frontend-web/src:/app/src
-      - ./frontend-web/public:/app/public
-      - ./frontend-web/index.html:/app/index.html
-      - ./frontend-web/vite.config.ts:/app/vite.config.ts
-      - ./frontend-web/tsconfig.json:/app/tsconfig.json
-      - ./frontend-web/package.json:/app/package.json
-      - ./frontend-web/package-lock.json:/app/package-lock.json
-      - frontend_node_modules:/app/node_modules
+      - "80"
     depends_on:
       - backend
       - pfm-ai-service

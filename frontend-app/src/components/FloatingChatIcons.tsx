@@ -3,6 +3,7 @@ import {
   ActivityIndicator,
   Alert,
   Animated,
+  AppState,
   Dimensions,
   Easing,
   FlatList,
@@ -421,12 +422,22 @@ export function FloatingChatIcons({
   useEffect(() => {
     setLoadingGroups(true);
     loadGroupChats();
-    // Tự động kiểm tra cập nhật danh sách nhóm và số tin nhắn chưa đọc mỗi 4 giây
+    // Chỉ poll thường xuyên (4s) khi popup chat đang mở & app đang active; khi đóng chỉ kiểm tra mỗi 15s
+    const isGroupPopupOpen = activePopup === 'GROUPS' || activePopup === 'ACTIVE_GROUP_CHAT';
+    const pollMs = isGroupPopupOpen ? 4000 : 15000;
     const pollInterval = setInterval(() => {
-      loadGroupChats();
-    }, 4000);
-    return () => clearInterval(pollInterval);
-  }, [loadGroupChats]);
+      if (AppState.currentState === 'active') {
+        loadGroupChats();
+      }
+    }, pollMs);
+    const appStateSub = AppState.addEventListener('change', (state) => {
+      if (state === 'active') loadGroupChats();
+    });
+    return () => {
+      clearInterval(pollInterval);
+      appStateSub.remove();
+    };
+  }, [loadGroupChats, activePopup]);
 
   // Polling tự động lấy tin nhắn mới mỗi 3.5 giây khi đang mở phòng chat nhóm trong popup
   useEffect(() => {
@@ -1505,10 +1516,6 @@ export function FloatingChatIcons({
                     returnKeyType="send"
                   />
 
-                  <Pressable style={styles.emojiBtn} onPress={() => { }}>
-                    <Smile size={16} color={isDark ? '#A7F3D0' : '#059669'} />
-                  </Pressable>
-
                   <Pressable
                     style={[
                       styles.sendBtnRound,
@@ -1883,7 +1890,15 @@ export function FloatingChatIcons({
       </Modal>
 
       {/* ── MODAL PHÓNG TO ẢNH (LIGHTBOX) KHI BẤM VÀO ẢNH TRONG CHAT ── */}
-      <Modal visible={!!lightboxImageUrl} transparent animationType="fade">
+      <Modal
+        visible={!!lightboxImageUrl}
+        transparent
+        animationType="fade"
+        onRequestClose={() => {
+          setLightboxImageUrl(null);
+          setLightboxImageInfo(null);
+        }}
+      >
         <View style={styles.lightboxOverlay}>
           {/* Header Lightbox */}
           <View style={[styles.lightboxHeader, { paddingTop: Math.max(insets.top, 24) }]}>

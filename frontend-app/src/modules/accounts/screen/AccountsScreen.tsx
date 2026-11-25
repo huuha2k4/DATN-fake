@@ -790,10 +790,10 @@ export function AccountsScreen({ onBack, onAddTransaction }: Props) {
 
       {/* ── 6. MODAL CHỈNH SỬA VÍ (ĐỔI TÊN, SỐ DƯ, BẬT TẮT) ── */}
       {isEditModalOpen && selectedAccountForEdit && (
-        <Modal visible transparent animationType="slide">
+        <Modal visible transparent animationType="slide" onRequestClose={() => setIsEditModalOpen(false)}>
           <KeyboardAvoidingView
             style={styles.modalOverlay}
-            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
           >
             <View style={[styles.modalSheet, isDark && { backgroundColor: themeColors.surface }]}>
               <View style={[styles.modalHeader, isDark && { borderBottomColor: themeColors.cardBorder }]}>

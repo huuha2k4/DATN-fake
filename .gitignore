@@ -33,3 +33,7 @@ Thumbs.db
 
 # Temporary files
 *.tmp
+
+# Local AI skills
+.agents/
+skills-lock.json

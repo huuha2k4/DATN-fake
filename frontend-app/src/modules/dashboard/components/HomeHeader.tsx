@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import { AppState, Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Bell } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { authStorage } from '../../auth/api/authApi';
@@ -26,10 +26,11 @@ export function HomeHeader({ onNotifications, onProfile }: Props) {
   const [userProfile, setUserProfile] = useState(() => authStorage.getUser());
   const [unreadCount, setUnreadCount] = useState(0);
 
-  // Tự động kiểm tra số lượng thông báo chưa đọc
+  // Tự động kiểm tra số lượng thông báo chưa đọc (chỉ poll khi app active)
   useEffect(() => {
     let isMounted = true;
     const fetchUnread = () => {
+      if (AppState.currentState !== 'active') return;
       notificationApi
         .getUnreadCount()
         .then((count) => {
@@ -39,9 +40,13 @@ export function HomeHeader({ onNotifications, onProfile }: Props) {
     };
     fetchUnread();
     const interval = setInterval(fetchUnread, 15000);
+    const appStateSub = AppState.addEventListener('change', (state) => {
+      if (state === 'active') fetchUnread();
+    });
     return () => {
       isMounted = false;
       clearInterval(interval);
+      appStateSub.remove();
     };
   }, []);
 

@@ -17,7 +17,9 @@ Người dùng đã phê duyệt triển khai batch ưu tiên 0 ngày 21/11/2026
 | SEC-004 | FIXED | Đã cấu hình `SecurityConfig.java` đọc động danh sách domain từ `app.security.allowed-origins` (`.env` / `application.yml`); preflight OPTIONS request trả về header `Access-Control-Allow-Origin: https://finora.3congian.top` và HTTP 200 |
 | MAP-002 | FIXED | Đã đóng port ngoại vi `8000:8000` của `pfm-ai-service` trong `docker-compose.yml` (chỉ expose nội bộ Docker mạng `finance_network`); xóa proxy trực tiếp `/api/chat` -> port 8000 trong `frontend-web/vite.config.ts`, đưa 100% request AI qua Backend Spring Boot `/api/v1/finai/...` |
 | CODE-001 (Web) | FIXED | Đã sửa toàn bộ lỗi type drift DTO (AccountItem, ChildWalletResponse, GroupCommentResponse, CategoryItem, DatePicker...) và cấu hình tsconfig; `npm run build` trên Web đã build thành công 100% (Vite production bundle tạo hoàn tất trong 3.68s) |
-| Các finding còn lại | NOT STARTED | Chờ phê duyệt batch tiếp theo (CODE-001 Mobile tsc, MAP-002, BUS-003...) |
+| ARCH-001 | FIXED | Bổ sung `HealthController` xử lý `GET /api/v1/health` trả về JSON `{status: "UP", service: "finora-backend"}`; cấu hình Nginx route `/actuator/health` proxy trực tiếp tới Spring Boot Actuator backend thật thay vì rơi vào false-positive SPA |
+| CODE-001 (Mobile - Partial) | IN_PROGRESS | Đã phát hiện và dọn dẹp khối code duplicate 1.455 dòng trong `DebtScreen.tsx` (loại bỏ hoàn toàn type `never` leak); đang tiếp tục hoàn thiện các type declarations còn lại |
+| Các finding còn lại | NOT STARTED | Chờ phê duyệt batch tiếp theo (BUS-003, BUS-004...) |
 
 Cập nhật kiểm chứng ngày 24/11/2026:
 - **Batch 1 (MAP-001, MAP-003, SEC-005)**:
