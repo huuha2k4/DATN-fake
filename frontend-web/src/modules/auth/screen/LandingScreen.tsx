@@ -51,6 +51,8 @@ import groupRoommateImg from '../../../assets/landing/group_roommate.png';
 import avatarUser1 from '../../../assets/landing/avatar_user_1.png';
 import avatarUser2 from '../../../assets/landing/avatar_user_2.png';
 import avatarUser3 from '../../../assets/landing/avatar_user_3.png';
+import expoGoPhoneImg from '../../../assets/landing/expo_go_phone.png';
+import expoGoQrImg from '../../../assets/landing/expo_go_qr.png';
 
 import './LandingScreen.css';
 
@@ -265,9 +267,9 @@ export function LandingScreen({ onAuthenticated }: LandingScreenProps) {
                   <FinanceIcon name="arrow" size={16} />
                 </button>
 
-                <a href="#solutions" className="btn-hero-outline">
-                  <span className="play-icon">▶</span>
-                  <span>Xem video giới thiệu</span>
+                <a href="#mobile-app-expo" className="btn-hero-outline">
+                  <Smartphone size={17} strokeWidth={2.2} className="text-[#007F53] dark:text-[#34D399]" />
+                  <span>Trải nghiệm ứng dụng</span>
                 </a>
               </div>
 
@@ -276,10 +278,10 @@ export function LandingScreen({ onAuthenticated }: LandingScreenProps) {
                   <span>💻</span>
                   <span>Web App</span>
                 </div>
-                <div className="plat-badge">
+                <a href="#mobile-app-expo" className="plat-badge plat-badge-link">
                   <span>📱</span>
                   <span>Mobile App (iOS &amp; Android)</span>
-                </div>
+                </a>
                 <div className="plat-badge">
                   <span>🛡️</span>
                   <span>Bảo mật &amp; an toàn</span>
@@ -764,6 +766,86 @@ export function LandingScreen({ onAuthenticated }: LandingScreenProps) {
               </button>
             </div>
           </div>
+
+          {/* Mobile App Expo Go Banner */}
+          <div id="mobile-app-expo" className="expo-go-banner-card">
+            <div className="expo-go-intro">
+              <img
+                src={expoGoPhoneImg}
+                alt="Ứng dụng Expo Go"
+                className="expo-go-phone-img"
+              />
+              <div className="expo-go-intro-text">
+                <h3 className="expo-go-title">Dùng Finora trên ứng dụng (Expo Go)</h3>
+                <p className="expo-go-desc">
+                  Trải nghiệm nhanh phiên bản ứng dụng di động của Finora chỉ với 2 bước đơn giản.
+                </p>
+              </div>
+            </div>
+
+            <div className="expo-go-steps-row">
+              {/* Bước 1: Tải Expo Go */}
+              <div className="expo-go-step-card">
+                <div className="expo-go-step-main">
+                  <span className="expo-step-num">1</span>
+                  <p className="expo-step-text">
+                    <strong>Tải ứng dụng Expo Go</strong> trên CH Play hoặc App Store.
+                  </p>
+                </div>
+                <div className="expo-store-buttons">
+                  <a
+                    href="https://play.google.com/store/apps/details?id=host.exp.exponent"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="expo-store-btn"
+                  >
+                    <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
+                      <path fill="#34A853" d="M3.6 2.3c-.3.3-.5.8-.5 1.4v16.6c0 .6.2 1.1.5 1.4l.1.1 9.3-9.3v-.2L3.7 2.2l-.1.1z" />
+                      <path fill="#FBBC05" d="M16.1 15.6l-3.1-3.1v-.2l3.1-3.1.1.1 3.7 2.1c1 .6 1 1.6 0 2.2l-3.7 2.1-.1-.1z" />
+                      <path fill="#EA4335" d="M16.2 15.5L13 12.3 3.6 21.7c.3.4.9.4 1.6 0l11-6.2z" />
+                      <path fill="#4285F4" d="M16.2 8.5l-11-6.2c-.7-.4-1.3-.4-1.6 0L13 11.7l3.2-3.2z" />
+                    </svg>
+                    <span>Google Play</span>
+                  </a>
+                  <a
+                    href="https://apps.apple.com/app/expo-go/id982107779"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="expo-store-btn"
+                  >
+                    <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" aria-hidden="true">
+                      <path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.81-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M15.96 6.32c.67-.81 1.12-1.94 1-3.07-.96.04-2.12.64-2.81 1.45-.62.71-1.16 1.86-1.01 2.96 1.07.08 2.15-.54 2.82-1.34z" />
+                    </svg>
+                    <span>App Store</span>
+                  </a>
+                </div>
+              </div>
+
+              {/* Bước 2: Quét mã QR */}
+              <div className="expo-go-step-card expo-go-step-scan">
+                <div className="expo-go-step-main">
+                  <span className="expo-step-num">2</span>
+                  <div>
+                    <p className="expo-step-text">
+                      <strong>Mở Expo Go</strong> và quét mã QR để trải nghiệm Finora ngay.
+                    </p>
+                    <p className="expo-step-note">iPhone: quét bằng Camera mặc định.</p>
+                  </div>
+                </div>
+              </div>
+
+              <span className="expo-qr-arrow" aria-hidden="true">→</span>
+
+              {/* Khung QR cố định */}
+              <div className="expo-qr-box">
+                <img
+                  src={expoGoQrImg}
+                  alt="Mã QR tải ứng dụng Finora trên Expo Go"
+                  className="expo-qr-img"
+                />
+              </div>
+            </div>
+          </div>
         </section>
 
         {/* =========================================================================
@@ -863,7 +945,7 @@ export function LandingScreen({ onAuthenticated }: LandingScreenProps) {
               <ul>
                 <li><a href="#solutions">Tính năng</a></li>
                 <li><a href="#finai">FinAI Agent</a></li>
-                <li><a href="#hero">Ứng dụng Mobile</a></li>
+                <li><a href="#mobile-app-expo">Ứng dụng Mobile</a></li>
                 <li><a href="/pricing">Bảng giá</a></li>
               </ul>
             </div>

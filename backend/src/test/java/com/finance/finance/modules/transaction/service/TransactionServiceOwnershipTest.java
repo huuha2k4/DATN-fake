@@ -26,6 +26,10 @@ import com.finance.finance.modules.transaction.entity.Transaction;
 import com.finance.finance.modules.transaction.mapper.TransactionMapper;
 import com.finance.finance.modules.transaction.repository.TransactionRepository;
 import com.finance.finance.common.upload.FileUploadValidator;
+import com.finance.finance.common.upload.ImageCompressionHelper;
+import com.finance.finance.modules.goal.entity.Goal;
+import com.finance.finance.modules.goal.entity.GoalContribution;
+import org.springframework.data.domain.Pageable;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -52,6 +56,7 @@ class TransactionServiceOwnershipTest {
     @Mock CategoryRepository categoryRepository;
     @Mock MerchantRepository merchantRepository;
     @Mock FileUploadValidator fileUploadValidator;
+    @Mock ImageCompressionHelper imageCompressionHelper;
     @Mock BudgetItemRepository budgetItemRepository;
     @Mock NotificationService notificationService;
     @Mock ChildWalletRepository childWalletRepository;
@@ -180,6 +185,73 @@ class TransactionServiceOwnershipTest {
         assertEquals(new BigDecimal("450.00"), newAccount.getBalance());
         assertEquals(newAccountId, transaction.getAccountId());
         assertEquals(new BigDecimal("50.00"), transaction.getAmount());
+    }
+
+    @Test
+    void deleteTransactionPropagatesGoalSyncFailureForRollback() {
+        UUID userId = UUID.randomUUID();
+        UUID accountId = UUID.randomUUID();
+        UUID transactionId = UUID.randomUUID();
+        Transaction transaction = expense(userId, accountId, UUID.randomUUID(), new BigDecimal("100.00"));
+        transaction.setId(transactionId);
+
+        Account account = Account.builder()
+                .id(accountId)
+                .userId(userId)
+                .balance(new BigDecimal("500.00"))
+                .build();
+        Goal goal = Goal.builder()
+                .id(UUID.randomUUID())
+                .userId(userId)
+                .name("Quỹ khẩn cấp")
+                .currentAmount(new BigDecimal("200.00"))
+                .build();
+        GoalContribution contrib = GoalContribution.builder()
+                .id(UUID.randomUUID())
+                .goal(goal)
+                .transactionId(transactionId)
+                .amount(new BigDecimal("100.00"))
+                .build();
+
+        when(transactionRepository.findByIdAndUserId(transactionId, userId)).thenReturn(Optional.of(transaction));
+        when(accountRepository.findByIdAndUserId(accountId, userId)).thenReturn(Optional.of(account));
+        when(goalContributionRepository.findByTransactionId(transactionId)).thenReturn(Optional.of(contrib));
+        when(goalRepository.save(any(Goal.class))).thenThrow(new IllegalStateException("DB sync error"));
+
+        assertThrows(IllegalStateException.class, () -> service.deleteTransaction(userId, transactionId, 0L));
+    }
+
+    @Test
+    void getTransactionSummaryBatchesCategoryLookupInsteadOfNPlusOne() {
+        UUID userId = UUID.randomUUID();
+        UUID cat1 = UUID.randomUUID();
+        UUID cat2 = UUID.randomUUID();
+        java.time.LocalDate from = java.time.LocalDate.of(2026, 11, 1);
+        java.time.LocalDate to = java.time.LocalDate.of(2026, 11, 30);
+
+        when(transactionRepository.getSummary(userId, from, to, null, false))
+                .thenReturn(new Object[]{BigDecimal.ZERO, new BigDecimal("300000"), 2L});
+        when(transactionRepository.findLargestExpenses(any(), any(), any(), any(), any(Pageable.class)))
+                .thenReturn(java.util.List.of());
+        when(transactionRepository.getMostFrequentCategories(any(), any(), any(), any(Pageable.class)))
+                .thenReturn(java.util.List.of());
+        when(transactionRepository.groupByCategory(userId, TransactionType.EXPENSE, from, to, null, false))
+                .thenReturn(java.util.List.of(
+                        new Object[]{cat1, new BigDecimal("200000"), 1L, new BigDecimal("200000")},
+                        new Object[]{cat2, new BigDecimal("100000"), 1L, new BigDecimal("100000")}
+                ));
+        when(categoryRepository.findAllById(any())).thenReturn(java.util.List.of(
+                Category.builder().id(cat1).name("Ăn uống").build(),
+                Category.builder().id(cat2).name("Di chuyển").build()
+        ));
+
+        var summary = service.getTransactionSummary(userId, from, to, "day", null);
+
+        assertEquals(2, summary.getByCategory().size());
+        assertEquals("Ăn uống", summary.getByCategory().get(0).getCategoryName());
+        assertEquals("Di chuyển", summary.getByCategory().get(1).getCategoryName());
+        verify(categoryRepository).findAllById(any());
+        verify(categoryRepository, never()).findById(any());
     }
 
     private Transaction expense(UUID userId, UUID accountId, UUID categoryId, BigDecimal amount) {

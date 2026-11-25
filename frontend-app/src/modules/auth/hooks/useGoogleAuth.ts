@@ -25,22 +25,26 @@ export function useGoogleAuth(onSuccess?: (authResult?: any) => void): UseGoogle
   // Client ID lấy từ .env (EXPO_PUBLIC_*)
   const webClientId = process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID || '1028251172273-prffrl7gbo392um76rpsqs2tsolt7gic.apps.googleusercontent.com';
   const iosClientId = process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID || '1028251172273-tuau16qj3gg72k2sebdvcoeitvm2sfsg.apps.googleusercontent.com';
-  const androidClientId = process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID || webClientId;
+  const androidClientId = process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID || '1028251172273-6huhmosirbqauekdf4l9loh3jrvp2n6k.apps.googleusercontent.com';
 
   // Lấy reversed client id từ iOS Client ID (dạng com.googleusercontent.apps.1028251172273-tuau16qj3gg7...)
   const iosReversedClientId = iosClientId.includes('.apps.googleusercontent.com')
     ? `com.googleusercontent.apps.${iosClientId.replace('.apps.googleusercontent.com', '')}`
     : undefined;
 
-  // Xác định redirectUri chuẩn theo scheme của ứng dụng:
-  // - Trên iOS: dùng reversed client ID chuẩn của Google (com.googleusercontent.apps.<ID>:/oauthredirect)
-  // - Trên Android: dùng custom scheme finora:/oauthredirect
+  // Xác định redirectUri chuẩn theo từng nền tảng:
+  // - Trên iOS: giữ nguyên reversed client ID chuẩn của Google (com.googleusercontent.apps.<ID>:/oauthredirect)
+  // - Trên Android: để undefined để expo-auth-session tự dùng chuẩn <package_name>:/oauthredirect (com.finora.app:/oauthredirect),
+  //   tránh dùng scheme finora:// khiến Google báo Lỗi 400 invalid_request
+  // - Trên Web: giữ nguyên makeRedirectUri
   const redirectUri = Platform.OS === 'ios' && iosReversedClientId
     ? `${iosReversedClientId}:/oauthredirect`
-    : makeRedirectUri({
-        scheme: 'finora',
-        path: 'oauthredirect',
-      });
+    : Platform.OS === 'android'
+      ? undefined
+      : makeRedirectUri({
+          scheme: 'finora',
+          path: 'oauthredirect',
+        });
 
   const [request, response, promptAsync] = Google.useIdTokenAuthRequest({
     clientId: Platform.select({ ios: iosClientId, android: androidClientId, default: webClientId }),

@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Eye, EyeOff } from 'lucide-react';
 import { authApi, saveAuthData, type RegisterRequest } from '../api/authApi';
 import { FinanceIcon } from '../../core/components/FinanceIcon';
 import { GoogleSignInButton } from './GoogleSignInButton';
@@ -272,7 +273,7 @@ export function RegisterModal({ onClose, onSuccess, onSwitchToLogin }: RegisterM
                   title={showPassword ? 'Ẩn' : 'Hiện'}
                   aria-label="Ẩn hiện mật khẩu"
                 >
-                  {showPassword ? '🙈' : '👁️'}
+                  {showPassword ? <EyeOff size={17} /> : <Eye size={17} />}
                 </button>
               </div>
             </div>

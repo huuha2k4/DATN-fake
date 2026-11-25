@@ -163,7 +163,7 @@ export function NotificationDropdown({ onNotify }: NotificationDropdownProps) {
     const poll = async () => {
       if (typeof document !== 'undefined' && document.hidden) return;
       try {
-        const res = await notificationApi.getNotifications({ page_size: 15 });
+        const res = await notificationApi.getNotifications({ page_size: 30 });
         if (res.notifications) {
           setNotifications(res.notifications);
           setUnreadCount(res.unread_count ?? res.notifications.filter((n) => !n.is_read).length);
@@ -294,7 +294,7 @@ export function NotificationDropdown({ onNotify }: NotificationDropdownProps) {
               className={`notification-tab-btn ${activeTab === 'UNREAD' ? 'is-active' : ''}`}
               onClick={() => setActiveTab('UNREAD')}
             >
-              Chưa đọc ({notifications.filter((n) => !n.is_read).length})
+              Chưa đọc ({unreadCount})
             </button>
             <button
               type="button"

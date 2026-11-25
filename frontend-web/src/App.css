@@ -2529,7 +2529,7 @@ html.dark .reports-filter-container {
   border-color: #1E293B !important;
 }
 
-/* Nhóm 4 nút thời gian preset */
+/* Nhóm các nút thời gian preset */
 .reports-preset-group {
   height: 44px;
   background: #f2f5f3;
@@ -2539,6 +2539,12 @@ html.dark .reports-filter-container {
   align-items: center;
   gap: 2px;
   border: 1px solid #e5ece6;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.reports-preset-group::-webkit-scrollbar {
+  display: none;
 }
 
 html.dark .reports-preset-group {
@@ -2547,10 +2553,11 @@ html.dark .reports-preset-group {
 }
 
 .reports-preset-btn {
-  flex: 1;
+  flex: 1 0 auto;
   height: 100%;
+  padding: 0 7px;
   border-radius: 7px;
-  font-size: 13px;
+  font-size: 11.5px;
   font-weight: 700;
   display: flex;
   align-items: center;

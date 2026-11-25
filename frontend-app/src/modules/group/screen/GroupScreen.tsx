@@ -365,6 +365,22 @@ export function GroupScreen({
   const [viewingReactionModalMessage, setViewingReactionModalMessage] = useState<GroupMessageResponse | null>(null);
   const [reactionModalTab, setReactionModalTab] = useState<string>('ALL');
   const [lightboxImageUrl, setLightboxImageUrl] = useState<string | null>(null);
+  const [lightboxToast, setLightboxToast] = useState<string | null>(null);
+  const lightboxToastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const showLightboxToast = (msg: string) => {
+    if (lightboxToastTimerRef.current) clearTimeout(lightboxToastTimerRef.current);
+    setLightboxToast(msg);
+    lightboxToastTimerRef.current = setTimeout(() => {
+      setLightboxToast(null);
+    }, 2400);
+  };
+
+  useEffect(() => {
+    return () => {
+      if (lightboxToastTimerRef.current) clearTimeout(lightboxToastTimerRef.current);
+    };
+  }, []);
   const [lightboxImageInfo, setLightboxImageInfo] = useState<{ timeStr: string; senderName?: string } | null>(null);
   const [selectedMessageTimeId, setSelectedMessageTimeId] = useState<string | null>(null);
   const [recallingMessageId, setRecallingMessageId] = useState<string | null>(null);
@@ -3811,17 +3827,7 @@ export function GroupScreen({
                   />
 
                   {/* 2. Số tiền */}
-                  <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
-                    <Text style={[styles.inputLabel, isDark && { color: themeColors.textSecondary }]}>Số tiền giao dịch (VNĐ) *</Text>
-                    <Pressable
-                      onPress={() => Keyboard.dismiss()}
-                      hitSlop={10}
-                      style={[styles.keyboardDismissBtn, isDark && { backgroundColor: 'rgba(16, 185, 129, 0.15)' }]}
-                    >
-                      <FinanceIcon name="download" size={13} color={isDark ? themeColors.accentGreen : '#059669'} />
-                      <Text style={[styles.keyboardDismissBtnText, isDark && { color: themeColors.accentGreen }]}>Ẩn bàn phím</Text>
-                    </Pressable>
-                  </View>
+                  <Text style={[styles.inputLabel, isDark && { color: themeColors.textSecondary }]}>Số tiền giao dịch (VNĐ) *</Text>
                   <TextInput
                     value={
                       expAmount ? new Intl.NumberFormat('vi-VN').format(parseInt(expAmount.replace(/\D/g, '') || '0', 10)) : ''
@@ -5640,6 +5646,7 @@ export function GroupScreen({
                         document.body.appendChild(link);
                         link.click();
                         document.body.removeChild(link);
+                        showLightboxToast('✓ Đã lưu ảnh thành công!');
                         return;
                       }
 
@@ -5665,7 +5672,7 @@ export function GroupScreen({
                         } else if (typeof (MediaLibrary as any).createAssetAsync === 'function') {
                           await (MediaLibrary as any).createAssetAsync(downloadRes.uri);
                         }
-                        Alert.alert('Thành công', 'Đã lưu ảnh vào Thư viện ảnh của bạn!');
+                        showLightboxToast('✓ Đã lưu ảnh vào Thư viện ảnh!');
                         return;
                       }
 
@@ -5702,6 +5709,29 @@ export function GroupScreen({
                   style={styles.lightboxFullImage}
                   resizeMode="contain"
                 />
+              </View>
+            )}
+
+            {lightboxToast && (
+              <View
+                pointerEvents="none"
+                style={{
+                  position: 'absolute',
+                  bottom: Math.max(insets.bottom + 24, 36),
+                  alignSelf: 'center',
+                  backgroundColor: 'rgba(5, 150, 105, 0.94)',
+                  paddingHorizontal: 16,
+                  paddingVertical: 10,
+                  borderRadius: 999,
+                  shadowColor: '#000',
+                  shadowOpacity: 0.25,
+                  shadowRadius: 8,
+                  elevation: 6,
+                }}
+              >
+                <Text style={{ color: '#FFFFFF', fontSize: 13, fontWeight: '700' }}>
+                  {lightboxToast}
+                </Text>
               </View>
             )}
           </View>

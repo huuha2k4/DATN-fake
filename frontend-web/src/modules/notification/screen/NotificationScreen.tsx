@@ -278,7 +278,7 @@ export function NotificationScreen({ onNotify }: NotificationScreenProps) {
           className={`h-8 px-3.5 rounded-full text-xs font-semibold transition ${
             activeTab === 'ALL'
               ? 'bg-[#007F53] text-white shadow-xs'
-              : 'bg-white dark:bg-slate-800 text-gray-600 dark:text-slate-400 hover:bg-gray-100'
+              : 'bg-white dark:bg-slate-800 text-gray-600 dark:text-slate-300 hover:bg-gray-100 dark:hover:bg-slate-700'
           }`}
         >
           Tất cả ({notifications.length})
@@ -289,7 +289,7 @@ export function NotificationScreen({ onNotify }: NotificationScreenProps) {
           className={`h-8 px-3.5 rounded-full text-xs font-semibold transition ${
             activeTab === 'UNREAD'
               ? 'bg-[#007F53] text-white shadow-xs'
-              : 'bg-white dark:bg-slate-800 text-gray-600 dark:text-slate-400 hover:bg-gray-100'
+              : 'bg-white dark:bg-slate-800 text-gray-600 dark:text-slate-300 hover:bg-gray-100 dark:hover:bg-slate-700'
           }`}
         >
           Chưa đọc ({unreadCount})
@@ -300,7 +300,7 @@ export function NotificationScreen({ onNotify }: NotificationScreenProps) {
           className={`h-8 px-3.5 rounded-full text-xs font-semibold transition ${
             activeTab === 'HIGH'
               ? 'bg-[#007F53] text-white shadow-xs'
-              : 'bg-white dark:bg-slate-800 text-gray-600 dark:text-slate-400 hover:bg-gray-100'
+              : 'bg-white dark:bg-slate-800 text-gray-600 dark:text-slate-300 hover:bg-gray-100 dark:hover:bg-slate-700'
           }`}
         >
           Quan trọng ({highPriorityCount})
@@ -311,7 +311,7 @@ export function NotificationScreen({ onNotify }: NotificationScreenProps) {
           className={`h-8 px-3.5 rounded-full text-xs font-semibold transition ${
             activeTab === 'BUDGET'
               ? 'bg-[#007F53] text-white shadow-xs'
-              : 'bg-white dark:bg-slate-800 text-gray-600 dark:text-slate-400 hover:bg-gray-100'
+              : 'bg-white dark:bg-slate-800 text-gray-600 dark:text-slate-300 hover:bg-gray-100 dark:hover:bg-slate-700'
           }`}
         >
           Ngân sách
@@ -322,7 +322,7 @@ export function NotificationScreen({ onNotify }: NotificationScreenProps) {
           className={`h-8 px-3.5 rounded-full text-xs font-semibold transition ${
             activeTab === 'GOAL'
               ? 'bg-[#007F53] text-white shadow-xs'
-              : 'bg-white dark:bg-slate-800 text-gray-600 dark:text-slate-400 hover:bg-gray-100'
+              : 'bg-white dark:bg-slate-800 text-gray-600 dark:text-slate-300 hover:bg-gray-100 dark:hover:bg-slate-700'
           }`}
         >
           Mục tiêu
@@ -333,7 +333,7 @@ export function NotificationScreen({ onNotify }: NotificationScreenProps) {
           className={`h-8 px-3.5 rounded-full text-xs font-semibold transition ${
             activeTab === 'DEBT'
               ? 'bg-[#007F53] text-white shadow-xs'
-              : 'bg-white dark:bg-slate-800 text-gray-600 dark:text-slate-400 hover:bg-gray-100'
+              : 'bg-white dark:bg-slate-800 text-gray-600 dark:text-slate-300 hover:bg-gray-100 dark:hover:bg-slate-700'
           }`}
         >
           Công nợ

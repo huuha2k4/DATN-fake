@@ -536,58 +536,95 @@ public class TransactionService {
     }
 
     private void syncLinkedGoalOnUpdate(Transaction tx) {
-        try {
-            var contribOpt = goalContributionRepository.findByTransactionId(tx.getId());
-            if (contribOpt.isEmpty()) {
-                // Fallback cho các giao dịch rút/nạp tiền từ mục tiêu được tạo trước khi có cột transaction_id:
-                // Tìm kiếm theo description hoặc note chứa tên mục tiêu
-                String desc = tx.getDescriptionRaw() != null ? tx.getDescriptionRaw() : "";
-                String note = tx.getNote() != null ? tx.getNote() : "";
-                var allUserContribs = goalContributionRepository.findByUserId(tx.getUserId());
-                for (var c : allUserContribs) {
-                    if (c.getGoal() != null && (desc.contains(c.getGoal().getName()) || note.contains(c.getGoal().getName()))) {
-                        c.setTransactionId(tx.getId());
-                        goalContributionRepository.save(c);
-                        contribOpt = java.util.Optional.of(c);
-                        break;
-                    }
+        var contribOpt = goalContributionRepository.findByTransactionId(tx.getId());
+        if (contribOpt.isEmpty()) {
+            // Fallback cho các giao dịch rút/nạp tiền từ mục tiêu được tạo trước khi có cột transaction_id:
+            // Tìm kiếm theo description hoặc note chứa tên mục tiêu
+            String desc = tx.getDescriptionRaw() != null ? tx.getDescriptionRaw() : "";
+            String note = tx.getNote() != null ? tx.getNote() : "";
+            var allUserContribs = goalContributionRepository.findByUserId(tx.getUserId());
+            for (var c : allUserContribs) {
+                if (c.getGoal() != null && (desc.contains(c.getGoal().getName()) || note.contains(c.getGoal().getName()))) {
+                    c.setTransactionId(tx.getId());
+                    goalContributionRepository.save(c);
+                    contribOpt = java.util.Optional.of(c);
+                    break;
                 }
             }
+        }
 
-            contribOpt.ifPresent(contrib -> {
-                com.finance.finance.modules.goal.entity.Goal goal = contrib.getGoal();
-                if (goal == null) return;
+        contribOpt.ifPresent(contrib -> {
+            com.finance.finance.modules.goal.entity.Goal goal = contrib.getGoal();
+            if (goal == null) return;
 
-                // Hoàn lại lượng tiền cũ của contribution này khỏi goal
-                BigDecimal oldSignedAmount = contrib.getAmount(); // có thể âm nếu là rút tiền
+            // Hoàn lại lượng tiền cũ của contribution này khỏi goal
+            BigDecimal oldSignedAmount = contrib.getAmount(); // có thể âm nếu là rút tiền
+            BigDecimal currentGoalAmount = goal.getCurrentAmount() != null ? goal.getCurrentAmount() : BigDecimal.ZERO;
+            BigDecimal baseAmountWithoutThis = currentGoalAmount.subtract(oldSignedAmount);
+
+            // Tính toán lượng tiền mới theo loại giao dịch
+            // Nếu giao dịch là INCOME (rút tiền từ mục tiêu về ví) -> contribution amount là số âm (-amount)
+            // Nếu giao dịch là EXPENSE (đóng góp vào mục tiêu) -> contribution amount là số dương (+amount)
+            BigDecimal newSignedAmount = tx.getType() == TransactionType.INCOME
+                    ? tx.getAmount().negate()
+                    : tx.getAmount();
+
+            contrib.setAmount(newSignedAmount);
+            if (tx.getNote() != null && !tx.getNote().isBlank()) {
+                contrib.setNote(tx.getNote());
+            } else if (tx.getDescriptionRaw() != null && !tx.getDescriptionRaw().isBlank()) {
+                contrib.setNote(tx.getDescriptionRaw());
+            }
+            if (tx.getAccountId() != null) {
+                contrib.setSourceAccountId(tx.getAccountId());
+            }
+            goalContributionRepository.save(contrib);
+
+            BigDecimal newGoalAmount = baseAmountWithoutThis.add(newSignedAmount);
+            if (newGoalAmount.compareTo(BigDecimal.ZERO) < 0) {
+                newGoalAmount = BigDecimal.ZERO;
+            }
+            goal.setCurrentAmount(newGoalAmount);
+
+            // Cập nhật lại status mục tiêu
+            if (goal.getTargetAmount() != null && goal.getTargetAmount().compareTo(BigDecimal.ZERO) > 0) {
+                if (newGoalAmount.compareTo(goal.getTargetAmount()) >= 0) {
+                    goal.setStatus(com.finance.finance.common.enums.GoalStatus.ACHIEVED);
+                } else if (goal.getStatus() == com.finance.finance.common.enums.GoalStatus.ACHIEVED) {
+                    goal.setStatus(com.finance.finance.common.enums.GoalStatus.IN_PROGRESS);
+                    goal.setCompletedAt(null);
+                }
+            }
+            goalRepository.save(goal);
+            log.info("Synced Goal {} currentAmount to {} after Transaction {} update", goal.getId(), newGoalAmount, tx.getId());
+        });
+    }
+
+    private void syncLinkedGoalOnDelete(Transaction tx) {
+        var contribOpt = goalContributionRepository.findByTransactionId(tx.getId());
+        if (contribOpt.isEmpty()) {
+            String desc = tx.getDescriptionRaw() != null ? tx.getDescriptionRaw() : "";
+            String note = tx.getNote() != null ? tx.getNote() : "";
+            var allUserContribs = goalContributionRepository.findByUserId(tx.getUserId());
+            for (var c : allUserContribs) {
+                if (c.getGoal() != null && (desc.contains(c.getGoal().getName()) || note.contains(c.getGoal().getName()))) {
+                    contribOpt = java.util.Optional.of(c);
+                    break;
+                }
+            }
+        }
+
+        contribOpt.ifPresent(contrib -> {
+            com.finance.finance.modules.goal.entity.Goal goal = contrib.getGoal();
+            if (goal != null) {
+                BigDecimal signedAmount = contrib.getAmount();
                 BigDecimal currentGoalAmount = goal.getCurrentAmount() != null ? goal.getCurrentAmount() : BigDecimal.ZERO;
-                BigDecimal baseAmountWithoutThis = currentGoalAmount.subtract(oldSignedAmount);
-
-                // Tính toán lượng tiền mới theo loại giao dịch
-                // Nếu giao dịch là INCOME (rút tiền từ mục tiêu về ví) -> contribution amount là số âm (-amount)
-                // Nếu giao dịch là EXPENSE (đóng góp vào mục tiêu) -> contribution amount là số dương (+amount)
-                BigDecimal newSignedAmount = tx.getType() == TransactionType.INCOME 
-                        ? tx.getAmount().negate() 
-                        : tx.getAmount();
-
-                contrib.setAmount(newSignedAmount);
-                if (tx.getNote() != null && !tx.getNote().isBlank()) {
-                    contrib.setNote(tx.getNote());
-                } else if (tx.getDescriptionRaw() != null && !tx.getDescriptionRaw().isBlank()) {
-                    contrib.setNote(tx.getDescriptionRaw());
-                }
-                if (tx.getAccountId() != null) {
-                    contrib.setSourceAccountId(tx.getAccountId());
-                }
-                goalContributionRepository.save(contrib);
-
-                BigDecimal newGoalAmount = baseAmountWithoutThis.add(newSignedAmount);
+                BigDecimal newGoalAmount = currentGoalAmount.subtract(signedAmount);
                 if (newGoalAmount.compareTo(BigDecimal.ZERO) < 0) {
                     newGoalAmount = BigDecimal.ZERO;
                 }
                 goal.setCurrentAmount(newGoalAmount);
 
-                // Cập nhật lại status mục tiêu
                 if (goal.getTargetAmount() != null && goal.getTargetAmount().compareTo(BigDecimal.ZERO) > 0) {
                     if (newGoalAmount.compareTo(goal.getTargetAmount()) >= 0) {
                         goal.setStatus(com.finance.finance.common.enums.GoalStatus.ACHIEVED);
@@ -597,250 +634,180 @@ public class TransactionService {
                     }
                 }
                 goalRepository.save(goal);
-                log.info("Synced Goal {} currentAmount to {} after Transaction {} update", goal.getId(), newGoalAmount, tx.getId());
-            });
-        } catch (Exception ex) {
-            log.error("Failed to sync linked goal on transaction update", ex);
-        }
-    }
-
-    private void syncLinkedGoalOnDelete(Transaction tx) {
-        try {
-            var contribOpt = goalContributionRepository.findByTransactionId(tx.getId());
-            if (contribOpt.isEmpty()) {
-                String desc = tx.getDescriptionRaw() != null ? tx.getDescriptionRaw() : "";
-                String note = tx.getNote() != null ? tx.getNote() : "";
-                var allUserContribs = goalContributionRepository.findByUserId(tx.getUserId());
-                for (var c : allUserContribs) {
-                    if (c.getGoal() != null && (desc.contains(c.getGoal().getName()) || note.contains(c.getGoal().getName()))) {
-                        contribOpt = java.util.Optional.of(c);
-                        break;
-                    }
-                }
+                log.info("Reverted Goal {} currentAmount to {} after Transaction {} delete", goal.getId(), newGoalAmount, tx.getId());
             }
-
-            contribOpt.ifPresent(contrib -> {
-                com.finance.finance.modules.goal.entity.Goal goal = contrib.getGoal();
-                if (goal != null) {
-                    BigDecimal signedAmount = contrib.getAmount();
-                    BigDecimal currentGoalAmount = goal.getCurrentAmount() != null ? goal.getCurrentAmount() : BigDecimal.ZERO;
-                    BigDecimal newGoalAmount = currentGoalAmount.subtract(signedAmount);
-                    if (newGoalAmount.compareTo(BigDecimal.ZERO) < 0) {
-                        newGoalAmount = BigDecimal.ZERO;
-                    }
-                    goal.setCurrentAmount(newGoalAmount);
-
-                    if (goal.getTargetAmount() != null && goal.getTargetAmount().compareTo(BigDecimal.ZERO) > 0) {
-                        if (newGoalAmount.compareTo(goal.getTargetAmount()) >= 0) {
-                            goal.setStatus(com.finance.finance.common.enums.GoalStatus.ACHIEVED);
-                        } else if (goal.getStatus() == com.finance.finance.common.enums.GoalStatus.ACHIEVED) {
-                            goal.setStatus(com.finance.finance.common.enums.GoalStatus.IN_PROGRESS);
-                            goal.setCompletedAt(null);
-                        }
-                    }
-                    goalRepository.save(goal);
-                    log.info("Reverted Goal {} currentAmount to {} after Transaction {} delete", goal.getId(), newGoalAmount, tx.getId());
-                }
-                goalContributionRepository.delete(contrib);
-            });
-        } catch (Exception ex) {
-            log.error("Failed to sync linked goal on transaction delete", ex);
-        }
+            goalContributionRepository.delete(contrib);
+        });
     }
 
     private void syncLinkedDebtOnUpdate(Transaction tx) {
-        try {
-            debtPaymentRepository.findByTransactionId(tx.getId()).ifPresent(payment -> {
-                com.finance.finance.modules.debt.entity.Debt debt = payment.getDebt();
-                if (debt == null) return;
+        debtPaymentRepository.findByTransactionId(tx.getId()).ifPresent(payment -> {
+            com.finance.finance.modules.debt.entity.Debt debt = payment.getDebt();
+            if (debt == null) return;
 
+            BigDecimal oldPaymentAmount = payment.getAmount() != null ? payment.getAmount() : BigDecimal.ZERO;
+            BigDecimal oldInterest = payment.getInterestPaid() != null ? payment.getInterestPaid() : BigDecimal.ZERO;
+
+            BigDecimal newAmount = tx.getAmount() != null ? tx.getAmount() : BigDecimal.ZERO;
+            // Nếu khoản cũ toàn bộ là gốc hoặc có tỷ lệ, điều chỉnh gốc theo số tiền mới
+            BigDecimal newPrincipal = newAmount;
+            BigDecimal newInterest = BigDecimal.ZERO;
+            if (oldPaymentAmount.compareTo(BigDecimal.ZERO) > 0 && oldInterest.compareTo(BigDecimal.ZERO) > 0) {
+                newInterest = oldInterest;
+                newPrincipal = newAmount.subtract(newInterest);
+                if (newPrincipal.compareTo(BigDecimal.ZERO) < 0) {
+                    newPrincipal = BigDecimal.ZERO;
+                    newInterest = newAmount;
+                }
+            }
+
+            payment.setAmount(newAmount);
+            payment.setPrincipalPaid(newPrincipal);
+            payment.setInterestPaid(newInterest);
+            if (tx.getOccurredDate() != null) {
+                payment.setPaymentDate(tx.getOccurredDate());
+            }
+            if (tx.getAccountId() != null) {
+                payment.setAccountId(tx.getAccountId());
+            }
+            if (tx.getNote() != null && !tx.getNote().isBlank()) {
+                payment.setNote(tx.getNote());
+            }
+            debtPaymentRepository.save(payment);
+
+            // Cập nhật lại paidAmount và interestPaid trong debt
+            BigDecimal curPaid = debt.getPaidAmount() != null ? debt.getPaidAmount() : BigDecimal.ZERO;
+            BigDecimal curInterest = debt.getInterestPaid() != null ? debt.getInterestPaid() : BigDecimal.ZERO;
+
+            BigDecimal updatedPaid = curPaid.subtract(oldPaymentAmount).add(newAmount);
+            BigDecimal updatedInterest = curInterest.subtract(oldInterest).add(newInterest);
+
+            debt.setPaidAmount(updatedPaid.compareTo(BigDecimal.ZERO) < 0 ? BigDecimal.ZERO : updatedPaid);
+            debt.setInterestPaid(updatedInterest.compareTo(BigDecimal.ZERO) < 0 ? BigDecimal.ZERO : updatedInterest);
+            debt.updateStatus();
+            debtRepository.save(debt);
+            log.info("Synced Debt {} after Transaction {} update", debt.getId(), tx.getId());
+        });
+    }
+
+    private void syncLinkedDebtOnDelete(Transaction tx) {
+        debtPaymentRepository.findByTransactionId(tx.getId()).ifPresent(payment -> {
+            com.finance.finance.modules.debt.entity.Debt debt = payment.getDebt();
+            if (debt != null) {
                 BigDecimal oldPaymentAmount = payment.getAmount() != null ? payment.getAmount() : BigDecimal.ZERO;
-                BigDecimal oldPrincipal = payment.getPrincipalPaid() != null ? payment.getPrincipalPaid() : oldPaymentAmount;
                 BigDecimal oldInterest = payment.getInterestPaid() != null ? payment.getInterestPaid() : BigDecimal.ZERO;
 
-                BigDecimal newAmount = tx.getAmount() != null ? tx.getAmount() : BigDecimal.ZERO;
-                // Nếu khoản cũ toàn bộ là gốc hoặc có tỷ lệ, điều chỉnh gốc theo số tiền mới
-                BigDecimal newPrincipal = newAmount;
-                BigDecimal newInterest = BigDecimal.ZERO;
-                if (oldPaymentAmount.compareTo(BigDecimal.ZERO) > 0 && oldInterest.compareTo(BigDecimal.ZERO) > 0) {
-                    newInterest = oldInterest;
-                    newPrincipal = newAmount.subtract(newInterest);
-                    if (newPrincipal.compareTo(BigDecimal.ZERO) < 0) {
-                        newPrincipal = BigDecimal.ZERO;
-                        newInterest = newAmount;
-                    }
-                }
-
-                payment.setAmount(newAmount);
-                payment.setPrincipalPaid(newPrincipal);
-                payment.setInterestPaid(newInterest);
-                if (tx.getOccurredDate() != null) {
-                    payment.setPaymentDate(tx.getOccurredDate());
-                }
-                if (tx.getAccountId() != null) {
-                    payment.setAccountId(tx.getAccountId());
-                }
-                if (tx.getNote() != null && !tx.getNote().isBlank()) {
-                    payment.setNote(tx.getNote());
-                }
-                debtPaymentRepository.save(payment);
-
-                // Cập nhật lại paidAmount và interestPaid trong debt
                 BigDecimal curPaid = debt.getPaidAmount() != null ? debt.getPaidAmount() : BigDecimal.ZERO;
                 BigDecimal curInterest = debt.getInterestPaid() != null ? debt.getInterestPaid() : BigDecimal.ZERO;
 
-                BigDecimal updatedPaid = curPaid.subtract(oldPaymentAmount).add(newAmount);
-                BigDecimal updatedInterest = curInterest.subtract(oldInterest).add(newInterest);
+                BigDecimal updatedPaid = curPaid.subtract(oldPaymentAmount);
+                BigDecimal updatedInterest = curInterest.subtract(oldInterest);
 
                 debt.setPaidAmount(updatedPaid.compareTo(BigDecimal.ZERO) < 0 ? BigDecimal.ZERO : updatedPaid);
                 debt.setInterestPaid(updatedInterest.compareTo(BigDecimal.ZERO) < 0 ? BigDecimal.ZERO : updatedInterest);
                 debt.updateStatus();
                 debtRepository.save(debt);
-                log.info("Synced Debt {} after Transaction {} update", debt.getId(), tx.getId());
-            });
-        } catch (Exception ex) {
-            log.error("Failed to sync linked debt on transaction update", ex);
-        }
-    }
-
-    private void syncLinkedDebtOnDelete(Transaction tx) {
-        try {
-            debtPaymentRepository.findByTransactionId(tx.getId()).ifPresent(payment -> {
-                com.finance.finance.modules.debt.entity.Debt debt = payment.getDebt();
-                if (debt != null) {
-                    BigDecimal oldPaymentAmount = payment.getAmount() != null ? payment.getAmount() : BigDecimal.ZERO;
-                    BigDecimal oldInterest = payment.getInterestPaid() != null ? payment.getInterestPaid() : BigDecimal.ZERO;
-
-                    BigDecimal curPaid = debt.getPaidAmount() != null ? debt.getPaidAmount() : BigDecimal.ZERO;
-                    BigDecimal curInterest = debt.getInterestPaid() != null ? debt.getInterestPaid() : BigDecimal.ZERO;
-
-                    BigDecimal updatedPaid = curPaid.subtract(oldPaymentAmount);
-                    BigDecimal updatedInterest = curInterest.subtract(oldInterest);
-
-                    debt.setPaidAmount(updatedPaid.compareTo(BigDecimal.ZERO) < 0 ? BigDecimal.ZERO : updatedPaid);
-                    debt.setInterestPaid(updatedInterest.compareTo(BigDecimal.ZERO) < 0 ? BigDecimal.ZERO : updatedInterest);
-                    debt.updateStatus();
-                    debtRepository.save(debt);
-                    log.info("Reverted Debt {} after Transaction {} delete", debt.getId(), tx.getId());
-                }
-                debtPaymentRepository.delete(payment);
-            });
-        } catch (Exception ex) {
-            log.error("Failed to sync linked debt on transaction delete", ex);
-        }
+                log.info("Reverted Debt {} after Transaction {} delete", debt.getId(), tx.getId());
+            }
+            debtPaymentRepository.delete(payment);
+        });
     }
 
     private void syncLinkedGroupOnUpdate(Transaction tx) {
-        try {
-            // 1. Group expense
-            groupExpenseRepository.findByPersonalTransactionId(tx.getId()).ifPresent(expense -> {
-                if (tx.getAmount() != null) {
-                    expense.setAmount(tx.getAmount());
-                }
-                if (tx.getDescriptionRaw() != null && !tx.getDescriptionRaw().isBlank()) {
-                    expense.setDescription(tx.getDescriptionRaw());
-                }
-                if (tx.getOccurredDate() != null) {
-                    expense.setExpenseDate(tx.getOccurredDate());
-                }
-                if (tx.getAccountId() != null) {
-                    expense.setSourceAccountId(tx.getAccountId());
-                }
-                groupExpenseRepository.save(expense);
-                log.info("Synced GroupExpense {} after Transaction {} update", expense.getId(), tx.getId());
-            });
+        // 1. Group expense
+        groupExpenseRepository.findByPersonalTransactionId(tx.getId()).ifPresent(expense -> {
+            if (tx.getAmount() != null) {
+                expense.setAmount(tx.getAmount());
+            }
+            if (tx.getDescriptionRaw() != null && !tx.getDescriptionRaw().isBlank()) {
+                expense.setDescription(tx.getDescriptionRaw());
+            }
+            if (tx.getOccurredDate() != null) {
+                expense.setExpenseDate(tx.getOccurredDate());
+            }
+            if (tx.getAccountId() != null) {
+                expense.setSourceAccountId(tx.getAccountId());
+            }
+            groupExpenseRepository.save(expense);
+            log.info("Synced GroupExpense {} after Transaction {} update", expense.getId(), tx.getId());
+        });
 
-            // 2. Group fund contribution
-            groupFundContributionRepository.findByPersonalTransactionId(tx.getId()).ifPresent(contrib -> {
-                BigDecimal oldAmount = contrib.getAmount() != null ? contrib.getAmount() : BigDecimal.ZERO;
-                BigDecimal newAmount = tx.getAmount() != null ? tx.getAmount() : BigDecimal.ZERO;
-                contrib.setAmount(newAmount);
-                if (tx.getOccurredDate() != null) {
-                    contrib.setContributedAt(tx.getOccurredDate());
-                }
-                groupFundContributionRepository.save(contrib);
+        // 2. Group fund contribution
+        groupFundContributionRepository.findByPersonalTransactionId(tx.getId()).ifPresent(contrib -> {
+            BigDecimal oldAmount = contrib.getAmount() != null ? contrib.getAmount() : BigDecimal.ZERO;
+            BigDecimal newAmount = tx.getAmount() != null ? tx.getAmount() : BigDecimal.ZERO;
+            contrib.setAmount(newAmount);
+            if (tx.getOccurredDate() != null) {
+                contrib.setContributedAt(tx.getOccurredDate());
+            }
+            groupFundContributionRepository.save(contrib);
 
-                if (contrib.getFundId() != null) {
-                    groupFundRepository.findById(contrib.getFundId()).ifPresent(fund -> {
-                        BigDecimal curBalance = fund.getBalance() != null ? fund.getBalance() : BigDecimal.ZERO;
-                        BigDecimal newBalance = curBalance.subtract(oldAmount).add(newAmount);
-                        fund.setBalance(newBalance.compareTo(BigDecimal.ZERO) < 0 ? BigDecimal.ZERO : newBalance);
-                        groupFundRepository.save(fund);
-                    });
-                }
-                log.info("Synced GroupFundContribution {} after Transaction {} update", contrib.getId(), tx.getId());
-            });
+            if (contrib.getFundId() != null) {
+                groupFundRepository.findById(contrib.getFundId()).ifPresent(fund -> {
+                    BigDecimal curBalance = fund.getBalance() != null ? fund.getBalance() : BigDecimal.ZERO;
+                    BigDecimal newBalance = curBalance.subtract(oldAmount).add(newAmount);
+                    fund.setBalance(newBalance.compareTo(BigDecimal.ZERO) < 0 ? BigDecimal.ZERO : newBalance);
+                    groupFundRepository.save(fund);
+                });
+            }
+            log.info("Synced GroupFundContribution {} after Transaction {} update", contrib.getId(), tx.getId());
+        });
 
-            // 3. Group settlement
-            groupSettlementRepository.findByOutgoingTransactionIdOrIncomingTransactionId(tx.getId(), tx.getId()).ifPresent(st -> {
-                if (tx.getAmount() != null) {
-                    st.setAmount(tx.getAmount());
-                    groupSettlementRepository.save(st);
-                }
-                log.info("Synced GroupSettlement {} after Transaction {} update", st.getId(), tx.getId());
-            });
-        } catch (Exception ex) {
-            log.error("Failed to sync linked group on transaction update", ex);
-        }
+        // 3. Group settlement
+        groupSettlementRepository.findByOutgoingTransactionIdOrIncomingTransactionId(tx.getId(), tx.getId()).ifPresent(st -> {
+            if (tx.getAmount() != null) {
+                st.setAmount(tx.getAmount());
+                groupSettlementRepository.save(st);
+            }
+            log.info("Synced GroupSettlement {} after Transaction {} update", st.getId(), tx.getId());
+        });
     }
 
     private void syncLinkedGroupOnDelete(Transaction tx) {
-        try {
-            groupExpenseRepository.findByPersonalTransactionId(tx.getId()).ifPresent(expense -> {
-                expense.setPersonalTransactionId(null);
-                groupExpenseRepository.save(expense);
-            });
+        groupExpenseRepository.findByPersonalTransactionId(tx.getId()).ifPresent(expense -> {
+            expense.setPersonalTransactionId(null);
+            groupExpenseRepository.save(expense);
+        });
 
-            groupFundContributionRepository.findByPersonalTransactionId(tx.getId()).ifPresent(contrib -> {
-                BigDecimal amount = contrib.getAmount() != null ? contrib.getAmount() : BigDecimal.ZERO;
-                if (contrib.getFundId() != null) {
-                    groupFundRepository.findById(contrib.getFundId()).ifPresent(fund -> {
-                        BigDecimal curBalance = fund.getBalance() != null ? fund.getBalance() : BigDecimal.ZERO;
-                        BigDecimal newBalance = curBalance.subtract(amount);
-                        fund.setBalance(newBalance.compareTo(BigDecimal.ZERO) < 0 ? BigDecimal.ZERO : newBalance);
-                        groupFundRepository.save(fund);
-                    });
-                }
-                groupFundContributionRepository.delete(contrib);
-            });
+        groupFundContributionRepository.findByPersonalTransactionId(tx.getId()).ifPresent(contrib -> {
+            BigDecimal amount = contrib.getAmount() != null ? contrib.getAmount() : BigDecimal.ZERO;
+            if (contrib.getFundId() != null) {
+                groupFundRepository.findById(contrib.getFundId()).ifPresent(fund -> {
+                    BigDecimal curBalance = fund.getBalance() != null ? fund.getBalance() : BigDecimal.ZERO;
+                    BigDecimal newBalance = curBalance.subtract(amount);
+                    fund.setBalance(newBalance.compareTo(BigDecimal.ZERO) < 0 ? BigDecimal.ZERO : newBalance);
+                    groupFundRepository.save(fund);
+                });
+            }
+            groupFundContributionRepository.delete(contrib);
+        });
 
-            groupSettlementRepository.findByOutgoingTransactionIdOrIncomingTransactionId(tx.getId(), tx.getId()).ifPresent(st -> {
-                if (tx.getId().equals(st.getOutgoingTransactionId())) {
-                    st.setOutgoingTransactionId(null);
-                }
-                if (tx.getId().equals(st.getIncomingTransactionId())) {
-                    st.setIncomingTransactionId(null);
-                }
-                groupSettlementRepository.save(st);
-            });
-        } catch (Exception ex) {
-            log.error("Failed to sync linked group on transaction delete", ex);
-        }
+        groupSettlementRepository.findByOutgoingTransactionIdOrIncomingTransactionId(tx.getId(), tx.getId()).ifPresent(st -> {
+            if (tx.getId().equals(st.getOutgoingTransactionId())) {
+                st.setOutgoingTransactionId(null);
+            }
+            if (tx.getId().equals(st.getIncomingTransactionId())) {
+                st.setIncomingTransactionId(null);
+            }
+            groupSettlementRepository.save(st);
+        });
     }
 
     private void syncLinkedScheduleOnUpdate(Transaction tx) {
-        try {
-            scheduleOccurrenceRepository.findByTransactionId(tx.getId()).ifPresent(occ -> {
-                if (tx.getOccurredDate() != null) {
-                    occ.setActualExecutionDate(tx.getOccurredDate());
-                    scheduleOccurrenceRepository.save(occ);
-                }
-            });
-        } catch (Exception ex) {
-            log.error("Failed to sync linked schedule on transaction update", ex);
-        }
+        scheduleOccurrenceRepository.findByTransactionId(tx.getId()).ifPresent(occ -> {
+            if (tx.getOccurredDate() != null) {
+                occ.setActualExecutionDate(tx.getOccurredDate());
+                scheduleOccurrenceRepository.save(occ);
+            }
+        });
     }
 
     private void syncLinkedScheduleOnDelete(Transaction tx) {
-        try {
-            scheduleOccurrenceRepository.findByTransactionId(tx.getId()).ifPresent(occ -> {
-                occ.setTransactionId(null);
-                occ.setStatus(com.finance.finance.common.enums.OccurrenceStatus.PENDING);
-                scheduleOccurrenceRepository.save(occ);
-            });
-        } catch (Exception ex) {
-            log.error("Failed to sync linked schedule on transaction delete", ex);
-        }
+        scheduleOccurrenceRepository.findByTransactionId(tx.getId()).ifPresent(occ -> {
+            occ.setTransactionId(null);
+            occ.setStatus(com.finance.finance.common.enums.OccurrenceStatus.PENDING);
+            scheduleOccurrenceRepository.save(occ);
+        });
     }
     
     /**
@@ -1043,10 +1010,20 @@ public class TransactionService {
                 ? sumCategoryAmount
                 : (totalExpense != null ? totalExpense : BigDecimal.ZERO);
         
+        // Batch fetch category names in 1 query (fix N+1 query in summary)
+        Set<UUID> categoryIds = categoryData.stream()
+                .map(data -> (UUID) data[0])
+                .filter(java.util.Objects::nonNull)
+                .collect(Collectors.toSet());
+        Map<UUID, String> categoryNameMap = categoryIds.isEmpty()
+                ? Map.of()
+                : categoryRepository.findAllById(categoryIds).stream()
+                        .collect(Collectors.toMap(Category::getId, Category::getName, (a, b) -> a));
+
         List<TransactionSummaryResponse.CategoryItemDto> byCategory = categoryData.stream()
                 .map(data -> {
                     UUID catId = (UUID) data[0];
-                    String catName = catId != null ? categoryRepository.findById(catId).map(Category::getName).orElse("") : "";
+                    String catName = catId != null ? categoryNameMap.getOrDefault(catId, "") : "";
                     BigDecimal amount = toBigDecimal(data[1]);
                     BigDecimal percentage = (effectiveTotalExpense.compareTo(BigDecimal.ZERO) > 0)
                             ? amount.divide(effectiveTotalExpense, 4, RoundingMode.HALF_UP).multiply(BigDecimal.valueOf(100))

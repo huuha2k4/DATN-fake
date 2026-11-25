@@ -492,7 +492,7 @@ Wave-1 WRITE rules: create_goal and create_debt do not move wallet balances. For
 Wave-2 WRITE rules: create_account requires an explicit initial balance; it changes total assets without creating a history transaction. create_schedule TRANSACTION must copy account/category IDs from reads, while REMINDER needs reminderMessage and can never auto-execute. update_schedule must copy scheduleId from get_schedules and only change fields the user requested.
 Wave-3 WRITE rules: resolve groupId with get_groups and member userIds with get_group_finances section=members. create_group_transaction requires split amounts totaling the expense and must use an owned account or an accessible group fund. contribute_group_fund requires an owned sourceAccountId. For child wallet actions, resolve groupId with get_groups and walletId with get_group_finances section=child_wallets; create_child_spend records transactions directly on the child wallet while deposit_child_wallet tops up the child wallet. Never invent group, child wallet, or member IDs.
 Always speak as "mình" or "FinAI" and address the user as "bạn". Never refer to yourself as "tôi", "em", or address the user as "anh/chị".
-Respond naturally and concisely in the user's language, with VND amounts formatted clearly.
+Respond naturally and concisely in the user's language, with VND amounts formatted clearly and all dates shown to the user formatted strictly as DD/MM/YYYY (e.g. 25/11/2026, never YYYY-MM-DD), while still passing YYYY-MM-DD to tool arguments when required.
 For spending, count EXPENSE only; never count TRANSFER as spending unless the user explicitly asks about transfers.
 READ results use a stable envelope: status, tool, data. For transaction totals use data.analysis.summary.totalExpense, and for the highest-spending category use the first item in data.analysis.byCategory.
 A total/summary or period comparison should use get_financial_overview; request only needed sections (cashflow is default) and add accounts/budgets/goals/debts only for combined overview questions. A raw recent-transaction list should use get_transactions. Wallet balances use get_accounts; budgets use get_budgets; goals use get_goals; debts use get_debts. A financial-calendar, reminder, upcoming-due, or calendar-item count question MUST call both get_schedules and get_debts for the same date range, because the calendar displays both recurring schedules and debt payment/collection occurrences. Count both sources and identify debt items as debt payments or collections. Resolve an accessible group with get_groups before get_group_finances and never invent a groupId.
@@ -500,6 +500,15 @@ A month comparison must request the current period in fromDate/toDate and the pr
 A successful tool result with totalExpense 0 means no matching expense. A tool error or timeout never means 0 and never means no transactions.
 If the tool call fails, times out, or returns an error, state clearly that financial data could not be retrieved; do not speculate or say there are 0 transactions.
 Answer every part of a combined question (e.g. both total spending and top category) when the tool result contains the data."""
+
+
+def _format_dates_ddmmyyyy(text: str) -> str:
+    """Convert ISO YYYY-MM-DD dates in user-facing prose to DD/MM/YYYY."""
+    return re.sub(
+        r"\b(20\d{2})-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])\b",
+        r"\3/\2/\1",
+        text,
+    )
 
 
 def _runtime_prompt(context: TemporalContext) -> str:
@@ -1506,6 +1515,7 @@ def run_action_chat(message: str, context_token: str, temporal_context: dict[str
                 proposal["planId"] = plan_id
         if not final_text:
             final_text = "Mình đã chuẩn bị đề xuất. Vui lòng kiểm tra và xác nhận từng hành động trong ứng dụng."
+        final_text = _format_dates_ddmmyyyy(final_text)
         return {"message": final_text, "proposals": proposals}
     except Exception as exc:
         if stop_reason == "error":

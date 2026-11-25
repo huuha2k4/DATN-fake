@@ -1,8 +1,8 @@
 {
   "expo": {
-    "name": "Finora Personal Finance",
+    "name": "Finora",
     "slug": "finora-personal-finance",
-    "scheme": "finora",
+    "scheme": ["finora", "com.finora.app"],
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./src/modules/app/assets/icon.png",

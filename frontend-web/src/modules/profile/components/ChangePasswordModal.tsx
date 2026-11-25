@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { Eye, EyeOff } from 'lucide-react';
 import { userApi } from '../../user/api/userApi';
 import { FinanceIcon } from '../../core/components/FinanceIcon';
 import './ChangePasswordModal.css';
@@ -108,7 +109,7 @@ export function ChangePasswordModal({ isOpen, onClose, onSuccess }: ChangePasswo
                 onClick={() => setShowCurrent(!showCurrent)}
                 tabIndex={-1}
               >
-                {showCurrent ? '🙈' : '👁️'}
+                {showCurrent ? <EyeOff size={17} /> : <Eye size={17} />}
               </button>
             </div>
           </div>
@@ -131,7 +132,7 @@ export function ChangePasswordModal({ isOpen, onClose, onSuccess }: ChangePasswo
                 onClick={() => setShowNew(!showNew)}
                 tabIndex={-1}
               >
-                {showNew ? '🙈' : '👁️'}
+                {showNew ? <EyeOff size={17} /> : <Eye size={17} />}
               </button>
             </div>
           </div>
