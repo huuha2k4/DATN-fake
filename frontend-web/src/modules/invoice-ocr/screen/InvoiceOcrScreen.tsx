@@ -214,6 +214,7 @@ export function InvoiceOcrScreen({ onCancel, onNotify }: Props) {
 
       const reviewNote = result.needsReview ? ' — cần kiểm tra lại' : '';
       onNotify(`✅ Quét thành công: ${result.merchantName || file.name}${reviewNote}`);
+      setRecentReceipts((prev) => [result, ...prev.filter((item) => item.id !== result.id)]);
       reloadReceipts();
     } catch (err: any) {
       const msg = err?.response?.data?.message || err?.message || 'Không thể quét hóa đơn. Vui lòng thử lại.';

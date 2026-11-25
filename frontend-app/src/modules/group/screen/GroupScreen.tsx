@@ -348,6 +348,8 @@ export function GroupScreen({
   const [expenses, setExpenses] = useState<GroupExpenseResponse[]>([]);
   const [members, setMembers] = useState<GroupMemberResponse[]>([]);
   const [sentPendingInvitations, setSentPendingInvitations] = useState<GroupInvitationResponse[]>([]);
+  const [pendingInvitations, setPendingInvitations] = useState<GroupInvitationResponse[]>([]);
+  const [respondingInvitationId, setRespondingInvitationId] = useState<string | null>(null);
   const [balanceData, setBalanceData] = useState<GroupBalanceResponse | null>(null);
   const [fundData, setFundData] = useState<GroupFundResponse | null>(null);
   const [fundContributions, setFundContributions] = useState<GroupFundContributionResponse[]>([]);
@@ -482,9 +484,48 @@ export function GroupScreen({
     }
     return groups;
   }, [groups, activeFilterTab, currentUser]);
+  const loadPendingInvitations = async () => {
+    try {
+      const data = await groupApi.getPendingInvitations();
+      setPendingInvitations(Array.isArray(data) ? data : []);
+    } catch {
+      setPendingInvitations([]);
+    }
+  };
+
+  const handleAcceptInvitation = async (inv: GroupInvitationResponse) => {
+    if (respondingInvitationId) return;
+    setRespondingInvitationId(inv.id);
+    try {
+      await groupApi.acceptInvitation(inv.id);
+      setPendingInvitations((prev) => prev.filter((item) => item.id !== inv.id));
+      await loadGroups(true);
+      Alert.alert('Thành công', `Đã tham gia nhóm "${inv.groupName || 'Nhóm'}"!`);
+    } catch {
+      Alert.alert('Lỗi', 'Không thể xác nhận tham gia nhóm. Vui lòng thử lại.');
+    } finally {
+      setRespondingInvitationId(null);
+    }
+  };
+
+  const handleRejectInvitation = async (inv: GroupInvitationResponse) => {
+    if (respondingInvitationId) return;
+    setRespondingInvitationId(inv.id);
+    try {
+      await groupApi.rejectInvitation(inv.id);
+      setPendingInvitations((prev) => prev.filter((item) => item.id !== inv.id));
+      Alert.alert('Đã từ chối', 'Đã từ chối lời mời tham gia nhóm.');
+    } catch {
+      Alert.alert('Lỗi', 'Không thể từ chối lời mời. Vui lòng thử lại.');
+    } finally {
+      setRespondingInvitationId(null);
+    }
+  };
+
   const loadGroups = async (isRefresh = false) => {
     if (isRefresh) setRefreshing(true);
     else setLoading(true);
+    loadPendingInvitations();
     try {
       const data = await groupApi.getGroups();
       setGroups(data);
@@ -5864,6 +5905,108 @@ export function GroupScreen({
           </Text>
         </Pressable>
       </View>
+
+      {/* ── LỜI MỜI THAM GIA NHÓM ĐANG CHỜ XÁC NHẬN ── */}
+      {pendingInvitations.length > 0 && (
+        <View
+          style={[
+            styles.pendingInviteBanner,
+            isDark && {
+              backgroundColor: 'rgba(245, 158, 11, 0.1)',
+              borderColor: 'rgba(245, 158, 11, 0.35)',
+            },
+          ]}
+        >
+          <View style={styles.pendingInviteHeader}>
+            <View style={styles.pendingInviteTitleRow}>
+              <View style={styles.pendingInviteBadge}>
+                <Text style={styles.pendingInviteBadgeText}>{pendingInvitations.length}</Text>
+              </View>
+              <Text style={[styles.pendingInviteTitle, isDark && { color: '#FDE68A' }]}>
+                Lời mời tham gia nhóm ({pendingInvitations.length})
+              </Text>
+            </View>
+          </View>
+
+          <View style={styles.pendingInviteList}>
+            {pendingInvitations.map((inv) => {
+              const isBusy = respondingInvitationId === inv.id;
+              const roleLabel =
+                inv.role === 'ADMIN' ? 'Quản trị viên' : inv.role === 'OWNER' ? 'Chủ nhóm' : 'Thành viên';
+              return (
+                <View
+                  key={inv.id}
+                  style={[
+                    styles.pendingInviteCard,
+                    isDark && {
+                      backgroundColor: themeColors.surface,
+                      borderColor: 'rgba(245, 158, 11, 0.3)',
+                    },
+                  ]}
+                >
+                  <View style={styles.pendingInviteInfo}>
+                    <View
+                      style={[
+                        styles.pendingInviteIcon,
+                        isDark && { backgroundColor: 'rgba(245, 158, 11, 0.18)' },
+                      ]}
+                    >
+                      <FinanceIcon name="users" size={18} color={isDark ? '#FBBF24' : '#B45309'} />
+                    </View>
+                    <View style={styles.pendingInviteTextWrap}>
+                      <Text
+                        numberOfLines={1}
+                        style={[styles.pendingInviteGroupName, isDark && { color: themeColors.textPrimary }]}
+                      >
+                        {inv.groupName || 'Nhóm tài chính'}
+                      </Text>
+                      <Text
+                        numberOfLines={1}
+                        style={[styles.pendingInviteMeta, isDark && { color: themeColors.textSecondary }]}
+                      >
+                        Từ: {inv.inviterName || 'Thành viên'} • {roleLabel}
+                      </Text>
+                    </View>
+                  </View>
+
+                  <View style={styles.pendingInviteActions}>
+                    <Pressable
+                      disabled={isBusy}
+                      onPress={() => handleRejectInvitation(inv)}
+                      style={({ pressed }) => [
+                        styles.pendingInviteRejectBtn,
+                        isDark && {
+                          backgroundColor: themeColors.surfaceSubtle,
+                          borderColor: themeColors.cardBorder,
+                        },
+                        (pressed || isBusy) && { opacity: 0.65 },
+                      ]}
+                    >
+                      <Text style={[styles.pendingInviteRejectText, isDark && { color: themeColors.textSecondary }]}>
+                        Từ chối
+                      </Text>
+                    </Pressable>
+                    <Pressable
+                      disabled={isBusy}
+                      onPress={() => handleAcceptInvitation(inv)}
+                      style={({ pressed }) => [
+                        styles.pendingInviteAcceptBtn,
+                        (pressed || isBusy) && { opacity: 0.7 },
+                      ]}
+                    >
+                      {isBusy ? (
+                        <ActivityIndicator size="small" color="#FFFFFF" />
+                      ) : (
+                        <Text style={styles.pendingInviteAcceptText}>Đồng ý</Text>
+                      )}
+                    </Pressable>
+                  </View>
+                </View>
+              );
+            })}
+          </View>
+        </View>
+      )}
 
       {/* ── 3. DANH SÁCH NHÓM ── */}
       {loading ? (
