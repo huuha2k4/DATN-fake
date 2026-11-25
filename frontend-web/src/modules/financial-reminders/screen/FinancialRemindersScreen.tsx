@@ -938,14 +938,14 @@ export function FinancialRemindersScreen({ onNotify }: Props) {
 
           <div className="flex flex-wrap items-center gap-3">
             {/* Chuyển chế độ xem */}
-            <div className="inline-flex h-[38px] items-center rounded-xl bg-[#F1F5F9] p-1 gap-1">
+            <div className="inline-flex h-[38px] items-center rounded-xl bg-[#F1F5F9] dark:bg-slate-800/90 p-1 gap-1">
               <button
                 type="button"
                 onClick={() => setViewMode('CALENDAR')}
                 className={`h-full rounded-lg px-3.5 text-xs font-bold transition flex items-center justify-center gap-1.5 whitespace-nowrap ${
                   viewMode === 'CALENDAR'
                     ? 'bg-[#007F53] text-white shadow-xs'
-                    : 'text-[#475569] hover:text-[#007F53] hover:bg-[#e4ede7]'
+                    : 'text-[#475569] dark:text-slate-300 hover:text-[#007F53] dark:hover:text-emerald-400 hover:bg-[#e4ede7] dark:hover:bg-slate-700/70'
                 }`}
               >
                 <FinanceIcon name="grid" size={14} />
@@ -957,7 +957,7 @@ export function FinancialRemindersScreen({ onNotify }: Props) {
                 className={`h-full rounded-lg px-3.5 text-xs font-bold transition flex items-center justify-center gap-1.5 whitespace-nowrap ${
                   viewMode === 'TIMELINE'
                     ? 'bg-[#007F53] text-white shadow-xs'
-                    : 'text-[#475569] hover:text-[#007F53] hover:bg-[#e4ede7]'
+                    : 'text-[#475569] dark:text-slate-300 hover:text-[#007F53] dark:hover:text-emerald-400 hover:bg-[#e4ede7] dark:hover:bg-slate-700/70'
                 }`}
               >
                 <FinanceIcon name="calendar" size={14} />
@@ -1137,10 +1137,10 @@ export function FinancialRemindersScreen({ onNotify }: Props) {
 
                 {selectedDateEvents.length === 0 ? (
                   <div className="py-8 text-center">
-                    <span className="grid size-12 mx-auto place-items-center rounded-full bg-[#F1F5F9] text-[#64748B]">
+                    <span className="grid size-12 mx-auto place-items-center rounded-full bg-[#F1F5F9] dark:bg-slate-800 text-[#64748B] dark:text-slate-400">
                       <FinanceIcon name="calendar" size={20} />
                     </span>
-                    <p className="mt-2 text-xs font-semibold text-[#64748B]">Không có khoản đến hạn ngày này</p>
+                    <p className="mt-2 text-xs font-semibold text-[#64748B] dark:text-slate-300">Không có khoản đến hạn ngày này</p>
                     <p className="text-[11px] text-[#94A3B8]">Ngày thảnh thơi không có hóa đơn hay nhắc nhở.</p>
                     <button
                       type="button"

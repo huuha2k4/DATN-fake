@@ -236,6 +236,7 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
     e.stopPropagation();
     try {
       const response = await fetch(url);
+      if (!response.ok) throw new Error('Download failed');
       const blob = await response.blob();
       const blobUrl = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
@@ -245,8 +246,11 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
       link.click();
       document.body.removeChild(link);
       window.URL.revokeObjectURL(blobUrl);
+      const isImg = blob.type.startsWith('image/') || /\.(png|jpe?g|gif|webp)$/i.test(fileName || '');
+      onNotify(isImg ? 'Đã lưu ảnh thành công!' : 'Đã tải xuống tệp thành công!');
     } catch {
       window.open(url, '_blank');
+      onNotify('Không thể tải trực tiếp, đã mở ảnh trong tab mới.');
     }
   };
 

@@ -1,6 +1,7 @@
 package com.finance.finance.modules.user.service;
 
 import com.finance.finance.common.upload.FileUploadValidator;
+import com.finance.finance.common.upload.ImageCompressionHelper;
 import com.finance.finance.modules.user.dto.request.UpdateProfileRequest;
 import com.finance.finance.modules.user.dto.response.UserResponse;
 import com.finance.finance.modules.user.entity.User;
@@ -31,6 +32,7 @@ public class UserService {
     private final UserMapper userMapper;
     private final PasswordEncoder passwordEncoder;
     private final FileUploadValidator fileUploadValidator;
+    private final ImageCompressionHelper imageCompressionHelper;
     
     private static final String UPLOAD_DIR = "uploads/avatars";
     
@@ -143,21 +145,13 @@ public class UserService {
             deleteOldAvatar(user.getAvatarUrl());
         }
         
-        // Create upload directory if not exists
+        // Create upload directory and save compressed avatar (max 512px)
         Path uploadPath = Paths.get(UPLOAD_DIR);
-        if (!Files.exists(uploadPath)) {
-            Files.createDirectories(uploadPath);
-        }
-        
-        // Generate unique filename
-        String newFilename = userId + "_" + UUID.randomUUID() + validated.extension();
-        Path filePath = uploadPath.resolve(newFilename);
-        
-        // Save file
-        Files.copy(file.getInputStream(), filePath, StandardCopyOption.REPLACE_EXISTING);
-        
+        ImageCompressionHelper.SavedImage savedImage = imageCompressionHelper.saveCompressed(
+                file, uploadPath, userId + "_" + UUID.randomUUID(), validated, 512, 0.82f);
+
         // Update user avatar URL (relative path)
-        String avatarUrl = "/" + UPLOAD_DIR + "/" + newFilename;
+        String avatarUrl = "/" + UPLOAD_DIR + "/" + savedImage.filename();
         user.setAvatarUrl(avatarUrl);
         User savedUser = userRepository.save(user);
         

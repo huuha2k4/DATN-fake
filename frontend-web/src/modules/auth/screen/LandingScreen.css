@@ -1961,3 +1961,14 @@ html.dark .faq-mint-aura {
     padding: 40px 16px 24px;
   }
 }
+
+@media (max-width: 420px) {
+  .kid-bullet-list {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+
+  .kid-bullet-item {
+    white-space: normal;
+  }
+}

@@ -37,6 +37,7 @@ import com.finance.finance.modules.notification.service.NotificationService;
 import com.finance.finance.common.enums.NotificationType;
 import com.finance.finance.common.enums.NotificationPriority;
 import com.finance.finance.common.upload.FileUploadValidator;
+import com.finance.finance.common.upload.ImageCompressionHelper;
 import com.finance.finance.common.exception.BusinessException;
 import org.springframework.web.multipart.MultipartFile;
 import java.io.IOException;
@@ -80,6 +81,7 @@ public class ChildWalletService {
     private final GroupRepository groupRepository;
     private final ObjectMapper objectMapper;
     private final FileUploadValidator fileUploadValidator;
+    private final ImageCompressionHelper imageCompressionHelper;
 
     private static final String UPLOAD_DIR = "uploads/avatars";
 
@@ -91,14 +93,10 @@ public class ChildWalletService {
                     fileUploadValidator.validate(file, FileUploadValidator.Policy.AVATAR);
 
             Path uploadPath = Paths.get(UPLOAD_DIR);
-            if (!Files.exists(uploadPath)) {
-                Files.createDirectories(uploadPath);
-            }
-            String newFilename = "child_wallet_" + UUID.randomUUID() + validated.extension();
-            Path filePath = uploadPath.resolve(newFilename);
-            Files.copy(file.getInputStream(), filePath, StandardCopyOption.REPLACE_EXISTING);
+            ImageCompressionHelper.SavedImage savedImage = imageCompressionHelper.saveCompressed(
+                    file, uploadPath, "child_wallet_" + UUID.randomUUID(), validated, 512, 0.82f);
 
-            String avatarUrl = "/" + UPLOAD_DIR + "/" + newFilename;
+            String avatarUrl = "/" + UPLOAD_DIR + "/" + savedImage.filename();
             log.info("Child wallet avatar uploaded successfully: {}", avatarUrl);
             return avatarUrl;
         } catch (IOException e) {

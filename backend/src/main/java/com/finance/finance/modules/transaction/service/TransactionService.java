@@ -58,6 +58,7 @@ public class TransactionService {
     private final CategoryRepository categoryRepository;
     private final MerchantRepository merchantRepository;
     private final FileUploadValidator fileUploadValidator;
+    private final com.finance.finance.common.upload.ImageCompressionHelper imageCompressionHelper;
     private final com.finance.finance.modules.budget.repository.BudgetItemRepository budgetItemRepository;
     private final com.finance.finance.modules.notification.service.NotificationService notificationService;
     private final ChildWalletRepository childWalletRepository;
@@ -1383,13 +1384,11 @@ public class TransactionService {
                 fileUploadValidator.validate(file, FileUploadValidator.Policy.RECEIPT);
 
         java.nio.file.Path uploadDir = java.nio.file.Paths.get("uploads", "receipts");
-        java.nio.file.Files.createDirectories(uploadDir);
+        com.finance.finance.common.upload.ImageCompressionHelper.SavedImage savedImage =
+                imageCompressionHelper.saveCompressed(
+                        file, uploadDir, UUID.randomUUID().toString(), validated, 1600, 0.85f);
 
-        String savedFilename = UUID.randomUUID() + validated.extension();
-        java.nio.file.Path destPath = uploadDir.resolve(savedFilename);
-        java.nio.file.Files.copy(file.getInputStream(), destPath, java.nio.file.StandardCopyOption.REPLACE_EXISTING);
-
-        String receiptUrl = "/uploads/receipts/" + savedFilename;
+        String receiptUrl = "/uploads/receipts/" + savedImage.filename();
         transaction.setReceiptUrl(receiptUrl);
         transactionRepository.save(transaction);
         log.info("Attached receipt image {} to transaction {}", receiptUrl, transactionId);

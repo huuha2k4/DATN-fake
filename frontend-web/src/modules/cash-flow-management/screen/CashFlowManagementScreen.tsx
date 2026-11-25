@@ -867,13 +867,13 @@ export function CashFlowManagementScreen({ onNotify, onAddTransaction }: Props) 
           {/* Hàng 1: Tabs phân loại màu xanh ngọc bên trái + Ô tìm kiếm kéo dài sát cạnh Chuyển ví tới hết */}
           <div className="flex flex-col gap-2.5 sm:flex-row sm:items-center">
             {/* Tab Pills - Các nút đều mang màu xanh đặc trưng như ban đầu */}
-            <div className="inline-flex items-center rounded-xl bg-[#F1F5F9] p-0.5 gap-0.5 shrink-0 overflow-x-auto">
+            <div className="inline-flex items-center rounded-xl bg-[#F1F5F9] dark:bg-slate-800/90 p-0.5 gap-0.5 shrink-0 overflow-x-auto">
               <button
                 type="button"
                 onClick={() => { setActiveTab('ALL'); setSelectedCategory('ALL'); setCurrentPage(1); }}
                 className={`rounded-lg px-3 py-1.5 text-[11px] font-bold transition flex items-center justify-center whitespace-nowrap ${activeTab === 'ALL'
                     ? 'bg-[#007F53] text-white shadow-xs'
-                    : 'text-[#475569] hover:text-[#007F53] hover:bg-[#e4ede7]'
+                    : 'text-[#475569] dark:text-slate-300 hover:text-[#007F53] dark:hover:text-emerald-400 hover:bg-[#e4ede7] dark:hover:bg-slate-700/70'
                   }`}
               >
                 <span>Tất cả</span>
@@ -884,7 +884,7 @@ export function CashFlowManagementScreen({ onNotify, onAddTransaction }: Props) 
                 onClick={() => { setActiveTab('INCOME'); setSelectedCategory('ALL'); setCurrentPage(1); }}
                 className={`rounded-lg px-3 py-1.5 text-[11px] font-bold transition flex items-center justify-center whitespace-nowrap ${activeTab === 'INCOME'
                     ? 'bg-[#007F53] text-white shadow-xs'
-                    : 'text-[#475569] hover:text-[#007F53] hover:bg-[#e4ede7]'
+                    : 'text-[#475569] dark:text-slate-300 hover:text-[#007F53] dark:hover:text-emerald-400 hover:bg-[#e4ede7] dark:hover:bg-slate-700/70'
                   }`}
               >
                 <span>Khoản thu</span>
@@ -895,7 +895,7 @@ export function CashFlowManagementScreen({ onNotify, onAddTransaction }: Props) 
                 onClick={() => { setActiveTab('EXPENSE'); setSelectedCategory('ALL'); setCurrentPage(1); }}
                 className={`rounded-lg px-3 py-1.5 text-[11px] font-bold transition flex items-center justify-center whitespace-nowrap ${activeTab === 'EXPENSE'
                     ? 'bg-[#007F53] text-white shadow-xs'
-                    : 'text-[#475569] hover:text-[#007F53] hover:bg-[#e4ede7]'
+                    : 'text-[#475569] dark:text-slate-300 hover:text-[#007F53] dark:hover:text-emerald-400 hover:bg-[#e4ede7] dark:hover:bg-slate-700/70'
                   }`}
               >
                 <span>Khoản chi</span>
@@ -907,7 +907,7 @@ export function CashFlowManagementScreen({ onNotify, onAddTransaction }: Props) 
                   onClick={() => { setActiveTab('TRANSFER'); setSelectedCategory('ALL'); setCurrentPage(1); }}
                   className={`rounded-lg px-3 py-1.5 text-[11px] font-bold transition flex items-center justify-center whitespace-nowrap ${activeTab === 'TRANSFER'
                       ? 'bg-[#007F53] text-white shadow-xs'
-                      : 'text-[#475569] hover:text-[#007F53] hover:bg-[#e4ede7]'
+                      : 'text-[#475569] dark:text-slate-300 hover:text-[#007F53] dark:hover:text-emerald-400 hover:bg-[#e4ede7] dark:hover:bg-slate-700/70'
                     }`}
                 >
                   <span>Chuyển ví</span>
@@ -972,8 +972,8 @@ export function CashFlowManagementScreen({ onNotify, onAddTransaction }: Props) 
                       setIsMonthDropdownOpen(false);
                     }}
                     className={`flex h-7.5 w-full items-center justify-between rounded-xl border px-2.5 text-[10.5px] font-semibold transition ${isCategoryDropdownOpen || selectedCategory !== 'ALL'
-                        ? 'border-[#007F53] bg-[#eef7f2] text-[#007F53]'
-                        : 'border-[#CBD5E1] bg-[#F8FAFC] text-[#475569] hover:bg-[#f1f5f9] hover:border-[#94A3B8]'
+                        ? 'border-[#007F53] bg-[#eef7f2] text-[#007F53] dark:border-emerald-500/60 dark:bg-emerald-950/50 dark:text-emerald-300'
+                        : 'border-[#CBD5E1] bg-[#F8FAFC] text-[#475569] hover:bg-[#f1f5f9] hover:border-[#94A3B8] dark:border-slate-700 dark:bg-slate-800/80 dark:text-slate-200 dark:hover:bg-slate-800 dark:hover:border-slate-600'
                       }`}
                   >
                     <div className="flex items-center gap-1.5 truncate">
@@ -1063,10 +1063,10 @@ export function CashFlowManagementScreen({ onNotify, onAddTransaction }: Props) 
                   }}
                   className={`flex h-7.5 w-full items-center justify-between rounded-xl border px-2.5 text-[10.5px] font-semibold transition ${
                     isChildAccount
-                      ? 'border-[#CBD5E1] bg-[#F1F5F9] text-[#007F53] cursor-default'
+                      ? 'border-[#CBD5E1] bg-[#F1F5F9] text-[#007F53] dark:border-slate-700 dark:bg-slate-800/80 dark:text-emerald-400 cursor-default'
                       : isAccountDropdownOpen || selectedAccount !== 'ALL'
-                      ? 'border-[#007F53] bg-[#eef7f2] text-[#007F53]'
-                      : 'border-[#CBD5E1] bg-[#F8FAFC] text-[#475569] hover:bg-[#f1f5f9] hover:border-[#94A3B8]'
+                      ? 'border-[#007F53] bg-[#eef7f2] text-[#007F53] dark:border-emerald-500/60 dark:bg-emerald-950/50 dark:text-emerald-300'
+                      : 'border-[#CBD5E1] bg-[#F8FAFC] text-[#475569] hover:bg-[#f1f5f9] hover:border-[#94A3B8] dark:border-slate-700 dark:bg-slate-800/80 dark:text-slate-200 dark:hover:bg-slate-800 dark:hover:border-slate-600'
                   }`}
                 >
                   <div className="flex items-center gap-1.5 truncate">
