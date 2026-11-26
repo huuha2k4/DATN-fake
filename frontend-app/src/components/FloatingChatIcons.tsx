@@ -209,7 +209,8 @@ function MiniChatAttachmentImage({
   onPress: () => void;
 }) {
   useEffect(() => {
-    if (uri) {
+    // Chỉ prefetch URL công khai; bỏ qua signed URL riêng tư (no-store)
+    if (uri && !uri.includes('signature=')) {
       Image.prefetch(uri).catch(() => { });
     }
   }, [uri]);
@@ -218,6 +219,7 @@ function MiniChatAttachmentImage({
   const computedAspectRatio = (origWidth && origHeight && origWidth > 0 && origHeight > 0)
     ? Math.max(0.6, Math.min(1.8, origWidth / origHeight))
     : (4 / 3);
+  const isSignedPrivate = uri.includes('signature=');
 
   return (
     <Pressable
@@ -225,7 +227,7 @@ function MiniChatAttachmentImage({
       style={[styles.attachedImgPressable, { aspectRatio: computedAspectRatio }]}
     >
       <Image
-        source={{ uri, cache: 'force-cache' }}
+        source={{ uri, cache: isSignedPrivate ? 'default' : 'force-cache' }}
         style={styles.attachedImgSmall}
         resizeMode="cover"
       />

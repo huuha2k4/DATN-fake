@@ -1,4 +1,5 @@
 import { API_BASE_URL, authStorage, authFetch } from '../../auth/api/authApi';
+import { fetchMobileWithCache, invalidateMobileQueryCache } from '../../core/utils/mobileQueryCache';
 
 export interface GoalItem {
   id: string;
@@ -68,8 +69,10 @@ export const fallbackSavings: SavingItem[] = [];
 
 export const goalsApi = {
   async getGoals(): Promise<{ goals: GoalItem[]; savings: SavingItem[]; totalAccumulated: number; totalGoalsAmount: number; totalSavingsAmount: number }> {
-    try {
-      const res = await authFetch(`${API_BASE_URL}/goals`);
+    return fetchMobileWithCache(
+      'goals:list',
+      async () => {
+        const res = await authFetch(`${API_BASE_URL}/goals`);
       if (res.ok) {
         const json = await res.json();
         const rawGoals = json?.data?.goals || json?.goals || (Array.isArray(json) ? json : []);
@@ -156,17 +159,22 @@ export const goalsApi = {
           };
         }
       }
-    } catch {
-      // ignore
-    }
-
-    return {
-      goals: [],
-      savings: [],
-      totalAccumulated: 0,
-      totalGoalsAmount: 0,
-      totalSavingsAmount: 0,
-    };
+      return {
+        goals: [],
+        savings: [],
+        totalAccumulated: 0,
+        totalGoalsAmount: 0,
+        totalSavingsAmount: 0,
+      };
+    },
+    { freshTimeMs: 20_000, staleTimeMs: 60_000 }
+  ).catch(() => ({
+    goals: [],
+    savings: [],
+    totalAccumulated: 0,
+    totalGoalsAmount: 0,
+    totalSavingsAmount: 0,
+  }));
   },
 
   async getGoalDetail(goalId: string): Promise<GoalDetailData> {
@@ -350,6 +358,7 @@ export const goalsApi = {
         }),
       });
       if (res.ok) {
+        invalidateMobileQueryCache(['goals:', 'accounts:', 'dashboard:', 'transactions:']);
         return { ok: true };
       }
       const errJson = await res.json().catch(() => null);
@@ -382,6 +391,7 @@ export const goalsApi = {
           version: payload.version,
         }),
       });
+      if (res.ok) invalidateMobileQueryCache('goals:');
       return res.ok;
     } catch {
       return false;
@@ -393,6 +403,7 @@ export const goalsApi = {
       const res = await authFetch(`${API_BASE_URL}/goals/${goalId}`, {
         method: 'DELETE',
       });
+      if (res.ok) invalidateMobileQueryCache('goals:');
       return res.ok;
     } catch {
       return false;
@@ -424,6 +435,7 @@ export const goalsApi = {
         }),
       });
       if (res.ok) {
+        invalidateMobileQueryCache(['goals:', 'accounts:', 'dashboard:', 'transactions:']);
         return { ok: true };
       }
       const errJson = await res.json().catch(() => null);
@@ -449,6 +461,7 @@ export const goalsApi = {
         body: JSON.stringify(payload),
       });
       if (res.ok) {
+        invalidateMobileQueryCache(['goals:', 'accounts:', 'dashboard:', 'transactions:']);
         return { ok: true };
       }
       const errJson = await res.json().catch(() => null);
@@ -474,6 +487,7 @@ export const goalsApi = {
         body: JSON.stringify(payload),
       });
       if (res.ok) {
+        invalidateMobileQueryCache(['goals:', 'accounts:', 'dashboard:', 'transactions:']);
         return { ok: true };
       }
       const errJson = await res.json().catch(() => null);

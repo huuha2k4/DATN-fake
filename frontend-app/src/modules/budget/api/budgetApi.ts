@@ -1,4 +1,5 @@
 import { API_BASE_URL, authStorage, authFetch } from '../../auth/api/authApi';
+import { fetchMobileWithCache, invalidateMobileQueryCache } from '../../core/utils/mobileQueryCache';
 import { transactionApi, type CategoryItem } from '../../add-transaction/api/transactionApi';
 
 export type BudgetPeriodType = 'WEEKLY' | 'MONTHLY' | 'QUARTERLY' | 'YEARLY' | 'CUSTOM';
@@ -60,32 +61,27 @@ export const budgetApi = {
    * Lấy tổng quan ngân sách tháng hiện tại
    */
   async getMonthlyBudgetOverview(year: number, month: number): Promise<BudgetOverviewResponse | null> {
-    try {
-      const token = await authStorage.getToken();
-      if (!token) return null;
+    const token = await authStorage.getToken();
+    if (!token) return null;
 
-      const url = `${API_BASE_URL}/budgets?year=${year}&month=${month}`;
-      const res = await authFetch(url);
+    return fetchMobileWithCache(
+      `budgets:monthly:${year}-${month}`,
+      async () => {
+        const url = `${API_BASE_URL}/budgets?year=${year}&month=${month}`;
+        const res = await authFetch(url);
 
-      if (!res.ok) {
-        return null;
-      }
+        if (!res.ok) {
+          return null;
+        }
 
-      const json = await res.json();
-      const budgets: any[] = json?.data?.budgets || [];
-      if (!budgets || budgets.length === 0) {
-        return null;
-      }
+        const json = await res.json();
+        const budgets: any[] = json?.data?.budgets || [];
+        if (!budgets || budgets.length === 0) {
+          return null;
+        }
 
-      // Lấy budget đầu tiên tìm thấy
-      const current = budgets[0];
-      // Gọi chi tiết để lấy danh sách items
-      const detailRes = await fetch(`${API_BASE_URL}/budgets/${current.id}`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Accept': 'application/json',
-        },
-      });
+        const current = budgets[0];
+        const detailRes = await authFetch(`${API_BASE_URL}/budgets/${current.id}`);
 
       let items: BudgetItem[] = [];
       let totalAmount = current.totalAmount || 0;
@@ -140,10 +136,12 @@ export const budgetApi = {
         totalRemaining: remaining,
         overallPercentage,
       };
-    } catch (e) {
+      },
+      { freshTimeMs: 15_000, staleTimeMs: 60_000 }
+    ).catch((e) => {
       console.warn('Lỗi gọi API /budgets:', e);
       return null;
-    }
+    });
   },
 
   /**
@@ -169,6 +167,7 @@ export const budgetApi = {
         console.warn('Lỗi gọi POST /budgets/category-item status:', res.status);
       }
 
+      if (res.ok) invalidateMobileQueryCache(['budgets:', 'dashboard:']);
       return res.ok;
     } catch (e) {
       console.warn('Exception khi gọi createCategoryBudget:', e);
@@ -190,6 +189,7 @@ export const budgetApi = {
           version: payload.version,
         }),
       });
+      if (res.ok) invalidateMobileQueryCache(['budgets:', 'dashboard:']);
       return res.ok;
     } catch {
       return false;
@@ -204,6 +204,7 @@ export const budgetApi = {
       const res = await authFetch(`${API_BASE_URL}/budgets/${budgetId}?version=${version}`, {
         method: 'DELETE',
       });
+      if (res.ok) invalidateMobileQueryCache(['budgets:', 'dashboard:']);
       return res.ok;
     } catch {
       return false;
@@ -223,6 +224,7 @@ export const budgetApi = {
           alertThresholdPercentage: payload.alertThresholdPercentage ?? 80,
         }),
       });
+      if (res.ok) invalidateMobileQueryCache(['budgets:', 'dashboard:']);
       return res.ok;
     } catch {
       return false;
@@ -240,6 +242,7 @@ export const budgetApi = {
       const res = await authFetch(`${API_BASE_URL}/budgets/${budgetId}/items/${itemId}`, {
         method: 'DELETE',
       });
+      if (res.ok) invalidateMobileQueryCache(['budgets:', 'dashboard:']);
       return res.ok;
     } catch (e) {
       return false;

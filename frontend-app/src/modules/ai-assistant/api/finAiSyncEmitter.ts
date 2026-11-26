@@ -3,6 +3,8 @@
  * across screens when FinAI Agent actions are completed.
  */
 
+import { invalidateMobileQueryCache } from '../../core/utils/mobileQueryCache';
+
 export type FinAiDataSyncEventDetail = {
   toolName?: string;
   actionId?: string;
@@ -23,6 +25,17 @@ class FinAiSyncEventEmitter {
   }
 
   emit(detail?: FinAiDataSyncEventDetail): void {
+    invalidateMobileQueryCache([
+      'accounts:',
+      'dashboard:',
+      'transactions:',
+      'categories:',
+      'budgets:',
+      'goals:',
+      'debts:',
+      'schedules:',
+      'reports:',
+    ]);
     this.listeners.forEach((listener) => {
       try {
         listener(detail);

@@ -115,8 +115,7 @@ export function OnboardingWizardModal({ isOpen, onClose, userName }: OnboardingW
           initialBalance: balanceNum,
           currencyCode: 'VND',
           description: selectedPreset ? `${selectedPreset.name} khởi tạo qua Onboarding` : 'Ví ban đầu được tạo qua Onboarding Wizard Finora Web',
-          color: selectedPreset?.brandColor,
-          icon: selectedPreset?.logoUrl,
+          color: /^#[0-9A-Fa-f]{6}$/.test(selectedPreset?.brandColor || '') ? selectedPreset?.brandColor : undefined,
         });
         if (res && res.id) {
           setStep(3);

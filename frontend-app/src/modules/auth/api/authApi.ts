@@ -75,6 +75,7 @@ export interface AuthResponse {
 }
 
 import * as FileSystem from 'expo-file-system/legacy';
+import { clearMobileQueryCache, setMobileCacheScopeResolver } from '../../core/utils/mobileQueryCache';
 
 const AUTH_FILE_NAME = 'finora_auth_session.json';
 const INACTIVITY_LIMIT_MS = 3 * 24 * 60 * 60 * 1000; // 3 ngày không vào app mới thu hồi
@@ -97,9 +98,13 @@ let refreshInFlight: Promise<string | null> | null = null;
 
 export const authStorage = {
   setAuth(user: User, tokens: AuthTokens) {
+    if (currentUser?.id && currentUser.id !== user?.id) {
+      clearMobileQueryCache();
+    }
     currentUser = user;
     currentAccessToken = tokens.access_token;
     currentRefreshToken = tokens.refresh_token;
+    setMobileCacheScopeResolver(() => (currentUser?.id ? String(currentUser.id) : 'anon'));
 
     // Lưu phiên bền vững vào file hệ thống để giữ đăng nhập
     try {
@@ -136,6 +141,31 @@ export const authStorage = {
 
   getUser() {
     return currentUser;
+  },
+
+  /**
+   * Cập nhật thông tin user cục bộ (ví dụ avatarUrl) mà KHÔNG ghi đè access_token / refresh_token
+   * để tránh race condition khi token đang được rotate song song.
+   */
+  updateUser(partial: Partial<User>) {
+    if (!currentUser) return;
+    currentUser = { ...currentUser, ...partial };
+    try {
+      const dir = FileSystem.documentDirectory;
+      if (dir && currentAccessToken) {
+        const session: StoredSession = {
+          user: currentUser,
+          tokens: {
+            access_token: currentAccessToken,
+            refresh_token: currentRefreshToken || '',
+            token_type: 'Bearer',
+            expires_in: 3600,
+          },
+          lastActiveTime: Date.now(),
+        };
+        FileSystem.writeAsStringAsync(`${dir}${AUTH_FILE_NAME}`, JSON.stringify(session)).catch(() => {});
+      }
+    } catch {}
   },
 
   /**
@@ -250,6 +280,7 @@ export const authStorage = {
   },
 
   clear() {
+    clearMobileQueryCache();
     currentUser = null;
     currentAccessToken = null;
     currentRefreshToken = null;
@@ -279,8 +310,8 @@ export async function authFetch(url: string, options: RequestInit = {}): Promise
 
   let response = await fetch(url, { ...options, headers });
 
-  // Nếu Backend trả về 401 hoặc 403 (Token hết hạn sau 15 phút)
-  if (response.status === 401 || response.status === 403) {
+  // Chỉ tự động refresh token khi nhận 401 Unauthorized; 403 Forbidden là từ chối quyền.
+  if (response.status === 401) {
     const newToken = await authStorage.refreshAccessToken();
     if (newToken) {
       headers['Authorization'] = `Bearer ${newToken}`;

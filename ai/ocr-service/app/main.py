@@ -12,10 +12,26 @@ from pydantic import BaseModel
 from app.ocr_engine import OCREngine
 from app.pipeline import ReceiptPipeline
 from app.preprocess import fix_exif_rotation
+from app.gemini_vision import extract_with_gemini_vision, is_gemini_vision_available
+from app.auditor import audit_receipt
 from app.schemas import (
     CategoryResult, ClassifyBatchRequest,
     ClassifyRequest, ReceiptResult,
 )
+
+TAXONOMY_NAMES = {
+    "food": "Ăn uống",
+    "shopping": "Mua sắm",
+    "transport": "Di chuyển",
+    "bills": "Hóa đơn & Tiện ích",
+    "housing": "Nhà cửa",
+    "entertainment": "Giải trí",
+    "health": "Sức khỏe",
+    "education": "Giáo dục",
+    "travel": "Du lịch",
+    "transfer": "Chuyển tiền",
+    "other": "Khác",
+}
 
 MAX_SIZE = 10 * 1024 * 1024
 ALLOWED_TYPES = {"image/jpeg", "image/png"}
@@ -113,46 +129,110 @@ async def scan_receipt(
 
     ocr_result = await run_in_threadpool(state["pipeline"].run, img)
 
-    # Các kind bị từ chối — trả về ngay, không phân loại danh mục
+    # Các kind bị từ chối
     _REJECTED_KINDS = {"not_receipt", "low_quality", "handwritten", "draft"}
 
-    if ocr_result.get("kind") in _REJECTED_KINDS:
-        return ReceiptResult(
-            kind=ocr_result["kind"],
-            merchant_name=None,
-            transaction_date=None,
-            transaction_time=None,
-            total_amount=None,
-            currency="VND",
-            raw_text=ocr_result.get("raw_text", ""),
-            confidence=ocr_result.get("confidence", 0.0),
-            needs_review=ocr_result.get("needs_review", False),
-            reject_reason=ocr_result.get("reject_reason"),
-            category=None,
-        )
+    # --- BƯỚC RÀ SOÁT / TỰ KIỂM TOÁN (Self-Auditing Gate) ---
+    is_suspicious, audit_reasons = audit_receipt(ocr_result)
+    audit_triggered = False
+    active_engine = "paddle_ocr"
+    vision_fallback = None
 
-    # Hóa đơn hợp lệ (paid / unknown) — phân loại danh mục
-    category_result = None
-    merchant = ocr_result.get("merchant_name") or ""
+    if is_suspicious:
+        audit_triggered = True
+        print(f"[AUDITOR] ⚠️ Phát hiện bất thường từ Tầng 1: {audit_reasons}")
+        if is_gemini_vision_available():
+            print("[AUDITOR] 🚀 Đang kích hoạt Tầng 2: Mắt thần AI (Gemini Vision)...")
+            vision_fallback = await run_in_threadpool(extract_with_gemini_vision, img)
+            if vision_fallback:
+                active_engine = "gemini_vision"
+                print(f"[AUDITOR] ✅ Tầng 2 xử lý thành công: merchant='{vision_fallback.get('merchant_name')}', total={vision_fallback.get('total_amount')}")
+
+    # Nếu OCR từ chối nhưng Gemini Vision xác nhận là hóa đơn hợp lệ -> Cứu hóa đơn
+    if ocr_result.get("kind") in _REJECTED_KINDS:
+        if vision_fallback and vision_fallback.get("is_receipt"):
+            ocr_result["kind"] = "paid"
+            ocr_result["reject_reason"] = None
+        else:
+            return ReceiptResult(
+                kind=ocr_result["kind"],
+                merchant_name=None,
+                transaction_date=None,
+                transaction_time=None,
+                total_amount=None,
+                currency="VND",
+                raw_text=ocr_result.get("raw_text", ""),
+                confidence=ocr_result.get("confidence", 0.0),
+                needs_review=ocr_result.get("needs_review", False),
+                reject_reason=ocr_result.get("reject_reason"),
+                category=None,
+                engine=active_engine,
+                audit_triggered=audit_triggered,
+                audit_reasons=audit_reasons,
+            )
+
+    # Hoàn thiện các trường từ Gemini Vision nếu có can thiệp chuyển tầng
+    merchant = ocr_result.get("merchant_name")
+    total_amount = ocr_result.get("total_amount")
+    trans_date = ocr_result.get("transaction_date")
+    trans_time = ocr_result.get("transaction_time")
+    needs_review = ocr_result.get("needs_review", False)
+
+    if vision_fallback:
+        # Nếu có lỗi ở trường nào, ưu tiên lấy từ Gemini Vision
+        if vision_fallback.get("merchant_name") and (not merchant or any("Tên cửa hàng" in r for r in audit_reasons)):
+            merchant = vision_fallback.get("merchant_name")
+        elif not merchant:
+            merchant = vision_fallback.get("merchant_name")
+
+        if vision_fallback.get("total_amount") and (not total_amount or any("Tổng tiền" in r for r in audit_reasons)):
+            total_amount = vision_fallback.get("total_amount")
+        elif not total_amount:
+            total_amount = vision_fallback.get("total_amount")
+
+        trans_date = vision_fallback.get("transaction_date") or trans_date
+        trans_time = vision_fallback.get("transaction_time") or trans_time
+        needs_review = False  # Được Mắt thần AI xác nhận lại
+
     raw_text = ocr_result.get("raw_text") or ""
+
+    # Phân loại danh mục
+    category_result = None
     cat = await run_in_threadpool(
-        _run_classify, merchant, raw_text, user_id
+        _run_classify, merchant or "", raw_text, user_id
     )
     if cat:
         category_result = CategoryResult(**cat)
 
+    # Nếu phân loại danh mục vẫn ra other hoặc None mà Gemini Vision có gợi ý danh mục chuẩn
+    if (not category_result or category_result.category == "other") and vision_fallback and vision_fallback.get("category"):
+        v_cat = vision_fallback.get("category")
+        if v_cat and v_cat != "other":
+            category_result = CategoryResult(
+                category=v_cat,
+                category_name=TAXONOMY_NAMES.get(v_cat, "Khác"),
+                confidence=0.98,
+                source="gemini_vision",
+                status="auto",
+                needs_review=False,
+                matched=vision_fallback.get("merchant_name"),
+            )
+
     return ReceiptResult(
-        kind=ocr_result.get("kind", "unknown"),
-        merchant_name=ocr_result.get("merchant_name"),
-        transaction_date=ocr_result.get("transaction_date"),
-        transaction_time=ocr_result.get("transaction_time"),
-        total_amount=ocr_result.get("total_amount"),
+        kind=ocr_result.get("kind", "paid"),
+        merchant_name=merchant,
+        transaction_date=trans_date,
+        transaction_time=trans_time,
+        total_amount=total_amount,
         currency=ocr_result.get("currency", "VND"),
         raw_text=raw_text,
         confidence=ocr_result.get("confidence", 0.0),
-        needs_review=ocr_result.get("needs_review", False),
+        needs_review=needs_review,
         reject_reason=None,
         category=category_result,
+        engine=active_engine,
+        audit_triggered=audit_triggered,
+        audit_reasons=audit_reasons,
     )
 
 

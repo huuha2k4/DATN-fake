@@ -31,6 +31,7 @@ import {
   type PaymentPlanType,
 } from '../api/debtApi';
 import { useAppTheme } from '../../../context/ThemeContext';
+import { useMobileQueryRevalidation } from '../../core/utils/useMobileQueryRevalidation';
 
 interface DebtScreenProps {
   onBack?: () => void;
@@ -408,6 +409,10 @@ export function DebtScreen({ onBack }: DebtScreenProps) {
   useEffect(() => {
     loadData();
   }, []);
+
+  useMobileQueryRevalidation(['debts:', 'accounts:'], () => {
+    loadData();
+  });
 
   const onRefresh = () => {
     setRefreshing(true);

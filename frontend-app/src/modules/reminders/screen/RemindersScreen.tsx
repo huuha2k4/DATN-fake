@@ -33,6 +33,7 @@ import {
   type TransactionType,
 } from '../api/scheduleApi';
 import { useAppTheme } from '../../../context/ThemeContext';
+import { useMobileQueryRevalidation } from '../../core/utils/useMobileQueryRevalidation';
 
 interface RemindersScreenProps {
   onBack: () => void;
@@ -197,9 +198,9 @@ export function RemindersScreen({ onBack, onNavigateToDebts }: RemindersScreenPr
     'NONE' | 'FREQ' | 'DAY_OF_WEEK' | 'DAY_OF_MONTH' | 'ACCOUNT' | 'TO_ACCOUNT' | 'CATEGORY' | 'NOTIFY_TIME'
   >('NONE');
 
-  const loadAllData = async () => {
+  const loadAllData = async (silent = false) => {
     try {
-      setLoading(true);
+      if (!silent) setLoading(true);
       const [schedList, debtList, accList, catList] = await Promise.all([
         scheduleApi.getSchedules().catch(() => []),
         debtApi.getDebts().catch(() => []), // Lấy tất cả khoản nợ (không giới hạn status)
@@ -223,7 +224,7 @@ export function RemindersScreen({ onBack, onNavigateToDebts }: RemindersScreenPr
       setSchedules([]);
       setDebts([]);
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
       setRefreshing(false);
     }
   };
@@ -231,6 +232,10 @@ export function RemindersScreen({ onBack, onNavigateToDebts }: RemindersScreenPr
   useEffect(() => {
     loadAllData();
   }, []);
+
+  useMobileQueryRevalidation(['schedules:', 'debts:', 'accounts:'], () => {
+    loadAllData(true);
+  });
 
   const onRefresh = () => {
     setRefreshing(true);

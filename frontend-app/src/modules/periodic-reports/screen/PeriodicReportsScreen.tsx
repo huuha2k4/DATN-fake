@@ -13,6 +13,7 @@ import {
 import { exportReportToExcelFile } from '../utils/exportReportHelper';
 import { exportReportToPdfHtmlFile } from '../utils/exportReportPdfHelper';
 import { useAppTheme } from '../../../context/ThemeContext';
+import { useMobileQueryRevalidation } from '../../core/utils/useMobileQueryRevalidation';
 
 interface PeriodicReportsScreenProps {
   onBack: () => void;
@@ -177,6 +178,10 @@ export function PeriodicReportsScreen({
   useEffect(() => {
     loadData();
   }, [fromDate, toDate, selectedAccountId]);
+
+  useMobileQueryRevalidation(['reports:', 'transactions:'], () => {
+    loadData();
+  });
 
   const formatVND = (num: number = 0) => {
     return num.toLocaleString('vi-VN') + ' đ';

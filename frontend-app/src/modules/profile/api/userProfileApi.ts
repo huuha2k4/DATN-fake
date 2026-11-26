@@ -107,7 +107,7 @@ export const userProfileApi = {
         },
         {
           access_token: token,
-          refresh_token: '',
+          refresh_token: authStorage.getRefreshToken() || '',
           token_type: 'Bearer',
           expires_in: 3600,
         }
@@ -144,7 +144,7 @@ export const userProfileApi = {
         },
         {
           access_token: token,
-          refresh_token: '',
+          refresh_token: authStorage.getRefreshToken() || '',
           token_type: 'Bearer',
           expires_in: 3600,
         }
@@ -196,20 +196,10 @@ export const userProfileApi = {
       xhr.send(formData);
     });
 
-    const currentUser = authStorage.getUser();
-    if (currentUser) {
-      authStorage.setAuth(
-        {
-          ...currentUser,
-          avatarUrl: updated.avatarUrl || currentUser.avatarUrl,
-        },
-        {
-          access_token: token,
-          refresh_token: '',
-          token_type: 'Bearer',
-          expires_in: 3600,
-        }
-      );
+    if (authStorage.getUser()) {
+      authStorage.updateUser({
+        avatarUrl: updated.avatarUrl || authStorage.getUser()?.avatarUrl || null,
+      });
     }
 
     return updated;

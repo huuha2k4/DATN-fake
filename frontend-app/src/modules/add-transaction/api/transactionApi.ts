@@ -1,4 +1,5 @@
 import { API_BASE_URL, authStorage, authFetch } from '../../auth/api/authApi';
+import { fetchMobileWithCache, invalidateMobileQueryCache } from '../../core/utils/mobileQueryCache';
 
 export type TransactionType = 'EXPENSE' | 'INCOME' | 'TRANSFER';
 
@@ -51,34 +52,35 @@ export const transactionApi = {
    * Lấy danh mục thu chi thực tế từ Backend (/api/v1/categories)
    */
   async getCategories(kind?: 'INCOME' | 'EXPENSE'): Promise<CategoryItem[]> {
-    try {
-      const url = new URL(`${API_BASE_URL}/categories`);
-      url.searchParams.append('includeSystem', 'true');
-      if (kind) url.searchParams.append('kind', kind);
-
-      const res = await authFetch(url.toString());
-
-      if (!res.ok) return [];
-      const json = await res.json();
-      return json?.data?.categories || [];
-    } catch {
-      return [];
-    }
+    return fetchMobileWithCache(
+      `categories:list:${kind || 'ALL'}`,
+      async () => {
+        const url = new URL(`${API_BASE_URL}/categories`);
+        url.searchParams.append('includeSystem', 'true');
+        if (kind) url.searchParams.append('kind', kind);
+        const res = await authFetch(url.toString());
+        if (!res.ok) return [];
+        const json = await res.json();
+        return json?.data?.categories || [];
+      },
+      { freshTimeMs: 120_000, staleTimeMs: 300_000 }
+    ).catch(() => []);
   },
 
   /**
    * Lấy danh sách tài khoản / ví từ Backend (/api/v1/accounts)
    */
   async getAccounts(): Promise<AccountItem[]> {
-    try {
-      const res = await authFetch(`${API_BASE_URL}/accounts`);
-
-      if (!res.ok) return [];
-      const json = await res.json();
-      return json?.data?.accounts || json?.accounts || (Array.isArray(json) ? json : []);
-    } catch {
-      return [];
-    }
+    return fetchMobileWithCache(
+      'accounts:list',
+      async () => {
+        const res = await authFetch(`${API_BASE_URL}/accounts`);
+        if (!res.ok) return [];
+        const json = await res.json();
+        return json?.data?.accounts || json?.accounts || (Array.isArray(json) ? json : []);
+      },
+      { freshTimeMs: 20_000, staleTimeMs: 90_000 }
+    ).catch(() => []);
   },
 
   /**
@@ -99,6 +101,7 @@ export const transactionApi = {
         };
       }
 
+      invalidateMobileQueryCache(['transactions:', 'accounts:', 'dashboard:', 'budgets:', 'reports:']);
       return {
         success: true,
         data: json?.data || json,
@@ -132,6 +135,7 @@ export const transactionApi = {
         };
       }
 
+      invalidateMobileQueryCache(['transactions:', 'accounts:', 'dashboard:', 'budgets:', 'reports:']);
       return {
         success: true,
         data: json?.data || json,
@@ -169,6 +173,7 @@ export const transactionApi = {
         };
       }
 
+      invalidateMobileQueryCache(['transactions:', 'accounts:', 'dashboard:', 'budgets:', 'reports:']);
       return { success: true };
     } catch (err: any) {
       return {

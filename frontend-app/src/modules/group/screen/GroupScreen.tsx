@@ -105,8 +105,8 @@ function ChatAttachmentImageItem({
   onLongPress: () => void;
 }) {
   useEffect(() => {
-    if (uri) {
-      // Tải trước vào bộ nhớ cache của máy để hiển thị tức thì
+    // Chỉ prefetch URL công khai; bỏ qua signed URL riêng tư (no-store) để tránh tải trùng lặp
+    if (uri && !uri.includes('signature=')) {
       Image.prefetch(uri).catch(() => {});
     }
   }, [uri]);
@@ -115,6 +115,7 @@ function ChatAttachmentImageItem({
   const computedAspectRatio = (width && height && width > 0 && height > 0)
     ? Math.max(0.6, Math.min(1.8, width / height))
     : (4 / 3);
+  const isSignedPrivate = uri.includes('signature=');
 
   return (
     <Pressable
@@ -126,7 +127,7 @@ function ChatAttachmentImageItem({
       ]}
     >
       <Image
-        source={{ uri, cache: 'force-cache' }}
+        source={{ uri, cache: isSignedPrivate ? 'default' : 'force-cache' }}
         style={styles.chatAttachmentImg}
         resizeMode="cover"
       />

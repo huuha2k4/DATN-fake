@@ -47,6 +47,9 @@ services:
     build:
       context: ./ai/ocr-service
     container_name: ocr-service
+    environment:
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      GEMINI_MODEL: ${GEMINI_MODEL:-gemini-flash-lite-latest}
     expose:
       - "8000"
     volumes:
@@ -106,8 +109,6 @@ services:
       JWT_EXPIRATION: ${JWT_EXPIRATION}
       SUPER_ADMIN_USER: ${SUPER_ADMIN_USER}
       SUPER_ADMIN_PASSWORD: ${SUPER_ADMIN_PASSWORD}
-      SYSTEM_AUDIT_VIEW_PASSWORD: ${SYSTEM_AUDIT_VIEW_PASSWORD:-}
-      AUDIT_HMAC_SECRET: ${AUDIT_HMAC_SECRET:-}
       FINAI_SERVICE_URL: http://pfm-ai-service:8000
       FINAI_SERVICE_SECRET: ${FINAI_SERVICE_SECRET:-dev-only-finai-service-secret-change-me}
       FINAI_INTERNAL_SECRET: ${FINAI_INTERNAL_SECRET:-dev-only-finai-internal-secret-change-me}

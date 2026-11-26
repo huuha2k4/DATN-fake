@@ -178,6 +178,7 @@ export function LandingScreen({ onAuthenticated }: LandingScreenProps) {
   ];
 
   return (
+    <>
     <OrganicMintBackground className={`landing-page-wrapper ${isDark ? 'dark' : ''}`}>
       {/* Navigation Bar (Solid 100% opaque background, no green bleed) */}
       <div className="landing-navbar-sticky-wrapper">
@@ -988,6 +989,7 @@ export function LandingScreen({ onAuthenticated }: LandingScreenProps) {
           </div>
         </div>
       </footer>
+    </OrganicMintBackground>
 
       {/* Legal & Terms & Guide Modal */}
       <LegalTermsModal
@@ -1020,6 +1022,6 @@ export function LandingScreen({ onAuthenticated }: LandingScreenProps) {
           onSwitchToLogin={switchToLogin}
         />
       )}
-    </OrganicMintBackground>
+    </>
   );
 }

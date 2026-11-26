@@ -442,8 +442,15 @@ export function ScanInvoiceScreen({
       const combinedAccounts = [...accs, ...groupFundAccounts];
 
       if (cats.length > 0) {
-        setCategories(cats);
-        const foodCat = cats.find((c) => c.name.toLowerCase().includes('ăn uống')) || cats[0];
+        const seenNames = new Set<string>();
+        const uniqueCats = cats.filter((c) => {
+          const key = (c.name || '').trim().toLowerCase();
+          if (!key || seenNames.has(key)) return false;
+          seenNames.add(key);
+          return true;
+        });
+        setCategories(uniqueCats);
+        const foodCat = uniqueCats.find((c) => c.name.toLowerCase().includes('ăn uống')) || uniqueCats[0];
         setSelectedCategoryId(foodCat.id);
       }
 
@@ -530,7 +537,8 @@ export function ScanInvoiceScreen({
         };
         Alert.alert(
           'Không thể xử lý hóa đơn',
-          result.rejectReason || rejectMessages[result.kind] || 'Vui lòng thử lại với ảnh khác rõ nét hơn.'
+          result.rejectReason || rejectMessages[result.kind] || 'Vui lòng thử lại với ảnh khác rõ nét hơn.',
+          [{ text: 'Chụp lại', onPress: () => setPreviewUri(null) }]
         );
         return;
       }
@@ -544,7 +552,8 @@ export function ScanInvoiceScreen({
     } catch (err: any) {
       Alert.alert(
         'Không thể quét hóa đơn',
-        err?.message || 'Ảnh không hợp lệ hoặc không thể kết nối máy chủ OCR. Vui lòng thử lại.'
+        err?.message || 'Ảnh không hợp lệ hoặc không thể kết nối máy chủ OCR. Vui lòng thử lại.',
+        [{ text: 'Chụp lại', onPress: () => setPreviewUri(null) }]
       );
     } finally {
       setScanning(false);
@@ -864,7 +873,9 @@ export function ScanInvoiceScreen({
         {/* Khung ngắm Camera thật trực tiếp (kéo dài xuống gần 3 nút dưới cùng) */}
         <View style={styles.cameraBody}>
           <View style={[styles.cameraViewportCard, isDark && { borderColor: themeColors.cardBorder, borderWidth: 1 }]}>
-            {cameraPermission?.granted && !cameraMountError ? (
+            {previewUri ? (
+              <Image source={{ uri: previewUri }} style={styles.cameraPreviewImage} resizeMode="contain" />
+            ) : cameraPermission?.granted && !cameraMountError ? (
               <CameraView
                 key={`live-cam-${facing}`}
                 ref={cameraRef}
@@ -877,8 +888,6 @@ export function ScanInvoiceScreen({
                 onCameraReady={() => setCameraReady(true)}
                 onMountError={() => setCameraMountError(true)}
               />
-            ) : previewUri ? (
-              <Image source={{ uri: previewUri }} style={styles.cameraPreviewImage} resizeMode="cover" />
             ) : (
               <View style={styles.permissionFallbackBox}>
                 <RealisticReceiptPaper />
@@ -1059,10 +1068,14 @@ export function ScanInvoiceScreen({
               ) : (
                 <>
                   <View style={styles.fieldLabelLeft}>
-                    <Calendar size={18} color={isDark ? themeColors.accentGreen : '#15803D'} strokeWidth={2.1} />
+                    <View style={[styles.fieldIconBox, isDark && { backgroundColor: '#064E3B' }]}>
+                      <Calendar size={16} color={isDark ? themeColors.accentGreen : '#15803D'} strokeWidth={2.1} />
+                    </View>
                     <Text style={[styles.fieldLabelText, isDark && { color: themeColors.textSecondary }]}>Thời gian</Text>
                   </View>
-                  <Text style={[styles.fieldValueStrong, isDark && { color: themeColors.textPrimary }]}>{formatDisplayDateTime(dateStr, timeStr)}</Text>
+                  <View style={[styles.fieldValuePill, isDark && { backgroundColor: themeColors.surfaceSubtle, borderColor: themeColors.cardBorder }]}>
+                    <Text style={[styles.fieldValueStrong, isDark && { color: themeColors.textPrimary }]}>{formatDisplayDateTime(dateStr, timeStr)}</Text>
+                  </View>
                 </>
               )}
             </View>
@@ -1070,7 +1083,9 @@ export function ScanInvoiceScreen({
             {/* Dòng 2: Cửa hàng */}
             <View style={[styles.extractedFieldRow, isDark && { borderBottomColor: themeColors.cardBorder }]}>
               <View style={styles.fieldLabelLeft}>
-                <Store size={18} color={isDark ? themeColors.accentGreen : '#15803D'} strokeWidth={2.1} />
+                <View style={[styles.fieldIconBox, isDark && { backgroundColor: '#064E3B' }]}>
+                  <Store size={16} color={isDark ? themeColors.accentGreen : '#15803D'} strokeWidth={2.1} />
+                </View>
                 <Text style={[styles.fieldLabelText, isDark && { color: themeColors.textSecondary }]}>Cửa hàng</Text>
               </View>
               {isEditingResult ? (
@@ -1082,14 +1097,18 @@ export function ScanInvoiceScreen({
                   style={[styles.inlineTextInput, isDark && { backgroundColor: themeColors.surfaceSubtle, borderColor: themeColors.cardBorder, color: themeColors.textPrimary }]}
                 />
               ) : (
-                <Text style={[styles.fieldValueStrong, isDark && { color: themeColors.textPrimary }]}>{merchant}</Text>
+                <View style={[styles.fieldValuePill, isDark && { backgroundColor: themeColors.surfaceSubtle, borderColor: themeColors.cardBorder }]}>
+                  <Text style={[styles.fieldValueStrong, isDark && { color: themeColors.textPrimary }]}>{merchant}</Text>
+                </View>
               )}
             </View>
 
             {/* Dòng 3: Danh mục (Dropdown pill) */}
             <View style={[styles.extractedFieldRow, isDark && { borderBottomColor: themeColors.cardBorder }]}>
               <View style={styles.fieldLabelLeft}>
-                <Tag size={18} color={isDark ? themeColors.accentGreen : '#15803D'} strokeWidth={2.1} />
+                <View style={[styles.fieldIconBox, isDark && { backgroundColor: '#064E3B' }]}>
+                  <Tag size={16} color={isDark ? themeColors.accentGreen : '#15803D'} strokeWidth={2.1} />
+                </View>
                 <Text style={[styles.fieldLabelText, isDark && { color: themeColors.textSecondary }]}>Danh mục</Text>
               </View>
 
@@ -1110,12 +1129,17 @@ export function ScanInvoiceScreen({
                       selectedCategoryObj.name
                     )}
                     size={15}
-                    color={isDark ? themeColors.accentGreen : '#15803D'}
+                    color={isDark ? '#F87171' : '#DC2626'}
                   />
                   <Text style={[styles.categorySelectText, isDark && { color: themeColors.textPrimary }]}>{selectedCategoryObj.name}</Text>
                 </View>
                 {!isCurrentReceiptPaid && (
-                  <ChevronDown size={16} color={isDark ? themeColors.textSecondary : '#334155'} strokeWidth={2.2} />
+                  <ChevronDown
+                    size={16}
+                    color={isDark ? themeColors.textSecondary : '#334155'}
+                    strokeWidth={2.2}
+                    style={{ position: 'absolute', right: 10 }}
+                  />
                 )}
               </Pressable>
             </View>
@@ -1123,7 +1147,9 @@ export function ScanInvoiceScreen({
             {/* Dòng 4: Số tiền (Nền xanh nhạt nổi bật) */}
             <View style={[styles.extractedFieldRow, isDark && { borderBottomColor: themeColors.cardBorder }]}>
               <View style={styles.fieldLabelLeft}>
-                <CircleDollarSign size={18} color={isDark ? themeColors.accentGreen : '#15803D'} strokeWidth={2.1} />
+                <View style={[styles.fieldIconBox, isDark && { backgroundColor: '#064E3B' }]}>
+                  <CircleDollarSign size={16} color={isDark ? themeColors.accentGreen : '#15803D'} strokeWidth={2.1} />
+                </View>
                 <Text style={[styles.fieldLabelText, isDark && { color: themeColors.textSecondary }]}>Số tiền</Text>
               </View>
 
@@ -1154,7 +1180,9 @@ export function ScanInvoiceScreen({
             {accounts.length > 0 && (
               <View style={[styles.extractedFieldRow, isDark && { borderBottomColor: themeColors.cardBorder }]}>
                 <View style={styles.fieldLabelLeft}>
-                  <Wallet size={18} color={isDark ? themeColors.accentGreen : '#15803D'} strokeWidth={2.1} />
+                  <View style={[styles.fieldIconBox, isDark && { backgroundColor: '#064E3B' }]}>
+                    <Wallet size={16} color={isDark ? themeColors.accentGreen : '#15803D'} strokeWidth={2.1} />
+                  </View>
                   <Text style={[styles.fieldLabelText, isDark && { color: themeColors.textSecondary }]}>Tài khoản</Text>
                 </View>
 
@@ -1171,7 +1199,12 @@ export function ScanInvoiceScreen({
                     {selectedAccountObj?.name || 'Chọn ví'}
                   </Text>
                   {!isCurrentReceiptPaid && (
-                    <ChevronDown size={15} color={isDark ? themeColors.textSecondary : '#334155'} strokeWidth={2.2} />
+                    <ChevronDown
+                      size={15}
+                      color={isDark ? themeColors.textSecondary : '#334155'}
+                      strokeWidth={2.2}
+                      style={{ position: 'absolute', right: 10 }}
+                    />
                   )}
                 </Pressable>
               </View>
@@ -1179,8 +1212,10 @@ export function ScanInvoiceScreen({
 
             {/* Dòng 5: Ghi chú */}
             <View style={[styles.extractedFieldRow, { alignItems: 'flex-start', borderBottomWidth: 0 }]}>
-              <View style={[styles.fieldLabelLeft, { marginTop: 10 }]}>
-                <FileText size={18} color={isDark ? themeColors.accentGreen : '#15803D'} strokeWidth={2.1} />
+              <View style={[styles.fieldLabelLeft, { marginTop: 8 }]}>
+                <View style={[styles.fieldIconBox, isDark && { backgroundColor: '#064E3B' }]}>
+                  <FileText size={16} color={isDark ? themeColors.accentGreen : '#15803D'} strokeWidth={2.1} />
+                </View>
                 <Text style={[styles.fieldLabelText, isDark && { color: themeColors.textSecondary }]}>Ghi chú</Text>
               </View>
 
@@ -1286,7 +1321,7 @@ export function ScanInvoiceScreen({
                       { id: 'c5', name: 'Sức khỏe', kind: 'EXPENSE' as const, icon: 'pill' },
                     ]
                 ).map((cat) => {
-                  const active = cat.id === selectedCategoryObj.id || cat.name === selectedCategoryObj.name;
+                  const active = cat.id === selectedCategoryObj.id;
                   return (
                     <Pressable
                       key={cat.id}
@@ -1296,20 +1331,25 @@ export function ScanInvoiceScreen({
                       }}
                       style={[
                         styles.pickerOptionRow,
-                        active && (isDark ? { backgroundColor: themeColors.surfaceSubtle } : styles.pickerOptionRowActive),
+                        active && (isDark ? { backgroundColor: 'rgba(239, 68, 68, 0.14)' } : { backgroundColor: '#FEF2F2' }),
                       ]}
                     >
                       <View style={styles.pickerOptionLeft}>
-                        <View style={[styles.pickerIconCircle, isDark && { backgroundColor: themeColors.surfaceSubtle }]}>
+                        <View
+                          style={[
+                            styles.pickerIconCircle,
+                            { backgroundColor: isDark ? 'rgba(239, 68, 68, 0.18)' : '#FEE2E2' },
+                          ]}
+                        >
                           <FinanceIcon
                             name={resolveCategoryIconName(cat.icon, 'EXPENSE', cat.name)}
                             size={17}
-                            color={isDark ? themeColors.accentGreen : '#059669'}
+                            color={isDark ? '#F87171' : '#DC2626'}
                           />
                         </View>
                         <Text style={[styles.pickerOptionName, isDark && { color: themeColors.textPrimary }]}>{cat.name}</Text>
                       </View>
-                      {active && <Check size={18} color={isDark ? themeColors.accentGreen : '#059669'} strokeWidth={2.6} />}
+                      {active && <Check size={18} color={isDark ? '#F87171' : '#DC2626'} strokeWidth={2.6} />}
                     </Pressable>
                   );
                 })}
@@ -2095,7 +2135,7 @@ const styles = StyleSheet.create({
   },
   scanningOverlay: {
     ...StyleSheet.absoluteFill,
-    backgroundColor: 'rgba(15, 23, 42, 0.65)',
+    backgroundColor: 'rgba(15, 23, 42, 0.42)',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 12,
@@ -2316,25 +2356,45 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical: 11,
-    borderBottomWidth: 1,
-    borderBottomColor: '#F8FAFC',
+    paddingVertical: 6,
     gap: 10,
   },
   fieldLabelLeft: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
+    width: 118,
+  },
+  fieldIconBox: {
+    width: 30,
+    height: 30,
+    borderRadius: 8,
+    backgroundColor: '#DCFCE7',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   fieldLabelText: {
     fontSize: 13.5,
     fontWeight: '500',
     color: '#475569',
   },
+  fieldValuePill: {
+    flex: 1,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 10,
+    backgroundColor: '#F1F5F9',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   fieldValueStrong: {
     fontSize: 14,
     fontWeight: '700',
     color: '#0F172A',
+    textAlign: 'center',
+    flexShrink: 1,
   },
   inlineEditRow: {
     flexDirection: 'row',
@@ -2355,57 +2415,62 @@ const styles = StyleSheet.create({
   },
   inlineTextInput: {
     flex: 1,
-    maxWidth: 190,
-    height: 34,
-    borderRadius: 8,
+    height: 36,
+    borderRadius: 10,
     borderWidth: 1,
     borderColor: '#CBD5E1',
     paddingHorizontal: 10,
     fontSize: 13.5,
     fontWeight: '700',
     color: '#0F172A',
-    textAlign: 'right',
+    textAlign: 'center',
     backgroundColor: '#F8FAFC',
   },
   categorySelectPill: {
+    position: 'relative',
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 7,
+    justifyContent: 'center',
+    paddingHorizontal: 28,
+    paddingVertical: 8,
     borderRadius: 10,
     backgroundColor: '#F8FAFC',
     borderWidth: 1,
     borderColor: '#E2E8F0',
-    minWidth: 150,
   },
   categorySelectLeft: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
     gap: 6,
   },
   categorySelectText: {
     fontSize: 13.5,
     fontWeight: '700',
     color: '#0F172A',
+    textAlign: 'center',
   },
 
   amountHighlightBadge: {
+    flex: 1,
     paddingHorizontal: 12,
-    paddingVertical: 5,
+    paddingVertical: 7,
     borderRadius: 10,
     backgroundColor: '#DCFCE7',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   amountHighlightText: {
     fontSize: 15.5,
     fontWeight: '800',
     color: '#065F46',
+    textAlign: 'center',
   },
   amountHighlightInput: {
-    minWidth: 120,
+    flex: 1,
     paddingHorizontal: 12,
-    paddingVertical: 5,
+    paddingVertical: 6,
     borderRadius: 10,
     backgroundColor: '#DCFCE7',
     borderWidth: 1,
@@ -2413,7 +2478,7 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '800',
     color: '#065F46',
-    textAlign: 'right',
+    textAlign: 'center',
   },
 
   noteInputBox: {

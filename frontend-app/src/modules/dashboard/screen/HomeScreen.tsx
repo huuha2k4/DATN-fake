@@ -7,6 +7,7 @@ import { budgetApi } from '../../budget/api';
 import { authStorage } from '../../auth/api/authApi';
 import { groupApi } from '../../group/api/groupApi';
 import { finAiSyncEmitter } from '../../ai-assistant/api/finAiSyncEmitter';
+import { useMobileQueryRevalidation } from '../../core/utils/useMobileQueryRevalidation';
 import { themeTokens } from '../themeTokens';
 import { useAppTheme } from '../../../context/ThemeContext';
 
@@ -229,6 +230,10 @@ export function HomeScreen({
     });
     return () => unsubscribe();
   }, [loadData]);
+
+  useMobileQueryRevalidation(['dashboard:', 'accounts:', 'budgets:'], () => {
+    loadData(false);
+  });
 
   const now = new Date();
   const currentMonth = now.getMonth() + 1;

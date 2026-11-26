@@ -1,4 +1,5 @@
 import { API_BASE_URL, authStorage, authFetch } from '../../auth/api/authApi';
+import { fetchMobileWithCache, invalidateMobileQueryCache } from '../../core/utils/mobileQueryCache';
 
 export type ScheduleType = 'TRANSACTION' | 'REMINDER';
 export type ScheduleStatus = 'ACTIVE' | 'PAUSED' | 'COMPLETED' | 'CANCELLED';
@@ -83,20 +84,25 @@ export const scheduleApi = {
    * Lấy danh sách lịch định kỳ từ Backend
    */
   async getSchedules(params?: { schedule_type?: string; status?: string; search?: string }): Promise<ScheduleListItem[]> {
-    try {
-      const url = new URL(`${API_BASE_URL}/schedules`);
-      if (params?.schedule_type) url.searchParams.append('schedule_type', params.schedule_type);
-      if (params?.status) url.searchParams.append('status', params.status);
-      if (params?.search) url.searchParams.append('search', params.search);
+    const cacheKey = `schedules:list:${params?.schedule_type || ''}:${params?.status || ''}:${params?.search || ''}`;
+    return fetchMobileWithCache(
+      cacheKey,
+      async () => {
+        const url = new URL(`${API_BASE_URL}/schedules`);
+        if (params?.schedule_type) url.searchParams.append('schedule_type', params.schedule_type);
+        if (params?.status) url.searchParams.append('status', params.status);
+        if (params?.search) url.searchParams.append('search', params.search);
 
-      const res = await authFetch(url.toString());
-      if (!res.ok) return [];
-      const json = await res.json();
-      return json?.content || json?.data?.content || (Array.isArray(json) ? json : []);
-    } catch (e) {
+        const res = await authFetch(url.toString());
+        if (!res.ok) return [];
+        const json = await res.json();
+        return json?.content || json?.data?.content || (Array.isArray(json) ? json : []);
+      },
+      { freshTimeMs: 20_000, staleTimeMs: 60_000 }
+    ).catch((e) => {
       console.warn('Lỗi getSchedules:', e);
       return [];
-    }
+    });
   },
 
   /**
@@ -112,6 +118,7 @@ export const scheduleApi = {
       if (!res.ok) {
         return { success: false, message: json.message || 'Không thể tạo lịch định kỳ' };
       }
+      invalidateMobileQueryCache('schedules:');
       return { success: true, data: json };
     } catch (e: any) {
       return { success: false, message: e.message || 'Lỗi kết nối' };
@@ -131,6 +138,7 @@ export const scheduleApi = {
       if (!res.ok) {
         return { success: false, message: json.message || 'Không thể cập nhật lịch định kỳ' };
       }
+      invalidateMobileQueryCache('schedules:');
       return { success: true, data: json };
     } catch (e: any) {
       return { success: false, message: e.message || 'Lỗi kết nối' };
@@ -143,6 +151,7 @@ export const scheduleApi = {
   async pauseSchedule(id: number): Promise<boolean> {
     try {
       const res = await authFetch(`${API_BASE_URL}/schedules/${id}/pause`, { method: 'POST' });
+      if (res.ok) invalidateMobileQueryCache('schedules:');
       return res.ok;
     } catch {
       return false;
@@ -155,6 +164,7 @@ export const scheduleApi = {
   async resumeSchedule(id: number): Promise<boolean> {
     try {
       const res = await authFetch(`${API_BASE_URL}/schedules/${id}/resume`, { method: 'POST' });
+      if (res.ok) invalidateMobileQueryCache('schedules:');
       return res.ok;
     } catch {
       return false;
@@ -167,6 +177,7 @@ export const scheduleApi = {
   async deleteSchedule(id: number): Promise<boolean> {
     try {
       const res = await authFetch(`${API_BASE_URL}/schedules/${id}`, { method: 'DELETE' });
+      if (res.ok) invalidateMobileQueryCache('schedules:');
       return res.ok;
     } catch {
       return false;

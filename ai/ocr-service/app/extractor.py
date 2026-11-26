@@ -25,13 +25,15 @@ def strip_accents(s: str) -> str:
 # ---------------------------------------------------------------------------
 
 # Keyword có ĐỘ ƯU TIÊN — tầng cao hơn tìm trước
-# Tier 1: rõ ràng nhất (phai thanh toan / tong cong)
+# Tier 1: rõ ràng nhất (phai thanh toan / tong cong / tong:)
 # Tier 2: khá rõ (tong tien / thanh tien)
 # Tier 3: dễ nhầm nhất (thanh toan — có thể là "TT: tiền mặt")
+# Tier 4: phương thức thanh toán khi hóa đơn không in dòng tổng cộng riêng (VD: TIEN MAT 537.000)
 TOTAL_KEYWORD_TIERS: List[List[str]] = [
     # Tier 1 — rõ ràng nhất
     ["tong tien phai", "phai thanh toan", "tong tien phai thanh toan", "phai tra",
      "tong cong", "tongcong", "grand total",
+     "tong:", "tong :", "tong=", "tong =",
      # EVN / tiện ích
      "so tien phai thanh toan", "tien phai nop", "tong so tien phai tra",
      "tong tien phai nop", "tien phai thanh toan"],
@@ -46,6 +48,8 @@ TOTAL_KEYWORD_TIERS: List[List[str]] = [
     ["thanh toan", "total", "so tien", "amount",
      # OCR ghép chữ hay gặp
      "tong congdagom", "tongcongdagom", "tongtiendag", "t&ng cong", "t&ng tien"],
+    # Tier 4 — Phương thức thanh toán khi hóa đơn không có dòng tổng cộng riêng
+    ["tien mat", "tienmat", "chuyen khoan", "the atm", "the tin dung", "thanh toan the"],
 ]
 # Flat list để dùng chỗ khác
 TOTAL_KEYWORDS = [kw for tier in TOTAL_KEYWORD_TIERS for kw in tier]
@@ -55,11 +59,13 @@ EXCLUDE_KEYWORDS = [
     "khach dua", "tien thua", "tien tra lai", "tien mat",
     "tralai", "tra lai", "tien thoi", "tien thu",
     "khach tra", "tien khach",
+    # Tiền hàng / subtotal trước giảm giá (không phải tổng thực trả)
+    "tien hang", "tong tien hang", "tienhang", "subtotal", "tong tam tinh", "tam tinh",
     # Giảm giá
     "giam gia", "chiet khau", "tien giam", "tong tien giam",
     "tong tien a giam", "khuyen mai", "discount",
     # Thuế riêng
-    "thue gtgt", "tam tinh", "subtotal",
+    "thue gtgt",
     # Thanh toán bằng thẻ/ví (không phải tổng)
     "visa", "mastercard", "the tin dung", "the atm", "vinid",
     "momo", "zalopay", "vnpay", "diem tich luy",
@@ -80,7 +86,7 @@ EXCLUDE_KEYWORDS = [
 
 # Khoảng hợp lý — đặt thành config để dễ điều chỉnh
 AMOUNT_MIN = 2_000      # Dưới 2.000đ không phải tổng tiền hóa đơn thực tế
-AMOUNT_MAX = 500_000_000  # Tăng lên 500tr để cover hóa đơn điện doanh nghiệp
+AMOUNT_MAX = 100_000_000  # 100 triệu VNĐ phù hợp cho hóa đơn tiêu dùng/bán lẻ cá nhân
 
 # Số dạng 125.000 / 125,000 / 1.250.000 / 125000 — KHÔNG bắt số âm
 NUMBER_RE = re.compile(r"(?<![0-9,.-])\d{1,3}(?:[.,]\d{3})+|\b\d{4,}(?!\d)")
@@ -107,16 +113,15 @@ def parse_amount(token: str) -> Optional[int]:
     if "." not in token and "," not in token:
         if token.startswith("0") or len(token) >= 8:   # >= 8 thay vì >= 9
             return None
+        # 6 chữ số không có dấu phân cách bắt đầu 19xx/20xx → năm ghép ngày/giờ
+        if len(digits) == 6 and digits[:2] in ("19", "20"):
+            return None
+        # Loại năm (4 chữ số không có dấu phân cách, trong khoảng 2010-2030)
+        # Lưu ý: 2.000đ có dấu chấm nên không bị lọc ở đây
+        if len(digits) == 4 and 2010 <= value <= 2030:
+            return None
 
     if re.match(r"^0\d{2,3}\.", token):
-        return None
-
-    if len(digits) == 6 and digits[:2] in ("19", "20"):
-        return None
-
-    # Loại năm (4 chữ số không có dấu phân cách, trong khoảng 2010-2030)
-    # Lưu ý: 2.000đ có dấu chấm nên không bị lọc ở đây
-    if len(digits) == 4 and "." not in token and "," not in token and 2010 <= value <= 2030:
         return None
 
     if value < AMOUNT_MIN or value > AMOUNT_MAX:
@@ -135,18 +140,29 @@ def find_numbers(line: str) -> List[int]:
 
 def _search_tier(lines: List[str], norm: List[str], tier_keywords: List[str]) -> Optional[int]:
     """Tìm tổng tiền trong 1 tier keyword, duyệt từ dưới lên."""
+    is_payment_tier = any(k in ["tien mat", "tienmat", "chuyen khoan"] for k in tier_keywords)
+
     for i in range(len(lines) - 1, -1, -1):
         n = norm[i]
 
-        # Bỏ qua dòng loại trừ THUẦN — không có keyword tổng
         has_total_kw = any(k in n for k in tier_keywords)
-        has_excl_kw  = any(k in n for k in EXCLUDE_KEYWORDS)
+        # Khớp chữ "tong" đứng độc lập (VD: "Tổng: 3,037,000", "Tổng 3,037,000")
+        if not has_total_kw and any(k.startswith("tong") for k in tier_keywords):
+            if re.search(r"(?<![a-z0-9])tong(?!\s*(?:sl|so luong|mat hang|mon|khoan))\b", n):
+                has_total_kw = True
+
+        # Khi ở payment tier (Tier 4), không coi "tien mat" là exclude keyword
+        if is_payment_tier:
+            has_excl_kw = any(k in n for k in EXCLUDE_KEYWORDS if k != "tien mat")
+        else:
+            has_excl_kw = any(k in n for k in EXCLUDE_KEYWORDS)
+
+        # Nếu dòng là tiền hàng / subtotal trước chiết khấu -> không coi là tổng thanh toán cuối
+        if any(sub in n for sub in ["tien hang", "tong tien hang", "subtotal", "tong tam tinh", "tam tinh"]):
+            has_total_kw = False
 
         if not has_total_kw:
             continue
-
-        if has_excl_kw and not has_total_kw:
-            continue  # loại trừ thuần (không bao giờ vào đây vì has_total_kw đã check)
 
         nums = find_numbers(lines[i])
         if not nums:
@@ -177,7 +193,7 @@ def extract_total(lines: List[str]) -> Optional[int]:
     Trích xuất tổng tiền từ danh sách dòng text.
 
     Chiến lược:
-      1. Tìm theo keyword tier cao → thấp (tong tien phai > tong tien > thanh toan)
+      1. Tìm theo keyword tier cao → thấp (tong tien phai > tong tien > thanh toan > tien mat)
       2. Fallback: số xuất hiện nhiều nhất (tổng tiền thường lặp lại 2-3 lần)
       3. Fallback cuối: số lớn nhất hợp lý
     """
@@ -194,10 +210,12 @@ def extract_total(lines: List[str]) -> Optional[int]:
     if all_nums:
         from collections import Counter
         freq = Counter(all_nums)
-        # Lấy số xuất hiện ≥2 lần, ưu tiên số xuất hiện nhiều hơn
-        repeated = [(v, c) for v, c in freq.items() if c >= 2]
+        max_val = max(all_nums)
+        # Chỉ lấy số lặp lại nếu nó có giá trị đáng kể so với max_val
+        # (tránh trường hợp nhiều món ăn giá rẻ có cùng đơn giá)
+        repeated = [(v, c) for v, c in freq.items() if c >= 2 and v >= max_val * 0.5]
         if repeated:
-            # Trong số lặp lại, lấy số lớn nhất (tổng > từng món)
+            # Trong số lặp lại, lấy số lớn nhất
             return max(v for v, _ in repeated)
 
     # Fallback 2: số lớn nhất hợp lý
@@ -294,14 +312,14 @@ LEGAL_ENTITY_HINTS = [
 ]
 
 SKIP_HINTS = [
-    # Địa chỉ
+    # Địa chỉ & địa danh
     "dia chi", "dc:", " duong ", "phuong ", "quan 1", "quan 2",
     "quan 3", "quan 4", "quan 5", "quan 6", "quan 7", "quan 8",
     "quan 9", "quan 10", "quan 11", "quan 12", "quan binh",
     "quan go", "quan phu", "quan tan", "quan thu", "quan thu duc",
+    # Tiêu đề & đại danh độc lập
     "tp.", "huyen ", "khu ", "toa ", "tang ", "lau ",
-    "p.cam", "p.phu", "p.tan", "tp.cam", "tp.hcm", "tp.ha",
-    "ha noi", "ho chi minh",
+    "p.cam", "p.phu", "p.tan", "tp.cam", "tp.ha",
     # Liên hệ
     "tel", "sdt", "dt:", "hotline", "fax", "email", "website",
     "www", ".com", ".vn", "http",
@@ -319,10 +337,20 @@ SKIP_HINTS = [
 ]
 
 
+STANDALONE_CITIES = {
+    "ha noi", "hanoi", "ho chi minh", "tphcm", "tp hcm", "tp.hcm", "sai gon",
+    "da nang", "danang", "binh duong", "binhduong", "dong nai", "hai phong", "can tho",
+    "thu dau mot", "bac ninh", "quang ninh", "hue", "nha trang", "vung tau", "gia lam",
+}
+
+
 def _looks_like_noise(line: str) -> bool:
     """Trả True nếu dòng là địa chỉ / SĐT / mã số / tiêu đề — không phải tên cửa hàng."""
-    n = strip_accents(line)
+    n = strip_accents(line).lower().strip()
     if any(h in n for h in SKIP_HINTS):
+        return True
+    clean = re.sub(r"[^\w\s]", "", n).strip()
+    if clean in STANDALONE_CITIES or clean.replace(" ", "") in {c.replace(" ", "") for c in STANDALONE_CITIES}:
         return True
     letters = sum(c.isalpha() for c in line)
     digits  = sum(c.isdigit() for c in line)
@@ -369,37 +397,67 @@ def _match_brands(tokens: List[str]) -> tuple:
     Khớp mờ danh sách token với KNOWN_BRANDS.
 
     Nguyên tắc:
-    - Tên ngắn (<=4 ký tự): dùng token_set_ratio + ngưỡng cao (92)
-      để tránh "KFC" khớp với chuỗi dài ngẫu nhiên
-    - Tên dài: partial_ratio ngưỡng 75
-    - Ưu tiên brand dài hơn khi cùng score — "Siêu Thị Bách Hóa Tổng Hợp"
-      nên thắng "Bách Hóa Xanh" khi text có đủ chữ
+    - Token noise (địa chỉ, thành phố đứng độc lập, SĐT, v.v.) bị bỏ qua.
+    - Với thương hiệu ngắn (<=4 ký tự như KFC, ACB, GS25):
+      yêu cầu token chứa chính xác từ đó dạng nguyên từ.
+    - Với thương hiệu dài (>4 ký tự):
+      yêu cầu token phải chứa phần lớn các từ của thương hiệu (coverage >= 0.75)
+      hoặc độ tương đồng token_sort_ratio >= LONG_BRAND_THRESHOLD.
+      Đồng thời len(token) >= len(brand) * 0.7 để tránh từ ngắn khớp vào thương hiệu dài.
+    - Ưu tiên thương hiệu khớp hoàn hảo hoặc có độ dài dài hơn.
     """
     best_brand, best_score, best_len = None, 0, 0
 
     for token in tokens:
-        n = strip_accents(token)
+        n = strip_accents(token).strip()
+        if len(n) < 3 or _looks_like_noise(n):
+            continue
+
+        token_words = set(re.findall(r"\b\w+\b", n.lower()))
+
         for brand in KNOWN_BRANDS:
-            b = strip_accents(brand)
+            b = strip_accents(brand).strip().lower()
             is_short = len(b) <= 4
+            brand_words = set(re.findall(r"\b\w+\b", b))
 
             if is_short:
-                score = fuzz.token_set_ratio(b, n)
+                if b in token_words:
+                    score = 100.0
+                else:
+                    score = fuzz.token_set_ratio(b, n.lower())
                 threshold = SHORT_BRAND_THRESHOLD
             else:
-                score = fuzz.partial_ratio(b, n)
+                if len(n) < len(b) * 0.7:
+                    continue
+                coverage = len(brand_words & token_words) / len(brand_words) if brand_words else 0
+                if coverage >= 0.75:
+                    score = fuzz.token_set_ratio(b, n.lower())
+                else:
+                    score = fuzz.token_sort_ratio(b, n.lower())
                 threshold = LONG_BRAND_THRESHOLD
 
-            # Ưu tiên: score cao hơn; nếu bằng nhau thì brand dài hơn thắng
-            if score > best_score or (score == best_score and len(b) > best_len):
-                best_brand, best_score, best_len = brand, score, len(b)
+            if score >= threshold:
+                if score > best_score or (score == best_score and len(b) > best_len):
+                    best_brand, best_score, best_len = brand, score, len(b)
 
-    if best_score == 0:
-        return None, 0
+    return (best_brand, best_score) if best_brand else (None, 0)
 
-    b = strip_accents(best_brand)
-    req = SHORT_BRAND_THRESHOLD if len(b) <= 4 else LONG_BRAND_THRESHOLD
-    return (best_brand, best_score) if best_score >= req else (None, best_score)
+
+def _has_business_prefix(text: str) -> bool:
+    """Kiểm tra dòng có chứa tiền tố chỉ loại hình kinh doanh (Nhà hàng, quán ăn, siêu thị...)."""
+    n = strip_accents(text).strip()
+    prefixes = [
+        "nha hang", "quan an", "quan nuong", "quan lau", "ham ruou",
+        "quan ca phe", "ca phe", "cafe", "coffee", "tra sua", "tiem banh",
+        "quan com", "quan nhau", "buffet", "bbq", "bakery",
+        "sieu thi", "minimart", "mini mart", "tap hoa", "bach hoa",
+        "cua hang", "shop", "nha thuoc", "hieu thuoc", "phong kham",
+        "nha sach", "gara", "karaoke"
+    ]
+    for p in prefixes:
+        if n.startswith(p) or f" {p} " in f" {n} ":
+            return True
+    return False
 
 
 def extract_merchant(
@@ -411,15 +469,16 @@ def extract_merchant(
     Trích xuất tên cửa hàng với các cải tiến:
 
     1. Phát hiện tên pháp nhân ("Công ty TNHH ...") → bỏ qua, tìm tiếp dòng sau
-    2. Tách phần thương hiệu ra khỏi địa chỉ ghép chung
-    3. Fuzzy match với ngưỡng khác nhau cho tên ngắn/dài
-    4. Nếu có items (bounding box): ưu tiên block có font lớn nhất (tên hay in to)
+    2. Ưu tiên các dòng có tiền tố loại hình kinh doanh ("Nhà hàng ...", "Quán ăn ...")
+    3. Tách phần thương hiệu ra khỏi địa chỉ ghép chung
+    4. Fuzzy match với KNOWN_BRANDS
     5. Fallback: dòng đầu hợp lệ sau khi lọc noise
     """
     # --- Bước 1: Thu thập candidates từ text lines ---
     brand_candidates: List[str] = []
+    business_prefix_candidates: List[str] = []
     fallback_candidates: List[str] = []
-    skip_next = False  # Bỏ dòng ngay sau khi tên pháp nhân
+    skip_next = False
 
     for i, line in enumerate(lines[:top_n]):
         if skip_next:
@@ -428,7 +487,6 @@ def extract_merchant(
 
         # Nhận ra tên pháp nhân → tìm thương hiệu ở dòng tiếp theo thay vì dòng này
         if _is_legal_entity(line):
-            # Dòng kế tiếp thường là thương hiệu thật
             if i + 1 < len(lines):
                 next_line = lines[i + 1]
                 token = _extract_brand_token(next_line)
@@ -439,15 +497,19 @@ def extract_merchant(
 
         token = _extract_brand_token(line)
         if not _looks_like_noise(token) and len(token) >= 3:
-            brand_candidates.append(token)
+            if _has_business_prefix(token):
+                business_prefix_candidates.append(token)
+            else:
+                brand_candidates.append(token)
+
         if not _looks_like_noise(line):
             fallback_candidates.append(line)
 
-    # --- Bước 2: Ưu tiên block font lớn nhất nếu có items ---
+    # --- Bước 2: Thử khớp thương hiệu đã biết từ font lớn nhất nếu có items ---
     if items:
         # Lấy top 3 block có font lớn nhất trong phần đầu ảnh
         top_items = sorted(items, key=lambda it: -_font_size_score(it))
-        # Chỉ xét items nằm trong 30% trên của ảnh
+        # Chỉ xét items nằm trong 35% trên của ảnh
         all_ys = [float(np.mean([p[1] for p in it["box"]])) for it in items]
         max_y = max(all_ys) if all_ys else 1
         top_area_items = [
@@ -461,21 +523,25 @@ def extract_merchant(
             if not _looks_like_noise(token) and len(token) >= 3:
                 large_font_tokens.append(token)
 
-        # Thử khớp từ font lớn trước
+        # Thử khớp từ font lớn với KNOWN_BRANDS trước
         if large_font_tokens:
             brand, score = _match_brands(large_font_tokens)
             if brand:
                 return brand
-            # Nếu không khớp brand nhưng token font lớn hợp lệ → dùng làm fallback
-            if large_font_tokens[0] not in brand_candidates:
-                brand_candidates = large_font_tokens + brand_candidates
+            for tk in large_font_tokens:
+                if tk not in fallback_candidates:
+                    fallback_candidates.append(tk)
 
-    # --- Bước 3: Khớp brand từ text candidates ---
-    brand, score = _match_brands(brand_candidates)
+    # --- Bước 3: Khớp brand từ text candidates với KNOWN_BRANDS ---
+    brand, score = _match_brands(brand_candidates + business_prefix_candidates)
     if brand:
         return brand
 
-    # --- Bước 4: Fallback — dòng đầu hợp lệ ---
+    # --- Bước 4: Nếu không khớp thương hiệu đã biết, ưu tiên tên có tiền tố kinh doanh ("Nhà hàng...", "Quán ăn...") ---
+    if business_prefix_candidates:
+        return business_prefix_candidates[0]
+
+    # --- Bước 5: Fallback — dòng đầu hợp lệ ---
     if brand_candidates:
         return brand_candidates[0]
     if fallback_candidates:
@@ -531,12 +597,27 @@ def extract_total_by_position(items: List[Dict]) -> Optional[int]:
     reversed_items = list(reversed(sorted_items))
 
     for tier in TOTAL_KEYWORD_TIERS:
+        is_payment_tier = any(k in ["tien mat", "tienmat", "chuyen khoan"] for k in tier)
         for kw_item in reversed_items:
             norm = strip_accents(kw_item["text"])
 
-            if any(k in norm for k in EXCLUDE_KEYWORDS):
+            if is_payment_tier:
+                if any(k in norm for k in EXCLUDE_KEYWORDS if k != "tien mat"):
+                    continue
+            else:
+                if any(k in norm for k in EXCLUDE_KEYWORDS):
+                    continue
+
+            # Bỏ qua dòng tiền hàng / subtotal trước giảm giá
+            if any(sub in norm for sub in ["tien hang", "tong tien hang", "subtotal", "tong tam tinh", "tam tinh"]):
                 continue
-            if not any(k in norm for k in tier):
+
+            has_match = any(k in norm for k in tier)
+            if not has_match and any(k.startswith("tong") for k in tier):
+                if re.search(r"(?<![a-z0-9])tong(?!\s*(?:sl|so luong|mat hang|mon|khoan))\b", norm):
+                    has_match = True
+
+            if not has_match:
                 continue
 
             kw_cy = center_y(kw_item)

@@ -26,6 +26,7 @@ import { SavingDetailScreen } from './SavingDetailScreen';
 import { CreateGoalModal } from './CreateGoalModal';
 import { CreateSavingModal } from './CreateSavingModal';
 import { useAppTheme } from '../../../context/ThemeContext';
+import { useMobileQueryRevalidation } from '../../core/utils/useMobileQueryRevalidation';
 
 const { width } = Dimensions.get('window');
 
@@ -97,8 +98,8 @@ export function GoalsScreen({ onBack }: Props) {
   const [totalGoalsAmount, setTotalGoalsAmount] = useState<number>(0);
   const [totalSavingsAmount, setTotalSavingsAmount] = useState<number>(0);
 
-  const loadData = async () => {
-    setIsLoading(true);
+  const loadData = async (silent = false) => {
+    if (!silent) setIsLoading(true);
     try {
       const data = await goalsApi.getGoals();
       setGoals(data.goals);
@@ -109,13 +110,17 @@ export function GoalsScreen({ onBack }: Props) {
     } catch {
       // fallback
     } finally {
-      setIsLoading(false);
+      if (!silent) setIsLoading(false);
     }
   };
 
   useEffect(() => {
     loadData();
   }, []);
+
+  useMobileQueryRevalidation('goals:', () => {
+    loadData(true);
+  });
 
   const handleAdd = () => {
     if (activeTab === 'goals') {

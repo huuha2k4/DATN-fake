@@ -24,6 +24,7 @@ import { FinanceIcon, resolveCategoryIconName } from '../../core/components/Fina
 import { budgetApi, type BudgetItem, type BudgetOverviewResponse } from '../api';
 import { type CategoryItem } from '../../add-transaction/api/transactionApi';
 import { useAppTheme } from '../../../context/ThemeContext';
+import { useMobileQueryRevalidation } from '../../core/utils/useMobileQueryRevalidation';
 
 interface BudgetScreenProps {
   onBack?: () => void;
@@ -138,6 +139,10 @@ export function BudgetScreen({
     });
     return () => unsubscribe();
   }, [selectedYear, selectedMonth]);
+
+  useMobileQueryRevalidation('budgets:', () => {
+    loadData(false);
+  });
 
   const onRefresh = () => {
     setRefreshing(true);

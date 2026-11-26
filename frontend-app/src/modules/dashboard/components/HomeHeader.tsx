@@ -39,7 +39,7 @@ export function HomeHeader({ onNotifications, onProfile }: Props) {
         .catch(() => {});
     };
     fetchUnread();
-    const interval = setInterval(fetchUnread, 15000);
+    const interval = setInterval(fetchUnread, 30000);
     const appStateSub = AppState.addEventListener('change', (state) => {
       if (state === 'active') fetchUnread();
     });

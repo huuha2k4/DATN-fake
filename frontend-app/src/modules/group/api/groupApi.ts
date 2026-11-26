@@ -594,6 +594,11 @@ export const groupApi = {
         reject(new Error('Lỗi kết nối mạng khi tải ảnh lên'));
       };
 
+      xhr.ontimeout = () => {
+        reject(new Error('Hết thời gian tải ảnh lên máy chủ'));
+      };
+
+      xhr.timeout = 60000;
       xhr.send(formData);
     });
   },
@@ -641,6 +646,7 @@ export const groupApi = {
         reject(new Error('Hết thời gian tải ảnh lên máy chủ'));
       };
 
+      xhr.timeout = 60000;
       xhr.send(formData);
     });
   },

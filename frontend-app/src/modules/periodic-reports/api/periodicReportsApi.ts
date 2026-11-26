@@ -1,5 +1,6 @@
 import { API_BASE_URL, authStorage } from '../../auth/api/authApi';
 import { transactionApi } from '../../add-transaction/api/transactionApi';
+import { fetchMobileWithCache } from '../../core/utils/mobileQueryCache';
 
 export interface ReportSummaryData {
   totalIncome: number;
@@ -102,15 +103,19 @@ export const periodicReportsApi = {
     accountId?: string
   ): Promise<ReportSummaryData> {
     const user = authStorage.getUser();
-    const token = authStorage.getToken();
-    const headers: Record<string, string> = {
-      'Content-Type': 'application/json',
-    };
-    if (token) {
-      headers.Authorization = `Bearer ${token}`;
-    }
+    const cacheKey = `reports:summary:${fromDate}:${toDate}:${accountId || 'ALL'}:${user?.childWalletId || 'self'}`;
+    return fetchMobileWithCache(
+      cacheKey,
+      async () => {
+        const token = authStorage.getToken();
+        const headers: Record<string, string> = {
+          'Content-Type': 'application/json',
+        };
+        if (token) {
+          headers.Authorization = `Bearer ${token}`;
+        }
 
-    try {
+        try {
       // ── NẾU LÀ TÀI KHOẢN TRẺ EM: LẤY DỮ LIỆU CHUẨN TỪ SPEND-REQUESTS CỦA VÍ BÉ ──
       if (user?.childAccount && user?.childWalletGroupId && user?.childWalletId) {
         const res = await fetch(
@@ -673,10 +678,13 @@ export const periodicReportsApi = {
           notes,
         },
       };
-    } catch (e) {
-      console.warn('Lỗi lấy dữ liệu báo cáo tài chính:', e);
-      return getEmptyReportData();
-    }
+        } catch (e) {
+          console.warn('Lỗi lấy dữ liệu báo cáo tài chính:', e);
+          return getEmptyReportData();
+        }
+      },
+      { freshTimeMs: 20_000, staleTimeMs: 60_000 }
+    );
   },
 };
 

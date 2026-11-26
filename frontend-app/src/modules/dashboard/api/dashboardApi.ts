@@ -1,4 +1,5 @@
 import { API_BASE_URL, authStorage, authFetch } from '../../auth/api/authApi';
+import { fetchMobileWithCache } from '../../core/utils/mobileQueryCache';
 
 export interface DashboardTransaction {
   id: string;
@@ -53,7 +54,7 @@ function getCategoryVisual(categoryName?: string, txType?: string) {
 /**
  * Gọi API lấy dữ liệu tổng hợp cho HomeScreen
  */
-export async function fetchDashboardData(): Promise<DashboardSummary> {
+export async function fetchDashboardData(forceRefresh = false): Promise<DashboardSummary> {
   const token = authStorage.getToken();
   const user = authStorage.getUser();
   const userName = user?.fullName || user?.username || 'Khách';
@@ -76,7 +77,10 @@ export async function fetchDashboardData(): Promise<DashboardSummary> {
     };
   }
 
-  const headers = {
+  return fetchMobileWithCache(
+    'dashboard:summary',
+    async () => {
+      const headers = {
     'Content-Type': 'application/json',
     Accept: 'application/json',
     Authorization: `Bearer ${token}`,
@@ -238,5 +242,8 @@ export async function fetchDashboardData(): Promise<DashboardSummary> {
     forecastAdvice,
     recentTransactions: recentList,
   };
+    },
+    { freshTimeMs: 12_000, staleTimeMs: 45_000, forceRefresh }
+  );
 }
 

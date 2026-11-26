@@ -30,6 +30,7 @@ import { findBankOrWalletPreset } from '../../accounts/constants/banksData';
 import { exportTransactionHistoryToExcel } from '../utils/exportTransactionHistoryHelper';
 import { ocrApi } from '../../scan-invoice/api';
 import { useAppTheme } from '../../../context/ThemeContext';
+import { useMobileQueryRevalidation } from '../../core/utils/useMobileQueryRevalidation';
 
 type Props = {
   onBack: () => void;
@@ -554,6 +555,11 @@ export function TransactionsScreen({ onBack, onAddTransaction }: Props) {
     });
     return () => unsubscribe();
   }, [selectedMonth]);
+
+  useMobileQueryRevalidation(['transactions:', 'accounts:'], () => {
+    fetchTransactions(true);
+    reloadAccountsAndCategories();
+  });
 
   // Lọc giao dịch theo Tab, Tìm kiếm & Ví cụ thể
   const filteredTransactions = useMemo(() => {

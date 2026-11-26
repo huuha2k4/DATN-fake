@@ -1,4 +1,5 @@
 import { API_BASE_URL, authStorage, authFetch } from '../../auth/api/authApi';
+import { fetchMobileWithCache, invalidateMobileQueryCache } from '../../core/utils/mobileQueryCache';
 
 export type DebtType = 'BORROWING' | 'LENDING';
 export type DebtStatus = 'ACTIVE' | 'PAID' | 'PAID_OFF' | 'OVERDUE' | 'CANCELLED';
@@ -85,62 +86,69 @@ export const debtApi = {
    * Lấy danh sách khoản nợ kèm tổng quan
    */
   async getDebts(debtType?: DebtType, status?: DebtStatus): Promise<DebtItem[]> {
-    try {
-      const token = await authStorage.getToken();
-      if (!token) return [];
+    const cacheKey = `debts:list:${debtType || 'ALL'}:${status || 'ALL'}`;
+    return fetchMobileWithCache(
+      cacheKey,
+      async () => {
+        try {
+          const token = await authStorage.getToken();
+          if (!token) return [];
 
-      let query = '';
-      const params: string[] = [];
-      if (debtType) params.push(`debt_type=${debtType}`);
-      if (status) params.push(`status=${status}`);
-      if (params.length > 0) query = `?${params.join('&')}`;
+          let query = '';
+          const params: string[] = [];
+          if (debtType) params.push(`debt_type=${debtType}`);
+          if (status) params.push(`status=${status}`);
+          if (params.length > 0) query = `?${params.join('&')}`;
 
-      const res = await authFetch(`${API_BASE_URL}/debts${query}`);
-      if (!res.ok) return [];
+          const res = await authFetch(`${API_BASE_URL}/debts${query}`);
+          if (!res.ok) return [];
 
-      const json = await res.json();
-      const rawList: any[] = json?.data?.debts || [];
+          const json = await res.json();
+          const rawList: any[] = json?.data?.debts || [];
 
-      return rawList.map((item: any) => {
-        const isBorrowing = item.debt_type === 'BORROWING' || item.debtType === 'BORROWING';
-        const counterparty = isBorrowing
-          ? (item.creditor_name || item.creditorName || 'Chủ nợ')
-          : (item.debtor_name || item.debtorName || 'Người vay');
+          return rawList.map((item: any) => {
+            const isBorrowing = item.debt_type === 'BORROWING' || item.debtType === 'BORROWING';
+            const counterparty = isBorrowing
+              ? (item.creditor_name || item.creditorName || 'Chủ nợ')
+              : (item.debtor_name || item.debtorName || 'Người vay');
 
-        const principal = Number(item.principal_amount || item.principalAmount || 0);
-        const paid = Number(item.paid_amount || item.paidAmount || 0);
-        const remaining = Number(item.remaining ?? item.remaining_amount ?? (principal - paid));
-        const percentage = Number(item.percentage_paid ?? item.percentagePaid ?? (principal > 0 ? Math.round((paid / principal) * 100) : 0));
+            const principal = Number(item.principal_amount || item.principalAmount || 0);
+            const paid = Number(item.paid_amount || item.paidAmount || 0);
+            const remaining = Number(item.remaining ?? item.remaining_amount ?? (principal - paid));
+            const percentage = Number(item.percentage_paid ?? item.percentagePaid ?? (principal > 0 ? Math.round((paid / principal) * 100) : 0));
 
-        return {
-          id: String(item.id),
-          debtType: isBorrowing ? 'BORROWING' : 'LENDING',
-          creditorName: item.creditor_name || item.creditorName,
-          creditorPhone: item.creditor_phone || item.creditorPhone,
-          debtorName: item.debtor_name || item.debtorName,
-          debtorPhone: item.debtor_phone || item.debtorPhone,
-          counterpartyName: counterparty,
-          principalAmount: principal,
-          paidAmount: paid,
-          remainingAmount: remaining,
-          percentagePaid: Math.min(100, Math.max(0, percentage)),
-          status: item.status || 'ACTIVE',
-          paymentFrequency: item.payment_frequency || item.paymentFrequency,
-          monthlyPayment: item.monthly_payment || item.monthlyPayment,
-          paymentAmount: item.payment_amount || item.paymentAmount,
-          startDate: item.start_date || item.startDate,
-          dueDate: item.due_date || item.dueDate,
-          nextPaymentDate: item.next_payment_date || item.nextPaymentDate,
-          accountId: item.account_id || item.accountId,
-          reminderEnabled: item.reminder_enabled ?? item.reminderEnabled ?? true,
-          reminderDaysBefore: item.reminder_days_before ?? item.reminderDaysBefore,
-          description: item.description,
-          note: item.note,
-        };
-      });
-    } catch {
-      return [];
-    }
+            return {
+              id: String(item.id),
+              debtType: isBorrowing ? 'BORROWING' : 'LENDING',
+              creditorName: item.creditor_name || item.creditorName,
+              creditorPhone: item.creditor_phone || item.creditorPhone,
+              debtorName: item.debtor_name || item.debtorName,
+              debtorPhone: item.debtor_phone || item.debtorPhone,
+              counterpartyName: counterparty,
+              principalAmount: principal,
+              paidAmount: paid,
+              remainingAmount: remaining,
+              percentagePaid: Math.min(100, Math.max(0, percentage)),
+              status: item.status || 'ACTIVE',
+              paymentFrequency: item.payment_frequency || item.paymentFrequency,
+              monthlyPayment: item.monthly_payment || item.monthlyPayment,
+              paymentAmount: item.payment_amount || item.paymentAmount,
+              startDate: item.start_date || item.startDate,
+              dueDate: item.due_date || item.dueDate,
+              nextPaymentDate: item.next_payment_date || item.nextPaymentDate,
+              accountId: item.account_id || item.accountId,
+              reminderEnabled: item.reminder_enabled ?? item.reminderEnabled ?? true,
+              reminderDaysBefore: item.reminder_days_before ?? item.reminderDaysBefore,
+              description: item.description,
+              note: item.note,
+            };
+          });
+        } catch {
+          return [];
+        }
+      },
+      { freshTimeMs: 20_000, staleTimeMs: 60_000 }
+    );
   },
 
   /**
@@ -167,38 +175,44 @@ export const debtApi = {
       },
     };
 
-    try {
-      const res = await authFetch(`${API_BASE_URL}/debts/summary`);
-      if (!res.ok) return defaultSummary;
+    return fetchMobileWithCache(
+      'debts:summary',
+      async () => {
+        try {
+          const res = await authFetch(`${API_BASE_URL}/debts/summary`);
+          if (!res.ok) return defaultSummary;
 
-      const json = await res.json();
-      const data = json?.data;
-      if (!data) return defaultSummary;
+          const json = await res.json();
+          const data = json?.data;
+          if (!data) return defaultSummary;
 
-      return {
-        borrowing: {
-          totalCount: Number(data.borrowing?.total_count || data.borrowing?.totalCount || 0),
-          activeCount: Number(data.borrowing?.active_count || data.borrowing?.activeCount || 0),
-          totalPrincipal: Number(data.borrowing?.total_principal || data.borrowing?.totalPrincipal || 0),
-          totalPaid: Number(data.borrowing?.total_paid || data.borrowing?.totalPaid || 0),
-          totalRemaining: Number(data.borrowing?.total_remaining || data.borrowing?.totalRemaining || 0),
-          monthlyPayment: Number(data.borrowing?.monthly_payment || data.borrowing?.monthlyPayment || 0),
-        },
-        lending: {
-          totalCount: Number(data.lending?.total_count || data.lending?.totalCount || 0),
-          activeCount: Number(data.lending?.active_count || data.lending?.activeCount || 0),
-          totalPrincipal: Number(data.lending?.total_principal || data.lending?.totalPrincipal || 0),
-          totalPaid: Number(data.lending?.total_paid || data.lending?.totalPaid || 0),
-          totalRemaining: Number(data.lending?.total_remaining || data.lending?.totalRemaining || 0),
-        },
-        netPosition: {
-          netDebt: Number(data.net_position?.net_debt || data.netPosition?.netDebt || 0),
-          debtToAssetRatio: Number(data.net_position?.debt_to_asset_ratio || data.netPosition?.debtToAssetRatio || 0),
-        },
-      };
-    } catch {
-      return defaultSummary;
-    }
+          return {
+            borrowing: {
+              totalCount: Number(data.borrowing?.total_count || data.borrowing?.totalCount || 0),
+              activeCount: Number(data.borrowing?.active_count || data.borrowing?.activeCount || 0),
+              totalPrincipal: Number(data.borrowing?.total_principal || data.borrowing?.totalPrincipal || 0),
+              totalPaid: Number(data.borrowing?.total_paid || data.borrowing?.totalPaid || 0),
+              totalRemaining: Number(data.borrowing?.total_remaining || data.borrowing?.totalRemaining || 0),
+              monthlyPayment: Number(data.borrowing?.monthly_payment || data.borrowing?.monthlyPayment || 0),
+            },
+            lending: {
+              totalCount: Number(data.lending?.total_count || data.lending?.totalCount || 0),
+              activeCount: Number(data.lending?.active_count || data.lending?.activeCount || 0),
+              totalPrincipal: Number(data.lending?.total_principal || data.lending?.totalPrincipal || 0),
+              totalPaid: Number(data.lending?.total_paid || data.lending?.totalPaid || 0),
+              totalRemaining: Number(data.lending?.total_remaining || data.lending?.totalRemaining || 0),
+            },
+            netPosition: {
+              netDebt: Number(data.net_position?.net_debt || data.netPosition?.netDebt || 0),
+              debtToAssetRatio: Number(data.net_position?.debt_to_asset_ratio || data.netPosition?.debtToAssetRatio || 0),
+            },
+          };
+        } catch {
+          return defaultSummary;
+        }
+      },
+      { freshTimeMs: 20_000, staleTimeMs: 60_000 }
+    );
   },
 
   /**
@@ -244,6 +258,7 @@ export const debtApi = {
         };
       }
 
+      invalidateMobileQueryCache('debts:');
       return {
         success: true,
         data: json?.data,
@@ -282,6 +297,7 @@ export const debtApi = {
         };
       }
 
+      invalidateMobileQueryCache(['debts:', 'accounts:', 'dashboard:', 'transactions:']);
       return { success: true, message: 'Đã ghi nhận trả nợ thành công' };
     } catch (err: any) {
       return { success: false, message: err?.message || 'Lỗi mạng' };
@@ -296,6 +312,7 @@ export const debtApi = {
       const res = await authFetch(`${API_BASE_URL}/debts/${debtId}`, {
         method: 'DELETE',
       });
+      if (res.ok) invalidateMobileQueryCache('debts:');
       return res.ok;
     } catch {
       return false;
@@ -330,6 +347,7 @@ export const debtApi = {
       if (!res.ok) {
         return { success: false, message: json?.message || 'Không thể cập nhật khoản nợ' };
       }
+      invalidateMobileQueryCache('debts:');
       return { success: true, message: 'Đã cập nhật khoản nợ thành công' };
     } catch (err: any) {
       return { success: false, message: err?.message || 'Lỗi mạng khi cập nhật khoản nợ' };

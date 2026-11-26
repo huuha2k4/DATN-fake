@@ -20,6 +20,7 @@ import { ArrowLeft, Plus } from 'lucide-react-native';
 import { FinanceIcon } from '../../core/components/FinanceIcon';
 import { useAppTheme } from '../../../context/ThemeContext';
 import { useAppDialog, AppAlert as Alert } from '../../../context/DialogContext';
+import { useMobileQueryRevalidation } from '../../core/utils/useMobileQueryRevalidation';
 
 const BG_INCOME_WAVE = require('../../add-transaction/assets/bg-income-wave.jpg');
 const WALLET_3D_ICON = require('../../../assets/icons/hero_wallet_3d.png');
@@ -141,6 +142,10 @@ export function AccountsScreen({ onBack, onAddTransaction }: Props) {
   useEffect(() => {
     loadAccounts();
   }, []);
+
+  useMobileQueryRevalidation('accounts:', () => {
+    loadAccounts(true);
+  });
 
   // Tính tổng tài sản thực tế và dư nợ (chuẩn web)
   const totalAssets = useMemo(() => {

@@ -51,9 +51,12 @@ _RECEIPT_STRONG_KEYWORDS = [
     "hoa don", "hoadon", "phieu tinh tien", "phieu thanh toan",
     "phieu ban hang", "phieu thu", "bien lai",
     "invoice", "receipt", "bill",
+    # Quán ăn / cafe / bán lẻ POS
+    "ban so", "banso", "so ban", "ban:", "so phieu",
+    "tien mat", "tienmat", "chuyen khoan",
     # Tổng tiền
     "tong tien", "tong cong", "thanh toan", "tong thanh toan",
-    "tong so tien", "so tien phai",
+    "tong so tien", "so tien phai", "tong:", "tong :",
     # Thuế
     "thue gtgt", "vat", "tien thue",
     # Mã số thuế / mã hóa đơn
@@ -68,10 +71,11 @@ _RECEIPT_SUPPORT_KEYWORDS = [
     "nhan vien", "thu ngan", "cashier",
     "khach hang", "customer",
     "don vi tinh", "so luong", "don gia", "thanh tien",
-    "chiet khau", "discount",
-    "ngay", "gio", "thoi gian",
-    "ten hang", "san pham",
-    "xin cam on", "cam on quy khach",
+    "chiet khau", "discount", "giam gia", "tien hang",
+    "khach dua", "tra lai", "tien thoi",
+    "ngay", "gio", "thoi gian", "reg", "ca 1", "ca 2", "mc #", "ban", "order",
+    "ten hang", "san pham", "mat hang", "dvt", "sl",
+    "xin cam on", "cam on quy khach", "cam on", "hen gap lai",
 ]
 
 # Dấu hiệu KHÔNG phải hóa đơn
@@ -169,6 +173,11 @@ def _detect_image_type(
 
     # Có số tiền (dạng X.XXX hoặc XXX,XXX) + ít nhất 2 keyword hỗ trợ → hóa đơn
     if has_money and support_hits >= 2:
+        return "receipt"
+
+    # Có danh sách giá (nhiều đơn giá/thành tiền) + ít nhất 1 tín hiệu hỗ trợ hoặc tín hiệu mạnh
+    money_matches = len(re.findall(r"\d{1,3}[.,]\d{3}", raw_text))
+    if money_matches >= 2 and (support_hits >= 1 or strong_hits >= 1):
         return "receipt"
 
     # Không đủ tín hiệu → không phải hóa đơn

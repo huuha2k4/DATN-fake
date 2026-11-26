@@ -1,4 +1,5 @@
 import { API_BASE_URL, authStorage } from '../../auth/api/authApi';
+import { fetchMobileWithCache, invalidateMobileQueryCache } from '../../core/utils/mobileQueryCache';
 
 export type AccountTypeCode =
   | 'CASH'
@@ -54,20 +55,22 @@ export const accountApi = {
    */
   async getAccounts(): Promise<AccountItem[]> {
     const token = authStorage.getToken();
-    try {
-      const res = await fetch(`${API_BASE_URL}/accounts`, {
-        headers: {
-          'Content-Type': 'application/json',
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
-      });
-
-      if (!res.ok) return [];
-      const json = await res.json();
-      return json?.data?.accounts || json?.data || json?.accounts || (Array.isArray(json) ? json : []);
-    } catch {
-      return [];
-    }
+    if (!token) return [];
+    return fetchMobileWithCache(
+      'accounts:list',
+      async () => {
+        const res = await fetch(`${API_BASE_URL}/accounts`, {
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+        });
+        if (!res.ok) return [];
+        const json = await res.json();
+        return json?.data?.accounts || json?.data || json?.accounts || (Array.isArray(json) ? json : []);
+      },
+      { freshTimeMs: 20_000, staleTimeMs: 90_000 }
+    ).catch(() => []);
   },
 
   /**
@@ -75,20 +78,22 @@ export const accountApi = {
    */
   async getSummary(): Promise<AccountSummaryResponse | null> {
     const token = authStorage.getToken();
-    try {
-      const res = await fetch(`${API_BASE_URL}/accounts/summary?base_currency=VND`, {
-        headers: {
-          'Content-Type': 'application/json',
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
-      });
-
-      if (!res.ok) return null;
-      const json = await res.json();
-      return json?.data || null;
-    } catch {
-      return null;
-    }
+    if (!token) return null;
+    return fetchMobileWithCache(
+      'accounts:summary',
+      async () => {
+        const res = await fetch(`${API_BASE_URL}/accounts/summary?base_currency=VND`, {
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+        });
+        if (!res.ok) return null;
+        const json = await res.json();
+        return json?.data || null;
+      },
+      { freshTimeMs: 20_000, staleTimeMs: 90_000 }
+    ).catch(() => null);
   },
 
   /**
@@ -131,6 +136,7 @@ export const accountApi = {
           message: json?.message || 'Không thể tạo tài khoản.',
         };
       }
+      invalidateMobileQueryCache(['accounts:', 'dashboard:']);
       return { success: true, data: json?.data };
     } catch (err: any) {
       return { success: false, message: err?.message || 'Lỗi mạng hoặc không thể kết nối máy chủ.' };
@@ -173,6 +179,7 @@ export const accountApi = {
           message: json?.message || 'Không thể cập nhật tài khoản.',
         };
       }
+      invalidateMobileQueryCache(['accounts:', 'dashboard:']);
       return { success: true, data: json?.data };
     } catch (err: any) {
       return { success: false, message: err?.message || 'Lỗi mạng hoặc không thể kết nối máy chủ.' };
@@ -214,6 +221,7 @@ export const accountApi = {
           message: json?.message || 'Không thể điều chỉnh số dư.',
         };
       }
+      invalidateMobileQueryCache(['accounts:', 'dashboard:', 'transactions:', 'reports:']);
       return { success: true, data: json?.data };
     } catch (err: any) {
       return { success: false, message: err?.message || 'Lỗi mạng hoặc không thể kết nối máy chủ.' };
@@ -241,6 +249,7 @@ export const accountApi = {
           message: json?.message || 'Không thể xóa tài khoản.',
         };
       }
+      invalidateMobileQueryCache(['accounts:', 'dashboard:', 'transactions:', 'reports:']);
       return { success: true };
     } catch (err: any) {
       return { success: false, message: err?.message || 'Lỗi mạng.' };

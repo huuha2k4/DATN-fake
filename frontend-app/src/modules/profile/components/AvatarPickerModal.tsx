@@ -143,22 +143,8 @@ export function AvatarPickerModal({
 
     const finalAvatarUrl = updatedUser.avatarUrl || null;
 
-    // Cập nhật lại local authStorage
-    const currentUser = authStorage.getUser();
-    if (currentUser) {
-      authStorage.setAuth(
-        {
-          ...currentUser,
-          avatarUrl: finalAvatarUrl,
-        },
-        {
-          access_token: token,
-          refresh_token: '',
-          token_type: 'Bearer',
-          expires_in: 3600,
-        }
-      );
-    }
+    // Cập nhật lại local authStorage mà không ghi đè access/refresh token
+    authStorage.updateUser({ avatarUrl: finalAvatarUrl });
 
     onAvatarUpdated(finalAvatarUrl);
     Alert.alert('Thành công', 'Đã tải ảnh lên máy chủ và cập nhật ảnh đại diện thành công!');
