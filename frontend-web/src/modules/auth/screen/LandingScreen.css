@@ -1221,7 +1221,7 @@ html.dark .why-finora-section {
    GET STARTED 3 STEPS
    ========================================================================== */
 .get-started-section {
-  padding: 40px 0 80px;
+  padding: 40px 0 28px;
 }
 
 .steps-container-grid {
@@ -1423,7 +1423,7 @@ html.dark .why-finora-section {
    FAQ SECTION
    ========================================================================== */
 .faq-modern-section {
-  padding: 40px 0 80px;
+  padding: 20px 0 72px;
 }
 
 .faq-modern-layout {
@@ -2151,6 +2151,14 @@ html.dark .expo-store-btn:hover {
   padding: 8px;
   box-shadow: 0 6px 18px rgba(0, 127, 83, 0.12);
   flex-shrink: 0;
+  cursor: pointer;
+  transition: transform 0.16s ease, box-shadow 0.16s ease, border-color 0.16s ease;
+}
+
+.expo-qr-box:hover {
+  transform: scale(1.04);
+  border-color: #10b981;
+  box-shadow: 0 10px 24px rgba(0, 127, 83, 0.2);
 }
 
 .expo-qr-img {
@@ -2231,4 +2239,90 @@ html.dark .expo-store-btn:hover {
   .kid-bullet-item {
     white-space: normal;
   }
+}
+
+.expo-qr-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1200;
+  background: rgba(15, 23, 42, 0.65);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
+.expo-qr-modal-card {
+  position: relative;
+  width: 100%;
+  max-width: 380px;
+  background: #ffffff;
+  border-radius: 24px;
+  padding: 28px 24px 24px;
+  text-align: center;
+  box-shadow: 0 24px 48px rgba(0, 0, 0, 0.24);
+}
+
+html.dark .expo-qr-modal-card {
+  background: #0f172a;
+  border: 1px solid #1e293b;
+}
+
+.expo-qr-modal-close {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: none;
+  background: #f1f5f9;
+  color: #475569;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.expo-qr-modal-close:hover {
+  background: #e2e8f0;
+  color: #0f172a;
+}
+
+html.dark .expo-qr-modal-close {
+  background: #1e293b;
+  color: #cbd5e1;
+}
+
+.expo-qr-modal-title {
+  margin: 0 0 6px;
+  font-size: 18px;
+  font-weight: 800;
+  color: var(--color-text-main);
+}
+
+.expo-qr-modal-sub {
+  margin: 0 0 18px;
+  font-size: 13px;
+  color: var(--color-text-muted);
+  line-height: 1.5;
+}
+
+.expo-qr-modal-img-wrap {
+  display: inline-flex;
+  padding: 14px;
+  background: #ffffff;
+  border: 2px solid #86efac;
+  border-radius: 20px;
+  box-shadow: 0 8px 24px rgba(0, 127, 83, 0.12);
+}
+
+.expo-qr-modal-img {
+  width: 240px;
+  height: 240px;
+  display: block;
+  object-fit: contain;
 }

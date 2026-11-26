@@ -84,6 +84,7 @@ public class SecurityConfig {
             "https://*.ngrok-free.dev",
             "http://79.182.10.21:*",
             "https://finora.3congian.top",
+            "https://finora.huuha.tech",
             "https://*.ngrok-free.app",
             "https://*.ngrok.io",
             "https://*.ngrok.app"

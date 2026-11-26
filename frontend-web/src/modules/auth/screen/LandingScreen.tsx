@@ -66,6 +66,7 @@ export function LandingScreen({ onAuthenticated }: LandingScreenProps) {
   const [showForgotPassword, setShowForgotPassword] = useState(false);
   const [expandedFaq, setExpandedFaq] = useState<number | null>(null);
   const [legalModalTab, setLegalModalTab] = useState<LegalModalTab | null>(null);
+  const [showQrModal, setShowQrModal] = useState(false);
   const { theme, toggleTheme } = useTheme();
 
   const openLegalModal = (tab: LegalModalTab) => {
@@ -837,14 +838,20 @@ export function LandingScreen({ onAuthenticated }: LandingScreenProps) {
 
               <span className="expo-qr-arrow" aria-hidden="true">→</span>
 
-              {/* Khung QR cố định */}
-              <div className="expo-qr-box">
+              {/* Khung QR cố định - nhấn để phóng to */}
+              <button
+                type="button"
+                className="expo-qr-box"
+                onClick={() => setShowQrModal(true)}
+                title="Nhấn để phóng to mã QR"
+                aria-label="Phóng to mã QR tải ứng dụng Finora trên Expo Go"
+              >
                 <img
                   src={expoGoQrImg}
                   alt="Mã QR tải ứng dụng Finora trên Expo Go"
                   className="expo-qr-img"
                 />
-              </div>
+              </button>
             </div>
           </div>
         </section>
@@ -1021,6 +1028,38 @@ export function LandingScreen({ onAuthenticated }: LandingScreenProps) {
           onClose={() => setShowForgotPassword(false)}
           onSwitchToLogin={switchToLogin}
         />
+      )}
+
+      {showQrModal && (
+        <div
+          className="expo-qr-modal-backdrop"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Mã QR Finora Expo Go"
+          onClick={() => setShowQrModal(false)}
+        >
+          <div className="expo-qr-modal-card" onClick={(e) => e.stopPropagation()}>
+            <button
+              type="button"
+              className="expo-qr-modal-close"
+              onClick={() => setShowQrModal(false)}
+              aria-label="Đóng"
+            >
+              ✕
+            </button>
+            <h3 className="expo-qr-modal-title">Quét mã QR để mở Finora</h3>
+            <p className="expo-qr-modal-sub">
+              Mở ứng dụng <strong>Expo Go</strong> (Android) hoặc <strong>Camera mặc định</strong> (iPhone)
+            </p>
+            <div className="expo-qr-modal-img-wrap">
+              <img
+                src={expoGoQrImg}
+                alt="Mã QR phóng to tải ứng dụng Finora trên Expo Go"
+                className="expo-qr-modal-img"
+              />
+            </div>
+          </div>
+        </div>
       )}
     </>
   );

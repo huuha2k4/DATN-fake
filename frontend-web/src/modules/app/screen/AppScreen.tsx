@@ -133,15 +133,12 @@ export default function AppScreen() {
   const checkOnboardingStatus = async () => {
     const user = getStoredUser()
     if (!user || user.systemRole === 'ADMIN' || user.childAccount) return
-    if (localStorage.getItem(`finora_onboarding_done_${user.id}`) === 'true') {
-      setShowOnboardingWizard(false)
-      return
-    }
 
     try {
       const accounts = await accountApi.getAccounts()
       // Nếu user chưa có ví nào (accounts rỗng hoặc 0), luôn luôn bật Onboarding Walkthrough để thiết lập ví
       if (!accounts || accounts.length === 0) {
+        localStorage.removeItem(`finora_onboarding_done_${user.id}`)
         setShowOnboardingWizard(true)
       } else {
         setShowOnboardingWizard(false)
@@ -389,12 +386,12 @@ export default function AppScreen() {
         userName={storedUser?.fullName}
         onClose={() => {
           setShowOnboardingWizard(false)
-          if (storedUser?.id) {
-            localStorage.setItem(`finora_onboarding_done_${storedUser.id}`, 'true')
-          }
           // Kích hoạt cập nhật lại số lượng ví trên thanh header / dashboard
           accountApi.getAccounts().then((accs) => {
             setWalletCount(accs.length)
+            if (storedUser?.id && accs.length > 0) {
+              localStorage.setItem(`finora_onboarding_done_${storedUser.id}`, 'true')
+            }
           })
         }}
       />

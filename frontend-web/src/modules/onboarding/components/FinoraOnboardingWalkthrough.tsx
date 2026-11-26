@@ -191,6 +191,7 @@ export function FinoraOnboardingWalkthroughWeb({ isOpen, onClose }: Props) {
         currencyCode: 'VND',
         description: selectedPreset ? `${selectedPreset.name} khởi tạo qua Onboarding` : 'Ví khởi tạo ban đầu',
         color: /^#[0-9A-Fa-f]{6}$/.test(selectedPreset?.brandColor || '') ? selectedPreset?.brandColor : undefined,
+        isIncludedInTotal: true,
       });
       if (res && res.id) {
         onClose();
