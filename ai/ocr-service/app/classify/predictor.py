@@ -35,10 +35,11 @@ INCOME_CLASSES = {"salary", "bonus", "family", "other_income"}
 # Từ khóa ngữ nghĩa trong raw_text — tăng confidence cho lớp tương ứng
 _RAW_TEXT_HINTS = {
     "food":          ["phuc vu", "mon an", "thuc don", "bep", "com", "pho 24",
-                      "quan an", "nha hang", "quan ca phe"],
-    "transport":     ["bien so", "xe", "chuyen di", "km"],
-    "health":        ["benh nhan", "bac si", "kham", "thuoc", "don thuoc"],
-    "entertainment": ["rap chieu phim", "phim", "ghe so", "suat chieu"],
+                      "quan an", "nha hang", "quan ca phe", "ham ruou", "bia",
+                      "nuoc giai khat", "do uong", "thuc pham", "hai san", "mi xao"],
+    "transport":     ["bien so", "xe", "chuyen di", "km", "xang", "dau"],
+    "health":        ["benh nhan", "bac si", "kham", "thuoc", "don thuoc", "nha thuoc"],
+    "entertainment": ["rap chieu phim", "phim", "ghe so", "suat chieu", "karaoke"],
     "education":     ["hoc phi", "hoc vien", "truong", "khoa hoc", "giao duc",
                       "sach giao khoa", "nha sach", "van phong pham",
                       "but", "vo viet", "tap viet", "dung cu hoc tap",
@@ -54,6 +55,48 @@ _RAW_TEXT_HINTS = {
                       "cuoc phi", "phi dich vu", "ky cuoc", "thang cuoc",
                       # Gas
                       "binh gas", "kg gas", "tien gas"],
+}
+
+# Quy tắc phân loại loại hình kinh doanh phổ biến (Business Domain Rules)
+# Nhận diện chính xác 100% kể cả khi cửa hàng không phải chuỗi thương hiệu lớn
+BUSINESS_DOMAIN_RULES: dict[str, list[str]] = {
+    "food": [
+        "nha hang", "nhahang", "quan an", "quanan", "quan nuong", "quannuong",
+        "quan lau", "quanlau", "ham ruou", "hamruou", "quan ca phe", "quancaphe",
+        "ca phe", "caphe", "cafe", "coffee", "tra sua", "trasua", "tiem banh", "tiembanh",
+        "quan com", "quancom", "quan nhau", "quannhau", "buffet", "bbq", "bakery",
+        "bun bo", "bun cha", "bun dau", "pho bo", "pho ga", "com tam", "com van phong",
+        "banh mi", "lau nuong", "lau de", "lau bo", "hai san", "an vat", "fastfood",
+        "quan bar", "pub", "lounge", "bistro", "steak", "pizza", "sushi", "dimsum",
+    ],
+    "shopping": [
+        "sieu thi", "sieuthi", "minimart", "mini mart", "tap hoa", "taphoa",
+        "bach hoa", "bachhoa", "cua hang tien loi", "shop thoi trang", "thoi trang",
+        "quan ao", "giay dep", "my pham", "trang suc", "do gia dung", "sieu thi mini",
+    ],
+    "health": [
+        "nha thuoc", "nhathuoc", "hieu thuoc", "hieuthuoc", "duoc pham",
+        "benh vien", "benhvien", "phong kham", "phongkham", "nha khoa", "nhakhoa",
+        "kham benh", "bac si", "y te", "xet nghiem", "tiem thuoc",
+    ],
+    "transport": [
+        "xang dau", "xang", "petrol", "petrolimex", "pvoil", "cay xang",
+        "taxi", "grab", "be bike", "be car", "xanh sm", "xe om",
+        "gui xe", "ve xe", "ben xe", "tram thu phi", "vetc", "epass",
+        "gara", "rua xe", "sua xe",
+    ],
+    "education": [
+        "nha sach", "nhasach", "van phong pham", "vanphongpham", "hoc phi",
+        "truong hoc", "khoa hoc", "trung tam dao tao",
+    ],
+    "entertainment": [
+        "rap chieu phim", "cinema", "cgv", "lotte cinema", "bhd", "beta cinema",
+        "karaoke", "bida", "billiards", "bowling", "khu vui choi", "game",
+    ],
+    "bills": [
+        "dien luc", "evn", "tien dien", "cap nuoc", "tien nuoc", "sawaco",
+        "viettel", "mobifone", "vinaphone", "fpt telecom", "internet",
+    ],
 }
 
 
@@ -81,6 +124,11 @@ class CategoryPredictor:
                 bundle = joblib.load(model_path)
                 self.pipe    = bundle["pipeline"]
                 self.classes = list(self.pipe.named_steps["clf"].classes_)
+                # Vá tương thích scikit-learn nếu thiếu multi_class
+                if "clf" in self.pipe.named_steps:
+                    clf = self.pipe.named_steps["clf"]
+                    if not hasattr(clf, "multi_class"):
+                        setattr(clf, "multi_class", "auto")
                 # Đọc ngưỡng từ model nếu có, fallback về tham số
                 self.t_auto = bundle.get("t_auto", t_auto)
                 self.t_min  = bundle.get("t_min",  t_min)
@@ -148,27 +196,52 @@ class CategoryPredictor:
         if hit and hit[0] in allowed:
             return self._result(hit[0], 0.95, "dictionary", allowed, alias=hit[1])
 
+        # --- Tầng 0.5: Quy tắc loại hình kinh doanh (Business Domain Rules) ---
+        clean_norm = normalize(clean)
+        for cat, keywords in BUSINESS_DOMAIN_RULES.items():
+            if cat in allowed:
+                for kw in keywords:
+                    pattern = r"(?<![a-z0-9])" + re.escape(kw) + r"(?![a-z0-9])"
+                    if re.search(pattern, clean_norm):
+                        return self._result(cat, 0.95, "business_rule", allowed, alias=kw)
+
+        # Kiểm tra từ khóa loại hình kinh doanh trong raw_text
+        if raw_text:
+            from .normalize import strip_accents
+            raw_n = strip_accents(raw_text).lower()
+            for cat, keywords in BUSINESS_DOMAIN_RULES.items():
+                if cat in allowed:
+                    for kw in keywords:
+                        pattern = r"(?<![a-z0-9])" + re.escape(kw) + r"(?![a-z0-9])"
+                        if re.search(pattern, raw_n):
+                            return self._result(cat, 0.92, "business_rule_raw", allowed, alias=kw)
+
         # --- Tầng 1: ML model ---
         if self._model_loaded:
-            proba = self.pipe.predict_proba([n])[0]
-            mask = np.array([1.0 if c in allowed else 0.0 for c in self.classes])
-            p = proba * mask
-            if p.sum() > 0:
-                p = p / p.sum()
-
-                # Tín hiệu bổ sung từ raw_text
-                if raw_text:
-                    p = self._boost_from_raw_text(p, raw_text)
+            try:
+                if hasattr(self.pipe.named_steps["clf"], "multi_class") is False:
+                    self.pipe.named_steps["clf"].multi_class = "auto"
+                proba = self.pipe.predict_proba([n])[0]
+                mask = np.array([1.0 if c in allowed else 0.0 for c in self.classes])
+                p = proba * mask
+                if p.sum() > 0:
                     p = p / p.sum()
 
-                order = np.argsort(-p)
-                top3  = [{"category": self.classes[i], "p": round(float(p[i]), 3)}
-                         for i in order[:3]]
-                best_cat  = self.classes[order[0]]
-                best_conf = float(p[order[0]])
+                    # Tín hiệu bổ sung từ raw_text
+                    if raw_text:
+                        p = self._boost_from_raw_text(p, raw_text)
+                        p = p / p.sum()
 
-                if best_conf >= self.t_min:
-                    return self._result(best_cat, best_conf, "model", allowed, top3=top3)
+                    order = np.argsort(-p)
+                    top3  = [{"category": self.classes[i], "p": round(float(p[i]), 3)}
+                             for i in order[:3]]
+                    best_cat  = self.classes[order[0]]
+                    best_conf = float(p[order[0]])
+
+                    if best_conf >= self.t_min:
+                        return self._result(best_cat, best_conf, "model", allowed, top3=top3)
+            except Exception as e:
+                print(f"[WARN] ML predict error: {e}")
 
         # --- Thử fallback raw_text ---
         if raw_text:

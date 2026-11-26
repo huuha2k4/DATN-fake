@@ -47,6 +47,9 @@ services:
     build:
       context: ./ai/ocr-service
     container_name: ocr-service
+    environment:
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      GEMINI_MODEL: ${GEMINI_MODEL:-gemini-flash-lite-latest}
     expose:
       - "8000"
     volumes:

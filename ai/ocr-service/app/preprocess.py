@@ -271,6 +271,46 @@ def denoise(img: np.ndarray) -> np.ndarray:
 # Pipeline tiền xử lý chính
 # ---------------------------------------------------------------------------
 
+def crop_receipt_area(img: np.ndarray) -> np.ndarray:
+    """
+    Tự động phát hiện và cắt sát viền hóa đơn giấy trắng trên nền bàn/mặt phẳng màu.
+    Chỉ cắt khi phát hiện đường viền rõ nét chiếm từ 15% đến 90% diện tích ảnh.
+    """
+    try:
+        h, w = img.shape[:2]
+        total_area = h * w
+        gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+        blurred = cv2.GaussianBlur(gray, (7, 7), 0)
+        _, thresh = cv2.threshold(blurred, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+        contours, _ = cv2.findContours(thresh, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+
+        best_box = None
+        best_area = 0
+        for c in contours:
+            area = cv2.contourArea(c)
+            if 0.15 * total_area < area < 0.90 * total_area:
+                x, y, bw, bh = cv2.boundingRect(c)
+                if bh >= bw * 0.7:  # Hóa đơn thường có dạng chữ nhật đứng
+                    if area > best_area:
+                        best_area = area
+                        best_box = (x, y, bw, bh)
+
+        if best_box is not None:
+            x, y, bw, bh = best_box
+            pad_x = int(bw * 0.03)
+            pad_y = int(bh * 0.03)
+            x1 = max(0, x - pad_x)
+            y1 = max(0, y - pad_y)
+            x2 = min(w, x + bw + pad_x)
+            y2 = min(h, y + bh + pad_y)
+            # Chỉ crop nếu loại bỏ được ít nhất 15% diện tích viền ngoài
+            if (x2 - x1) * (y2 - y1) < 0.85 * total_area:
+                return img[y1:y2, x1:x2]
+    except Exception:
+        pass
+    return img
+
+
 def preprocess(
     img: np.ndarray,
     resize: bool = True,
@@ -278,6 +318,7 @@ def preprocess(
     contrast: bool = False,
     denoise_on: bool = False,
     deskew_on: bool = False,
+    auto_crop: bool = True,
 ) -> np.ndarray:
     """
     Tiền xử lý ảnh hóa đơn trước khi đưa vào OCR.
@@ -292,6 +333,8 @@ def preprocess(
         P3            : resize=True, contrast=True, denoise_on=True
         P4            : resize=True, contrast=True, deskew_on=True
     """
+    if auto_crop:
+        img = crop_receipt_area(img)
     if resize:
         img = resize_keep_ratio(img)
     if denoise_on:

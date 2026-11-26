@@ -232,6 +232,54 @@ class TestExtractTotal:
         # Không có số hợp lệ nào → None
         assert extract_total(lines) is None
 
+    def test_discount_subtotal_image3(self):
+        # Hóa đơn có tiền hàng, giảm giá và chữ "Tổng:" đứng độc lập
+        lines = [
+            "Nhà Hàng Hầm Rượu Trần Gia",
+            "HÓA ĐƠN BÁN HÀNG",
+            "Mặt hàng ĐVT SL Giá T tiền",
+            "RƯỢU VANG chai 6 520,000 3,120,000",
+            "Tổng SL: 32",
+            "Tiền hàng: 4,077,000",
+            "Giảm giá 25.51%: 1,040,000",
+            "Tổng: 3,037,000",
+            "Khách đưa: 3,200,000",
+            "Trả lại: 163,000",
+        ]
+        assert extract_total(lines) == 3037000
+
+    def test_an_an_195k(self):
+        # Số 195,000 không được nhầm là năm ghép giờ (bắt đầu 19xx)
+        lines = [
+            "MINIMART ANAN",
+            "HÓA ĐƠN BÁN HÀNG",
+            "Tổng số: 18",
+            "Tổng cộng : 195,000",
+            "Tổng tiền : 195,000",
+            "Tiền khách trả: VND 500,000",
+            "Tiền trả lại VND: 305,000",
+        ]
+        assert extract_total(lines) == 195000
+
+    def test_pos_restaurant_tien_mat_image2(self):
+        # Hóa đơn quán ăn không có chữ tổng cộng, chỉ có TIEN MAT ở cuối
+        lines = [
+            "QUAN AN THIEN TAN",
+            "BANSO: 47",
+            "1 BUN SING 42,000",
+            "1 MI GION X CHAY 37,000",
+            "2 MI X GION N 80,000",
+            "4 COM BAT BUU 172,000",
+            "1 SUON CHIEN KDO 65,000",
+            "1 HU TIEU N 40,000",
+            "1 TOM LAN BOT 65,000",
+            "2 PEPSI 16,000",
+            "10 TRA DA 20,000",
+            "TIEN MAT 537,000",
+            "CAM ON QUY KHACH HEN GAP LAI!",
+        ]
+        assert extract_total(lines) == 537000
+
 
 # ===========================================================================
 # Test: extract_total_by_position

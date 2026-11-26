@@ -56,6 +56,20 @@ class ReceiptResult(BaseModel):
         description="Danh mục giao dịch được tự động phân loại.",
     )
 
+    # Thông tin kiểm toán & chuyển tầng thông minh
+    engine: Optional[str] = Field(
+        default="paddle_ocr",
+        description="paddle_ocr | gemini_vision — Engine thực tế đã xử lý kết quả cuối cùng.",
+    )
+    audit_triggered: bool = Field(
+        default=False,
+        description="True nếu bộ rà soát tự kiểm toán phát hiện bất thường và kích hoạt chuyển tầng.",
+    )
+    audit_reasons: List[str] = Field(
+        default=[],
+        description="Danh sách các lý do không khớp thực tế được phát hiện bởi bộ rà soát.",
+    )
+
     model_config = {
         "json_schema_extra": {
             "examples": {

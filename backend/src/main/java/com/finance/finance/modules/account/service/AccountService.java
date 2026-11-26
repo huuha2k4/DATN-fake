@@ -187,7 +187,7 @@ public class AccountService {
                 .color(request.getColor())
                 .description(request.getDescription())
                 .displayOrder(displayOrder)
-                .isIncludedInTotal(request.getIsIncludedInTotal())
+                .isIncludedInTotal(request.getIsIncludedInTotal() != null ? request.getIsIncludedInTotal() : true)
                 .isActive(true)
                 .isSynced(false)
                 .syncSeq(0L)
