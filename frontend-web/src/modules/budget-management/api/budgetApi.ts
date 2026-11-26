@@ -1,4 +1,5 @@
 import { api } from '../../core/api/api';
+import { fetchWithCache, invalidateQueryCache, stableSerializeParams } from '../../core/utils/queryCache';
 
 export type BudgetPeriodType = 'WEEKLY' | 'MONTHLY' | 'QUARTERLY' | 'YEARLY' | 'CUSTOM';
 export type BudgetStatus = 'ACTIVE' | 'EXPIRED' | 'DEPLETED' | 'CANCELLED';
@@ -142,8 +143,14 @@ export const budgetApi = {
     year?: number;
     month?: number;
   }): Promise<BudgetListResponse> => {
-    const res = await api.get<{ success: boolean; data: BudgetListResponse }>('/budgets', { params });
-    return res.data?.data || { budgets: [], summary: { totalBudgets: 0, activeBudgets: 0, onTrack: 0, warning: 0, exceeded: 0 } };
+    return fetchWithCache(
+      `budgets:list:${stableSerializeParams(params as Record<string, unknown>)}`,
+      async () => {
+        const res = await api.get<{ success: boolean; data: BudgetListResponse }>('/budgets', { params });
+        return res.data?.data || { budgets: [], summary: { totalBudgets: 0, activeBudgets: 0, onTrack: 0, warning: 0, exceeded: 0 } };
+      },
+      { freshTimeMs: 15_000, staleTimeMs: 60_000 }
+    );
   },
 
   // Lấy chi tiết ngân sách
@@ -155,23 +162,27 @@ export const budgetApi = {
   // Tạo ngân sách mới
   createBudget: async (payload: CreateBudgetPayload): Promise<BudgetResponse> => {
     const res = await api.post<{ success: boolean; data: BudgetResponse; message: string }>('/budgets', payload);
+    invalidateQueryCache('budgets:');
     return res.data?.data;
   },
 
   // Cập nhật ngân sách
   updateBudget: async (id: string, payload: UpdateBudgetPayload): Promise<BudgetResponse> => {
     const res = await api.put<{ success: boolean; data: BudgetResponse; message: string }>(`/budgets/${id}`, payload);
+    invalidateQueryCache('budgets:');
     return res.data?.data;
   },
 
   // Xóa ngân sách
   deleteBudget: async (id: string, version: number): Promise<void> => {
     await api.delete(`/budgets/${id}`, { params: { version } });
+    invalidateQueryCache('budgets:');
   },
 
   // Thêm item vào ngân sách
   addBudgetItem: async (budgetId: string, payload: CreateBudgetItemRequest): Promise<BudgetItemResponse> => {
     const res = await api.post<{ success: boolean; data: BudgetItemResponse }>(`/budgets/${budgetId}/items`, payload);
+    invalidateQueryCache('budgets:');
     return res.data?.data;
   },
 
@@ -196,6 +207,7 @@ export const budgetApi = {
         params: { year: params.year, month: params.month },
       }
     );
+    invalidateQueryCache('budgets:');
     return res.data?.data;
   },
 
@@ -209,19 +221,27 @@ export const budgetApi = {
       `/budgets/${budgetId}/items/${itemId}`,
       payload
     );
+    invalidateQueryCache('budgets:');
     return res.data?.data;
   },
 
   // Xóa item khỏi ngân sách
   deleteBudgetItem: async (budgetId: string, itemId: string): Promise<void> => {
     await api.delete(`/budgets/${budgetId}/items/${itemId}`);
+    invalidateQueryCache('budgets:');
   },
 
   // Lấy tổng quan ngân sách
   getBudgetsSummary: async (period: string = 'current_month'): Promise<BudgetSummaryOverview> => {
-    const res = await api.get<{ success: boolean; data: BudgetSummaryOverview }>('/budgets/summary', {
-      params: { period },
-    });
-    return res.data?.data;
+    return fetchWithCache(
+      `budgets:summary:${period}`,
+      async () => {
+        const res = await api.get<{ success: boolean; data: BudgetSummaryOverview }>('/budgets/summary', {
+          params: { period },
+        });
+        return res.data?.data;
+      },
+      { freshTimeMs: 15_000, staleTimeMs: 60_000 }
+    );
   },
 };

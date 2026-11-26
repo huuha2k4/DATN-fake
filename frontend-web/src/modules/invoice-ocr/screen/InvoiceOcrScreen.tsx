@@ -96,6 +96,10 @@ export function InvoiceOcrScreen({ onCancel, onNotify }: Props) {
     return accounts.find((a) => a.id === selectedAccountId) || accounts[0];
   }, [accounts, selectedAccountId]);
 
+  const isSelectedReceiptPaid = Boolean(
+    scanResult && (scanResult.transactionId || scanResult.kind === 'paid')
+  );
+
   // History filter
   const [historySearch, setHistorySearch] = useState('');
   const [historyTab, setHistoryTab] = useState<'ALL' | 'PAID' | 'DRAFT'>('ALL');
@@ -271,6 +275,10 @@ export function InvoiceOcrScreen({ onCancel, onNotify }: Props) {
   const handleConfirmTransaction = async () => {
     if (!scanResult) {
       onNotify('Vui lòng quét hóa đơn trước khi lưu giao dịch.');
+      return;
+    }
+    if (isSelectedReceiptPaid) {
+      onNotify('Hóa đơn này đã được tạo giao dịch trước đó (chỉ xem).');
       return;
     }
     if (!selectedAccountId) {
@@ -608,15 +616,25 @@ export function InvoiceOcrScreen({ onCancel, onNotify }: Props) {
                       placeholder="0"
                       value={amount ? Number(amount.replace(/\D/g, '')).toLocaleString('vi-VN') : ''}
                       onChange={(e) => {
+                        if (isSelectedReceiptPaid) return;
                         const raw = e.target.value.replace(/\D/g, '');
                         setAmount(raw);
                       }}
+                      readOnly={isSelectedReceiptPaid}
+                      disabled={isSelectedReceiptPaid}
                       className="ocr-amount-input"
                     />
                     <span className="ocr-amount-currency">
                       ₫
                     </span>
                   </div>
+
+                  {isSelectedReceiptPaid && (
+                    <div className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-emerald-100/90 dark:bg-emerald-950/80 px-2.5 py-1 text-[11px] font-bold text-[#007F53] dark:text-emerald-300">
+                      <FinanceIcon name="check" size={11} />
+                      <span>Đã tạo giao dịch · Chế độ chỉ xem</span>
+                    </div>
+                  )}
 
                   {scanResult?.aiCategoryName && (
                     <div className="ocr-ai-chip">
@@ -635,7 +653,9 @@ export function InvoiceOcrScreen({ onCancel, onNotify }: Props) {
                       <input
                         type="text"
                         value={merchant}
-                        onChange={(e) => setMerchant(e.target.value)}
+                        onChange={(e) => !isSelectedReceiptPaid && setMerchant(e.target.value)}
+                        readOnly={isSelectedReceiptPaid}
+                        disabled={isSelectedReceiptPaid}
                         placeholder="VD: Highlands Coffee, WinMart, Siêu thị..."
                         className="ocr-field-control"
                       />
@@ -661,11 +681,15 @@ export function InvoiceOcrScreen({ onCancel, onNotify }: Props) {
 
                     <button
                       type="button"
+                      disabled={isSelectedReceiptPaid}
                       onClick={() => {
+                        if (isSelectedReceiptPaid) return;
                         setIsCategoryDropdownOpen((prev) => !prev);
                         setIsAccountDropdownOpen(false);
                       }}
-                      className={`h-[42px] w-full rounded-[13px] border px-3 text-left transition flex items-center justify-between cursor-pointer ${
+                      className={`h-[42px] w-full rounded-[13px] border px-3 text-left transition flex items-center justify-between ${
+                        isSelectedReceiptPaid ? 'cursor-default opacity-80' : 'cursor-pointer'
+                      } ${
                         isCategoryDropdownOpen
                           ? 'border-[#007F53] dark:border-emerald-500 bg-white dark:bg-[#1F2937] ring-2 ring-[#007F53]/20'
                           : 'border-[#e1ece4] dark:border-white/10 bg-[#F8FAFC] dark:bg-[#111827] hover:bg-white dark:hover:bg-[#1F2937] hover:border-[#c4dacf]'
@@ -742,11 +766,15 @@ export function InvoiceOcrScreen({ onCancel, onNotify }: Props) {
 
                     <button
                       type="button"
+                      disabled={isSelectedReceiptPaid}
                       onClick={() => {
+                        if (isSelectedReceiptPaid) return;
                         setIsAccountDropdownOpen((prev) => !prev);
                         setIsCategoryDropdownOpen(false);
                       }}
-                      className={`h-[42px] w-full rounded-[13px] border px-3 text-left transition flex items-center justify-between cursor-pointer ${
+                      className={`h-[42px] w-full rounded-[13px] border px-3 text-left transition flex items-center justify-between ${
+                        isSelectedReceiptPaid ? 'cursor-default opacity-80' : 'cursor-pointer'
+                      } ${
                         isAccountDropdownOpen
                           ? 'border-[#007F53] dark:border-emerald-500 bg-white dark:bg-[#1F2937] ring-2 ring-[#007F53]/20'
                           : 'border-[#e1ece4] dark:border-white/10 bg-[#F8FAFC] dark:bg-[#111827] hover:bg-white dark:hover:bg-[#1F2937] hover:border-[#c4dacf]'
@@ -809,11 +837,13 @@ export function InvoiceOcrScreen({ onCancel, onNotify }: Props) {
                   {/* Ngày hóa đơn */}
                   <label className="ocr-field-label">
                     <span>Ngày hóa đơn</span>
-                    <DatePicker
-                      value={date.length === 10 ? date : ''}
-                      onChange={(newVal) => setDate(newVal)}
-                      placeholder="dd/mm/yyyy"
-                    />
+                    <div className={isSelectedReceiptPaid ? 'pointer-events-none opacity-80' : ''}>
+                      <DatePicker
+                        value={date.length === 10 ? date : ''}
+                        onChange={(newVal) => !isSelectedReceiptPaid && setDate(newVal)}
+                        placeholder="dd/mm/yyyy"
+                      />
+                    </div>
                   </label>
 
                   {/* Giờ giao dịch */}
@@ -823,7 +853,9 @@ export function InvoiceOcrScreen({ onCancel, onNotify }: Props) {
                       <input
                         type="time"
                         value={time}
-                        onChange={(e) => setTime(e.target.value)}
+                        onChange={(e) => !isSelectedReceiptPaid && setTime(e.target.value)}
+                        readOnly={isSelectedReceiptPaid}
+                        disabled={isSelectedReceiptPaid}
                         className="ocr-field-control font-mono"
                       />
                       <span className="ocr-input-icon-btn pointer-events-none">
@@ -838,7 +870,9 @@ export function InvoiceOcrScreen({ onCancel, onNotify }: Props) {
                     <textarea
                       rows={2}
                       value={note}
-                      onChange={(e) => setNote(e.target.value)}
+                      onChange={(e) => !isSelectedReceiptPaid && setNote(e.target.value)}
+                      readOnly={isSelectedReceiptPaid}
+                      disabled={isSelectedReceiptPaid}
                       placeholder="Nhập ghi chú chi tiết hóa đơn..."
                       className="ocr-field-control"
                     />
@@ -846,38 +880,40 @@ export function InvoiceOcrScreen({ onCancel, onNotify }: Props) {
                 </div>
               </div>
 
-              {/* Form Action Footer */}
-              <div className="ocr-form-footer">
-                {scanResult && (
+              {/* Form Action Footer — ẩn hoàn toàn nút thao tác nếu hóa đơn đã tạo giao dịch */}
+              {!isSelectedReceiptPaid && (
+                <div className="ocr-form-footer">
+                  {scanResult && (
+                    <button
+                      type="button"
+                      onClick={resetCurrentScan}
+                      disabled={submitting}
+                      className="ocr-btn-reset"
+                    >
+                      Xóa form
+                    </button>
+                  )}
+
                   <button
                     type="button"
-                    onClick={resetCurrentScan}
-                    disabled={submitting}
-                    className="ocr-btn-reset"
+                    onClick={handleConfirmTransaction}
+                    disabled={submitting || !scanResult}
+                    className="ocr-btn-submit"
                   >
-                    Xóa form
+                    {submitting ? (
+                      <>
+                        <span className="size-3.5 rounded-full border-2 border-white border-t-transparent animate-spin" />
+                        <span>Đang lưu...</span>
+                      </>
+                    ) : (
+                      <>
+                        <FinanceIcon name="plus" size={14} />
+                        <span>Xác nhận &amp; Lưu giao dịch</span>
+                      </>
+                    )}
                   </button>
-                )}
-
-                <button
-                  type="button"
-                  onClick={handleConfirmTransaction}
-                  disabled={submitting || !scanResult}
-                  className="ocr-btn-submit"
-                >
-                  {submitting ? (
-                    <>
-                      <span className="size-3.5 rounded-full border-2 border-white border-t-transparent animate-spin" />
-                      <span>Đang lưu...</span>
-                    </>
-                  ) : (
-                    <>
-                      <FinanceIcon name="plus" size={14} />
-                      <span>Xác nhận &amp; Lưu giao dịch</span>
-                    </>
-                  )}
-                </button>
-              </div>
+                </div>
+              )}
             </div>
           )}
 
@@ -914,14 +950,14 @@ export function InvoiceOcrScreen({ onCancel, onNotify }: Props) {
                     onClick={() => setHistoryTab('PAID')}
                     className={`ocr-filter-pill ${historyTab === 'PAID' ? 'is-active' : ''}`}
                   >
-                    Đã lưu
+                    Đã tạo
                   </button>
                   <button
                     type="button"
                     onClick={() => setHistoryTab('DRAFT')}
                     className={`ocr-filter-pill ${historyTab === 'DRAFT' ? 'is-active' : ''}`}
                   >
-                    Chưa lưu
+                    Chưa tạo
                   </button>
                 </div>
               </div>
@@ -950,7 +986,12 @@ export function InvoiceOcrScreen({ onCancel, onNotify }: Props) {
                     return (
                       <div
                         key={r.id}
-                        onClick={() => handleSelectRecentReceipt(r)}
+                        onClick={() => {
+                          handleSelectRecentReceipt(r);
+                          if (isPaid) {
+                            setActiveRightTab('FORM');
+                          }
+                        }}
                         className={`ocr-history-item ${isSelected ? 'is-selected' : ''}`}
                       >
                         <div className="flex items-center justify-between gap-2">
@@ -1019,7 +1060,7 @@ export function InvoiceOcrScreen({ onCancel, onNotify }: Props) {
                                   : 'bg-amber-100 dark:bg-amber-950/80 text-amber-800 dark:text-amber-300'
                               }`}
                             >
-                              {isPaid ? 'Đã lưu GD' : 'Chưa lưu'}
+                              {isPaid ? 'Đã tạo GD' : 'Chưa tạo'}
                             </span>
                           </div>
 
@@ -1028,7 +1069,7 @@ export function InvoiceOcrScreen({ onCancel, onNotify }: Props) {
                               {r.totalAmount != null ? `-${Number(r.totalAmount).toLocaleString('vi-VN')} ₫` : '—'}
                             </span>
 
-                            {isSelected && (
+                            {isSelected && !isPaid && (
                               <button
                                 type="button"
                                 onClick={(e) => {

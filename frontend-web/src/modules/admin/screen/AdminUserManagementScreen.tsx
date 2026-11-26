@@ -84,7 +84,6 @@ export const AdminUserManagementScreen: React.FC = () => {
       const updated = await adminApi.updateUser(editingUser.id, {
         fullName: editFullName.trim() || undefined,
         userStatus: editStatus,
-        systemRole: editRole,
         subscriptionTier: editTier,
         extendSubscriptionDays: extendDays > 0 ? extendDays : undefined,
         emailVerified: editVerified,
@@ -481,19 +480,17 @@ export const AdminUserManagementScreen: React.FC = () => {
                 </div>
               )}
 
-              {/* Vai trò Hệ thống */}
+              {/* Vai trò Hệ thống (khóa cứng 1 Admin duy nhất) */}
               <div>
                 <label className="font-bold text-gray-700 dark:text-slate-300 block mb-1">
                   Vai trò (System Role)
                 </label>
-                <select
-                  value={editRole}
-                  onChange={(e) => setEditRole(e.target.value)}
-                  className="w-full h-9 px-3 rounded-xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs"
-                >
-                  <option value="USER">USER (Người dùng thông thường)</option>
-                  <option value="ADMIN">ADMIN (Quản trị viên hệ thống)</option>
-                </select>
+                <div className="w-full h-9 px-3 rounded-xl border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-800/60 text-xs flex items-center justify-between text-gray-700 dark:text-slate-300">
+                  <span className="font-bold">
+                    {editRole === 'ADMIN' ? 'ADMIN (Quản trị viên duy nhất)' : 'USER (Người dùng thông thường)'}
+                  </span>
+                  <span className="text-[10px] text-gray-400">Đã khóa thay đổi quyền</span>
+                </div>
               </div>
 
               {/* Trạng thái tài khoản */}

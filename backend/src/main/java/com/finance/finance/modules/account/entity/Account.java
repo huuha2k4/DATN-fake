@@ -41,6 +41,7 @@ public class Account {
     private AccountType accountType;
     
     @Column(name = "currency_code", nullable = false, length = 3)
+    @org.hibernate.annotations.JdbcTypeCode(org.hibernate.type.SqlTypes.CHAR)
     private String currencyCode;
     
     @Column(name = "balance", nullable = false, precision = 15, scale = 2)
@@ -77,12 +78,14 @@ public class Account {
     private String icon;
     
     @Column(name = "color", length = 7)
+    @org.hibernate.annotations.JdbcTypeCode(org.hibernate.type.SqlTypes.CHAR)
     private String color; // Hex color code
     
     @Column(name = "description", length = 500)
     private String description;
     
     @Column(name = "display_order")
+    @org.hibernate.annotations.JdbcTypeCode(org.hibernate.type.SqlTypes.SMALLINT)
     private Integer displayOrder;
     
     @Column(name = "is_included_in_total", nullable = false)

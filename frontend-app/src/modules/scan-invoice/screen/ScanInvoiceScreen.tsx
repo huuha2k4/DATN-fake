@@ -657,8 +657,16 @@ export function ScanInvoiceScreen({
     }
   };
 
+  const isCurrentReceiptPaid = Boolean(
+    currentReceipt && (currentReceipt.transactionId || currentReceipt.kind === 'paid')
+  );
+
   // Lưu giao dịch từ kết quả quét OCR
   const handleCreateTransaction = async () => {
+    if (isCurrentReceiptPaid) {
+      Alert.alert('Chỉ xem', 'Hóa đơn này đã được tạo giao dịch trước đó.');
+      return;
+    }
     const cleanAmount = parseInt(amountStr.replace(/\D/g, ''), 10) || 0;
     if (cleanAmount <= 0) {
       Alert.alert('Số tiền chưa hợp lệ', 'Vui lòng kiểm tra lại số tiền trên hóa đơn.');
@@ -1086,11 +1094,12 @@ export function ScanInvoiceScreen({
               </View>
 
               <Pressable
-                onPress={() => setCategoryPickerVisible(true)}
+                onPress={() => !isCurrentReceiptPaid && setCategoryPickerVisible(true)}
+                disabled={isCurrentReceiptPaid}
                 style={({ pressed }) => [
                   styles.categorySelectPill,
                   isDark && { backgroundColor: themeColors.surfaceSubtle, borderColor: themeColors.cardBorder },
-                  pressed && styles.pressed,
+                  !isCurrentReceiptPaid && pressed && styles.pressed,
                 ]}
               >
                 <View style={styles.categorySelectLeft}>
@@ -1105,7 +1114,9 @@ export function ScanInvoiceScreen({
                   />
                   <Text style={[styles.categorySelectText, isDark && { color: themeColors.textPrimary }]}>{selectedCategoryObj.name}</Text>
                 </View>
-                <ChevronDown size={16} color={isDark ? themeColors.textSecondary : '#334155'} strokeWidth={2.2} />
+                {!isCurrentReceiptPaid && (
+                  <ChevronDown size={16} color={isDark ? themeColors.textSecondary : '#334155'} strokeWidth={2.2} />
+                )}
               </Pressable>
             </View>
 
@@ -1130,7 +1141,8 @@ export function ScanInvoiceScreen({
                 />
               ) : (
                 <Pressable
-                  onPress={() => setIsEditingResult(true)}
+                  onPress={() => !isCurrentReceiptPaid && setIsEditingResult(true)}
+                  disabled={isCurrentReceiptPaid}
                   style={[styles.amountHighlightBadge, isDark && { backgroundColor: '#064E3B' }]}
                 >
                   <Text style={[styles.amountHighlightText, isDark && { color: '#A7F3D0' }]}>{formatVND(amountStr)}</Text>
@@ -1147,17 +1159,20 @@ export function ScanInvoiceScreen({
                 </View>
 
                 <Pressable
-                  onPress={() => setAccountPickerVisible(true)}
+                  onPress={() => !isCurrentReceiptPaid && setAccountPickerVisible(true)}
+                  disabled={isCurrentReceiptPaid}
                   style={({ pressed }) => [
                     styles.categorySelectPill,
                     isDark && { backgroundColor: themeColors.surfaceSubtle, borderColor: themeColors.cardBorder },
-                    pressed && styles.pressed,
+                    !isCurrentReceiptPaid && pressed && styles.pressed,
                   ]}
                 >
                   <Text style={[styles.categorySelectText, isDark && { color: themeColors.textPrimary }]} numberOfLines={1}>
                     {selectedAccountObj?.name || 'Chọn ví'}
                   </Text>
-                  <ChevronDown size={15} color={isDark ? themeColors.textSecondary : '#334155'} strokeWidth={2.2} />
+                  {!isCurrentReceiptPaid && (
+                    <ChevronDown size={15} color={isDark ? themeColors.textSecondary : '#334155'} strokeWidth={2.2} />
+                  )}
                 </Pressable>
               </View>
             )}
@@ -1172,7 +1187,8 @@ export function ScanInvoiceScreen({
               <TextInput
                 value={note}
                 onChangeText={setNote}
-                placeholder="Nhập ghi chú..."
+                editable={!isCurrentReceiptPaid}
+                placeholder={isCurrentReceiptPaid ? 'Không có ghi chú' : 'Nhập ghi chú...'}
                 placeholderTextColor={isDark ? themeColors.textSecondary : '#94A3B8'}
                 multiline
                 style={[
@@ -1183,66 +1199,70 @@ export function ScanInvoiceScreen({
             </View>
           </View>
 
-          {/* 3. Cụm nút hành động dưới cùng: [✓ Tạo giao dịch] và [✏️ Chỉnh sửa] | [🗑️ Hủy] */}
-          <Pressable
-            onPress={handleCreateTransaction}
-            disabled={submitting}
-            style={({ pressed }) => [
-              styles.primaryGreenPillBtn,
-              pressed && styles.pressed,
-              submitting && { opacity: 0.7 },
-            ]}
-            accessibilityRole="button"
-            accessibilityLabel="Tạo giao dịch"
-          >
-            {submitting ? (
-              <ActivityIndicator color="#FFFFFF" />
-            ) : (
-              <>
-                <Check size={20} color="#FFFFFF" strokeWidth={2.8} />
-                <Text style={styles.primaryGreenPillText}>Tạo giao dịch</Text>
-              </>
-            )}
-          </Pressable>
+          {/* 3. Cụm nút hành động dưới cùng: ẩn hoàn toàn nếu hóa đơn đã tạo giao dịch (chỉ xem) */}
+          {!isCurrentReceiptPaid && (
+            <>
+              <Pressable
+                onPress={handleCreateTransaction}
+                disabled={submitting}
+                style={({ pressed }) => [
+                  styles.primaryGreenPillBtn,
+                  pressed && styles.pressed,
+                  submitting && { opacity: 0.7 },
+                ]}
+                accessibilityRole="button"
+                accessibilityLabel="Tạo giao dịch"
+              >
+                {submitting ? (
+                  <ActivityIndicator color="#FFFFFF" />
+                ) : (
+                  <>
+                    <Check size={20} color="#FFFFFF" strokeWidth={2.8} />
+                    <Text style={styles.primaryGreenPillText}>Tạo giao dịch</Text>
+                  </>
+                )}
+              </Pressable>
 
-          <View style={styles.resultSecondaryBtnsRow}>
-            <Pressable
-              onPress={() => setIsEditingResult((prev) => !prev)}
-              style={({ pressed }) => [
-                styles.outlineActionBtn,
-                isDark && { backgroundColor: themeColors.surface, borderColor: themeColors.cardBorder },
-                isEditingResult && styles.outlineActionBtnActive,
-                isEditingResult && isDark && { backgroundColor: '#064E3B', borderColor: themeColors.accentGreen },
-                pressed && styles.pressed,
-              ]}
-              accessibilityRole="button"
-              accessibilityLabel="Chỉnh sửa"
-            >
-              <Pencil size={16} color={isDark ? themeColors.accentGreen : '#065F46'} strokeWidth={2.2} />
-              <Text style={[styles.outlineActionBtnText, isDark && { color: themeColors.accentGreen }]}>
-                {isEditingResult ? 'Xong' : 'Chỉnh sửa'}
-              </Text>
-            </Pressable>
+              <View style={styles.resultSecondaryBtnsRow}>
+                <Pressable
+                  onPress={() => setIsEditingResult((prev) => !prev)}
+                  style={({ pressed }) => [
+                    styles.outlineActionBtn,
+                    isDark && { backgroundColor: themeColors.surface, borderColor: themeColors.cardBorder },
+                    isEditingResult && styles.outlineActionBtnActive,
+                    isEditingResult && isDark && { backgroundColor: '#064E3B', borderColor: themeColors.accentGreen },
+                    pressed && styles.pressed,
+                  ]}
+                  accessibilityRole="button"
+                  accessibilityLabel="Chỉnh sửa"
+                >
+                  <Pencil size={16} color={isDark ? themeColors.accentGreen : '#065F46'} strokeWidth={2.2} />
+                  <Text style={[styles.outlineActionBtnText, isDark && { color: themeColors.accentGreen }]}>
+                    {isEditingResult ? 'Xong' : 'Chỉnh sửa'}
+                  </Text>
+                </Pressable>
 
-            <Pressable
-              onPress={() => {
-                setPreviewUri(null);
-                setCurrentReceipt(null);
-                setIsEditingResult(false);
-                setStep('HOME');
-              }}
-              style={({ pressed }) => [
-                styles.outlineActionBtn,
-                isDark && { backgroundColor: themeColors.surface, borderColor: themeColors.cardBorder },
-                pressed && styles.pressed,
-              ]}
-              accessibilityRole="button"
-              accessibilityLabel="Hủy"
-            >
-              <Trash2 size={16} color={isDark ? '#F87171' : '#065F46'} strokeWidth={2.2} />
-              <Text style={[styles.outlineActionBtnText, isDark && { color: '#F87171' }]}>Hủy</Text>
-            </Pressable>
-          </View>
+                <Pressable
+                  onPress={() => {
+                    setPreviewUri(null);
+                    setCurrentReceipt(null);
+                    setIsEditingResult(false);
+                    setStep('HOME');
+                  }}
+                  style={({ pressed }) => [
+                    styles.outlineActionBtn,
+                    isDark && { backgroundColor: themeColors.surface, borderColor: themeColors.cardBorder },
+                    pressed && styles.pressed,
+                  ]}
+                  accessibilityRole="button"
+                  accessibilityLabel="Hủy"
+                >
+                  <Trash2 size={16} color={isDark ? '#F87171' : '#065F46'} strokeWidth={2.2} />
+                  <Text style={[styles.outlineActionBtnText, isDark && { color: '#F87171' }]}>Hủy</Text>
+                </Pressable>
+              </View>
+            </>
+          )}
         </ScrollView>
 
         {/* Modal chọn Danh mục */}

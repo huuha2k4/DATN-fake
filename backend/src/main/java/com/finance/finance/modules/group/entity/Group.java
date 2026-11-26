@@ -38,6 +38,7 @@ public class Group {
     private UUID ownerId;
 
     @Column(name = "base_currency", nullable = false, length = 3)
+    @org.hibernate.annotations.JdbcTypeCode(org.hibernate.type.SqlTypes.CHAR)
     private String baseCurrency;
 
     @Column(name = "avatar_key")

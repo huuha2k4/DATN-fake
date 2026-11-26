@@ -1,8 +1,6 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { jsPDF } from 'jspdf';
-import html2canvas from 'html2canvas';
-import ExcelJS from 'exceljs';
+import { useQueryRevalidation } from '../../core/utils/useQueryRevalidation';
 import { FinanceIcon, type IconName } from '../../core/components/FinanceIcon';
 import { DatePicker } from '../../core/components/DatePicker';
 import { reportApi, type TransactionSummaryResponse, type PeriodFlowItem } from '../api/reportApi';
@@ -329,8 +327,8 @@ export function FinancialReportsDashboardScreen({ onNotify }: Props) {
   }, [selectedPeriod, dateRange]);
 
   // Tải dữ liệu báo cáo chính (Kỳ này & Kỳ trước liền kề để phục vụ So sánh)
-  const loadReportData = useCallback(async () => {
-    setLoading(true);
+  const loadReportData = useCallback(async (silent = false) => {
+    if (!silent) setLoading(true);
     try {
       const activeGroupBy = isSingleMonthPeriod ? 'day' : 'month';
 
@@ -571,6 +569,10 @@ export function FinancialReportsDashboardScreen({ onNotify }: Props) {
     loadReportData();
   }, [loadReportData]);
 
+  useQueryRevalidation(['reports:', 'transactions:', 'accounts:'], () => {
+    loadReportData(true);
+  });
+
   // Thống kê tóm tắt
   const summary = summaryData?.summary || {
     totalIncome: 0,
@@ -732,6 +734,10 @@ export function FinancialReportsDashboardScreen({ onNotify }: Props) {
       }
 
       try {
+        const [{ jsPDF }, { default: html2canvas }] = await Promise.all([
+          import('jspdf'),
+          import('html2canvas'),
+        ]);
         const pdf = new jsPDF('p', 'mm', 'a4');
         const pageWidth = 210;
         const pageHeight = 297;
@@ -977,6 +983,7 @@ export function FinancialReportsDashboardScreen({ onNotify }: Props) {
     if (format === 'Excel') {
       try {
         onNotify('Đang khởi tạo bảng tính Excel chất lượng cao...');
+        const { default: ExcelJS } = await import('exceljs');
         const workbook = new ExcelJS.Workbook();
         workbook.creator = 'Finora Financial Management';
         workbook.created = new Date();

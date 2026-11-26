@@ -1,4 +1,5 @@
 import { api } from '../../core/api/api';
+import { compressImageForUpload } from '../../core/utils/imageCompress';
 
 export type GroupType = 'FAMILY' | 'ROOMMATE' | 'TRAVEL' | 'PROJECT' | 'COUPLE' | 'OTHER';
 export type MemberRole = 'OWNER' | 'ADMIN' | 'MEMBER' | 'VIEWER' | 'CHILD';
@@ -765,8 +766,13 @@ export const groupApi = {
   },
 
   async uploadChildWalletAvatar(groupId: string, file: File): Promise<string> {
+    const compressedFile = await compressImageForUpload(file, {
+      maxDimension: 512,
+      quality: 0.82,
+      skipIfSmallerThanBytes: 80 * 1024,
+    });
     const formData = new FormData();
-    formData.append('file', file);
+    formData.append('file', compressedFile);
     const res = await api.post(`/groups/${groupId}/child-wallets/avatar`, formData, {
       headers: {
         'Content-Type': 'multipart/form-data',
@@ -776,8 +782,13 @@ export const groupApi = {
   },
 
   async uploadMessageAttachment(groupId: string, file: File): Promise<MessageAttachmentItem> {
+    const compressedFile = await compressImageForUpload(file, {
+      maxDimension: 1600,
+      quality: 0.82,
+      skipIfSmallerThanBytes: 200 * 1024,
+    });
     const formData = new FormData();
-    formData.append('file', file);
+    formData.append('file', compressedFile);
     const res = await api.post(`/groups/${groupId}/messages/upload`, formData, {
       headers: {
         'Content-Type': 'multipart/form-data',

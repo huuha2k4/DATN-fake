@@ -229,7 +229,7 @@ export function MiniAIChatWidget({ isOpen, onClose, onOpenFullPage }: MiniAIChat
       <div className="mini-ai-header">
         <div className="mini-ai-header-info">
           <span className="mini-ai-avatar">
-            <img src="/finai-avatar.png" alt="FinAI" className="mini-ai-avatar-img" />
+            <img src="/finai-avatar.jpg" alt="FinAI" className="mini-ai-avatar-img" />
           </span>
           <div>
             <h4 className="mini-ai-title">FinAI Copilot</h4>
@@ -264,7 +264,7 @@ export function MiniAIChatWidget({ isOpen, onClose, onOpenFullPage }: MiniAIChat
             <div key={m.id} className={`mini-msg-row ${isAssistant ? 'assistant' : 'user'}`}>
               {isAssistant && (
                 <div className="mini-msg-avatar">
-                  <img src="/finai-avatar.png" alt="FinAI" className="mini-ai-avatar-img" />
+                  <img src="/finai-avatar.jpg" alt="FinAI" className="mini-ai-avatar-img" />
                 </div>
               )}
               <div className="mini-msg-content-col">
@@ -317,7 +317,7 @@ export function MiniAIChatWidget({ isOpen, onClose, onOpenFullPage }: MiniAIChat
         {isLoading && (
           <div className="mini-msg-row assistant typing-row">
             <div className="mini-msg-avatar">
-              <img src="/finai-avatar.png" alt="FinAI" className="mini-ai-avatar-img" />
+              <img src="/finai-avatar.jpg" alt="FinAI" className="mini-ai-avatar-img" />
             </div>
             <div className="mini-typing-bubble">
               <span className="mini-dot" />

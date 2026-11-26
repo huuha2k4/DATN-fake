@@ -19,4 +19,6 @@ public interface ReceiptRepository extends JpaRepository<Receipt, UUID> {
     Page<Receipt> findByUserIdOrderByCreatedAtDesc(UUID userId, Pageable pageable);
 
     Page<Receipt> findByUserIdAndTransactionIdIsNotNullOrderByCreatedAtDesc(UUID userId, Pageable pageable);
+
+    boolean existsByImageUrlAndUserId(String imageUrl, UUID userId);
 }

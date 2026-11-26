@@ -35,6 +35,7 @@ public class GroupExpense {
     private BigDecimal amount;
 
     @Column(nullable = false, length = 3)
+    @org.hibernate.annotations.JdbcTypeCode(org.hibernate.type.SqlTypes.CHAR)
     private String currency;
 
     @Column(name = "paid_by_user_id", nullable = false)

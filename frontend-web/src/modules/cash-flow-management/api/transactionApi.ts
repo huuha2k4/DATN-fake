@@ -1,4 +1,6 @@
 import { api } from '../../core/api/api';
+import { compressImageForUpload } from '../../core/utils/imageCompress';
+import { fetchWithCache, invalidateQueryCache, stableSerializeParams } from '../../core/utils/queryCache';
 
 export type TransactionType = 'INCOME' | 'EXPENSE' | 'TRANSFER';
 
@@ -86,7 +88,6 @@ export interface CreateTransactionPayload {
   transactionDate: string;
   transactionTime?: string;
   categoryId?: string;
-  merchantId?: string;
   note?: string;
   receiptId?: string;
   receiptUrl?: string;
@@ -119,55 +120,78 @@ export interface UpdateTransactionPayload {
 export const transactionApi = {
   // Lấy danh sách giao dịch thực tế
   getTransactions: async (params?: TransactionFilterParams): Promise<TransactionListResponse> => {
-    const res = await api.get<TransactionListResponse>('/transactions', { params });
-    return res.data;
+    return fetchWithCache(
+      `transactions:list:${stableSerializeParams(params as Record<string, unknown>)}`,
+      async () => {
+        const res = await api.get<TransactionListResponse>('/transactions', { params });
+        return res.data;
+      },
+      { freshTimeMs: 12_000, staleTimeMs: 45_000 }
+    );
   },
 
   // Tạo giao dịch mới
   createTransaction: async (payload: CreateTransactionPayload): Promise<TransactionItem> => {
     const res = await api.post<TransactionItem>('/transactions', payload);
+    invalidateQueryCache(['transactions:', 'accounts:', 'budgets:', 'reports:']);
     return res.data;
   },
 
   // Cập nhật giao dịch
   updateTransaction: async (id: string, payload: UpdateTransactionPayload): Promise<TransactionItem> => {
     const res = await api.put<TransactionItem>(`/transactions/${id}`, payload);
+    invalidateQueryCache(['transactions:', 'accounts:', 'budgets:', 'reports:']);
     return res.data;
   },
 
   // Xóa giao dịch
   deleteTransaction: async (id: string, version?: number): Promise<void> => {
     await api.delete(`/transactions/${id}`, { params: { version } });
+    invalidateQueryCache(['transactions:', 'accounts:', 'budgets:', 'reports:']);
   },
 
   // Lấy danh sách danh mục thu chi
   getCategories: async (kind?: 'INCOME' | 'EXPENSE'): Promise<CategoryItem[]> => {
-    const res = await api.get<{ success: boolean; data: { categories: CategoryItem[] } }>('/categories', {
-      params: { kind, includeSystem: true }
-    });
-    return res.data?.data?.categories || [];
+    return fetchWithCache(
+      `categories:list:${kind || 'ALL'}`,
+      async () => {
+        const res = await api.get<{ success: boolean; data: { categories: CategoryItem[] } }>('/categories', {
+          params: { kind, includeSystem: true }
+        });
+        return res.data?.data?.categories || [];
+      },
+      { freshTimeMs: 120_000, staleTimeMs: 300_000 }
+    );
   },
 
   // Tạo danh mục mới
   createCategory: async (payload: { name: string; kind: 'INCOME' | 'EXPENSE'; icon?: string; color?: string; parentId?: string }): Promise<CategoryItem> => {
     const res = await api.post<{ success: boolean; data: CategoryItem }>('/categories', payload);
+    invalidateQueryCache('categories:');
     return res.data?.data;
   },
 
   // Xóa danh mục
   deleteCategory: async (id: string): Promise<void> => {
     await api.delete(`/categories/${id}`);
+    invalidateQueryCache('categories:');
   },
 
   // Tải lên tệp/ảnh hóa đơn đính kèm cho giao dịch
   uploadAttachment: async (id: string, file: File): Promise<TransactionItem> => {
+    const compressedFile = await compressImageForUpload(file, {
+      maxDimension: 1600,
+      quality: 0.82,
+      skipIfSmallerThanBytes: 200 * 1024,
+    });
     const formData = new FormData();
-    formData.append('file', file);
+    formData.append('file', compressedFile);
     const res = await api.post<TransactionItem>(`/transactions/${id}/attachments`, formData, {
       headers: {
         'Content-Type': 'multipart/form-data',
       },
     });
+    invalidateQueryCache('transactions:');
     return res.data;
   }
 };

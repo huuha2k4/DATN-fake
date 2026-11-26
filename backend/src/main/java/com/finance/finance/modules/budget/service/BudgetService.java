@@ -3,6 +3,9 @@ package com.finance.finance.modules.budget.service;
 import com.finance.finance.common.enums.AlertLevel;
 import com.finance.finance.common.enums.BudgetPeriodType;
 import com.finance.finance.common.enums.BudgetStatus;
+import com.finance.finance.modules.audit.model.AuditEventType;
+import com.finance.finance.modules.audit.service.AuditEventRequest;
+import com.finance.finance.modules.audit.service.SystemAuditService;
 import com.finance.finance.modules.budget.dto.request.*;
 import com.finance.finance.modules.budget.dto.response.*;
 import com.finance.finance.modules.budget.entity.Budget;
@@ -16,6 +19,7 @@ import com.finance.finance.modules.category.repository.CategoryRepository;
 import com.finance.finance.modules.transaction.repository.TransactionRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -35,6 +39,9 @@ public class BudgetService {
     private final BudgetItemRepository budgetItemRepository;
     private final CategoryRepository categoryRepository;
     private final TransactionRepository transactionRepository;
+
+    @Autowired(required = false)
+    private SystemAuditService systemAuditService;
 
     /**
      * Tạo budget mới
@@ -108,6 +115,16 @@ public class BudgetService {
         recalculateBudget(budget);
 
         log.info("Budget created successfully: {}", budget.getId());
+        if (systemAuditService != null) {
+            systemAuditService.record(AuditEventRequest.builder()
+                    .eventType(AuditEventType.BUDGET_CREATED)
+                    .actorId(userId)
+                    .subjectUserId(userId)
+                    .resourceType("BUDGET")
+                    .resourceId(budget.getId())
+                    .newValues(Map.of("totalAmount", budget.getTotalAmount()))
+                    .build());
+        }
         return mapToResponse(budget, false);
     }
 
@@ -226,6 +243,16 @@ public class BudgetService {
         recalculateBudget(budget);
 
         log.info("Budget updated successfully: {}", budgetId);
+        if (systemAuditService != null) {
+            systemAuditService.record(AuditEventRequest.builder()
+                    .eventType(AuditEventType.BUDGET_UPDATED)
+                    .actorId(userId)
+                    .subjectUserId(userId)
+                    .resourceType("BUDGET")
+                    .resourceId(budgetId)
+                    .newValues(Map.of("totalAmount", budget.getTotalAmount()))
+                    .build());
+        }
         return mapToResponse(budget, false);
     }
 
@@ -246,6 +273,15 @@ public class BudgetService {
         budget.softDelete();
         budgetRepository.save(budget);
         log.info("Budget deleted successfully: {}", budgetId);
+        if (systemAuditService != null) {
+            systemAuditService.record(AuditEventRequest.builder()
+                    .eventType(AuditEventType.BUDGET_DELETED)
+                    .actorId(userId)
+                    .subjectUserId(userId)
+                    .resourceType("BUDGET")
+                    .resourceId(budgetId)
+                    .build());
+        }
     }
 
     /**

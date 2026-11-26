@@ -5,6 +5,9 @@ import com.finance.finance.common.enums.NotificationPriority;
 import com.finance.finance.common.enums.NotificationType;
 import com.finance.finance.common.enums.SharingRequestStatus;
 import com.finance.finance.common.exception.BusinessException;
+import com.finance.finance.modules.audit.model.AuditEventType;
+import com.finance.finance.modules.audit.service.AuditEventRequest;
+import com.finance.finance.modules.audit.service.SystemAuditService;
 import com.finance.finance.modules.group.dto.request.RequestDataSharingRequest;
 import com.finance.finance.modules.group.dto.request.RespondSharingRequest;
 import com.finance.finance.modules.group.dto.response.ChildTransactionSummaryResponse;
@@ -43,6 +46,9 @@ public class ChildDataSharingService {
     private final GroupMemberRepository groupMemberRepository;
     private final UserRepository userRepository;
     private final NotificationService notificationService;
+
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private SystemAuditService systemAuditService;
     private final TransactionRepository transactionRepository;
     private final CategoryRepository categoryRepository;
 
@@ -208,6 +214,21 @@ public class ChildDataSharingService {
         }
 
         sharingRequest = sharingRequestRepository.save(sharingRequest);
+        if (systemAuditService != null) {
+            AuditEventType evt = sharingRequest.getStatus() == SharingRequestStatus.APPROVED
+                    ? AuditEventType.CHILD_DATA_SHARING_APPROVED
+                    : AuditEventType.CHILD_DATA_SHARING_REJECTED;
+            systemAuditService.record(AuditEventRequest.builder()
+                    .eventType(evt)
+                    .actorId(childUserId)
+                    .subjectUserId(sharingRequest.getRequestedByUserId())
+                    .groupId(sharingRequest.getGroupId())
+                    .resourceType("CHILD_DATA_SHARING")
+                    .resourceId(sharingRequest.getId())
+                    .relatedResourceId(sharingRequest.getChildWalletId())
+                    .newValues(java.util.Map.of("status", sharingRequest.getStatus().name()))
+                    .build());
+        }
         return buildResponse(sharingRequest);
     }
 
@@ -236,6 +257,17 @@ public class ChildDataSharingService {
             req.setStatus(SharingRequestStatus.REVOKED);
             req.setRevokedAt(now);
             sharingRequestRepository.save(req);
+            if (systemAuditService != null) {
+                systemAuditService.record(AuditEventRequest.builder()
+                        .eventType(AuditEventType.CHILD_DATA_SHARING_REVOKED)
+                        .actorId(childUserId)
+                        .subjectUserId(req.getRequestedByUserId())
+                        .groupId(req.getGroupId())
+                        .resourceType("CHILD_DATA_SHARING")
+                        .resourceId(req.getId())
+                        .relatedResourceId(walletId)
+                        .build());
+            }
 
             // Notify parent
             try {

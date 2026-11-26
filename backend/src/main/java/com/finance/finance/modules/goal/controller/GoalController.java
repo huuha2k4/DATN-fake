@@ -4,7 +4,6 @@ import com.finance.finance.common.annotation.Idempotent;
 import com.finance.finance.modules.goal.dto.request.CompleteGoalRequest;
 import com.finance.finance.modules.goal.dto.request.ContributeRequest;
 import com.finance.finance.modules.goal.dto.request.CreateGoalRequest;
-import com.finance.finance.modules.goal.dto.request.CreateMilestoneRequest;
 import com.finance.finance.modules.goal.dto.request.UpdateGoalRequest;
 import com.finance.finance.modules.goal.dto.response.ContributeResponse;
 import com.finance.finance.modules.goal.dto.response.GoalListResponse;
@@ -152,21 +151,7 @@ public class GoalController {
     }
 
     /**
-     * 8. Tạo milestone cho mục tiêu
-     * POST /api/goals/{id}/milestones
-     */
-    @PostMapping("/{id}/milestones")
-    public ResponseEntity<GoalResponse.MilestoneInfo> createMilestone(
-            @PathVariable java.util.UUID id,
-            @Valid @RequestBody CreateMilestoneRequest request,
-            @AuthenticationPrincipal User user
-    ) {
-        GoalResponse.MilestoneInfo response = goalService.createMilestone(user.getId(), id, request);
-        return ResponseEntity.status(HttpStatus.CREATED).body(response);
-    }
-
-    /**
-     * 9. Đánh dấu mục tiêu hoàn thành
+     * 8. Đánh dấu mục tiêu hoàn thành
      * PUT /api/goals/{id}/complete
      */
     @PutMapping("/{id}/complete")

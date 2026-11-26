@@ -1,16 +1,21 @@
 package com.finance.finance.modules.transaction.mapper;
 
+import com.finance.finance.common.upload.AttachmentUrlSigner;
 import com.finance.finance.modules.transaction.dto.response.TransactionResponse;
 import com.finance.finance.modules.transaction.entity.Transaction;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import java.time.LocalTime;
 
 @Component
 public class TransactionMapper {
+
+    @Autowired(required = false)
+    private AttachmentUrlSigner attachmentUrlSigner;
     
     public TransactionResponse toResponse(Transaction transaction) {
-        return toResponse(transaction, null, null, null, null, null, null, null, null);
+        return toResponse(transaction, null, null, null, null, null, null);
     }
 
     public TransactionResponse toResponse(
@@ -20,9 +25,7 @@ public class TransactionMapper {
             String toAccountName,
             TransactionResponse.CategoryDto category,
             java.math.BigDecimal balanceBefore,
-            java.math.BigDecimal balanceAfter,
-            TransactionResponse.MerchantDto merchant,
-            java.util.List<TransactionResponse.TagDto> tags
+            java.math.BigDecimal balanceAfter
     ) {
         if (transaction == null) {
             return null;
@@ -51,17 +54,17 @@ public class TransactionMapper {
                 .transactionTime(transactionTime)
                 .occurredAt(transaction.getOccurredAt())
                 .category(category)
-                .merchant(merchant)
-                .tags(tags)
                 .location(parseLocation(transaction.getLocation()))
                 .note(transaction.getNote())
                 .categoryStatus(transaction.getCategoryStatus())
                 .confidenceScore(transaction.getAiConfidence())
                 .aiSuggestion(null) // TODO: Build AI suggestion
-                .balanceBefore(balanceBefore)
-                .balanceAfter(balanceAfter)
+                .balanceBefore(balanceBefore != null ? balanceBefore : transaction.getBalanceBefore())
+                .balanceAfter(balanceAfter != null ? balanceAfter : transaction.getBalanceAfter())
                 .receiptId(transaction.getReceiptId())
-                .receiptUrl(transaction.getReceiptUrl())
+                .receiptUrl(attachmentUrlSigner != null
+                        ? attachmentUrlSigner.createReceiptUrl(transaction.getReceiptUrl(), transaction.getUserId())
+                        : transaction.getReceiptUrl())
                 .hasAttachments(transaction.getReceiptUrl() != null || transaction.getReceiptId() != null)
                 .isRecurring(false) // TODO: Link to recurring_transactions table if needed
                 .recurringTemplateId(null)

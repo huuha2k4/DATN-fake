@@ -1,4 +1,5 @@
 import { FinanceIcon, type IconName } from './FinanceIcon'
+import { prefetchRouteByLabel } from '../utils/routePrefetch'
 import logoImg from '../../../assets/logo.png'
 
 const navigation: { label: string; icon: IconName }[] = [
@@ -89,6 +90,8 @@ export function FinancialNavigationSection({ active, onNavigate, isOpen, onClose
             className={`nav-item ${active === item.label ? 'active' : ''}`} 
             aria-current={active === item.label ? 'page' : undefined} 
             onClick={() => navigate(item)}
+            onMouseEnter={() => prefetchRouteByLabel(item.label)}
+            onFocus={() => prefetchRouteByLabel(item.label)}
           >
             <FinanceIcon name={item.icon} size={20} className="shrink-0" />
             <span className="nav-item-label truncate">{item.label}</span>

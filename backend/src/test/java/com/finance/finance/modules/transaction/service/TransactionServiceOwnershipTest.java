@@ -17,7 +17,6 @@ import com.finance.finance.modules.group.repository.GroupExpenseRepository;
 import com.finance.finance.modules.group.repository.GroupFundContributionRepository;
 import com.finance.finance.modules.group.repository.GroupFundRepository;
 import com.finance.finance.modules.group.repository.GroupSettlementRepository;
-import com.finance.finance.modules.merchant.repository.MerchantRepository;
 import com.finance.finance.modules.notification.service.NotificationService;
 import com.finance.finance.modules.ocr.repository.ReceiptRepository;
 import com.finance.finance.modules.schedule.repository.ScheduleOccurrenceRepository;
@@ -54,7 +53,6 @@ class TransactionServiceOwnershipTest {
     @Mock TransactionMapper transactionMapper;
     @Mock AccountRepository accountRepository;
     @Mock CategoryRepository categoryRepository;
-    @Mock MerchantRepository merchantRepository;
     @Mock FileUploadValidator fileUploadValidator;
     @Mock ImageCompressionHelper imageCompressionHelper;
     @Mock BudgetItemRepository budgetItemRepository;

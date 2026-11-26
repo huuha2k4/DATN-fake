@@ -445,7 +445,8 @@ public class GroupController {
                                 .filename(downloadName, java.nio.charset.StandardCharsets.UTF_8)
                                 .build().toString())
                 .header("X-Content-Type-Options", "nosniff")
-                .header(HttpHeaders.CACHE_CONTROL, "private, max-age=3600, immutable")
+                .header(HttpHeaders.CACHE_CONTROL, "private, no-store")
+                .header(HttpHeaders.PRAGMA, "no-cache")
                 .body(download.resource());
     }
 

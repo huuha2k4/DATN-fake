@@ -1,4 +1,5 @@
 import { api } from '../../core/api/api';
+import { fetchWithCache, invalidateQueryCache, stableSerializeParams } from '../../core/utils/queryCache';
 
 export type AccountTypeCode =
   | 'CASH'
@@ -139,26 +140,37 @@ export interface AdjustBalancePayload {
 
 export const accountApi = {
   getAccountTypes: async (): Promise<AccountTypeMetadata[]> => {
-    const res = await api.get('/accounts/types');
-    return res.data.data;
+    return fetchWithCache(
+      'accounts:types',
+      async () => {
+        const res = await api.get('/accounts/types');
+        return res.data.data;
+      },
+      { freshTimeMs: 300_000, staleTimeMs: 600_000 }
+    );
   },
 
   getAccounts: async (params?: { includeInactive?: boolean; include_inactive?: boolean; account_type?: string }): Promise<AccountItem[]> => {
-    const res = await api.get('/accounts', { 
-      params: {
-        includeInactive: params?.includeInactive ?? params?.include_inactive ?? true,
-        accountType: params?.account_type,
-        ...params
-      } 
-    });
-    const data = res.data?.data;
-    if (Array.isArray(data)) {
-      return data;
-    }
-    if (data && Array.isArray(data.accounts)) {
-      return data.accounts;
-    }
-    return [];
+    const resolvedParams = {
+      includeInactive: params?.includeInactive ?? params?.include_inactive ?? true,
+      accountType: params?.account_type,
+      ...params,
+    };
+    return fetchWithCache(
+      `accounts:list:${stableSerializeParams(resolvedParams)}`,
+      async () => {
+        const res = await api.get('/accounts', { params: resolvedParams });
+        const data = res.data?.data;
+        if (Array.isArray(data)) {
+          return data;
+        }
+        if (data && Array.isArray(data.accounts)) {
+          return data.accounts;
+        }
+        return [];
+      },
+      { freshTimeMs: 20_000, staleTimeMs: 90_000 }
+    );
   },
 
   getAccountById: async (id: string, includeStats = true): Promise<AccountItem> => {
@@ -167,17 +179,25 @@ export const accountApi = {
   },
 
   getSummary: async (baseCurrency = 'VND'): Promise<AccountSummary> => {
-    const res = await api.get('/accounts/summary', { params: { base_currency: baseCurrency } });
-    return res.data.data;
+    return fetchWithCache(
+      `accounts:summary:${baseCurrency}`,
+      async () => {
+        const res = await api.get('/accounts/summary', { params: { base_currency: baseCurrency } });
+        return res.data.data;
+      },
+      { freshTimeMs: 20_000, staleTimeMs: 90_000 }
+    );
   },
 
   createAccount: async (payload: CreateAccountPayload): Promise<AccountItem> => {
     const res = await api.post('/accounts', payload);
+    invalidateQueryCache(['accounts:', 'transactions:']);
     return res.data.data;
   },
 
   updateAccount: async (id: string, payload: UpdateAccountPayload): Promise<AccountItem> => {
     const res = await api.put(`/accounts/${id}`, payload);
+    invalidateQueryCache(['accounts:', 'transactions:']);
     return res.data.data;
   },
 
@@ -185,10 +205,12 @@ export const accountApi = {
     await api.delete(`/accounts/${id}`, {
       params: { version, move_transactions_to: moveTransactionsTo },
     });
+    invalidateQueryCache(['accounts:', 'transactions:']);
   },
 
   adjustBalance: async (id: string, payload: AdjustBalancePayload): Promise<AccountItem> => {
     const res = await api.post(`/accounts/${id}/adjust-balance`, payload);
+    invalidateQueryCache(['accounts:', 'transactions:']);
     return res.data.data;
   },
 };

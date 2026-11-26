@@ -54,6 +54,7 @@ public class Budget {
     private BigDecimal totalAmount;
     
     @Column(name = "currency_code", nullable = false, length = 3)
+    @org.hibernate.annotations.JdbcTypeCode(org.hibernate.type.SqlTypes.CHAR)
     private String currencyCode;
     
     @Enumerated(EnumType.STRING)

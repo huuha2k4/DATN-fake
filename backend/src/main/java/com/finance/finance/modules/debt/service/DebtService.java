@@ -6,6 +6,9 @@ import com.finance.finance.common.enums.PaymentFrequency;
 import com.finance.finance.common.enums.TransactionType;
 import com.finance.finance.modules.account.entity.Account;
 import com.finance.finance.modules.account.repository.AccountRepository;
+import com.finance.finance.modules.audit.model.AuditEventType;
+import com.finance.finance.modules.audit.service.AuditEventRequest;
+import com.finance.finance.modules.audit.service.SystemAuditService;
 import com.finance.finance.modules.category.entity.Category;
 import com.finance.finance.modules.category.repository.CategoryRepository;
 import com.finance.finance.modules.debt.dto.request.CreateDebtRequest;
@@ -23,6 +26,7 @@ import com.finance.finance.modules.user.entity.User;
 import com.finance.finance.modules.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -43,6 +47,9 @@ public class DebtService {
     private final UserRepository userRepository;
     private final TransactionService transactionService;
     private final AccountRepository accountRepository;
+
+    @Autowired(required = false)
+    private SystemAuditService systemAuditService;
     private final CategoryRepository categoryRepository;
     private final com.finance.finance.modules.notification.service.NotificationService notificationService;
     private final com.finance.finance.modules.notification.repository.NotificationRepository notificationRepository;
@@ -106,6 +113,16 @@ public class DebtService {
 
         debt = debtRepository.save(debt);
         log.info("Debt created: {}", debt.getId());
+        if (systemAuditService != null) {
+            systemAuditService.record(AuditEventRequest.builder()
+                    .eventType(AuditEventType.DEBT_CREATED)
+                    .actorId(userId)
+                    .subjectUserId(userId)
+                    .resourceType("DEBT")
+                    .resourceId(debt.getId())
+                    .newValues(Map.of("debtType", debt.getDebtType().name(), "principalAmount", debt.getPrincipalAmount()))
+                    .build());
+        }
 
         return mapToDebtResponse(debt);
     }
@@ -201,6 +218,16 @@ public class DebtService {
 
         debt = debtRepository.save(debt);
         log.info("Debt updated: {}", debt.getId());
+        if (systemAuditService != null) {
+            systemAuditService.record(AuditEventRequest.builder()
+                    .eventType(AuditEventType.DEBT_UPDATED)
+                    .actorId(userId)
+                    .subjectUserId(userId)
+                    .resourceType("DEBT")
+                    .resourceId(debtId)
+                    .newValues(Map.of("status", debt.getStatus().name(), "remainingAmount", debt.getRemainingAmount()))
+                    .build());
+        }
 
         return mapToDebtResponse(debt);
     }
@@ -217,6 +244,10 @@ public class DebtService {
         // Soft delete
         debt.softDelete();
         debtRepository.save(debt);
+        if (systemAuditService != null) {
+            systemAuditService.recordSimple(AuditEventType.DEBT_DELETED, "DEBT", debtId,
+                    Map.of("debtType", debt.getDebtType().name()));
+        }
 
         log.info("Debt deleted (soft): {}", debtId);
     }
@@ -345,6 +376,25 @@ public class DebtService {
             }
         } catch (Exception ex) {
             log.error("Failed to send debt payment notification", ex);
+        }
+
+        if (systemAuditService != null) {
+            AuditEventType debtEvt = debt.getStatus() == DebtStatus.PAID_OFF
+                    ? AuditEventType.DEBT_SETTLED
+                    : AuditEventType.DEBT_PAYMENT_RECORDED;
+            systemAuditService.record(AuditEventRequest.builder()
+                    .eventType(debtEvt)
+                    .actorId(userId)
+                    .subjectUserId(userId)
+                    .resourceType("DEBT")
+                    .resourceId(debt.getId())
+                    .relatedResourceId(payment.getId())
+                    .newValues(Map.of(
+                            "amount", payment.getAmount(),
+                            "remainingAmount", debt.getRemainingAmount(),
+                            "status", debt.getStatus().name()
+                    ))
+                    .build());
         }
 
         // Build response

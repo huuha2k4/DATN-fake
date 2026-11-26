@@ -87,6 +87,7 @@ public class User implements UserDetails {
     private Instant subscriptionExpiresAt;
     
     @Column(name = "preferred_currency", length = 3, nullable = false)
+    @org.hibernate.annotations.JdbcTypeCode(org.hibernate.type.SqlTypes.CHAR)
     @Builder.Default
     private String preferredCurrency = "VND";
     
@@ -102,6 +103,7 @@ public class User implements UserDetails {
     private String avatarUrl;
     
     @Column(name = "failed_login_attempts", nullable = false)
+    @org.hibernate.annotations.JdbcTypeCode(org.hibernate.type.SqlTypes.SMALLINT)
     @Builder.Default
     private int failedLoginAttempts = 0;
     

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { FinanceIcon, resolveCategoryIconName, getCategoryCanonicalKey } from '../../core/components/FinanceIcon';
 import { DatePicker } from '../../core/components/DatePicker';
 import { subscribeFinAiActionCompleted } from '../../core/utils/finaiSyncEvents';
+import { subscribeQueryRevalidated } from '../../core/utils/queryCache';
 import {
   transactionApi,
   type TransactionItem,
@@ -313,24 +314,38 @@ export function CashFlowManagementScreen({ onNotify, onAddTransaction }: Props) 
 
   // Tự động tải lại giao dịch khi quay trở lại tab hoặc trang web (sau khi thêm giao dịch)
   useEffect(() => {
-    const handleFocus = () => {
+    let lastRefreshAt = 0;
+    const triggerRefresh = () => {
+      const now = Date.now();
+      if (now - lastRefreshAt < 1000) return;
+      lastRefreshAt = now;
       loadTransactions();
       loadMetadata();
     };
-    window.addEventListener('focus', handleFocus);
-    window.addEventListener('visibilitychange', () => {
+    const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible') {
-        loadTransactions();
+        triggerRefresh();
       }
-    });
+    };
+    window.addEventListener('focus', triggerRefresh);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
     const unsubscribeFinAi = subscribeFinAiActionCompleted(() => {
       loadTransactions();
       loadMetadata();
     });
+    const unsubscribeSwr = subscribeQueryRevalidated(
+      ['transactions:', 'categories:', 'accounts:'],
+      () => {
+        loadTransactions();
+        loadMetadata();
+      }
+    );
 
     return () => {
-      window.removeEventListener('focus', handleFocus);
+      window.removeEventListener('focus', triggerRefresh);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
       unsubscribeFinAi();
+      unsubscribeSwr();
     };
   }, [activeTab, selectedCategory, selectedAccount, selectedMonth, currentPage, debouncedSearch]);
 
@@ -1882,6 +1897,28 @@ export function CashFlowManagementScreen({ onNotify, onAddTransaction }: Props) 
                   </div>
                 )}
 
+                {/* Số dư ví trước & sau giao dịch */}
+                {(selectedTxDetail.balanceBefore != null || selectedTxDetail.balanceAfter != null) && (
+                  <div className="py-2.5 grid grid-cols-2 gap-2.5">
+                    <div className="rounded-xl border border-[#E2E8F0] dark:border-white/10 bg-[#F8FAFC] dark:bg-[#111827] px-3 py-2">
+                      <span className="block text-[10.5px] font-semibold text-[#64748B] dark:text-slate-400">
+                        Số dư trước GD
+                      </span>
+                      <span className="mt-0.5 block text-xs font-bold text-[#0F172A] dark:text-white tabular-nums">
+                        {selectedTxDetail.balanceBefore != null ? formatVND(selectedTxDetail.balanceBefore) : '—'}
+                      </span>
+                    </div>
+                    <div className="rounded-xl border border-emerald-200/80 dark:border-emerald-900/60 bg-emerald-50/60 dark:bg-emerald-950/30 px-3 py-2">
+                      <span className="block text-[10.5px] font-semibold text-[#007F53] dark:text-emerald-400">
+                        Số dư sau GD
+                      </span>
+                      <span className="mt-0.5 block text-xs font-bold text-[#007F53] dark:text-emerald-300 tabular-nums">
+                        {selectedTxDetail.balanceAfter != null ? formatVND(selectedTxDetail.balanceAfter) : '—'}
+                      </span>
+                    </div>
+                  </div>
+                )}
+
                 {/* Thời gian giao dịch */}
                 <div className="py-2.5 flex items-center justify-between">
                   <span className="text-[#64748B] dark:text-slate-400 font-medium">Thời gian thực hiện:</span>
@@ -2058,9 +2095,6 @@ export function CashFlowManagementScreen({ onNotify, onAddTransaction }: Props) 
                           <h3 className="text-base font-bold text-[#0F172A] dark:text-white leading-tight">
                             {isEditingTx ? 'Chỉnh sửa giao dịch' : 'Chi tiết giao dịch'}
                           </h3>
-                          <p className="text-xs text-[#64748B] dark:text-slate-400 mt-0.5">
-                            Mã GD: <span className="font-mono text-[#475569] dark:text-slate-300">{selectedTxDetail.id.slice(0, 13)}...</span>
-                          </p>
                         </div>
                       </div>
                       <button
@@ -2117,9 +2151,6 @@ export function CashFlowManagementScreen({ onNotify, onAddTransaction }: Props) 
                         <h3 className="text-base font-bold text-[#0F172A] dark:text-white">
                           {isEditingTx ? 'Chỉnh sửa giao dịch' : 'Chi tiết giao dịch'}
                         </h3>
-                        <p className="text-xs text-[#64748B] dark:text-slate-400">
-                          Mã GD: <span className="font-mono text-[#475569] dark:text-slate-300">{selectedTxDetail.id.slice(0, 13)}...</span>
-                        </p>
                       </div>
                     </div>
                     <button

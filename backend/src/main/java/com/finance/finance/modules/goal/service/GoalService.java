@@ -2,14 +2,15 @@ package com.finance.finance.modules.goal.service;
 
 import com.finance.finance.common.enums.GoalStatus;
 import com.finance.finance.common.enums.TransactionType;
+import com.finance.finance.modules.audit.model.AuditEventType;
+import com.finance.finance.modules.audit.service.AuditEventRequest;
+import com.finance.finance.modules.audit.service.SystemAuditService;
 import com.finance.finance.modules.goal.dto.request.*;
 import com.finance.finance.modules.goal.dto.response.*;
 import com.finance.finance.modules.goal.entity.Goal;
 import com.finance.finance.modules.goal.entity.GoalContribution;
-import com.finance.finance.modules.goal.entity.GoalMilestone;
 import com.finance.finance.modules.goal.exception.GoalNotFoundException;
 import com.finance.finance.modules.goal.repository.GoalContributionRepository;
-import com.finance.finance.modules.goal.repository.GoalMilestoneRepository;
 import com.finance.finance.modules.goal.repository.GoalRepository;
 import com.finance.finance.modules.account.entity.Account;
 import com.finance.finance.modules.account.repository.AccountRepository;
@@ -23,6 +24,7 @@ import com.finance.finance.modules.group.repository.ChildWalletRepository;
 import com.finance.finance.modules.group.repository.ChildSpendRequestRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -41,11 +43,13 @@ public class GoalService {
 
     private final GoalRepository goalRepository;
     private final GoalContributionRepository contributionRepository;
-    private final GoalMilestoneRepository milestoneRepository;
     private final TransactionService transactionService;
     private final AccountRepository accountRepository;
     private final CategoryRepository categoryRepository;
     private final com.finance.finance.modules.notification.service.NotificationService notificationService;
+
+    @Autowired(required = false)
+    private SystemAuditService systemAuditService;
     private final ChildWalletRepository childWalletRepository;
     private final ChildSpendRequestRepository childSpendRequestRepository;
 
@@ -58,6 +62,23 @@ public class GoalService {
             throw new IllegalArgumentException("Ngày mục tiêu phải trong tương lai");
         }
 
+        BigDecimal maxGoalAmount = new BigDecimal("999999999999999.9999");
+        BigDecimal targetAmount = request.getTargetAmount() != null ? request.getTargetAmount() : BigDecimal.ZERO;
+        BigDecimal initialAmount = request.getCurrentAmount() != null ? request.getCurrentAmount() : BigDecimal.ZERO;
+
+        if (targetAmount.compareTo(BigDecimal.ZERO) < 0) {
+            throw new IllegalArgumentException("Số tiền mục tiêu phải >= 0");
+        }
+        if (initialAmount.compareTo(BigDecimal.ZERO) < 0) {
+            throw new IllegalArgumentException("Số tiền hiện tại phải >= 0");
+        }
+        if (targetAmount.compareTo(maxGoalAmount) > 0 || initialAmount.compareTo(maxGoalAmount) > 0) {
+            throw new IllegalArgumentException("Số tiền vượt quá giới hạn cho phép");
+        }
+        if (targetAmount.compareTo(BigDecimal.ZERO) > 0 && initialAmount.compareTo(targetAmount) > 0) {
+            throw new IllegalArgumentException("Số tiền hiện tại không được vượt quá số tiền mục tiêu");
+        }
+
         // Check duplicate name
         if (goalRepository.existsByNameAndUserId(request.getName(), userId, null)) {
             throw new IllegalArgumentException("Mục tiêu '" + request.getName() + "' đã tồn tại");
@@ -67,11 +88,11 @@ public class GoalService {
                 .userId(userId)
                 .name(request.getName())
                 .goalType(request.getGoalType())
-                .targetAmount(request.getTargetAmount())
-                .currentAmount(request.getCurrentAmount())
+                .targetAmount(targetAmount)
+                .currentAmount(initialAmount)
                 .currencyCode(request.getCurrencyCode())
                 .targetDate(request.getTargetDate())
-                .priority(request.getPriority())
+                .priority(request.getPriority() != null ? request.getPriority() : com.finance.finance.common.enums.GoalPriority.MEDIUM)
                 .icon(request.getIcon())
                 .color(request.getColor())
                 .description(request.getDescription())
@@ -102,6 +123,17 @@ public class GoalService {
                     .sourceAccountId(request.getAccountId())
                     .build();
             contributionRepository.save(initialContribution);
+        }
+
+        if (systemAuditService != null) {
+            systemAuditService.record(AuditEventRequest.builder()
+                    .eventType(AuditEventType.GOAL_CREATED)
+                    .actorId(userId)
+                    .subjectUserId(userId)
+                    .resourceType("GOAL")
+                    .resourceId(goal.getId())
+                    .newValues(Map.of("targetAmount", goal.getTargetAmount(), "currentAmount", goal.getCurrentAmount()))
+                    .build());
         }
 
         return mapToResponse(goal, false);
@@ -175,6 +207,17 @@ public class GoalService {
         if (request.getAccountId() != null) goal.setAccountId(request.getAccountId());
 
         goal = goalRepository.save(goal);
+        if (systemAuditService != null) {
+            systemAuditService.record(AuditEventRequest.builder()
+                    .eventType(AuditEventType.GOAL_CREATED)
+                    .actorId(userId)
+                    .subjectUserId(userId)
+                    .resourceType("GOAL")
+                    .resourceId(goal.getId())
+                    .newValues(Map.of("targetAmount", goal.getTargetAmount(), "currentAmount", goal.getCurrentAmount()))
+                    .build());
+        }
+
         return mapToResponse(goal, false);
     }
 
@@ -352,7 +395,8 @@ public class GoalService {
         contribution = contributionRepository.save(contribution);
         
         // Update goal current amount
-        goal.setCurrentAmount(goal.getCurrentAmount().add(request.getAmount()));
+        BigDecimal currentAmount = goal.getCurrentAmount() != null ? goal.getCurrentAmount() : BigDecimal.ZERO;
+        goal.setCurrentAmount(currentAmount.add(request.getAmount()));
         
         // Check if goal is achieved
         boolean wasAchieved = goal.getStatus() == GoalStatus.ACHIEVED;
@@ -395,10 +439,18 @@ public class GoalService {
             }
         }
         
-        // Check and mark milestones as achieved
-        checkAndUpdateMilestones(goal);
-        
         goalRepository.save(goal);
+        if (systemAuditService != null) {
+            systemAuditService.record(AuditEventRequest.builder()
+                    .eventType(AuditEventType.GOAL_CONTRIBUTION_ADDED)
+                    .actorId(userId)
+                    .subjectUserId(userId)
+                    .resourceType("GOAL")
+                    .resourceId(goalId)
+                    .relatedResourceId(contribution.getId())
+                    .newValues(Map.of("amount", request.getAmount(), "currentAmount", goal.getCurrentAmount()))
+                    .build());
+        }
 
         return ContributeResponse.builder()
                 .contributionId(contribution.getId())
@@ -517,6 +569,17 @@ public class GoalService {
         }
 
         goalRepository.save(goal);
+        if (systemAuditService != null) {
+            systemAuditService.record(AuditEventRequest.builder()
+                    .eventType(AuditEventType.GOAL_CONTRIBUTION_ADDED)
+                    .actorId(userId)
+                    .subjectUserId(userId)
+                    .resourceType("GOAL")
+                    .resourceId(goalId)
+                    .relatedResourceId(contribution.getId())
+                    .newValues(Map.of("amount", request.getAmount(), "currentAmount", goal.getCurrentAmount()))
+                    .build());
+        }
 
         return ContributeResponse.builder()
                 .contributionId(contribution.getId())
@@ -581,31 +644,6 @@ public class GoalService {
     }
 
     @Transactional
-    public GoalResponse.MilestoneInfo createMilestone(UUID userId, UUID goalId, CreateMilestoneRequest request) {
-        log.info("Creating milestone for goal: {}", goalId);
-
-        Goal goal = goalRepository.findByIdAndUserId(goalId, userId)
-                .orElseThrow(() -> new GoalNotFoundException("Không tìm thấy mục tiêu"));
-
-        // Check duplicate percentage
-        if (milestoneRepository.existsByGoalIdAndPercentage(goalId, request.getPercentage(), null)) {
-            throw new IllegalArgumentException("Milestone " + request.getPercentage() + "% đã tồn tại");
-        }
-
-        GoalMilestone milestone = GoalMilestone.builder()
-                .goal(goal)
-                .name(request.getName())
-                .percentage(request.getPercentage())
-                .targetAmount(request.getTargetAmount())
-                .reward(request.getReward())
-                .build();
-
-        milestone = milestoneRepository.save(milestone);
-
-        return mapMilestoneToResponse(milestone);
-    }
-
-    @Transactional
     public GoalResponse completeGoal(UUID userId, UUID goalId, CompleteGoalRequest request) {
         log.info("Completing goal: {}", goalId);
 
@@ -614,6 +652,21 @@ public class GoalService {
 
         goal.complete(request.getCompletedNote(), request.getActualAmountUsed());
         goalRepository.save(goal);
+        if (systemAuditService != null) {
+            systemAuditService.recordSimple(AuditEventType.GOAL_COMPLETED, "GOAL", goalId,
+                    Map.of("currentAmount", goal.getCurrentAmount()));
+        }
+
+        if (systemAuditService != null) {
+            systemAuditService.record(AuditEventRequest.builder()
+                    .eventType(AuditEventType.GOAL_CREATED)
+                    .actorId(userId)
+                    .subjectUserId(userId)
+                    .resourceType("GOAL")
+                    .resourceId(goal.getId())
+                    .newValues(Map.of("targetAmount", goal.getTargetAmount(), "currentAmount", goal.getCurrentAmount()))
+                    .build());
+        }
 
         return mapToResponse(goal, false);
     }
@@ -670,7 +723,6 @@ public class GoalService {
         return GoalSummaryResponse.builder()
                 .summary(summary)
                 .byType(byType)
-                .upcomingMilestones(new ArrayList<>()) // TODO: Implement
                 .build();
     }
 
@@ -740,11 +792,6 @@ public class GoalService {
             builder.contributions(contributions.stream()
                     .map(this::mapContributionToResponse)
                     .collect(Collectors.toList()));
-
-            // Milestones
-            builder.milestones(goal.getMilestones().stream()
-                    .map(this::mapMilestoneToResponse)
-                    .collect(Collectors.toList()));
         }
 
         // Completion info
@@ -775,18 +822,6 @@ public class GoalService {
                 .sourceAccountId(contribution.getSourceAccountId())
                 .sourceAccountName(accountName)
                 .contributedAt(contribution.getContributedAt())
-                .build();
-    }
-
-    private GoalResponse.MilestoneInfo mapMilestoneToResponse(GoalMilestone milestone) {
-        return GoalResponse.MilestoneInfo.builder()
-                .id(milestone.getId())
-                .name(milestone.getName())
-                .percentage(milestone.getPercentage())
-                .targetAmount(milestone.getTargetAmount())
-                .achieved(milestone.getAchieved())
-                .achievedAt(milestone.getAchievedAt())
-                .reward(milestone.getReward())
                 .build();
     }
 
@@ -826,17 +861,6 @@ public class GoalService {
             case MONTHLY: return now.plusMonths(1);
             case QUARTERLY: return now.plusMonths(3);
             default: return now.plusMonths(1);
-        }
-    }
-
-    private void checkAndUpdateMilestones(Goal goal) {
-        List<GoalMilestone> milestones = milestoneRepository.findUnachievedMilestones(goal.getId());
-        Double currentPercentage = goal.getPercentageComplete();
-        
-        for (GoalMilestone milestone : milestones) {
-            if (currentPercentage >= milestone.getPercentage()) {
-                milestoneRepository.markAsAchieved(milestone.getId());
-            }
         }
     }
 }

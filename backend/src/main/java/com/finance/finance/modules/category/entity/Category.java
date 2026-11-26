@@ -43,6 +43,7 @@ public class Category {
     private String icon;
     
     @Column(name = "color", length = 7)
+    @org.hibernate.annotations.JdbcTypeCode(org.hibernate.type.SqlTypes.CHAR)
     private String color;
     
     @Column(name = "is_system", nullable = false)

@@ -4,6 +4,10 @@ import com.finance.finance.common.enums.CategoryStatus;
 import com.finance.finance.common.enums.TransactionSource;
 import com.finance.finance.common.enums.TransactionType;
 import com.finance.finance.common.exception.BusinessException;
+import com.finance.finance.modules.audit.model.AuditEventType;
+import com.finance.finance.modules.audit.model.AuditSource;
+import com.finance.finance.modules.audit.service.AuditEventRequest;
+import com.finance.finance.modules.audit.service.SystemAuditService;
 import com.finance.finance.modules.transaction.dto.request.*;
 import com.finance.finance.modules.transaction.dto.response.*;
 import com.finance.finance.modules.transaction.entity.Transaction;
@@ -17,11 +21,11 @@ import com.finance.finance.modules.account.exception.AccountNotFoundException;
 import com.finance.finance.modules.account.repository.AccountRepository;
 import com.finance.finance.modules.category.entity.Category;
 import com.finance.finance.modules.category.repository.CategoryRepository;
-import com.finance.finance.modules.merchant.repository.MerchantRepository;
 import com.finance.finance.modules.group.repository.ChildWalletRepository;
 import com.finance.finance.common.upload.FileUploadValidator;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -54,9 +58,11 @@ public class TransactionService {
     
     private final TransactionRepository transactionRepository;
     private final TransactionMapper transactionMapper;
+
+    @Autowired(required = false)
+    private SystemAuditService systemAuditService;
     private final AccountRepository accountRepository;
     private final CategoryRepository categoryRepository;
-    private final MerchantRepository merchantRepository;
     private final FileUploadValidator fileUploadValidator;
     private final com.finance.finance.common.upload.ImageCompressionHelper imageCompressionHelper;
     private final com.finance.finance.modules.budget.repository.BudgetItemRepository budgetItemRepository;
@@ -130,11 +136,36 @@ public class TransactionService {
         
         // Build transaction entity
         Transaction transaction = buildTransaction(userId, request);
+        transaction.setBalanceBefore(balanceBefore);
+        transaction.setBalanceAfter(balanceAfter);
         
         // Save transaction
         Transaction saved = transactionRepository.save(transaction);
         
         log.info("Transaction created successfully: {}", saved.getId());
+
+        if (systemAuditService != null) {
+            AuditEventType txEvent = request.getTransactionType() == TransactionType.TRANSFER
+                    ? AuditEventType.TRANSACTION_TRANSFER_COMPLETED
+                    : AuditEventType.TRANSACTION_CREATED;
+            AuditSource txSource = request.getReceiptId() != null ? AuditSource.OCR : null;
+            systemAuditService.record(AuditEventRequest.builder()
+                    .eventType(txEvent)
+                    .actorId(userId)
+                    .subjectUserId(userId)
+                    .source(txSource)
+                    .resourceType("TRANSACTION")
+                    .resourceId(saved.getId())
+                    .relatedResourceId(saved.getToAccountId() != null ? saved.getToAccountId() : saved.getAccountId())
+                    .newValues(Map.of(
+                            "type", saved.getType().name(),
+                            "amount", saved.getAmount(),
+                            "accountId", saved.getAccountId(),
+                            "balanceBefore", balanceBefore,
+                            "balanceAfter", balanceAfter
+                    ))
+                    .build());
+        }
 
         // Check and trigger Budget Alert if expense
         if (request.getTransactionType() == TransactionType.EXPENSE && request.getCategoryId() != null) {
@@ -146,7 +177,6 @@ public class TransactionService {
         }
         
         TransactionResponse.CategoryDto catDto = mapToCategoryDto(category);
-        // Merchant and tags are optional - implement fetch logic when merchant/tag modules are fully integrated
         return transactionMapper.toResponse(
                 saved,
                 account.getName(),
@@ -154,9 +184,7 @@ public class TransactionService {
                 toAccount != null ? toAccount.getName() : null,
                 catDto,
                 balanceBefore,
-                balanceAfter,
-                null, // merchant
-                null  // tags
+                balanceAfter
         );
     }
     
@@ -182,9 +210,7 @@ public class TransactionService {
                 toAccount != null ? toAccount.getName() : null,
                 mapToCategoryDto(category),
                 null,
-                null,
-                null, // merchant
-                null  // tags
+                null
         );
     }
     
@@ -210,7 +236,6 @@ public class TransactionService {
                     filter.getToDate(),
                     filter.getAccountId(),
                     filter.getCategoryId(),
-                    filter.getMerchantId(),
                     filter.getTransactionType(),
                     filter.getMinAmount(),
                     filter.getMaxAmount(),
@@ -253,9 +278,7 @@ public class TransactionService {
                             toAcc != null ? toAcc.getName() : null,
                             mapToCategoryDto(cat),
                             null,
-                            null,
-                            null, // merchant
-                            null  // tags
+                            null
                     );
                 })
                 .toList();
@@ -315,6 +338,21 @@ public class TransactionService {
             // Save with optimistic locking
             Transaction updated = transactionRepository.save(transaction);
             log.info("Transaction updated successfully: {}", updated.getId());
+            if (systemAuditService != null) {
+                systemAuditService.record(AuditEventRequest.builder()
+                        .eventType(AuditEventType.TRANSACTION_UPDATED)
+                        .actorId(userId)
+                        .subjectUserId(userId)
+                        .resourceType("TRANSACTION")
+                        .resourceId(updated.getId())
+                        .relatedResourceId(updated.getAccountId())
+                        .newValues(Map.of(
+                                "amount", updated.getAmount(),
+                                "accountId", updated.getAccountId(),
+                                "occurredDate", String.valueOf(updated.getOccurredDate())
+                        ))
+                        .build());
+            }
 
             // Sync OCR receipt if linked
             syncLinkedReceiptOnUpdate(userId, updated);
@@ -344,10 +382,8 @@ public class TransactionService {
                     account != null ? account.getIcon() : null,
                     toAccount != null ? toAccount.getName() : null,
                     mapToCategoryDto(category),
-                    null,
-                    null,
-                    null, // merchant
-                    null  // tags
+                    updated.getBalanceBefore(),
+                    updated.getBalanceAfter()
             );
         } catch (ObjectOptimisticLockingFailureException e) {
             throw new VersionConflictException("Transaction has been modified by another process", 
@@ -395,6 +431,17 @@ public class TransactionService {
         syncLinkedScheduleOnDelete(transaction);
         
         log.info("Transaction deleted and balance reverted successfully: {}", transactionId);
+        if (systemAuditService != null) {
+            systemAuditService.record(AuditEventRequest.builder()
+                    .eventType(AuditEventType.TRANSACTION_DELETED)
+                    .actorId(userId)
+                    .subjectUserId(userId)
+                    .resourceType("TRANSACTION")
+                    .resourceId(transactionId)
+                    .relatedResourceId(transaction.getAccountId())
+                    .oldValues(Map.of("amount", transaction.getAmount(), "type", transaction.getType().name()))
+                    .build());
+        }
     }
 
     private void revertAccountBalancesForTransaction(UUID userId, Transaction transaction) {
@@ -424,18 +471,24 @@ public class TransactionService {
     private void applyAccountBalancesForTransaction(UUID userId, Transaction transaction) {
         if (transaction.getAccountId() == null) return;
         Account account = requireOwnedAccount(transaction.getAccountId(), userId, "source");
+        BigDecimal balanceBefore = account.getBalance();
+        BigDecimal balanceAfter = balanceBefore;
+
         if (transaction.getType() == TransactionType.EXPENSE) {
-            account.setBalance(account.getBalance().subtract(transaction.getAmount()));
+            balanceAfter = balanceBefore.subtract(transaction.getAmount());
+            account.setBalance(balanceAfter);
             accountRepository.save(account);
         } else if (transaction.getType() == TransactionType.INCOME) {
-            account.setBalance(account.getBalance().add(transaction.getAmount()));
+            balanceAfter = balanceBefore.add(transaction.getAmount());
+            account.setBalance(balanceAfter);
             accountRepository.save(account);
         } else if (transaction.getType() == TransactionType.TRANSFER) {
             BigDecimal deductAmount = transaction.getAmount();
             if (transaction.getFeeAmount() != null) {
                 deductAmount = deductAmount.add(transaction.getFeeAmount());
             }
-            account.setBalance(account.getBalance().subtract(deductAmount));
+            balanceAfter = balanceBefore.subtract(deductAmount);
+            account.setBalance(balanceAfter);
             accountRepository.save(account);
 
             Account toAccount = requireOwnedAccount(transaction.getToAccountId(), userId, "destination");
@@ -443,6 +496,9 @@ public class TransactionService {
             toAccount.setBalance(toAccount.getBalance().add(toAmount));
             accountRepository.save(toAccount);
         }
+
+        transaction.setBalanceBefore(balanceBefore);
+        transaction.setBalanceAfter(balanceAfter);
     }
 
     private void validateUpdateReferences(UUID userId, Transaction transaction, UpdateTransactionRequest request) {
@@ -467,11 +523,6 @@ public class TransactionService {
             if (categoryId == null || categoryRepository.findByIdAndUserIdOrSystem(categoryId, userId).isEmpty()) {
                 throw new BusinessException("Category not found: " + categoryId);
             }
-        }
-
-        if (request.getMerchantId() != null
-                && merchantRepository.findByIdAndUserIdOrSystem(request.getMerchantId(), userId).isEmpty()) {
-            throw new BusinessException("Merchant not found: " + request.getMerchantId());
         }
     }
 
@@ -1137,9 +1188,8 @@ public class TransactionService {
                 .accountId(request.getAccountId())
                 .toAccountId(request.getToAccountId())
                 .categoryId(request.getCategoryId())
-                .merchantId(request.getMerchantId())
                 .receiptId(request.getReceiptId())
-                .receiptUrl(request.getReceiptUrl())
+                .receiptUrl(com.finance.finance.common.upload.AttachmentUrlSigner.stripQuery(request.getReceiptUrl()))
                 .type(request.getTransactionType())
                 .amount(request.getAmount())
                 .currencyCode(request.getCurrencyCode())
@@ -1190,9 +1240,6 @@ public class TransactionService {
         if (request.getCategoryId() != null) {
             transaction.setCategoryId(request.getCategoryId());
         }
-        if (request.getMerchantId() != null) {
-            transaction.setMerchantId(request.getMerchantId());
-        }
         if (request.getNote() != null) {
             transaction.setNote(request.getNote());
         }
@@ -1237,7 +1284,6 @@ public class TransactionService {
                filter.getToDate() != null ||
                filter.getAccountId() != null ||
                filter.getCategoryId() != null ||
-               filter.getMerchantId() != null ||
                filter.getTransactionType() != null ||
                filter.getMinAmount() != null ||
                filter.getMaxAmount() != null ||
@@ -1384,9 +1430,7 @@ public class TransactionService {
                 toAccount != null ? toAccount.getName() : null,
                 mapToCategoryDto(category),
                 null,
-                null,
-                null, // merchant
-                null  // tags
+                null
         );
     }
 }

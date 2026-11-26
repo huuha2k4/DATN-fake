@@ -394,7 +394,7 @@ export function AIAssistantScreen({ onNotify }: { onNotify: (message: string) =>
         <header className="ai-chat-header">
           <div className="ai-chat-header-left">
             <div className="ai-avatar-badge">
-              <img src="/finai-avatar.png" alt="FinAI" className="ai-avatar-img" />
+              <img src="/finai-avatar.jpg" alt="FinAI" className="ai-avatar-img" />
             </div>
             <div>
               <h2 className="ai-header-title">FinAI Agent</h2>
@@ -419,7 +419,7 @@ export function AIAssistantScreen({ onNotify }: { onNotify: (message: string) =>
           {messages.length === 0 ? (
             <div className="welcome-hero-box">
               <div className="welcome-logo-badge">
-                <img src="/finai-avatar.png" alt="FinAI" className="ai-avatar-img" />
+                <img src="/finai-avatar.jpg" alt="FinAI" className="ai-avatar-img" />
               </div>
               <h1 className="welcome-title">Xin chào! Tôi có thể giúp gì cho bạn hôm nay?</h1>
               <p className="welcome-desc">
@@ -450,7 +450,7 @@ export function AIAssistantScreen({ onNotify }: { onNotify: (message: string) =>
                 >
                   {isAssistant && (
                     <div className="message-avatar assistant-avatar">
-                      <img src="/finai-avatar.png" alt="FinAI" className="ai-avatar-img" />
+                      <img src="/finai-avatar.jpg" alt="FinAI" className="ai-avatar-img" />
                     </div>
                   )}
                   <div className="message-bubble">
@@ -479,7 +479,7 @@ export function AIAssistantScreen({ onNotify }: { onNotify: (message: string) =>
           {isLoading && (
             <div className="chat-row assistant-row typing-row">
               <div className="message-avatar assistant-avatar">
-                <img src="/finai-avatar.png" alt="FinAI" className="ai-avatar-img" />
+                <img src="/finai-avatar.jpg" alt="FinAI" className="ai-avatar-img" />
               </div>
               <div className="ai-typing-indicator">
                 <div className="typing-dot" />

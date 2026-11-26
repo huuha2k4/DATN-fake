@@ -1,4 +1,5 @@
 import { useEffect, useState, useMemo, type FormEvent } from 'react';
+import { useQueryRevalidation } from '../../core/utils/useQueryRevalidation';
 import { FinanceIcon, type IconName } from '../../core/components/FinanceIcon';
 import {
   scheduleApi,
@@ -183,9 +184,9 @@ export function FinancialRemindersScreen({ onNotify }: Props) {
   const [isDeletingSchedule, setIsDeletingSchedule] = useState(false);
 
   // 1. Tải danh sách lịch và khoản nợ từ Backend
-  const loadSchedules = async () => {
+  const loadSchedules = async (silent = false) => {
     try {
-      setLoading(true);
+      if (!silent) setLoading(true);
       const [res, debtRes] = await Promise.all([
         scheduleApi.getSchedules({ size: 100 }).catch(() => []),
         debtApi.getDebts().catch(() => ({ debts: [] })),
@@ -230,6 +231,10 @@ export function FinancialRemindersScreen({ onNotify }: Props) {
     loadMetadata();
     loadSchedules();
   }, []);
+
+  useQueryRevalidation(['schedules:', 'debts:'], () => {
+    loadSchedules(true);
+  });
 
   // Điều khiển tháng
   const handlePrevMonth = () => {

@@ -6,12 +6,13 @@ import com.finance.finance.common.enums.ScheduleStatus;
 import com.finance.finance.common.enums.ScheduleType;
 import com.finance.finance.modules.account.entity.Account;
 import com.finance.finance.modules.account.repository.AccountRepository;
+import com.finance.finance.modules.audit.model.*;
+import com.finance.finance.modules.audit.service.AuditEventRequest;
+import com.finance.finance.modules.audit.service.SystemAuditService;
 import com.finance.finance.modules.user.entity.User;
 import com.finance.finance.modules.user.repository.UserRepository;
 import com.finance.finance.modules.category.entity.Category;
 import com.finance.finance.modules.category.repository.CategoryRepository;
-import com.finance.finance.modules.merchant.entity.Merchant;
-import com.finance.finance.modules.merchant.repository.MerchantRepository;
 import com.finance.finance.modules.schedule.dto.TransactionTemplate;
 import com.finance.finance.modules.schedule.dto.request.*;
 import com.finance.finance.modules.schedule.dto.response.*;
@@ -29,6 +30,7 @@ import com.finance.finance.modules.transaction.service.TransactionService;
 import com.finance.finance.common.enums.TransactionType;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
@@ -57,10 +59,12 @@ public class ScheduleService {
     private final UserRepository userRepository;
     private final AccountRepository accountRepository;
     private final CategoryRepository categoryRepository;
-    private final MerchantRepository merchantRepository;
     private final TransactionRepository transactionRepository;
     private final TransactionService transactionService;
     private final com.finance.finance.modules.notification.service.NotificationService notificationService;
+
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private SystemAuditService systemAuditService;
 
     /**
      * 1. Tạo schedule mới
@@ -223,7 +227,6 @@ public class ScheduleService {
                 schedule.setTemplateAccountId(null);
                 schedule.setTemplateToAccountId(null);
                 schedule.setTemplateCategoryId(null);
-                schedule.setTemplateMerchantId(null);
                 schedule.setTemplateAmount(null);
                 schedule.setTemplateCurrencyCode(null);
                 schedule.setTemplateDescription(null);
@@ -546,6 +549,20 @@ public class ScheduleService {
                 schedule.setNextOccurrenceDate(nextDate);
                 scheduleRepository.save(schedule);
                 ensurePendingOccurrence(schedule, nextDate);
+                if (systemAuditService != null) {
+                    UUID idempotentEventId = UUID.nameUUIDFromBytes(
+                            ("schedule_exec:" + schedule.getId() + ":" + dueDate).getBytes(java.nio.charset.StandardCharsets.UTF_8));
+                    systemAuditService.record(AuditEventRequest.builder()
+                            .eventId(idempotentEventId)
+                            .eventType(AuditEventType.RECURRING_TRANSACTION_EXECUTED)
+                            .actorType(AuditActorType.SYSTEM)
+                            .subjectUserId(schedule.getUser().getId())
+                            .source(AuditSource.SYSTEM_JOB)
+                            .correlationId("sched-" + schedule.getId() + "-" + dueDate)
+                            .resourceType("TRANSACTION")
+                            .resourceId(transactionId)
+                            .build());
+                }
                 sendNotification(schedule, "Lịch tài chính: " + schedule.getName(),
                         "Giao dịch định kỳ đã được thực hiện thành công.");
             } catch (Exception ex) {
@@ -554,6 +571,19 @@ public class ScheduleService {
                 occurrenceRepository.save(occurrence);
                 schedule.incrementFailed();
                 scheduleRepository.save(schedule);
+                if (systemAuditService != null) {
+                    systemAuditService.record(AuditEventRequest.builder()
+                            .eventType(AuditEventType.RECURRING_TRANSACTION_FAILED)
+                            .outcome(AuditOutcome.FAILURE)
+                            .severity(AuditSeverity.WARNING)
+                            .actorType(AuditActorType.SYSTEM)
+                            .subjectUserId(schedule.getUser().getId())
+                            .source(AuditSource.SYSTEM_JOB)
+                            .correlationId("sched-" + schedule.getId() + "-" + dueDate)
+                            .reasonCode("RECURRING_EXECUTION_FAILED")
+                            .policyOverride(AuditFailurePolicy.MANDATORY_REQUIRES_NEW)
+                            .build());
+                }
                 sendNotification(schedule, "Không thể thực hiện lịch: " + schedule.getName(),
                         "Vui lòng kiểm tra tài khoản và thông tin giao dịch rồi thử lại.");
             }
@@ -620,7 +650,6 @@ public class ScheduleService {
         schedule.setTemplateAmount(template.getAmount());
         schedule.setTemplateCurrencyCode(template.getCurrencyCode());
         schedule.setTemplateCategoryId(template.getCategoryId());
-        schedule.setTemplateMerchantId(template.getMerchantId());
         schedule.setTemplateDescription(template.getDescription());
         schedule.setTemplateNote(template.getNote());
     }
@@ -637,7 +666,6 @@ public class ScheduleService {
                         .amount(schedule.getTemplateAmount())
                         .currencyCode(schedule.getTemplateCurrencyCode())
                         .categoryId(schedule.getTemplateCategoryId())
-                        .merchantId(schedule.getTemplateMerchantId())
                         .description(schedule.getTemplateDescription())
                         .note(schedule.getTemplateNote())
                         .transactionDate(transactionDate)
@@ -792,7 +820,6 @@ public class ScheduleService {
                 .amount(schedule.getTemplateAmount() != null ? schedule.getTemplateAmount().toString() : null)
                 .currencyCode(schedule.getTemplateCurrencyCode())
                 .categoryId(schedule.getTemplateCategoryId())
-                .merchantId(schedule.getTemplateMerchantId())
                 .description(schedule.getTemplateDescription())
                 .note(schedule.getTemplateNote())
                 .build();
@@ -810,10 +837,6 @@ public class ScheduleService {
             categoryRepository.findById(schedule.getTemplateCategoryId())
                     .ifPresent(cat -> info.setCategoryName(cat.getName()));
         }
-        if (schedule.getTemplateMerchantId() != null) {
-            merchantRepository.findById(schedule.getTemplateMerchantId())
-                    .ifPresent(mer -> info.setMerchantName(mer.getName()));
-        }
 
         return info;
     }
@@ -826,7 +849,6 @@ public class ScheduleService {
                 .amount(schedule.getTemplateAmount() != null ? schedule.getTemplateAmount().toString() : null)
                 .currencyCode(schedule.getTemplateCurrencyCode())
                 .categoryId(schedule.getTemplateCategoryId())
-                .merchantId(schedule.getTemplateMerchantId())
                 .description(schedule.getTemplateDescription())
                 .note(schedule.getTemplateNote())
                 .build();
@@ -843,10 +865,6 @@ public class ScheduleService {
         if (schedule.getTemplateCategoryId() != null) {
             categoryRepository.findById(schedule.getTemplateCategoryId())
                     .ifPresent(cat -> detail.setCategoryName(cat.getName()));
-        }
-        if (schedule.getTemplateMerchantId() != null) {
-            merchantRepository.findById(schedule.getTemplateMerchantId())
-                    .ifPresent(mer -> detail.setMerchantName(mer.getName()));
         }
 
         return detail;

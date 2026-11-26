@@ -11,6 +11,7 @@ import { isAuthenticated, clearAuthData, getStoredUser } from '../../auth/api/au
 import { accountApi } from '../../account-management/api/accountApi'
 import { FinoraOnboardingWalkthroughWeb } from '../../onboarding/components/FinoraOnboardingWalkthrough'
 import { CompleteProfileModalWeb } from '../../onboarding/components/CompleteProfileModal'
+import { prefetchCoreRoutesOnIdle } from '../../core/utils/routePrefetch'
 
 const AddTransactionScreen = lazy(() => import('../../add-transaction/screen/AddTransactionScreen').then(m => ({ default: m.AddTransactionScreen })))
 const AccountManagementScreen = lazy(() => import('../../account-management/screen/AccountManagementScreen').then(m => ({ default: m.AccountManagementScreen })))
@@ -49,8 +50,14 @@ const AdminSystemHealthScreen = lazy(() => import('../../admin/screen/AdminSyste
 const AdminSettingsScreen = lazy(() => import('../../admin/screen/AdminSettingsScreen').then(m => ({ default: m.AdminSettingsScreen })))
 
 const RouteSuspenseFallback = () => (
-  <div className="flex min-h-[50vh] w-full items-center justify-center p-8 text-sm font-medium text-slate-500 dark:text-slate-400">
-    Đang tải màn hình...
+  <div className="w-full space-y-5 p-4 md:p-6 animate-pulse" aria-busy="true" aria-label="Đang tải nội dung">
+    <div className="h-8 w-56 rounded-xl bg-slate-200/80 dark:bg-slate-800/80" />
+    <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+      <div className="h-28 rounded-2xl bg-slate-200/70 dark:bg-slate-800/70" />
+      <div className="h-28 rounded-2xl bg-slate-200/70 dark:bg-slate-800/70" />
+      <div className="h-28 rounded-2xl bg-slate-200/70 dark:bg-slate-800/70" />
+    </div>
+    <div className="h-72 rounded-2xl bg-slate-200/60 dark:bg-slate-800/60" />
   </div>
 )
 
@@ -107,12 +114,17 @@ export default function AppScreen() {
     }
     
     checkAuth()
+
+    const cancelIdlePrefetch = isAuthenticated()
+      ? prefetchCoreRoutesOnIdle(getStoredUser()?.systemRole === 'ADMIN')
+      : () => {}
     
     // Listen to custom auth events and storage events
     window.addEventListener('storage', checkAuth)
     window.addEventListener('auth:logout', checkAuth)
     
     return () => {
+      cancelIdlePrefetch()
       window.removeEventListener('storage', checkAuth)
       window.removeEventListener('auth:logout', checkAuth)
     }
@@ -121,6 +133,10 @@ export default function AppScreen() {
   const checkOnboardingStatus = async () => {
     const user = getStoredUser()
     if (!user || user.systemRole === 'ADMIN' || user.childAccount) return
+    if (localStorage.getItem(`finora_onboarding_done_${user.id}`) === 'true') {
+      setShowOnboardingWizard(false)
+      return
+    }
 
     try {
       const accounts = await accountApi.getAccounts()
@@ -227,6 +243,7 @@ export default function AppScreen() {
     '/child-chores': 'Nhiệm vụ nhận thưởng',
     '/child-requests': 'Xin tiền bố mẹ',
     '/add-transaction': 'Thêm giao dịch',
+    '/scan-invoice': 'Thêm giao dịch',
     '/transactions': 'Quản lý Thu & Chi',
     '/budget': 'Quản lý Ngân sách',
     '/goals': 'Mục tiêu & Tiết kiệm',

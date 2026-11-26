@@ -1,4 +1,5 @@
 import { api } from '../../core/api/api';
+import { fetchWithCache, invalidateQueryCache } from '../../core/utils/queryCache';
 
 export type GoalType = 
   | 'EMERGENCY_FUND'
@@ -13,15 +14,6 @@ export type GoalType =
 export type GoalStatus = 'ACTIVE' | 'COMPLETED' | 'CANCELLED' | 'PAUSED';
 export type GoalPriority = 'LOW' | 'MEDIUM' | 'HIGH';
 export type AutoSaveFrequency = 'DAILY' | 'WEEKLY' | 'BI_WEEKLY' | 'MONTHLY';
-
-export interface MilestoneInfo {
-  id?: string;
-  name: string;
-  targetAmount: number;
-  targetDate?: string;
-  isReached?: boolean;
-  reachedAt?: string;
-}
 
 export interface ContributionInfo {
   id?: string;
@@ -64,7 +56,6 @@ export interface GoalResponse {
     averageMonthlyContribution?: number;
   };
   contributions?: ContributionInfo[];
-  milestones?: MilestoneInfo[];
   completedAt?: string;
   completedNote?: string;
   createdAt?: string;
@@ -141,15 +132,27 @@ export interface ContributeRequest {
 export const goalApi = {
   // Lấy danh sách mục tiêu
   getGoals: async (status?: GoalStatus): Promise<GoalListResponse> => {
-    const params = status ? { status } : {};
-    const res = await api.get<GoalListResponse>('/goals', { params });
-    return res.data;
+    return fetchWithCache(
+      `goals:list:${status || 'ALL'}`,
+      async () => {
+        const params = status ? { status } : {};
+        const res = await api.get<GoalListResponse>('/goals', { params });
+        return res.data;
+      },
+      { freshTimeMs: 20_000, staleTimeMs: 60_000 }
+    );
   },
 
   // Lấy tổng quan mục tiêu
   getGoalsSummary: async (): Promise<GoalSummaryResponse> => {
-    const res = await api.get<GoalSummaryResponse>('/goals/summary');
-    return res.data;
+    return fetchWithCache(
+      'goals:summary',
+      async () => {
+        const res = await api.get<GoalSummaryResponse>('/goals/summary');
+        return res.data;
+      },
+      { freshTimeMs: 20_000, staleTimeMs: 60_000 }
+    );
   },
 
   // Lấy chi tiết 1 mục tiêu
@@ -166,35 +169,41 @@ export const goalApi = {
       autoSaveEnabled: false,
       ...data,
     });
+    invalidateQueryCache('goals:');
     return res.data;
   },
 
   // Cập nhật mục tiêu
   updateGoal: async (id: string, data: UpdateGoalRequest): Promise<GoalResponse> => {
     const res = await api.put<GoalResponse>(`/goals/${id}`, data);
+    invalidateQueryCache('goals:');
     return res.data;
   },
 
   // Xóa mục tiêu
   deleteGoal: async (id: string): Promise<void> => {
     await api.delete(`/goals/${id}`);
+    invalidateQueryCache('goals:');
   },
 
   // Nạp tiền / đóng góp vào mục tiêu
   contribute: async (id: string, data: ContributeRequest): Promise<any> => {
     const res = await api.post(`/goals/${id}/contribute`, data);
+    invalidateQueryCache(['goals:', 'accounts:', 'transactions:']);
     return res.data;
   },
 
   // Rút tiền từ mục tiêu về ví/tài khoản
   withdraw: async (id: string, data: { amount: number; note?: string; targetAccountId?: string }): Promise<any> => {
     const res = await api.post(`/goals/${id}/withdraw`, data);
+    invalidateQueryCache(['goals:', 'accounts:', 'transactions:']);
     return res.data;
   },
 
   // Đánh dấu hoàn thành
   completeGoal: async (id: string, note?: string): Promise<GoalResponse> => {
     const res = await api.put<GoalResponse>(`/goals/${id}/complete`, { note });
+    invalidateQueryCache('goals:');
     return res.data;
   },
 };

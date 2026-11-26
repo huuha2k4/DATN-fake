@@ -42,7 +42,6 @@ public class GoalResponse {
     private AutoSaveSettings autoSave;
     private ProgressInfo progress;
     private List<ContributionInfo> contributions;
-    private List<MilestoneInfo> milestones;
     
     private LocalDateTime completedAt;
     private String completedNote;
@@ -86,19 +85,5 @@ public class GoalResponse {
         private UUID sourceAccountId;
         private String sourceAccountName;
         private LocalDateTime contributedAt;
-    }
-    
-    @Data
-    @Builder
-    @NoArgsConstructor
-    @AllArgsConstructor
-    public static class MilestoneInfo {
-        private UUID id;
-        private String name;
-        private Integer percentage;
-        private BigDecimal targetAmount;
-        private Boolean achieved;
-        private LocalDateTime achievedAt;
-        private String reward;
     }
 }

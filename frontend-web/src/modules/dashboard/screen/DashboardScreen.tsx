@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { FinanceIcon, resolveCategoryIconName, type IconName } from '../../core/components/FinanceIcon';
 import { subscribeFinAiActionCompleted } from '../../core/utils/finaiSyncEvents';
+import { subscribeQueryRevalidated } from '../../core/utils/queryCache';
 import { accountApi, type AccountItem, type AccountSummary } from '../../account-management/api/accountApi';
 import { transactionApi, type TransactionItem } from '../../cash-flow-management/api/transactionApi';
 import { budgetApi, type BudgetResponse } from '../../budget-management/api/budgetApi';
@@ -84,9 +85,9 @@ export function DashboardScreen({ onNotify, onAddTransaction }: Props) {
   }, [currentMonthKey]);
 
   // Tải dữ liệu toàn diện cho Dashboard
-  const loadDashboardData = async () => {
+  const loadDashboardData = async (silent = false) => {
     try {
-      setIsLoading(true);
+      if (!silent) setIsLoading(true);
 
       // Ví của bé là nguồn tiền độc lập do phụ huynh cấp, không được lẫn với
       // tài khoản riêng của trẻ hay cho phép thêm nhiều ví.
@@ -263,9 +264,18 @@ export function DashboardScreen({ onNotify, onAddTransaction }: Props) {
   useEffect(() => {
     loadDashboardData();
     const unsubscribeFinAi = subscribeFinAiActionCompleted(() => {
-      loadDashboardData();
+      loadDashboardData(true);
     });
-    return () => unsubscribeFinAi();
+    const unsubscribeSwr = subscribeQueryRevalidated(
+      ['accounts:', 'transactions:', 'budgets:', 'debts:'],
+      () => {
+        loadDashboardData(true);
+      }
+    );
+    return () => {
+      unsubscribeFinAi();
+      unsubscribeSwr();
+    };
   }, []);
 
   // Tính toán dữ liệu 4 tuần trong tháng hoàn toàn từ các giao dịch thực tế

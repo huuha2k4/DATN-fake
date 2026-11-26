@@ -1,4 +1,5 @@
 import { api } from '../../core/api/api';
+import { compressImageForUpload } from '../../core/utils/imageCompress';
 
 export interface UpdateProfileRequest {
   fullName?: string;
@@ -53,8 +54,13 @@ class UserApi {
    * Upload avatar image
    */
   async uploadAvatar(file: File): Promise<UserProfile> {
+    const compressedFile = await compressImageForUpload(file, {
+      maxDimension: 512,
+      quality: 0.82,
+      skipIfSmallerThanBytes: 80 * 1024,
+    });
     const formData = new FormData();
-    formData.append('file', file);
+    formData.append('file', compressedFile);
 
     const response = await api.post<UserProfile>('/users/me/avatar', formData, {
       headers: {

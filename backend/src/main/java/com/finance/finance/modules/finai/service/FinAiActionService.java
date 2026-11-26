@@ -3,6 +3,10 @@ package com.finance.finance.modules.finai.service;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.finance.finance.common.exception.BusinessException;
+import com.finance.finance.modules.audit.model.AuditEventType;
+import com.finance.finance.modules.audit.model.AuditSource;
+import com.finance.finance.modules.audit.service.AuditEventRequest;
+import com.finance.finance.modules.audit.service.SystemAuditService;
 import com.finance.finance.modules.finai.dto.FinAiActionResponse;
 import com.finance.finance.modules.finai.entity.*;
 import com.finance.finance.modules.finai.repository.*;
@@ -26,6 +30,9 @@ public class FinAiActionService {
     private final ObjectMapper objectMapper;
     @Value("${app.finai.action-ttl-minutes:15}") private long ttlMinutes;
 
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private SystemAuditService systemAuditService;
+
     @Transactional
     public FinAiActionResponse createPending(UUID userId, UUID conversationId, UUID planId,
                                              String toolName, Map<String, Object> arguments) {
@@ -40,6 +47,18 @@ public class FinAiActionService {
                 .expiresAt(Instant.now().plus(Duration.ofMinutes(ttlMinutes))).build();
         action = actions.save(action);
         audit(action, "PROPOSED", "Pending user confirmation");
+        if (systemAuditService != null) {
+            systemAuditService.record(AuditEventRequest.builder()
+                    .eventType(AuditEventType.FINAI_ACTION_PROPOSED)
+                    .actorId(userId)
+                    .subjectUserId(userId)
+                    .source(AuditSource.FINAI)
+                    .correlationId("finai-" + action.getId())
+                    .resourceType("FINAI_ACTION")
+                    .resourceId(action.getId())
+                    .metadata(Map.of("toolName", toolName))
+                    .build());
+        }
         return response(action);
     }
 
@@ -59,6 +78,18 @@ public class FinAiActionService {
         if (action.getStatus() != FinAiActionStatus.PENDING)
             throw new BusinessException("Only a pending action can be cancelled", "FINAI_ACTION_STATE_INVALID", HttpStatus.CONFLICT);
         action.setStatus(FinAiActionStatus.CANCELLED); audit(action, "CANCELLED", "Cancelled by authenticated user");
+        if (systemAuditService != null) {
+            systemAuditService.record(AuditEventRequest.builder()
+                    .eventType(AuditEventType.FINAI_ACTION_CANCELLED)
+                    .actorId(userId)
+                    .subjectUserId(userId)
+                    .source(AuditSource.FINAI)
+                    .correlationId("finai-" + action.getId())
+                    .resourceType("FINAI_ACTION")
+                    .resourceId(action.getId())
+                    .metadata(Map.of("toolName", action.getToolName()))
+                    .build());
+        }
         return response(action);
     }
 

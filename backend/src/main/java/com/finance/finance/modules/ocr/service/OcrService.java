@@ -2,6 +2,11 @@ package com.finance.finance.modules.ocr.service;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.finance.finance.common.enums.TransactionType;
+import com.finance.finance.common.exception.BusinessException;
+import com.finance.finance.modules.audit.model.AuditEventType;
+import com.finance.finance.modules.audit.model.AuditSource;
+import com.finance.finance.modules.audit.service.AuditEventRequest;
+import com.finance.finance.modules.audit.service.SystemAuditService;
 import com.finance.finance.modules.account.repository.AccountRepository;
 import com.finance.finance.modules.category.repository.CategoryRepository;
 import com.finance.finance.modules.ocr.dto.CreateTransactionFromOcrRequest;
@@ -52,6 +57,12 @@ public class OcrService {
     private final AccountRepository accountRepository;
     private final CategoryRepository categoryRepository;
     private final FileUploadValidator fileUploadValidator;
+
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private com.finance.finance.common.upload.AttachmentUrlSigner attachmentUrlSigner;
+
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private SystemAuditService systemAuditService;
 
     @Value("${app.ai.ocr-service-url}")
     private String aiServiceUrl;
@@ -198,6 +209,10 @@ public class OcrService {
                 .orElseThrow(() -> new EntityNotFoundException(
                         "Không tìm thấy receipt: " + req.getReceiptId()));
 
+        if (receipt.getTransactionId() != null) {
+            throw new BusinessException("Hóa đơn này đã được tạo giao dịch trước đó.", HttpStatus.CONFLICT);
+        }
+
         LocalDate txDate = receipt.getTransactionDate() != null
                 ? receipt.getTransactionDate()
                 : LocalDate.now();
@@ -259,6 +274,19 @@ public class OcrService {
         receipt.setTransactionId(txResponse.getId());
         receiptRepository.save(receipt);
 
+        if (systemAuditService != null) {
+            systemAuditService.record(AuditEventRequest.builder()
+                    .eventType(AuditEventType.OCR_TRANSACTION_CREATED)
+                    .actorId(userId)
+                    .subjectUserId(userId)
+                    .source(AuditSource.OCR)
+                    .resourceType("RECEIPT")
+                    .resourceId(receipt.getId())
+                    .relatedResourceId(txResponse.getId())
+                    .metadata(java.util.Map.of("amount", amount, "currency", currencyCode))
+                    .build());
+        }
+
         return txResponse;
     }
 
@@ -295,9 +323,12 @@ public class OcrService {
     // -----------------------------------------------------------------------
 
     private OcrReceiptResponse toResponse(Receipt r) {
+        String signedImageUrl = (attachmentUrlSigner != null && r.getImageUrl() != null)
+                ? attachmentUrlSigner.createReceiptUrl(r.getImageUrl(), r.getUserId())
+                : r.getImageUrl();
         return OcrReceiptResponse.builder()
                 .id(r.getId())
-                .imageUrl(r.getImageUrl())
+                .imageUrl(signedImageUrl)
                 .kind(r.getKind())
                 .merchantName(r.getMerchantName())
                 .transactionDate(r.getTransactionDate())

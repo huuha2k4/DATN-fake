@@ -1,4 +1,5 @@
 import { api } from '../../core/api/api';
+import { fetchWithCache, invalidateQueryCache, stableSerializeParams } from '../../core/utils/queryCache';
 
 export type DebtType = 'BORROWING' | 'LENDING';
 export type DebtStatus = 'ACTIVE' | 'PAID' | 'PAID_OFF' | 'OVERDUE';
@@ -146,8 +147,14 @@ export const debtApi = {
     const params: Record<string, string> = {};
     if (debtType) params.debt_type = debtType;
     if (status) params.status = status;
-    const res = await api.get('/debts', { params });
-    return res.data?.data || { debts: [], summary: { total_borrowing: 0, total_lending: 0, net_debt: 0 } };
+    return fetchWithCache(
+      `debts:list:${stableSerializeParams(params)}`,
+      async () => {
+        const res = await api.get('/debts', { params });
+        return res.data?.data || { debts: [], summary: { total_borrowing: 0, total_lending: 0, net_debt: 0 } };
+      },
+      { freshTimeMs: 20_000, staleTimeMs: 60_000 }
+    );
   },
 
   // Chi tiết 1 khoản nợ
@@ -165,24 +172,28 @@ export const debtApi = {
   // Tạo khoản nợ mới
   createDebt: async (payload: CreateDebtPayload) => {
     const res = await api.post('/debts', payload);
+    invalidateQueryCache('debts:');
     return res.data;
   },
 
   // Cập nhật khoản nợ
   updateDebt: async (id: number, payload: Partial<CreateDebtPayload>) => {
     const res = await api.put(`/debts/${id}`, payload);
+    invalidateQueryCache('debts:');
     return res.data;
   },
 
   // Xóa khoản nợ
   deleteDebt: async (id: number) => {
     const res = await api.delete(`/debts/${id}`);
+    invalidateQueryCache('debts:');
     return res.data;
   },
 
   // Ghi nhận thanh toán / trả nợ
   recordPayment: async (id: number, payload: RecordPaymentPayload) => {
     const res = await api.post(`/debts/${id}/payments`, payload);
+    invalidateQueryCache(['debts:', 'accounts:', 'transactions:']);
     return res.data;
   },
 };

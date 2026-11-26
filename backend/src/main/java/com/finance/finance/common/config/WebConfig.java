@@ -2,6 +2,7 @@ package com.finance.finance.common.config;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.CacheControl;
 import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.filter.CommonsRequestLoggingFilter;
@@ -9,6 +10,7 @@ import org.springframework.web.servlet.config.annotation.ResourceHandlerRegistry
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
 import java.nio.file.Paths;
+import java.util.concurrent.TimeUnit;
 
 @Configuration
 public class WebConfig implements WebMvcConfigurer {
@@ -34,17 +36,17 @@ public class WebConfig implements WebMvcConfigurer {
 
     @Override
     public void addResourceHandlers(ResourceHandlerRegistry registry) {
-        addUploadResourceHandler(registry, "avatars");
-        addUploadResourceHandler(registry, "receipts");
-        // Group-message files are intentionally excluded. They are served only through
-        // short-lived signed URLs after group membership has been checked.
+        // Avatars use UUID filenames and are public profile assets -> safe for 30-day public cache.
+        addUploadResourceHandler(registry, "avatars", CacheControl.maxAge(30, TimeUnit.DAYS).cachePublic());
+        // Receipts / OCR scans are served exclusively by ReceiptMediaController with ownership/signature checks.
+        // Group-message files are served only through short-lived signed URLs after group membership checks.
     }
 
-    private void addUploadResourceHandler(ResourceHandlerRegistry registry, String directory) {
+    private void addUploadResourceHandler(ResourceHandlerRegistry registry, String directory, CacheControl cacheControl) {
         String uploadPath = Paths.get("uploads", directory).toAbsolutePath().toUri().toString();
         if (!uploadPath.endsWith("/")) uploadPath += "/";
         registry.addResourceHandler("/uploads/" + directory + "/**")
                 .addResourceLocations(uploadPath)
-                .setCachePeriod(86400 * 30);
+                .setCacheControl(cacheControl);
     }
 }

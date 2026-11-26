@@ -3,6 +3,9 @@ package com.finance.finance.modules.finai.service;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.finance.finance.common.exception.BusinessException;
+import com.finance.finance.modules.audit.model.*;
+import com.finance.finance.modules.audit.service.AuditEventRequest;
+import com.finance.finance.modules.audit.service.SystemAuditService;
 import com.finance.finance.modules.finai.entity.*;
 import com.finance.finance.modules.finai.repository.*;
 import com.finance.finance.modules.finai.tool.FinAiToolExecutor;
@@ -20,6 +23,9 @@ public class FinAiActionExecutionService {
     private final FinAiActionAuditRepository audits;
     private final FinAiToolExecutor executor;
     private final ObjectMapper objectMapper;
+
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private SystemAuditService systemAuditService;
 
     /** Business write and COMPLETED status commit in the same database transaction. */
     @Transactional
@@ -41,6 +47,19 @@ public class FinAiActionExecutionService {
             Object result = executor.executeWrite(userId, action.getToolName(), arguments(action));
             action.setResultJson(objectMapper.writeValueAsString(result)); action.setExecutedAt(Instant.now());
             action.setStatus(FinAiActionStatus.COMPLETED); audit(action, "EXECUTED", "Business service completed");
+            if (systemAuditService != null) {
+                systemAuditService.record(AuditEventRequest.builder()
+                        .eventId(UUID.nameUUIDFromBytes(("finai_exec:" + action.getId()).getBytes(java.nio.charset.StandardCharsets.UTF_8)))
+                        .eventType(AuditEventType.FINAI_ACTION_EXECUTED)
+                        .actorId(userId)
+                        .subjectUserId(userId)
+                        .source(AuditSource.FINAI)
+                        .correlationId("finai-" + action.getId())
+                        .resourceType("FINAI_ACTION")
+                        .resourceId(action.getId())
+                        .metadata(Map.of("toolName", action.getToolName()))
+                        .build());
+            }
         } catch (Exception ex) {
             throw new FinAiExecutionException(safeError(ex), ex);
         }
@@ -54,6 +73,22 @@ public class FinAiActionExecutionService {
         if (action.getStatus() != FinAiActionStatus.PENDING) return;
         action.setStatus(FinAiActionStatus.FAILED); action.setExecutedAt(Instant.now());
         action.setError(error.substring(0, Math.min(error.length(), 1000))); audit(action, "FAILED", action.getError());
+        if (systemAuditService != null) {
+            systemAuditService.record(AuditEventRequest.builder()
+                    .eventType(AuditEventType.FINAI_ACTION_EXECUTION_FAILED)
+                    .outcome(AuditOutcome.FAILURE)
+                    .severity(AuditSeverity.WARNING)
+                    .actorId(userId)
+                    .subjectUserId(userId)
+                    .source(AuditSource.FINAI)
+                    .correlationId("finai-" + action.getId())
+                    .resourceType("FINAI_ACTION")
+                    .resourceId(action.getId())
+                    .reasonCode("FINAI_EXECUTION_FAILED")
+                    .metadata(Map.of("toolName", action.getToolName()))
+                    .policyOverride(AuditFailurePolicy.MANDATORY_REQUIRES_NEW)
+                    .build());
+        }
     }
 
     private void audit(FinAiPendingAction action, String event, String detail) {

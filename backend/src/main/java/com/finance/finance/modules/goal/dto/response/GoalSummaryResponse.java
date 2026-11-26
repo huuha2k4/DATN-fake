@@ -20,7 +20,6 @@ public class GoalSummaryResponse {
     
     private Summary summary;
     private List<ByType> byType;
-    private List<UpcomingMilestone> upcomingMilestones;
     
     @Data
     @Builder
@@ -46,16 +45,5 @@ public class GoalSummaryResponse {
         private Integer count;
         private BigDecimal totalTarget;
         private BigDecimal totalSaved;
-    }
-    
-    @Data
-    @Builder
-    @NoArgsConstructor
-    @AllArgsConstructor
-    public static class UpcomingMilestone {
-        private String goalName;
-        private String milestone;
-        private BigDecimal amountNeeded;
-        private LocalDate estimatedDate;
     }
 }

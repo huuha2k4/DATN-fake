@@ -6,6 +6,10 @@ import com.finance.finance.common.enums.UserStatus;
 import com.finance.finance.common.exception.BusinessException;
 import com.finance.finance.common.security.JwtTokenProvider;
 import com.finance.finance.common.service.EmailService;
+import com.finance.finance.modules.audit.model.*;
+import com.finance.finance.modules.audit.sanitizer.AuditDataSanitizer;
+import com.finance.finance.modules.audit.service.AuditEventRequest;
+import com.finance.finance.modules.audit.service.SystemAuditService;
 import com.finance.finance.modules.auth.dto.request.*;
 import com.finance.finance.modules.auth.dto.response.AuthResponse;
 import com.finance.finance.modules.auth.dto.response.MessageResponse;
@@ -48,6 +52,8 @@ public class AuthService {
     private final UserRepository userRepository;
     private final AuthTokenRepository authTokenRepository;
     private final TokenService tokenService;
+    private final SystemAuditService systemAuditService;
+    private final AuditDataSanitizer auditDataSanitizer;
 
     @Transactional(readOnly = true)
     public List<Map<String, Object>> getActiveDevices(User user) {
@@ -198,6 +204,14 @@ public class AuthService {
 
         user = userRepository.save(user);
         log.info("User registered successfully: {}", user.getId());
+        systemAuditService.record(AuditEventRequest.builder()
+                .eventType(AuditEventType.AUTH_REGISTER_SUCCESS)
+                .actorId(user.getId())
+                .actorType(AuditActorType.USER)
+                .subjectUserId(user.getId())
+                .resourceType("USER")
+                .resourceId(user.getId())
+                .build());
 
         // Send automatic welcome notification
         try {
@@ -243,7 +257,19 @@ public class AuthService {
 
         // Find user by email or username
         User user = userRepository.findActiveUserByEmailOrUsername(request.getLogin())
-                .orElseThrow(() -> new InvalidCredentialsException("Email/Username hoặc mật khẩu không đúng"));
+                .orElseThrow(() -> {
+                    systemAuditService.record(AuditEventRequest.builder()
+                            .eventType(AuditEventType.AUTH_LOGIN_FAILURE)
+                            .outcome(AuditOutcome.FAILURE)
+                            .severity(AuditSeverity.WARNING)
+                            .actorType(AuditActorType.ANONYMOUS)
+                            .reasonCode("INVALID_CREDENTIALS")
+                            .errorCode("INVALID_CREDENTIALS")
+                            .metadata(Map.of("loginHmac", String.valueOf(auditDataSanitizer.hmacIdentifier(request.getLogin()))))
+                            .policyOverride(AuditFailurePolicy.MANDATORY_REQUIRES_NEW)
+                            .build());
+                    return new InvalidCredentialsException("Email/Username hoặc mật khẩu không đúng");
+                });
 
         if (maintenanceMode && user.getSystemRole() != com.finance.finance.common.enums.SystemRole.ADMIN) {
             throw new BusinessException("Hệ thống Finora hiện đang trong thời gian bảo trì nâng cấp. Vui lòng quay lại sau ít phút!");
@@ -251,6 +277,18 @@ public class AuthService {
 
         // Check if account is locked
         if (user.getLockedUntil() != null && user.getLockedUntil().isAfter(Instant.now())) {
+            systemAuditService.record(AuditEventRequest.builder()
+                    .eventType(AuditEventType.AUTH_LOGIN_FAILURE)
+                    .outcome(AuditOutcome.DENIED)
+                    .severity(AuditSeverity.HIGH)
+                    .actorId(user.getId())
+                    .actorType(AuditActorType.USER)
+                    .subjectUserId(user.getId())
+                    .resourceType("USER")
+                    .resourceId(user.getId())
+                    .reasonCode("ACCOUNT_LOCKED")
+                    .policyOverride(AuditFailurePolicy.MANDATORY_REQUIRES_NEW)
+                    .build());
             throw new AccountLockedException("Tài khoản đã bị khóa do đăng nhập sai nhiều lần", user.getLockedUntil());
         }
 
@@ -264,6 +302,18 @@ public class AuthService {
         // Verify password
         if (!passwordEncoder.matches(request.getPassword(), user.getPasswordHash())) {
             handleFailedLogin(user);
+            systemAuditService.record(AuditEventRequest.builder()
+                    .eventType(AuditEventType.AUTH_LOGIN_FAILURE)
+                    .outcome(AuditOutcome.FAILURE)
+                    .severity(AuditSeverity.WARNING)
+                    .actorId(user.getId())
+                    .actorType(AuditActorType.USER)
+                    .subjectUserId(user.getId())
+                    .resourceType("USER")
+                    .resourceId(user.getId())
+                    .reasonCode("INVALID_PASSWORD")
+                    .policyOverride(AuditFailurePolicy.MANDATORY_REQUIRES_NEW)
+                    .build());
             throw new InvalidCredentialsException("Email/Username hoặc mật khẩu không đúng");
         }
 
@@ -316,10 +366,32 @@ public class AuthService {
                     // Try finding by user ID
                     authToken = authTokenRepository.findByTokenAndTokenType(inputOtp, com.finance.finance.common.enums.TokenType.PASSWORD_RESET)
                             .filter(t -> t.getUser() != null && t.getUser().getId().equals(user.getId()) && !t.isUsed() && t.getExpiresAt().isAfter(Instant.now()))
-                            .orElseThrow(() -> new BusinessException("Mã xác thực 2FA không đúng hoặc đã hết hạn"));
+                            .orElseThrow(() -> {
+                                systemAuditService.record(AuditEventRequest.builder()
+                                        .eventType(AuditEventType.AUTH_2FA_VERIFY_FAILURE)
+                                        .outcome(AuditOutcome.FAILURE)
+                                        .severity(AuditSeverity.HIGH)
+                                        .actorId(user.getId())
+                                        .actorType(AuditActorType.USER)
+                                        .subjectUserId(user.getId())
+                                        .resourceType("USER")
+                                        .resourceId(user.getId())
+                                        .reasonCode("INVALID_2FA_OTP")
+                                        .policyOverride(AuditFailurePolicy.MANDATORY_REQUIRES_NEW)
+                                        .build());
+                                return new BusinessException("Mã xác thực 2FA không đúng hoặc đã hết hạn");
+                            });
                 }
                 authToken.setUsed(true);
                 authTokenRepository.save(authToken);
+                systemAuditService.record(AuditEventRequest.builder()
+                        .eventType(AuditEventType.AUTH_2FA_VERIFY_SUCCESS)
+                        .actorId(user.getId())
+                        .actorType(AuditActorType.USER)
+                        .subjectUserId(user.getId())
+                        .resourceType("USER")
+                        .resourceId(user.getId())
+                        .build());
             }
         }
 
@@ -331,6 +403,15 @@ public class AuthService {
         // TODO: Implement device tracking and send alert for new devices
 
         log.info("User logged in successfully: {}", user.getId());
+        systemAuditService.record(AuditEventRequest.builder()
+                .eventType(AuditEventType.AUTH_LOGIN_SUCCESS)
+                .actorId(user.getId())
+                .actorType(user.getSystemRole() == SystemRole.ADMIN ? AuditActorType.ADMIN : AuditActorType.USER)
+                .subjectUserId(user.getId())
+                .resourceType("USER")
+                .resourceId(user.getId())
+                .metadata(Map.of("mfaEnabled", user.isMfaEnabled()))
+                .build());
 
         // Build response
         UserResponse userResponse = withChildWalletContext(userMapper.toResponse(user), user.getId());
@@ -359,6 +440,16 @@ public class AuthService {
             // For now, revoke all tokens
             tokenService.revokeAllUserTokens(user.getId());
         }
+
+        systemAuditService.record(AuditEventRequest.builder()
+                .eventType(AuditEventType.AUTH_LOGOUT)
+                .actorId(user.getId())
+                .actorType(user.getSystemRole() == SystemRole.ADMIN ? AuditActorType.ADMIN : AuditActorType.USER)
+                .subjectUserId(user.getId())
+                .resourceType("USER")
+                .resourceId(user.getId())
+                .metadata(Map.of("allDevices", allDevices))
+                .build());
 
         return new MessageResponse("Đăng xuất thành công");
     }
@@ -502,6 +593,15 @@ public class AuthService {
         // Revoke all refresh tokens for security
         tokenService.revokeAllUserTokens(user.getId());
 
+        systemAuditService.record(AuditEventRequest.builder()
+                .eventType(AuditEventType.AUTH_PASSWORD_RESET_COMPLETED)
+                .actorId(user.getId())
+                .actorType(AuditActorType.USER)
+                .subjectUserId(user.getId())
+                .resourceType("USER")
+                .resourceId(user.getId())
+                .build());
+
         log.info("Password reset successfully for user: {}", user.getId());
 
         return new MessageResponse("Mật khẩu đã được đặt lại thành công");
@@ -624,6 +724,19 @@ public class AuthService {
             );
             
             log.warn("Account locked due to too many failed attempts: {}", user.getEmail());
+            systemAuditService.record(AuditEventRequest.builder()
+                    .eventType(AuditEventType.AUTH_ACCOUNT_LOCKED)
+                    .outcome(AuditOutcome.DENIED)
+                    .severity(AuditSeverity.HIGH)
+                    .actorId(user.getId())
+                    .actorType(AuditActorType.USER)
+                    .subjectUserId(user.getId())
+                    .resourceType("USER")
+                    .resourceId(user.getId())
+                    .reasonCode("MAX_LOGIN_ATTEMPTS_EXCEEDED")
+                    .metadata(Map.of("attempts", attempts))
+                    .policyOverride(AuditFailurePolicy.MANDATORY_REQUIRES_NEW)
+                    .build());
         }
 
         userRepository.save(user);
@@ -729,11 +842,27 @@ public class AuthService {
             idToken = verifier.verify(request.getIdToken());
         } catch (Exception e) {
             log.error("Failed to verify Google ID Token: {}", e.getMessage(), e);
+            systemAuditService.record(AuditEventRequest.builder()
+                    .eventType(AuditEventType.AUTH_GOOGLE_LOGIN_FAILURE)
+                    .outcome(AuditOutcome.FAILURE)
+                    .severity(AuditSeverity.WARNING)
+                    .actorType(AuditActorType.ANONYMOUS)
+                    .reasonCode("INVALID_GOOGLE_TOKEN")
+                    .policyOverride(AuditFailurePolicy.MANDATORY_REQUIRES_NEW)
+                    .build());
             throw new com.finance.finance.common.exception.BusinessException("Token Google không hợp lệ hoặc đã hết hạn: " + e.getMessage());
         }
 
         if (idToken == null) {
             log.warn("GoogleIdToken is null after verifier.verify for token length={}", request.getIdToken() != null ? request.getIdToken().length() : 0);
+            systemAuditService.record(AuditEventRequest.builder()
+                    .eventType(AuditEventType.AUTH_GOOGLE_LOGIN_FAILURE)
+                    .outcome(AuditOutcome.FAILURE)
+                    .severity(AuditSeverity.WARNING)
+                    .actorType(AuditActorType.ANONYMOUS)
+                    .reasonCode("GOOGLE_TOKEN_AUDIENCE_MISMATCH")
+                    .policyOverride(AuditFailurePolicy.MANDATORY_REQUIRES_NEW)
+                    .build());
             throw new com.finance.finance.common.exception.BusinessException("Xác thực Google thất bại (Token không khớp audience hoặc không hợp lệ)");
         }
 
@@ -828,6 +957,16 @@ public class AuthService {
 
         String accessToken = jwtTokenProvider.generateAccessToken(user);
         RefreshToken refreshToken = tokenService.createRefreshToken(user, deviceId, deviceName);
+
+        systemAuditService.record(AuditEventRequest.builder()
+                .eventType(AuditEventType.AUTH_GOOGLE_LOGIN_SUCCESS)
+                .actorId(user.getId())
+                .actorType(user.getSystemRole() == SystemRole.ADMIN ? AuditActorType.ADMIN : AuditActorType.USER)
+                .subjectUserId(user.getId())
+                .resourceType("USER")
+                .resourceId(user.getId())
+                .metadata(Map.of("isNewUser", isNewRegistration))
+                .build());
 
         UserResponse userResponse = withChildWalletContext(userMapper.toResponse(user), user.getId());
 

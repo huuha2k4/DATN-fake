@@ -3,6 +3,9 @@ package com.finance.finance.modules.group.service;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.finance.finance.common.enums.ActivityType;
 import com.finance.finance.common.enums.SplitMethod;
+import com.finance.finance.modules.audit.model.AuditEventType;
+import com.finance.finance.modules.audit.service.AuditEventRequest;
+import com.finance.finance.modules.audit.service.SystemAuditService;
 import com.finance.finance.modules.group.dto.request.CreateExpenseRequest;
 import com.finance.finance.modules.group.dto.request.UpdateExpenseRequest;
 import com.finance.finance.modules.group.dto.response.BalanceResponse;
@@ -43,6 +46,9 @@ public class GroupExpenseService {
     private final GroupFundRepository groupFundRepository;
     private final GroupRepository groupRepository;
     private final com.finance.finance.modules.account.repository.AccountRepository accountRepository;
+
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private SystemAuditService systemAuditService;
     private final TransactionService transactionService;
     private final GroupFundContributionRepository groupFundContributionRepository;
     private final com.finance.finance.modules.category.repository.CategoryRepository categoryRepository;
@@ -125,6 +131,16 @@ public class GroupExpenseService {
             splits.add(split);
         }
         expenseSplitRepository.saveAll(splits);
+        if (systemAuditService != null) {
+            systemAuditService.record(AuditEventRequest.builder()
+                    .eventType(AuditEventType.GROUP_EXPENSE_CREATED)
+                    .actorId(currentUserId)
+                    .groupId(groupId)
+                    .resourceType("GROUP_EXPENSE")
+                    .resourceId(expense.getId())
+                    .newValues(Map.of("amount", expense.getAmount(), "splitMethod", expense.getSplitMethod().name()))
+                    .build());
+        }
 
         // Log activity
         logActivity(groupId, currentUserId, ActivityType.EXPENSE_ADDED,
@@ -267,6 +283,16 @@ public class GroupExpenseService {
 
         expense.setDeletedAt(LocalDateTime.now());
         groupExpenseRepository.save(expense);
+        if (systemAuditService != null) {
+            systemAuditService.record(AuditEventRequest.builder()
+                    .eventType(AuditEventType.GROUP_EXPENSE_DELETED)
+                    .actorId(currentUserId)
+                    .groupId(groupId)
+                    .resourceType("GROUP_EXPENSE")
+                    .resourceId(expenseId)
+                    .oldValues(Map.of("amount", expense.getAmount()))
+                    .build());
+        }
 
         // Soft delete transaction cá nhân nếu có
         if (expense.getPersonalTransactionId() != null) {

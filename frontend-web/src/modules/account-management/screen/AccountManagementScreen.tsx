@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useQueryRevalidation } from '../../core/utils/useQueryRevalidation';
 import { FinanceIcon, resolveCategoryIconName, type IconName } from '../../core/components/FinanceIcon';
 import { subscribeFinAiActionCompleted } from '../../core/utils/finaiSyncEvents';
 import { 
@@ -79,9 +80,9 @@ export function AccountManagementScreen({ onNotify, onAccountsChange }: Props) {
     }
   };
 
-  const loadData = async () => {
+  const loadData = async (silent = false) => {
     try {
-      setLoading(true);
+      if (!silent) setLoading(true);
       const [accountsRes, summaryRes] = await Promise.all([
         accountApi.getAccounts({ includeInactive: true }).catch(() => []),
         accountApi.getSummary().catch(() => null)
@@ -118,10 +119,14 @@ export function AccountManagementScreen({ onNotify, onAccountsChange }: Props) {
   useEffect(() => {
     loadData();
     const unsubscribe = subscribeFinAiActionCompleted(() => {
-      loadData();
+      loadData(true);
     });
     return () => unsubscribe();
   }, []);
+
+  useQueryRevalidation('accounts:', () => {
+    loadData(true);
+  });
 
   useEffect(() => {
     onAccountsChange?.(accounts.length);

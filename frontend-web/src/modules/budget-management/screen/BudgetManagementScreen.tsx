@@ -1,4 +1,5 @@
 import { useEffect, useState, useMemo } from 'react';
+import { useQueryRevalidation } from '../../core/utils/useQueryRevalidation';
 import { FinanceIcon, resolveCategoryIconName, type IconName } from '../../core/components/FinanceIcon';
 import { ConfirmDeleteModal } from '../../core/components/ConfirmDeleteModal';
 import { subscribeFinAiActionCompleted } from '../../core/utils/finaiSyncEvents';
@@ -93,9 +94,9 @@ export function BudgetManagementScreen({ onNotify }: Props) {
   }, []);
 
   // Tải ngân sách của tháng đang chọn
-  const loadBudgetForSelectedMonth = async () => {
+  const loadBudgetForSelectedMonth = async (silent = false) => {
     try {
-      setIsLoading(true);
+      if (!silent) setIsLoading(true);
       const [yStr, mStr] = selectedMonth.split('-');
       const year = parseInt(yStr, 10);
       const month = parseInt(mStr, 10);
@@ -134,11 +135,16 @@ export function BudgetManagementScreen({ onNotify }: Props) {
   useEffect(() => {
     loadCategories();
     const unsubscribeFinAi = subscribeFinAiActionCompleted(() => {
-      loadBudgetForSelectedMonth();
+      loadBudgetForSelectedMonth(true);
       loadCategories();
     });
     return () => unsubscribeFinAi();
   }, []);
+
+  useQueryRevalidation(['budgets:', 'categories:'], () => {
+    loadBudgetForSelectedMonth(true);
+    loadCategories();
+  });
 
   // Lấy các item con (các ngân sách nhỏ của từng danh mục)
   const budgetItems = useMemo(() => {

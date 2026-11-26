@@ -64,7 +64,6 @@ public class TransactionController {
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate toDate,
             @RequestParam(required = false) UUID accountId,
             @RequestParam(required = false) UUID categoryId,
-            @RequestParam(required = false) UUID merchantId,
             @RequestParam(required = false) String transactionType,
             @RequestParam(required = false) java.math.BigDecimal minAmount,
             @RequestParam(required = false) java.math.BigDecimal maxAmount,
@@ -85,7 +84,6 @@ public class TransactionController {
                 .toDate(toDate)
                 .accountId(accountId)
                 .categoryId(categoryId)
-                .merchantId(merchantId)
                 .transactionType(transactionType != null ? 
                         com.finance.finance.common.enums.TransactionType.valueOf(transactionType) : null)
                 .minAmount(minAmount)

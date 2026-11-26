@@ -76,13 +76,8 @@ public interface GoalRepository extends JpaRepository<Goal, UUID> {
            "WHERE g.id = :id AND g.userId = :userId AND g.deletedAt IS NULL")
     Optional<Goal> findByIdWithContributions(@Param("id") UUID id, @Param("userId") UUID userId);
 
-    @Query("SELECT g FROM Goal g LEFT JOIN FETCH g.milestones " +
-           "WHERE g.id = :id AND g.userId = :userId AND g.deletedAt IS NULL")
-    Optional<Goal> findByIdWithMilestones(@Param("id") UUID id, @Param("userId") UUID userId);
-
     @Query("SELECT g FROM Goal g " +
            "LEFT JOIN FETCH g.contributions " +
-           "LEFT JOIN FETCH g.milestones " +
            "WHERE g.id = :id AND g.userId = :userId AND g.deletedAt IS NULL")
     Optional<Goal> findByIdWithAll(@Param("id") UUID id, @Param("userId") UUID userId);
 

@@ -4,6 +4,11 @@ import com.finance.finance.common.enums.SubscriptionTier;
 import com.finance.finance.common.enums.UserStatus;
 import com.finance.finance.modules.admin.dto.request.AdminUpdateUserRequest;
 import com.finance.finance.modules.admin.dto.response.AdminDashboardOverviewResponse;
+import com.finance.finance.modules.audit.model.AuditActorType;
+import com.finance.finance.modules.audit.model.AuditEventType;
+import com.finance.finance.modules.audit.model.AuditSource;
+import com.finance.finance.modules.audit.service.AuditEventRequest;
+import com.finance.finance.modules.audit.service.SystemAuditService;
 import com.finance.finance.modules.group.repository.GroupRepository;
 import com.finance.finance.modules.ocr.repository.ReceiptRepository;
 import com.finance.finance.modules.transaction.repository.TransactionRepository;
@@ -50,6 +55,9 @@ public class AdminService {
     private final com.finance.finance.modules.analytics.client.AiAnalyticsClient aiAnalyticsClient;
     private final javax.sql.DataSource dataSource;
     private final UserMapper userMapper;
+
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private SystemAuditService systemAuditService;
 
     private static final ZoneId ZONE_VN = ZoneId.of("Asia/Ho_Chi_Minh");
 
@@ -175,8 +183,25 @@ public class AdminService {
         if (request.getUserStatus() != null) {
             user.setUserStatus(request.getUserStatus());
         }
-        if (request.getSystemRole() != null) {
-            user.setSystemRole(request.getSystemRole());
+        if (request.getSystemRole() != null && request.getSystemRole() != user.getSystemRole()) {
+            if (systemAuditService != null) {
+                systemAuditService.record(AuditEventRequest.builder()
+                        .eventType(AuditEventType.INVALID_ROLE_ACCESS)
+                        .outcome(com.finance.finance.modules.audit.model.AuditOutcome.DENIED)
+                        .severity(com.finance.finance.modules.audit.model.AuditSeverity.HIGH)
+                        .actorType(AuditActorType.ADMIN)
+                        .subjectUserId(user.getId())
+                        .source(AuditSource.ADMIN_PORTAL)
+                        .resourceType("USER")
+                        .resourceId(user.getId())
+                        .reasonCode("SINGLE_ADMIN_ROLE_LOCKED")
+                        .policyOverride(com.finance.finance.modules.audit.model.AuditFailurePolicy.MANDATORY_REQUIRES_NEW)
+                        .build());
+            }
+            throw new com.finance.finance.common.exception.BusinessException(
+                    "Hệ thống chỉ cho phép duy nhất 1 tài khoản Quản trị viên; không thể thay đổi vai trò ADMIN/USER.",
+                    "SINGLE_ADMIN_ROLE_LOCKED",
+                    org.springframework.http.HttpStatus.FORBIDDEN);
         }
         if (request.getSubscriptionTier() != null) {
             user.setSubscriptionTier(request.getSubscriptionTier());
@@ -197,6 +222,30 @@ public class AdminService {
         user = userRepository.save(user);
         log.info("Admin updated user [{}]: status={}, role={}, tier={}", user.getId(), user.getUserStatus(), user.getSystemRole(), user.getSubscriptionTier());
         logAudit("USER_UPDATE", "USER", user.getId().toString(), "Cập nhật tài khoản " + user.getEmail() + " (status=" + user.getUserStatus() + ", role=" + user.getSystemRole() + ")");
+        if (systemAuditService != null) {
+            if (request.getSystemRole() != null) {
+                systemAuditService.record(AuditEventRequest.builder()
+                        .eventType(AuditEventType.ADMIN_ROLE_CHANGED)
+                        .actorType(AuditActorType.ADMIN)
+                        .subjectUserId(user.getId())
+                        .source(AuditSource.ADMIN_PORTAL)
+                        .resourceType("USER")
+                        .resourceId(user.getId())
+                        .newValues(Map.of("systemRole", user.getSystemRole().name()))
+                        .build());
+            }
+            if (request.getSubscriptionTier() != null || request.getExtendSubscriptionDays() != null) {
+                systemAuditService.record(AuditEventRequest.builder()
+                        .eventType(AuditEventType.ADMIN_SUBSCRIPTION_CHANGED)
+                        .actorType(AuditActorType.ADMIN)
+                        .subjectUserId(user.getId())
+                        .source(AuditSource.ADMIN_PORTAL)
+                        .resourceType("USER")
+                        .resourceId(user.getId())
+                        .newValues(Map.of("subscriptionTier", user.getSubscriptionTier().name()))
+                        .build());
+            }
+        }
         return userMapper.toResponse(user);
     }
 
@@ -216,6 +265,20 @@ public class AdminService {
         user = userRepository.save(user);
         log.info("Admin toggled block status for user [{}]: new status={}", user.getId(), user.getUserStatus());
         logAudit(user.getUserStatus() == UserStatus.LOCKED ? "USER_LOCK" : "USER_UNLOCK", "USER", user.getId().toString(), "Thao tác khóa/mở khóa tài khoản: " + user.getEmail());
+        if (systemAuditService != null) {
+            AuditEventType evt = user.getUserStatus() == UserStatus.LOCKED
+                    ? AuditEventType.ADMIN_USER_SUSPENDED
+                    : AuditEventType.ADMIN_USER_REACTIVATED;
+            systemAuditService.record(AuditEventRequest.builder()
+                    .eventType(evt)
+                    .actorType(AuditActorType.ADMIN)
+                    .subjectUserId(user.getId())
+                    .source(AuditSource.ADMIN_PORTAL)
+                    .resourceType("USER")
+                    .resourceId(user.getId())
+                    .newValues(Map.of("userStatus", user.getUserStatus().name()))
+                    .build());
+        }
         return userMapper.toResponse(user);
     }
 
@@ -660,23 +723,19 @@ public class AdminService {
     // 8. Quản lý Thông báo Tổng (Broadcast Notifications) - LƯU VÀO DB THẬT
     @Transactional(readOnly = true)
     public List<com.finance.finance.modules.admin.dto.response.AdminBroadcastLogItem> listBroadcastLogs() {
-        // Chỉ lấy thông báo HỆ THỐNG thuần túy (loại bỏ tuyệt đối các thông báo riêng tư: mời nhóm, nợ, chi tiêu...)
-        List<com.finance.finance.modules.notification.entity.Notification> systemNotifications = notificationRepository.findAll().stream()
-                .filter(n -> n.getType() == com.finance.finance.common.enums.NotificationType.SYSTEM)
+        // Chỉ lấy thông báo HỆ THỐNG thuần túy (tránh load toàn bộ bảng và tránh lỗi enum lạ ở thông báo cá nhân)
+        List<com.finance.finance.modules.notification.entity.Notification> systemNotifications =
+                notificationRepository.findSystemNotifications().stream()
+                .filter(n -> n.getTitle() != null)
                 .filter(n -> {
-                    String title = n.getTitle() != null ? n.getTitle().toLowerCase() : "";
+                    String title = n.getTitle().toLowerCase();
                     String body = n.getBody() != null ? n.getBody().toLowerCase() : "";
-                    // Loại bỏ các thông báo tương tác cá nhân riêng tư của người dùng
                     boolean isPersonalAction = title.contains("nhóm") || body.contains("nhóm") ||
                             title.contains("lời mời") || body.contains("lời mời") ||
                             title.contains("nhiệm vụ") || body.contains("nhiệm vụ") ||
                             title.contains("xin tiền") || body.contains("xin tiền") ||
                             title.contains("vay") || title.contains("nợ");
                     return !isPersonalAction;
-                })
-                .sorted((a, b) -> {
-                    if (a.getCreatedAt() == null || b.getCreatedAt() == null) return 0;
-                    return b.getCreatedAt().compareTo(a.getCreatedAt());
                 })
                 .toList();
 
@@ -760,10 +819,10 @@ public class AdminService {
     }
 
     // 8.1. Mẫu Thông báo Tự động theo Chu kỳ & Sự kiện (Automation Notification Templates)
-    @Transactional(readOnly = true)
+    @Transactional
     public List<com.finance.finance.modules.admin.dto.response.NotificationTemplateResponse> listNotificationTemplates() {
-        // Đếm số lượng thông báo THẬT trong core.notifications theo tiêu đề tương ứng
-        List<com.finance.finance.modules.notification.entity.Notification> allNotifications = notificationRepository.findAll();
+        // Đếm số lượng thông báo THẬT trong core.notifications theo (title, type) bằng native query nhẹ, không deserialize enum thừa
+        List<Object[]> notificationSummaries = notificationRepository.findAllTitleAndTypeSummaries();
 
         return notificationTemplateRepository.findAll().stream()
                 .map(t -> {
@@ -776,18 +835,24 @@ public class AdminService {
                         }
                     }
 
+                    String tplTitle = t.getTitle() != null ? t.getTitle() : "";
+                    String tplTitleLower = tplTitle.toLowerCase();
+                    String tplCode = t.getCode() != null ? t.getCode() : "";
+
                     // Đếm chính xác số lượng thông báo thật đã gửi trong DB
-                    long realDispatchedCount = allNotifications.stream()
-                            .filter(n -> n.getTitle() != null && (
-                                    n.getTitle().toLowerCase().contains(t.getTitle().toLowerCase()) ||
-                                    t.getTitle().toLowerCase().contains(n.getTitle().toLowerCase()) ||
-                                    n.getTitle().contains("Chào mừng bạn") && t.getCode().contains("WELCOME") ||
-                                    n.getTitle().contains("Đầu tháng") && t.getCode().contains("MONTHLY") ||
-                                    (n.getTitle().contains("Báo cáo tài chính") || n.getType() == com.finance.finance.common.enums.NotificationType.WEEKLY_SUMMARY) && t.getCode().contains("WEEKLY") ||
-                                    n.getTitle().contains("Gói cước") && t.getCode().contains("VIP") ||
-                                    n.getTitle().contains("chưa ghi nhận") && t.getCode().contains("DAILY") ||
-                                    n.getTitle().contains("quét hóa đơn") && t.getCode().contains("OCR")
-                            ))
+                    long realDispatchedCount = notificationSummaries.stream()
+                            .filter(row -> {
+                                String nTitle = row[0] != null ? row[0].toString() : "";
+                                String nType = row[1] != null ? row[1].toString() : "";
+                                if (nTitle.isEmpty()) return false;
+                                return (!tplTitleLower.isEmpty() && (nTitle.toLowerCase().contains(tplTitleLower) || tplTitleLower.contains(nTitle.toLowerCase()))) ||
+                                        (nTitle.contains("Chào mừng bạn") && tplCode.contains("WELCOME")) ||
+                                        (nTitle.contains("Đầu tháng") && tplCode.contains("MONTHLY")) ||
+                                        ((nTitle.contains("Báo cáo tài chính") || "WEEKLY_SUMMARY".equals(nType)) && tplCode.contains("WEEKLY")) ||
+                                        (nTitle.contains("Gói cước") && tplCode.contains("VIP")) ||
+                                        (nTitle.contains("chưa ghi nhận") && tplCode.contains("DAILY")) ||
+                                        (nTitle.contains("quét hóa đơn") && tplCode.contains("OCR"));
+                            })
                             .count();
 
                     return com.finance.finance.modules.admin.dto.response.NotificationTemplateResponse.builder()

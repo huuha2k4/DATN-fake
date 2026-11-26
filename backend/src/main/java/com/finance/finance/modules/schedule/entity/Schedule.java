@@ -104,9 +104,6 @@ public class Schedule {
     @Column(name = "template_category_id")
     private UUID templateCategoryId;
 
-    @Column(name = "template_merchant_id")
-    private UUID templateMerchantId;
-
     @Column(name = "template_description", columnDefinition = "TEXT")
     private String templateDescription;
 

@@ -12,6 +12,9 @@ import com.finance.finance.modules.account.exception.AccountHasTransactionsExcep
 import com.finance.finance.modules.account.exception.AccountNotFoundException;
 import com.finance.finance.modules.account.exception.DuplicateAccountNameException;
 import com.finance.finance.modules.account.repository.AccountRepository;
+import com.finance.finance.modules.audit.model.AuditEventType;
+import com.finance.finance.modules.audit.service.AuditEventRequest;
+import com.finance.finance.modules.audit.service.SystemAuditService;
 import com.finance.finance.modules.transaction.entity.Transaction;
 import com.finance.finance.modules.transaction.repository.TransactionRepository;
 import com.finance.finance.modules.group.repository.ChildWalletRepository;
@@ -19,6 +22,7 @@ import com.finance.finance.modules.system.repository.BankRepository;
 import com.finance.finance.modules.system.entity.Bank;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -43,6 +47,9 @@ public class AccountService {
     private final com.finance.finance.modules.user.repository.UserRepository userRepository;
     private final com.finance.finance.modules.admin.service.SystemConfigService systemConfigService;
     private final BankRepository bankRepository;
+
+    @Autowired(required = false)
+    private SystemAuditService systemAuditService;
 
     /**
      * Lấy danh sách các loại ví / tài khoản và cấu hình trường nhập liệu
@@ -195,6 +202,16 @@ public class AccountService {
 
         account = accountRepository.save(account);
         log.info("Account created successfully: {}", account.getId());
+        if (systemAuditService != null) {
+            systemAuditService.record(AuditEventRequest.builder()
+                    .eventType(AuditEventType.ACCOUNT_CREATED)
+                    .actorId(userId)
+                    .subjectUserId(userId)
+                    .resourceType("ACCOUNT")
+                    .resourceId(account.getId())
+                    .newValues(Map.of("accountType", account.getAccountType().name(), "balance", account.getBalance()))
+                    .build());
+        }
 
         return mapToResponse(account, false);
     }
@@ -305,6 +322,16 @@ public class AccountService {
 
         account = accountRepository.save(account);
         log.info("Account updated successfully: {}", accountId);
+        if (systemAuditService != null) {
+            systemAuditService.record(AuditEventRequest.builder()
+                    .eventType(AuditEventType.ACCOUNT_UPDATED)
+                    .actorId(userId)
+                    .subjectUserId(userId)
+                    .resourceType("ACCOUNT")
+                    .resourceId(accountId)
+                    .newValues(Map.of("isActive", Boolean.TRUE.equals(account.getIsActive())))
+                    .build());
+        }
 
         return mapToResponse(account, false);
     }
@@ -356,6 +383,16 @@ public class AccountService {
         account.softDelete();
         accountRepository.save(account);
         log.info("Account deleted successfully: {}", accountId);
+        if (systemAuditService != null) {
+            systemAuditService.record(AuditEventRequest.builder()
+                    .eventType(AuditEventType.ACCOUNT_DELETED)
+                    .actorId(userId)
+                    .subjectUserId(userId)
+                    .resourceType("ACCOUNT")
+                    .resourceId(accountId)
+                    .oldValues(Map.of("balance", account.getBalance()))
+                    .build());
+        }
     }
 
     /**
@@ -469,6 +506,20 @@ public class AccountService {
             }
         } catch (Exception e) {
             log.warn("Could not create adjustment transaction record: {}", e.getMessage());
+        }
+
+        if (systemAuditService != null) {
+            systemAuditService.record(AuditEventRequest.builder()
+                    .eventType(AuditEventType.ACCOUNT_BALANCE_ADJUSTED)
+                    .actorId(userId)
+                    .subjectUserId(userId)
+                    .resourceType("ACCOUNT")
+                    .resourceId(accountId)
+                    .relatedResourceId(adjustmentTxId)
+                    .oldValues(Map.of("balance", oldBalance))
+                    .newValues(Map.of("balance", request.getNewBalance(), "adjustmentAmount", adjustmentAmount))
+                    .reasonCode(request.getReason() != null ? "MANUAL_ADJUSTMENT" : null)
+                    .build());
         }
 
         return AdjustBalanceResponse.builder()

@@ -38,9 +38,6 @@ public class Transaction {
     @Column(name = "category_id")
     private UUID categoryId;
     
-    @Column(name = "merchant_id")
-    private UUID merchantId;
-    
     @Column(name = "receipt_id")
     private UUID receiptId;
     
@@ -55,6 +52,7 @@ public class Transaction {
     private BigDecimal amount;
     
     @Column(name = "currency_code", nullable = false, length = 3)
+    @org.hibernate.annotations.JdbcTypeCode(org.hibernate.type.SqlTypes.CHAR)
     private String currencyCode;
     
     @Column(name = "exchange_rate", nullable = false, precision = 18, scale = 8)
@@ -78,6 +76,12 @@ public class Transaction {
     
     @Column(name = "to_amount", precision = 19, scale = 4)
     private BigDecimal toAmount;
+
+    @Column(name = "balance_before", precision = 19, scale = 4)
+    private BigDecimal balanceBefore;
+
+    @Column(name = "balance_after", precision = 19, scale = 4)
+    private BigDecimal balanceAfter;
     
     @Column(name = "occurred_at", nullable = false)
     private Instant occurredAt;
@@ -164,10 +168,6 @@ public class Transaction {
     
     public boolean hasCategory() {
         return categoryId != null;
-    }
-    
-    public boolean hasMerchant() {
-        return merchantId != null;
     }
     
     public boolean hasReceipt() {

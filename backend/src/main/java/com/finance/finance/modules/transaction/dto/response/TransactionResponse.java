@@ -54,12 +54,6 @@ public class TransactionResponse {
     // Category
     private CategoryDto category;
     
-    // Merchant
-    private MerchantDto merchant;
-    
-    // Tags
-    private List<TagDto> tags;
-    
     // Location
     private LocationDto location;
     
@@ -100,28 +94,6 @@ public class TransactionResponse {
         private String name;
         private String parentCategory;
         private String icon;
-        private String color;
-    }
-    
-    @Data
-    @Builder
-    @NoArgsConstructor
-    @AllArgsConstructor
-    public static class MerchantDto {
-        private UUID id;
-        private String name;
-        private String logoUrl;
-        private String category;
-        private String location;
-    }
-    
-    @Data
-    @Builder
-    @NoArgsConstructor
-    @AllArgsConstructor
-    public static class TagDto {
-        private UUID id;
-        private String name;
         private String color;
     }
     

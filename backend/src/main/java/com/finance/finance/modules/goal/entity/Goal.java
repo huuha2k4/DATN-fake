@@ -53,6 +53,7 @@ public class Goal {
     private BigDecimal currentAmount = BigDecimal.ZERO;
     
     @Column(name = "currency_code", nullable = false, length = 3)
+    @org.hibernate.annotations.JdbcTypeCode(org.hibernate.type.SqlTypes.CHAR)
     private String currencyCode;
     
     @Column(name = "target_date")
@@ -126,10 +127,6 @@ public class Goal {
     @Builder.Default
     private List<GoalContribution> contributions = new ArrayList<>();
     
-    @OneToMany(mappedBy = "goal", cascade = CascadeType.ALL, orphanRemoval = true)
-    @Builder.Default
-    private List<GoalMilestone> milestones = new ArrayList<>();
-    
     // Helper methods
     public boolean isDeleted() {
         return deletedAt != null;
@@ -141,12 +138,16 @@ public class Goal {
     }
     
     public BigDecimal getRemaining() {
-        return targetAmount.subtract(currentAmount);
+        BigDecimal safeTarget = targetAmount != null ? targetAmount : BigDecimal.ZERO;
+        BigDecimal safeCurrent = currentAmount != null ? currentAmount : BigDecimal.ZERO;
+        return safeTarget.subtract(safeCurrent).max(BigDecimal.ZERO);
     }
     
     public Double getPercentageComplete() {
-        if (targetAmount.compareTo(BigDecimal.ZERO) == 0) return 0.0;
-        return currentAmount.divide(targetAmount, 4, RoundingMode.HALF_UP)
+        BigDecimal safeTarget = targetAmount != null ? targetAmount : BigDecimal.ZERO;
+        BigDecimal safeCurrent = currentAmount != null ? currentAmount : BigDecimal.ZERO;
+        if (safeTarget.compareTo(BigDecimal.ZERO) <= 0) return 0.0;
+        return safeCurrent.divide(safeTarget, 4, RoundingMode.HALF_UP)
                 .multiply(BigDecimal.valueOf(100))
                 .doubleValue();
     }
@@ -182,11 +183,6 @@ public class Goal {
         contributions.add(contribution);
         contribution.setGoal(this);
         this.currentAmount = this.currentAmount.add(contribution.getAmount());
-    }
-    
-    public void addMilestone(GoalMilestone milestone) {
-        milestones.add(milestone);
-        milestone.setGoal(this);
     }
     
     public void complete(String note, BigDecimal actualAmountUsed) {

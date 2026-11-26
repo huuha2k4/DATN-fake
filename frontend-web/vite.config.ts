@@ -7,6 +7,23 @@ export default defineConfig(({ mode }) => {
   const backendTarget = env.VITE_BACKEND_URL || 'http://localhost:1116'
   return {
     plugins: [react(), tailwindcss()],
+    build: {
+      rolldownOptions: {
+        output: {
+          manualChunks(id: string) {
+            if (id.includes('node_modules/react/') || id.includes('node_modules/react-dom/') || id.includes('node_modules/react-router-dom/')) {
+              return 'vendor-react';
+            }
+            if (id.includes('node_modules/lucide-react/')) {
+              return 'vendor-icons';
+            }
+            if (id.includes('node_modules/axios/') || id.includes('node_modules/date-fns/')) {
+              return 'vendor-utils';
+            }
+          },
+        },
+      },
+    },
     server: {
       host: true,
       allowedHosts: true,

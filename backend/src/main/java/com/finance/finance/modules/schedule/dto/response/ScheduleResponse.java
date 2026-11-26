@@ -130,12 +130,6 @@ public class ScheduleResponse {
         @JsonProperty("category_name")
         private String categoryName;
 
-        @JsonProperty("merchant_id")
-        private UUID merchantId;
-
-        @JsonProperty("merchant_name")
-        private String merchantName;
-
         private String description;
         private String note;
     }

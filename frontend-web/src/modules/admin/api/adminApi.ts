@@ -305,6 +305,69 @@ export const adminApi = {
     return res.data?.data || res.data;
   },
 
+  // 9b. Nhật ký Hệ thống (ops.audit_logs — yêu cầu mật khẩu .env tại Backend)
+  async unlockSystemAudit(password: string): Promise<{
+    unlockToken: string;
+    expiresInSeconds: number;
+    expiresAt: string;
+  }> {
+    const res = await api.post('/admin/system-audit/unlock', { password });
+    return res.data?.data || res.data;
+  },
+
+  async listSystemAuditLogs(
+    unlockToken: string,
+    params?: {
+      category?: string;
+      outcome?: string;
+      severity?: string;
+      search?: string;
+      page?: number;
+      size?: number;
+    }
+  ): Promise<{
+    content: Array<{
+      id: string;
+      occurredAt: string;
+      eventType: string;
+      eventCategory: string;
+      action: string;
+      severity: string;
+      outcome: string;
+      actorId?: string;
+      actorType: string;
+      actorRole?: string;
+      subjectUserId?: string;
+      source: string;
+      resourceType?: string;
+      resourceId?: string;
+      relatedResourceId?: string;
+      groupId?: string;
+      requestId?: string;
+      correlationId?: string;
+      httpMethod?: string;
+      endpoint?: string;
+      changedFields?: Record<string, any>;
+      oldValues?: Record<string, any>;
+      newValues?: Record<string, any>;
+      metadata?: Record<string, any>;
+      reasonCode?: string;
+      errorCode?: string;
+    }>;
+    totalElements: number;
+    totalPages: number;
+    number: number;
+    size: number;
+  }> {
+    const res = await api.get('/admin/system-audit/logs', {
+      params,
+      headers: {
+        'X-System-Audit-Token': unlockToken,
+      },
+    });
+    return res.data?.data || res.data;
+  },
+
   // 10. Giám sát Hệ thống (System Health)
   async getSystemHealth(): Promise<{
     status: string;

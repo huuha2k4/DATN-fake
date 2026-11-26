@@ -177,7 +177,7 @@ export function NotificationDropdown({ onNotify }: NotificationDropdownProps) {
       if (!document.hidden) poll();
     };
 
-    const interval = setInterval(poll, 10000);
+    const interval = setInterval(poll, 30000);
     document.addEventListener('visibilitychange', handleVisibility);
 
     return () => {

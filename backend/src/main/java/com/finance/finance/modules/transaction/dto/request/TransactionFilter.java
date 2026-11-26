@@ -32,8 +32,6 @@ public class TransactionFilter {
     // Filters
     private UUID accountId;
     private UUID categoryId;
-    private UUID merchantId;
-    private List<UUID> tagIds;
     private TransactionType transactionType;
     
     // Amount range

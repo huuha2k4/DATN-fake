@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { useQueryRevalidation } from '../../core/utils/useQueryRevalidation';
 import { FinanceIcon } from '../../core/components/FinanceIcon';
 import { ConfirmDeleteModal } from '../../core/components/ConfirmDeleteModal';
 import { DatePicker } from '../../core/components/DatePicker';
@@ -360,9 +361,9 @@ export function GoalsManagementScreen({ onNotify }: Props) {
   };
 
   // Tải dữ liệu từ backend
-  const loadData = async () => {
+  const loadData = async (silent = false) => {
     try {
-      setIsLoading(true);
+      if (!silent) setIsLoading(true);
       const [goalRes, accRes] = await Promise.all([
         goalApi.getGoals(),
         accountApi.getAccounts().catch(() => []),
@@ -408,6 +409,10 @@ export function GoalsManagementScreen({ onNotify }: Props) {
   useEffect(() => {
     loadData();
   }, []);
+
+  useQueryRevalidation(['goals:', 'accounts:'], () => {
+    loadData(true);
+  });
 
   // Phân loại Mục tiêu vs Tiết kiệm theo chuẩn giống App
   // Tiết kiệm: targetAmount == 0 hoặc icon/description chứa saving

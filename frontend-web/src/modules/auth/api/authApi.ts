@@ -1,3 +1,5 @@
+import { clearQueryCache } from '../../core/utils/queryCache';
+
 const API_BASE_URL = import.meta.env.VITE_API_URL || '/api/v1';
 
 export interface RegisterRequest {
@@ -214,12 +216,14 @@ export const authApi = {
 };
 
 export const saveAuthData = (user: User, tokens: AuthTokens) => {
+  clearQueryCache();
   localStorage.setItem('user', JSON.stringify(user));
   localStorage.setItem('access_token', tokens.access_token);
   localStorage.setItem('refresh_token', tokens.refresh_token);
 };
 
 export const clearAuthData = () => {
+  clearQueryCache();
   localStorage.removeItem('user');
   localStorage.removeItem('access_token');
   localStorage.removeItem('refresh_token');

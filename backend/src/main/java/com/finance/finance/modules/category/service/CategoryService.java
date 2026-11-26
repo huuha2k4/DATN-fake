@@ -1,6 +1,8 @@
 package com.finance.finance.modules.category.service;
 
 import com.finance.finance.common.enums.CategoryKind;
+import com.finance.finance.modules.audit.model.AuditEventType;
+import com.finance.finance.modules.audit.service.SystemAuditService;
 import com.finance.finance.modules.category.dto.request.CreateCategoryRequest;
 import com.finance.finance.modules.category.dto.request.UpdateCategoryRequest;
 import com.finance.finance.modules.category.dto.response.CategoryListResponse;
@@ -11,6 +13,7 @@ import com.finance.finance.modules.category.exception.DuplicateCategoryException
 import com.finance.finance.modules.category.repository.CategoryRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -26,6 +29,9 @@ import java.util.stream.Collectors;
 public class CategoryService {
 
     private final CategoryRepository categoryRepository;
+
+    @Autowired(required = false)
+    private SystemAuditService systemAuditService;
 
     @Transactional
     public CategoryResponse createCategory(UUID userId, CreateCategoryRequest request) {
@@ -63,6 +69,10 @@ public class CategoryService {
 
         category = categoryRepository.save(category);
         log.info("Category created: {}", category.getId());
+        if (systemAuditService != null) {
+            systemAuditService.recordSimple(AuditEventType.CATEGORY_CREATED, "CATEGORY", category.getId(),
+                    java.util.Map.of("kind", category.getKind().name()));
+        }
 
         return mapToResponse(category, false);
     }
@@ -139,6 +149,9 @@ public class CategoryService {
 
         category = categoryRepository.save(category);
         log.info("Category updated: {}", categoryId);
+        if (systemAuditService != null) {
+            systemAuditService.recordSimple(AuditEventType.CATEGORY_UPDATED, "CATEGORY", categoryId, null);
+        }
 
         return mapToResponse(category, false);
     }
@@ -168,6 +181,9 @@ public class CategoryService {
         category.markAsDeleted();
         categoryRepository.save(category);
         log.info("Category deleted: {}", categoryId);
+        if (systemAuditService != null) {
+            systemAuditService.recordSimple(AuditEventType.CATEGORY_DELETED, "CATEGORY", categoryId, null);
+        }
     }
 
     @Transactional(readOnly = true)

@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useQueryRevalidation } from '../../core/utils/useQueryRevalidation';
 import { FinanceIcon } from '../../core/components/FinanceIcon';
 import {
   debtApi,
@@ -206,8 +207,8 @@ export function DebtManagementScreen({ onNotify }: Props) {
   }, [paymentPlanType, formFrequency, formDayOfMonth, formDayOfWeek]);
 
   // Load danh sách khoản nợ
-  const loadDebts = async () => {
-    setIsLoading(true);
+  const loadDebts = async (silent = false) => {
+    if (!silent) setIsLoading(true);
     try {
       const typeParam = activeTab === 'ALL' ? undefined : activeTab;
       const statusParam = statusFilter === 'ALL' ? undefined : (statusFilter as DebtStatus);
@@ -231,6 +232,10 @@ export function DebtManagementScreen({ onNotify }: Props) {
   useEffect(() => {
     loadDebts();
   }, [activeTab, statusFilter]);
+
+  useQueryRevalidation('debts:', () => {
+    loadDebts(true);
+  });
 
   // Mở xem chi tiết
   const handleOpenDetail = async (id: number) => {

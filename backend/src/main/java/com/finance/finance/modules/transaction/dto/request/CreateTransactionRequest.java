@@ -53,12 +53,8 @@ public class CreateTransactionRequest {
     // Required for INCOME/EXPENSE, null for TRANSFER
     private UUID categoryId;
     
-    private UUID merchantId;
-    
     private UUID receiptId;
     private String receiptUrl;
-    
-    private List<UUID> tagIds;
     
     private LocationDto location;
     

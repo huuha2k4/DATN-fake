@@ -1,4 +1,5 @@
 import { api } from '../../core/api/api';
+import { fetchWithCache, invalidateQueryCache, stableSerializeParams } from '../../core/utils/queryCache';
 
 export type ScheduleType = 'TRANSACTION' | 'REMINDER';
 export type ScheduleStatus = 'ACTIVE' | 'PAUSED' | 'COMPLETED' | 'CANCELLED';
@@ -129,9 +130,15 @@ export const scheduleApi = {
     page?: number;
     size?: number;
   }) => {
-    const res = await api.get('/schedules', { params });
-    // Spring Page Response: { content, totalElements, totalPages, number, size }
-    return res.data;
+    return fetchWithCache(
+      `schedules:list:${stableSerializeParams(params as Record<string, unknown>)}`,
+      async () => {
+        const res = await api.get('/schedules', { params });
+        // Spring Page Response: { content, totalElements, totalPages, number, size }
+        return res.data;
+      },
+      { freshTimeMs: 20_000, staleTimeMs: 60_000 }
+    );
   },
 
   // Chi tiết lịch
@@ -143,29 +150,34 @@ export const scheduleApi = {
   // Tạo lịch mới
   createSchedule: async (payload: CreateSchedulePayload): Promise<ScheduleDetail> => {
     const res = await api.post('/schedules', payload);
+    invalidateQueryCache('schedules:');
     return res.data;
   },
 
   // Cập nhật lịch
   updateSchedule: async (id: number, payload: UpdateSchedulePayload): Promise<ScheduleDetail> => {
     const res = await api.put(`/schedules/${id}`, payload);
+    invalidateQueryCache('schedules:');
     return res.data;
   },
 
   // Xóa lịch
   deleteSchedule: async (id: number): Promise<void> => {
     await api.delete(`/schedules/${id}`);
+    invalidateQueryCache('schedules:');
   },
 
   // Tạm dừng lịch
   pauseSchedule: async (id: number, reason?: string): Promise<ScheduleDetail> => {
     const res = await api.post(`/schedules/${id}/pause`, { reason });
+    invalidateQueryCache('schedules:');
     return res.data;
   },
 
   // Tiếp tục lịch
   resumeSchedule: async (id: number): Promise<ScheduleDetail> => {
     const res = await api.post(`/schedules/${id}/resume`);
+    invalidateQueryCache('schedules:');
     return res.data;
   },
 
@@ -180,6 +192,7 @@ export const scheduleApi = {
   // Bỏ qua 1 lần
   skipOccurrence: async (scheduleId: number, occId: number, reason?: string) => {
     const res = await api.post(`/schedules/${scheduleId}/occurrences/${occId}/skip`, { reason });
+    invalidateQueryCache('schedules:');
     return res.data;
   },
 
@@ -189,6 +202,7 @@ export const scheduleApi = {
       actual_amount: actualAmount,
       notes,
     });
+    invalidateQueryCache(['schedules:', 'transactions:', 'accounts:', 'reports:']);
     return res.data;
   }
 };

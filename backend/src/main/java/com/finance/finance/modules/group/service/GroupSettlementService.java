@@ -1,6 +1,9 @@
 package com.finance.finance.modules.group.service;
 
 import com.finance.finance.common.enums.SettlementStatus;
+import com.finance.finance.modules.audit.model.AuditEventType;
+import com.finance.finance.modules.audit.service.AuditEventRequest;
+import com.finance.finance.modules.audit.service.SystemAuditService;
 import com.finance.finance.modules.group.dto.request.CreateSettlementRequest;
 import com.finance.finance.modules.group.dto.request.RejectSettlementRequest;
 import com.finance.finance.modules.group.dto.request.ConfirmSettlementRequest;
@@ -38,6 +41,9 @@ public class GroupSettlementService {
     private final CategoryRepository categoryRepository;
     private final TransactionService transactionService;
 
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private SystemAuditService systemAuditService;
+
     @Transactional
     public SettlementResponse createSettlement(UUID groupId, CreateSettlementRequest request, UUID currentUserId) {
         validateMemberAccess(groupId, currentUserId);
@@ -65,6 +71,17 @@ public class GroupSettlementService {
                 .build();
 
         settlement = groupSettlementRepository.save(settlement);
+        if (systemAuditService != null) {
+            systemAuditService.record(AuditEventRequest.builder()
+                    .eventType(AuditEventType.GROUP_SETTLEMENT_CREATED)
+                    .actorId(currentUserId)
+                    .subjectUserId(settlement.getToUserId())
+                    .groupId(groupId)
+                    .resourceType("GROUP_SETTLEMENT")
+                    .resourceId(settlement.getId())
+                    .newValues(java.util.Map.of("amount", settlement.getAmount()))
+                    .build());
+        }
         return buildSettlementResponse(settlement);
     }
 
@@ -105,6 +122,18 @@ public class GroupSettlementService {
         settlement.setStatus(SettlementStatus.CONFIRMED);
         settlement.setConfirmedAt(LocalDateTime.now());
         settlement = groupSettlementRepository.save(settlement);
+        if (systemAuditService != null) {
+            systemAuditService.record(AuditEventRequest.builder()
+                    .eventType(AuditEventType.GROUP_SETTLEMENT_CONFIRMED)
+                    .actorId(currentUserId)
+                    .subjectUserId(settlement.getFromUserId())
+                    .groupId(groupId)
+                    .resourceType("GROUP_SETTLEMENT")
+                    .resourceId(settlement.getId())
+                    .relatedResourceId(incoming.getId())
+                    .newValues(java.util.Map.of("amount", settlement.getAmount(), "status", settlement.getStatus().name()))
+                    .build());
+        }
 
         return buildSettlementResponse(settlement);
     }

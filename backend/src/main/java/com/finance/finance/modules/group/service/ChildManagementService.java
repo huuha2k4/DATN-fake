@@ -1,6 +1,9 @@
 package com.finance.finance.modules.group.service;
 
 import com.finance.finance.common.enums.*;
+import com.finance.finance.modules.audit.model.AuditEventType;
+import com.finance.finance.modules.audit.service.AuditEventRequest;
+import com.finance.finance.modules.audit.service.SystemAuditService;
 import com.finance.finance.modules.group.exception.ResourceNotFoundException;
 import com.finance.finance.modules.group.dto.request.*;
 import com.finance.finance.modules.group.dto.response.ChoreResponse;
@@ -33,6 +36,7 @@ import com.finance.finance.common.enums.NotificationPriority;
 import com.finance.finance.common.enums.SplitMethod;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -64,6 +68,9 @@ public class ChildManagementService {
     // ============ Spend Requests ============
 
     private static final String MONEY_REQUEST_PREFIX = "[MONEY_REQUEST] ";
+
+    @Autowired(required = false)
+    private SystemAuditService systemAuditService;
 
     @Transactional
     public SpendRequestResponse createMoneyRequest(UUID groupId, UUID walletId, CreateMoneyRequest request, UUID currentUserId) {
@@ -151,6 +158,18 @@ public class ChildManagementService {
         }
 
         spendRequest = spendRequestRepository.save(spendRequest);
+        if (systemAuditService != null) {
+            systemAuditService.record(AuditEventRequest.builder()
+                    .eventType(AuditEventType.CHILD_MONEY_REQUEST_CREATED)
+                    .actorId(currentUserId)
+                    .subjectUserId(wallet.getUserId())
+                    .groupId(groupId)
+                    .resourceType("CHILD_SPEND_REQUEST")
+                    .resourceId(spendRequest.getId())
+                    .relatedResourceId(walletId)
+                    .newValues(java.util.Map.of("amount", spendRequest.getAmount(), "status", spendRequest.getStatus().name()))
+                    .build());
+        }
         return buildSpendRequestResponse(spendRequest);
     }
 
@@ -314,6 +333,18 @@ public class ChildManagementService {
         spendRequest.setUpdatedAt(LocalDateTime.now());
 
         spendRequest = spendRequestRepository.save(spendRequest);
+        if (systemAuditService != null) {
+            systemAuditService.record(AuditEventRequest.builder()
+                    .eventType(AuditEventType.CHILD_MONEY_REQUEST_REJECTED)
+                    .actorId(currentUserId)
+                    .subjectUserId(wallet.getUserId())
+                    .groupId(groupId)
+                    .resourceType("CHILD_MONEY_REQUEST")
+                    .resourceId(spendRequest.getId())
+                    .relatedResourceId(walletId)
+                    .newValues(java.util.Map.of("amount", spendRequest.getAmount(), "status", "REJECTED"))
+                    .build());
+        }
 
         if (wallet.getUserId() != null) {
             try {
@@ -362,6 +393,18 @@ public class ChildManagementService {
         spendRequest.setUpdatedAt(LocalDateTime.now());
 
         spendRequest = spendRequestRepository.save(spendRequest);
+        if (systemAuditService != null) {
+            systemAuditService.record(AuditEventRequest.builder()
+                    .eventType(AuditEventType.CHILD_MONEY_REQUEST_REJECTED)
+                    .actorId(currentUserId)
+                    .subjectUserId(wallet.getUserId())
+                    .groupId(groupId)
+                    .resourceType("CHILD_MONEY_REQUEST")
+                    .resourceId(spendRequest.getId())
+                    .relatedResourceId(walletId)
+                    .newValues(java.util.Map.of("amount", spendRequest.getAmount(), "status", "REJECTED"))
+                    .build());
+        }
 
         if (wallet.getUserId() != null) {
             try {
@@ -651,6 +694,18 @@ public class ChildManagementService {
                 .updatedAt(LocalDateTime.now())
                 .build();
         spendRequestRepository.save(choreRewardRecord);
+        if (systemAuditService != null) {
+            systemAuditService.record(AuditEventRequest.builder()
+                    .eventType(AuditEventType.CHILD_CHORE_APPROVED)
+                    .actorId(currentUserId)
+                    .subjectUserId(wallet.getUserId())
+                    .groupId(groupId)
+                    .resourceType("CHILD_CHORE")
+                    .resourceId(chore.getId())
+                    .relatedResourceId(walletId)
+                    .newValues(java.util.Map.of("rewardAmount", reward, "status", "APPROVED"))
+                    .build());
+        }
 
         if (wallet.getUserId() != null) {
             try {

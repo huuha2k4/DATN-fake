@@ -50,9 +50,6 @@ public class TransactionTemplate {
     @JsonProperty("category_id")
     private UUID categoryId;
 
-    @JsonProperty("merchant_id")
-    private UUID merchantId;
-
     @Size(max = 500, message = "Description must not exceed 500 characters")
     private String description;
 

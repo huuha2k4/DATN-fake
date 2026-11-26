@@ -34,10 +34,6 @@ public class UpdateTransactionRequest {
     
     private UUID categoryId;
     
-    private UUID merchantId;
-    
-    private List<UUID> tagIds;
-    
     private CreateTransactionRequest.LocationDto location;
     
     @Size(max = 1000, message = "Note must not exceed 1000 characters")

@@ -14,7 +14,7 @@ import java.util.UUID;
 public class GroupFund {
     @Id @GeneratedValue(strategy = GenerationType.UUID) private UUID id;
     @Column(name = "group_id", nullable = false, unique = true) private UUID groupId;
-    @Column(nullable = false, length = 3) private String currency;
+    @Column(nullable = false, length = 3) @org.hibernate.annotations.JdbcTypeCode(org.hibernate.type.SqlTypes.CHAR) private String currency;
     @Column(nullable = false, precision = 19, scale = 4) @Builder.Default private BigDecimal balance = BigDecimal.ZERO;
     @CreationTimestamp @Column(name = "created_at", nullable = false, updatable = false) private LocalDateTime createdAt;
     @UpdateTimestamp @Column(name = "updated_at", nullable = false) private LocalDateTime updatedAt;

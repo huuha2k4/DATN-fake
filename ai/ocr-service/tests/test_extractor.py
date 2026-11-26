@@ -110,7 +110,15 @@ class TestParseAmount:
         assert parse_amount("500") is None
 
     def test_too_large(self):
-        assert parse_amount("200.000.000") is None
+        # AMOUNT_MAX = 500_000_000 (500M VND for enterprise utility/retail invoices)
+        assert parse_amount("200.000.000") == 200_000_000
+        assert parse_amount("500.000.000") == 500_000_000
+        assert parse_amount("500.000.001") is None
+        assert parse_amount("600.000.000") is None
+
+    def test_zero_and_negative(self):
+        assert parse_amount("0") is None
+        assert parse_amount("-50.000") is None
 
     def test_non_digit(self):
         assert parse_amount("abc") is None

@@ -52,6 +52,8 @@ export interface TransactionItem {
   receiptUrl?: string;
   note?: string;
   notes?: string;
+  balanceBefore?: number;
+  balanceAfter?: number;
   version?: number;
   createdAt?: string;
   category?: {
@@ -1977,6 +1979,63 @@ export function TransactionsScreen({ onBack, onAddTransaction }: Props) {
                         </View>
                       )}
 
+                      {/* Số dư ví trước & sau giao dịch */}
+                      {(selectedTxDetail.balanceBefore != null || selectedTxDetail.balanceAfter != null) && (
+                        <>
+                          <View
+                            style={[
+                              styles.detailInfoRow,
+                              isDark && { borderBottomColor: themeColors.divider },
+                            ]}
+                          >
+                            <Text
+                              style={[
+                                styles.detailInfoLabel,
+                                isDark && { color: themeColors.textSecondary },
+                              ]}
+                            >
+                              Số dư ví trước GD
+                            </Text>
+                            <Text
+                              style={[
+                                styles.detailInfoValueText,
+                                isDark && { color: themeColors.textPrimary },
+                              ]}
+                            >
+                              {selectedTxDetail.balanceBefore != null
+                                ? `${Number(selectedTxDetail.balanceBefore).toLocaleString('vi-VN')} ₫`
+                                : '—'}
+                            </Text>
+                          </View>
+
+                          <View
+                            style={[
+                              styles.detailInfoRow,
+                              isDark && { borderBottomColor: themeColors.divider },
+                            ]}
+                          >
+                            <Text
+                              style={[
+                                styles.detailInfoLabel,
+                                isDark && { color: themeColors.textSecondary },
+                              ]}
+                            >
+                              Số dư ví sau GD
+                            </Text>
+                            <Text
+                              style={[
+                                styles.detailInfoValueText,
+                                { color: isDark ? themeColors.accentGreen : '#007F53', fontWeight: '700' },
+                              ]}
+                            >
+                              {selectedTxDetail.balanceAfter != null
+                                ? `${Number(selectedTxDetail.balanceAfter).toLocaleString('vi-VN')} ₫`
+                                : '—'}
+                            </Text>
+                          </View>
+                        </>
+                      )}
+
                       {/* Thời gian giao dịch (Giờ trước, ngày sau: HH:mm ngày DD/MM/YYYY) */}
                       <View
                         style={[
@@ -2009,7 +2068,7 @@ export function TransactionsScreen({ onBack, onAddTransaction }: Props) {
                         <View
                           style={[
                             styles.detailInfoRow,
-                            isDark && { borderBottomColor: themeColors.divider },
+                            { borderBottomWidth: 0 },
                           ]}
                         >
                           <Text
@@ -2030,26 +2089,6 @@ export function TransactionsScreen({ onBack, onAddTransaction }: Props) {
                           </Text>
                         </View>
                       ) : null}
-
-                      {/* Mã giao dịch */}
-                      <View style={[styles.detailInfoRow, { borderBottomWidth: 0 }]}>
-                        <Text
-                          style={[
-                            styles.detailInfoLabel,
-                            isDark && { color: themeColors.textSecondary },
-                          ]}
-                        >
-                          Mã giao dịch
-                        </Text>
-                        <Text
-                          style={[
-                            styles.detailCodeText,
-                            isDark && { color: themeColors.accentGreen },
-                          ]}
-                        >
-                          #{selectedTxDetail.id ? selectedTxDetail.id.slice(0, 10).toUpperCase() : 'TXN'}
-                        </Text>
-                      </View>
                     </View>
                   )}
 

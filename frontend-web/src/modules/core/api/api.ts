@@ -1,4 +1,5 @@
 import axios, { type AxiosInstance } from 'axios';
+import { clearQueryCache } from '../utils/queryCache';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || '/api/v1';
 
@@ -55,9 +56,10 @@ apiClient.interceptors.response.use(
   async (error) => {
     const originalRequest = error.config;
 
-    // If 401 or 403 (expired JWT token) and not already retrying
+    // Only 401 Unauthorized indicates an expired/invalid access token.
+    // 403 Forbidden (permission/RBAC denial) must not trigger token refresh or force logout.
     const isRefreshRequest = originalRequest?.url?.includes('/auth/refresh');
-    if ((error.response?.status === 401 || error.response?.status === 403) && !originalRequest._retry && !isRefreshRequest) {
+    if (error.response?.status === 401 && !originalRequest._retry && !isRefreshRequest) {
       originalRequest._retry = true;
 
       try {
@@ -66,6 +68,7 @@ apiClient.interceptors.response.use(
         return apiClient(originalRequest);
       } catch (refreshError) {
         // Refresh failed - chỉ xóa thông tin xác thực phiên làm việc, giữ nguyên theme và cài đặt thiết bị
+        clearQueryCache();
         localStorage.removeItem('access_token');
         localStorage.removeItem('refresh_token');
         localStorage.removeItem('user');

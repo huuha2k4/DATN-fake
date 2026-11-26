@@ -46,11 +46,53 @@ public class AttachmentUrlSigner {
         return MessageDigest.isEqual(expected, actual);
     }
 
+    public String createReceiptUrl(String storedReceiptUrl, UUID ownerUserId) {
+        if (storedReceiptUrl == null || storedReceiptUrl.isBlank() || ownerUserId == null) {
+            return storedReceiptUrl;
+        }
+        if (storedReceiptUrl.startsWith("http://") || storedReceiptUrl.startsWith("https://")) {
+            return storedReceiptUrl;
+        }
+        String canonical = stripQuery(storedReceiptUrl);
+        int idx = canonical.lastIndexOf('/');
+        String filename = idx >= 0 ? canonical.substring(idx + 1) : canonical;
+        if (filename.isBlank()) {
+            return storedReceiptUrl;
+        }
+        long expires = Instant.now().getEpochSecond() + ttlSeconds;
+        String signature = signPayload("receipt:" + filename + ":" + ownerUserId + ":" + expires);
+        return "/uploads/receipts/" + filename
+                + "?uid=" + ownerUserId
+                + "&expires=" + expires
+                + "&signature=" + signature;
+    }
+
+    public boolean isValidReceipt(String filename, UUID ownerUserId, long expires, String signature) {
+        if (filename == null || filename.isBlank() || ownerUserId == null
+                || signature == null || signature.isBlank()
+                || expires < Instant.now().getEpochSecond()) {
+            return false;
+        }
+        byte[] expected = signPayload("receipt:" + filename + ":" + ownerUserId + ":" + expires)
+                .getBytes(StandardCharsets.US_ASCII);
+        byte[] actual = signature.getBytes(StandardCharsets.US_ASCII);
+        return MessageDigest.isEqual(expected, actual);
+    }
+
+    public static String stripQuery(String url) {
+        if (url == null) return null;
+        int q = url.indexOf('?');
+        return q >= 0 ? url.substring(0, q) : url;
+    }
+
     private String sign(UUID groupId, UUID attachmentId, long expires) {
+        return signPayload(groupId + ":" + attachmentId + ":" + expires);
+    }
+
+    private String signPayload(String payload) {
         try {
             Mac mac = Mac.getInstance("HmacSHA256");
             mac.init(new SecretKeySpec(secret, "HmacSHA256"));
-            String payload = groupId + ":" + attachmentId + ":" + expires;
             return HexFormat.of().formatHex(mac.doFinal(payload.getBytes(StandardCharsets.UTF_8)));
         } catch (Exception e) {
             throw new IllegalStateException("Cannot sign attachment URL", e);

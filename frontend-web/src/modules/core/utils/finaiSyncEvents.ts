@@ -3,6 +3,8 @@
  * (e.g. after FinAI action execution completed).
  */
 
+import { invalidateQueryCache } from './queryCache';
+
 export type FinAiDataSyncEventDetail = {
   toolName?: string;
   actionId?: string;
@@ -12,6 +14,7 @@ export type FinAiDataSyncEventDetail = {
 export const FINAI_SYNC_EVENT = 'finai:action_completed';
 
 export function notifyFinAiActionCompleted(detail?: FinAiDataSyncEventDetail): void {
+  invalidateQueryCache(['accounts:', 'transactions:', 'categories:', 'budgets:', 'debts:', 'reports:', 'goals:', 'schedules:']);
   if (typeof window !== 'undefined') {
     window.dispatchEvent(new CustomEvent(FINAI_SYNC_EVENT, { detail }));
     // Also trigger general focus/refresh events

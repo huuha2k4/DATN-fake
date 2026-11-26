@@ -48,6 +48,7 @@ public class ChildWallet {
     private BigDecimal balance = BigDecimal.ZERO;
 
     @Column(nullable = false, length = 3)
+    @org.hibernate.annotations.JdbcTypeCode(org.hibernate.type.SqlTypes.CHAR)
     private String currency;
 
     @Column(name = "weekly_allowance", precision = 19, scale = 4)

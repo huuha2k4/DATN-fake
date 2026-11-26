@@ -91,4 +91,10 @@ public interface NotificationRepository extends JpaRepository<Notification, UUID
             @Param("actionUrl") String actionUrl,
             @Param("since") java.time.LocalDateTime since
     );
+
+    @Query("SELECT n FROM Notification n WHERE n.type = com.finance.finance.common.enums.NotificationType.SYSTEM AND n.deletedAt IS NULL ORDER BY n.createdAt DESC")
+    java.util.List<Notification> findSystemNotifications();
+
+    @Query(value = "SELECT title, type FROM core.notifications WHERE deleted_at IS NULL", nativeQuery = true)
+    java.util.List<Object[]> findAllTitleAndTypeSummaries();
 }

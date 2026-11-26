@@ -2,6 +2,9 @@ package com.finance.finance.modules.user.service;
 
 import com.finance.finance.common.upload.FileUploadValidator;
 import com.finance.finance.common.upload.ImageCompressionHelper;
+import com.finance.finance.modules.audit.model.AuditEventType;
+import com.finance.finance.modules.audit.service.AuditEventRequest;
+import com.finance.finance.modules.audit.service.SystemAuditService;
 import com.finance.finance.modules.user.dto.request.UpdateProfileRequest;
 import com.finance.finance.modules.user.dto.response.UserResponse;
 import com.finance.finance.modules.user.entity.User;
@@ -33,6 +36,7 @@ public class UserService {
     private final PasswordEncoder passwordEncoder;
     private final FileUploadValidator fileUploadValidator;
     private final ImageCompressionHelper imageCompressionHelper;
+    private final SystemAuditService systemAuditService;
     
     private static final String UPLOAD_DIR = "uploads/avatars";
     
@@ -193,6 +197,7 @@ public class UserService {
         }
         user.setPasswordHash(passwordEncoder.encode(newPassword));
         userRepository.save(user);
+        systemAuditService.recordSimple(AuditEventType.AUTH_PASSWORD_CHANGED, "USER", user.getId(), null);
         log.info("Password changed successfully for user: {}", identifier);
     }
 
@@ -206,6 +211,19 @@ public class UserService {
             user.setLoginAlertEnabled(loginAlertEnabled);
         }
         User saved = userRepository.save(user);
+        if (twoFactorEnabled != null) {
+            systemAuditService.record(AuditEventRequest.builder()
+                    .eventType(Boolean.TRUE.equals(twoFactorEnabled) ? AuditEventType.AUTH_2FA_ENABLED : AuditEventType.AUTH_2FA_DISABLED)
+                    .actorId(saved.getId())
+                    .subjectUserId(saved.getId())
+                    .resourceType("USER")
+                    .resourceId(saved.getId())
+                    .metadata(java.util.Map.of("mfaEnabled", saved.isMfaEnabled(), "loginAlertEnabled", saved.isLoginAlertEnabled()))
+                    .build());
+        } else {
+            systemAuditService.recordSimple(AuditEventType.USER_PROFILE_UPDATED, "USER", saved.getId(),
+                    java.util.Map.of("loginAlertEnabled", saved.isLoginAlertEnabled()));
+        }
         log.info("Security settings updated for user {}: 2FA={}, alert={}", identifier, saved.isMfaEnabled(), saved.isLoginAlertEnabled());
         return userMapper.toResponse(saved);
     }

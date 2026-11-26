@@ -53,7 +53,6 @@ public interface TransactionRepository extends JpaRepository<Transaction, UUID> 
            "AND (CAST(:toDate AS java.time.LocalDate) IS NULL OR t.occurredDate <= :toDate) " +
            "AND (CAST(:accountId AS java.util.UUID) IS NULL OR t.accountId = :accountId) " +
            "AND (CAST(:categoryId AS java.util.UUID) IS NULL OR t.categoryId = :categoryId) " +
-           "AND (CAST(:merchantId AS java.util.UUID) IS NULL OR t.merchantId = :merchantId) " +
            "AND (:type IS NULL OR t.type = :type) " +
            "AND (CAST(:minAmount AS java.math.BigDecimal) IS NULL OR t.amount >= :minAmount) " +
            "AND (CAST(:maxAmount AS java.math.BigDecimal) IS NULL OR t.amount <= :maxAmount) " +
@@ -67,7 +66,6 @@ public interface TransactionRepository extends JpaRepository<Transaction, UUID> 
             @Param("toDate") LocalDate toDate,
             @Param("accountId") UUID accountId,
             @Param("categoryId") UUID categoryId,
-            @Param("merchantId") UUID merchantId,
             @Param("type") TransactionType type,
             @Param("minAmount") BigDecimal minAmount,
             @Param("maxAmount") BigDecimal maxAmount,
@@ -346,4 +344,6 @@ public interface TransactionRepository extends JpaRepository<Transaction, UUID> 
     BigDecimal sumTransactionsInPeriod(@Param("accountId") UUID accountId,
                                         @Param("fromInstant") Instant fromInstant,
                                         @Param("toInstant") Instant toInstant);
+
+    boolean existsByReceiptUrlAndUserIdAndDeletedAtIsNull(String receiptUrl, UUID userId);
 }

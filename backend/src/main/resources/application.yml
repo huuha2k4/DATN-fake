@@ -28,7 +28,7 @@ spring:
   
   jpa:
     hibernate:
-      ddl-auto: none
+      ddl-auto: validate
     properties:
       hibernate:
         dialect: org.hibernate.dialect.PostgreSQLDialect
@@ -47,7 +47,7 @@ spring:
     locations: classpath:db/migration
     default-schema: core
     create-schemas: true
-    # Auto repair checksums khi file migration thay đổi (chỉ dùng dev)
+    # Giữ false để tương thích DB hiện có từng chỉnh sửa V11/V36/V51/V57/V58/V59; vẫn bật ddl-auto=validate
     validate-on-migrate: false
   
   mail:
@@ -118,7 +118,7 @@ logging:
     org.flywaydb: DEBUG
     org.springframework.boot.autoconfigure: DEBUG
   pattern:
-    console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+    console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level [req=%X{requestId:-} corr=%X{correlationId:-}] %logger{36} - %msg%n"
 
 app:
   name: ${APP_NAME:Finance Management}
@@ -152,6 +152,19 @@ app:
 
   attachments:
     url-ttl-seconds: ${ATTACHMENT_URL_TTL_SECONDS:300}
+
+  audit:
+    hmac-secret: ${AUDIT_HMAC_SECRET:${JWT_SECRET:dev-only-audit-hmac-secret-change-me}}
+    viewer:
+      password: ${SYSTEM_AUDIT_VIEW_PASSWORD:}
+      token-ttl-seconds: ${SYSTEM_AUDIT_TOKEN_TTL_SECONDS:600}
+    retention:
+      enabled: ${AUDIT_RETENTION_ENABLED:false}
+      dry-run: ${AUDIT_RETENTION_DRY_RUN:true}
+      operational-days: ${AUDIT_RETENTION_OPERATIONAL_DAYS:90}
+      security-days: ${AUDIT_RETENTION_SECURITY_DAYS:365}
+      financial-days: ${AUDIT_RETENTION_FINANCIAL_DAYS:365}
+      batch-size: ${AUDIT_RETENTION_BATCH_SIZE:500}
 
   oauth2:
     google:

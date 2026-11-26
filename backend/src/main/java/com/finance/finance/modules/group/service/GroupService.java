@@ -5,6 +5,9 @@ import com.finance.finance.common.enums.ActivityType;
 import com.finance.finance.common.enums.GroupStatus;
 import com.finance.finance.common.enums.GroupType;
 import com.finance.finance.common.enums.MemberRole;
+import com.finance.finance.modules.audit.model.AuditEventType;
+import com.finance.finance.modules.audit.service.AuditEventRequest;
+import com.finance.finance.modules.audit.service.SystemAuditService;
 import com.finance.finance.modules.group.dto.request.*;
 import com.finance.finance.modules.group.dto.response.*;
 import com.finance.finance.modules.group.entity.Group;
@@ -43,6 +46,9 @@ public class GroupService {
     private final com.finance.finance.modules.notification.service.NotificationService notificationService;
     private final GroupFundRepository groupFundRepository;
     private final com.finance.finance.common.service.EmailService emailService;
+
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private SystemAuditService systemAuditService;
     private final com.fasterxml.jackson.databind.ObjectMapper objectMapper;
 
     // ==================== Groups Management ====================
@@ -85,6 +91,17 @@ public class GroupService {
         // Log activity
         logActivity(group.getId(), currentUserId, ActivityType.GROUP_UPDATED, 
                    "Created group: " + group.getName(), null);
+
+        if (systemAuditService != null) {
+            systemAuditService.record(AuditEventRequest.builder()
+                    .eventType(AuditEventType.GROUP_CREATED)
+                    .actorId(currentUserId)
+                    .groupId(group.getId())
+                    .resourceType("GROUP")
+                    .resourceId(group.getId())
+                    .newValues(Map.of("groupType", group.getGroupType().name(), "currency", group.getBaseCurrency()))
+                    .build());
+        }
 
         return buildGroupResponse(group);
     }
@@ -186,6 +203,15 @@ public class GroupService {
         // Soft delete
         group.setDeletedAt(LocalDateTime.now());
         groupRepository.save(group);
+        if (systemAuditService != null) {
+            systemAuditService.record(AuditEventRequest.builder()
+                    .eventType(AuditEventType.GROUP_DELETED)
+                    .actorId(currentUserId)
+                    .groupId(groupId)
+                    .resourceType("GROUP")
+                    .resourceId(groupId)
+                    .build());
+        }
     }
 
     @Transactional
@@ -486,6 +512,18 @@ public class GroupService {
         logActivity(groupId, currentUserId, ActivityType.MEMBER_ROLE_CHANGED, 
                    "Updated member role", Map.of("userId", userId.toString()));
 
+        if (systemAuditService != null) {
+            systemAuditService.record(AuditEventRequest.builder()
+                    .eventType(AuditEventType.GROUP_MEMBER_ROLE_CHANGED)
+                    .actorId(currentUserId)
+                    .subjectUserId(userId)
+                    .groupId(groupId)
+                    .resourceType("GROUP_MEMBER")
+                    .resourceId(userId)
+                    .newValues(Map.of("role", member.getRole().name()))
+                    .build());
+        }
+
         return buildMemberResponse(member);
     }
 
@@ -512,6 +550,17 @@ public class GroupService {
         // Log activity
         logActivity(groupId, currentUserId, ActivityType.MEMBER_LEFT, 
                    "Removed member from group", Map.of("userId", userId.toString()));
+
+        if (systemAuditService != null) {
+            systemAuditService.record(AuditEventRequest.builder()
+                    .eventType(AuditEventType.GROUP_MEMBER_REMOVED)
+                    .actorId(currentUserId)
+                    .subjectUserId(userId)
+                    .groupId(groupId)
+                    .resourceType("GROUP_MEMBER")
+                    .resourceId(userId)
+                    .build());
+        }
     }
 
     // ==================== Helper Methods ====================

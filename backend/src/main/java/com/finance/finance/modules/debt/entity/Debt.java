@@ -98,6 +98,7 @@ public class Debt {
     private BigDecimal interestPaid = BigDecimal.ZERO;
 
     @Column(name = "currency_code", nullable = false, length = 3)
+    @org.hibernate.annotations.JdbcTypeCode(org.hibernate.type.SqlTypes.CHAR)
     @Builder.Default
     private String currencyCode = "VND";
 
