@@ -1564,10 +1564,10 @@ export function BudgetScreen({
       <Modal
         visible={isMonthPickerVisible}
         transparent
-        animationType="slide"
+        animationType="fade"
         onRequestClose={() => setIsMonthPickerVisible(false)}
       >
-        <View style={styles.modalOverlay}>
+        <View style={[styles.modalOverlay, { justifyContent: 'center', alignItems: 'center', padding: 20 }]}>
           <Pressable style={styles.modalBackdrop} onPress={() => setIsMonthPickerVisible(false)} />
           <View
             style={[
@@ -2309,18 +2309,20 @@ const styles = StyleSheet.create({
     color: '#047857',
   },
 
-  /* ── DROPDOWN BOTTOM SHEET THẢ XUỐNG ── */
+  /* ── DROPDOWN MODAL NỔI GIỮA MÀN HÌNH ── */
   dropdownSheet: {
+    width: '100%',
+    maxWidth: 420,
     backgroundColor: '#FFFFFF',
-    borderTopLeftRadius: 28,
-    borderTopRightRadius: 28,
+    borderRadius: 24,
     paddingHorizontal: 20,
-    paddingBottom: Platform.OS === 'ios' ? 36 : 24,
-    maxHeight: '68%',
+    paddingTop: 12,
+    paddingBottom: 16,
+    maxHeight: '72%',
     shadowColor: '#000',
     shadowOpacity: 0.16,
     shadowRadius: 18,
-    shadowOffset: { width: 0, height: -4 },
+    shadowOffset: { width: 0, height: 6 },
     elevation: 10,
   },
   dropdownHandleWrap: {

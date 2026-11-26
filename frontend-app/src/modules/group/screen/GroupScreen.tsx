@@ -3775,6 +3775,7 @@ export function GroupScreen({
 
         {/* ── MODAL CHỌN KHOẢN CHI CHUNG (CHO NHÓM) ĐẶT NGAY TRONG VIEW CHI TIẾT ── */}
         <Modal visible={expenseModalVisible} transparent animationType="slide" onRequestClose={() => setExpenseModalVisible(false)}>
+          <View style={{ flex: 1 }}>
           <KeyboardAvoidingView
             style={{ flex: 1 }}
             behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -4113,10 +4114,13 @@ export function GroupScreen({
                     )}
                   </Pressable>
                 </ScrollView>
+              </View>
+            </View>
+          </KeyboardAvoidingView>
 
                 {/* OVERLAY POPUP DROPDOWN (Nằm trực tiếp trong Modal Thêm giao dịch nhóm) */}
                 {groupPickerModalType !== 'NONE' && (
-                  <View style={[StyleSheet.absoluteFillObject, styles.pickerModalBackdrop, { zIndex: 9999, elevation: 9999 }]}>
+                  <View style={{ position: 'absolute', top: 0, left: 0, width: Dimensions.get('window').width, height: Dimensions.get('window').height, backgroundColor: 'rgba(15, 23, 42, 0.45)', justifyContent: 'center', alignItems: 'center', padding: 20, zIndex: 99999, elevation: 99999 }}>
                     <Pressable
                       style={StyleSheet.absoluteFillObject}
                       onPress={() => setGroupPickerModalType('NONE')}
@@ -4225,20 +4229,20 @@ export function GroupScreen({
                     </View>
                   </View>
                 )}
-              </View>
-            </View>
-          </KeyboardAvoidingView>
+          </View>
         </Modal>
 
-        {/* ── MODAL CHỌN DANH MỤC THẢ XUỐNG DỌC (VERTICAL BOTTOM SHEET) ── */}
-        <Modal visible={categoryPickerModalVisible} transparent animationType="fade">
-          <View style={styles.modalOverlay}>
+        {/* ── MODAL CHỌN DANH MỤC NỔI GIỮA MÀN HÌNH ── */}
+        <Modal visible={categoryPickerModalVisible} transparent animationType="fade" onRequestClose={() => setCategoryPickerModalVisible(false)}>
+          <View style={{ position: 'absolute', top: 0, left: 0, width: Dimensions.get('window').width, height: Dimensions.get('window').height, backgroundColor: 'rgba(15, 23, 42, 0.45)', justifyContent: 'center', alignItems: 'center', padding: 20, zIndex: 99999, elevation: 99999 }}>
+            <Pressable style={StyleSheet.absoluteFillObject} onPress={() => setCategoryPickerModalVisible(false)} />
             <View
               style={[
-                styles.modalSheet,
+                styles.pickerModalBox,
                 isDark && {
                   backgroundColor: themeColors.surface,
                   borderColor: themeColors.cardBorder,
+                  borderWidth: 1,
                 },
               ]}
             >
@@ -4292,15 +4296,17 @@ export function GroupScreen({
           </View>
         </Modal>
 
-        {/* ── MODAL CHỌN VÍ CÁ NHÂN KÈM SỐ DƯ KHẢ DỤNG ── */}
-        <Modal visible={accountPickerModalVisible} transparent animationType="fade">
-          <View style={styles.modalOverlay}>
+        {/* ── MODAL CHỌN VÍ CÁ NHÂN NỔI GIỮA MÀN HÌNH ── */}
+        <Modal visible={accountPickerModalVisible} transparent animationType="fade" onRequestClose={() => setAccountPickerModalVisible(false)}>
+          <View style={{ position: 'absolute', top: 0, left: 0, width: Dimensions.get('window').width, height: Dimensions.get('window').height, backgroundColor: 'rgba(15, 23, 42, 0.45)', justifyContent: 'center', alignItems: 'center', padding: 20, zIndex: 99999, elevation: 99999 }}>
+            <Pressable style={StyleSheet.absoluteFillObject} onPress={() => setAccountPickerModalVisible(false)} />
             <View
               style={[
-                styles.modalSheet,
+                styles.pickerModalBox,
                 isDark && {
                   backgroundColor: themeColors.surface,
                   borderColor: themeColors.cardBorder,
+                  borderWidth: 1,
                 },
               ]}
             >

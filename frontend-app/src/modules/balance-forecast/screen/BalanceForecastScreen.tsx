@@ -47,6 +47,8 @@ export function BalanceForecastScreen({ onBack }: Props) {
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [balanceForecast, setBalanceForecast] = useState<BalanceForecastResponse | null>(null);
+  const [balanceError, setBalanceError] = useState('');
+  const [categoryError, setCategoryError] = useState('');
   const [categoryForecasts, setCategoryForecasts] = useState<CategoryForecastResponse[]>([]);
   const [selectedPointIndex, setSelectedPointIndex] = useState<number | null>(null);
 
@@ -65,9 +67,15 @@ export function BalanceForecastScreen({ onBack }: Props) {
 
       if (balRes.status === 'fulfilled') {
         setBalanceForecast(balRes.value);
+        setBalanceError('');
+      } else {
+        setBalanceError(balRes.reason instanceof Error ? balRes.reason.message : 'Không thể tải dự báo số dư.');
       }
       if (catRes.status === 'fulfilled') {
         setCategoryForecasts(catRes.value);
+        setCategoryError('');
+      } else {
+        setCategoryError(catRes.reason instanceof Error ? catRes.reason.message : 'Không thể tải dự báo danh mục.');
       }
     } catch (e) {
       console.warn('Lỗi khi tải dữ liệu dự báo:', e);
@@ -267,7 +275,7 @@ export function BalanceForecastScreen({ onBack }: Props) {
               // Chuyển đổi định dạng ngày YYYY-MM-DD sang DD/MM/YYYY chuẩn tiếng Việt
               cleanSummary = cleanSummary.replace(/(\d{4})-(\d{2})-(\d{2})/g, '$3/$2/$1');
 
-              return cleanSummary || 'Chưa có đủ dữ liệu giao dịch để lập dự báo chi tiết.';
+              return balanceError || cleanSummary || 'Chưa có đủ dữ liệu giao dịch để lập dự báo chi tiết.';
             })()}
           </Text>
           <Text style={[styles.chartTrendLine, isDark && { color: themeColors.accentGreen }]}>
@@ -452,7 +460,7 @@ export function BalanceForecastScreen({ onBack }: Props) {
                 <FinanceIcon name="chart-pie" size={30} color={isDark ? themeColors.textMuted : '#94A3B8'} />
               </View>
               <Text style={[styles.emptyTitle, isDark && { color: themeColors.textPrimary }]}>
-                Chưa có dữ liệu dự báo danh mục
+                {categoryError || 'Chưa có dữ liệu dự báo danh mục'}
               </Text>
               <Text style={[styles.emptySubText, isDark && { color: themeColors.textSecondary }]}>
                 Hãy ghi chép các giao dịch chi tiêu để FinAI phân tích tốc độ chi tiêu cho bạn.

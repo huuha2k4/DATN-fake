@@ -1,11 +1,16 @@
-from fastapi import FastAPI, Header, HTTPException
-from fastapi.responses import HTMLResponse
+import asyncio
+import math
+import time
+
+from fastapi import FastAPI, Header, HTTPException, Request
+from fastapi.exceptions import RequestValidationError
+from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 from typing import Optional, Any
 from agent import run_chat
 from action_agent import (
-    GeminiNetworkError, GeminiQuotaError, GeminiTimeoutError, ToolExecutionError, ToolRequiredError,
+    GeminiNetworkError, GeminiQuotaError, GeminiRateLimitError, GeminiTimeoutError, ToolExecutionError, ToolRequiredError,
     ToolTimeoutError, run_action_chat,
 )
 from database import resolve_user_id
@@ -25,21 +30,40 @@ app.add_middleware(
 )
 
 
+@app.exception_handler(RequestValidationError)
+async def invalid_request_handler(request: Request, _error: RequestValidationError):
+    return JSONResponse(status_code=400, content={
+        "errorCode": "INVALID_REQUEST",
+        "message": "Yêu cầu không hợp lệ.",
+        "requestId": getattr(request.state, "request_id", None),
+        "retryable": False,
+    })
+
+
 @app.middleware("http")
 async def require_internal_authentication(request, call_next):
     """Fail closed for every Python API; browsers must enter through Spring Boot."""
     import hmac
     import logging
     import os
+    import re
     import time
+    import uuid
     started = time.perf_counter()
+    supplied_request_id = request.headers.get("X-Request-Id", "").strip()
+    request_id = supplied_request_id if re.fullmatch(r"[A-Za-z0-9_-]{1,64}", supplied_request_id) else str(uuid.uuid4())
+    request.state.request_id = request_id
     if request.url.path.startswith("/api/"):
         expected = os.getenv("FINAI_SERVICE_SECRET", "")
         supplied = request.headers.get("X-FinAI-Service-Secret", "")
         if len(expected) < 32 or not hmac.compare_digest(supplied, expected):
-            from fastapi.responses import JSONResponse
-            return JSONResponse(status_code=401, content={"detail": "Invalid service credentials"})
+            return JSONResponse(status_code=401, content={
+                "errorCode": "AUTHENTICATION_ERROR",
+                "message": "Internal service authentication failed",
+                "requestId": request_id,
+            }, headers={"X-Request-Id": request_id})
     response = await call_next(request)
+    response.headers["X-Request-Id"] = request_id
     if request.url.path.startswith(("/api/forecast", "/api/behavior", "/api/anomal", "/api/recommend")):
         logging.getLogger("finora.analytics").info(
             "[AI_HTTP] path=%s, status=%s, total=%.2fms",
@@ -744,31 +768,75 @@ class ActionChatResponse(BaseModel):
 
 
 @app.post("/api/v1/agent/chat", response_model=ActionChatResponse)
-def action_agent_chat(request: ActionChatRequest, x_finai_service_secret: str = Header(default="")):
+async def action_agent_chat(request: ActionChatRequest, raw_request: Request,
+                            x_finai_service_secret: str = Header(default="")):
     """Trusted Spring entry point. The opaque context token is never sent to Gemini."""
     import hmac
     import os
     expected_secret = os.getenv("FINAI_SERVICE_SECRET", "")
     if len(expected_secret) < 32 or not hmac.compare_digest(x_finai_service_secret, expected_secret):
-        raise HTTPException(status_code=401, detail="Invalid service credentials")
+        return JSONResponse(status_code=401, content={
+            "errorCode": "AUTHENTICATION_ERROR",
+            "message": "Internal service authentication failed",
+            "requestId": raw_request.state.request_id,
+        })
     try:
-        result = run_action_chat(
+        budget = float(os.getenv("FINAI_REQUEST_BUDGET_SECONDS", "60"))
+        deadline = time.monotonic() + budget
+        result = await asyncio.wait_for(asyncio.to_thread(
+            run_action_chat,
             message=request.message,
             context_token=request.contextToken,
             temporal_context=request.temporalContext,
             history=[item.model_dump() for item in request.history],
-        )
+            request_id=raw_request.state.request_id,
+            deadline=deadline,
+        ), timeout=budget)
         return ActionChatResponse(**result)
+    except GeminiRateLimitError as exc:
+        retry_after = max(1, math.ceil(exc.retry_after_seconds or 2))
+        return JSONResponse(status_code=429, content={
+            "errorCode": "AI_RATE_LIMITED",
+            "message": "Nhà cung cấp AI đang giới hạn tần suất. Vui lòng thử lại sau ít phút.",
+            "requestId": raw_request.state.request_id,
+            "retryable": True,
+            "retryAfterSeconds": retry_after,
+        }, headers={"Retry-After": str(retry_after)})
     except GeminiQuotaError:
-        raise HTTPException(status_code=429, detail="Gemini quota is temporarily exhausted")
+        return JSONResponse(status_code=429, content={
+            "errorCode": "AI_QUOTA_EXCEEDED",
+            "message": "Hạn mức AI hiện đã hết. Vui lòng thử lại sau khi hạn mức được khôi phục.",
+            "requestId": raw_request.state.request_id,
+            "retryable": False,
+        })
     except GeminiNetworkError:
-        raise HTTPException(status_code=503, detail="Gemini network is temporarily unavailable")
-    except (GeminiTimeoutError, ToolTimeoutError):
-        raise HTTPException(status_code=504, detail="FinAI request timed out")
+        return JSONResponse(status_code=503, content={
+            "errorCode": "AI_PROVIDER_UNAVAILABLE",
+            "message": "Nhà cung cấp AI đang tạm gián đoạn. Vui lòng thử lại sau.",
+            "requestId": raw_request.state.request_id,
+            "retryable": True,
+        })
+    except (asyncio.TimeoutError, GeminiTimeoutError, ToolTimeoutError):
+        return JSONResponse(status_code=504, content={
+            "errorCode": "AI_TIMEOUT",
+            "message": "FinAI chưa xử lý kịp yêu cầu. Vui lòng thử lại.",
+            "requestId": raw_request.state.request_id,
+            "retryable": True,
+        })
     except (ToolExecutionError, ToolRequiredError):
-        raise HTTPException(status_code=502, detail="Financial data could not be retrieved")
+        return JSONResponse(status_code=502, content={
+            "errorCode": "AI_INTERNAL_ERROR",
+            "message": "FinAI chưa thể truy xuất dữ liệu tài chính lúc này.",
+            "requestId": raw_request.state.request_id,
+            "retryable": True,
+        })
     except Exception:
-        raise HTTPException(status_code=502, detail="FinAI orchestration failed")
+        return JSONResponse(status_code=502, content={
+            "errorCode": "AI_INTERNAL_ERROR",
+            "message": "FinAI đang tạm gián đoạn. Vui lòng thử lại sau.",
+            "requestId": raw_request.state.request_id,
+            "retryable": True,
+        })
 
 @app.get("/api/chat/sessions")
 def get_user_chat_sessions(user_id: str = "test_user_01"):

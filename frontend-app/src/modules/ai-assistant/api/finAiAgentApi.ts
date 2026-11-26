@@ -1,4 +1,5 @@
 import { API_BASE_URL, authFetch } from '../../auth/api/authApi';
+import { getAiHttpError } from './aiHttpError';
 
 export type FinAiActionStatus =
   | 'PENDING'
@@ -96,36 +97,67 @@ export interface FinAiConversationSummary {
 export class FinAiHttpError extends Error {
   status: number;
   errorCode?: string;
+  requestId?: string;
+  retryAfterSeconds?: number;
 
-  constructor(status: number, message: string, errorCode?: string) {
+  constructor(status: number, message: string, errorCode?: string, requestId?: string, retryAfterSeconds?: number) {
     super(message);
     this.status = status;
     this.errorCode = errorCode;
+    this.requestId = requestId;
+    this.retryAfterSeconds = retryAfterSeconds;
     this.name = 'FinAiHttpError';
   }
 }
 
 async function requestFinAi<T>(path: string, options: RequestInit = {}): Promise<T> {
   const url = `${API_BASE_URL}/finai${path}`;
-  const response = await authFetch(url, options);
+  const configuredTimeout = Number(process.env.EXPO_PUBLIC_FINAI_TIMEOUT_MS);
+  const timeoutMs = path === '/chat' && configuredTimeout > 0 ? configuredTimeout : path === '/chat' ? 90000 : 30000;
+  const controller = new AbortController();
+  let timedOut = false;
+  const callerSignal = options.signal;
+  const handleCallerAbort = () => controller.abort();
+  if (callerSignal?.aborted) controller.abort();
+  callerSignal?.addEventListener('abort', handleCallerAbort, { once: true });
+  const requestId = `app-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+  const timeoutId = setTimeout(() => {
+    timedOut = true;
+    controller.abort();
+  }, timeoutMs);
 
-  if (!response.ok) {
-    let errBody: any = null;
-    try {
-      errBody = await response.json();
-    } catch {}
-
-    const status = response.status;
-    const message = errBody?.message || `Lỗi kết nối máy chủ FinAI (${status})`;
-    const errorCode = errBody?.errorCode;
-    throw new FinAiHttpError(status, message, errorCode);
+  try {
+    const response = await authFetch(url, {
+      ...options,
+      headers: { ...(options.headers as Record<string, string>), 'X-Request-Id': requestId },
+      signal: controller.signal,
+    });
+    const body: unknown = await response.json().catch(() => null);
+    if (controller.signal.aborted) throw new Error('Request aborted');
+    if (!response.ok) {
+      const failure = getAiHttpError(response.status, body, response.headers.get('X-Request-Id'), response.headers.get('Retry-After'));
+      throw new FinAiHttpError(response.status, failure.message, failure.code, failure.requestId ?? requestId, failure.retryAfterSeconds);
+    }
+    if (body == null) throw new FinAiHttpError(response.status, 'Phản hồi FinAI không hợp lệ.', 'AI_INTERNAL_ERROR', requestId);
+    return body as T;
+  } catch (error) {
+    if (error instanceof FinAiHttpError) throw error;
+    if (timedOut) {
+      throw new FinAiHttpError(0, 'FinAI chưa xử lý kịp yêu cầu. Vui lòng thử lại.', 'AI_TIMEOUT', requestId);
+    }
+    if (callerSignal?.aborted) {
+      throw new FinAiHttpError(0, 'Đã hủy chờ phản hồi từ FinAI.', 'REQUEST_CANCELLED', requestId);
+    }
+    throw new FinAiHttpError(0, 'Không thể kết nối đến máy chủ. Vui lòng kiểm tra kết nối mạng.', 'NETWORK_ERROR', requestId);
+  } finally {
+    clearTimeout(timeoutId);
+    callerSignal?.removeEventListener('abort', handleCallerAbort);
   }
 
-  return response.json() as Promise<T>;
 }
 
 export const finAiAgentApi = {
-  async sendMessage(message: string, conversationId?: string): Promise<FinAiChatResponse> {
+  async sendMessage(message: string, conversationId?: string, signal?: AbortSignal, idempotencyKey?: string): Promise<FinAiChatResponse> {
     const payload: { message: string; conversationId?: string } = {
       message: message.trim(),
     };
@@ -136,6 +168,8 @@ export const finAiAgentApi = {
     return requestFinAi<FinAiChatResponse>('/chat', {
       method: 'POST',
       body: JSON.stringify(payload),
+      signal,
+      headers: idempotencyKey ? { 'Idempotency-Key': idempotencyKey } : undefined,
     });
   },
 

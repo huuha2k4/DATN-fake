@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Modal, View, Text, StyleSheet, Pressable, TextInput, ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
+import { Modal, View, Text, StyleSheet, Pressable, TextInput, ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView, Dimensions } from 'react-native';
 import { AppAlert as Alert } from '../../../../context/DialogContext';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { FinanceIcon } from '../../../core/components/FinanceIcon';
@@ -80,6 +80,7 @@ export const DepositFundModal: React.FC<DepositFundModalProps> = ({
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+      <View style={{ flex: 1 }}>
       <KeyboardAvoidingView
         style={styles.keyboardContainer}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
@@ -279,10 +280,12 @@ export const DepositFundModal: React.FC<DepositFundModalProps> = ({
               )}
             </Pressable>
           </ScrollView>
+        </View>
+      </KeyboardAvoidingView>
 
           {/* OVERLAY POPUP CHỌN TÀI KHOẢN (Chuẩn Dropdown Quản lý nợ) */}
           {showAccountDropdown && (
-            <View style={[StyleSheet.absoluteFillObject, styles.pickerModalBackdrop, { zIndex: 9999, elevation: 9999 }]}>
+            <View style={styles.pickerModalBackdrop}>
               <Pressable
                 style={StyleSheet.absoluteFillObject}
                 onPress={() => setShowAccountDropdown(false)}
@@ -350,8 +353,7 @@ export const DepositFundModal: React.FC<DepositFundModalProps> = ({
               </View>
             </View>
           )}
-        </View>
-      </KeyboardAvoidingView>
+      </View>
     </Modal>
   );
 };
@@ -611,12 +613,17 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   pickerModalBackdrop: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    width: Dimensions.get('window').width,
+    height: Dimensions.get('window').height,
     backgroundColor: 'rgba(15, 23, 42, 0.45)',
     justifyContent: 'center',
     alignItems: 'center',
     padding: 20,
-    borderTopLeftRadius: 28,
-    borderTopRightRadius: 28,
+    zIndex: 99999,
+    elevation: 99999,
   },
   pickerModalBox: {
     width: '100%',

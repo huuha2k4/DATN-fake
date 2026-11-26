@@ -149,6 +149,12 @@ app:
     service-secret: ${FINAI_SERVICE_SECRET:dev-only-finai-service-secret-change-me}
     internal-secret: ${FINAI_INTERNAL_SECRET:dev-only-finai-internal-secret-change-me}
     action-ttl-minutes: ${FINAI_ACTION_TTL_MINUTES:15}
+    connect-timeout-ms: ${FINAI_CONNECT_TIMEOUT_MS:3000}
+    read-timeout-ms: ${FINAI_READ_TIMEOUT_MS:70000}
+
+  analytics:
+    connect-timeout-ms: ${AI_ANALYTICS_CONNECT_TIMEOUT_MS:3000}
+    read-timeout-ms: ${AI_ANALYTICS_READ_TIMEOUT_MS:35000}
 
   attachments:
     url-ttl-seconds: ${ATTACHMENT_URL_TTL_SECONDS:300}

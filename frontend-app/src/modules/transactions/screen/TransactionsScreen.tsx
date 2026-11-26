@@ -2,6 +2,7 @@ import { AppAlert as Alert } from '../../../context/DialogContext';
 import React, { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
+  Dimensions,
   Image,
   KeyboardAvoidingView,
   Modal,
@@ -1479,6 +1480,7 @@ export function TransactionsScreen({ onBack, onAddTransaction }: Props) {
           }
 
           return (
+            <View style={{ flex: 1 }}>
             <KeyboardAvoidingView
               style={styles.modalOverlay}
               behavior={Platform.OS === 'ios' ? 'padding' : undefined}
@@ -2269,16 +2271,12 @@ export function TransactionsScreen({ onBack, onAddTransaction }: Props) {
                     </View>
                   )}
                 </ScrollView>
+              </View>
+            </KeyboardAvoidingView>
 
                 {/* ── OVERLAY PICKER CHỌN DANH MỤC / TÀI KHOẢN (ĐỒNG BỘ CHUẨN SỔ NỢ) ── */}
                 {editPickerType !== 'NONE' && (
-                  <View
-                    style={[
-                      StyleSheet.absoluteFill,
-                      styles.pickerModalBackdrop,
-                      { zIndex: 9999, elevation: 9999 },
-                    ]}
-                  >
+                  <View style={styles.pickerModalBackdrop}>
                     <Pressable
                       style={StyleSheet.absoluteFill}
                       onPress={() => setEditPickerType('NONE')}
@@ -2451,7 +2449,6 @@ export function TransactionsScreen({ onBack, onAddTransaction }: Props) {
                     </View>
                   </View>
                 )}
-              </View>
 
               {/* ── LỚP PHÓNG TO ẢNH HÓA ĐƠN TOÀN MÀN HÌNH NGAY TRONG MODAL ── */}
               {fullReceiptUri ? (
@@ -2475,7 +2472,7 @@ export function TransactionsScreen({ onBack, onAddTransaction }: Props) {
                   </Pressable>
                 </View>
               ) : null}
-            </KeyboardAvoidingView>
+            </View>
           );
         })()}
       </Modal>
@@ -3336,12 +3333,17 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   pickerModalBackdrop: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    width: Dimensions.get('window').width,
+    height: Dimensions.get('window').height,
     backgroundColor: 'rgba(15, 23, 42, 0.45)',
     justifyContent: 'center',
     alignItems: 'center',
     padding: 20,
-    borderTopLeftRadius: 28,
-    borderTopRightRadius: 28,
+    zIndex: 99999,
+    elevation: 99999,
   },
   pickerModalBox: {
     width: '100%',

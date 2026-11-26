@@ -9,6 +9,7 @@ import {
   Image,
   TextInput,
   ActivityIndicator,
+  Dimensions,
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
@@ -142,6 +143,12 @@ export const ChildWalletDetailModal: React.FC<ChildWalletDetailModalProps> = ({
   const [showAccountDropdown, setShowAccountDropdown] = useState(false);
   const [showAccountPickerModal, setShowAccountPickerModal] = useState(false);
   const [isSubmittingDeposit, setIsSubmittingDeposit] = useState(false);
+  const [selectedDetailItem, setSelectedDetailItem] = useState<
+    | { kind: 'REQUEST'; data: any }
+    | { kind: 'SPEND'; data: any }
+    | { kind: 'CHORE'; data: any }
+    | null
+  >(null);
 
   useEffect(() => {
     if (visible && wallet && groupId) {
@@ -768,14 +775,16 @@ export const ChildWalletDetailModal: React.FC<ChildWalletDetailModalProps> = ({
                       const reqIcon = resolveCategoryIconName(req.categoryIcon || req.category?.icon, 'EXPENSE', `${req.categoryName || req.category?.name || ''} ${cleanDesc}`);
 
                       return (
-                        <View
+                        <Pressable
                           key={req.id}
-                          style={[
+                          onPress={() => setSelectedDetailItem({ kind: 'REQUEST', data: req })}
+                          style={({ pressed }) => [
                             styles.itemCard,
                             isDark && {
                               backgroundColor: themeColors.surface,
                               borderColor: themeColors.cardBorder,
                             },
+                            pressed && { opacity: 0.88 },
                           ]}
                         >
                           <View style={styles.itemRowTop}>
@@ -859,7 +868,7 @@ export const ChildWalletDetailModal: React.FC<ChildWalletDetailModalProps> = ({
                               </Pressable>
                             </View>
                           )}
-                        </View>
+                        </Pressable>
                       );
                     })}
                   </View>
@@ -921,14 +930,16 @@ export const ChildWalletDetailModal: React.FC<ChildWalletDetailModalProps> = ({
                           : resolveCategoryIconName(req.categoryIcon || req.category?.icon, 'EXPENSE', `${req.categoryName || req.category?.name || ''} ${cleanDesc}`);
 
                       return (
-                        <View
+                        <Pressable
                           key={req.id}
-                          style={[
+                          onPress={() => setSelectedDetailItem({ kind: 'SPEND', data: req })}
+                          style={({ pressed }) => [
                             styles.itemCard,
                             isDark && {
                               backgroundColor: themeColors.surface,
                               borderColor: themeColors.cardBorder,
                             },
+                            pressed && { opacity: 0.88 },
                           ]}
                         >
                           <View style={styles.itemRowTop}>
@@ -941,9 +952,9 @@ export const ChildWalletDetailModal: React.FC<ChildWalletDetailModalProps> = ({
                               ]}
                             >
                               {isChoreReward ? (
-                                <Text style={{ fontSize: 18 }}>⭐</Text>
+                                <FinanceIcon name="award" size={20} color={isDark ? '#FBBF24' : '#D97706'} />
                               ) : isDeposit ? (
-                                <Text style={{ fontSize: 18 }}>💰</Text>
+                                <FinanceIcon name="wallet" size={20} color={isDark ? themeColors.accentGreen : '#059669'} />
                               ) : (
                                 <FinanceIcon name={iconName} size={20} color={isDark ? '#F87171' : '#E11D48'} />
                               )}
@@ -1002,7 +1013,7 @@ export const ChildWalletDetailModal: React.FC<ChildWalletDetailModalProps> = ({
                               </Text>
                             </View>
                           </View>
-                        </View>
+                        </Pressable>
                       );
                     })}
                   </View>
@@ -1055,14 +1066,16 @@ export const ChildWalletDetailModal: React.FC<ChildWalletDetailModalProps> = ({
                       const isCompleted = chore.status === 'COMPLETED' || chore.status === 'APPROVED';
                       const iconSource = resolveChoreIconSource(chore.icon, chore.id || chore.title);
                       return (
-                        <View
+                        <Pressable
                           key={chore.id}
-                          style={[
+                          onPress={() => setSelectedDetailItem({ kind: 'CHORE', data: chore })}
+                          style={({ pressed }) => [
                             styles.itemCard,
                             isDark && {
                               backgroundColor: themeColors.surface,
                               borderColor: themeColors.cardBorder,
                             },
+                            pressed && { opacity: 0.88 },
                           ]}
                         >
                           <View style={styles.itemRowTop}>
@@ -1101,7 +1114,7 @@ export const ChildWalletDetailModal: React.FC<ChildWalletDetailModalProps> = ({
                               </View>
                             </View>
                           </View>
-                        </View>
+                        </Pressable>
                       );
                     })}
                   </View>
@@ -1946,7 +1959,7 @@ export const ChildWalletDetailModal: React.FC<ChildWalletDetailModalProps> = ({
 
       {/* OVERLAY POPUP DROPDOWN CHỌN VÍ CÁ NHÂN (CHUẨN FORM TRANG NỢ) */}
       {showAccountPickerModal && (
-        <View style={[StyleSheet.absoluteFill, styles.pickerModalBackdrop, { zIndex: 9999, elevation: 9999 }]}>
+        <View style={styles.pickerModalBackdrop}>
           <Pressable
             style={StyleSheet.absoluteFill}
             onPress={() => setShowAccountPickerModal(false)}
@@ -2013,6 +2026,357 @@ export const ChildWalletDetailModal: React.FC<ChildWalletDetailModalProps> = ({
                 );
               })}
             </ScrollView>
+          </View>
+        </View>
+      )}
+
+      {/* Modal Chi tiết: Yêu cầu xin tiền / Lịch sử thu chi / Nhiệm vụ */}
+      {selectedDetailItem && (
+        <View style={styles.pickerModalBackdrop}>
+          <Pressable style={StyleSheet.absoluteFill} onPress={() => setSelectedDetailItem(null)} />
+          <View
+            style={[
+              styles.pickerModalBox,
+              { padding: 20, borderRadius: 24 },
+              isDark && {
+                backgroundColor: themeColors.surface,
+                borderColor: themeColors.cardBorder,
+                borderWidth: 1,
+              },
+            ]}
+          >
+            <View style={[styles.pickerModalHeader, { paddingBottom: 14 }, isDark && { borderBottomColor: themeColors.divider }]}>
+              <Text style={[styles.pickerModalTitle, { fontSize: 16 }, isDark && { color: themeColors.textPrimary }]}>
+                {selectedDetailItem.kind === 'REQUEST'
+                  ? 'Chi tiết yêu cầu xin tiền'
+                  : selectedDetailItem.kind === 'SPEND'
+                    ? 'Chi tiết giao dịch của bé'
+                    : 'Chi tiết nhiệm vụ'}
+              </Text>
+              <Pressable
+                onPress={() => setSelectedDetailItem(null)}
+                hitSlop={10}
+                style={{
+                  width: 30,
+                  height: 30,
+                  borderRadius: 15,
+                  backgroundColor: isDark ? themeColors.surfaceSubtle : '#F1F5F9',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                <FinanceIcon name="close" size={16} color={isDark ? themeColors.textSecondary : '#64748B'} />
+              </Pressable>
+            </View>
+
+            {selectedDetailItem.kind === 'CHORE' ? (
+              (() => {
+                const chore = selectedDetailItem.data;
+                const isDone = chore.status === 'COMPLETED' || chore.status === 'APPROVED';
+                return (
+                  <View style={{ paddingTop: 14, gap: 14 }}>
+                    {/* Hero Card */}
+                    <View
+                      style={{
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        gap: 14,
+                        padding: 14,
+                        borderRadius: 18,
+                        backgroundColor: isDark
+                          ? (isDone ? 'rgba(52, 211, 153, 0.12)' : 'rgba(245, 158, 11, 0.12)')
+                          : (isDone ? '#ECFDF5' : '#FFFBEB'),
+                        borderWidth: 1,
+                        borderColor: isDark
+                          ? (isDone ? 'rgba(52, 211, 153, 0.25)' : 'rgba(245, 158, 11, 0.25)')
+                          : (isDone ? '#A7F3D0' : '#FDE68A'),
+                      }}
+                    >
+                      <View
+                        style={{
+                          width: 54,
+                          height: 54,
+                          borderRadius: 16,
+                          backgroundColor: isDark ? themeColors.surface : '#FFFFFF',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                        }}
+                      >
+                        <Image
+                          source={resolveChoreIconSource(chore.icon, chore.id || chore.title)}
+                          style={{ width: 42, height: 42 }}
+                          resizeMode="contain"
+                        />
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <Text style={{ fontSize: 15, fontWeight: '800', color: isDark ? themeColors.textPrimary : '#0F172A' }}>
+                          {chore.title}
+                        </Text>
+                        <Text style={{ fontSize: 20, fontWeight: '900', color: isDark ? themeColors.accentGreen : '#059669', marginTop: 2 }}>
+                          +{formatVND(chore.rewardAmount)} đ
+                        </Text>
+                      </View>
+                    </View>
+
+                    {/* Info Rows */}
+                    <View
+                      style={{
+                        borderRadius: 16,
+                        backgroundColor: isDark ? themeColors.surfaceSubtle : '#F8FAFC',
+                        borderWidth: 1,
+                        borderColor: isDark ? themeColors.cardBorder : '#E2E8F0',
+                        paddingHorizontal: 14,
+                      }}
+                    >
+                      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: isDark ? themeColors.divider : '#E2E8F0' }}>
+                        <Text style={{ fontSize: 13, color: isDark ? themeColors.textSecondary : '#64748B', fontWeight: '600' }}>Trạng thái</Text>
+                        <View style={[styles.badgeStatus, isDone ? styles.badgeApproved : styles.badgePending]}>
+                          <Text style={[styles.badgeStatusText, isDone ? { color: isDark ? themeColors.accentGreen : '#15803D' } : { color: isDark ? '#FBBF24' : '#B45309' }]}>
+                            {isDone ? 'Đã hoàn thành' : 'Đang thực hiện'}
+                          </Text>
+                        </View>
+                      </View>
+                      {chore.createdAt && (
+                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: isDark ? themeColors.divider : '#E2E8F0' }}>
+                          <Text style={{ fontSize: 13, color: isDark ? themeColors.textSecondary : '#64748B', fontWeight: '600' }}>Ngày giao</Text>
+                          <Text style={{ fontSize: 13, fontWeight: '700', color: isDark ? themeColors.textPrimary : '#0F172A' }}>
+                            {new Date(chore.createdAt).toLocaleString('vi-VN', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit', year: 'numeric' })}
+                          </Text>
+                        </View>
+                      )}
+                      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, paddingVertical: 12 }}>
+                        <Text style={{ fontSize: 13, color: isDark ? themeColors.textSecondary : '#64748B', fontWeight: '600' }}>Mô tả</Text>
+                        <Text style={{ flex: 1, textAlign: 'right', fontSize: 13.5, fontWeight: '600', color: isDark ? themeColors.textPrimary : '#1E293B', lineHeight: 20 }}>
+                          {chore.description || 'Bé hoàn thành việc nhà theo hướng dẫn của bố mẹ để nhận thưởng.'}
+                        </Text>
+                      </View>
+                    </View>
+
+                    <Pressable
+                      onPress={() => setSelectedDetailItem(null)}
+                      style={{
+                        height: 44,
+                        borderRadius: 14,
+                        backgroundColor: isDark ? themeColors.surfaceSubtle : '#F1F5F9',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                      }}
+                    >
+                      <Text style={{ fontSize: 14, fontWeight: '700', color: isDark ? themeColors.textPrimary : '#334155' }}>Đóng</Text>
+                    </Pressable>
+                  </View>
+                );
+              })()
+            ) : (
+              (() => {
+                const item = selectedDetailItem.data;
+                const isReq = selectedDetailItem.kind === 'REQUEST';
+                const isDeposit = item.description?.startsWith('[INCOME_DEPOSIT] ');
+                const isChoreReward = item.description?.startsWith('[INCOME_CHORE] ');
+                const isIncome = !isReq && (isDeposit || isChoreReward);
+                const cleanDesc =
+                  item.description
+                    ?.replace(/^\[MONEY_REQUEST\]\s*/, '')
+                    ?.replace(/^\[INCOME_DEPOSIT\]\s*/, '')
+                    ?.replace(/^\[INCOME_CHORE\]\s*/, '') || (isReq ? 'Xin tiền chi tiêu' : 'Giao dịch');
+                const statusLabel = isReq
+                  ? item.status === 'PENDING'
+                    ? 'Chờ bố mẹ duyệt'
+                    : item.status === 'APPROVED'
+                      ? 'Đã duyệt'
+                      : 'Đã từ chối'
+                  : isDeposit
+                    ? 'Nạp tiền vào ví'
+                    : isChoreReward
+                      ? 'Thưởng việc nhà'
+                      : 'Đã chi tiêu';
+                const isPendingReq = isReq && item.status === 'PENDING';
+                const isRejectedReq = isReq && item.status === 'REJECTED';
+                const heroBg = isDark
+                  ? (isIncome || (!isPendingReq && !isRejectedReq && isReq) ? 'rgba(52, 211, 153, 0.12)' : isPendingReq ? 'rgba(245, 158, 11, 0.12)' : 'rgba(239, 68, 68, 0.12)')
+                  : (isIncome || (!isPendingReq && !isRejectedReq && isReq) ? '#ECFDF5' : isPendingReq ? '#FFFBEB' : '#FEF2F2');
+                const heroBorder = isDark
+                  ? (isIncome || (!isPendingReq && !isRejectedReq && isReq) ? 'rgba(52, 211, 153, 0.25)' : isPendingReq ? 'rgba(245, 158, 11, 0.25)' : 'rgba(239, 68, 68, 0.25)')
+                  : (isIncome || (!isPendingReq && !isRejectedReq && isReq) ? '#A7F3D0' : isPendingReq ? '#FDE68A' : '#FECACA');
+                const amountColor = isIncome || (!isPendingReq && !isRejectedReq && isReq)
+                  ? (isDark ? themeColors.accentGreen : '#059669')
+                  : isPendingReq
+                    ? (isDark ? '#FBBF24' : '#D97706')
+                    : (isDark ? '#F87171' : '#E11D48');
+                const iconName = isDeposit
+                  ? 'wallet'
+                  : isChoreReward
+                    ? 'star'
+                    : resolveCategoryIconName(item.categoryIcon || item.category?.icon, 'EXPENSE', `${item.categoryName || item.category?.name || ''} ${cleanDesc}`);
+
+                return (
+                  <View style={{ paddingTop: 14, gap: 14 }}>
+                    {/* Hero Card */}
+                    <View
+                      style={{
+                        alignItems: 'center',
+                        paddingVertical: 16,
+                        paddingHorizontal: 14,
+                        borderRadius: 18,
+                        backgroundColor: heroBg,
+                        borderWidth: 1,
+                        borderColor: heroBorder,
+                        gap: 8,
+                      }}
+                    >
+                      <View
+                        style={{
+                          width: 46,
+                          height: 46,
+                          borderRadius: 23,
+                          backgroundColor: isDark ? themeColors.surface : '#FFFFFF',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                        }}
+                      >
+                        {isChoreReward ? (
+                          <FinanceIcon name="award" size={22} color={isDark ? '#FBBF24' : '#D97706'} />
+                        ) : isDeposit ? (
+                          <FinanceIcon name="wallet" size={22} color={amountColor} />
+                        ) : (
+                          <FinanceIcon name={iconName || 'wallet'} size={22} color={amountColor} />
+                        )}
+                      </View>
+                      <Text style={{ fontSize: 24, fontWeight: '900', color: amountColor }}>
+                        {isReq ? '' : isIncome ? '+' : '-'}{formatVND(item.amount)} đ
+                      </Text>
+                      <View
+                        style={[
+                          styles.badgeStatus,
+                          isPendingReq
+                            ? styles.badgePending
+                            : isRejectedReq
+                              ? styles.badgeRejected
+                              : !isReq && !isIncome
+                                ? styles.badgeExpense
+                                : styles.badgeApproved,
+                        ]}
+                      >
+                        <Text
+                          style={[
+                            styles.badgeStatusText,
+                            isPendingReq
+                              ? { color: isDark ? '#FBBF24' : '#B45309' }
+                              : isRejectedReq || (!isReq && !isIncome)
+                                ? { color: isDark ? '#F87171' : '#BE123C' }
+                                : { color: isDark ? themeColors.accentGreen : '#15803D' },
+                          ]}
+                        >
+                          {statusLabel}
+                        </Text>
+                      </View>
+                    </View>
+
+                    {/* Structured Info Rows */}
+                    <View
+                      style={{
+                        borderRadius: 16,
+                        backgroundColor: isDark ? themeColors.surfaceSubtle : '#F8FAFC',
+                        borderWidth: 1,
+                        borderColor: isDark ? themeColors.cardBorder : '#E2E8F0',
+                        paddingHorizontal: 14,
+                      }}
+                    >
+                      {(item.categoryName || item.category?.name) && (
+                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: isDark ? themeColors.divider : '#E2E8F0' }}>
+                          <Text style={{ fontSize: 13, color: isDark ? themeColors.textSecondary : '#64748B', fontWeight: '600' }}>Danh mục</Text>
+                          <Text style={{ fontSize: 13.5, fontWeight: '700', color: isDark ? themeColors.textPrimary : '#0F172A' }}>
+                            {item.categoryName || item.category?.name}
+                          </Text>
+                        </View>
+                      )}
+                      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: isDark ? themeColors.divider : '#E2E8F0' }}>
+                        <Text style={{ fontSize: 13, color: isDark ? themeColors.textSecondary : '#64748B', fontWeight: '600' }}>Thời gian</Text>
+                        <Text style={{ fontSize: 13, fontWeight: '700', color: isDark ? themeColors.textPrimary : '#0F172A' }}>
+                          {item.createdAt
+                            ? new Date(item.createdAt).toLocaleString('vi-VN', {
+                                hour: '2-digit',
+                                minute: '2-digit',
+                                day: '2-digit',
+                                month: '2-digit',
+                                year: 'numeric',
+                              })
+                            : 'Vừa xong'}
+                        </Text>
+                      </View>
+                      {item.respondedByUserName && (isReq || isIncome) && (
+                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: isDark ? themeColors.divider : '#E2E8F0' }}>
+                          <Text style={{ fontSize: 13, color: isDark ? themeColors.textSecondary : '#64748B', fontWeight: '600' }}>Người duyệt</Text>
+                          <Text style={{ fontSize: 13.5, fontWeight: '700', color: isDark ? themeColors.accentGreen : '#059669' }}>
+                            {item.respondedByUserName}
+                          </Text>
+                        </View>
+                      )}
+                      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, paddingVertical: 12 }}>
+                        <Text style={{ fontSize: 13, color: isDark ? themeColors.textSecondary : '#64748B', fontWeight: '600' }}>Nội dung</Text>
+                        <Text style={{ flex: 1, textAlign: 'right', fontSize: 13.5, fontWeight: '600', color: isDark ? themeColors.textPrimary : '#1E293B', lineHeight: 20 }}>
+                          {cleanDesc}
+                        </Text>
+                      </View>
+                    </View>
+
+                    {item.rejectionReason && (
+                      <View
+                        style={{
+                          padding: 12,
+                          borderRadius: 12,
+                          backgroundColor: isDark ? 'rgba(239, 68, 68, 0.14)' : '#FEF2F2',
+                          borderWidth: 1,
+                          borderColor: isDark ? 'rgba(239, 68, 68, 0.3)' : '#FECACA',
+                        }}
+                      >
+                        <Text style={{ fontSize: 12.5, fontWeight: '700', color: isDark ? '#F87171' : '#DC2626' }}>
+                          Lý do từ chối: {item.rejectionReason}
+                        </Text>
+                      </View>
+                    )}
+
+                    {isPendingReq && isOwnerOrAdmin ? (
+                      <View style={[styles.actionBtnRow, { marginTop: 2 }]}>
+                        <Pressable
+                          onPress={() => {
+                            setSelectedDetailItem(null);
+                            setRejectingReq(item);
+                            setRejectionReason('');
+                          }}
+                          style={({ pressed }) => [styles.btnRejectOutline, pressed && { opacity: 0.8 }]}
+                        >
+                          <Text style={styles.btnRejectOutlineText}>Từ chối</Text>
+                        </Pressable>
+                        <Pressable
+                          onPress={() => {
+                            setSelectedDetailItem(null);
+                            setApprovingReq(item);
+                          }}
+                          style={({ pressed }) => [styles.btnApproveSolid, pressed && { opacity: 0.8 }]}
+                        >
+                          <FinanceIcon name="check" size={14} color="#FFFFFF" />
+                          <Text style={styles.btnApproveSolidText}>Duyệt cấp tiền</Text>
+                        </Pressable>
+                      </View>
+                    ) : (
+                      <Pressable
+                        onPress={() => setSelectedDetailItem(null)}
+                        style={{
+                          height: 44,
+                          borderRadius: 14,
+                          backgroundColor: isDark ? themeColors.surfaceSubtle : '#F1F5F9',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                        }}
+                      >
+                        <Text style={{ fontSize: 14, fontWeight: '700', color: isDark ? themeColors.textPrimary : '#334155' }}>Đóng</Text>
+                      </Pressable>
+                    )}
+                  </View>
+                );
+              })()
+            )}
           </View>
         </View>
       )}
@@ -2696,10 +3060,17 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   pickerModalBackdrop: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    width: Dimensions.get('window').width,
+    height: Dimensions.get('window').height,
     backgroundColor: 'rgba(15, 23, 42, 0.5)',
     justifyContent: 'center',
     alignItems: 'center',
     padding: 20,
+    zIndex: 99999,
+    elevation: 99999,
   },
   pickerModalBox: {
     width: '100%',

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, Modal, TextInput, Pressable, ScrollView, KeyboardAvoidingView, Platform, ActivityIndicator, Image } from 'react-native';
+import { View, Text, StyleSheet, Modal, TextInput, Pressable, ScrollView, KeyboardAvoidingView, Platform, ActivityIndicator, Image, Dimensions } from 'react-native';
 import { AppAlert as Alert } from '../../../context/DialogContext';
 import { FinanceIcon } from '../../core/components/FinanceIcon';
 import { AppDatePicker } from '../../core/components/AppDatePicker';
@@ -206,6 +206,7 @@ export function CreateGoalModal({ visible, onClose, onSuccess }: Props) {
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+      <View style={{ flex: 1 }}>
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         style={styles.backdrop}
@@ -369,6 +370,8 @@ export function CreateGoalModal({ visible, onClose, onSuccess }: Props) {
               )}
             </Pressable>
           </ScrollView>
+        </View>
+      </KeyboardAvoidingView>
 
           {/* OVERLAY PICKER MODAL CHỌN LOẠI MỤC TIÊU */}
           {showCategoryPicker && (
@@ -427,8 +430,7 @@ export function CreateGoalModal({ visible, onClose, onSuccess }: Props) {
               </View>
             </View>
           )}
-        </View>
-      </KeyboardAvoidingView>
+      </View>
     </Modal>
   );
 }
@@ -541,13 +543,17 @@ const styles = StyleSheet.create({
   },
   // Picker modal styling
   pickerBackdrop: {
-    ...StyleSheet.absoluteFillObject,
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    width: Dimensions.get('window').width,
+    height: Dimensions.get('window').height,
     backgroundColor: 'rgba(0,0,0,0.5)',
     justifyContent: 'center',
     alignItems: 'center',
     padding: 16,
-    zIndex: 9999,
-    elevation: 9999,
+    zIndex: 99999,
+    elevation: 99999,
   },
   pickerBox: {
     width: '100%',

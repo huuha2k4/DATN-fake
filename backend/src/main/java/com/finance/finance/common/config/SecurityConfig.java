@@ -1,11 +1,16 @@
 package com.finance.finance.common.config;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.finance.finance.common.exception.ErrorResponse;
 import com.finance.finance.common.security.JwtAuthenticationFilter;
+import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.AuthenticationProvider;
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
@@ -20,6 +25,8 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.security.web.authentication.Http403ForbiddenEntryPoint;
+import org.springframework.security.web.access.AccessDeniedHandlerImpl;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
@@ -27,6 +34,8 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.io.IOException;
+import java.time.Instant;
 
 @Configuration
 @EnableWebSecurity
@@ -37,6 +46,7 @@ public class SecurityConfig {
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
     private final UserDetailsService userDetailsService;
     private final com.finance.finance.common.filter.IdempotencyRateLimitFilter idempotencyRateLimitFilter;
+    private final ObjectMapper objectMapper;
     
     @Value("${app.security.allowed-origins}")
     private String allowedOrigins;
@@ -47,6 +57,21 @@ public class SecurityConfig {
                 .csrf(AbstractHttpConfigurer::disable)
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .exceptionHandling(errors -> errors
+                        .authenticationEntryPoint((request, response, exception) -> {
+                            if (isAiEndpoint(request.getRequestURI().substring(request.getContextPath().length()))) {
+                                writeSecurityError(response, HttpStatus.UNAUTHORIZED, "AUTHENTICATION_ERROR", "Phiên đăng nhập không hợp lệ hoặc đã hết hạn.");
+                            } else {
+                                new Http403ForbiddenEntryPoint().commence(request, response, exception);
+                            }
+                        })
+                        .accessDeniedHandler((request, response, exception) -> {
+                            if (isAiEndpoint(request.getRequestURI().substring(request.getContextPath().length()))) {
+                                writeSecurityError(response, HttpStatus.FORBIDDEN, "AUTHORIZATION_ERROR", "Bạn không có quyền thực hiện yêu cầu này.");
+                            } else {
+                                new AccessDeniedHandlerImpl().handle(request, response, exception);
+                            }
+                        }))
                 .authorizeHttpRequests(auth -> auth
                         // Public endpoints
                         .requestMatchers("/api/v1/auth/**").permitAll()
@@ -100,7 +125,7 @@ public class SecurityConfig {
         configuration.setAllowedOriginPatterns(origins);
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(Arrays.asList("*"));
-        configuration.setExposedHeaders(Arrays.asList("Authorization", "X-Total-Count", "X-Page-Number"));
+        configuration.setExposedHeaders(Arrays.asList("Authorization", "X-Total-Count", "X-Page-Number", "X-Request-Id", "Server-Timing", "Retry-After"));
         configuration.setAllowCredentials(true);
         configuration.setMaxAge(3600L);
         
@@ -124,5 +149,27 @@ public class SecurityConfig {
     @Bean
     public AuthenticationManager authenticationManager(AuthenticationConfiguration config) throws Exception {
         return config.getAuthenticationManager();
+    }
+
+    private void writeSecurityError(HttpServletResponse response, HttpStatus status, String code, String message) throws IOException {
+        response.setStatus(status.value());
+        response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+        response.setCharacterEncoding("UTF-8");
+        objectMapper.writeValue(response.getOutputStream(), ErrorResponse.builder()
+                .timestamp(Instant.now())
+                .status(status.value())
+                .error(status.getReasonPhrase())
+                .message(message)
+                .errorCode(code)
+                .build());
+    }
+
+    public static boolean isAiEndpoint(String path) {
+        if (path == null || !path.startsWith("/api/")) return false;
+        String route = path.substring(path.startsWith("/api/v1/") ? 8 : 5);
+        return route.startsWith("finai/") || route.equals("chat") || route.startsWith("chat/")
+                || route.startsWith("forecast/") || route.startsWith("behavior/")
+                || route.equals("anomalies") || route.startsWith("anomalies/")
+                || route.equals("recommendations");
     }
 }

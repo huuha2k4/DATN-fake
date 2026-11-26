@@ -1,10 +1,10 @@
 import unittest
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 from pydantic import ValidationError
 
 from action_agent import (
     CreateBudgetArgs, CreateTransactionArgs, GetTransactionsArgs,
-    GeminiTimeoutError, SYSTEM_PROMPT, TOOLS, TemporalContext,
+    GeminiNetworkError, GeminiQuotaError, GeminiRateLimitError, GeminiTimeoutError, SYSTEM_PROMPT, TOOLS, TemporalContext,
     ToolRequiredError, _apply_authoritative_filters, _declaration,
     _apply_overview_authoritative_filters, _invoke_with_controlled_retry,
     _calendar_period, _normalize_gemini_schema, _relative_period, _requires_financial_read,
@@ -396,12 +396,47 @@ class ActionAgentSchemaTests(unittest.TestCase):
             calls = 0
             def invoke(self, _messages):
                 self.calls += 1
-                if self.calls < 3:
+                if self.calls < 2:
                     raise RuntimeError("429 RESOURCE_EXHAUSTED")
                 return "ok"
         model = Model()
         self.assertEqual("ok", _invoke_with_controlled_retry(model, []))
-        self.assertEqual(3, model.calls)
+        self.assertEqual(2, model.calls)
+
+    @patch("action_agent.time.sleep")
+    def test_gemini_rate_limit_honors_retry_after_and_budget(self, sleep):
+        import time
+        failure = RuntimeError("429 RESOURCE_EXHAUSTED")
+        failure.response = Mock(headers={"Retry-After": "60"})
+        model = Mock()
+        model.invoke.side_effect = failure
+        with self.assertRaises(GeminiRateLimitError) as result:
+            _invoke_with_controlled_retry(model, [], deadline=time.monotonic() + 30)
+        self.assertEqual(60, result.exception.retry_after_seconds)
+        model.invoke.assert_called_once()
+        sleep.assert_not_called()
+
+    @patch("action_agent.time.sleep")
+    def test_daily_limit_is_not_retried(self, sleep):
+        model = Mock()
+        model.invoke.side_effect = RuntimeError("429 quota metric GenerateRequestsPerDayPerProject")
+        with self.assertRaises(GeminiQuotaError):
+            _invoke_with_controlled_retry(model, [])
+        model.invoke.assert_called_once()
+        sleep.assert_not_called()
+
+    @patch("action_agent.time.sleep")
+    def test_provider_500_and_503_have_a_bounded_retry(self, sleep):
+        for status in (500, 503):
+            with self.subTest(status=status):
+                failure = RuntimeError("provider discarded request")
+                failure.status_code = status
+                model = Mock()
+                model.invoke.side_effect = failure
+                with self.assertRaises(GeminiNetworkError):
+                    _invoke_with_controlled_retry(model, [])
+                self.assertEqual(2, model.invoke.call_count)
+        self.assertEqual(2, sleep.call_count)
 
     @patch("action_agent.time.sleep", return_value=None)
     def test_gemini_timeout_stops_after_two_attempts(self, _sleep):
@@ -463,7 +498,7 @@ class ActionAgentSchemaTests(unittest.TestCase):
         self.assertEqual(1, model.calls)
 
     @patch.dict("os.environ", {"FINAI_MODEL_TIMEOUT_SECONDS": "10"})
-    def test_retry_is_not_started_when_request_deadline_cannot_fit_it(self):
+    def test_turn_is_not_started_when_request_deadline_cannot_fit_it(self):
         import time
 
         class Model:
@@ -475,7 +510,7 @@ class ActionAgentSchemaTests(unittest.TestCase):
         model = Model()
         with self.assertRaises(GeminiTimeoutError):
             _invoke_with_controlled_retry(model, [], deadline=time.monotonic() + 1)
-        self.assertEqual(1, model.calls)
+        self.assertEqual(0, model.calls)
 
 
 if __name__ == "__main__":

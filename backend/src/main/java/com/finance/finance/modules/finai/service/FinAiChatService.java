@@ -3,6 +3,7 @@ package com.finance.finance.modules.finai.service;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.finance.finance.common.exception.BusinessException;
+import com.finance.finance.common.service.IdempotencyService;
 import com.finance.finance.modules.finai.client.FinAiAgentClient;
 import com.finance.finance.modules.finai.dto.*;
 import com.finance.finance.modules.finai.entity.*;
@@ -12,6 +13,8 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import java.time.Instant;
 import java.util.*;
@@ -28,17 +31,38 @@ public class FinAiChatService {
     private final FinAiContextTokenService contextTokens;
     private final FinAiAgentClient agentClient;
     private final ObjectMapper objectMapper;
+    private final PlatformTransactionManager transactionManager;
+    private final IdempotencyService idempotencyService;
 
     public FinAiChatResponse chat(UUID userId, String timezone, FinAiChatRequest request) {
+        return chat(userId, timezone, request, null);
+    }
+
+    public FinAiChatResponse chat(UUID userId, String timezone, FinAiChatRequest request, String idempotencyKey) {
+        long readStarted = System.nanoTime();
         AiChatSession session = resolveSession(userId, request);
-        List<AiChatMessage> existing = messages.findBySessionIdOrderByCreatedAtAsc(session.getId());
+        List<AiChatMessage> existing = request.getConversationId() == null ? List.of()
+                : messages.findBySessionIdOrderByCreatedAtAsc(session.getId());
         List<FinAiAgentClient.HistoryItem> history = existing.stream()
                 .skip(Math.max(0, existing.size() - 20L))
                 .map(m -> new FinAiAgentClient.HistoryItem(m.getAuthor(), m.getText())).toList();
-        messages.save(AiChatMessage.builder().sessionId(session.getId()).author("user").text(request.getMessage()).kind("normal").build());
-
-        FinAiAgentClient.AgentResponse ai = agentClient.chat(session.getId(), request.getMessage(),
+        log.info("[FINAI_PIPELINE] stage=conversation_db_read durationMs={}", (System.nanoTime() - readStarted) / 1_000_000);
+        UUID conversationId = session.getId() == null ? UUID.randomUUID() : session.getId();
+        FinAiAgentClient.AgentResponse ai = agentClient.chat(conversationId, request.getMessage(),
                 contextTokens.issue(userId), history, FinAiTemporalContext.now(timezone));
+        long writeStarted = System.nanoTime();
+        FinAiChatResponse savedResponse = new TransactionTemplate(transactionManager).execute(status -> {
+            AiChatSession saved = request.getConversationId() == null ? sessions.save(session) : session;
+            FinAiChatResponse response = persistTurn(userId, request, saved, ai);
+            idempotencyService.completeFinAiChat(idempotencyKey, userId, response, response.getConversationId());
+            return response;
+        });
+        log.info("[FINAI_PIPELINE] stage=conversation_db_write durationMs={}", (System.nanoTime() - writeStarted) / 1_000_000);
+        return savedResponse;
+    }
+
+    private FinAiChatResponse persistTurn(UUID userId, FinAiChatRequest request, AiChatSession session, FinAiAgentClient.AgentResponse ai) {
+        messages.save(AiChatMessage.builder().sessionId(session.getId()).author("user").text(request.getMessage()).kind("normal").build());
         List<FinAiActionResponse> pending = new ArrayList<>();
         if (ai.getProposals() != null) {
             if (ai.getProposals().size() > 5) throw new BusinessException("Too many proposed actions", "FINAI_TOOL_LIMIT", HttpStatus.BAD_REQUEST);
@@ -167,7 +191,7 @@ public class FinAiChatService {
         if (request.getConversationId() != null) return sessions.findByIdAndUserId(request.getConversationId(), userId)
                 .orElseThrow(() -> new BusinessException("Conversation not found", "FINAI_CONVERSATION_NOT_FOUND", HttpStatus.NOT_FOUND));
         String title = request.getMessage().trim(); if (title.length() > 80) title = title.substring(0, 80);
-        return sessions.save(AiChatSession.builder().userId(userId).title(title).build());
+        return AiChatSession.builder().userId(userId).title(title).build();
     }
 }
 

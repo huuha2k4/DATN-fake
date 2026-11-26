@@ -23,6 +23,7 @@ import java.util.UUID;
 @Service
 @RequiredArgsConstructor
 public class IdempotencyService {
+    public static final String FINAI_CHAT_ENDPOINT = "/api/v1/finai/chat";
 
     private final IdempotencyKeyRepository repository;
     private final ObjectMapper objectMapper;
@@ -50,7 +51,10 @@ public class IdempotencyService {
             return Optional.empty(); // No idempotency key provided
         }
 
-        Optional<IdempotencyKey> existing = repository.findByIdempotencyKeyAndUserId(idempotencyKey, userId);
+        boolean finAiChat = FINAI_CHAT_ENDPOINT.equals(endpoint);
+        Optional<IdempotencyKey> existing = finAiChat
+                ? repository.findLockedByIdempotencyKeyAndUserId(idempotencyKey, userId)
+                : repository.findByIdempotencyKeyAndUserId(idempotencyKey, userId);
 
         if (existing.isEmpty()) {
             // New request - create record
@@ -62,7 +66,8 @@ public class IdempotencyService {
 
         // Check if request body matches (prevent key reuse with different data)
         String requestHash = hashRequest(requestBody);
-        if (record.getRequestHash() != null && !record.getRequestHash().equals(requestHash)) {
+        if ((finAiChat && !endpoint.equals(record.getEndpoint()))
+                || (record.getRequestHash() != null && !record.getRequestHash().equals(requestHash))) {
             log.warn("Idempotency key reused with different request body. Key: {}, User: {}", 
                     idempotencyKey, userId);
             throw new IdempotencyKeyMismatchException(
@@ -89,6 +94,7 @@ public class IdempotencyService {
                 // Previous attempt failed - allow retry
                 log.info("Previous attempt failed, allowing retry for key: {}", idempotencyKey);
                 record.setStatus(IdempotencyKey.IdempotencyStatus.PROCESSING);
+                if (finAiChat) record.setCreatedAt(LocalDateTime.now());
                 repository.save(record);
                 return Optional.empty();
 
@@ -97,7 +103,7 @@ public class IdempotencyService {
                 log.warn("Request already in progress for key: {}", idempotencyKey);
                 
                 // Check if stuck (timeout)
-                if (record.getCreatedAt().plusMinutes(PROCESSING_TIMEOUT_MINUTES).isBefore(LocalDateTime.now())) {
+                if (!finAiChat && record.getCreatedAt().plusMinutes(PROCESSING_TIMEOUT_MINUTES).isBefore(LocalDateTime.now())) {
                     log.warn("Processing timeout, allowing retry. Key: {}", idempotencyKey);
                     return Optional.empty();
                 }
@@ -109,6 +115,21 @@ public class IdempotencyService {
 
             default:
                 return Optional.empty();
+        }
+    }
+
+    @Transactional
+    public void completeFinAiChat(String key, UUID userId, Object response, UUID conversationId) {
+        if (key == null) return;
+        var record = repository.findLockedByIdempotencyKeyAndUserId(key, userId).orElseThrow();
+        if (record.getStatus() != IdempotencyKey.IdempotencyStatus.PROCESSING) {
+            throw new IllegalStateException("FinAI request is no longer processing");
+        }
+        try {
+            record.markCompleted(objectMapper.writeValueAsString(response), 200, conversationId, "FINAI_CHAT");
+            repository.save(record);
+        } catch (com.fasterxml.jackson.core.JsonProcessingException error) {
+            throw new IllegalStateException("Unable to store FinAI chat response", error);
         }
     }
 

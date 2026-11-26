@@ -355,6 +355,7 @@
 .ai-typing-indicator {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 8px;
   font-size: 0.85rem;
   color: #64748b;
@@ -363,6 +364,37 @@
   border: 1px solid #e2e8f0;
   border-radius: 14px;
   width: fit-content;
+}
+
+.btn-cancel-ai-wait {
+  padding: 5px 9px;
+  border: 1px solid currentColor;
+  border-radius: 8px;
+  background: transparent;
+  color: #475569;
+  font: inherit;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.btn-cancel-ai-wait:hover {
+  background: #e2e8f0;
+}
+
+.btn-cancel-ai-wait:focus-visible {
+  outline: 2px solid #10b981;
+  outline-offset: 2px;
+}
+
+html.dark .btn-cancel-ai-wait,
+body.dark .btn-cancel-ai-wait {
+  color: #cbd5e1;
+}
+
+html.dark .btn-cancel-ai-wait:hover,
+body.dark .btn-cancel-ai-wait:hover {
+  background: #334155;
 }
 
 .typing-dot {
@@ -375,6 +407,28 @@
 
 .typing-dot:nth-child(1) { animation-delay: -0.32s; }
 .typing-dot:nth-child(2) { animation-delay: -0.16s; }
+
+@media (max-width: 640px) {
+  .ai-copilot-container {
+    flex-direction: column;
+  }
+
+  .ai-copilot-container .ai-sidebar {
+    width: 100%;
+    max-height: 136px;
+    border-right: none;
+  }
+
+  .ai-copilot-container .ai-main-chat-area {
+    min-height: 0;
+  }
+
+  .ai-copilot-container .ai-input-wrapper,
+  .ai-copilot-container .ai-messages-scrollview,
+  .ai-copilot-container .ai-chat-header {
+    padding-inline: 12px;
+  }
+}
 
 /* KHUNG NHẬP LIỆU PHÍA DƯỚI (INPUT CONTAINER) */
 .ai-input-wrapper {

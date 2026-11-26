@@ -9,11 +9,14 @@ import json
 import calendar
 import logging
 import os
+import random
 import re
+import math
 import time
 import unicodedata
 import uuid
-from datetime import date
+from datetime import date, datetime, timezone
+from email.utils import parsedate_to_datetime
 from dataclasses import dataclass
 from functools import lru_cache
 from typing import Any, Literal
@@ -32,6 +35,12 @@ class FinAiOrchestrationError(RuntimeError):
 
 class GeminiQuotaError(FinAiOrchestrationError):
     pass
+
+
+class GeminiRateLimitError(FinAiOrchestrationError):
+    def __init__(self, message: str, retry_after_seconds: float | None = None):
+        super().__init__(message)
+        self.retry_after_seconds = retry_after_seconds
 
 
 class GeminiTimeoutError(FinAiOrchestrationError):
@@ -982,17 +991,23 @@ def _route_tools(message: str, history: list[dict[str, str]] | None = None) -> T
 
 
 class BackendToolClient:
-    def __init__(self, context_token: str):
+    def __init__(self, context_token: str, request_id: str | None = None):
         self.context_token = context_token
+        self.request_id = request_id
         self.base_url = os.getenv("FINAI_BACKEND_URL", "http://backend:8080").rstrip("/")
         self.timeout = float(os.getenv("FINAI_TOOL_TIMEOUT_SECONDS", "8"))
 
     def execute_read(self, name: str, arguments: dict[str, Any], deadline: float | None = None) -> Any:
-        timeout = self.timeout if deadline is None else min(self.timeout, max(0.1, deadline - time.monotonic()))
+        reserve = float(os.getenv("FINAI_DEADLINE_RESERVE_SECONDS", "2"))
+        remaining = None if deadline is None else deadline - time.monotonic() - reserve
+        if remaining is not None and remaining < self.timeout:
+            raise ToolTimeoutError("Not enough request budget to start another tool call")
+        timeout = self.timeout if remaining is None else min(self.timeout, remaining)
         try:
             response = requests.post(
                 f"{self.base_url}/api/internal/v1/finai/tools/{name}",
                 json={"contextToken": self.context_token, "arguments": arguments},
+                headers={"X-Request-Id": self.request_id} if self.request_id else None,
                 timeout=timeout,
             )
         except requests.Timeout as exc:
@@ -1014,7 +1029,9 @@ def _model(tool_names: tuple[str, ...] | None = None, tool_choice: str | None = 
         temperature=0.2,
         google_api_key=api_key,
         timeout=float(os.getenv("FINAI_MODEL_TIMEOUT_SECONDS", "18")),
-        max_retries=0,
+        # The current google-genai transport treats zero attempts as its default.
+        # One total SDK attempt leaves all retries under the FinAI deadline.
+        max_retries=1,
     )
     selected = tuple(TOOLS) if tool_names is None else tool_names
     if not selected:
@@ -1022,13 +1039,48 @@ def _model(tool_names: tuple[str, ...] | None = None, tool_choice: str | None = 
     return llm.bind_tools(list(_declarations_for(selected)), tool_choice=tool_choice)
 
 
-def _invoke_with_controlled_retry(model: Any, messages: list[Any], deadline: float | None = None) -> Any:
+def _provider_retry_after(exc: Exception) -> float | None:
+    cause = getattr(exc, "__cause__", None)
+    for candidate in (exc, cause, getattr(exc, "response", None), getattr(cause, "response", None)):
+        if candidate is None:
+            continue
+        headers = getattr(candidate, "headers", None)
+        if headers:
+            value = headers.get("Retry-After") or headers.get("retry-after")
+            if value:
+                try:
+                    delay = float(value)
+                    if math.isfinite(delay):
+                        return max(0.0, delay)
+                except (TypeError, ValueError):
+                    try:
+                        date_value = parsedate_to_datetime(value)
+                        return max(0.0, (date_value - datetime.now(timezone.utc)).total_seconds())
+                    except (TypeError, ValueError, OverflowError):
+                        pass
+    match = re.search(r"retry(?:[_ -]?after|[_ -]?delay| in)?[^0-9]{0,12}(\d+(?:\.\d+)?)\s*s",
+                      str(exc), re.IGNORECASE)
+    return float(match.group(1)) if match else None
+
+
+def _invoke_with_controlled_retry(model: Any, messages: list[Any], deadline: float | None = None,
+                                  request_id: str | None = None, model_round: int | None = None) -> Any:
     model_timeout = float(os.getenv("FINAI_MODEL_TIMEOUT_SECONDS", "18"))
-    for attempt in range(3):
-        if deadline is not None and time.monotonic() >= deadline:
-            raise GeminiTimeoutError("FinAI request deadline exceeded")
+    reserve = float(os.getenv("FINAI_DEADLINE_RESERVE_SECONDS", "2"))
+    max_attempts = max(1, min(3, int(os.getenv("FINAI_MODEL_MAX_ATTEMPTS", "2"))))
+    for attempt in range(max_attempts):
+        if deadline is not None and deadline - time.monotonic() < model_timeout + reserve:
+            raise GeminiTimeoutError("Not enough request budget to start another Gemini turn")
+        started = time.monotonic()
+        outcome = "success"
         try:
-            return model.invoke(messages)
+            response = model.invoke(messages)
+            if deadline is not None and time.monotonic() >= deadline:
+                raise GeminiTimeoutError("FinAI request deadline exceeded")
+            return response
+        except GeminiTimeoutError:
+            outcome = "timeout"
+            raise
         except Exception as exc:
             text = str(exc).lower()
             error_type = type(exc).__name__.lower()
@@ -1036,7 +1088,16 @@ def _invoke_with_controlled_retry(model: Any, messages: list[Any], deadline: flo
             cause = getattr(exc, "__cause__", None)
             if status is None and cause is not None:
                 status = getattr(cause, "status_code", None) or getattr(cause, "code", None)
-            quota = status == 429 or any(marker in text for marker in ("429", "resource_exhausted", "quota"))
+            status = getattr(status, "value", status)
+            try:
+                status = int(status)
+            except (TypeError, ValueError):
+                status = None
+            rate_limited = status == 429 or any(marker in text for marker in ("429", "resource_exhausted", "rate limit"))
+            permanent_quota = status == 402 or (rate_limited and any(marker in text for marker in (
+                "billing disabled", "billing is disabled", "insufficient credits",
+                "daily limit", "per day", "per_day", "perday", "limit: 0", "quota disabled",
+            )))
             invalid_request = (
                 status is not None and 400 <= int(status) < 500 and int(status) != 429
             ) or any(marker in text for marker in ("invalid_argument", "invalid request"))
@@ -1045,30 +1106,42 @@ def _invoke_with_controlled_retry(model: Any, messages: list[Any], deadline: flo
                 or "timeout" in error_type
                 or any(marker in text for marker in ("timeout", "deadline exceeded", "deadline expired", "deadline_exceeded", "timed out"))
             )
-            network = not invalid_request and not timeout and any(
+            provider_unavailable = not invalid_request and not timeout and (
+                status in (500, 502, 503) or "service unavailable" in text or "internal server error" in text
+            )
+            network = not invalid_request and not timeout and not provider_unavailable and any(
                 marker in (error_type + " " + text)
                 for marker in ("connectionerror", "connecterror", "connection refused", "name resolution", "network is unreachable")
             )
-            category = "quota" if quota else "invalid_request" if invalid_request else "timeout" if timeout else "network" if network else "other"
-            logger.warning("Gemini invocation failed category=%s attempt=%s exception=%s", category, attempt + 1, type(exc).__name__)
-            if quota and attempt == 2:
+            category = "quota" if permanent_quota else "rate_limit" if rate_limited else "invalid_request" if invalid_request else "timeout" if timeout else "provider_unavailable" if provider_unavailable else "network" if network else "other"
+            outcome = category
+            logger.warning("Gemini invocation failed requestId=%s category=%s attempt=%s exception=%s",
+                           request_id, category, attempt + 1, type(exc).__name__)
+            if permanent_quota:
                 raise GeminiQuotaError("Gemini quota exhausted") from exc
-            if timeout and attempt >= 1:
+            if rate_limited and attempt == max_attempts - 1:
+                raise GeminiRateLimitError("Gemini rate limited", _provider_retry_after(exc)) from exc
+            if timeout and attempt == max_attempts - 1:
                 raise GeminiTimeoutError("Gemini model timed out") from exc
-            if network and attempt >= 1:
+            if (network or provider_unavailable) and attempt == max_attempts - 1:
                 raise GeminiNetworkError("Gemini network request failed") from exc
-            if not quota and not timeout and not network:
+            if not rate_limited and not timeout and not network and not provider_unavailable:
                 raise
-            delay = 0.35 * (2 ** attempt)
+            provider_delay = _provider_retry_after(exc)
+            delay = max(provider_delay or 0.0, 0.5 * (2 ** attempt)) + random.uniform(0.0, 0.25)
             # Never start a retry that cannot finish within the request budget.
             # Leave a small margin for serialization and the Spring response.
-            if deadline is not None and deadline - time.monotonic() < model_timeout + delay + 1.0:
-                if quota:
-                    raise GeminiQuotaError("Gemini quota retry exceeds request deadline") from exc
+            if deadline is not None and deadline - time.monotonic() < model_timeout + delay + reserve:
+                if rate_limited:
+                    raise GeminiRateLimitError("Gemini rate-limit retry exceeds request deadline", provider_delay) from exc
                 if timeout:
                     raise GeminiTimeoutError("Gemini timeout retry exceeds request deadline") from exc
                 raise GeminiNetworkError("Gemini network retry exceeds request deadline") from exc
-            time.sleep(delay)
+        finally:
+            if request_id:
+                _trace("gemini_attempt", requestId=request_id, modelRound=model_round, attempt=attempt + 1,
+                       outcome=outcome, latencyMs=round((time.monotonic() - started) * 1000))
+        time.sleep(delay)
     raise RuntimeError("Model invocation failed")
 
 
@@ -1280,10 +1353,15 @@ def _resolve_category_id(message: str, cached_results: list[Any]) -> str | None:
 
 
 def run_action_chat(message: str, context_token: str, temporal_context: dict[str, str],
-                    history: list[dict[str, str]] | None = None) -> dict[str, Any]:
+                    history: list[dict[str, str]] | None = None,
+                    request_id: str | None = None, deadline: float | None = None) -> dict[str, Any]:
     from langchain_core.messages import AIMessage, HumanMessage, SystemMessage, ToolMessage
-    request_id = str(uuid.uuid4())
+    request_id = request_id or str(uuid.uuid4())
     started = time.monotonic()
+    if deadline is None:
+        deadline = started + float(os.getenv("FINAI_REQUEST_BUDGET_SECONDS", "60"))
+    if started >= deadline:
+        raise GeminiTimeoutError("FinAI request deadline exceeded before execution")
     route = _route_tools(message, history)
     if route.reason == "write_capability_question":
         _trace("request_complete", requestId=request_id, modelRound=0,
@@ -1293,9 +1371,8 @@ def run_action_chat(message: str, context_token: str, temporal_context: dict[str
                stopReason="capability_answer")
         return {"message": _write_capability_answer(message), "proposals": []}
     model = _model(route.available_tools)
-    backend = BackendToolClient(context_token)
+    backend = BackendToolClient(context_token, request_id)
     context = TemporalContext.model_validate(temporal_context)
-    deadline = time.monotonic() + float(os.getenv("FINAI_REQUEST_BUDGET_SECONDS", "27"))
     route_guidance = _route_guidance(route)
     system_content = SYSTEM_PROMPT + "\n\n" + _runtime_prompt(context)
     if route_guidance:
@@ -1332,7 +1409,7 @@ def run_action_chat(message: str, context_token: str, temporal_context: dict[str
         for model_round in range(1, max_rounds + 1):
             model_rounds = model_round
             gemini_started = time.monotonic()
-            response = _invoke_with_controlled_retry(model, messages, deadline)
+            response = _invoke_with_controlled_retry(model, messages, deadline, request_id, model_round)
             gemini_ms = round((time.monotonic() - gemini_started) * 1000)
             gemini_latencies.append(gemini_ms)
             round_input, round_output = _response_tokens(response)
@@ -1359,6 +1436,8 @@ def run_action_chat(message: str, context_token: str, temporal_context: dict[str
                 break
             fast_path_text: str | None = None
             for call in calls:
+                if time.monotonic() >= deadline:
+                    raise ToolTimeoutError("FinAI request deadline exceeded")
                 tool_calls += 1
                 if tool_calls > max_calls:
                     stop_reason = "tool_call_limit"
@@ -1427,7 +1506,12 @@ def run_action_chat(message: str, context_token: str, temporal_context: dict[str
                             _trace("tool_cache_hit", requestId=request_id, modelRound=model_round, tool=name)
                         else:
                             tool_started = time.monotonic()
-                            result = backend.execute_read(name, validated, deadline)
+                            try:
+                                result = backend.execute_read(name, validated, deadline)
+                            except ToolExecutionError:
+                                _trace("tool_execution_failed", requestId=request_id, modelRound=model_round,
+                                       tool=name, toolLatencyMs=round((time.monotonic() - tool_started) * 1000))
+                                raise
                             tool_ms = round((time.monotonic() - tool_started) * 1000)
                             tool_cache[key] = result
                             executed_tools.append(name)

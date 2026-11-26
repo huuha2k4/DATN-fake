@@ -176,6 +176,8 @@ export function RemindersScreen({ onBack, onNavigateToDebts }: RemindersScreenPr
 
   // Modal Xem chi tiết sự kiện / lịch định kỳ
   const [selectedDetailItem, setSelectedDetailItem] = useState<CalendarEventItem | null>(null);
+  const [confirmDeleteOpen, setConfirmDeleteOpen] = useState<boolean>(false);
+  const [isDeletingSchedule, setIsDeletingSchedule] = useState<boolean>(false);
 
   // Form State tạo lịch
   const [formName, setFormName] = useState<string>('');
@@ -2468,49 +2470,108 @@ export function RemindersScreen({ onBack, onNavigateToDebts }: RemindersScreenPr
                 )}
 
                 {/* Các nút hành động: Xóa, Sửa, Đóng */}
+                {confirmDeleteOpen ? (
+                  <View
+                    style={{
+                      marginTop: 18,
+                      padding: 14,
+                      borderRadius: 14,
+                      backgroundColor: isDark ? 'rgba(239, 68, 68, 0.14)' : '#FEF2F2',
+                      borderWidth: 1,
+                      borderColor: isDark ? 'rgba(239, 68, 68, 0.35)' : '#FECACA',
+                    }}
+                  >
+                    <Text
+                      style={{
+                        fontSize: 13.5,
+                        fontWeight: '700',
+                        color: isDark ? '#FCA5A5' : '#991B1B',
+                        marginBottom: 12,
+                        textAlign: 'center',
+                      }}
+                    >
+                      Bạn có chắc chắn muốn xóa lịch "{selectedDetailItem.title}"?
+                    </Text>
+                    <View style={{ flexDirection: 'row', gap: 10 }}>
+                      <Pressable
+                        disabled={isDeletingSchedule}
+                        style={[
+                          styles.detailActionBtn,
+                          styles.detailBtnClose,
+                          isDark && { backgroundColor: themeColors.surfaceSubtle },
+                        ]}
+                        onPress={() => setConfirmDeleteOpen(false)}
+                      >
+                        <Text style={[styles.detailBtnCloseText, isDark && { color: themeColors.textSecondary }]}>
+                          Hủy
+                        </Text>
+                      </Pressable>
+                      <Pressable
+                        disabled={isDeletingSchedule}
+                        style={[
+                          styles.detailActionBtn,
+                          {
+                            backgroundColor: '#EF4444',
+                            borderColor: '#DC2626',
+                            opacity: isDeletingSchedule ? 0.6 : 1,
+                          },
+                        ]}
+                        onPress={async () => {
+                          const schedId = Number(selectedDetailItem.id.replace('sched_', ''));
+                          try {
+                            setIsDeletingSchedule(true);
+                            const ok = await scheduleApi.deleteSchedule(schedId);
+                            setConfirmDeleteOpen(false);
+                            setSelectedDetailItem(null);
+                            if (ok) {
+                              loadAllData();
+                              setTimeout(() => Alert.alert('Thành công', 'Đã xóa lịch tài chính'), 250);
+                            } else {
+                              setTimeout(() => Alert.alert('Lỗi', 'Không thể xóa lịch tài chính'), 250);
+                            }
+                          } catch (err: any) {
+                            setConfirmDeleteOpen(false);
+                            setSelectedDetailItem(null);
+                            setTimeout(() => Alert.alert('Lỗi', err?.message || 'Không thể xóa lịch'), 250);
+                          } finally {
+                            setIsDeletingSchedule(false);
+                          }
+                        }}
+                      >
+                        <FinanceIcon name="trash" size={16} color="#FFFFFF" />
+                        <Text style={{ fontSize: 13.5, fontWeight: '700', color: '#FFFFFF' }}>
+                          {isDeletingSchedule ? 'Đang xóa...' : 'Xác nhận xóa'}
+                        </Text>
+                      </Pressable>
+                    </View>
+                  </View>
+                ) : (
                 <View style={styles.detailActionButtonsRow}>
                   {/* Nút XÓA */}
                   <Pressable
                     style={[styles.detailActionBtn, styles.detailBtnDelete, isDark && { backgroundColor: 'rgba(239, 68, 68, 0.16)' }]}
-                    onPress={async () => {
+                    onPress={() => {
                       if (selectedDetailItem.id.startsWith('debt_')) {
-                        Alert.alert(
-                          'Khoản nợ liên kết',
-                          'Khoản nợ này được liên kết từ Quản lý nợ. Bạn vui lòng vào màn hình Quản lý nợ để xóa.',
-                          [
-                            { text: 'Đóng', style: 'cancel' },
-                            onNavigateToDebts
-                              ? {
-                                  text: 'Đến Quản lý nợ',
-                                  onPress: () => {
-                                    setSelectedDetailItem(null);
-                                    onNavigateToDebts();
-                                  },
-                                }
-                              : { text: 'OK' },
-                          ]
-                        );
+                        setConfirmDeleteOpen(false);
+                        setSelectedDetailItem(null);
+                        setTimeout(() => {
+                          Alert.alert(
+                            'Khoản nợ liên kết',
+                            'Khoản nợ này được liên kết từ Quản lý nợ. Bạn vui lòng vào màn hình Quản lý nợ để xóa.',
+                            [
+                              { text: 'Đóng', style: 'cancel' },
+                              onNavigateToDebts
+                                ? {
+                                    text: 'Đến Quản lý nợ',
+                                    onPress: () => onNavigateToDebts(),
+                                  }
+                                : { text: 'OK' },
+                            ]
+                          );
+                        }, 250);
                         return;
                       }
-
-                      const schedId = Number(selectedDetailItem.id.replace('sched_', ''));
-                      Alert.alert('Xác nhận xóa', `Bạn có chắc chắn muốn xóa lịch "${selectedDetailItem.title}"?`, [
-                        { text: 'Hủy', style: 'cancel' },
-                        {
-                          text: 'Xóa',
-                          style: 'destructive',
-                          onPress: async () => {
-                            try {
-                              await scheduleApi.deleteSchedule(schedId);
-                              Alert.alert('Thành công', 'Đã xóa lịch tài chính');
-                              setSelectedDetailItem(null);
-                              loadAllData();
-                            } catch (err: any) {
-                              Alert.alert('Lỗi', err.message || 'Không thể xóa lịch');
-                            }
-                          },
-                        },
-                      ]);
+                      setConfirmDeleteOpen(true);
                     }}
                   >
                     <FinanceIcon name="trash" size={16} color="#EF4444" />
@@ -2592,12 +2653,16 @@ export function RemindersScreen({ onBack, onNavigateToDebts }: RemindersScreenPr
                   {/* Nút ĐÓNG */}
                   <Pressable
                     style={[styles.detailActionBtn, styles.detailBtnClose, isDark && { backgroundColor: themeColors.surfaceSubtle }]}
-                    onPress={() => setSelectedDetailItem(null)}
+                    onPress={() => {
+                      setConfirmDeleteOpen(false);
+                      setSelectedDetailItem(null);
+                    }}
                   >
                     <FinanceIcon name="close" size={16} color={isDark ? themeColors.textSecondary : "#475569"} />
                     <Text style={[styles.detailBtnCloseText, isDark && { color: themeColors.textSecondary }]}>Đóng</Text>
                   </Pressable>
                 </View>
+                )}
               </ScrollView>
             )}
           </View>

@@ -19,6 +19,7 @@ import { FinanceIcon } from '../../core/components/FinanceIcon';
 import { authStorage } from '../../auth/api/authApi';
 import {
   finAiAgentApi,
+  FinAiHttpError,
   FinAiActionResponse,
   FinAiConversationSummary,
 } from '../api/finAiAgentApi';
@@ -110,6 +111,7 @@ export function AiAssistantScreen({ onBack }: Props) {
   const [inputQuery, setInputQuery] = useState('');
   const [messages, setMessages] = useState<DisplayMessage[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [isTakingLong, setIsTakingLong] = useState(false);
   const [currentConversationId, setCurrentConversationId] = useState<string | undefined>(undefined);
   const [isProcessingAction, setIsProcessingAction] = useState(false);
 
@@ -120,6 +122,10 @@ export function AiAssistantScreen({ onBack }: Props) {
 
   // Theo dõi trạng thái bàn phím để loại bỏ phần hở đệm đáy trên iOS
   const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
+  const requestAbortRef = useRef<AbortController | null>(null);
+  const slowTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isSendingRef = useRef(false);
+  const retryKeyRef = useRef<{ prompt: string; key: string } | null>(null);
 
   useEffect(() => {
     const showSub = Keyboard.addListener(
@@ -133,6 +139,8 @@ export function AiAssistantScreen({ onBack }: Props) {
     return () => {
       showSub.remove();
       hideSub.remove();
+      requestAbortRef.current?.abort();
+      if (slowTimerRef.current) clearTimeout(slowTimerRef.current);
     };
   }, []);
 
@@ -163,6 +171,8 @@ export function AiAssistantScreen({ onBack }: Props) {
 
   // Chọn 1 conversation cũ để tiếp tục trò chuyện
   const handleSelectConversation = async (conv: FinAiConversationSummary) => {
+    if (isSendingRef.current) return;
+    retryKeyRef.current = null;
     setCurrentConversationId(conv.conversationId);
     setIsHistoryModalVisible(false);
     setIsLoading(true);
@@ -198,6 +208,8 @@ export function AiAssistantScreen({ onBack }: Props) {
 
   // Bắt đầu cuộc trò chuyện mới
   const handleNewChat = () => {
+    if (isSendingRef.current) return;
+    retryKeyRef.current = null;
     setCurrentConversationId(undefined);
     setMessages([]);
     setIsHistoryModalVisible(false);
@@ -325,9 +337,14 @@ export function AiAssistantScreen({ onBack }: Props) {
   };
 
   // Gửi tin nhắn đến FinAI Agent
+  const handleCancelWait = () => {
+    requestAbortRef.current?.abort();
+  };
+
   const handleSend = async (customText?: string) => {
     const textToSend = (customText || inputQuery).trim();
-    if (!textToSend || isLoading) return;
+    if (!textToSend || isLoading || isSendingRef.current) return;
+    isSendingRef.current = true;
 
     setInputQuery('');
 
@@ -339,10 +356,19 @@ export function AiAssistantScreen({ onBack }: Props) {
     };
     setMessages((prev) => [...prev, userMsg]);
     setIsLoading(true);
+    setIsTakingLong(false);
+    const controller = new AbortController();
+    const idempotencyKey = retryKeyRef.current?.prompt === textToSend
+      ? retryKeyRef.current.key
+      : `finai-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    retryKeyRef.current = { prompt: textToSend, key: idempotencyKey };
+    requestAbortRef.current = controller;
+    slowTimerRef.current = setTimeout(() => setIsTakingLong(true), 10000);
     scrollToBottom();
 
     try {
-      const res = await finAiAgentApi.sendMessage(textToSend, currentConversationId);
+      const res = await finAiAgentApi.sendMessage(textToSend, currentConversationId, controller.signal, idempotencyKey);
+      retryKeyRef.current = null;
       if (res.conversationId) {
         setCurrentConversationId(res.conversationId);
       }
@@ -354,41 +380,20 @@ export function AiAssistantScreen({ onBack }: Props) {
         actions: res.actions && res.actions.length > 0 ? res.actions : undefined,
       };
       setMessages((prev) => [...prev, aiMsg]);
-    } catch (err: any) {
-      // Timeout recovery: thử kiểm tra conversation xem server đã lưu chưa
-      let recovered = false;
-      if (currentConversationId) {
-        try {
-          const detail = await finAiAgentApi.getConversation(currentConversationId);
-          if (detail.messages && detail.messages.length > messages.length) {
-            const lastMsg = detail.messages[detail.messages.length - 1];
-            if (lastMsg.author === 'assistant') {
-              const recoveredAiMsg: DisplayMessage = {
-                id: lastMsg.id || `ai-${Date.now()}`,
-                author: 'assistant',
-                text: lastMsg.text,
-                actions: detail.actions || [],
-              };
-              setMessages((prev) => [...prev, recoveredAiMsg]);
-              recovered = true;
-            }
-          }
-        } catch {
-          // recovery failed
-        }
-      }
-
-      if (!recovered) {
-        const errorMsg: DisplayMessage = {
-          id: `err-${Date.now()}`,
-          author: 'assistant',
-          text:
-            err?.message ||
-            'Xin lỗi bạn, kết nối tới máy chủ FinAI đang gặp gián đoạn. Vui lòng kiểm tra lại mạng hoặc thử lại sau giây lát!',
-        };
-        setMessages((prev) => [...prev, errorMsg]);
-      }
+    } catch (error: unknown) {
+      setMessages((prev) => prev.filter((item) => item.id !== userMsg.id));
+      setInputQuery((draft) => draft || textToSend);
+      if (error instanceof FinAiHttpError && error.errorCode === 'REQUEST_CANCELLED') return;
+      const text = error instanceof FinAiHttpError
+        ? [error.message, error.requestId && `Mã yêu cầu: ${error.requestId}`].filter(Boolean).join(' ')
+        : 'FinAI đang tạm gián đoạn. Vui lòng thử lại sau.';
+      setMessages((prev) => [...prev, { id: `err-${Date.now()}`, author: 'assistant', text }]);
     } finally {
+      if (slowTimerRef.current) clearTimeout(slowTimerRef.current);
+      slowTimerRef.current = null;
+      requestAbortRef.current = null;
+      isSendingRef.current = false;
+      setIsTakingLong(false);
       setIsLoading(false);
       scrollToBottom();
     }
@@ -585,7 +590,7 @@ export function AiAssistantScreen({ onBack }: Props) {
         })}
 
         {/* Loading Indicator khi AI đang suy nghĩ */}
-        {isLoading && (
+        {isLoading && requestAbortRef.current && (
           <View style={[styles.messageRow, styles.messageRowAi]}>
             <View
               style={[
@@ -604,9 +609,18 @@ export function AiAssistantScreen({ onBack }: Props) {
               ]}
             >
               <ActivityIndicator size="small" color={isDark ? themeColors.accentGreen : '#059669'} />
-              <Text style={[styles.typingText, isDark && { color: themeColors.accentGreen }]}>
-                FinAI đang xử lý yêu cầu của bạn...
+              <Text accessibilityLiveRegion="polite" style={[styles.typingText, isDark && { color: themeColors.accentGreen }]}>
+                {isTakingLong ? 'FinAI vẫn đang xử lý yêu cầu của bạn...' : 'FinAI đang suy nghĩ...'}
               </Text>
+              <Pressable
+                onPress={handleCancelWait}
+                accessibilityRole="button"
+                accessibilityLabel="Hủy chờ phản hồi FinAI"
+                hitSlop={8}
+                style={({ pressed }) => [styles.cancelWaitBtn, pressed && styles.pressed]}
+              >
+                <Text style={[styles.cancelWaitText, isDark && { color: themeColors.textSecondary }]}>Hủy chờ</Text>
+              </Pressable>
             </View>
           </View>
         )}
@@ -634,7 +648,6 @@ export function AiAssistantScreen({ onBack }: Props) {
             style={[styles.composerInput, isDark && { color: themeColors.textPrimary }]}
             multiline
             maxLength={500}
-            editable={!isLoading}
           />
           <Pressable
             onPress={() => handleSend()}
@@ -1016,6 +1029,19 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: '#059669',
     fontStyle: 'italic',
+    flexShrink: 1,
+  },
+  cancelWaitBtn: {
+    borderWidth: 1,
+    borderColor: '#94A3B8',
+    borderRadius: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 5,
+  },
+  cancelWaitText: {
+    color: '#475569',
+    fontSize: 12,
+    fontWeight: '600',
   },
   composerContainer: {
     backgroundColor: '#FFFFFF',

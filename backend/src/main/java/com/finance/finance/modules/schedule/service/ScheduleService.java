@@ -109,12 +109,10 @@ public class ScheduleService {
             schedule.setReminderMessage(request.getReminderMessage());
         }
 
-        // Calculate next occurrence
-        LocalDate today = LocalDate.now();
-        LocalDate nextOccurrence = !request.getStartDate().isBefore(today)
-                ? request.getStartDate()
-                : recurrenceService.calculateNextOccurrence(
-                        request.getRecurrenceRule(), today.minusDays(1), request.getStartDate());
+        // Calculate next occurrence (respecting BYMONTHDAY / BYDAY so it doesn't fire on today's date when day differs)
+        LocalDate today = LocalDate.now(java.time.ZoneId.of("Asia/Ho_Chi_Minh"));
+        LocalDate nextOccurrence = recurrenceService.calculateFirstOccurrence(
+                request.getRecurrenceRule(), request.getStartDate(), today);
         schedule.setNextOccurrenceDate(nextOccurrence);
 
         schedule = scheduleRepository.save(schedule);
@@ -281,10 +279,10 @@ public class ScheduleService {
 
         // Recalculate next occurrence if recurrence rule changed
         if (needRecalculateNext) {
-            LocalDate nextOccurrence = recurrenceService.calculateNextOccurrence(
+            LocalDate nextOccurrence = recurrenceService.calculateFirstOccurrence(
                     schedule.getRecurrenceRule(),
-                    LocalDate.now(),
-                    schedule.getStartDate()
+                    schedule.getStartDate(),
+                    LocalDate.now(java.time.ZoneId.of("Asia/Ho_Chi_Minh"))
             );
             schedule.setNextOccurrenceDate(nextOccurrence);
         }

@@ -71,6 +71,33 @@ public class RecurrenceService {
     }
 
     /**
+     * Tính toán lần xuất hiện đầu tiên >= max(startDate, today) theo đúng rule (BYMONTHDAY, BYDAY...)
+     */
+    public LocalDate calculateFirstOccurrence(String ruleString, LocalDate startDate, LocalDate today) {
+        RecurrenceRule rule = parseRecurrenceRule(ruleString);
+        LocalDate effectiveToday = today != null ? today : LocalDate.now();
+        LocalDate baseline = (startDate != null && startDate.isAfter(effectiveToday)) ? startDate : effectiveToday;
+
+        if (rule.getFrequency() == Frequency.MONTHLY
+                && rule.getByMonthDay() != null
+                && !rule.getByMonthDay().isEmpty()) {
+            return calculateNextMonthlyByMonthDay(baseline.minusDays(1), rule.getByMonthDay(), 1);
+        }
+
+        if (rule.getFrequency() == Frequency.WEEKLY
+                && rule.getByDay() != null
+                && !rule.getByDay().isEmpty()) {
+            return calculateNextWeekly(baseline.minusDays(1), rule.getByDay(), 1);
+        }
+
+        if (startDate != null && !startDate.isBefore(effectiveToday)) {
+            return startDate;
+        }
+
+        return calculateNextOccurrence(ruleString, effectiveToday.minusDays(1), startDate != null ? startDate : effectiveToday);
+    }
+
+    /**
      * Tính toán lần xuất hiện tiếp theo từ một ngày cho trước
      */
     public LocalDate calculateNextOccurrence(String ruleString, LocalDate fromDate, LocalDate startDate) {

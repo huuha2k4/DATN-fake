@@ -73,7 +73,7 @@ apiClient.interceptors.response.use(
         localStorage.removeItem('refresh_token');
         localStorage.removeItem('user');
         window.location.href = '/';
-        return Promise.reject(refreshError);
+        return Promise.reject(originalRequest?.url?.startsWith('/finai/') ? error : refreshError);
       }
     }
 

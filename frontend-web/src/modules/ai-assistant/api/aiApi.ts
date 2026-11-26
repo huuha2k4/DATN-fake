@@ -1,5 +1,9 @@
 import { api } from '../../core/api/api';
-import { getStoredUser } from '../../auth/api/authApi';
+import { finAiAgentApi } from './finAiAgentApi';
+
+const analyticsRequestConfig = {
+  timeout: Number(import.meta.env.VITE_AI_ANALYTICS_TIMEOUT_MS || 40000),
+};
 
 export interface ChatResponse {
   answer: string;
@@ -159,35 +163,20 @@ export interface TopCategoryForecastsResponse {
   forecasts: CategoryForecastResponse[];
 }
 
-function getCurrentUserId(userId?: string): string {
-  return userId || getStoredUser()?.id || 'b5f7482d-74a0-4582-8fa2-9c586211a583';
-}
-
 /**
  * Gửi câu hỏi đến Trợ lý AI (FinAI Copilot)
  */
-export async function sendChatMessage(question: string, userId?: string, sessionId?: string): Promise<{ answer: string; sessionId?: string }> {
-  const currentUserId = getCurrentUserId(userId);
-  try {
-    const response = await api.post<ChatResponse>('/chat', {
-      question,
-      user_id: currentUserId,
-      session_id: sessionId,
-    });
-    return {
-      answer: response.data.answer || 'Xin lỗi, tôi chưa thể trả lời câu hỏi này vào lúc này.',
-      sessionId: response.data.session_id,
-    };
-  } catch (error) {
-    console.error('Lỗi khi gọi API AI Chat:', error);
-    throw error;
-  }
+export async function sendChatMessage(question: string, _userId?: string, sessionId?: string): Promise<{ answer: string; sessionId?: string }> {
+  const response = await finAiAgentApi.sendMessage(question, sessionId);
+  return {
+    answer: response.message + (response.actions.length ? '\n\nMở hội thoại FinAI để xem và xác nhận đề xuất.' : ''),
+    sessionId: response.conversationId,
+  };
 }
 
-export async function getChatSessions(userId?: string): Promise<ChatSessionItem[]> {
-  const currentUserId = getCurrentUserId(userId);
+export async function getChatSessions(_userId?: string): Promise<ChatSessionItem[]> {
   try {
-    const response = await api.get<ChatSessionItem[]>('/chat/sessions?user_id=' + currentUserId);
+    const response = await api.get<ChatSessionItem[]>('/chat/sessions');
     return response.data || [];
   } catch (error) {
     console.error('Lỗi khi lấy lịch sử hội thoại:', error);
@@ -220,7 +209,7 @@ export async function deleteChatSession(sessionId: string): Promise<boolean> {
  */
 export async function getBehaviorProfile(_userId?: string): Promise<BehaviorProfileResponse> {
   void _userId;
-  const response = await api.get<BehaviorProfileResponse>('/api/behavior/profile', { baseURL: '/' });
+  const response = await api.get<BehaviorProfileResponse>('/behavior/profile', analyticsRequestConfig);
   return response.data;
 }
 
@@ -229,7 +218,7 @@ export async function getBehaviorProfile(_userId?: string): Promise<BehaviorProf
  */
 export async function getSpendingAnomalies(_userId?: string): Promise<AnomalyItem[]> {
   void _userId;
-  const response = await api.get<AnomalyItem[]>('/api/anomalies', { baseURL: '/' });
+  const response = await api.get<AnomalyItem[]>('/anomalies', analyticsRequestConfig);
   return response.data || [];
 }
 
@@ -237,11 +226,11 @@ export async function getSpendingAnomalies(_userId?: string): Promise<AnomalyIte
  * Kiểm tra xem một giao dịch thêm mới có dấu hiệu bất thường không
  */
 export async function checkTransactionAnomaly(amount: number, categoryId?: string, hour?: number) {
-  const response = await api.post('/api/anomalies/check', {
+  const response = await api.post('/anomalies/check', {
     amount,
     category_id: categoryId || 'cat_food',
     hour: hour !== undefined ? hour : new Date().getHours(),
-  }, { baseURL: '/' });
+  }, analyticsRequestConfig);
   return response.data;
 }
 
@@ -250,7 +239,7 @@ export async function checkTransactionAnomaly(amount: number, categoryId?: strin
  */
 export async function getAiRecommendations(_userId?: string): Promise<RecommendationResponse> {
   void _userId;
-  const response = await api.get<RecommendationResponse>('/api/recommendations', { baseURL: '/' });
+  const response = await api.get<RecommendationResponse>('/recommendations', analyticsRequestConfig);
   return response.data;
 }
 
@@ -259,7 +248,7 @@ export async function getAiRecommendations(_userId?: string): Promise<Recommenda
  */
 export async function getBalanceForecast(days: number = 30, _userId?: string): Promise<BalanceForecastResponse> {
   void _userId;
-  const response = await api.get<BalanceForecastResponse>(`/api/forecast/balance?days=${days}`, { baseURL: '/' });
+  const response = await api.get<BalanceForecastResponse>(`/forecast/balance?days=${days}`, analyticsRequestConfig);
   return response.data;
 }
 
@@ -269,15 +258,15 @@ export async function getBalanceForecast(days: number = 30, _userId?: string): P
 export async function getCategoryForecast(category?: string, _userId?: string): Promise<CategoryForecastResponse> {
   void _userId;
   const categoryQuery = category ? `?category=${encodeURIComponent(category)}` : '';
-  const response = await api.get<CategoryForecastResponse>(`/api/forecast/category${categoryQuery}`, { baseURL: '/' });
+  const response = await api.get<CategoryForecastResponse>(`/forecast/category${categoryQuery}`, analyticsRequestConfig);
   return response.data;
 }
 
 export async function getTopCategoryForecasts(limit: number = 3, _userId?: string): Promise<TopCategoryForecastsResponse> {
   void _userId;
   const response = await api.get<TopCategoryForecastsResponse>(
-    `/api/forecast/categories?limit=${limit}`,
-    { baseURL: '/' },
+    `/forecast/categories?limit=${limit}`,
+    analyticsRequestConfig,
   );
   return response.data;
 }
@@ -305,6 +294,6 @@ export interface GoalForecastResponse {
  */
 export async function getGoalsForecast(_userId?: string): Promise<GoalForecastResponse> {
   void _userId;
-  const response = await api.get<GoalForecastResponse>('/api/forecast/goals', { baseURL: '/' });
+  const response = await api.get<GoalForecastResponse>('/forecast/goals', analyticsRequestConfig);
   return response.data;
 }

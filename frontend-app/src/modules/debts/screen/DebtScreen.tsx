@@ -1540,6 +1540,7 @@ export function DebtScreen({ onBack }: DebtScreenProps) {
           animationType="slide"
           onRequestClose={() => setEditModalVisible(false)}
         >
+          <View style={{ flex: 1 }}>
           <KeyboardAvoidingView
             style={styles.modalKeyboardAvoid}
             behavior={Platform.OS === 'ios' ? 'padding' : undefined}
@@ -1721,12 +1722,14 @@ export function DebtScreen({ onBack }: DebtScreenProps) {
                     <Text style={styles.modalSubmitBtnText}>Lưu thay đổi</Text>
                   )}
                 </Pressable>
-                <View style={{ height: 20 }} />
+              <View style={{ height: 20 }} />
               </ScrollView>
+            </View>
+          </KeyboardAvoidingView>
 
               {/* OVERLAY PICKER CHỌN TÀI KHOẢN KHI SỬA KHOẢN NỢ */}
               {pickerModalType === 'EDIT_ACCOUNT' && (
-                <View style={[StyleSheet.absoluteFillObject, styles.pickerModalBackdrop, { zIndex: 9999, elevation: 9999 }]}>
+                <View style={styles.pickerModalBackdrop}>
                   <Pressable
                     style={StyleSheet.absoluteFillObject}
                     onPress={() => setPickerModalType('NONE')}
@@ -1817,8 +1820,7 @@ export function DebtScreen({ onBack }: DebtScreenProps) {
                   </View>
                 </View>
               )}
-            </View>
-          </KeyboardAvoidingView>
+          </View>
         </Modal>
 
         {/* ── MODAL THANH TOÁN / THU NỢ ── */}
@@ -1828,6 +1830,7 @@ export function DebtScreen({ onBack }: DebtScreenProps) {
           animationType="slide"
           onRequestClose={() => setPayModalVisible(false)}
         >
+          <View style={{ flex: 1 }}>
           <KeyboardAvoidingView
             style={styles.modalKeyboardAvoid}
             behavior={Platform.OS === 'ios' ? 'padding' : undefined}
@@ -2099,10 +2102,12 @@ export function DebtScreen({ onBack }: DebtScreenProps) {
                 )}
               </Pressable>
               <View style={{ height: 20 }} />
+            </View>
+          </KeyboardAvoidingView>
 
               {/* OVERLAY PICKER CHỌN TÀI KHOẢN KHI THANH TOÁN NỢ */}
               {pickerModalType === 'PAY_ACCOUNT' && (
-                <View style={[StyleSheet.absoluteFillObject, styles.pickerModalBackdrop, { zIndex: 9999, elevation: 9999 }]}>
+                <View style={styles.pickerModalBackdrop}>
                   <Pressable
                     style={StyleSheet.absoluteFillObject}
                     onPress={() => setPickerModalType('NONE')}
@@ -2165,8 +2170,7 @@ export function DebtScreen({ onBack }: DebtScreenProps) {
                   </View>
                 </View>
               )}
-            </View>
-          </KeyboardAvoidingView>
+          </View>
         </Modal>
       </View>
     );
@@ -2603,6 +2607,7 @@ export function DebtScreen({ onBack }: DebtScreenProps) {
         animationType="slide"
         onRequestClose={() => setCreateModalVisible(false)}
       >
+        <View style={{ flex: 1 }}>
         <KeyboardAvoidingView
           style={styles.modalKeyboardAvoid}
           behavior={Platform.OS === 'ios' ? 'padding' : undefined}
@@ -2981,10 +2986,12 @@ export function DebtScreen({ onBack }: DebtScreenProps) {
                 )}
               </Pressable>
             </ScrollView>
+          </View>
+        </KeyboardAvoidingView>
 
             {/* OVERLAY POPUP DROPDOWN (Nằm trực tiếp trong Modal tạo nợ để bấm 100% ăn ngay) */}
             {pickerModalType !== 'NONE' && (
-              <View style={[StyleSheet.absoluteFillObject, styles.pickerModalBackdrop, { zIndex: 9999, elevation: 9999 }]}>
+              <View style={styles.pickerModalBackdrop}>
                 <Pressable
                   style={StyleSheet.absoluteFillObject}
                   onPress={() => setPickerModalType('NONE')}
@@ -3176,8 +3183,7 @@ export function DebtScreen({ onBack }: DebtScreenProps) {
                 </View>
               </View>
             )}
-          </View>
-        </KeyboardAvoidingView>
+        </View>
       </Modal>
     </View>
   );
@@ -4503,12 +4509,17 @@ const styles = StyleSheet.create({
 
   /* MODAL DROPDOWN PICKER SHEET */
   pickerModalBackdrop: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    width: Dimensions.get('window').width,
+    height: Dimensions.get('window').height,
     backgroundColor: 'rgba(15, 23, 42, 0.45)',
     justifyContent: 'center',
     alignItems: 'center',
     padding: 20,
-    borderTopLeftRadius: 28,
-    borderTopRightRadius: 28,
+    zIndex: 99999,
+    elevation: 99999,
   },
   pickerModalBox: {
     width: '100%',

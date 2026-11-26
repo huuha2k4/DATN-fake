@@ -109,12 +109,10 @@ public class IdempotencyRateLimitFilter extends OncePerRequestFilter {
                 cleanupExpiredBuckets();
             }
 
-            filterChain.doFilter(request, response);
-
         } catch (Exception e) {
             log.error("Error in IdempotencyRateLimitFilter", e);
-            filterChain.doFilter(request, response);
         }
+        filterChain.doFilter(request, response);
     }
 
     /**

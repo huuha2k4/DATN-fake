@@ -30,7 +30,7 @@ def is_gemini_vision_available() -> bool:
 def extract_with_gemini_vision(
     image: np.ndarray,
     api_key: Optional[str] = None,
-    timeout: int = 15,
+    timeout: int = int(os.getenv("GEMINI_VISION_TIMEOUT_SECONDS", "15")),
 ) -> Optional[Dict[str, Any]]:
     """
     Sử dụng Gemini Multimodal Vision để trích xuất thông tin hóa đơn từ ảnh.

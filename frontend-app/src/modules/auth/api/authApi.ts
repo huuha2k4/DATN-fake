@@ -311,9 +311,26 @@ export async function authFetch(url: string, options: RequestInit = {}): Promise
   let response = await fetch(url, { ...options, headers });
 
   // Chỉ tự động refresh token khi nhận 401 Unauthorized; 403 Forbidden là từ chối quyền.
-  if (response.status === 401) {
-    const newToken = await authStorage.refreshAccessToken();
-    if (newToken) {
+  if (response.status === 401 && !options.signal?.aborted) {
+    const signal = options.signal;
+    const refresh = authStorage.refreshAccessToken();
+    let newToken: string | null;
+    if (signal) {
+      let stopWaiting: () => void = () => {};
+      try {
+        const aborted = new Promise<null>((resolve) => {
+          stopWaiting = () => resolve(null);
+          signal.addEventListener('abort', stopWaiting, { once: true });
+          if (signal.aborted) stopWaiting();
+        });
+        newToken = await Promise.race([refresh, aborted]);
+      } finally {
+        signal.removeEventListener('abort', stopWaiting);
+      }
+    } else {
+      newToken = await refresh;
+    }
+    if (newToken && !signal?.aborted) {
       headers['Authorization'] = `Bearer ${newToken}`;
       // Thử lại request với token mới
       response = await fetch(url, { ...options, headers });

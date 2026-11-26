@@ -2,6 +2,8 @@ package com.finance.finance.common.repository;
 
 import com.finance.finance.common.entity.IdempotencyKey;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
+import jakarta.persistence.LockModeType;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -18,6 +20,9 @@ public interface IdempotencyKeyRepository extends JpaRepository<IdempotencyKey, 
      * Find idempotency key by key and user
      */
     Optional<IdempotencyKey> findByIdempotencyKeyAndUserId(String idempotencyKey, UUID userId);
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    Optional<IdempotencyKey> findLockedByIdempotencyKeyAndUserId(String idempotencyKey, UUID userId);
 
     /**
      * Check if idempotency key exists for user

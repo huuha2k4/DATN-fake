@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, type FormEvent } from 'react'
 import { FinanceIcon } from '../../core/components/FinanceIcon'
-import { finAiAgentApi, type FinAiActionResponse } from '../api/finAiAgentApi'
+import { FinAiClientError, finAiAgentApi, type FinAiActionResponse } from '../api/finAiAgentApi'
 import { FinAiActionCard } from './FinAiActionCard'
 import { FormattedMarkdown } from './FormattedMarkdown'
 import { notifyFinAiActionCompleted } from '../../core/utils/finaiSyncEvents'
@@ -63,10 +63,15 @@ export function MiniAIChatWidget({ isOpen, onClose, onOpenFullPage }: MiniAIChat
   ])
   const [input, setInput] = useState('')
   const [isLoading, setIsLoading] = useState(false)
+  const [isTakingLong, setIsTakingLong] = useState(false)
   const [conversationId, setConversationId] = useState<string | null>(null)
   const [actionProcessingId, setActionProcessingId] = useState<string | null>(null)
   const chatEndRef = useRef<HTMLDivElement>(null)
   const pollingRef = useRef<Record<string, ReturnType<typeof setInterval>>>({})
+  const requestAbortRef = useRef<AbortController | null>(null)
+  const slowTimerRef = useRef<number | null>(null)
+  const isSendingRef = useRef(false)
+  const retryKeyRef = useRef<{ prompt: string; key: string } | null>(null)
 
   useEffect(() => {
     if (isOpen) {
@@ -78,6 +83,8 @@ export function MiniAIChatWidget({ isOpen, onClose, onOpenFullPage }: MiniAIChat
   useEffect(() => {
     return () => {
       Object.values(pollingRef.current).forEach((t) => clearInterval(t))
+      requestAbortRef.current?.abort()
+      if (slowTimerRef.current) window.clearTimeout(slowTimerRef.current)
     }
   }, [])
 
@@ -179,15 +186,25 @@ export function MiniAIChatWidget({ isOpen, onClose, onOpenFullPage }: MiniAIChat
 
   const handleSend = async (textToSend?: string) => {
     const prompt = (textToSend || input).trim()
-    if (!prompt || isLoading) return
+    if (!prompt || isLoading || isSendingRef.current) return
+    isSendingRef.current = true
 
     const userMsg: Message = { id: `user-${Date.now()}`, author: 'user', text: prompt }
     setMessages((prev) => [...prev, userMsg])
     if (!textToSend) setInput('')
     setIsLoading(true)
+    setIsTakingLong(false)
+    const controller = new AbortController()
+    const idempotencyKey = retryKeyRef.current?.prompt === prompt
+      ? retryKeyRef.current.key
+      : (globalThis.crypto?.randomUUID?.() || `finai-${Date.now()}-${Math.random().toString(36).slice(2)}`)
+    retryKeyRef.current = { prompt, key: idempotencyKey }
+    requestAbortRef.current = controller
+    slowTimerRef.current = window.setTimeout(() => setIsTakingLong(true), 10000)
 
     try {
-      const res = await finAiAgentApi.sendMessage(prompt, conversationId || undefined)
+      const res = await finAiAgentApi.sendMessage(prompt, conversationId || undefined, controller.signal, idempotencyKey)
+      retryKeyRef.current = null
       if (res.conversationId) {
         setConversationId(res.conversationId)
         // Đồng bộ danh sách hội thoại nếu trang toàn màn hình đang mở
@@ -209,16 +226,26 @@ export function MiniAIChatWidget({ isOpen, onClose, onOpenFullPage }: MiniAIChat
           }
         })
       }
-    } catch {
+    } catch (error) {
+      setMessages((prev) => prev.filter((item) => item.id !== userMsg.id))
+      setInput((draft) => draft || prompt)
+      if (error instanceof FinAiClientError && error.errorCode === 'REQUEST_CANCELLED') return
       setMessages((prev) => [
         ...prev,
         {
           id: `err-${Date.now()}`,
           author: 'assistant',
-          text: 'Xin lỗi bạn, kết nối đến Trợ lý AI đang gián đoạn. Vui lòng thử lại sau!',
+          text: error instanceof FinAiClientError
+            ? [error.message, error.requestId && `Mã yêu cầu: ${error.requestId}`].filter(Boolean).join(' ')
+            : 'FinAI đang tạm gián đoạn. Vui lòng thử lại sau.',
         },
       ])
     } finally {
+      if (slowTimerRef.current) window.clearTimeout(slowTimerRef.current)
+      slowTimerRef.current = null
+      requestAbortRef.current = null
+      isSendingRef.current = false
+      setIsTakingLong(false)
       setIsLoading(false)
     }
   }
@@ -321,6 +348,8 @@ export function MiniAIChatWidget({ isOpen, onClose, onOpenFullPage }: MiniAIChat
             </div>
             <div className="mini-typing-bubble">
               <span className="mini-dot" />
+              <span role="status" className="mini-typing-label">{isTakingLong ? 'Vẫn đang xử lý...' : 'Đang suy nghĩ...'}</span>
+              <button type="button" className="mini-cancel-wait" onClick={() => requestAbortRef.current?.abort()}>Hủy chờ</button>
               <span className="mini-dot" />
               <span className="mini-dot" />
             </div>

@@ -15,7 +15,7 @@ import java.util.*;
 
 /** Temporary authenticated adapter for existing web/mobile chat clients. */
 @RestController
-@RequestMapping("/api/chat")
+@RequestMapping({"/api/chat", "/api/v1/chat"})
 @RequiredArgsConstructor
 public class FinAiLegacyController {
     private final FinAiChatService service;

@@ -1,4 +1,6 @@
-import { API_BASE_URL, authStorage } from '../../auth/api/authApi';
+import { API_BASE_URL, authFetch, authStorage } from '../../auth/api/authApi';
+import { FinAiHttpError } from '../../ai-assistant/api/finAiAgentApi';
+import { getAiHttpError } from '../../ai-assistant/api/aiHttpError';
 
 export interface ForecastPoint {
   date: string;
@@ -41,71 +43,36 @@ export interface TopCategoryForecastsResponse {
   forecasts: CategoryForecastResponse[];
 }
 
-function getAiServiceBaseUrls(): string[] {
-  const list: string[] = [];
-  if (API_BASE_URL) {
-    const nginxRoot = API_BASE_URL.replace(/\/api\/v1\/?$/, '');
-    if (nginxRoot && !list.includes(nginxRoot)) {
-      list.push(nginxRoot);
+async function forecastRequest<T>(path: string): Promise<T> {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), Number(process.env.EXPO_PUBLIC_AI_ANALYTICS_TIMEOUT_MS) || 40000);
+  try {
+    const response = await authFetch(`${API_BASE_URL}${path}`, { signal: controller.signal });
+    const body: unknown = await response.json().catch(() => null);
+    if (controller.signal.aborted) throw new Error('Request timed out');
+    if (!response.ok || body == null) {
+      const failure = getAiHttpError(response.status, body, response.headers.get('X-Request-Id'), response.headers.get('Retry-After'));
+      throw new FinAiHttpError(response.status, failure.message, failure.code, failure.requestId, failure.retryAfterSeconds);
     }
+    return body as T;
+  } catch (error) {
+    if (error instanceof FinAiHttpError) throw error;
+    if (controller.signal.aborted) throw new FinAiHttpError(0, 'Dịch vụ dự báo chưa xử lý kịp yêu cầu.', 'AI_TIMEOUT');
+    throw new FinAiHttpError(0, 'Không thể kết nối đến máy chủ. Vui lòng kiểm tra kết nối mạng.', 'NETWORK_ERROR');
+  } finally {
+    clearTimeout(timeout);
   }
-  return list;
-}
-
-function getUserId(): string {
-  const u = authStorage.getUser();
-  return u?.id || 'b5f7482d-74a0-4582-8fa2-9c586211a583';
-}
-
-async function fetchFromAiEndpoints(path: string, options: RequestInit = {}): Promise<Response> {
-  const baseUrls = getAiServiceBaseUrls();
-  const token = authStorage.getToken();
-  let lastError: any = null;
-
-  for (const base of baseUrls) {
-    try {
-      const url = `${base}${path.startsWith('/') ? path : `/${path}`}`;
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 15000);
-
-      const res = await fetch(url, {
-        ...options,
-        headers: {
-          ...(options.headers || {}),
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
-        signal: controller.signal,
-      });
-      clearTimeout(timeoutId);
-
-      if (res.ok) {
-        return res;
-      }
-    } catch (err) {
-      lastError = err;
-    }
-  }
-
-  throw lastError || new Error('Không thể kết nối đến máy chủ AI');
 }
 
 export const balanceForecastApi = {
   async getBalanceForecast(days: number = 15): Promise<BalanceForecastResponse> {
-    const userId = getUserId();
-    try {
-      const res = await fetchFromAiEndpoints(`/api/forecast/balance?days=${days}`);
-      const data = await res.json();
-      if (data && (data.forecast_points || data.future_forecast)) {
-        return data;
-      }
-    } catch (e) {
-      console.warn('Lỗi gọi AI forecast API, chuyển sang mock dự báo chất lượng cao:', e);
-    }
+    const data = await forecastRequest<BalanceForecastResponse>(`/forecast/balance?days=${days}`);
+    if (data.forecast_points || data.future_forecast) return data;
 
     // Nếu AI service không có dữ liệu thực tế, trả về mảng rỗng để giao diện hiển thị trạng thái chưa có dữ liệu
     return {
       status: 'empty',
-      user_id: userId,
+      user_id: data.user_id || authStorage.getUser()?.id || '',
       current_balance: 0,
       projected_end_of_month_balance: 0,
       projected_range: {
@@ -119,17 +86,8 @@ export const balanceForecastApi = {
   },
 
   async getTopCategoryForecasts(limit: number = 3): Promise<CategoryForecastResponse[]> {
-    try {
-      const res = await fetchFromAiEndpoints(`/api/forecast/categories?limit=${limit}`);
-      const data = await res.json();
-      if (data && Array.isArray(data.forecasts) && data.forecasts.length > 0) {
-        return data.forecasts;
-      }
-    } catch (e) {
-      console.warn('Lỗi gọi AI Category Forecast API:', e);
-    }
-
-    return [];
+    const data = await forecastRequest<TopCategoryForecastsResponse>(`/forecast/categories?limit=${limit}`);
+    return Array.isArray(data.forecasts) ? data.forecasts : [];
   },
 };
 

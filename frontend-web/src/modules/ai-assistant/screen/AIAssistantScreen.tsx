@@ -4,6 +4,7 @@ import { FormattedMarkdown } from '../components/FormattedMarkdown'
 import { FinAiActionCard } from '../components/FinAiActionCard'
 import {
   finAiAgentApi,
+  FinAiClientError,
   type FinAiActionResponse,
   type FinAiConversationSummary,
 } from '../api/finAiAgentApi'
@@ -46,10 +47,15 @@ export function AIAssistantScreen({ onNotify }: { onNotify: (message: string) =>
   const [conversations, setConversations] = useState<FinAiConversationSummary[]>([])
   const [currentConversationId, setCurrentConversationId] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
+  const [isTakingLong, setIsTakingLong] = useState(false)
   const [actionProcessingId, setActionProcessingId] = useState<string | null>(null)
 
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const pollingRef = useRef<{ [actionId: string]: any }>({})
+  const requestAbortRef = useRef<AbortController | null>(null)
+  const slowTimerRef = useRef<number | null>(null)
+  const isSendingRef = useRef(false)
+  const retryKeyRef = useRef<{ prompt: string; key: string } | null>(null)
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -63,6 +69,8 @@ export function AIAssistantScreen({ onNotify }: { onNotify: (message: string) =>
   useEffect(() => {
     return () => {
       Object.values(pollingRef.current).forEach((timer) => clearInterval(timer))
+      requestAbortRef.current?.abort()
+      if (slowTimerRef.current) window.clearTimeout(slowTimerRef.current)
     }
   }, [])
 
@@ -91,6 +99,8 @@ export function AIAssistantScreen({ onNotify }: { onNotify: (message: string) =>
 
   // Bắt đầu cuộc trò chuyện mới
   const handleNewChat = () => {
+    if (isSendingRef.current) return
+    retryKeyRef.current = null
     // Clear active polling
     Object.values(pollingRef.current).forEach((timer) => clearInterval(timer))
     pollingRef.current = {}
@@ -99,8 +109,14 @@ export function AIAssistantScreen({ onNotify }: { onNotify: (message: string) =>
     setMessages([])
   }
 
+  const handleCancelWait = () => {
+    requestAbortRef.current?.abort()
+  }
+
   // Khôi phục một cuộc trò chuyện cũ (Recovery full messages & action states)
   const handleSelectConversation = async (item: FinAiConversationSummary) => {
+    if (isSendingRef.current || isLoading) return
+    retryKeyRef.current = null
     setCurrentConversationId(item.conversationId)
     setIsLoading(true)
     try {
@@ -236,7 +252,7 @@ export function AIAssistantScreen({ onNotify }: { onNotify: (message: string) =>
         }
       } catch {}
 
-      const msg = err?.response?.data?.message || 'Có lỗi xảy ra khi xác nhận hành động.'
+      const msg = err instanceof FinAiClientError ? err.message : 'Có lỗi xảy ra khi xác nhận hành động.'
       onNotify(msg)
     } finally {
       setActionProcessingId(null)
@@ -251,7 +267,7 @@ export function AIAssistantScreen({ onNotify }: { onNotify: (message: string) =>
       updateActionState(res)
       onNotify('Đã hủy bỏ đề xuất hành động.')
     } catch (err: any) {
-      const msg = err?.response?.data?.message || 'Không thể hủy hành động này.'
+      const msg = err instanceof FinAiClientError ? err.message : 'Không thể hủy hành động này.'
       onNotify(msg)
     } finally {
       setActionProcessingId(null)
@@ -260,15 +276,25 @@ export function AIAssistantScreen({ onNotify }: { onNotify: (message: string) =>
 
   const handleSendMessage = async (textToSend: string) => {
     const prompt = textToSend.trim()
-    if (!prompt || isLoading) return
+    if (!prompt || isLoading || isSendingRef.current) return
+    isSendingRef.current = true
 
     const userMsg: Message = { id: `user-${Date.now()}`, author: 'user', text: prompt }
     setMessages((prev) => [...prev, userMsg])
     setQuery('')
     setIsLoading(true)
+    setIsTakingLong(false)
+    const controller = new AbortController()
+    const idempotencyKey = retryKeyRef.current?.prompt === prompt
+      ? retryKeyRef.current.key
+      : (globalThis.crypto?.randomUUID?.() || `finai-${Date.now()}-${Math.random().toString(36).slice(2)}`)
+    retryKeyRef.current = { prompt, key: idempotencyKey }
+    requestAbortRef.current = controller
+    slowTimerRef.current = window.setTimeout(() => setIsTakingLong(true), 10000)
 
     try {
-      const res = await finAiAgentApi.sendMessage(prompt, currentConversationId || undefined)
+      const res = await finAiAgentApi.sendMessage(prompt, currentConversationId || undefined, controller.signal, idempotencyKey)
+      retryKeyRef.current = null
 
       if (res.conversationId && res.conversationId !== currentConversationId) {
         setCurrentConversationId(res.conversationId)
@@ -291,24 +317,13 @@ export function AIAssistantScreen({ onNotify }: { onNotify: (message: string) =>
           }
         })
       }
-    } catch (err: any) {
-      // If client timeout and we have a conversationId, recover conversation instead of showing generic failure
-      if (currentConversationId) {
-        try {
-          const recovered = await finAiAgentApi.getConversation(currentConversationId)
-          if (recovered && recovered.messages && recovered.messages.length > 0) {
-            handleSelectConversation({
-              conversationId: currentConversationId,
-              title: recovered.title,
-              createdAt: recovered.createdAt,
-              updatedAt: recovered.updatedAt,
-            })
-            return
-          }
-        } catch {}
-      }
-
-      const errMsg = err?.response?.data?.message || 'Kết nối đến Trợ lý AI đang gián đoạn. Vui lòng thử lại!'
+    } catch (err: unknown) {
+      setMessages((prev) => prev.filter((item) => item.id !== userMsg.id))
+      setQuery((draft) => draft || prompt)
+      if (err instanceof FinAiClientError && err.errorCode === 'REQUEST_CANCELLED') return
+      const errMsg = err instanceof FinAiClientError
+        ? [err.message, err.requestId && `Mã yêu cầu: ${err.requestId}`].filter(Boolean).join(' ')
+        : 'FinAI đang tạm gián đoạn. Vui lòng thử lại sau.'
       setMessages((prev) => [
         ...prev,
         {
@@ -318,6 +333,11 @@ export function AIAssistantScreen({ onNotify }: { onNotify: (message: string) =>
         },
       ])
     } finally {
+      if (slowTimerRef.current) window.clearTimeout(slowTimerRef.current)
+      slowTimerRef.current = null
+      requestAbortRef.current = null
+      isSendingRef.current = false
+      setIsTakingLong(false)
       setIsLoading(false)
     }
   }
@@ -476,7 +496,7 @@ export function AIAssistantScreen({ onNotify }: { onNotify: (message: string) =>
             })
           )}
 
-          {isLoading && (
+          {isLoading && requestAbortRef.current && (
             <div className="chat-row assistant-row typing-row">
               <div className="message-avatar assistant-avatar">
                 <img src="/finai-avatar.jpg" alt="FinAI" className="ai-avatar-img" />
@@ -485,7 +505,10 @@ export function AIAssistantScreen({ onNotify }: { onNotify: (message: string) =>
                 <div className="typing-dot" />
                 <div className="typing-dot" />
                 <div className="typing-dot" />
-                <span>FinAI đang suy luận dữ liệu...</span>
+                <span role="status">{isTakingLong ? 'FinAI vẫn đang xử lý yêu cầu của bạn...' : 'FinAI đang suy nghĩ...'}</span>
+                <button type="button" className="btn-cancel-ai-wait" onClick={handleCancelWait}>
+                  Hủy chờ
+                </button>
               </div>
             </div>
           )}
