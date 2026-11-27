@@ -25,7 +25,6 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
-import org.springframework.security.web.authentication.Http403ForbiddenEntryPoint;
 import org.springframework.security.web.access.AccessDeniedHandlerImpl;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
@@ -58,13 +57,9 @@ public class SecurityConfig {
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .exceptionHandling(errors -> errors
-                        .authenticationEntryPoint((request, response, exception) -> {
-                            if (isAiEndpoint(request.getRequestURI().substring(request.getContextPath().length()))) {
-                                writeSecurityError(response, HttpStatus.UNAUTHORIZED, "AUTHENTICATION_ERROR", "Phiên đăng nhập không hợp lệ hoặc đã hết hạn.");
-                            } else {
-                                new Http403ForbiddenEntryPoint().commence(request, response, exception);
-                            }
-                        })
+                        .authenticationEntryPoint((request, response, exception) ->
+                                writeSecurityError(response, HttpStatus.UNAUTHORIZED, "AUTHENTICATION_ERROR",
+                                        "Phiên đăng nhập không hợp lệ hoặc đã hết hạn."))
                         .accessDeniedHandler((request, response, exception) -> {
                             if (isAiEndpoint(request.getRequestURI().substring(request.getContextPath().length()))) {
                                 writeSecurityError(response, HttpStatus.FORBIDDEN, "AUTHORIZATION_ERROR", "Bạn không có quyền thực hiện yêu cầu này.");
@@ -74,7 +69,12 @@ public class SecurityConfig {
                         }))
                 .authorizeHttpRequests(auth -> auth
                         // Public endpoints
-                        .requestMatchers("/api/v1/auth/**").permitAll()
+                        .requestMatchers(HttpMethod.POST,
+                                "/api/v1/auth/send-register-otp", "/api/v1/auth/register",
+                                "/api/v1/auth/login", "/api/v1/auth/google", "/api/v1/auth/refresh",
+                                "/api/v1/auth/forgot-password", "/api/v1/auth/verify-reset-otp",
+                                "/api/v1/auth/reset-password", "/api/v1/auth/verify-email",
+                                "/api/v1/auth/resend-verification").permitAll()
                         .requestMatchers("/api/v1/public/**").permitAll()
                         // Authenticated service-to-service context is verified by the FinAI internal controller.
                         .requestMatchers("/api/internal/v1/finai/**").permitAll()

@@ -12,6 +12,7 @@ class FinAiToolRegistryTest {
     void registersFullReadCatalogAndWriteWaves() {
         assertEquals(Set.of("get_transactions", "get_accounts", "get_financial_overview", "get_budgets",
                         "get_goals", "get_debts", "get_schedules", "get_groups", "get_group_finances",
+                        "get_categories", "get_spending_profile",
                         "create_transaction", "create_budget", "create_goal", "contribute_to_goal",
                         "create_debt", "record_debt_payment", "update_budget", "create_schedule",
                         "update_schedule", "create_account", "create_group_transaction", "contribute_group_fund",

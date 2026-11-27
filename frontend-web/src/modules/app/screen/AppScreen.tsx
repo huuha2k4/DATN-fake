@@ -38,7 +38,6 @@ const PrivacyPolicyScreen = lazy(() => import('../../legal/screen/PrivacyPolicyS
 const TermsOfServiceScreen = lazy(() => import('../../legal/screen/TermsOfServiceScreen').then(m => ({ default: m.TermsOfServiceScreen })))
 const AdminDashboardScreen = lazy(() => import('../../admin/screen/AdminDashboardScreen').then(m => ({ default: m.AdminDashboardScreen })))
 const AdminUserManagementScreen = lazy(() => import('../../admin/screen/AdminUserManagementScreen').then(m => ({ default: m.AdminUserManagementScreen })))
-const AdminRolesScreen = lazy(() => import('../../admin/screen/AdminRolesScreen').then(m => ({ default: m.AdminRolesScreen })))
 const AdminCategoriesScreen = lazy(() => import('../../admin/screen/AdminCategoriesScreen').then(m => ({ default: m.AdminCategoriesScreen })))
 const AdminAIManagementScreen = lazy(() => import('../../admin/screen/AdminAIManagementScreen').then(m => ({ default: m.AdminAIManagementScreen })))
 const AdminOcrManagementScreen = lazy(() => import('../../admin/screen/AdminOcrManagementScreen').then(m => ({ default: m.AdminOcrManagementScreen })))
@@ -212,7 +211,7 @@ export default function AppScreen() {
           <Route path="/admin" element={<AdminLayout />}>
             <Route index element={<AdminDashboardScreen />} />
             <Route path="users" element={<AdminUserManagementScreen />} />
-            <Route path="roles" element={<AdminRolesScreen />} />
+            <Route path="roles" element={<Navigate to="/admin/users?tab=access" replace />} />
             <Route path="categories" element={<AdminCategoriesScreen />} />
             <Route path="ai-management" element={<AdminAIManagementScreen />} />
             <Route path="ocr-management" element={<AdminOcrManagementScreen />} />

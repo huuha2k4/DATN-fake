@@ -13,6 +13,10 @@ import java.util.UUID;
 @NoArgsConstructor
 @AllArgsConstructor
 public class AdminBroadcastLogItem {
+    private String status;
+    private Long expectedCount;
+    private Long readCount;
+    private boolean legacy;
     private UUID id;
     private String title;
     private String body;
@@ -20,7 +24,7 @@ public class AdminBroadcastLogItem {
     private String priority;
     private String actionUrl;
     private String actionText;
-    private int recipientCount;
+    private Long recipientCount;
     private String createdBy;
     private Instant createdAt;
 }

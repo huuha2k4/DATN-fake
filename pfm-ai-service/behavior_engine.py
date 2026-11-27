@@ -141,6 +141,7 @@ class BehaviorProfiler:
                 by_category: Dict[str, Decimal] = {}
                 needs = Decimal("0")
                 wants = Decimal("0")
+                unclassified_expense = Decimal("0")
                 food = Decimal("0")
                 weekend = Decimal("0")
                 night = Decimal("0")
@@ -153,6 +154,8 @@ class BehaviorProfiler:
                     by_category[name] = by_category.get(name, Decimal("0")) + amount
                     if bool(row.is_essential): needs += amount
                     else: wants += amount
+                    if row.name is None:
+                        unclassified_expense += amount
                     normalized_name = name.casefold()
                     if "ăn uống" in normalized_name or "food" in normalized_name: food += amount
                     local_dt = _local(row.occurred_at)
@@ -229,7 +232,8 @@ class BehaviorProfiler:
                         "temporal_stability": round(100 * (1 - min(abs(eom_ratio - 1) / 1.5, 1))),
                         "food_moderation": round(100 * (1 - min(dining_ratio, 1))),
                     },
-                    "metrics": {"transaction_count": len(rows), "expense_count": len(expenses), "observation_days": span_days},
+                    "metrics": {"transaction_count": len(rows), "expense_count": len(expenses),
+                                "observation_days": span_days, "unclassified_expense": float(unclassified_expense)},
                     "findings": findings,
                 }
             _CACHE.set(key, result)

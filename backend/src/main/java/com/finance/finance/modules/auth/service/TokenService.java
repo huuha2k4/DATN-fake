@@ -28,6 +28,8 @@ public class TokenService {
     private final RefreshTokenRepository refreshTokenRepository;
     private final AuthTokenRepository authTokenRepository;
     private final JwtTokenProvider jwtTokenProvider;
+    private final com.finance.finance.modules.user.repository.UserRepository userRepository;
+    private final com.finance.finance.modules.admin.service.SystemConfigService systemConfigService;
     private final SecureRandom secureRandom = new SecureRandom();
     
     @Value("${app.jwt.refresh-token-expiration}")
@@ -61,6 +63,14 @@ public class TokenService {
      */
     @Transactional
     public RefreshToken rotateRefreshToken(String oldTokenValue) {
+        UUID ownerId = refreshTokenRepository.findOwnerId(oldTokenValue)
+                .orElseThrow(() -> new InvalidTokenException("Invalid refresh token"));
+        User owner = userRepository.lockActiveRecord(ownerId)
+                .orElseThrow(() -> new InvalidTokenException("Invalid refresh token"));
+        if (!owner.isEnabled() || !owner.isAccountNonLocked()) {
+            throw new InvalidTokenException("Account is unavailable");
+        }
+        systemConfigService.requireApplicationAccess(owner);
         // Find and validate old token
         RefreshToken oldToken = refreshTokenRepository.findByToken(oldTokenValue)
                 .orElseThrow(() -> new InvalidTokenException("Refresh token không tồn tại"));

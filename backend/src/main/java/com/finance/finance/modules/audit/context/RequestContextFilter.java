@@ -12,7 +12,6 @@ import org.springframework.web.filter.OncePerRequestFilter;
 import org.springframework.web.servlet.HandlerMapping;
 
 import java.io.IOException;
-import java.net.InetAddress;
 import java.util.UUID;
 import java.util.regex.Pattern;
 
@@ -144,35 +143,7 @@ public class RequestContextFilter extends OncePerRequestFilter {
     }
 
     static String resolveClientIp(HttpServletRequest request) {
-        String remoteAddr = request.getRemoteAddr();
-        if (isTrustedProxy(remoteAddr)) {
-            String xff = request.getHeader("X-Forwarded-For");
-            if (xff != null && !xff.isBlank()) {
-                String firstHop = xff.split(",")[0].trim();
-                String sanitized = sanitizeIp(firstHop);
-                if (sanitized != null) {
-                    return sanitized;
-                }
-            }
-            String xRealIp = request.getHeader("X-Real-IP");
-            String sanitizedReal = sanitizeIp(xRealIp);
-            if (sanitizedReal != null) {
-                return sanitizedReal;
-            }
-        }
-        return sanitizeIp(remoteAddr);
-    }
-
-    private static boolean isTrustedProxy(String remoteAddr) {
-        if (remoteAddr == null || remoteAddr.isBlank()) {
-            return false;
-        }
-        try {
-            InetAddress addr = InetAddress.getByName(remoteAddr.trim());
-            return addr.isLoopbackAddress() || addr.isSiteLocalAddress() || addr.isLinkLocalAddress();
-        } catch (Exception ignored) {
-            return false;
-        }
+        return sanitizeIp(request.getRemoteAddr());
     }
 
     private static String sanitizeIp(String raw) {

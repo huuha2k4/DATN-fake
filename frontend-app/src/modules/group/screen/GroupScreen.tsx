@@ -25,6 +25,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { FinanceIcon, resolveCategoryIconName } from '../../core/components/FinanceIcon';
+import { finAiSyncEmitter } from '../../ai-assistant/api/finAiSyncEmitter';
 import Svg, { Circle, G, Path as SvgPath } from 'react-native-svg';
 import {
   groupApi,
@@ -633,6 +634,13 @@ export function GroupScreen({
   useEffect(() => {
     loadGroups();
   }, []);
+
+  useEffect(() => finAiSyncEmitter.subscribe((action) => {
+    if (!action?.toolName || !['create_group_transaction', 'contribute_group_fund',
+      'create_child_spend', 'deposit_child_wallet'].includes(action.toolName)) return;
+    void loadGroups(true);
+    if (selectedGroup?.id) void loadGroupDetailData(selectedGroup.id);
+  }), [selectedGroup?.id]);
 
   // Danh sách kỳ báo cáo: "Tất cả thời gian" ở trên cùng + 12 tháng gần nhất
   const availableMonths = useMemo(() => {

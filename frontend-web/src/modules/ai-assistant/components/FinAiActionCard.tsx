@@ -339,6 +339,13 @@ export function FinAiActionCard({
       ];
     }
     const filteredRows = rows.filter(([, value]) => value != null && value !== '');
+    if (toolName === 'create_group_transaction') {
+      filteredRows.splice(1, 0,
+        ['Nguồn tiền', preview.paymentSource === 'GROUP_FUND' ? 'Quỹ nhóm' : preview.paymentSource === 'PERSONAL_ACCOUNT' ? 'Ví cá nhân chi hộ' : preview.accountName],
+        ...(preview.categoryName ? [['Danh mục', preview.categoryName] as [string, string]] : []),
+        ...(preview.splitCount ? [['Phân chia', `${preview.splitMethod === 'EQUAL' ? 'Chia đều' : 'Theo số tiền'} · ${preview.splitCount} thành viên`] as [string, string]] : []),
+      );
+    }
     return (
       <div className="action-card-body">
         {amount != null && <div className="action-amount-box"><span className="amount-label">Số tiền</span><span className="amount-number budget">{formatCurrency(amount)}</span></div>}

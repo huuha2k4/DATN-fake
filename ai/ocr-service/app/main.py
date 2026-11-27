@@ -96,6 +96,13 @@ def health():
     }
 
 
+@app.get("/internal-health", include_in_schema=False)
+def internal_health():
+    from fastapi.responses import JSONResponse
+    ready = state.get("pipeline") is not None
+    return JSONResponse(status_code=200 if ready else 503, content={"status": "UP" if ready else "DEGRADED"})
+
+
 # ---------------------------------------------------------------------------
 # OCR
 # ---------------------------------------------------------------------------

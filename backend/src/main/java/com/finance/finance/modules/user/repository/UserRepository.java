@@ -12,6 +12,21 @@ import java.util.UUID;
 
 @Repository
 public interface UserRepository extends JpaRepository<User, UUID> {
+
+    long countBySystemRoleAndDeletedAtIsNull(com.finance.finance.common.enums.SystemRole role);
+    boolean existsBySystemRoleAndDeletedAtIsNull(com.finance.finance.common.enums.SystemRole role);
+
+    @org.springframework.data.jpa.repository.Lock(jakarta.persistence.LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT u FROM User u WHERE u.id = :id AND u.deletedAt IS NULL")
+    Optional<User> lockActiveRecord(@Param("id") UUID id);
+
+    @org.springframework.data.jpa.repository.Lock(jakarta.persistence.LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT u FROM User u WHERE (u.email = :login OR u.username = :login) AND u.deletedAt IS NULL")
+    Optional<User> lockByLogin(@Param("login") String login);
+
+    @org.springframework.data.jpa.repository.Lock(jakarta.persistence.LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT u FROM User u WHERE u.email = :email AND u.deletedAt IS NULL")
+    Optional<User> lockByEmail(@Param("email") String email);
     
     Optional<User> findByEmail(String email);
     

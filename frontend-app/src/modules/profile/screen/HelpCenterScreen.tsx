@@ -7,6 +7,7 @@ import { useAppTheme } from '../../../context/ThemeContext';
 import { feedbackApi, type FeedbackItem } from '../api/feedbackApi';
 
 interface HelpCenterScreenProps {
+  initialTab?: 'FAQ' | 'TICKETS';
   onBack: () => void;
   onOpenAiAssistant?: () => void;
 }
@@ -39,10 +40,10 @@ const FAQS = [
   },
 ];
 
-export function HelpCenterScreen({ onBack, onOpenAiAssistant }: HelpCenterScreenProps) {
+export function HelpCenterScreen({ onBack, onOpenAiAssistant, initialTab = 'FAQ' }: HelpCenterScreenProps) {
   const { isDark, colors: themeColors } = useAppTheme();
   const insets = useSafeAreaInsets();
-  const [activeTab, setActiveTab] = useState<'FAQ' | 'TICKETS'>('FAQ');
+  const [activeTab, setActiveTab] = useState<'FAQ' | 'TICKETS'>(initialTab);
   const [expandedFaqId, setExpandedFaqId] = useState<string | null>('faq1');
 
   // Danh sách phản hồi người dùng

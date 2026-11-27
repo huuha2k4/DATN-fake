@@ -4,5 +4,6 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import java.util.*;
 public interface AiChatMessageRepository extends JpaRepository<AiChatMessage, UUID> {
     List<AiChatMessage> findBySessionIdOrderByCreatedAtAsc(UUID sessionId);
+    List<AiChatMessage> findTop20BySessionIdOrderByCreatedAtDesc(UUID sessionId);
 }
 

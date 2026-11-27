@@ -11,9 +11,10 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 public class AdminReplyFeedbackRequest {
-    @NotBlank(message = "Nội dung phản hồi không được để trống")
+    @jakarta.validation.constraints.Size(max = 4000)
     private String reply;
 
     private String status; // RESOLVED, IN_PROGRESS, REJECTED
+    private java.time.Instant expectedUpdatedAt;
 }
 

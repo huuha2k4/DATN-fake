@@ -12,6 +12,9 @@ public class FinAiToolRegistry {
 
     public FinAiToolRegistry() {
         Map<String, FinAiToolDefinition> registry = new LinkedHashMap<>();
+        registerReadRequired(registry, "get_categories", "Read selectable income or expense categories visible to this user.",
+                Map.of("kind", Map.of("type", "string", "enum", List.of("INCOME", "EXPENSE"))), Set.of("kind"));
+        registerRead(registry, "get_spending_profile", "Read the recorded spending profile and 50/30/20 ratios.", Map.of());
         registry.put("get_transactions", definition(
                 "get_transactions", "List the authenticated user's transactions with bounded filters.", FinAiToolMode.READ,
                 set("fromDate", "toDate", "accountId", "categoryId", "transactionType", "minAmount", "maxAmount", "search", "page", "pageSize"),

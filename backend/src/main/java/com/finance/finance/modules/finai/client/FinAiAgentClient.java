@@ -7,6 +7,7 @@ import com.finance.finance.common.exception.BusinessException;
 import com.finance.finance.modules.audit.context.AuditContext;
 import com.finance.finance.modules.audit.context.AuditContextHolder;
 import com.finance.finance.modules.finai.dto.FinAiTemporalContext;
+import com.finance.finance.modules.finai.dto.FinAiClarification;
 import lombok.*;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -38,19 +39,28 @@ public class FinAiAgentClient {
     }
     public AgentResponse chat(UUID conversationId, String message, String contextToken,
                               List<HistoryItem> history, FinAiTemporalContext temporalContext) {
+        return chat(conversationId, message, contextToken, history, temporalContext, null, null);
+    }
+
+    public AgentResponse chat(UUID conversationId, String message, String contextToken,
+                              List<HistoryItem> history, FinAiTemporalContext temporalContext,
+                              AgentDraft draft, String selectedOption) {
         long started = System.nanoTime();
         try {
-            AgentResponse response = client.post().uri("/api/v1/agent/chat")
+            ResponseEntity<AgentResponse> entity = client.post().uri("/api/v1/agent/chat")
                     .contentType(MediaType.APPLICATION_JSON)
                     .header("X-FinAI-Service-Secret", serviceSecret)
                     .header("X-Request-Id", currentRequestId())
-                    .body(new AgentRequest(conversationId, message, contextToken, history, temporalContext))
-                    .retrieve().body(AgentResponse.class);
-            if (response == null || response.message == null)
+                    .body(new AgentRequest(conversationId, message, contextToken, history, temporalContext, draft, selectedOption))
+                    .retrieve().toEntity(AgentResponse.class);
+            observe(entity.getHeaders());
+            AgentResponse response = entity.getBody();
+            if (response == null || response.message == null || response.message.isBlank())
                 throw new BusinessException("FinAI trả về phản hồi không hợp lệ.", "AI_INTERNAL_ERROR", HttpStatus.BAD_GATEWAY);
             log.info("[FINAI_PIPELINE] stage=spring_to_python durationMs={} outcome=success", elapsedMillis(started));
             return response;
         } catch (HttpStatusCodeException e) {
+            observe(e.getResponseHeaders());
             log.warn("[FINAI_PIPELINE] stage=spring_to_python durationMs={} outcome=http_error status={}", elapsedMillis(started), e.getStatusCode().value());
             throw mapUpstreamError(e);
         } catch (ResourceAccessException e) {
@@ -92,6 +102,20 @@ public class FinAiAgentClient {
         JsonNode value = body == null ? null : body.get(field);
         return value != null && value.isTextual() ? value.asText() : null;
     }
+
+    private void observe(HttpHeaders headers) {
+        if (headers == null || !com.finance.finance.modules.admin.monitoring.RequestObservation.isActive()) return;
+        if ("AI_TOOL_ERROR".equals(headers.getFirst("X-Finora-Ai-Error"))) {
+            com.finance.finance.modules.admin.monitoring.RequestObservation.error("AI_TOOL_ERROR");
+        }
+        String value = headers.getFirst("X-Finora-Ai-Metrics");
+        if (value == null || value.length() > 6000) return;
+        try {
+            com.finance.finance.modules.admin.monitoring.RequestObservation.provider(objectMapper.readTree(value));
+        } catch (Exception ignored) {
+            // Optional observation cannot alter the upstream result.
+        }
+    }
     private static String currentRequestId() {
         AuditContext context = AuditContextHolder.get();
         return context == null || context.getRequestId() == null ? UUID.randomUUID().toString() : context.getRequestId();
@@ -105,10 +129,18 @@ public class FinAiAgentClient {
         return (System.nanoTime() - started) / 1_000_000;
     }
     public record AgentRequest(UUID conversationId, String message, String contextToken,
-                               List<HistoryItem> history, FinAiTemporalContext temporalContext) {}
+                               List<HistoryItem> history, FinAiTemporalContext temporalContext,
+                               AgentDraft draft, String selectedOption) {}
+    public record AgentDraft(String route, String field, List<String> turns, Map<String, String> slots,
+                             List<FinAiClarification.Option> options) {}
     public record HistoryItem(String role, String content) {}
     @Data @NoArgsConstructor
-    public static class AgentResponse { private String message; private List<Proposal> proposals = List.of(); }
+    public static class AgentResponse {
+        private String message;
+        private List<Proposal> proposals = List.of();
+        private AgentDraft draft;
+        private boolean preserveDraft;
+    }
     @Data @NoArgsConstructor
     public static class Proposal { private String toolName; private Map<String, Object> arguments; private UUID planId; }
 }

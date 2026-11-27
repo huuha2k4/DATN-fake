@@ -11,6 +11,9 @@ import java.util.UUID;
 
 @Repository
 public interface FeedbackRepository extends JpaRepository<Feedback, UUID> {
+    @org.springframework.data.jpa.repository.Lock(jakarta.persistence.LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT f FROM Feedback f WHERE f.id = :id")
+    java.util.Optional<Feedback> lockForAdmin(@Param("id") UUID id);
 
     @Query("SELECT f FROM Feedback f WHERE " +
            "(:status IS NULL OR f.status = :status) AND " +

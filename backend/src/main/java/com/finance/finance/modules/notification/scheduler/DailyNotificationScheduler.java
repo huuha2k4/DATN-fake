@@ -2,6 +2,7 @@ package com.finance.finance.modules.notification.scheduler;
 
 import com.finance.finance.common.enums.NotificationPriority;
 import com.finance.finance.common.enums.NotificationType;
+import com.finance.finance.common.enums.SubscriptionTier;
 import com.finance.finance.common.enums.TransactionType;
 import com.finance.finance.common.enums.UserStatus;
 import com.finance.finance.modules.admin.entity.NotificationTemplate;
@@ -26,7 +27,9 @@ import java.text.NumberFormat;
 import java.time.DayOfWeek;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.ZoneId;
+import java.time.temporal.ChronoUnit;
 import java.time.temporal.TemporalAdjusters;
 import java.util.ArrayList;
 import java.util.List;
@@ -61,10 +64,7 @@ public class DailyNotificationScheduler {
         log.info("[Scheduler] Bắt đầu quét kiểm tra chi tiêu người dùng lúc 20:00...");
 
         // 1. Kiểm tra xem mẫu thông báo có đang được Bật (is_active = true) hay không
-        NotificationTemplate template = notificationTemplateRepository.findAll().stream()
-                .filter(t -> "AUTO_DAILY_20PM_NO_TX".equalsIgnoreCase(t.getCode()) || "DAILY_NO_EXPENSE_CHECK".equalsIgnoreCase(t.getTriggerEvent()))
-                .findFirst()
-                .orElse(null);
+        NotificationTemplate template = notificationTemplateRepository.lockByCode("AUTO_DAILY_20PM_NO_TX").orElse(null);
 
         if (template != null && Boolean.FALSE.equals(template.getIsActive())) {
             log.info("[Scheduler] Mẫu thông báo nhắc nhở 20:00 đang bị Tắt bởi Admin. Bỏ qua lượt chạy.");
@@ -144,6 +144,12 @@ public class DailyNotificationScheduler {
     public void sendWeeklyFinancialReportNotifications() {
         log.info("[Scheduler] Bắt đầu tổng hợp và gửi thông báo Báo cáo tài chính tuần lúc 08:00 sáng Thứ Hai...");
 
+        NotificationTemplate template = notificationTemplateRepository.lockByCode("AUTO_WEEKLY_REPORT").orElse(null);
+        if (template != null && Boolean.FALSE.equals(template.getIsActive())) {
+            log.info("[Scheduler] Mẫu thông báo AUTO_WEEKLY_REPORT đang tạm tắt. Bỏ qua gửi báo cáo tuần.");
+            return;
+        }
+
         LocalDate today = LocalDate.now(ZONE_VN);
         LocalDate thisWeekMonday = today.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY));
         LocalDate lastWeekMonday = thisWeekMonday.minusWeeks(1);
@@ -153,6 +159,7 @@ public class DailyNotificationScheduler {
 
         List<User> activeUsers = userRepository.findAll().stream()
                 .filter(u -> u.getDeletedAt() == null && u.getUserStatus() == UserStatus.ACTIVE)
+                .filter(u -> matchesAudience(u, template))
                 .toList();
 
         if (activeUsers.isEmpty()) {
@@ -183,7 +190,14 @@ public class DailyNotificationScheduler {
         NumberFormat vndFormat = NumberFormat.getInstance(LOCALE_VN);
         vndFormat.setMaximumFractionDigits(0);
 
-        String title = "📊 Báo cáo tài chính tuần của bạn đã sẵn sàng!";
+        String titleTemplate = template != null && template.getTitle() != null
+                ? template.getTitle()
+                : "📊 Báo cáo tài chính tuần của bạn đã sẵn sàng!";
+        String bodyTemplate = template != null && template.getBodyTemplate() != null
+                ? template.getBodyTemplate()
+                : "Tuần qua bạn đã chi {spending_summary}. Xem ngay báo cáo nhé!";
+        NotificationPriority priority = resolvePriority(template, NotificationPriority.NORMAL);
+
         String actionUrl = String.format("/reports?period=last_week&from=%s&to=%s", lastWeekMonday, lastWeekSunday);
         String dataJson = String.format("{\"periodPreset\":\"LAST_WEEK\",\"fromDate\":\"%s\",\"toDate\":\"%s\"}", lastWeekMonday, lastWeekSunday);
 
@@ -228,12 +242,14 @@ public class DailyNotificationScheduler {
                 comparisonText = " (chưa phát sinh giao dịch chi tiêu)";
             }
 
-            String body = String.format("Tuần qua bạn đã chi %s%s. Xem ngay báo cáo nhé!", formattedSpent, comparisonText);
+            String summaryText = formattedSpent + comparisonText;
+            String title = renderTemplate(titleTemplate, u, Map.of("spending_summary", summaryText));
+            String body = renderTemplate(bodyTemplate, u, Map.of("spending_summary", summaryText));
 
             notificationsToSend.add(Notification.builder()
                     .userId(u.getId())
                     .type(NotificationType.WEEKLY_SUMMARY)
-                    .priority(NotificationPriority.NORMAL)
+                    .priority(priority)
                     .title(title)
                     .body(body)
                     .actionUrl(actionUrl)
@@ -245,8 +261,166 @@ public class DailyNotificationScheduler {
 
         if (!notificationsToSend.isEmpty()) {
             notificationRepository.saveAll(notificationsToSend);
+            recordDispatch(template, notificationsToSend.size());
         }
 
         log.info("[Scheduler] Đã gửi thông báo Báo cáo tài chính tuần tới {} người dùng.", notificationsToSend.size());
+    }
+
+    /**
+     * Chạy định kỳ vào 08:00 sáng ngày mùng 1 hàng tháng (giờ Việt Nam) để nhắc thiết lập ngân sách tháng mới.
+     */
+    @Scheduled(cron = "0 0 8 1 * ?", zone = "Asia/Ho_Chi_Minh")
+    @Transactional
+    public void sendMonthlyBudgetReminder() {
+        log.info("[Scheduler] Bắt đầu gửi thông báo nhắc đặt hạn mức chi tiêu đầu tháng...");
+
+        NotificationTemplate template = notificationTemplateRepository.lockByCode("AUTO_MONTHLY_BUDGET").orElse(null);
+        if (template != null && Boolean.FALSE.equals(template.getIsActive())) {
+            log.info("[Scheduler] Mẫu thông báo AUTO_MONTHLY_BUDGET đang tạm tắt. Bỏ qua.");
+            return;
+        }
+
+        List<User> activeUsers = userRepository.findAll().stream()
+                .filter(u -> u.getDeletedAt() == null && u.getUserStatus() == UserStatus.ACTIVE)
+                .filter(u -> matchesAudience(u, template))
+                .toList();
+
+        if (activeUsers.isEmpty()) {
+            return;
+        }
+
+        String titleTemplate = template != null && template.getTitle() != null
+                ? template.getTitle()
+                : "Đầu tháng mới: Đặt hạn mức chi tiêu 🎯";
+        String bodyTemplate = template != null && template.getBodyTemplate() != null
+                ? template.getBodyTemplate()
+                : "Chào {user_name}, tháng mới đã bắt đầu! Hãy thiết lập ngân sách tháng để kiểm soát chi tiêu hợp lý.";
+        NotificationPriority priority = resolvePriority(template, NotificationPriority.NORMAL);
+
+        List<Notification> notificationsToSend = activeUsers.stream()
+                .map(u -> Notification.builder()
+                        .userId(u.getId())
+                        .type(NotificationType.BUDGET_ALERT)
+                        .priority(priority)
+                        .title(renderTemplate(titleTemplate, u, Map.of()))
+                        .body(renderTemplate(bodyTemplate, u, Map.of()))
+                        .actionUrl("/budgets")
+                        .actionText("Thiết lập ngay")
+                        .isRead(false)
+                        .build())
+                .toList();
+
+        notificationRepository.saveAll(notificationsToSend);
+        recordDispatch(template, notificationsToSend.size());
+        log.info("[Scheduler] Đã gửi thông báo nhắc ngân sách đầu tháng tới {} người dùng.", notificationsToSend.size());
+    }
+
+    /**
+     * Chạy định kỳ vào 09:00 sáng hàng ngày (giờ Việt Nam) để nhắc người dùng VIP sắp hết hạn gói (trong vòng 3 ngày).
+     */
+    @Scheduled(cron = "0 0 9 * * ?", zone = "Asia/Ho_Chi_Minh")
+    @Transactional
+    public void sendVipExpiryReminders() {
+        log.info("[Scheduler] Bắt đầu kiểm tra gói VIP sắp hết hạn lúc 09:00...");
+
+        NotificationTemplate template = notificationTemplateRepository.lockByCode("AUTO_VIP_EXPIRY").orElse(null);
+        if (template != null && Boolean.FALSE.equals(template.getIsActive())) {
+            log.info("[Scheduler] Mẫu thông báo AUTO_VIP_EXPIRY đang tạm tắt. Bỏ qua.");
+            return;
+        }
+
+        Instant now = Instant.now();
+        Instant threeDaysLater = now.plus(3, ChronoUnit.DAYS);
+        LocalDateTime dedupSince = LocalDateTime.now(ZONE_VN).minusDays(3);
+
+        List<User> expiringUsers = userRepository.findAll().stream()
+                .filter(u -> u.getDeletedAt() == null && u.getUserStatus() == UserStatus.ACTIVE)
+                .filter(u -> u.getSubscriptionTier() != null && u.getSubscriptionTier() != SubscriptionTier.FREE)
+                .filter(u -> u.getSubscriptionExpiresAt() != null
+                        && u.getSubscriptionExpiresAt().isAfter(now)
+                        && !u.getSubscriptionExpiresAt().isAfter(threeDaysLater))
+                .filter(u -> matchesAudience(u, template))
+                .toList();
+
+        if (expiringUsers.isEmpty()) {
+            return;
+        }
+
+        String titleTemplate = template != null && template.getTitle() != null
+                ? template.getTitle()
+                : "Gói cước VIP sắp hết hạn ⚠️";
+        String bodyTemplate = template != null && template.getBodyTemplate() != null
+                ? template.getBodyTemplate()
+                : "Gói {subscription_tier} của bạn sẽ hết hạn trong 3 ngày tới. Gia hạn ngay để không bị gián đoạn tính năng không giới hạn OCR và FinAI.";
+        NotificationPriority priority = resolvePriority(template, NotificationPriority.HIGH);
+
+        List<Notification> notificationsToSend = new ArrayList<>();
+        for (User u : expiringUsers) {
+            if (notificationRepository.existsByUserIdAndActionUrlAndCreatedAtAfter(u.getId(), "/pricing", dedupSince)) {
+                continue;
+            }
+            Map<String, String> vars = Map.of("subscription_tier", u.getSubscriptionTier().name());
+            notificationsToSend.add(Notification.builder()
+                    .userId(u.getId())
+                    .type(NotificationType.SYSTEM)
+                    .priority(priority)
+                    .title(renderTemplate(titleTemplate, u, vars))
+                    .body(renderTemplate(bodyTemplate, u, vars))
+                    .actionUrl("/pricing")
+                    .actionText("Gia hạn ngay")
+                    .isRead(false)
+                    .build());
+        }
+
+        if (!notificationsToSend.isEmpty()) {
+            notificationRepository.saveAll(notificationsToSend);
+            recordDispatch(template, notificationsToSend.size());
+        }
+
+        log.info("[Scheduler] Đã gửi thông báo nhắc gia hạn VIP tới {} người dùng.", notificationsToSend.size());
+    }
+
+    private String renderTemplate(String raw, User user, Map<String, String> extraVars) {
+        String userName = user.getFullName() != null && !user.getFullName().isBlank()
+                ? user.getFullName()
+                : (user.getUsername() != null ? user.getUsername() : "bạn");
+        String rendered = raw.replace("{user_name}", userName);
+        for (Map.Entry<String, String> entry : extraVars.entrySet()) {
+            rendered = rendered.replace("{" + entry.getKey() + "}", entry.getValue());
+        }
+        return rendered;
+    }
+
+    private NotificationPriority resolvePriority(NotificationTemplate template, NotificationPriority fallback) {
+        if (template == null || template.getPriority() == null || template.getPriority().isBlank()) {
+            return fallback;
+        }
+        try {
+            return NotificationPriority.valueOf(template.getPriority().trim().toUpperCase(Locale.ROOT));
+        } catch (IllegalArgumentException ex) {
+            return fallback;
+        }
+    }
+
+    private boolean matchesAudience(User user, NotificationTemplate template) {
+        if (template == null || template.getTargetAudience() == null || "ALL".equals(template.getTargetAudience())) {
+            return true;
+        }
+        SubscriptionTier tier = user.getSubscriptionTier() != null ? user.getSubscriptionTier() : SubscriptionTier.FREE;
+        return switch (template.getTargetAudience()) {
+            case "FREE_ONLY" -> tier == SubscriptionTier.FREE;
+            case "PREMIUM_ONLY" -> tier != SubscriptionTier.FREE;
+            default -> true;
+        };
+    }
+
+    private void recordDispatch(NotificationTemplate template, int count) {
+        if (template == null || count <= 0) {
+            return;
+        }
+        template.setTotalDispatched((template.getTotalDispatched() != null ? template.getTotalDispatched() : 0L) + count);
+        template.setLastDispatchedAt(Instant.now());
+        notificationTemplateRepository.save(template);
     }
 }

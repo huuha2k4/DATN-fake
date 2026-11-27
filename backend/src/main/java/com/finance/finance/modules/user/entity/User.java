@@ -123,6 +123,9 @@ public class User implements UserDetails {
     
     @Column(name = "deleted_at")
     private Instant deletedAt;
+
+    @Column(name = "session_version", nullable = false)
+    private long sessionVersion;
     
     @Version
     @Column(name = "version", nullable = false)
@@ -156,10 +159,8 @@ public class User implements UserDetails {
     
     @Override
     public boolean isAccountNonLocked() {
-        if (lockedUntil != null) {
-            return Instant.now().isAfter(lockedUntil);
-        }
-        return userStatus != UserStatus.LOCKED && userStatus != UserStatus.DISABLED && userStatus != UserStatus.INACTIVE;
+        return userStatus != UserStatus.LOCKED
+                && (lockedUntil == null || !lockedUntil.isAfter(Instant.now()));
     }
     
     @Override
@@ -169,7 +170,7 @@ public class User implements UserDetails {
     
     @Override
     public boolean isEnabled() {
-        return userStatus == UserStatus.ACTIVE;
+        return deletedAt == null && userStatus == UserStatus.ACTIVE;
     }
     
     // Business methods
@@ -206,7 +207,6 @@ public class User implements UserDetails {
     }
     
     public void lockAccount(long durationMillis) {
-        this.userStatus = UserStatus.LOCKED;
         this.lockedUntil = Instant.now().plusMillis(durationMillis);
     }
     

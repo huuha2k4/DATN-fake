@@ -1,69 +1,243 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { Link } from 'react-router-dom';
+import { adminError } from '../hooks/useAdminPage';
 import { adminApi } from '../api/adminApi';
+import { metric, monitorTime } from '../components/monitoringFormat';
+import { AdminBadge, AdminNotice, AdminStatStrip, AdminSurface } from '../components/AdminPrimitives';
+import { MonitoringTable } from '../components/OperationMonitoringPanel';
+import { HealthMatrix, StatusLabel } from '../components/ServiceMonitoring';
 import { FinanceIcon } from '../../core/components/FinanceIcon';
 
-interface HealthData {
-  status: string;
-  uptimeSeconds: number;
-  startTime: string;
-  memory: {
-    heapUsedMB: number;
-    heapMaxMB: number;
-    heapCommittedMB: number;
-    heapUsagePercent: number;
-    nonHeapUsedMB: number;
-  };
-  cpu: {
-    availableProcessors: number;
-    systemCpuLoad: number;
-    processCpuLoad: number;
-    activeThreadCount: number;
-    peakThreadCount: number;
-    totalLoadedClasses: number;
-  };
-  database: {
-    status: string;
-    databaseProductName: string;
-    databaseProductVersion: string;
-    pingTimeMs: number;
-    activeConnections: number;
-    maxPoolSize: number;
-  };
-  disk: {
-    totalSpaceGB: number;
-    freeSpaceGB: number;
-    usableSpaceGB: number;
-    diskUsagePercent: number;
-  };
-  runtime: Record<string, string>;
+type HealthData = Awaited<ReturnType<typeof adminApi.getSystemHealth>>;
+
+function ResourceCard({
+  label,
+  percent,
+  sub,
+  tone,
+  icon,
+}: {
+  label: string;
+  percent: number | null | undefined;
+  sub?: string;
+  tone: 'emerald' | 'sky' | 'violet';
+  icon: 'settings' | 'layers' | 'wallet' | 'shield';
+}) {
+  const safePct = percent == null ? 0 : Math.min(100, Math.max(0, percent));
+  const styles = {
+    emerald: {
+      card: 'bg-gradient-to-br from-emerald-50/70 via-white to-emerald-50/90 dark:from-emerald-950/30 dark:via-[var(--admin-surface)] dark:to-emerald-900/20 border-emerald-500/15',
+      iconBg: 'bg-emerald-500/14 text-[#007f53] dark:text-emerald-300',
+      bar: 'bg-[#00a86b] dark:bg-emerald-400',
+    },
+    sky: {
+      card: 'bg-gradient-to-br from-sky-50/70 via-white to-sky-50/90 dark:from-sky-950/30 dark:via-[var(--admin-surface)] dark:to-sky-900/20 border-sky-500/15',
+      iconBg: 'bg-sky-500/14 text-sky-700 dark:text-sky-300',
+      bar: 'bg-sky-500 dark:bg-sky-400',
+    },
+    violet: {
+      card: 'bg-gradient-to-br from-violet-50/70 via-white to-violet-50/90 dark:from-violet-950/30 dark:via-[var(--admin-surface)] dark:to-violet-900/20 border-violet-500/15',
+      iconBg: 'bg-violet-500/14 text-violet-600 dark:text-violet-300',
+      bar: 'bg-violet-500 dark:bg-violet-400',
+    },
+  }[tone];
+
+  return (
+    <div className={`rounded-2xl border p-4 ${styles.card}`}>
+      <div className="flex items-start gap-3">
+        <span className={`grid size-9 shrink-0 place-items-center rounded-xl ${styles.iconBg}`}>
+          <FinanceIcon name={icon} size={17} />
+        </span>
+        <div className="min-w-0 flex-1">
+          <div className="text-xs font-semibold text-[var(--admin-ink-secondary)]">{label}</div>
+          <div className="mt-0.5 text-xl font-extrabold tabular-nums text-[var(--admin-ink)]">
+            {percent == null ? 'N/A' : metric(percent, '%')}
+          </div>
+          {sub && <div className="mt-0.5 text-[11px] text-[var(--admin-ink-muted)] tabular-nums">{sub}</div>}
+          <div className="mt-2.5 h-1.5 w-full rounded-full bg-black/5 dark:bg-white/10 overflow-hidden">
+            <div className={`h-full rounded-full transition-all ${styles.bar}`} style={{ width: `${safePct}%` }} />
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function PerformanceChart({
+  samples,
+}: {
+  samples: { timeLabel: string; cpuPercent: number | null; ramPercent: number | null; latencyMs: number | null }[];
+}) {
+  if (!samples.length) {
+    return (
+      <p className="py-10 text-center text-xs text-[var(--admin-ink-muted)]">
+        Đang thu thập mẫu hiệu năng theo phút…
+      </p>
+    );
+  }
+  const width = 460;
+  const height = 140;
+  const maxIdx = Math.max(1, samples.length - 1);
+  const toPath = (values: (number | null)[], scaleMax: number) =>
+    values
+      .map((v, i) => {
+        const x = samples.length === 1 ? width / 2 : (i / maxIdx) * width;
+        const pct = v == null ? 0 : Math.min(100, Math.max(0, (v / scaleMax) * 100));
+        const y = height - (pct / 100) * (height - 16) - 8;
+        return `${i === 0 ? 'M' : 'L'}${x.toFixed(1)},${y.toFixed(1)}`;
+      })
+      .join(' ');
+
+  const maxLat = Math.max(100, ...samples.map((s) => s.latencyMs ?? 0));
+  const cpuPath = toPath(samples.map((s) => s.cpuPercent), 100);
+  const ramPath = toPath(samples.map((s) => s.ramPercent), 100);
+  const latPath = toPath(samples.map((s) => s.latencyMs), maxLat);
+
+  const labelIndices =
+    samples.length <= 6
+      ? samples.map((_, i) => i)
+      : [0, Math.floor(maxIdx * 0.25), Math.floor(maxIdx * 0.5), Math.floor(maxIdx * 0.75), maxIdx];
+
+  return (
+    <div className="space-y-3">
+      <div className="flex flex-wrap items-center justify-center gap-4 text-xs font-medium text-[var(--admin-ink-secondary)]">
+        <span className="inline-flex items-center gap-1.5">
+          <span className="size-2 rounded-full bg-emerald-500" />
+          CPU
+        </span>
+        <span className="inline-flex items-center gap-1.5">
+          <span className="size-2 rounded-full bg-sky-500" />
+          RAM
+        </span>
+        <span className="inline-flex items-center gap-1.5">
+          <span className="size-2 rounded-full bg-violet-500" />
+          Response time (ms)
+        </span>
+      </div>
+
+      <div className="flex items-stretch gap-2">
+        <div className="flex flex-col justify-between pb-5 text-[10px] tabular-nums text-[var(--admin-ink-muted)] text-right w-8">
+          <span>100%</span>
+          <span>75%</span>
+          <span>50%</span>
+          <span>25%</span>
+          <span>0%</span>
+        </div>
+        <div className="flex-1 min-w-0">
+          <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-36 overflow-visible">
+            {[0, 0.25, 0.5, 0.75, 1].map((r) => {
+              const y = height - r * (height - 16) - 8;
+              return (
+                <line
+                  key={r}
+                  x1={0}
+                  y1={y}
+                  x2={width}
+                  y2={y}
+                  stroke="currentColor"
+                  className="text-[var(--admin-border)]"
+                  strokeDasharray={r === 0 ? undefined : '3 3'}
+                />
+              );
+            })}
+            <path d={cpuPath} fill="none" stroke="#10b981" strokeWidth="2.2" strokeLinecap="round" />
+            <path d={ramPath} fill="none" stroke="#0ea5e9" strokeWidth="2.2" strokeLinecap="round" />
+            <path d={latPath} fill="none" stroke="#8b5cf6" strokeWidth="2" strokeLinecap="round" />
+          </svg>
+          <div className="mt-1 flex items-center justify-between text-[10px] tabular-nums text-[var(--admin-ink-muted)]">
+            {labelIndices.map((idx) => (
+              <span key={idx}>{samples[idx]?.timeLabel}</span>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function HourlyTrafficChart({
+  hourly,
+}: {
+  hourly: { hourLabel: string; requests: number; failed: number }[];
+}) {
+  const maxReq = Math.max(1, ...hourly.map((h) => h.requests));
+  const labelIndices = [0, 4, 8, 12, 16, 20];
+  return (
+    <div className="space-y-2">
+      <div className="flex items-end gap-1 h-36 pt-2">
+        {hourly.map((slot) => {
+          const pct = slot.requests > 0 ? Math.max(6, Math.round((slot.requests / maxReq) * 100)) : 3;
+          return (
+            <div
+              key={slot.hourLabel}
+              title={`${slot.hourLabel}: ${metric(slot.requests)} yêu cầu (${metric(slot.failed)} lỗi)`}
+              className="flex-1 h-full flex items-end"
+            >
+              <div
+                className={`w-full rounded-t transition-all ${
+                  slot.failed > 0
+                    ? 'bg-amber-500/80 hover:bg-amber-500'
+                    : slot.requests > 0
+                    ? 'bg-emerald-500/85 hover:bg-emerald-600'
+                    : 'bg-emerald-500/15'
+                }`}
+                style={{ height: `${pct}%` }}
+              />
+            </div>
+          );
+        })}
+      </div>
+      <div className="flex items-center justify-between text-[10px] tabular-nums text-[var(--admin-ink-muted)]">
+        {labelIndices.map((idx) => (
+          <span key={idx}>{hourly[idx]?.hourLabel ?? ''}</span>
+        ))}
+      </div>
+    </div>
+  );
 }
 
 export const AdminSystemHealthScreen: React.FC = () => {
   const [data, setData] = useState<HealthData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [lastRefreshed, setLastRefreshed] = useState<Date>(new Date());
 
-  const loadHealth = async () => {
+  const pending = useRef<AbortController | null>(null);
+  const loadHealth = useCallback(async () => {
+    if (document.hidden || pending.current) return;
+    const controller = new AbortController();
+    pending.current = controller;
     try {
       setLoading(true);
-      setError('');
-      const res = await adminApi.getSystemHealth();
+      const res = await adminApi.getSystemHealth(controller.signal);
+      if (controller.signal.aborted) return;
       setData(res);
-      setLastRefreshed(new Date());
-    } catch (err: any) {
-      setError(err?.response?.data?.message || 'Không thể kết nối dịch vụ giám sát hệ thống');
+      setError('');
+    } catch (err: unknown) {
+      if (!controller.signal.aborted) setError(adminError(err, 'Không thể tải tình trạng dịch vụ'));
     } finally {
-      setLoading(false);
+      if (pending.current === controller) {
+        pending.current = null;
+        setLoading(false);
+      }
     }
-  };
+  }, []);
 
   useEffect(() => {
-    loadHealth();
-    // Tự động thăm dò tình trạng máy chủ mỗi 15 giây
-    const interval = setInterval(loadHealth, 15000);
-    return () => clearInterval(interval);
-  }, []);
+    let active = true;
+    const refresh = () => {
+      if (active) void loadHealth();
+    };
+    queueMicrotask(refresh);
+    const interval = window.setInterval(refresh, 15000);
+    document.addEventListener('visibilitychange', refresh);
+    return () => {
+      active = false;
+      window.clearInterval(interval);
+      document.removeEventListener('visibilitychange', refresh);
+      pending.current?.abort();
+      pending.current = null;
+    };
+  }, [loadHealth]);
 
   const formatUptime = (seconds: number) => {
     const d = Math.floor(seconds / (3600 * 24));
@@ -77,223 +251,322 @@ export const AdminSystemHealthScreen: React.FC = () => {
 
   if (loading && !data) {
     return (
-      <div className="flex flex-col items-center justify-center py-20 gap-3">
-        <div className="size-8 border-3 border-emerald-600 border-t-transparent rounded-full animate-spin" />
-        <p className="text-xs text-gray-500 font-medium">Đang kiểm tra chỉ số phần cứng & máy chủ...</p>
-      </div>
+      <AdminSurface title="Kiểm tra hệ thống">
+        <div className="flex items-center gap-3 py-8 text-xs text-[var(--admin-ink-muted)]">
+          <div className="size-5 border-2 border-[#007f53] border-t-transparent rounded-full animate-spin" />
+          <span>Đang kiểm tra tình trạng dịch vụ…</span>
+        </div>
+      </AdminSurface>
     );
   }
 
   if (error && !data) {
     return (
-      <div className="rounded-2xl border border-rose-200 dark:border-rose-900 bg-rose-50 dark:bg-rose-950/40 p-6 text-center">
-        <p className="text-sm font-bold text-rose-700 dark:text-rose-400 mb-2">{error}</p>
-        <button
-          type="button"
-          onClick={loadHealth}
-          className="px-4 py-2 bg-rose-600 text-white rounded-xl text-xs font-bold hover:bg-rose-700 transition"
-        >
-          Thử lại
-        </button>
-      </div>
+      <AdminNotice
+        tone="rose"
+        message={error}
+        action={
+          <button type="button" onClick={loadHealth} className="admin-btn-secondary admin-btn-sm">
+            Thử lại
+          </button>
+        }
+      />
     );
   }
 
-  const isUp = data?.status === 'UP';
+  if (!data) return null;
+  const { serviceHealth, memory, cpu, database, disk, runtime } = data;
+  const up = serviceHealth.services.filter((item) => item.status === 'UP').length;
+  const incidents = serviceHealth.services.filter(
+    (item) => item.status === 'DOWN' || item.status === 'DEGRADED'
+  ).length;
+  const cpuPct = cpu.systemCpuPercent ?? cpu.processCpuPercent;
+  const ramPct = memory.systemUsagePercent ?? memory.heapUsagePercent;
+  const ramUsed = memory.systemUsedMB ?? memory.heapUsedMB;
+  const ramTotal = memory.systemTotalMB ?? memory.heapMaxMB;
+  const hourlyTraffic = data.hourlyTraffic ?? [];
+  const perfHistory = data.performanceHistory ?? [];
+  const traffic24h = data.traffic24h;
+  const recentEvents = data.recentEvents ?? [];
 
   return (
-    <div className="flex flex-col gap-6 w-full">
-      {/* 1. HÀNG 4 THẺ CHỈ SỐ PHẦN CỨNG THẬT (JVM Heap, PostgreSQL Ping, CPU Cores, Uptime) */}
-      <section className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-5 w-full">
-        {/* TRẠNG THÁI HỆ THỐNG */}
-        <article className="overview-white-card">
-          <div className="flex items-center justify-between">
-            <span className="text-[11px] font-bold tracking-wider text-[#64748B] dark:text-slate-400 uppercase">
-              TÌNH TRẠNG HỆ THỐNG
-            </span>
-            <span className={`size-2.5 rounded-full ${isUp ? 'bg-[#10b981] animate-pulse' : 'bg-rose-500'}`} />
-          </div>
-          <div className="my-2">
-            <div className={`text-2xl sm:text-[28px] font-black tracking-tight ${isUp ? 'text-emerald-700 dark:text-emerald-400' : 'text-rose-600'}`}>
-              {isUp ? 'HOẠT ĐỘNG TỐT' : 'CÓ CẢNH BÁO'}
-            </div>
-          </div>
-          <div className="text-xs text-[#64748B] dark:text-slate-400">
-            Khởi động lúc: {data?.startTime}
-          </div>
-        </article>
+    <div className="space-y-5">
+      {error && (
+        <AdminNotice
+          tone="amber"
+          message={`${error} · Đang hiển thị lần kiểm tra trước.`}
+        />
+      )}
 
-        {/* BỘ NHỚ JVM HEAP THẬT */}
-        <article className="overview-white-card">
-          <div className="flex items-center justify-between">
-            <span className="text-[11px] font-bold tracking-wider text-[#64748B] dark:text-slate-400 uppercase">
-              BỘ NHỚ JVM HEAP
+      {/* 1. Trạng thái tổng hợp */}
+      <AdminSurface
+        icon="shield"
+        headerVariant="mint"
+        title="Trạng thái tổng hợp"
+        subtitle={
+          serviceHealth.stale || error
+            ? 'Đang hiển thị kết quả lưu đệm / lần kiểm tra trước'
+            : 'Tự động làm mới mỗi 15 giây khi tab đang hiển thị'
+        }
+        action={
+          <div className="flex flex-wrap items-center gap-2">
+            <AdminBadge tone={serviceHealth.status === 'UP' ? 'emerald' : 'amber'}>
+              {serviceHealth.status === 'UP' ? 'Hoạt động ổn định' : 'Cần chú ý'}
+            </AdminBadge>
+            <span className="hidden sm:inline text-[11px] text-[var(--admin-ink-muted)] tabular-nums">
+              Lần cập nhật: {monitorTime(serviceHealth.checkedAt)}
             </span>
-            <span className="icon-box-mint">
-              <FinanceIcon name="shield" size={20} />
-            </span>
+            <button
+              type="button"
+              onClick={loadHealth}
+              disabled={loading}
+              className="admin-btn-secondary admin-btn-sm"
+            >
+              <FinanceIcon name="refresh" size={14} className={loading ? 'animate-spin' : ''} />
+              Làm mới
+            </button>
           </div>
-          <div className="my-2">
-            <div className="text-2xl sm:text-[28px] font-black text-[#0F172A] dark:text-slate-100 tracking-tight">
-              {data?.memory.heapUsedMB} <span className="text-sm font-semibold text-gray-500">/ {data?.memory.heapMaxMB} MB</span>
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="flex-1 h-2 rounded-full bg-gray-100 dark:bg-slate-800 overflow-hidden">
-              <div
-                className={`h-full rounded-full ${
-                  (data?.memory.heapUsagePercent || 0) > 80 ? 'bg-rose-500' : 'bg-emerald-500'
-                }`}
-                style={{ width: `${data?.memory.heapUsagePercent || 0}%` }}
-              />
-            </div>
-            <span className="text-xs font-bold text-gray-700 dark:text-slate-300">
-              {data?.memory.heapUsagePercent}%
-            </span>
-          </div>
-        </article>
+        }
+      >
+        <AdminStatStrip
+          variant="pastel"
+          items={[
+            {
+              label: 'Trạng thái chung',
+              icon: 'shield',
+              tone: serviceHealth.status === 'UP' ? 'emerald' : serviceHealth.status === 'DOWN' ? 'rose' : 'amber',
+              value: <StatusLabel status={serviceHealth.status} />,
+            },
+            { label: 'Dịch vụ phản hồi', icon: 'layers', value: metric(up), tone: 'violet' },
+            {
+              label: 'Suy giảm / gián đoạn',
+              icon: 'alert',
+              value: metric(incidents),
+              tone: incidents > 0 ? 'rose' : 'amber',
+            },
+            {
+              label: 'Kiểm tra mới nhất',
+              icon: 'calendar',
+              tone: 'sky',
+              value: (
+                <span className="text-sm font-bold tracking-normal text-[var(--admin-ink)] leading-snug">
+                  {serviceHealth.checkedAt != null
+                    ? (() => {
+                        const d = new Date(String(serviceHealth.checkedAt));
+                        if (Number.isNaN(d.getTime())) return 'N/A';
+                        const time = d.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', second: '2-digit', timeZone: 'Asia/Ho_Chi_Minh' });
+                        const date = d.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: '2-digit', timeZone: 'Asia/Ho_Chi_Minh' });
+                        return <>{time}<br /><span className="text-xs font-semibold text-[var(--admin-ink-muted)]">{date}</span></>;
+                      })()
+                    : 'N/A'}
+                </span>
+              ),
+            },
+          ]}
+        />
+      </AdminSurface>
 
-        {/* POSTGRESQL DATABASE THẬT */}
-        <article className="overview-white-card">
-          <div className="flex items-center justify-between">
-            <span className="text-[11px] font-bold tracking-wider text-[#64748B] dark:text-slate-400 uppercase">
-              POSTGRESQL LATENCY
-            </span>
-            <span className="icon-box-mint">
-              <FinanceIcon name="bank" size={20} />
-            </span>
-          </div>
-          <div className="my-2">
-            <div className="text-2xl sm:text-[28px] font-black text-[#007F53] dark:text-emerald-400 tracking-tight">
-              {data?.database.pingTimeMs} ms
-            </div>
-          </div>
-          <div className="text-xs text-[#64748B] dark:text-slate-400">
-            {data?.database.status === 'CONNECTED' ? 'Kết nối ổn định (SELECT 1 OK)' : 'Lỗi kết nối DB'}
-          </div>
-        </article>
-
-        {/* THỜI GIAN HOẠT ĐỘNG (UPTIME) THẬT */}
-        <article className="overview-white-card">
-          <div className="flex items-center justify-between">
-            <span className="text-[11px] font-bold tracking-wider text-[#64748B] dark:text-slate-400 uppercase">
-              THỜI GIAN HOẠT ĐỘNG
-            </span>
-            <span className="size-9 rounded-xl grid place-items-center bg-purple-100 text-purple-700 dark:bg-purple-950/60 dark:text-purple-300">
-              <FinanceIcon name="trend" size={18} />
-            </span>
-          </div>
-          <div className="my-2">
-            <div className="text-xl sm:text-[22px] font-black text-purple-700 dark:text-purple-400 tracking-tight">
-              {data ? formatUptime(data.uptimeSeconds) : '0'}
-            </div>
-          </div>
-          <div className="text-xs text-[#64748B] dark:text-slate-400 flex items-center justify-between">
-            <span>Cập nhật lúc:</span>
-            <strong>{lastRefreshed.toLocaleTimeString('vi-VN')}</strong>
-          </div>
-        </article>
-      </section>
-
-      {/* 2. KHU VỰC CHI TIẾT: 3 PANEL BỘ NHỚ, CPU & Ổ CỨNG MÁY CHỦ */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-stretch">
-        {/* Panel 1: Chi tiết Bộ nhớ JVM */}
-        <div className="overview-main-panel !p-6 flex flex-col justify-between">
-          <div>
-            <h3 className="text-base font-bold text-gray-900 dark:text-slate-100 mb-1 flex items-center gap-2">
-              <span>🧠</span>
-              <span>Chi tiết Bộ nhớ JVM</span>
-            </h3>
-            <p className="text-xs text-gray-500 dark:text-slate-400 mb-5">
-              Phân bổ Heap & Non-Heap Memory từ Java Runtime
-            </p>
-
-            <div className="flex flex-col gap-3.5 text-xs">
-              <div className="flex justify-between py-2 border-b border-gray-100 dark:border-slate-800">
-                <span className="text-gray-600 dark:text-slate-400">Heap Đang dùng:</span>
-                <strong className="text-emerald-700 dark:text-emerald-400 font-bold">{data?.memory.heapUsedMB} MB</strong>
-              </div>
-              <div className="flex justify-between py-2 border-b border-gray-100 dark:border-slate-800">
-                <span className="text-gray-600 dark:text-slate-400">Heap Đã cam kết (Committed):</span>
-                <strong className="text-gray-800 dark:text-slate-200 font-bold">{data?.memory.heapCommittedMB} MB</strong>
-              </div>
-              <div className="flex justify-between py-2 border-b border-gray-100 dark:border-slate-800">
-                <span className="text-gray-600 dark:text-slate-400">Heap Tối đa (Max Allowed):</span>
-                <strong className="text-gray-800 dark:text-slate-200 font-bold">{data?.memory.heapMaxMB} MB</strong>
-              </div>
-              <div className="flex justify-between py-2">
-                <span className="text-gray-600 dark:text-slate-400">Non-Heap (Metaspace):</span>
-                <strong className="text-purple-700 dark:text-purple-400 font-bold">{data?.memory.nonHeapUsedMB} MB</strong>
-              </div>
-            </div>
-          </div>
+      {/* 2. Tài nguyên hệ thống (Realtime) */}
+      <AdminSurface
+        icon="settings"
+        headerVariant="mint"
+        title="Tài nguyên hệ thống (Realtime)"
+      >
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
+          <ResourceCard label="CPU" percent={cpuPct} tone="emerald" icon="settings" />
+          <ResourceCard
+            label="RAM"
+            percent={ramPct}
+            sub={ramTotal != null ? `${metric(ramUsed)} MB / ${metric(ramTotal)} MB` : undefined}
+            tone="sky"
+            icon="layers"
+          />
+          <ResourceCard
+            label="Disk"
+            percent={disk.diskUsagePercent}
+            sub={`${metric(disk.freeSpaceGB)} GB / ${metric(disk.totalSpaceGB)} GB`}
+            tone="violet"
+            icon="wallet"
+          />
+          <ResourceCard
+            label="JVM Heap"
+            percent={memory.heapUsagePercent}
+            sub={memory.heapMaxMB != null ? `${metric(memory.heapUsedMB)} MB / ${metric(memory.heapMaxMB)} MB` : undefined}
+            tone="emerald"
+            icon="shield"
+          />
         </div>
+      </AdminSurface>
 
-        {/* Panel 2: CPU & Luồng Xử Lý (Threads) */}
-        <div className="overview-main-panel !p-6 flex flex-col justify-between">
-          <div>
-            <h3 className="text-base font-bold text-gray-900 dark:text-slate-100 mb-1 flex items-center gap-2">
-              <span>⚡</span>
-              <span>CPU & Luồng Xử Lý (Threads)</span>
-            </h3>
-            <p className="text-xs text-gray-500 dark:text-slate-400 mb-5">
-              Tài nguyên xử lý đa luồng máy chủ thực tế
-            </p>
+      {/* 3. Hiệu năng 24h & Lưu lượng yêu cầu */}
+      <div className="grid min-w-0 gap-5 xl:grid-cols-2">
+        <AdminSurface icon="settings" headerVariant="mint" title="Hiệu năng trong 24 giờ">
+          <PerformanceChart samples={perfHistory} />
+        </AdminSurface>
 
-            <div className="flex flex-col gap-3.5 text-xs">
-              <div className="flex justify-between py-2 border-b border-gray-100 dark:border-slate-800">
-                <span className="text-gray-600 dark:text-slate-400">Số nhân CPU vật lý/logic:</span>
-                <strong className="text-emerald-700 dark:text-emerald-400 font-bold">{data?.cpu.availableProcessors} Cores</strong>
-              </div>
-              <div className="flex justify-between py-2 border-b border-gray-100 dark:border-slate-800">
-                <span className="text-gray-600 dark:text-slate-400">Luồng đang chạy (Active Threads):</span>
-                <strong className="text-gray-800 dark:text-slate-200 font-bold">{data?.cpu.activeThreadCount} Threads</strong>
-              </div>
-              <div className="flex justify-between py-2 border-b border-gray-100 dark:border-slate-800">
-                <span className="text-gray-600 dark:text-slate-400">Đỉnh luồng từng đạt (Peak Threads):</span>
-                <strong className="text-gray-800 dark:text-slate-200 font-bold">{data?.cpu.peakThreadCount} Threads</strong>
-              </div>
-              <div className="flex justify-between py-2">
-                <span className="text-gray-600 dark:text-slate-400">Classes đã nạp vào bộ nhớ:</span>
-                <strong className="text-gray-800 dark:text-slate-200 font-bold">{data?.cpu.totalLoadedClasses} Classes</strong>
-              </div>
+        <AdminSurface
+          icon="chart-bar"
+          headerVariant="mint"
+          title="Lưu lượng yêu cầu"
+          action={<AdminBadge dot={false} tone="slate">24 giờ</AdminBadge>}
+        >
+          <div className="space-y-2">
+            <div className="text-xs text-[var(--admin-ink-secondary)]">
+              Tổng: <strong className="text-sm font-bold text-[var(--admin-ink)] tabular-nums">{metric(traffic24h?.totalRequests ?? 0)} yêu cầu</strong>
             </div>
+            <HourlyTrafficChart hourly={hourlyTraffic} />
           </div>
-        </div>
+        </AdminSurface>
+      </div>
 
-        {/* Panel 3: Ổ cứng & Dung lượng lưu trữ */}
-        <div className="overview-main-panel !p-6 flex flex-col justify-between">
-          <div>
-            <h3 className="text-base font-bold text-gray-900 dark:text-slate-100 mb-1 flex items-center gap-2">
-              <span>💾</span>
-              <span>Lưu trữ Ổ cứng Máy chủ</span>
-            </h3>
-            <p className="text-xs text-gray-500 dark:text-slate-400 mb-5">
-              Dung lượng ổ đĩa lưu trữ mã nguồn & cơ sở dữ liệu
-            </p>
+      {/* 4. Ma trận dịch vụ */}
+      <HealthMatrix
+        health={serviceHealth}
+        refresh={loadHealth}
+        loading={loading}
+        old={Boolean(error)}
+        errorRates={data.serviceErrorRates24h}
+      />
 
-            <div className="flex flex-col gap-3.5 text-xs">
-              <div className="flex justify-between py-2 border-b border-gray-100 dark:border-slate-800">
-                <span className="text-gray-600 dark:text-slate-400">Tổng dung lượng đĩa:</span>
-                <strong className="text-gray-800 dark:text-slate-200 font-bold">{data?.disk.totalSpaceGB} GB</strong>
-              </div>
-              <div className="flex justify-between py-2 border-b border-gray-100 dark:border-slate-800">
-                <span className="text-gray-600 dark:text-slate-400">Dung lượng còn trống:</span>
-                <strong className="text-emerald-700 dark:text-emerald-400 font-bold">{data?.disk.freeSpaceGB} GB</strong>
-              </div>
-              <div className="flex justify-between py-2 border-b border-gray-100 dark:border-slate-800">
-                <span className="text-gray-600 dark:text-slate-400">Mức sử dụng đĩa:</span>
-                <strong className="text-gray-800 dark:text-slate-200 font-bold">{data?.disk.diskUsagePercent}%</strong>
-              </div>
-              <div className="flex justify-between py-2">
-                <span className="text-gray-600 dark:text-slate-400">Hệ điều hành máy chủ:</span>
-                <strong className="text-gray-800 dark:text-slate-200 font-bold">{data?.runtime.osName} ({data?.runtime.osArch})</strong>
-              </div>
-            </div>
-          </div>
-        </div>
+      {/* 5. Runtime Backend */}
+      <div className="grid min-w-0 gap-5 xl:grid-cols-2">
+        <AdminSurface icon="settings" headerVariant="mint" title="JVM và tiến trình" noPadding>
+          <MonitoringTable
+            headers={['Chỉ số JVM', 'Giá trị']}
+            rows={[
+              ['Thời gian hoạt động (Uptime)', formatUptime(data.uptimeSeconds)],
+              ['Khởi động lúc', data.startTime || 'N/A'],
+              ['Heap đã dùng / giới hạn', `${metric(memory.heapUsedMB, ' MB')} / ${metric(memory.heapMaxMB, ' MB')}`],
+              ['Heap đã cấp', metric(memory.heapCommittedMB, ' MB')],
+              ['Tỷ lệ dùng heap', metric(memory.heapUsagePercent, '%')],
+              ['Non-heap', metric(memory.nonHeapUsedMB, ' MB')],
+              ['CPU tiến trình JVM', metric(cpu.processCpuPercent, '%')],
+              ['Bộ xử lý JVM khả dụng', metric(cpu.availableProcessors)],
+            ]}
+          />
+        </AdminSurface>
+
+        <AdminSurface icon="layers" headerVariant="mint" title="PostgreSQL, Hikari & Filesystem" noPadding>
+          <MonitoringTable
+            headers={['Chỉ số vận hành', 'Giá trị']}
+            rows={[
+              ['PostgreSQL SELECT 1', metric(database.pingTimeMs, ' ms')],
+              ['Hikari đang dùng', metric(database.activeConnections)],
+              ['Hikari rảnh', metric(database.idleConnections)],
+              ['Hikari đang chờ', metric(database.pendingConnections)],
+              ['Giới hạn pool', metric(database.maxPoolSize)],
+              ['Filesystem Backend', metric(disk.totalSpaceGB, ' GB')],
+              ['Dung lượng trống', metric(disk.freeSpaceGB, ' GB')],
+              ['Dung lượng có thể sử dụng', metric(disk.usableSpaceGB, ' GB')],
+              ['Tỷ lệ dùng filesystem', metric(disk.diskUsagePercent, '%')],
+            ]}
+          />
+        </AdminSurface>
+      </div>
+
+      {/* 6. Garbage Collection & Thông tin hệ điều hành */}
+      <div className="grid min-w-0 gap-5 xl:grid-cols-2">
+        <AdminSurface icon="refresh" headerVariant="mint" title="Garbage Collection" noPadding>
+          <MonitoringTable
+            headers={['Bộ thu gom JVM', 'Số đợt', 'Thời gian tích lũy']}
+            rows={data.garbageCollectors.map((gc) => [
+              gc.name,
+              metric(gc.collections),
+              metric(gc.timeMs, ' ms'),
+            ])}
+          />
+        </AdminSurface>
+
+        <AdminSurface icon="settings" headerVariant="mint" title="Thông tin hệ điều hành">
+          <AdminStatStrip
+            variant="pastel"
+            columns={2}
+            items={[
+              {
+                label: 'Hệ điều hành',
+                value: (
+                  <span className="text-sm font-bold tracking-normal text-[var(--admin-ink)] leading-snug break-words">
+                    {runtime.osName}
+                    {runtime.osArch ? <><br /><span className="text-xs font-semibold text-[var(--admin-ink-muted)]">{runtime.osArch}</span></> : null}
+                  </span>
+                ),
+                icon: 'settings',
+                tone: 'sky',
+              },
+              { label: 'OS load average (1 phút)', value: metric(cpu.systemLoadAverage), icon: 'trend', tone: 'emerald' },
+              { label: 'Lớp đã tải', value: metric(cpu.totalLoadedClasses), icon: 'layers', tone: 'amber' },
+              { label: 'Luồng hiện tại / cao nhất', value: `${metric(cpu.activeThreadCount)} / ${metric(cpu.peakThreadCount)}`, icon: 'users', tone: 'violet' },
+            ]}
+          />
+        </AdminSurface>
+      </div>
+
+      {/* 7. Cảnh báo & sự kiện gần đây + Tỷ lệ lỗi & thời gian phản hồi */}
+      <div className="grid min-w-0 gap-5 xl:grid-cols-2">
+        <AdminSurface
+          icon="bell"
+          headerVariant="mint"
+          title="Cảnh báo & sự kiện gần đây"
+          action={
+            <Link to="/admin/audit-logs" className="admin-detail-link">
+              Xem tất cả
+              <FinanceIcon name="chevron-right" size={13} />
+            </Link>
+          }
+        >
+          {recentEvents.length === 0 ? (
+            <p className="py-4 text-center text-xs text-[var(--admin-ink-muted)]">Chưa có sự kiện nào được ghi nhận.</p>
+          ) : (
+            <ul className="divide-y divide-[var(--admin-border)]">
+              {recentEvents.map((ev, idx) => (
+                <li key={`${ev.timestamp}-${idx}`} className="flex items-center justify-between gap-3 py-2.5 text-xs">
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <span
+                      className={`grid size-5 shrink-0 place-items-center rounded-full ${
+                        ev.severity === 'ERROR'
+                          ? 'bg-rose-500/15 text-rose-600'
+                          : ev.severity === 'WARN'
+                          ? 'bg-amber-500/15 text-amber-600'
+                          : 'bg-emerald-500/15 text-emerald-600'
+                      }`}
+                    >
+                      <FinanceIcon name={ev.severity === 'INFO' ? 'check' : 'alert'} size={12} />
+                    </span>
+                    <span className="truncate font-medium text-[var(--admin-ink)]">{ev.message}</span>
+                  </div>
+                  <span className="shrink-0 tabular-nums text-[11px] text-[var(--admin-ink-muted)]">{ev.timestamp}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </AdminSurface>
+
+        <AdminSurface
+          icon="chart-bar"
+          headerVariant="mint"
+          title="Tỷ lệ lỗi & thời gian phản hồi"
+          action={<AdminBadge dot={false} tone="slate">24 giờ</AdminBadge>}
+        >
+          <AdminStatStrip
+            variant="pastel"
+            className="!grid-cols-1 sm:!grid-cols-2"
+            items={[
+              {
+                label: 'Tỷ lệ lỗi (Error Rate)',
+                value: metric(traffic24h?.errorRatePercent ?? 0, '%'),
+                icon: 'alert',
+                tone: (traffic24h?.errorRatePercent ?? 0) > 0 ? 'rose' : 'rose',
+              },
+              {
+                label: 'Thời gian phản hồi TB',
+                value: metric(traffic24h?.avgLatencyMs, ' ms'),
+                icon: 'clock',
+                tone: 'sky',
+              },
+            ]}
+          />
+        </AdminSurface>
       </div>
     </div>
   );
 };
-

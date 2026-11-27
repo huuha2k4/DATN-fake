@@ -17,6 +17,7 @@ import { useAppTheme } from '../../../context/ThemeContext';
 import { notificationApi } from '../../notifications/api';
 
 interface ProfileScreenProps {
+  initiallyShowFeedback?: boolean;
   onLogout?: () => void;
   onNotifications?: () => void;
   onOpenAiAssistant?: () => void;
@@ -24,6 +25,7 @@ interface ProfileScreenProps {
 }
 
 export function ProfileScreen({
+  initiallyShowFeedback = false,
   onLogout,
   onNotifications,
   onOpenAiAssistant,
@@ -39,7 +41,9 @@ export function ProfileScreen({
   const [showPricingModal, setShowPricingModal] = useState<boolean>(false);
   const [showAccountInfoModal, setShowAccountInfoModal] = useState<boolean>(false);
   const [showAvatarPickerModal, setShowAvatarPickerModal] = useState<boolean>(false);
-  const [currentSubPage, setCurrentSubPage] = useState<'MAIN' | 'SECURITY' | 'HELP_CENTER' | 'ABOUT' | 'NOTIFICATION_SETTINGS' | 'SYSTEM_SETTINGS'>('MAIN');
+  const [currentSubPage, setCurrentSubPage] = useState<'MAIN' | 'SECURITY' | 'HELP_CENTER' | 'ABOUT' | 'NOTIFICATION_SETTINGS' | 'SYSTEM_SETTINGS'>(
+    initiallyShowFeedback ? 'HELP_CENTER' : 'MAIN',
+  );
 
   useEffect(() => {
     onSubPageChange?.(currentSubPage !== 'MAIN');
@@ -233,6 +237,7 @@ export function ProfileScreen({
   if (currentSubPage === 'HELP_CENTER') {
     return (
       <HelpCenterScreen
+        initialTab={initiallyShowFeedback ? 'TICKETS' : 'FAQ'}
         onBack={() => setCurrentSubPage('MAIN')}
         onOpenAiAssistant={onOpenAiAssistant}
       />

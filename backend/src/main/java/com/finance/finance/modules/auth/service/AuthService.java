@@ -80,6 +80,9 @@ public class AuthService {
     private final com.finance.finance.modules.auth.repository.OAuthAccountRepository oauthAccountRepository;
     private final javax.sql.DataSource dataSource;
 
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private com.finance.finance.modules.admin.repository.NotificationTemplateRepository notificationTemplateRepository;
+
     @Value("${app.oauth2.google.client-id:}")
     private String googleClientId;
 
@@ -102,6 +105,7 @@ public class AuthService {
      */
     @Transactional
     public MessageResponse sendRegistrationOtp(String email) {
+        systemConfigService.requireRegistrationAllowed();
         String cleanEmail = email.trim().toLowerCase();
         log.info("Sending registration OTP to email: {}", cleanEmail);
 
@@ -138,10 +142,7 @@ public class AuthService {
     @Transactional
     public AuthResponse register(RegisterRequest request) {
         // Kiểm tra cấu hình hệ thống: Cho phép đăng ký mới
-        boolean allowReg = systemConfigService.getBoolean("ALLOW_REGISTRATION", true);
-        if (!allowReg) {
-            throw new BusinessException("Hệ thống hiện đang tạm đóng tính năng đăng ký thành viên mới theo chính sách quản trị.");
-        }
+        systemConfigService.requireRegistrationAllowed();
 
         String cleanEmail = request.getEmail().trim().toLowerCase();
         log.info("Registering new user: {}", cleanEmail);
@@ -214,19 +215,11 @@ public class AuthService {
                 .build());
 
         // Send automatic welcome notification
-        try {
-            notificationService.createNotification(
-                    user.getId(),
-                    com.finance.finance.common.enums.NotificationType.SYSTEM,
-                    com.finance.finance.common.enums.NotificationPriority.NORMAL,
-                    "Chào mừng bạn đến với FinAI!",
-                    "Hệ thống quản lý tài chính thông minh đã sẵn sàng. Hãy bắt đầu bằng cách thêm ví hoặc ghi nhận giao dịch đầu tiên của bạn.",
-                    "/dashboard",
-                    "Khám phá ngay"
-            );
-        } catch (Exception ex) {
-            log.error("Failed to create welcome notification for user: {}", user.getId(), ex);
-        }
+        sendWelcomeNotification(
+                user,
+                "Chào mừng bạn đến với Finora!",
+                "Chào mừng {user_name} gia nhập Finora. Khám phá ngay các tính năng lập ngân sách và trợ lý tài chính thông minh nhé!"
+        );
 
         // Generate auth tokens
         String accessToken = jwtTokenProvider.generateAccessToken(user);
@@ -248,15 +241,13 @@ public class AuthService {
     /**
      * Login with email and password
      */
-    @Transactional
+    @Transactional(noRollbackFor = InvalidCredentialsException.class)
     public AuthResponse login(LoginRequest request, HttpServletRequest httpRequest) {
         log.info("User login attempt: {}", request.getLogin());
 
-        // Kiểm tra chế độ bảo trì hệ thống (MAINTENANCE_MODE)
-        boolean maintenanceMode = systemConfigService.getBoolean("MAINTENANCE_MODE", false);
 
         // Find user by email or username
-        User user = userRepository.findActiveUserByEmailOrUsername(request.getLogin())
+        User user = userRepository.lockByLogin(request.getLogin())
                 .orElseThrow(() -> {
                     systemAuditService.record(AuditEventRequest.builder()
                             .eventType(AuditEventType.AUTH_LOGIN_FAILURE)
@@ -271,8 +262,10 @@ public class AuthService {
                     return new InvalidCredentialsException("Email/Username hoặc mật khẩu không đúng");
                 });
 
-        if (maintenanceMode && user.getSystemRole() != com.finance.finance.common.enums.SystemRole.ADMIN) {
-            throw new BusinessException("Hệ thống Finora hiện đang trong thời gian bảo trì nâng cấp. Vui lòng quay lại sau ít phút!");
+        systemConfigService.requireApplicationAccess(user);
+
+        if (!user.isEnabled() || user.getUserStatus() == UserStatus.LOCKED) {
+            throw new InvalidCredentialsException("Tài khoản không thể đăng nhập");
         }
 
         // Check if account is locked
@@ -317,25 +310,16 @@ public class AuthService {
             throw new InvalidCredentialsException("Email/Username hoặc mật khẩu không đúng");
         }
 
-        // Check if account is inactive
-        if (user.getUserStatus() == UserStatus.INACTIVE) {
-            throw new BusinessException("Tài khoản đã bị vô hiệu hóa");
-        }
-
         // Reset failed attempts on successful login
         if (user.getFailedLoginAttempts() > 0) {
             user.setFailedLoginAttempts(0);
             userRepository.save(user);
         }
 
-        // Update last login
-        user.setLastLoginAt(Instant.now());
-        userRepository.save(user);
 
         // Get device info
         String deviceId = request.getDeviceId();
         String deviceName = request.getDeviceName();
-        String ipAddress = getClientIP(httpRequest);
 
         // Check if MFA / 2FA is enabled
         if (user.isMfaEnabled()) {
@@ -395,7 +379,8 @@ public class AuthService {
             }
         }
 
-        // Generate auth tokens
+        user.setLastLoginAt(Instant.now());
+        // Generate auth tokens only after successful password and, when enabled, MFA.
         String accessToken = jwtTokenProvider.generateAccessToken(user);
         RefreshToken refreshToken = tokenService.createRefreshToken(user, deviceId, deviceName);
 
@@ -822,51 +807,7 @@ public class AuthService {
     public AuthResponse authenticateWithGoogle(com.finance.finance.modules.auth.dto.request.GoogleAuthRequest request, HttpServletRequest httpRequest) {
         log.info("Processing Google authentication");
 
-        java.util.List<String> validAudiences = new java.util.ArrayList<>();
-        if (googleClientId != null && !googleClientId.isBlank()) validAudiences.add(googleClientId.trim());
-        if (googleIosClientId != null && !googleIosClientId.isBlank()) validAudiences.add(googleIosClientId.trim());
-        if (googleAndroidClientId != null && !googleAndroidClientId.isBlank()) validAudiences.add(googleAndroidClientId.trim());
-
-        log.info("Processing Google authentication with validAudiences: {}", validAudiences);
-
-        com.google.api.client.googleapis.auth.oauth2.GoogleIdTokenVerifier verifier =
-                new com.google.api.client.googleapis.auth.oauth2.GoogleIdTokenVerifier.Builder(
-                        new com.google.api.client.http.javanet.NetHttpTransport(),
-                        new com.google.api.client.json.gson.GsonFactory()
-                )
-                .setAudience(validAudiences)
-                .build();
-
-        com.google.api.client.googleapis.auth.oauth2.GoogleIdToken idToken;
-        try {
-            idToken = verifier.verify(request.getIdToken());
-        } catch (Exception e) {
-            log.error("Failed to verify Google ID Token: {}", e.getMessage(), e);
-            systemAuditService.record(AuditEventRequest.builder()
-                    .eventType(AuditEventType.AUTH_GOOGLE_LOGIN_FAILURE)
-                    .outcome(AuditOutcome.FAILURE)
-                    .severity(AuditSeverity.WARNING)
-                    .actorType(AuditActorType.ANONYMOUS)
-                    .reasonCode("INVALID_GOOGLE_TOKEN")
-                    .policyOverride(AuditFailurePolicy.MANDATORY_REQUIRES_NEW)
-                    .build());
-            throw new com.finance.finance.common.exception.BusinessException("Token Google không hợp lệ hoặc đã hết hạn: " + e.getMessage());
-        }
-
-        if (idToken == null) {
-            log.warn("GoogleIdToken is null after verifier.verify for token length={}", request.getIdToken() != null ? request.getIdToken().length() : 0);
-            systemAuditService.record(AuditEventRequest.builder()
-                    .eventType(AuditEventType.AUTH_GOOGLE_LOGIN_FAILURE)
-                    .outcome(AuditOutcome.FAILURE)
-                    .severity(AuditSeverity.WARNING)
-                    .actorType(AuditActorType.ANONYMOUS)
-                    .reasonCode("GOOGLE_TOKEN_AUDIENCE_MISMATCH")
-                    .policyOverride(AuditFailurePolicy.MANDATORY_REQUIRES_NEW)
-                    .build());
-            throw new com.finance.finance.common.exception.BusinessException("Xác thực Google thất bại (Token không khớp audience hoặc không hợp lệ)");
-        }
-
-        com.google.api.client.googleapis.auth.oauth2.GoogleIdToken.Payload payload = idToken.getPayload();
+        var payload = verifyGoogleIdToken(request.getIdToken());
         String googleUserId = payload.getSubject();
         String email = payload.getEmail();
         boolean emailVerified = Boolean.TRUE.equals(payload.getEmailVerified());
@@ -878,7 +819,22 @@ public class AuthService {
         }
 
         // Tìm user theo email hoặc theo OAuth account
-        User user = userRepository.findByEmailAndDeletedAtIsNull(email).orElse(null);
+        if (!emailVerified) {
+            throw new InvalidCredentialsException("Email Google chưa được xác thực");
+        }
+        var googleAccount = oauthAccountRepository.findByProviderAndProviderUserId("GOOGLE", googleUserId);
+        User user = googleAccount.isPresent()
+                ? userRepository.lockActiveRecord(googleAccount.get().getUserId())
+                        .orElseThrow(() -> new InvalidCredentialsException("Tài khoản không thể đăng nhập"))
+                : userRepository.lockByEmail(email).orElse(null);
+        if (user != null && (!user.isEnabled() || !user.isAccountNonLocked())) {
+            throw new InvalidCredentialsException("Tài khoản không thể đăng nhập");
+        }
+        if (user == null) {
+            systemConfigService.requireRegistrationAllowed();
+        } else {
+            systemConfigService.requireApplicationAccess(user);
+        }
         boolean isNewRegistration = false;
 
         if (user == null) {
@@ -913,19 +869,11 @@ public class AuthService {
             user = userRepository.save(user);
             log.info("New user created via Google login: {}", user.getId());
 
-            try {
-                notificationService.createNotification(
-                        user.getId(),
-                        com.finance.finance.common.enums.NotificationType.SYSTEM,
-                        com.finance.finance.common.enums.NotificationPriority.NORMAL,
-                        "Chào mừng bạn đến với Finora!",
-                        "Đăng nhập Google thành công. Hãy khám phá và quản lý tài chính thông minh cùng Finora ngay nhé!",
-                        "/dashboard",
-                        "Khám phá ngay"
-                );
-            } catch (Exception ex) {
-                log.warn("Failed to create welcome notification: {}", ex.getMessage());
-            }
+            sendWelcomeNotification(
+                    user,
+                    "Chào mừng bạn đến với Finora!",
+                    "Chào mừng {user_name} gia nhập Finora. Khám phá ngay các tính năng lập ngân sách và trợ lý tài chính thông minh nhé!"
+            );
         } else {
             // Cập nhật thông tin nếu có
             if (user.getAvatarUrl() == null && pictureUrl != null) {
@@ -981,20 +929,99 @@ public class AuthService {
                 .build();
     }
 
-    /**
-     * Get client IP address from request
-     */
-    private String getClientIP(HttpServletRequest request) {
-        String xForwardedFor = request.getHeader("X-Forwarded-For");
-        if (xForwardedFor != null && !xForwardedFor.isEmpty()) {
-            return xForwardedFor.split(",")[0].trim();
+    com.google.api.client.googleapis.auth.oauth2.GoogleIdToken.Payload verifyGoogleIdToken(String rawToken) {
+        java.util.List<String> validAudiences = new java.util.ArrayList<>();
+        if (googleClientId != null && !googleClientId.isBlank()) validAudiences.add(googleClientId.trim());
+        if (googleIosClientId != null && !googleIosClientId.isBlank()) validAudiences.add(googleIosClientId.trim());
+        if (googleAndroidClientId != null && !googleAndroidClientId.isBlank()) validAudiences.add(googleAndroidClientId.trim());
+
+        log.info("Processing Google authentication with validAudiences: {}", validAudiences);
+
+        com.google.api.client.googleapis.auth.oauth2.GoogleIdTokenVerifier verifier =
+                new com.google.api.client.googleapis.auth.oauth2.GoogleIdTokenVerifier.Builder(
+                        new com.google.api.client.http.javanet.NetHttpTransport(),
+                        new com.google.api.client.json.gson.GsonFactory()
+                )
+                .setAudience(validAudiences)
+                .build();
+
+        com.google.api.client.googleapis.auth.oauth2.GoogleIdToken idToken;
+        try {
+            idToken = verifier.verify(rawToken);
+        } catch (Exception e) {
+            log.warn("Google ID token verification failed");
+            systemAuditService.record(AuditEventRequest.builder()
+                    .eventType(AuditEventType.AUTH_GOOGLE_LOGIN_FAILURE)
+                    .outcome(AuditOutcome.FAILURE)
+                    .severity(AuditSeverity.WARNING)
+                    .actorType(AuditActorType.ANONYMOUS)
+                    .reasonCode("INVALID_GOOGLE_TOKEN")
+                    .policyOverride(AuditFailurePolicy.MANDATORY_REQUIRES_NEW)
+                    .build());
+            throw new com.finance.finance.common.exception.BusinessException("Token Google không hợp lệ hoặc đã hết hạn");
         }
-        
-        String xRealIp = request.getHeader("X-Real-IP");
-        if (xRealIp != null && !xRealIp.isEmpty()) {
-            return xRealIp;
+
+        if (idToken == null) {
+            log.warn("GoogleIdToken is null after verifier.verify for token length={}", rawToken != null ? rawToken.length() : 0);
+            systemAuditService.record(AuditEventRequest.builder()
+                    .eventType(AuditEventType.AUTH_GOOGLE_LOGIN_FAILURE)
+                    .outcome(AuditOutcome.FAILURE)
+                    .severity(AuditSeverity.WARNING)
+                    .actorType(AuditActorType.ANONYMOUS)
+                    .reasonCode("GOOGLE_TOKEN_AUDIENCE_MISMATCH")
+                    .policyOverride(AuditFailurePolicy.MANDATORY_REQUIRES_NEW)
+                    .build());
+            throw new com.finance.finance.common.exception.BusinessException("Xác thực Google thất bại (Token không khớp audience hoặc không hợp lệ)");
         }
-        
-        return request.getRemoteAddr();
+
+        return idToken.getPayload();
+    }
+
+    private void sendWelcomeNotification(User user, String fallbackTitle, String fallbackBody) {
+        try {
+            var template = notificationTemplateRepository != null
+                    ? notificationTemplateRepository.lockByCode("AUTO_WELCOME").orElse(null)
+                    : null;
+            if (template != null && Boolean.FALSE.equals(template.getIsActive())) {
+                return;
+            }
+
+            String userName = user.getFullName() != null && !user.getFullName().isBlank()
+                    ? user.getFullName()
+                    : (user.getUsername() != null ? user.getUsername() : "bạn");
+            String titleTemplate = template != null && template.getTitle() != null
+                    ? template.getTitle()
+                    : fallbackTitle;
+            String bodyTemplate = template != null && template.getBodyTemplate() != null
+                    ? template.getBodyTemplate()
+                    : fallbackBody;
+
+            com.finance.finance.common.enums.NotificationPriority priority =
+                    com.finance.finance.common.enums.NotificationPriority.NORMAL;
+            if (template != null && template.getPriority() != null) {
+                try {
+                    priority = com.finance.finance.common.enums.NotificationPriority.valueOf(
+                            template.getPriority().trim().toUpperCase(java.util.Locale.ROOT));
+                } catch (IllegalArgumentException ignored) {}
+            }
+
+            notificationService.createNotification(
+                    user.getId(),
+                    com.finance.finance.common.enums.NotificationType.SYSTEM,
+                    priority,
+                    titleTemplate.replace("{user_name}", userName),
+                    bodyTemplate.replace("{user_name}", userName),
+                    "/dashboard",
+                    "Khám phá ngay"
+            );
+
+            if (template != null && notificationTemplateRepository != null) {
+                template.setTotalDispatched((template.getTotalDispatched() != null ? template.getTotalDispatched() : 0L) + 1L);
+                template.setLastDispatchedAt(Instant.now());
+                notificationTemplateRepository.save(template);
+            }
+        } catch (Exception ex) {
+            log.warn("Failed to create welcome notification for user {}: {}", user.getId(), ex.getMessage());
+        }
     }
 }

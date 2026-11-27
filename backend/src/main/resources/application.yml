@@ -137,9 +137,9 @@ app:
     lockout-duration-minutes: 15
   
   admin:
-    username: ${SUPER_ADMIN_USER:admin}
-    email: ${SUPER_ADMIN_EMAIL:admin@finance.com}
-    password: ${SUPER_ADMIN_PASSWORD:admin123}
+    username: ${SUPER_ADMIN_USER:}
+    email: ${SUPER_ADMIN_EMAIL:}
+    password: ${SUPER_ADMIN_PASSWORD:}
 
   ai:
     ocr-service-url: ${OCR_SERVICE_URL:http://ocr-service:8000}
@@ -159,6 +159,14 @@ app:
   attachments:
     url-ttl-seconds: ${ATTACHMENT_URL_TTL_SECONDS:300}
 
+  monitoring:
+    telemetry-enabled: ${MONITOR_TELEMETRY_ENABLED:true}
+    finai-url: ${MONITOR_FINAI_URL:}
+    ocr-url: ${MONITOR_OCR_URL:}
+    ocr-enabled: ${MONITOR_OCR_ENABLED:true}
+    minio-url: ${MONITOR_MINIO_URL:}
+    nginx-url: ${MONITOR_NGINX_URL:}
+    frontend-url: ${MONITOR_FRONTEND_URL:}
   audit:
     hmac-secret: ${AUDIT_HMAC_SECRET:${JWT_SECRET:dev-only-audit-hmac-secret-change-me}}
     viewer:

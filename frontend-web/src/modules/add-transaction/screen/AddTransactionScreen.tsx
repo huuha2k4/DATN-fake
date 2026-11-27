@@ -29,11 +29,11 @@ const presets = [
 ]
 
 // Kid Income Categories
-const KID_INCOME_CATEGORIES: CategoryItem[] = [
-  { id: 'kid_gift', name: 'Người thân cho / Quà tặng', icon: 'gift', color: '#ec4899', kind: 'INCOME' },
-  { id: 'kid_lixi', name: 'Tiền lì xì Tết', icon: 'coins', color: '#ef4444', kind: 'INCOME' },
-  { id: 'kid_award', name: 'Thưởng học tập & thành tích', icon: 'spark', color: '#f59e0b', kind: 'INCOME' },
-  { id: 'kid_other', name: 'Thu nhập khác của bé', icon: 'wallet', color: '#10b981', kind: 'INCOME' },
+const KID_INCOME_CATEGORIES: (CategoryItem & { systemCodes: string[] })[] = [
+  { id: 'kid_gift', systemCodes: ['GIFT_SYS'], name: 'Người thân cho / Quà tặng', icon: 'gift', color: '#ec4899', kind: 'INCOME' },
+  { id: 'kid_lixi', systemCodes: ['GIFT_SYS'], name: 'Tiền lì xì Tết', icon: 'coins', color: '#ef4444', kind: 'INCOME' },
+  { id: 'kid_award', systemCodes: ['BONUS', 'BONUS_SYS'], name: 'Thưởng học tập & thành tích', icon: 'spark', color: '#f59e0b', kind: 'INCOME' },
+  { id: 'kid_other', systemCodes: ['OTHER_INCOME', 'OTHER_INCOME_SYS'], name: 'Thu nhập khác của bé', icon: 'wallet', color: '#10b981', kind: 'INCOME' },
 ]
 
 export function AddTransactionScreen({ onCancel, onNotify, onOpenInvoiceScanner }: Props) {
@@ -300,7 +300,17 @@ export function AddTransactionScreen({ onCancel, onNotify, onOpenInvoiceScanner 
       if (isChildAccount && childWallet && currentUser?.childWalletGroupId) {
         const prefix = type === 'INCOME' ? '[INCOME_GIFT] ' : ''
         const descText = description.trim() || selectedCategoryObj?.name || (type === 'INCOME' ? 'Tiền người thân cho / quà tặng' : 'Chi tiêu của em')
-        const resolvedCategoryId = selectedCategoryId.startsWith('kid_') ? undefined : selectedCategoryId
+        let resolvedCategoryId: string | undefined = selectedCategoryId
+        if (type === 'INCOME') {
+          const systemCodes = KID_INCOME_CATEGORIES.find((category) => category.id === selectedCategoryId)?.systemCodes
+          resolvedCategoryId = categories.find((category) =>
+            category.kind === 'INCOME' && category.isSystem && category.code && systemCodes?.includes(category.code),
+          )?.id
+        }
+        if (!resolvedCategoryId) {
+          setError('Không tìm thấy danh mục thu nhập này trên hệ thống. Vui lòng tải lại trang hoặc chọn danh mục khác.')
+          return
+        }
         await groupApi.createChildTransaction(currentUser.childWalletGroupId, childWallet.id, {
           amount: numericAmount,
           categoryId: resolvedCategoryId,

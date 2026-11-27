@@ -4,6 +4,7 @@ import { isAxiosError } from 'axios';
 import { FinanceIcon, resolveCategoryIconName, type IconName } from '../../core/components/FinanceIcon';
 import { ConfirmDeleteModal } from '../../core/components/ConfirmDeleteModal';
 import { DatePicker } from '../../core/components/DatePicker';
+import { subscribeFinAiActionCompleted } from '../../core/utils/finaiSyncEvents';
 import {
   groupApi,
   type GroupResponse,
@@ -674,6 +675,13 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
 
   const expenseCategories = categoriesList.filter((category) => (category.kind || category.type) === 'EXPENSE');
 
+  useEffect(() => subscribeFinAiActionCompleted((action) => {
+    if (!action?.toolName || !['create_group_transaction', 'contribute_group_fund',
+      'create_child_spend', 'deposit_child_wallet'].includes(action.toolName)) return;
+    void loadGroups();
+    if (selectedGroup) void loadGroupDetails(selectedGroup);
+  }), [selectedGroup?.id]);
+
   useEffect(() => {
     if (expenseCategoryId || expenseCategories.length === 0) return;
     const foodCategory = expenseCategories.find((category) => category.name.trim().toLocaleLowerCase('vi-VN').includes('ăn uống'));
@@ -1162,8 +1170,8 @@ export function GroupManagementScreen({ onNotify }: GroupManagementScreenProps) 
       setSettleAmount('');
       setSettleSourceAccountId('');
       loadGroupDetails(selectedGroup);
-    } catch {
-      onNotify('Tạo thanh toán nợ thất bại');
+    } catch (err: any) {
+      onNotify(err?.response?.data?.message || 'Tạo thanh toán nợ thất bại');
     } finally {
       setIsSubmittingSettle(false);
     }

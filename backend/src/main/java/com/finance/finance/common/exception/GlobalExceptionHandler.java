@@ -37,6 +37,7 @@ public class GlobalExceptionHandler {
     
     @ExceptionHandler(BusinessException.class)
     public ResponseEntity<ErrorResponse> handleBusinessException(BusinessException ex) {
+        com.finance.finance.modules.admin.monitoring.RequestObservation.error(ex.getErrorCode());
         log.error("Business exception: {}", ex.getMessage());
         ErrorResponse error = ErrorResponse.builder()
                 .timestamp(Instant.now())
@@ -164,12 +165,17 @@ public class GlobalExceptionHandler {
         return ResponseEntity.badRequest().body(error);
     }
 
-    @ExceptionHandler({HttpMessageNotReadableException.class, MethodArgumentTypeMismatchException.class})
+    @ExceptionHandler({HttpMessageNotReadableException.class, MethodArgumentTypeMismatchException.class,
+            org.springframework.web.bind.ServletRequestBindingException.class})
     public ResponseEntity<ErrorResponse> handleMalformedRequest(Exception error) {
-        if (!isAiRequest()) return handleGlobalException(error);
+        var context = com.finance.finance.modules.audit.context.AuditContextHolder.get();
+        boolean admin = context != null && context.getEndpoint() != null
+                && context.getEndpoint().startsWith("/api/v1/admin/");
+        if (!admin && !isAiRequest()) return handleGlobalException(error);
         return ResponseEntity.badRequest().body(ErrorResponse.builder()
                 .timestamp(Instant.now()).status(HttpStatus.BAD_REQUEST.value()).error("Bad Request")
-                .errorCode("INVALID_REQUEST").message("Dữ liệu gửi đến FinAI không hợp lệ.").build());
+                .errorCode("INVALID_REQUEST").message(admin ? "Dữ liệu quản trị không hợp lệ."
+                        : "Dữ liệu gửi đến FinAI không hợp lệ.").build());
     }
 
     @ExceptionHandler(IdempotencyService.IdempotencyConflictException.class)

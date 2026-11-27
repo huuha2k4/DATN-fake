@@ -19,6 +19,7 @@ public class FinAiConversationResponse {
         private Instant createdAt;
         private List<UUID> actionIds;
         private List<FinAiActionResponse> actions;
+        private FinAiClarification clarification;
     }
 }
 

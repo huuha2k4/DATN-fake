@@ -1,71 +1,68 @@
-import React, { useState, useEffect } from 'react';
-import { adminApi } from '../api/adminApi';
-import { FinanceIcon } from '../../core/components/FinanceIcon';
+import React, { useState, useEffect, useCallback } from 'react';
+import { AdminDialog } from '../components/AdminDialog';
+import { AdminBadge, AdminEmptyState, AdminNotice, AdminSurface } from '../components/AdminPrimitives';
+import { adminError } from '../hooks/useAdminPage';
+import { adminApi, type AdminSetting as SystemSettingItem } from '../api/adminApi';
+import { FinanceIcon, type IconName } from '../../core/components/FinanceIcon';
 
-interface SystemSettingItem {
-  key: string;
-  value: string;
-  group: string;
-  description: string;
-  updatedAt: string;
-}
-
-// Bảng từ điển ánh xạ tham số chuẩn theo key
-const SETTING_METADATA: Record<string, { label: string; unit?: string; icon: string; hint: string; type: 'BOOLEAN' | 'NUMBER' | 'STRING' }> = {
+const SETTING_METADATA: Record<
+  string,
+  { label: string; unit?: string; icon: IconName; hint: string; type: 'BOOLEAN' | 'NUMBER' | 'STRING' }
+> = {
   MAINTENANCE_MODE: {
     label: 'Chế độ Bảo trì Hệ thống',
     icon: 'shield',
     type: 'BOOLEAN',
-    hint: 'Khi bật, người dùng thông thường sẽ không thể đăng nhập hoặc thực hiện giao dịch mới.'
+    hint: 'Khi bật, người dùng thông thường sẽ không thể đăng nhập hoặc thực hiện giao dịch mới.',
   },
   ALLOW_REGISTRATION: {
     label: 'Cho phép Đăng ký Tài khoản mới',
     icon: 'users',
     type: 'BOOLEAN',
-    hint: 'Bật/Tắt tính năng tạo tài khoản mới từ trang đăng nhập ứng dụng.'
+    hint: 'Bật/Tắt tính năng tạo tài khoản mới từ trang đăng nhập ứng dụng.',
   },
   FREE_TIER_MAX_WALLETS: {
     label: 'Số ví tối đa (Gói Miễn phí)',
     unit: 'Ví',
     icon: 'wallet',
     type: 'NUMBER',
-    hint: 'Số lượng ví tài khoản tối đa mà người dùng gói Free được phép tạo.'
+    hint: 'Số lượng ví tài khoản tối đa mà người dùng gói Free được phép tạo.',
   },
   FREE_TIER_OCR_LIMIT: {
     label: 'Hạn mức quét OCR / tháng (Gói Free)',
     unit: 'Lượt/tháng',
     icon: 'receipt',
     type: 'NUMBER',
-    hint: 'Số lượt quét hóa đơn bằng công nghệ OCR miễn phí mỗi tháng.'
+    hint: 'Số lượt quét hóa đơn bằng công nghệ OCR miễn phí mỗi tháng.',
   },
   PREMIUM_TIER_PRICE_MONTHLY: {
     label: 'Giá gói Hội viên Premium',
     unit: 'VNĐ/tháng',
     icon: 'spark',
     type: 'NUMBER',
-    hint: 'Mức phí gia hạn gói Premium hàng tháng thanh toán qua cổng thanh toán.'
+    hint: 'Mức phí gia hạn gói Premium hàng tháng thanh toán qua cổng thanh toán.',
   },
   ENTERPRISE_TIER_PRICE_MONTHLY: {
     label: 'Giá gói Doanh nghiệp (Enterprise)',
     unit: 'VNĐ/tháng',
     icon: 'trend',
     type: 'NUMBER',
-    hint: 'Mức phí hàng tháng cho tài khoản quy mô tổ chức và công ty.'
+    hint: 'Mức phí hàng tháng cho tài khoản quy mô tổ chức và công ty.',
   },
   AI_RESPONSE_TEMPERATURE: {
     label: 'Độ sáng tạo FinAI (Temperature)',
     unit: '0.0 - 1.0',
     icon: 'bot',
     type: 'NUMBER',
-    hint: 'Chỉ số từ 0.0 (chính xác, logic toán) đến 1.0 (sáng tạo, giàu biểu cảm).'
+    hint: 'Chỉ số từ 0.0 (chính xác, logic toán) đến 1.0 (sáng tạo, giàu biểu cảm).',
   },
   SESSION_TIMEOUT_HOURS: {
     label: 'Thời gian hết hạn phiên đăng nhập',
     unit: 'Giờ',
     icon: 'calendar',
     type: 'NUMBER',
-    hint: 'Thời lượng duy trì JWT token trước khi bắt buộc đăng nhập lại.'
-  }
+    hint: 'Thời lượng duy trì JWT token trước khi bắt buộc đăng nhập lại.',
+  },
 };
 
 export const AdminSettingsScreen: React.FC = () => {
@@ -75,50 +72,45 @@ export const AdminSettingsScreen: React.FC = () => {
   const [savingKey, setSavingKey] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [maintenanceChange, setMaintenanceChange] = useState<string | null>(null);
   const [activeGroup, setActiveGroup] = useState<string>('ALL');
 
-  const fetchSettings = async () => {
+  const fetchSettings = useCallback(async () => {
     try {
       setLoading(true);
       setErrorMsg(null);
-      const data: any = await adminApi.listSettings();
-      // Chuẩn hóa dữ liệu trả về từ backend (key/value/group)
-      const safeData: SystemSettingItem[] = (Array.isArray(data) ? data : []).map((item: any) => ({
-        key: item.key || item.settingKey || '',
-        value: item.value || item.settingValue || '',
-        group: (item.group || item.settingGroup || 'SYSTEM').toUpperCase(),
-        description: item.description || '',
-        updatedAt: item.updatedAt || ''
-      }));
-
-      setSettings(safeData);
-      const valMap: Record<string, string> = {};
-      safeData.forEach(item => {
-        if (item.key) {
-          valMap[item.key] = item.value;
-        }
-      });
-      setFormValues(valMap);
-    } catch (err: any) {
-      setErrorMsg(err.response?.data?.message || err.message || 'Không thể tải danh sách cấu hình');
-      setSettings([]);
+      const items = await adminApi.listSettings();
+      setSettings(items);
+      setFormValues(Object.fromEntries(items.map((item) => [item.key, item.value])));
+    } catch (err: unknown) {
+      setErrorMsg(adminError(err, 'Không thể tải cấu hình'));
     } finally {
       setLoading(false);
     }
-  };
-
-  useEffect(() => {
-    fetchSettings();
   }, []);
 
+  useEffect(() => {
+    let active = true;
+    queueMicrotask(() => {
+      if (active) void fetchSettings();
+    });
+    return () => {
+      active = false;
+    };
+  }, [fetchSettings]);
+
   const handleInputChange = (key: string, value: string) => {
-    setFormValues(prev => ({ ...prev, [key]: value }));
+    setFormValues((prev) => ({ ...prev, [key]: value }));
   };
 
   const handleToggle = async (item: SystemSettingItem) => {
-    const currentVal = formValues[item.key] === 'true';
+    const currentVal = item.value === 'true' || item.value === '1';
     const nextVal = (!currentVal).toString();
-    setFormValues(prev => ({ ...prev, [item.key]: nextVal }));
+    if (item.key === 'MAINTENANCE_MODE') {
+      setErrorMsg(null);
+      setMaintenanceChange(nextVal);
+      return;
+    }
     await handleSave(item.key, nextVal);
   };
 
@@ -127,218 +119,249 @@ export const AdminSettingsScreen: React.FC = () => {
       setSavingKey(key);
       setSuccessMsg(null);
       setErrorMsg(null);
-      const valToSave = customVal !== undefined ? customVal : (formValues[key] ?? '');
-      await adminApi.updateSetting(key, valToSave);
+      const valToSave = customVal !== undefined ? customVal : formValues[key] ?? '';
+      const saved = await adminApi.updateSetting(key, valToSave);
       const label = SETTING_METADATA[key]?.label || key;
-      setSuccessMsg(`Đã cập nhật [${label}] thành công!`);
+      setMaintenanceChange(null);
+      setSuccessMsg(`Đã cập nhật [${label}] thành công.`);
       setTimeout(() => setSuccessMsg(null), 4000);
-      
-      // Cập nhật lại giá trị gốc để ẩn nút Lưu
-      setSettings(prev => prev.map(s => s.key === key ? { ...s, value: valToSave } : s));
-    } catch (err: any) {
-      setErrorMsg(err.response?.data?.message || err.message || `Lỗi khi lưu cấu hình [${key}]`);
+      setSettings((prev) => prev.map((item) => (item.key === key ? saved : item)));
+      setFormValues((prev) => ({ ...prev, [key]: saved.value }));
+    } catch (err: unknown) {
+      setErrorMsg(adminError(err, `Lỗi khi lưu cấu hình [${key}]`));
     } finally {
       setSavingKey(null);
     }
   };
 
-  // Các nhóm chuẩn khớp với migration V41 trong Database
-  const groups = [
-    { id: 'ALL', label: 'Tất cả tham số', iconName: 'filter', groupKeys: [] },
-    { id: 'SYSTEM', label: 'Hệ thống chung', iconName: 'chart', groupKeys: ['SYSTEM'] },
-    { id: 'AUTH', label: 'Tài khoản & Đăng ký', iconName: 'shield', groupKeys: ['AUTH'] },
-    { id: 'TIERS', label: 'Gói cước & Hạn mức', iconName: 'wallet', groupKeys: ['SUBSCRIPTION', 'PRICING'] },
-    { id: 'AI', label: 'Trí tuệ nhân tạo (FinAI)', iconName: 'bot', groupKeys: ['AI'] },
-    { id: 'SECURITY', label: 'Bảo mật & Phiên', iconName: 'shield', groupKeys: ['SECURITY'] }
+  const sectionDefs: { id: string; title: string; icon: IconName; groupKeys: string[] }[] = [
+    { id: 'AI', title: 'FinAI', icon: 'layers', groupKeys: ['AI'] },
+    { id: 'AUTH', title: 'Tài khoản', icon: 'users', groupKeys: ['AUTH'] },
+    { id: 'TIERS', title: 'Gói cước & Hạn mức', icon: 'layers', groupKeys: ['SUBSCRIPTION', 'PRICING'] },
+    { id: 'SYSTEM', title: 'Hệ thống', icon: 'settings', groupKeys: ['SYSTEM'] },
+    { id: 'SECURITY', title: 'Bảo mật & Phiên', icon: 'shield', groupKeys: ['SECURITY'] },
   ];
 
-  const filteredSettings = activeGroup === 'ALL'
-    ? settings
-    : settings.filter(s => {
-        const currentGroupDef = groups.find(g => g.id === activeGroup);
-        return currentGroupDef ? currentGroupDef.groupKeys.includes(s.group) : s.group === activeGroup;
-      });
+  const groups = [
+    { id: 'ALL', label: 'Tất cả', groupKeys: [] as string[] },
+    { id: 'SYSTEM', label: 'Hệ thống', groupKeys: ['SYSTEM'] },
+    { id: 'AUTH', label: 'Tài khoản', groupKeys: ['AUTH'] },
+    { id: 'TIERS', label: 'Gói cước & Hạn mức', groupKeys: ['SUBSCRIPTION', 'PRICING'] },
+    { id: 'AI', label: 'FinAI', groupKeys: ['AI'] },
+    { id: 'SECURITY', label: 'Bảo mật & Phiên', groupKeys: ['SECURITY'] },
+  ];
 
-  return (
-    <div className="flex flex-col gap-5 w-full">
-      {/* 1. THANH CHUYỂN TAB ĐỒNG BỘ CHUẨN */}
-      <div className="overview-main-panel !p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div className="flex items-center gap-1.5 p-1 bg-gray-100 dark:bg-slate-800 rounded-xl shrink-0 overflow-x-auto max-w-full">
-          {groups.map((g) => {
-            const isActive = activeGroup === g.id;
-            const count = g.id === 'ALL'
-              ? settings.length
-              : settings.filter(s => g.groupKeys.includes(s.group)).length;
+  const visibleSections = (activeGroup === 'ALL'
+    ? sectionDefs
+    : sectionDefs.filter((sec) => sec.id === activeGroup)
+  )
+    .map((sec) => ({
+      ...sec,
+      items: settings.filter((s) => sec.groupKeys.includes(s.group)),
+    }))
+    .filter((sec) => sec.items.length > 0);
 
-            return (
+  const renderSettingRow = (item: SystemSettingItem) => {
+    const meta = SETTING_METADATA[item.key] || {
+      label: item.key,
+      icon: 'filter' as IconName,
+      type: 'STRING' as const,
+      hint: item.description,
+    };
+    const isSaving = savingKey === item.key;
+    const currentVal = formValues[item.key] ?? item.value;
+    const isBool = item.type === 'BOOLEAN';
+    const validNumber =
+      /^\d+$/.test(currentVal) &&
+      Number(currentVal) >= (item.min ?? 0) &&
+      Number(currentVal) <= (item.max ?? Number.MAX_SAFE_INTEGER);
+    const hasChanged = currentVal !== item.value;
+
+    return (
+      <div
+        key={item.key}
+        className="flex flex-col md:flex-row md:items-center justify-between gap-4 p-4 sm:px-5"
+      >
+        <div className="min-w-0 flex-1 space-y-1">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-sm font-semibold text-[var(--admin-ink)]">{meta.label}</span>
+            <code className="rounded bg-[var(--admin-surface-subtle)] px-1.5 py-0.5 text-[11px] text-[var(--admin-ink-muted)] border border-[var(--admin-border)]">
+              {item.key}
+            </code>
+            <AdminBadge dot={false} tone="slate">
+              {item.group}
+            </AdminBadge>
+          </div>
+          <p className="text-xs text-[var(--admin-ink-muted)] m-0 max-w-2xl">
+            {item.effect || meta.hint}
+          </p>
+        </div>
+
+        <div className="shrink-0 md:min-w-[16rem] flex items-center justify-end">
+          {!item.editable ? (
+            <div className="inline-flex items-center gap-2 rounded-lg border border-[var(--admin-border)] bg-[var(--admin-surface-subtle)] px-3 py-1.5 text-xs text-[var(--admin-ink-secondary)]">
+              <span>Chỉ đọc:</span>
+              <strong className="text-[var(--admin-ink)] tabular-nums">{item.value || 'N/A'}</strong>
+            </div>
+          ) : isBool ? (
+            <div className="flex items-center gap-3">
+              <AdminBadge tone={currentVal === 'true' ? 'emerald' : 'slate'}>
+                {currentVal === 'true' ? 'Đang bật' : 'Đang tắt'}
+              </AdminBadge>
               <button
-                key={g.id}
                 type="button"
-                onClick={() => setActiveGroup(g.id)}
-                className={`px-4 py-2.5 text-xs font-bold rounded-lg transition flex items-center gap-2 cursor-pointer whitespace-nowrap ${
-                  isActive
-                    ? 'bg-white dark:bg-slate-700 text-gray-900 dark:text-white shadow-2xs'
-                    : 'text-gray-500 dark:text-slate-400 hover:text-gray-800'
+                onClick={() => handleToggle(item)}
+                disabled={savingKey !== null}
+                role="switch"
+                aria-label={meta.label}
+                aria-checked={currentVal === 'true' || currentVal === '1'}
+                className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors ${
+                  currentVal === 'true' ? 'bg-[#007f53]' : 'bg-slate-300 dark:bg-slate-600'
                 }`}
               >
-                <FinanceIcon name={g.iconName} size={15} />
-                <span>{g.label}</span>
-                <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${
-                  isActive
-                    ? 'bg-[#E6F4EA] dark:bg-emerald-950/60 text-[#007F53] dark:text-emerald-300'
-                    : 'bg-gray-200/70 dark:bg-slate-800 text-gray-500'
-                }`}>
-                  {count}
-                </span>
+                <span
+                  className={`pointer-events-none inline-block size-5 rounded-full bg-white shadow transition-transform ${
+                    currentVal === 'true' ? 'translate-x-5' : 'translate-x-0'
+                  }`}
+                />
               </button>
-            );
-          })}
+            </div>
+          ) : (
+            <div className="flex items-center gap-2 w-full md:w-auto">
+              <div className="relative flex-1 md:w-44">
+                <input
+                  type="number"
+                  aria-label={meta.label}
+                  min={item.min ?? undefined}
+                  max={item.max ?? undefined}
+                  step={1}
+                  value={currentVal}
+                  onChange={(e) => handleInputChange(item.key, e.target.value)}
+                  className="admin-input w-full pr-16 font-semibold tabular-nums"
+                />
+                {meta.unit && (
+                  <span className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-[11px] font-medium text-[var(--admin-ink-muted)]">
+                    {meta.unit}
+                  </span>
+                )}
+              </div>
+              <button
+                type="button"
+                onClick={() => handleSave(item.key)}
+                disabled={savingKey !== null || !hasChanged || !validNumber}
+                className={hasChanged ? 'admin-btn-primary' : 'admin-btn-secondary'}
+              >
+                <FinanceIcon name="check" size={14} />
+                {isSaving ? 'Đang lưu…' : 'Lưu'}
+              </button>
+            </div>
+          )}
         </div>
       </div>
+    );
+  };
 
-      {/* Thông báo trạng thái lưu */}
-      {successMsg && (
-        <div className="p-3.5 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/60 rounded-2xl flex items-center gap-2 text-emerald-800 dark:text-emerald-300 text-xs font-semibold shadow-xs">
-          <FinanceIcon name="check" size={16} />
-          <span>{successMsg}</span>
-        </div>
-      )}
+  return (
+    <div className="space-y-5">
+      {/* Group Filter Tabs */}
+      <div className="admin-tabs" role="tablist" aria-label="Nhóm cấu hình hệ thống">
+        {groups.map((g) => {
+          const isActive = activeGroup === g.id;
+          const count =
+            g.id === 'ALL'
+              ? settings.length
+              : settings.filter((s) => g.groupKeys.includes(s.group)).length;
+          return (
+            <button
+              key={g.id}
+              type="button"
+              role="tab"
+              aria-selected={isActive}
+              onClick={() => setActiveGroup(g.id)}
+              className="inline-flex items-center gap-2"
+            >
+              <span>{g.label}</span>
+              <span className="text-[11px] opacity-75 tabular-nums">({count})</span>
+            </button>
+          );
+        })}
+      </div>
 
+      {successMsg && <AdminNotice tone="emerald" message={successMsg} onClose={() => setSuccessMsg(null)} />}
       {errorMsg && (
-        <div className="p-3.5 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800/60 rounded-2xl flex items-center gap-2 text-rose-800 dark:text-rose-300 text-xs font-semibold shadow-xs">
-          <FinanceIcon name="alert-circle" size={16} />
-          <span>{errorMsg}</span>
+        <AdminNotice
+          tone="rose"
+          message={errorMsg}
+          action={
+            !settings.length ? (
+              <button type="button" className="admin-btn-secondary admin-btn-sm" onClick={fetchSettings}>
+                Thử lại
+              </button>
+            ) : undefined
+          }
+        />
+      )}
+
+      {loading ? (
+        <AdminSurface noPadding busy>
+          <div className="flex items-center gap-3 p-8 text-xs text-[var(--admin-ink-muted)]">
+            <div className="size-5 border-2 border-[#007f53] border-t-transparent rounded-full animate-spin" />
+            <span>Đang tải danh sách tham số cấu hình…</span>
+          </div>
+        </AdminSurface>
+      ) : visibleSections.length === 0 ? (
+        <AdminSurface noPadding>
+          <AdminEmptyState icon="filter" title="Chưa có tham số trong nhóm này" />
+        </AdminSurface>
+      ) : (
+        <div className="space-y-4">
+          {visibleSections.map((sec) => (
+            <AdminSurface key={sec.id} noPadding icon={sec.icon} headerVariant="mint" title={sec.title}>
+              <div className="divide-y divide-[var(--admin-border)]">
+                {sec.items.map(renderSettingRow)}
+              </div>
+            </AdminSurface>
+          ))}
         </div>
       )}
 
-      {/* 2. KHU VỰC THIẾT LẬP CẤU HÌNH (THIẾT KẾ CARD HIỆN ĐẠI, Ô NHẬP ĐẸP MẮT) */}
-      {loading ? (
-        <div className="flex flex-col items-center justify-center py-20 gap-3">
-          <div className="size-8 border-3 border-emerald-600 border-t-transparent rounded-full animate-spin" />
-          <p className="text-xs text-gray-500 font-medium">Đang tải danh sách tham số cấu hình...</p>
-        </div>
-      ) : filteredSettings.length === 0 ? (
-        <div className="overview-main-panel text-center py-12 text-gray-400 text-xs">
-          Chưa có tham số nào trong nhóm này
-        </div>
-      ) : (
-        <div className="overview-main-panel !p-4 h-[630px] max-h-[75vh] flex flex-col">
-          <div className="overflow-y-auto pr-1 flex-1 custom-scrollbar">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 pb-2">
-              {filteredSettings.map(item => {
-                const meta = SETTING_METADATA[item.key] || {
-                  label: item.key,
-                  icon: 'filter',
-                  type: 'STRING',
-                  hint: item.description
-                };
-                const isSaving = savingKey === item.key;
-                const currentVal = formValues[item.key] ?? item.value;
-                const isBool = meta.type === 'BOOLEAN' || currentVal === 'true' || currentVal === 'false';
-                const hasChanged = currentVal !== item.value;
-
-                return (
-                  <div
-                    key={item.key}
-                    className="p-5 rounded-2xl border border-gray-100 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-2xs hover:border-gray-200 dark:hover:border-slate-700 transition flex flex-col justify-between gap-4"
-                  >
-                    <div>
-                      {/* Tiêu đề thân thiện + Icon + Badge Nhóm */}
-                      <div className="flex items-start justify-between gap-3 mb-2">
-                        <div className="flex items-center gap-3">
-                          <span className="size-9 rounded-xl grid place-items-center bg-[#E6F4EA] dark:bg-emerald-950/60 text-[#007F53] dark:text-emerald-300 shrink-0">
-                            <FinanceIcon name={meta.icon} size={18} />
-                          </span>
-                          <div>
-                            <strong className="text-[13px] font-bold text-gray-900 dark:text-slate-100 block">
-                              {meta.label}
-                            </strong>
-                            <span className="text-[11px] text-gray-400 font-mono">
-                              Mã: {item.key}
-                            </span>
-                          </div>
-                        </div>
-
-                        <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-gray-100 dark:bg-slate-800 text-gray-600 dark:text-slate-400 uppercase tracking-wider shrink-0">
-                          {item.group}
-                        </span>
-                      </div>
-
-                      {/* Giải thích nghiệp vụ */}
-                      <p className="text-xs text-gray-500 dark:text-slate-400 m-0 leading-relaxed pl-0.5">
-                        {meta.hint || item.description}
-                      </p>
-                    </div>
-
-                    {/* Bộ điều khiển tinh chỉnh (Switch bật/tắt hoặc Input đẹp mắt kèm Nút Lưu) */}
-                    <div className="pt-3.5 border-t border-gray-100 dark:border-slate-800/80">
-                      {isBool ? (
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-2">
-                            <span className={`size-2 rounded-full ${currentVal === 'true' ? 'bg-emerald-500' : 'bg-gray-400'}`} />
-                            <span className="text-xs font-bold text-gray-700 dark:text-slate-300">
-                              {currentVal === 'true' ? 'Kích hoạt (ON)' : 'Tạm tắt (OFF)'}
-                            </span>
-                          </div>
-
-                          <button
-                            type="button"
-                            onClick={() => handleToggle(item)}
-                            disabled={isSaving}
-                            className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
-                              currentVal === 'true' ? 'bg-[#007F53]' : 'bg-gray-300 dark:bg-gray-600'
-                            }`}
-                            title="Bấm để bật/tắt"
-                          >
-                            <span
-                              className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
-                                currentVal === 'true' ? 'translate-x-5' : 'translate-x-0'
-                              }`}
-                            />
-                          </button>
-                        </div>
-                      ) : (
-                        <div className="flex items-center gap-2.5">
-                          {/* Ô nhập liệu thiết kế chuẩn UI */}
-                          <div className="relative flex-1">
-                            <input
-                              type={meta.type === 'NUMBER' ? 'number' : 'text'}
-                              value={currentVal}
-                              onChange={(e) => handleInputChange(item.key, e.target.value)}
-                              className="w-full h-11 pl-4 pr-16 rounded-xl border border-gray-200 dark:border-slate-700 bg-gray-50/60 dark:bg-slate-800/70 text-xs font-bold text-gray-900 dark:text-slate-100 focus:outline-none focus:border-emerald-500 focus:bg-white dark:focus:bg-slate-800 transition"
-                              placeholder="Nhập giá trị..."
-                            />
-                            {meta.unit && (
-                              <span className="absolute right-3.5 top-3 text-[11px] font-bold text-gray-400 dark:text-slate-500 pointer-events-none">
-                                {meta.unit}
-                              </span>
-                            )}
-                          </div>
-
-                          {/* Nút lưu với animation mượt mà */}
-                          <button
-                            type="button"
-                            onClick={() => handleSave(item.key)}
-                            disabled={isSaving || !hasChanged}
-                            className={`h-11 px-5 rounded-xl font-bold transition flex items-center gap-1.5 cursor-pointer text-xs shrink-0 shadow-2xs ${
-                              hasChanged
-                                ? 'bg-[#007F53] hover:bg-[#004D3B] text-white shadow-emerald-700/20 shadow-md'
-                                : 'bg-gray-100 dark:bg-slate-800 text-gray-400 cursor-not-allowed border border-gray-200/50 dark:border-slate-700/50'
-                            }`}
-                            title={hasChanged ? 'Lưu thay đổi vào Database' : 'Chưa có thay đổi'}
-                          >
-                            <FinanceIcon name="check" size={14} />
-                            <span>{isSaving ? 'Đang lưu...' : 'Lưu'}</span>
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
+      {maintenanceChange !== null && (
+        <AdminDialog
+          label="Xác nhận chế độ bảo trì"
+          pending={savingKey !== null}
+          onClose={() => setMaintenanceChange(null)}
+        >
+          <div className="admin-dialog-body space-y-4">
+            <h2 className="text-base font-bold text-[var(--admin-ink)] m-0">
+              {maintenanceChange === 'true' ? 'Bật chế độ bảo trì?' : 'Tắt chế độ bảo trì?'}
+            </h2>
+            <p className="text-xs text-[var(--admin-ink-secondary)] m-0 leading-relaxed">
+              {maintenanceChange === 'true'
+                ? 'Tài khoản thường sẽ tạm thời không thể đăng nhập hoặc sử dụng ứng dụng. Quản trị viên vẫn truy cập được.'
+                : 'Tài khoản thường sẽ có thể đăng nhập và sử dụng ứng dụng trở lại.'}
+            </p>
+            {errorMsg && <AdminNotice tone="rose" message={errorMsg} />}
+            <div className="admin-dialog-actions">
+              <button
+                type="button"
+                className="admin-btn-secondary"
+                autoFocus
+                disabled={savingKey !== null}
+                onClick={() => setMaintenanceChange(null)}
+              >
+                Hủy
+              </button>
+              <button
+                type="button"
+                className="admin-btn-primary"
+                disabled={savingKey !== null}
+                onClick={() => void handleSave('MAINTENANCE_MODE', maintenanceChange)}
+              >
+                {savingKey ? 'Đang lưu…' : 'Xác nhận'}
+              </button>
             </div>
           </div>
-        </div>
+        </AdminDialog>
       )}
     </div>
   );

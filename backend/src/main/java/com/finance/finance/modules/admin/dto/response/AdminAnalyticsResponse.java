@@ -16,7 +16,6 @@ public class AdminAnalyticsResponse {
     private long activeUsersDAU;   // Hoạt động hôm nay
     private long activeUsersWAU;   // Hoạt động tuần này
     private long activeUsersMAU;   // Hoạt động tháng này
-    private double retentionRate;  // Tỷ lệ quay lại (%)
 
     private long totalTransactions;
     private long totalGroups;

@@ -13,6 +13,7 @@ import java.util.UUID;
 @NoArgsConstructor
 @AllArgsConstructor
 public class NotificationTemplateResponse {
+    private boolean editable;
     private UUID id;
     private String code;
     private String title;

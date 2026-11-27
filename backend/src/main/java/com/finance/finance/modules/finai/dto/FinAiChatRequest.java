@@ -7,5 +7,8 @@ public class FinAiChatRequest {
     private UUID conversationId;
     @NotBlank @Size(max = 4000)
     private String message;
+    private UUID draftId;
+    @Size(max = 64)
+    private String optionId;
 }
 

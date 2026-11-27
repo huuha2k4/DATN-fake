@@ -262,7 +262,8 @@ class FinAiToolExecutorTest {
         when(groups.getMembers(groupId, user)).thenReturn(java.util.List.of(
                 com.finance.finance.modules.group.dto.response.MemberResponse.builder().groupId(groupId).userId(user).build()));
         when(categoryRepository.findByIdAndUserIdOrSystem(categoryId, user)).thenReturn(java.util.Optional.of(
-                com.finance.finance.modules.category.entity.Category.builder().id(categoryId).name("Khác").build()));
+                com.finance.finance.modules.category.entity.Category.builder().id(categoryId).name("Khác")
+                        .kind(com.finance.finance.common.enums.CategoryKind.EXPENSE).build()));
         when(groupFunds.getFund(groupId, user)).thenReturn(
                 com.finance.finance.modules.group.dto.response.GroupFundResponse.builder()
                         .groupId(groupId).currency("VND").balance(new java.math.BigDecimal("5000")).build());
@@ -273,6 +274,8 @@ class FinAiToolExecutorTest {
         args.put("splits", java.util.List.of(Map.of("userId", user.toString(), "amount", 1000)));
         var prepared = executor.prepareWrite(user, "create_group_transaction", args);
         assertEquals("Nhóm test", prepared.preview().get("entityName"));
+        assertEquals("GROUP_FUND", prepared.preview().get("paymentSource"));
+        assertEquals("Khác", prepared.preview().get("categoryName"));
         assertEquals(true, prepared.preview().get("balanceImpact"));
     }
 

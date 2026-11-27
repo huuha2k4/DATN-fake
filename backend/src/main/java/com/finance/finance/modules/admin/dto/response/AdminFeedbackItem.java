@@ -13,6 +13,9 @@ import java.util.UUID;
 @NoArgsConstructor
 @AllArgsConstructor
 public class AdminFeedbackItem {
+    private UUID processedBy;
+    private Instant processedAt;
+    private Instant updatedAt;
     private UUID id;
     private UUID userId;
     private String userFullName;

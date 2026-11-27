@@ -145,6 +145,11 @@ export function NotificationsScreen({ onBack, onNavigate }: NotificationsScreenP
 
     if (!onNavigate) return;
 
+    if (actionUrl.split('?')[0] === '/feedback') {
+      onNavigate({ action: 'feedback' });
+      return;
+    }
+
     // 1. Nhóm: Yêu cầu xin tiền / chi tiêu của bé -> Vào thẳng Modal chi tiết ví tab 'REQUESTS'
     if (
       type.includes('KID_SPEND') ||

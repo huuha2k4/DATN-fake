@@ -12,6 +12,12 @@ import java.time.Instant;
 @NoArgsConstructor
 @AllArgsConstructor
 public class SystemSettingItem {
+    private String type;
+    private Integer min;
+    private Integer max;
+    private boolean editable;
+    private String applies;
+    private String effect;
     private String key;
     private String value;
     private String group;

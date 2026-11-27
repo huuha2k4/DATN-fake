@@ -1,57 +1,39 @@
-import React, { useEffect, useState } from 'react';
-import { adminApi } from '../api/adminApi';
+import React, { useState } from 'react';
+import { AdminDialog } from '../components/AdminDialog';
+import { AdminBadge, AdminEmptyState, AdminNotice, AdminStatStrip, AdminSurface } from '../components/AdminPrimitives';
+import { useAdminPage, useAdminIdempotency, adminError } from '../hooks/useAdminPage';
+import { AdminPageFooter } from '../components/AdminPageFooter';
+import { adminApi, type AdminFeedbackItem as FeedbackItem } from '../api/adminApi';
 import { FinanceIcon } from '../../core/components/FinanceIcon';
 
-interface FeedbackItem {
-  id: string;
-  userId: string;
-  userFullName: string;
-  userEmail: string;
-  userAvatar?: string;
-  title: string;
-  content: string;
-  category: string;
-  status: string;
-  priority: string;
-  adminReply?: string;
-  repliedAt?: string;
-  createdAt: string;
-}
+const CATEGORY_LABELS: Record<string, string> = {
+  BUG: 'Báo lỗi',
+  FEATURE: 'Đề xuất tính năng',
+  FEATURE_REQUEST: 'Đề xuất tính năng',
+  QUESTION: 'Hỏi đáp',
+  GENERAL: 'Hỏi đáp',
+  PAYMENT: 'Thanh toán',
+  OTHER: 'Khác',
+};
 
 export const AdminFeedbacksScreen: React.FC = () => {
-  const [feedbacks, setFeedbacks] = useState<FeedbackItem[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('');
-  const [search, setSearch] = useState('');
+  const list = useAdminPage(adminApi.listFeedbacks, {
+    size: 8,
+    status: statusFilter || undefined,
+    category: categoryFilter || undefined,
+  });
+  const feedbacks = list.data?.content ?? [];
+  const { loading, error, search, setSearch } = list;
+  const total = list.data?.totalElements ?? 0;
+  const idempotency = useAdminIdempotency();
 
-  // Modal Phản hồi
   const [replyingFeedback, setReplyingFeedback] = useState<FeedbackItem | null>(null);
   const [replyText, setReplyText] = useState('');
   const [replyStatus, setReplyStatus] = useState('RESOLVED');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [modalNotice, setModalNotice] = useState('');
-
-  const loadFeedbacks = async () => {
-    try {
-      setLoading(true);
-      setError('');
-      const res = await adminApi.listFeedbacks({
-        status: statusFilter || undefined,
-        category: categoryFilter || undefined,
-      });
-      setFeedbacks(res || []);
-    } catch (err: any) {
-      setError(err?.response?.data?.message || 'Không thể tải danh sách phản hồi');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    loadFeedbacks();
-  }, [statusFilter, categoryFilter]);
 
   const openReplyModal = (fb: FeedbackItem) => {
     setReplyingFeedback(fb);
@@ -63,165 +45,98 @@ export const AdminFeedbacksScreen: React.FC = () => {
   const handleSendReply = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!replyingFeedback) return;
-    if (!replyText.trim()) {
-      setModalNotice('Vui lòng nhập nội dung giải đáp cho người dùng');
-      return;
-    }
-
     try {
       setIsSubmitting(true);
       setModalNotice('');
-      await adminApi.replyFeedback(replyingFeedback.id, {
+      const payload = {
         reply: replyText.trim(),
         status: replyStatus,
-      });
+        expectedUpdatedAt: replyingFeedback.updatedAt,
+      };
+      await adminApi.replyFeedback(
+        replyingFeedback.id,
+        payload,
+        idempotency.get({ id: replyingFeedback.id, ...payload })
+      );
+      idempotency.clear();
       setReplyingFeedback(null);
-      loadFeedbacks();
-    } catch (err: any) {
-      setModalNotice(err?.response?.data?.message || 'Lỗi khi gửi phản hồi');
+      list.reload();
+    } catch (err: unknown) {
+      setModalNotice(adminError(err, 'Lỗi khi gửi phản hồi'));
     } finally {
       setIsSubmitting(false);
     }
   };
-
-  const filteredFeedbacks = feedbacks.filter((fb) => {
-    if (!search.trim()) return true;
-    const q = search.toLowerCase();
-    return (
-      (fb.title ?? '').toLowerCase().includes(q) ||
-      (fb.content ?? '').toLowerCase().includes(q) ||
-      (fb.userFullName ?? '').toLowerCase().includes(q) ||
-      (fb.userEmail ?? '').toLowerCase().includes(q)
-    );
-  });
 
   const pendingCount = feedbacks.filter((f) => f.status === 'PENDING').length;
   const inProgressCount = feedbacks.filter((f) => f.status === 'IN_PROGRESS').length;
   const resolvedCount = feedbacks.filter((f) => f.status === 'RESOLVED').length;
 
   return (
-    <div className="flex flex-col gap-6 w-full">
-      {/* 1. HÀNG 4 THẺ THỐNG KÊ PHẢN HỒI (Full Width chuẩn) */}
-      <section className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-5 w-full">
-        {/* TỔNG PHẢN HỒI */}
-        <article className="overview-white-card">
-          <div className="flex items-center justify-between">
-            <span className="text-[11px] font-bold tracking-wider text-[#64748B] dark:text-slate-400 uppercase">
-              TỔNG YÊU CẦU HỖ TRỢ
-            </span>
-            <span className="icon-box-mint">
-              <FinanceIcon name="message" size={20} />
-            </span>
-          </div>
-          <div className="my-2">
-            <div className="text-3xl sm:text-[34px] font-black text-[#0F172A] dark:text-slate-100 tracking-tight">
-              {feedbacks.length}
-            </div>
-          </div>
-          <div className="text-xs text-[#64748B] dark:text-slate-400">
-            Ý kiến đóng góp & yêu cầu từ người dùng
-          </div>
-        </article>
+    <div className="space-y-5">
+      <AdminStatStrip
+        busy={loading}
+        items={[
+          { label: 'Tổng yêu cầu hỗ trợ', value: total.toLocaleString('vi-VN'), icon: 'message', tone: 'sky' },
+          {
+            label: 'Chờ giải quyết (trang này)',
+            value: pendingCount,
+            icon: 'bell',
+            tone: pendingCount > 0 ? 'rose' : 'default',
+          },
+          {
+            label: 'Đang xử lý (trang này)',
+            value: inProgressCount,
+            icon: 'shield',
+            tone: inProgressCount > 0 ? 'amber' : 'default',
+          },
+          { label: 'Đã giải quyết (trang này)', value: resolvedCount, icon: 'check', tone: 'emerald' },
+        ]}
+      />
 
-        {/* CHỜ XỬ LÝ (PENDING) */}
-        <article className="overview-white-card">
-          <div className="flex items-center justify-between">
-            <span className="text-[11px] font-bold tracking-wider text-[#64748B] dark:text-slate-400 uppercase">
-              CHỜ GIẢI QUYẾT
-            </span>
-            <span className="size-9 rounded-xl grid place-items-center bg-rose-100 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300">
-              <FinanceIcon name="bell" size={18} />
-            </span>
-          </div>
-          <div className="my-2">
-            <div className="text-3xl sm:text-[34px] font-black text-rose-600 dark:text-rose-400 tracking-tight">
-              {pendingCount}
-            </div>
-          </div>
-          <div className="text-xs text-[#64748B] dark:text-slate-400">
-            Cần ban quản trị phản hồi sớm
-          </div>
-        </article>
-
-        {/* ĐANG XỬ LÝ (IN PROGRESS) */}
-        <article className="overview-white-card">
-          <div className="flex items-center justify-between">
-            <span className="text-[11px] font-bold tracking-wider text-[#64748B] dark:text-slate-400 uppercase">
-              ĐANG TIẾP NHẬN
-            </span>
-            <span className="size-9 rounded-xl grid place-items-center bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300">
-              <FinanceIcon name="shield" size={18} />
-            </span>
-          </div>
-          <div className="my-2">
-            <div className="text-3xl sm:text-[34px] font-black text-amber-600 dark:text-amber-400 tracking-tight">
-              {inProgressCount}
-            </div>
-          </div>
-          <div className="text-xs text-[#64748B] dark:text-slate-400">
-            Đang được chuyển sang bộ phận kỹ thuật
-          </div>
-        </article>
-
-        {/* ĐÃ GIẢI QUYẾT (RESOLVED) */}
-        <article className="overview-white-card">
-          <div className="flex items-center justify-between">
-            <span className="text-[11px] font-bold tracking-wider text-[#64748B] dark:text-slate-400 uppercase">
-              ĐÃ XỬ LÝ XONG
-            </span>
-            <span className="size-9 rounded-xl grid place-items-center bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300">
-              <FinanceIcon name="spark" size={18} />
-            </span>
-          </div>
-          <div className="my-2">
-            <div className="text-3xl sm:text-[34px] font-black text-[#007F53] dark:text-emerald-400 tracking-tight">
-              {resolvedCount}
-            </div>
-          </div>
-          <div className="text-xs text-[#64748B] dark:text-slate-400">
-            Đã giải đáp hoàn tất cho người dùng
-          </div>
-        </article>
-      </section>
-
-      {/* 2. THANH LỌC & TÌM KIẾM ĐỒNG BỘ CHUẨN */}
-      <div className="overview-main-panel !p-4">
-        <div className="flex flex-col lg:flex-row lg:items-center gap-3 w-full">
-          {/* Ô Tìm kiếm rộng rãi */}
+      <AdminSurface noPadding busy={loading}>
+        {/* Toolbar */}
+        <div className="flex flex-col lg:flex-row lg:items-center gap-3 p-4 border-b border-[var(--admin-border)]">
           <div className="relative flex-1">
+            <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[var(--admin-ink-muted)]">
+              <FinanceIcon name="search" size={14} />
+            </span>
             <input
-              type="text"
+              type="search"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Tìm theo Tiêu đề, Nội dung, Người gửi, Email..."
-              className="w-full h-10 pl-9 pr-4 rounded-xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs text-gray-900 dark:text-slate-100 placeholder-gray-400 dark:placeholder-slate-500 focus:outline-none focus:border-emerald-500 transition"
+              aria-label="Tìm phản hồi"
+              placeholder="Tìm theo tiêu đề, nội dung, người gửi, email…"
+              className="admin-input w-full pl-9"
             />
-            <span className="absolute left-3 top-3 text-gray-400">
-              <FinanceIcon name="search" size={15} />
-            </span>
           </div>
 
-          {/* Lọc Trạng thái & Phân loại */}
-          <div className="flex items-center gap-2.5 shrink-0 flex-wrap sm:flex-nowrap">
-            {/* Lọc Trạng thái */}
+          <div className="flex flex-wrap items-center gap-2 shrink-0">
             <select
+              aria-label="Trạng thái phản hồi"
               value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-              className="h-10 px-3.5 rounded-xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-medium text-gray-700 dark:text-slate-200 focus:outline-none focus:border-emerald-500 transition cursor-pointer"
+              onChange={(e) => {
+                setStatusFilter(e.target.value);
+                list.setPage(0);
+              }}
+              className="admin-select"
             >
-              <option value="">Tất cả Trạng thái</option>
+              <option value="">Tất cả trạng thái</option>
               <option value="PENDING">Chờ giải quyết</option>
               <option value="IN_PROGRESS">Đang xử lý</option>
               <option value="RESOLVED">Đã giải quyết</option>
             </select>
 
-            {/* Lọc Phân loại */}
             <select
+              aria-label="Loại phản hồi"
               value={categoryFilter}
-              onChange={(e) => setCategoryFilter(e.target.value)}
-              className="h-10 px-3.5 rounded-xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-medium text-gray-700 dark:text-slate-200 focus:outline-none focus:border-emerald-500 transition cursor-pointer"
+              onChange={(e) => {
+                setCategoryFilter(e.target.value);
+                list.setPage(0);
+              }}
+              className="admin-select"
             >
-              <option value="">Tất cả Phân loại</option>
+              <option value="">Tất cả phân loại</option>
               <option value="BUG">Báo lỗi (Bug)</option>
               <option value="FEATURE">Đề xuất tính năng</option>
               <option value="QUESTION">Hỏi đáp / Hỗ trợ</option>
@@ -231,142 +146,114 @@ export const AdminFeedbacksScreen: React.FC = () => {
               <option value="GENERAL">Chung (Legacy)</option>
             </select>
 
-            <div className="h-10 px-3.5 rounded-xl bg-gray-100/80 dark:bg-slate-800 border border-gray-200/60 dark:border-slate-700 flex items-center justify-center shrink-0">
-              <span className="text-xs text-gray-500 dark:text-slate-400">
-                Tổng: <strong className="text-[#007F53] dark:text-emerald-400 font-bold">{filteredFeedbacks.length}</strong>
-              </span>
-            </div>
-
-            <button
-              type="button"
-              onClick={loadFeedbacks}
-              className="h-10 px-4 rounded-xl bg-[#007F53] hover:bg-[#004D3B] text-white text-xs font-bold transition shrink-0 cursor-pointer shadow-xs"
-            >
+            <button type="button" onClick={list.reload} className="admin-btn-secondary">
+              <FinanceIcon name="refresh" size={14} className={loading ? 'animate-spin' : ''} />
               Làm mới
             </button>
           </div>
         </div>
-      </div>
 
-      {/* 3. BẢNG DANH SÁCH PHẢN HỒI */}
-      <div className="overview-main-panel !p-0 overflow-hidden shadow-2xs">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse">
+        {/* Table */}
+        <div className="admin-table-wrap" tabIndex={0} role="region" aria-label="Danh sách phản hồi">
+          <table className="admin-table">
             <thead>
-              <tr className="border-b border-[#E2E8F0] dark:border-slate-800 bg-gray-50/70 dark:bg-slate-900/60 text-[11px] font-bold text-gray-500 dark:text-slate-400 uppercase tracking-wider">
-                <th className="py-3.5 px-5">Người gửi</th>
-                <th className="py-3.5 px-4">Tiêu đề & Nội dung</th>
-                <th className="py-3.5 px-4">Phân loại</th>
-                <th className="py-3.5 px-4">Trạng thái</th>
-                <th className="py-3.5 px-4">Thời gian</th>
-                <th className="py-3.5 px-5 text-right">Thao tác</th>
+              <tr>
+                <th>Người gửi</th>
+                <th>Tiêu đề & Nội dung</th>
+                <th>Phân loại</th>
+                <th>Trạng thái</th>
+                <th>Thời gian</th>
+                <th className="text-right">Thao tác</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-[#E2E8F0] dark:divide-slate-800 text-xs">
-              {loading ? (
+            <tbody>
+              {loading && !feedbacks.length ? (
                 <tr>
-                  <td colSpan={6} className="py-12 text-center text-gray-400">
-                    <div className="inline-block size-6 border-2 border-emerald-600 border-t-transparent rounded-full animate-spin mb-2" />
-                    <p className="m-0 text-xs">Đang tải danh sách phản hồi...</p>
+                  <td colSpan={6} className="py-12 text-center text-xs text-[var(--admin-ink-muted)]">
+                    Đang tải danh sách phản hồi…
                   </td>
                 </tr>
               ) : error ? (
                 <tr>
-                  <td colSpan={6} className="py-8 text-center text-rose-500">
+                  <td colSpan={6} className="py-8 text-center text-xs text-rose-600 dark:text-rose-400">
                     {error}
                   </td>
                 </tr>
-              ) : filteredFeedbacks.length === 0 ? (
+              ) : feedbacks.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="py-12 text-center text-gray-400">
-                    Không có phản hồi nào phù hợp
+                  <td colSpan={6}>
+                    <AdminEmptyState
+                      icon="message"
+                      title="Không có phản hồi nào"
+                      description="Chưa có phản hồi hoặc yêu cầu hỗ trợ khớp với bộ lọc hiện tại."
+                    />
                   </td>
                 </tr>
               ) : (
-                filteredFeedbacks.map((fb) => {
+                feedbacks.map((fb) => {
                   const isPending = fb.status === 'PENDING';
                   const isInProgress = fb.status === 'IN_PROGRESS';
-                  const isResolved = fb.status === 'RESOLVED';
+                  const isRejected = fb.status === 'REJECTED';
 
                   return (
-                    <tr
-                      key={fb.id}
-                      className="hover:bg-gray-50/70 dark:hover:bg-slate-800/40 transition-colors"
-                    >
-                      {/* Cột 1: Người gửi */}
-                      <td className="py-3.5 px-5">
-                        <div className="flex items-center gap-3">
-                          <div className="size-9 rounded-full bg-[#007F53] text-white font-bold text-xs grid place-items-center shadow-xs shrink-0">
-                            {fb.userFullName?.charAt(0) || 'U'}
+                    <tr key={fb.id}>
+                      <td>
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <div className="size-8 rounded-full bg-[var(--admin-selected)] text-[var(--admin-selected-text)] font-semibold text-xs grid place-items-center shrink-0">
+                            {fb.userFullName?.charAt(0)?.toUpperCase() || 'U'}
                           </div>
-                          <div>
-                            <strong className="text-gray-900 dark:text-slate-100 font-bold block text-[13px]">
+                          <div className="min-w-0">
+                            <div className="font-semibold text-[var(--admin-ink)] truncate">
                               {fb.userFullName}
-                            </strong>
-                            <span className="text-[11px] text-gray-400 dark:text-slate-500 font-mono">
+                            </div>
+                            <div className="text-xs text-[var(--admin-ink-muted)] truncate">
                               {fb.userEmail}
-                            </span>
+                            </div>
                           </div>
                         </div>
                       </td>
 
-                      {/* Cột 2: Tiêu đề & Nội dung */}
-                      <td className="py-3.5 px-4 max-w-md">
-                        <strong className="text-gray-900 dark:text-slate-100 font-bold block mb-1">
-                          {fb.title}
-                        </strong>
-                        <p className="text-gray-600 dark:text-slate-400 line-clamp-2 m-0 text-[11px] leading-relaxed">
+                      <td className="max-w-md">
+                        <div className="font-semibold text-[var(--admin-ink)]">{fb.title}</div>
+                        <p className="text-xs text-[var(--admin-ink-secondary)] line-clamp-2 m-0 mt-0.5">
                           {fb.content}
                         </p>
                         {fb.adminReply && (
-                          <div className="mt-2 p-2 rounded-lg bg-emerald-50/60 dark:bg-emerald-950/40 border border-emerald-200/50 dark:border-emerald-900/40 text-[11px] text-emerald-800 dark:text-emerald-300">
-                            <strong>Phản hồi của Admin:</strong> {fb.adminReply}
+                          <div className="mt-1.5 rounded-md border border-emerald-500/25 bg-emerald-500/8 px-2.5 py-1.5 text-[11px] text-emerald-800 dark:text-emerald-300">
+                            <strong>Admin:</strong> {fb.adminReply}
                           </div>
                         )}
                       </td>
 
-                      {/* Cột 3: Phân loại */}
-                      <td className="py-3.5 px-4">
-                        <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-bold bg-gray-100 dark:bg-slate-800 text-gray-700 dark:text-slate-300">
-                          {fb.category === 'BUG'
-                            ? 'Báo lỗi'
-                            : fb.category === 'FEATURE' || fb.category === 'FEATURE_REQUEST'
-                            ? 'Đề xuất tính năng'
-                            : fb.category === 'QUESTION' || fb.category === 'GENERAL'
-                            ? 'Hỏi đáp'
-                            : fb.category === 'PAYMENT'
-                            ? 'Thanh toán'
-                            : 'Khác'}
-                        </span>
+                      <td>
+                        <AdminBadge dot={false} tone="slate">
+                          {CATEGORY_LABELS[fb.category] ?? 'Khác'}
+                        </AdminBadge>
                       </td>
 
-                      {/* Cột 4: Trạng thái */}
-                      <td className="py-3.5 px-4">
-                        <span
-                          className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold ${
-                            isPending
-                              ? 'bg-rose-50 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300 border border-rose-200/60'
-                              : isInProgress
-                              ? 'bg-amber-50 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300 border border-amber-200/60'
-                              : 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300 border border-emerald-200/60'
-                          }`}
+                      <td>
+                        <AdminBadge
+                          tone={isPending ? 'rose' : isInProgress ? 'amber' : isRejected ? 'slate' : 'emerald'}
                         >
-                          <span className={`size-1.5 rounded-full ${isPending ? 'bg-rose-500' : isInProgress ? 'bg-amber-500' : 'bg-emerald-500'}`} />
-                          {isPending ? 'Chờ xử lý' : isInProgress ? 'Đang xử lý' : 'Đã giải quyết'}
-                        </span>
+                          {isPending
+                            ? 'Chờ xử lý'
+                            : isInProgress
+                            ? 'Đang xử lý'
+                            : isRejected
+                            ? 'Từ chối'
+                            : 'Đã giải quyết'}
+                        </AdminBadge>
                       </td>
 
-                      {/* Cột 5: Thời gian */}
-                      <td className="py-3.5 px-4 text-gray-400 text-[11px]">
+                      <td className="text-xs text-[var(--admin-ink-muted)] whitespace-nowrap tabular-nums">
                         {fb.createdAt ? new Date(fb.createdAt).toLocaleString('vi-VN') : 'Mới đây'}
                       </td>
 
-                      {/* Cột 6: Thao tác */}
-                      <td className="py-3.5 px-5 text-right">
+                      <td className="text-right whitespace-nowrap">
                         <button
                           type="button"
                           onClick={() => openReplyModal(fb)}
-                          className="px-3.5 py-1.5 rounded-lg bg-[#007F53] hover:bg-[#004D3B] text-white font-bold transition cursor-pointer text-xs shadow-xs"
+                          className="admin-btn-primary admin-btn-sm"
                         >
                           {fb.adminReply ? 'Sửa phản hồi' : 'Trả lời'}
                         </button>
@@ -378,81 +265,103 @@ export const AdminFeedbacksScreen: React.FC = () => {
             </tbody>
           </table>
         </div>
-      </div>
 
-      {/* Modal Trả lời Phản hồi người dùng */}
+        <AdminPageFooter
+          page={list.page}
+          totalPages={list.data?.totalPages ?? 0}
+          loading={list.loading}
+          error={list.error}
+          onPage={list.setPage}
+          onRetry={list.reload}
+        />
+      </AdminSurface>
+
+      {/* Drawer Phản hồi */}
       {replyingFeedback && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4">
-          <div className="w-full max-w-lg rounded-2xl bg-white dark:bg-slate-900 p-6 shadow-2xl border border-gray-100 dark:border-slate-800 flex flex-col gap-4">
-            <div className="flex items-center justify-between border-b border-gray-100 dark:border-slate-800 pb-3">
-              <div>
-                <h3 className="text-base font-bold text-gray-900 dark:text-slate-100 m-0">
-                  Phản hồi Yêu cầu Hỗ trợ
+        <AdminDialog
+          label="Chi tiết phản hồi"
+          onClose={() => setReplyingFeedback(null)}
+          pending={isSubmitting}
+          drawer
+        >
+          <div className="admin-dialog-body space-y-5">
+            <div className="flex items-start justify-between gap-3 pb-3 border-b border-[var(--admin-border)]">
+              <div className="min-w-0">
+                <h3 className="text-base font-bold text-[var(--admin-ink)] m-0">
+                  Phản hồi yêu cầu hỗ trợ
                 </h3>
-                <span className="text-xs text-gray-500">
-                  Gửi tới: <strong>{replyingFeedback.userFullName}</strong> ({replyingFeedback.userEmail})
-                </span>
+                <p className="text-xs text-[var(--admin-ink-muted)] m-0 mt-0.5 truncate">
+                  {replyingFeedback.userFullName} · {replyingFeedback.userEmail}
+                </p>
               </div>
               <button
                 type="button"
+                disabled={isSubmitting}
                 onClick={() => setReplyingFeedback(null)}
-                className="text-gray-400 hover:text-gray-600 text-lg cursor-pointer"
+                aria-label="Đóng"
+                className="admin-icon-button"
               >
-                ✕
+                <FinanceIcon name="close" size={16} />
               </button>
             </div>
 
-            {/* Nội dung khiếu nại của người dùng */}
-            <div className="p-3.5 rounded-xl bg-gray-50 dark:bg-slate-800/80 border border-gray-100 dark:border-slate-700/60 text-xs">
-              <strong className="text-gray-900 dark:text-slate-100 block mb-1">
-                Tiêu đề: {replyingFeedback.title}
-              </strong>
-              <p className="text-gray-600 dark:text-slate-400 m-0 leading-relaxed">
+            <div className="rounded-lg border border-[var(--admin-border)] bg-[var(--admin-surface-subtle)] p-3.5 text-xs space-y-1">
+              <div className="font-semibold text-[var(--admin-ink)]">{replyingFeedback.title}</div>
+              <p className="admin-wrap text-[var(--admin-ink-secondary)] m-0 leading-relaxed whitespace-pre-wrap">
                 {replyingFeedback.content}
               </p>
             </div>
 
-            {modalNotice && (
-              <div className="p-3 rounded-xl bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300 text-xs font-semibold">
-                {modalNotice}
-              </div>
-            )}
+            {modalNotice && <AdminNotice tone="rose" message={modalNotice} />}
 
-            <form onSubmit={handleSendReply} className="flex flex-col gap-3.5 text-xs">
-              <div>
-                <label className="block font-bold text-gray-700 dark:text-slate-300 mb-1">
-                  Trạng thái xử lý
-                </label>
-                <div className="grid grid-cols-3 gap-2">
+            <form onSubmit={handleSendReply} className="space-y-4 text-xs">
+              <div className="grid gap-1.5 font-medium text-[var(--admin-ink-secondary)]">
+                <span>Trạng thái xử lý</span>
+                <div className="grid gap-2 sm:grid-cols-3">
                   <button
                     type="button"
+                    disabled={
+                      ['RESOLVED', 'REJECTED'].includes(replyingFeedback.status) &&
+                      replyingFeedback.status !== 'IN_PROGRESS'
+                    }
+                    aria-pressed={replyStatus === 'IN_PROGRESS'}
                     onClick={() => setReplyStatus('IN_PROGRESS')}
-                    className={`h-9 rounded-xl font-bold border transition ${
+                    className={`h-9 rounded-lg font-semibold border transition cursor-pointer ${
                       replyStatus === 'IN_PROGRESS'
-                        ? 'bg-amber-50 border-amber-500 text-amber-700 dark:bg-amber-950/50 dark:text-amber-300'
-                        : 'border-gray-200 dark:border-slate-700 text-gray-600'
+                        ? 'bg-amber-500/12 border-amber-500/60 text-amber-800 dark:text-amber-300'
+                        : 'border-[var(--admin-border)] text-[var(--admin-ink-secondary)] hover:bg-[var(--admin-surface-hover)]'
                     }`}
                   >
                     Đang xử lý
                   </button>
                   <button
                     type="button"
+                    disabled={
+                      ['RESOLVED', 'REJECTED'].includes(replyingFeedback.status) &&
+                      replyingFeedback.status !== 'RESOLVED'
+                    }
+                    aria-pressed={replyStatus === 'RESOLVED'}
                     onClick={() => setReplyStatus('RESOLVED')}
-                    className={`h-9 rounded-xl font-bold border transition ${
+                    className={`h-9 rounded-lg font-semibold border transition cursor-pointer ${
                       replyStatus === 'RESOLVED'
-                        ? 'bg-emerald-50 border-emerald-500 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300'
-                        : 'border-gray-200 dark:border-slate-700 text-gray-600'
+                        ? 'bg-emerald-500/12 border-emerald-500/60 text-emerald-800 dark:text-emerald-300'
+                        : 'border-[var(--admin-border)] text-[var(--admin-ink-secondary)] hover:bg-[var(--admin-surface-hover)]'
                     }`}
                   >
                     Đã giải quyết
                   </button>
                   <button
                     type="button"
+                    disabled={
+                      ['RESOLVED', 'REJECTED'].includes(replyingFeedback.status) &&
+                      replyingFeedback.status !== 'REJECTED'
+                    }
+                    aria-pressed={replyStatus === 'REJECTED'}
                     onClick={() => setReplyStatus('REJECTED')}
-                    className={`h-9 rounded-xl font-bold border transition ${
+                    className={`h-9 rounded-lg font-semibold border transition cursor-pointer ${
                       replyStatus === 'REJECTED'
-                        ? 'bg-rose-50 border-rose-500 text-rose-700 dark:bg-rose-950/50 dark:text-rose-300'
-                        : 'border-gray-200 dark:border-slate-700 text-gray-600'
+                        ? 'bg-rose-500/12 border-rose-500/60 text-rose-800 dark:text-rose-300'
+                        : 'border-[var(--admin-border)] text-[var(--admin-ink-secondary)] hover:bg-[var(--admin-surface-hover)]'
                     }`}
                   >
                     Từ chối
@@ -460,41 +369,39 @@ export const AdminFeedbacksScreen: React.FC = () => {
                 </div>
               </div>
 
-              <div>
-                <label className="block font-bold text-gray-700 dark:text-slate-300 mb-1">
-                  Nội dung phản hồi giải đáp <span className="text-rose-500">*</span>
-                </label>
+              <label
+                htmlFor="admin-feedback-reply"
+                className="grid gap-1.5 font-medium text-[var(--admin-ink-secondary)]"
+              >
+                <span>Nội dung phản hồi (không bắt buộc khi đổi trạng thái)</span>
                 <textarea
                   rows={4}
+                  id="admin-feedback-reply"
                   value={replyText}
                   onChange={(e) => setReplyText(e.target.value)}
-                  placeholder="Nhập nội dung giải đáp cho người dùng..."
-                  className="w-full p-3 rounded-xl border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-800 text-gray-900 dark:text-slate-100 focus:outline-none focus:border-emerald-500"
-                  required
+                  placeholder="Nhập nội dung giải đáp cho người dùng…"
+                  className="admin-textarea w-full"
+                  maxLength={4000}
                 />
-              </div>
+              </label>
 
-              <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-gray-100 dark:border-slate-800">
+              <div className="admin-dialog-actions">
                 <button
                   type="button"
+                  disabled={isSubmitting}
                   onClick={() => setReplyingFeedback(null)}
-                  className="px-4 py-2 rounded-xl text-gray-600 dark:text-slate-400 font-bold hover:bg-gray-100 dark:hover:bg-slate-800 transition"
+                  className="admin-btn-secondary"
                 >
                   Đóng
                 </button>
-                <button
-                  type="submit"
-                  disabled={isSubmitting}
-                  className="px-5 py-2 rounded-xl bg-[#007F53] hover:bg-[#004D3B] text-white font-bold transition disabled:opacity-50"
-                >
-                  {isSubmitting ? 'Đang gửi...' : 'Gửi phản hồi'}
+                <button type="submit" disabled={isSubmitting} className="admin-btn-primary">
+                  {isSubmitting ? 'Đang gửi…' : 'Gửi phản hồi'}
                 </button>
               </div>
             </form>
           </div>
-        </div>
+        </AdminDialog>
       )}
     </div>
   );
 };
-

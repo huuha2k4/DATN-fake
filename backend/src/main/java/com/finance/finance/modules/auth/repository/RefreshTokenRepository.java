@@ -17,6 +17,9 @@ import java.util.UUID;
 public interface RefreshTokenRepository extends JpaRepository<RefreshToken, UUID> {
     
     Optional<RefreshToken> findByToken(String token);
+
+    @Query("SELECT rt.user.id FROM RefreshToken rt WHERE rt.token = :token")
+    Optional<UUID> findOwnerId(@Param("token") String token);
     
     List<RefreshToken> findByUserIdAndRevokedFalse(UUID userId);
     

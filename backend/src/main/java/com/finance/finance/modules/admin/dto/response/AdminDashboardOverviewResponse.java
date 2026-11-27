@@ -29,12 +29,10 @@ public class AdminDashboardOverviewResponse {
     // Engagement & system volume metrics (privacy-safe, NO financial balances)
     private long totalGroups;
     private long totalTransactions;
-    private long transactionsToday;
     private long totalReceiptsScanned;
 
     // Growth charts data (last 7 days / last 30 days)
     private List<DailyMetricPoint> userGrowth;
-    private List<DailyMetricPoint> transactionActivity;
 
     // Health / service status
     private Map<String, Object> systemHealth;

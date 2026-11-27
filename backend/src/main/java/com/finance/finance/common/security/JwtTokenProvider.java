@@ -47,6 +47,7 @@ public class JwtTokenProvider {
         
         return Jwts.builder()
                 .subject(user.getId().toString())
+                .claim("sessionVersion", user.getSessionVersion())
                 .claim("email", user.getEmail())
                 .claim("role", user.getSystemRole().name())
                 .claim("subscription", user.getSubscriptionTier().name())
@@ -73,6 +74,11 @@ public class JwtTokenProvider {
                 .parseSignedClaims(token)
                 .getPayload();
         return UUID.fromString(claims.getSubject());
+    }
+
+    Claims verifiedClaims(String token) {
+        return Jwts.parser().verifyWith(secretKey).requireIssuer(issuer).build()
+                .parseSignedClaims(token).getPayload();
     }
     
     public String getEmailFromToken(String token) {

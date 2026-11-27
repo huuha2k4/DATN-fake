@@ -8,6 +8,7 @@ const messages: Record<string, string> = {
   AUTHORIZATION_ERROR: 'Bạn không có quyền thực hiện yêu cầu này.',
   INVALID_REQUEST: 'Yêu cầu không hợp lệ. Vui lòng kiểm tra lại nội dung.',
   AI_REQUEST_IN_PROGRESS: 'FinAI vẫn đang xử lý câu hỏi này. Vui lòng chờ trước khi thử lại.',
+  AI_DRAFT_STALE: 'Lựa chọn đã hết hạn hoặc hội thoại đã thay đổi. Vui lòng mở lại hội thoại.',
 };
 
 const approvedServerMessages: Record<string, readonly string[]> = {

@@ -50,7 +50,9 @@ public class FinAiController {
                 return ResponseEntity.ok().header("Idempotency-Replayed", "true").body(response);
             }
             claimed = idempotencyKey != null;
+            com.finance.finance.modules.admin.monitoring.RequestObservation.businessRequest(idempotencyKey);
             FinAiChatResponse response = chatService.chat(user.getId(), user.getTimezone(), request, idempotencyKey);
+            com.finance.finance.modules.admin.monitoring.RequestObservation.responseType(response.getType());
             long durationMs = (System.nanoTime() - started) / 1_000_000;
             log.info("[FINAI_PIPELINE] stage=spring_total durationMs={} outcome=success", durationMs);
             return ResponseEntity.ok().header("Server-Timing", "finai;dur=" + durationMs).body(response);

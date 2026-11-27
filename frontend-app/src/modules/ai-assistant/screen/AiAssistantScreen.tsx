@@ -22,9 +22,12 @@ import {
   FinAiHttpError,
   FinAiActionResponse,
   FinAiConversationSummary,
+  type FinAiClarification,
+  type FinAiSelection,
 } from '../api/finAiAgentApi';
 import { finAiSyncEmitter } from '../api/finAiSyncEmitter';
 import { FinAiActionCard } from '../components/FinAiActionCard';
+import { FinAiChoices } from '../components/FinAiChoices';
 import { useAppTheme } from '../../../context/ThemeContext';
 
 const finAiAvatarImg = require('../../../assets/finai-avatar.png');
@@ -35,6 +38,7 @@ interface DisplayMessage {
   author: 'user' | 'assistant';
   text: string;
   actions?: FinAiActionResponse[];
+  clarification?: FinAiClarification | null;
 }
 
 type Props = {
@@ -195,6 +199,7 @@ export function AiAssistantScreen({ onBack }: Props) {
           author: m.author,
           text: m.text,
           actions: msgActions && msgActions.length > 0 ? msgActions : undefined,
+          clarification: m.clarification,
         };
       });
 
@@ -341,7 +346,7 @@ export function AiAssistantScreen({ onBack }: Props) {
     requestAbortRef.current?.abort();
   };
 
-  const handleSend = async (customText?: string) => {
+  const handleSend = async (customText?: string, selection?: FinAiSelection) => {
     const textToSend = (customText || inputQuery).trim();
     if (!textToSend || isLoading || isSendingRef.current) return;
     isSendingRef.current = true;
@@ -358,16 +363,17 @@ export function AiAssistantScreen({ onBack }: Props) {
     setIsLoading(true);
     setIsTakingLong(false);
     const controller = new AbortController();
-    const idempotencyKey = retryKeyRef.current?.prompt === textToSend
+    const retryTag = selection ? JSON.stringify(selection) : textToSend;
+    const idempotencyKey = retryKeyRef.current?.prompt === retryTag
       ? retryKeyRef.current.key
       : `finai-${Date.now()}-${Math.random().toString(36).slice(2)}`;
-    retryKeyRef.current = { prompt: textToSend, key: idempotencyKey };
+    retryKeyRef.current = { prompt: retryTag, key: idempotencyKey };
     requestAbortRef.current = controller;
     slowTimerRef.current = setTimeout(() => setIsTakingLong(true), 10000);
     scrollToBottom();
 
     try {
-      const res = await finAiAgentApi.sendMessage(textToSend, currentConversationId, controller.signal, idempotencyKey);
+      const res = await finAiAgentApi.sendMessage(textToSend, currentConversationId, controller.signal, idempotencyKey, selection);
       retryKeyRef.current = null;
       if (res.conversationId) {
         setCurrentConversationId(res.conversationId);
@@ -378,11 +384,15 @@ export function AiAssistantScreen({ onBack }: Props) {
         author: 'assistant',
         text: res.message || 'Tôi đã xử lý yêu cầu của bạn.',
         actions: res.actions && res.actions.length > 0 ? res.actions : undefined,
+        clarification: res.clarification,
       };
       setMessages((prev) => [...prev, aiMsg]);
     } catch (error: unknown) {
       setMessages((prev) => prev.filter((item) => item.id !== userMsg.id));
-      setInputQuery((draft) => draft || textToSend);
+      if (!selection) setInputQuery((draft) => draft || textToSend);
+      if (error instanceof FinAiHttpError && error.errorCode === 'AI_DRAFT_STALE') {
+        setMessages((prev) => prev.map((item) => ({ ...item, clarification: null })));
+      }
       if (error instanceof FinAiHttpError && error.errorCode === 'REQUEST_CANCELLED') return;
       const text = error instanceof FinAiHttpError
         ? [error.message, error.requestId && `Mã yêu cầu: ${error.requestId}`].filter(Boolean).join(' ')
@@ -569,6 +579,11 @@ export function AiAssistantScreen({ onBack }: Props) {
                 >
                   {renderFormattedText(m.text)}
                 </Text>
+                {m.clarification && (
+                  <FinAiChoices key={m.clarification.draftId} clarification={m.clarification}
+                    disabled={isLoading || messages.filter((item) => !item.id.startsWith('err-')).at(-1)?.id !== m.id}
+                    onSelect={handleSend} />
+                )}
 
                 {/* Render Action Proposal Cards if any */}
                 {m.actions && m.actions.length > 0 && (

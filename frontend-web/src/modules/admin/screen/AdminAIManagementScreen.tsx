@@ -1,4 +1,8 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
+import { useAdminPage, adminError } from '../hooks/useAdminPage';
+import { AdminPageFooter } from '../components/AdminPageFooter';
+import { AdminBadge, AdminNotice, AdminStatStrip, AdminSurface } from '../components/AdminPrimitives';
+import { OperationMonitoringPanel } from '../components/OperationMonitoringPanel';
 import { adminApi } from '../api/adminApi';
 import { FinanceIcon } from '../../core/components/FinanceIcon';
 
@@ -10,233 +14,244 @@ interface AlgorithmInfo {
   desc: string;
 }
 
-interface RecentSession {
-  id: string;
-  title: string;
-  userId: string;
-  userName: string;
-  userEmail: string;
-  messageCount: number;
-  createdAt: string;
-  updatedAt: string;
-}
-
 interface AIAdminStats {
   status: string;
-  provider: string;
-  activeModel: string;
-  temperature: number;
   totalSessions: number;
   totalMessages: number;
   algorithms: AlgorithmInfo[];
-  recentSessions: RecentSession[];
 }
 
-export const AdminAIManagementScreen: React.FC = () => {
+export function AdminAIManagementScreen() {
+  return (
+    <div className="space-y-5">
+      <OperationMonitoringPanel service="ai" archive={<SessionArchive />} />
+    </div>
+  );
+}
+
+const SessionArchive: React.FC = () => {
   const [data, setData] = useState<AIAdminStats | null>(null);
+  const list = useAdminPage(adminApi.listAiSessions, { size: 10 });
+  const sessions = list.data?.content ?? [];
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [refreshing, setRefreshing] = useState(false);
 
-  const fetchStats = async () => {
+  const fetchStats = useCallback(async () => {
     try {
       setLoading(true);
       setError('');
       const res = await adminApi.getAiAdminStats();
       setData(res);
-    } catch (err: any) {
-      setError(err?.response?.data?.message || err?.message || 'Không thể kết nối đến FinAI Service');
+    } catch (err: unknown) {
+      setError(adminError(err, 'Không thể kết nối đến FinAI Service'));
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
-    fetchStats();
-  }, []);
+    let active = true;
+    queueMicrotask(() => {
+      if (active) void fetchStats();
+    });
+    return () => {
+      active = false;
+    };
+  }, [fetchStats]);
 
   const handleRefresh = () => {
     setRefreshing(true);
-    fetchStats();
+    void fetchStats();
+    list.reload();
   };
 
   return (
-    <div className="space-y-6">
-      {/* Top Banner & Refresh */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
-        <div>
-          <div className="flex items-center gap-2 text-emerald-600 dark:text-emerald-400 font-bold text-xs uppercase tracking-wider mb-1">
-            <span className="inline-block w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-            FinAI Engine · Giám sát & Quản trị AI
-          </div>
-          <h2 className="text-xl font-bold text-slate-900 dark:text-white">
-            Trung tâm Điều hành Trí tuệ Nhân tạo
-          </h2>
-          <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
-            Theo dõi trạng thái 4 mô hình học máy (Gemini, Prophet, Isolation Forest, Persona 50/30/20) và lịch sử hội thoại toàn hệ thống.
-          </p>
-        </div>
-        <button
-          onClick={handleRefresh}
-          disabled={loading || refreshing}
-          className="inline-flex items-center gap-2 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-sm font-semibold transition shadow-sm self-start sm:self-auto disabled:opacity-50"
-        >
-          <FinanceIcon name="refresh" size={16} className={refreshing ? 'animate-spin' : ''} />
-          {refreshing ? 'Đang làm mới...' : 'Làm mới số liệu'}
-        </button>
-      </div>
-
+    <div className="space-y-5">
       {error && (
-        <div className="p-4 bg-rose-50 border border-rose-200 text-rose-700 rounded-xl text-sm flex items-center justify-between">
-          <span>⚠️ {error}</span>
-          <button onClick={fetchStats} className="underline font-semibold ml-2">Thử lại</button>
-        </div>
+        <AdminNotice
+          tone="rose"
+          message={error}
+          action={
+            <button type="button" onClick={fetchStats} className="admin-btn-secondary admin-btn-sm">
+              Thử lại
+            </button>
+          }
+        />
       )}
 
-      {/* KPI Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {/* Model đang chạy */}
-        <div className="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
-          <div className="flex items-center justify-between text-slate-500 dark:text-slate-400 text-xs font-semibold uppercase">
-            <span>Mô hình LLM Hiện tại</span>
-            <span className="p-2 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 rounded-lg">🤖</span>
-          </div>
-          <div className="mt-3 text-lg font-bold text-slate-900 dark:text-white truncate" title={data?.activeModel || 'Đang tải...'}>
-            {data?.activeModel || 'gemini-flash-lite-latest'}
-          </div>
-          <p className="mt-1 text-xs text-emerald-600 dark:text-emerald-400 font-medium">
-            ● {data?.provider || 'Google Gemini API'}
-          </p>
-        </div>
+      <AdminSurface
+        icon="message"
+        headerVariant="mint"
+        title="Phiên hội thoại đã lưu"
+        subtitle="Tổng số phiên, tin nhắn đã lưu và danh mục thuật toán FinAI"
+        action={
+          <button
+            type="button"
+            onClick={handleRefresh}
+            disabled={loading || refreshing}
+            className="admin-btn-secondary admin-btn-sm"
+          >
+            <FinanceIcon name="refresh" size={14} className={refreshing ? 'animate-spin' : ''} />
+            {refreshing ? 'Đang làm mới…' : 'Làm mới số liệu'}
+          </button>
+        }
+      >
+        <AdminStatStrip
+          variant="pastel"
+          className="!grid-cols-1 sm:!grid-cols-3"
+          items={[
+            {
+              label: 'Cuộc trò chuyện (Sessions)',
+              icon: 'message',
+              tone: 'emerald',
+              value: data?.totalSessions?.toLocaleString('vi-VN') ?? 'N/A',
+            },
+            {
+              label: 'Lượt tương tác (Messages)',
+              icon: 'message',
+              tone: 'emerald',
+              value: data?.totalMessages?.toLocaleString('vi-VN') ?? 'N/A',
+            },
+            {
+              label: 'API thống kê AI',
+              icon: 'shield',
+              tone: error ? 'rose' : 'emerald',
+              value: loading ? (
+                <AdminBadge tone="amber">Đang kiểm tra</AdminBadge>
+              ) : error ? (
+                <AdminBadge tone="rose">Mất kết nối</AdminBadge>
+              ) : data ? (
+                <AdminBadge tone="emerald">Đã phản hồi</AdminBadge>
+              ) : (
+                <AdminBadge tone="slate">Không xác định</AdminBadge>
+              ),
+            },
+          ]}
+        />
+      </AdminSurface>
 
-        {/* Tổng số phiên trò chuyện */}
-        <div className="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
-          <div className="flex items-center justify-between text-slate-500 dark:text-slate-400 text-xs font-semibold uppercase">
-            <span>Cuộc trò chuyện (Sessions)</span>
-            <span className="p-2 bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 rounded-lg">
-              <FinanceIcon name="message-square" size={16} />
+      <AdminSurface icon="layers" headerVariant="mint" title="Danh mục mô hình & thuật toán AI">
+        {loading && !(data?.algorithms?.length) ? (
+          <p className="py-6 text-center text-xs text-[var(--admin-ink-muted)]">Đang tải danh mục thuật toán…</p>
+        ) : !(data?.algorithms?.length) ? (
+          <p className="py-6 text-center text-xs text-[var(--admin-ink-muted)]">Chưa có thuật toán nào được cấu hình.</p>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {data.algorithms.map((algo, idx) => {
+              const cardStyles = [
+                {
+                  wrap: 'bg-emerald-50/45 dark:bg-emerald-950/20 border-emerald-500/15',
+                  iconBg: 'bg-emerald-500/12 text-[#007f53] dark:text-emerald-300',
+                  badge: 'emerald' as const,
+                  icon: 'message' as const,
+                },
+                {
+                  wrap: 'bg-sky-50/45 dark:bg-sky-950/20 border-sky-500/15',
+                  iconBg: 'bg-sky-500/12 text-sky-700 dark:text-sky-300',
+                  badge: 'sky' as const,
+                  icon: 'chart-bar' as const,
+                },
+                {
+                  wrap: 'bg-violet-50/45 dark:bg-violet-950/20 border-violet-500/15',
+                  iconBg: 'bg-violet-500/12 text-violet-700 dark:text-violet-300',
+                  badge: 'slate' as const,
+                  icon: 'layers' as const,
+                },
+                {
+                  wrap: 'bg-amber-50/45 dark:bg-amber-950/20 border-amber-500/15',
+                  iconBg: 'bg-amber-500/14 text-amber-700 dark:text-amber-300',
+                  badge: 'amber' as const,
+                  icon: 'target' as const,
+                },
+              ];
+              const style = cardStyles[idx % cardStyles.length];
+              return (
+                <div
+                  key={algo.name}
+                  className={`flex items-start gap-3.5 rounded-2xl border p-4 ${style.wrap}`}
+                >
+                  <span className={`grid size-10 shrink-0 place-items-center rounded-xl ${style.iconBg}`}>
+                    <FinanceIcon name={style.icon} size={18} />
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="text-sm font-bold text-[var(--admin-ink)]">{algo.name}</span>
+                      <AdminBadge dot={false} tone={style.badge}>
+                        {algo.engine || algo.type}
+                      </AdminBadge>
+                    </div>
+                    <p className="mt-1 text-xs text-[var(--admin-ink-secondary)] leading-relaxed">{algo.desc}</p>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </AdminSurface>
+
+      <AdminSurface
+        icon="history"
+        headerVariant="mint"
+        title="Nhật ký phiên hội thoại gần đây"
+        subtitle="Dữ liệu ẩn danh theo mã phiên lưu trong database"
+        noPadding
+        action={
+          <div className="flex items-center gap-2">
+            <div className="relative">
+              <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[var(--admin-ink-muted)]">
+                <FinanceIcon name="search" size={14} />
+              </span>
+              <input
+                type="search"
+                aria-label="Tìm theo mã phiên"
+                placeholder="Tìm theo mã phiên…"
+                value={list.search}
+                onChange={(event) => list.setSearch(event.target.value)}
+                className="admin-input w-48 pl-9"
+              />
+            </div>
+            <span className="text-xs font-medium text-[var(--admin-ink-muted)] tabular-nums">
+              {list.data?.totalElements ?? '—'} phiên
             </span>
           </div>
-          <div className="mt-3 text-2xl font-bold text-slate-900 dark:text-white">
-            {data?.totalSessions ?? 0}
-          </div>
-          <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-            Tổng phiên đã lưu trong DB
-          </p>
-        </div>
-
-        {/* Tổng tin nhắn hỏi đáp */}
-        <div className="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
-          <div className="flex items-center justify-between text-slate-500 dark:text-slate-400 text-xs font-semibold uppercase">
-            <span>Lượt tương tác (Messages)</span>
-            <span className="p-2 bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 rounded-lg">⚡</span>
-          </div>
-          <div className="mt-3 text-2xl font-bold text-slate-900 dark:text-white">
-            {data?.totalMessages ?? 0}
-          </div>
-          <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-            Tin nhắn User & FinAI
-          </p>
-        </div>
-
-        {/* Trạng thái máy chủ AI */}
-        <div className="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
-          <div className="flex items-center justify-between text-slate-500 dark:text-slate-400 text-xs font-semibold uppercase">
-            <span>Trạng thái Engine</span>
-            <span className="p-2 bg-teal-50 dark:bg-teal-950/40 text-teal-600 dark:text-teal-400 rounded-lg">🛡️</span>
-          </div>
-          <div className="mt-3 text-2xl font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-2">
-            <span>{loading ? 'ĐANG KIỂM TRA...' : error ? 'MẤT KẾT NỐI' : data?.status ? String(data.status).toUpperCase() : 'KHÔNG XÁC ĐỊNH'}</span>
-          </div>
-          <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-            FastAPI :8000 · Dockerized
-          </p>
-        </div>
-      </div>
-
-      {/* 4 Thuật toán AI của Finora */}
-      <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
-        <h3 className="text-base font-bold text-slate-900 dark:text-white mb-4 flex items-center gap-2">
-          <span>🧠</span>
-          Danh mục Mô hình & Thuật toán AI (Core AI Engines)
-        </h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {data?.algorithms?.map((algo, i) => (
-            <div
-              key={i}
-              className="p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/50 flex flex-col justify-between"
-            >
-              <div>
-                <div className="flex items-center justify-between">
-                  <h4 className="font-bold text-slate-900 dark:text-white text-sm">{algo.name}</h4>
-                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-400">
-                    {algo.status}
-                  </span>
-                </div>
-                <div className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 mt-1">
-                  Engine: {algo.engine}
-                </div>
-                <p className="text-xs text-slate-500 dark:text-slate-400 mt-2 line-clamp-2">
-                  {algo.desc}
-                </p>
-              </div>
-              <div className="mt-3 pt-3 border-t border-slate-200/60 dark:border-slate-800 text-[11px] text-slate-400 flex items-center justify-between">
-                <span>Loại mô hình:</span>
-                <span className="font-medium text-slate-700 dark:text-slate-300">{algo.type}</span>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Danh sách phiên trò chuyện gần nhất */}
-      <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
-        <div className="flex items-center justify-between mb-4">
-          <div>
-            <h3 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
-              <span>📋</span>
-              Nhật ký Phiên Hội thoại AI Gần đây
-            </h3>
-            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-              Các cuộc trò chuyện được người dùng tương tác với FinAI lưu trữ tại database
-            </p>
-          </div>
-          <span className="text-xs font-semibold px-2.5 py-1 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 rounded-lg">
-            {data?.recentSessions?.length ?? 0} phiên mới nhất
-          </span>
-        </div>
-
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs">
-            <thead className="bg-slate-50 dark:bg-slate-950 text-slate-500 dark:text-slate-400 font-semibold border-y border-slate-200 dark:border-slate-800">
+        }
+      >
+        <div className="admin-table-wrap" tabIndex={0} role="region" aria-label="Nhật ký phiên hội thoại gần đây">
+          <table className="admin-table w-full table-fixed">
+            <thead>
               <tr>
-                <th className="py-3 px-4">Tiêu đề cuộc trò chuyện</th>
-                <th className="py-3 px-4">Người dùng</th>
-                <th className="py-3 px-4 text-center">Số tin nhắn</th>
-                <th className="py-3 px-4">Thời gian cập nhật</th>
+                <th className="w-[48%]">Mã phiên</th>
+                <th className="w-[24%] text-center">Số tin nhắn</th>
+                <th className="w-[28%] text-right">Thời gian cập nhật</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60 text-slate-700 dark:text-slate-300">
-              {data?.recentSessions && data.recentSessions.length > 0 ? (
-                data.recentSessions.map((s) => (
-                  <tr key={s.id} className="hover:bg-slate-50/60 dark:hover:bg-slate-800/40 transition">
-                    <td className="py-3 px-4 font-medium max-w-xs truncate" title={s.title}>
-                      <span className="inline-block mr-1.5 text-blue-500 align-middle">
-                        <FinanceIcon name="message-square" size={15} />
+            <tbody>
+              {sessions.length === 0 ? (
+                <tr>
+                  <td colSpan={3} className="py-10 text-center text-xs text-[var(--admin-ink-muted)]">
+                    {list.loading
+                      ? 'Đang tải phiên hội thoại…'
+                      : list.error
+                      ? 'Không thể tải phiên hội thoại.'
+                      : 'Chưa có phiên hội thoại.'}
+                  </td>
+                </tr>
+              ) : (
+                sessions.map((s) => (
+                  <tr key={s.id}>
+                    <td>
+                      <code className="inline-block max-w-full truncate rounded bg-[var(--admin-surface-subtle)] px-2 py-0.5 text-xs font-mono text-[var(--admin-ink)]" title={s.id}>
+                        {s.id}
+                      </code>
+                    </td>
+                    <td className="text-center">
+                      <span className="inline-flex items-center rounded-full bg-emerald-500/10 px-2.5 py-0.5 text-xs font-bold tabular-nums text-[#007f53] dark:text-emerald-300">
+                        {s.messageCount} tin nhắn
                       </span>
-                      {s.title}
                     </td>
-                    <td className="py-3 px-4">
-                      <div className="font-semibold text-slate-900 dark:text-white">{s.userName}</div>
-                      <div className="text-[10px] text-slate-400 truncate max-w-[160px]">{s.userEmail}</div>
-                    </td>
-                    <td className="py-3 px-4 text-center">
-                      <span className="px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 font-bold text-slate-700 dark:text-slate-300">
-                        {s.messageCount}
-                      </span>
-                    </td>
-                    <td className="py-3 px-4 text-slate-500 whitespace-nowrap">
+                    <td className="text-right text-xs text-[var(--admin-ink-muted)] whitespace-nowrap tabular-nums">
                       {s.updatedAt
                         ? new Date(s.updatedAt).toLocaleDateString('vi-VN', {
                             hour: '2-digit',
@@ -249,18 +264,19 @@ export const AdminAIManagementScreen: React.FC = () => {
                     </td>
                   </tr>
                 ))
-              ) : (
-                <tr>
-                  <td colSpan={4} className="py-8 text-center text-slate-400">
-                    Chưa có phiên hội thoại nào được ghi nhận.
-                  </td>
-                </tr>
               )}
             </tbody>
           </table>
         </div>
-      </div>
+        <AdminPageFooter
+          page={list.page}
+          totalPages={list.data?.totalPages ?? 0}
+          loading={list.loading}
+          error={list.error}
+          onPage={list.setPage}
+          onRetry={list.reload}
+        />
+      </AdminSurface>
     </div>
   );
 };
-

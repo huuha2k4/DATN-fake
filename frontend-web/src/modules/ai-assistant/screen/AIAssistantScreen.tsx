@@ -2,11 +2,14 @@ import React, { useState, useEffect, useRef, type FormEvent } from 'react'
 import { FinanceIcon } from '../../core/components/FinanceIcon'
 import { FormattedMarkdown } from '../components/FormattedMarkdown'
 import { FinAiActionCard } from '../components/FinAiActionCard'
+import { FinAiChoices } from '../components/FinAiChoices'
 import {
   finAiAgentApi,
   FinAiClientError,
   type FinAiActionResponse,
   type FinAiConversationSummary,
+  type FinAiClarification,
+  type FinAiSelection,
 } from '../api/finAiAgentApi'
 import { notifyFinAiActionCompleted } from '../../core/utils/finaiSyncEvents'
 import './AIAssistantScreen.css'
@@ -16,6 +19,7 @@ interface Message {
   author: 'assistant' | 'user'
   text: string
   actions?: FinAiActionResponse[]
+  clarification?: FinAiClarification | null
 }
 
 const quickQuestions = [
@@ -146,6 +150,7 @@ export function AIAssistantScreen({ onNotify }: { onNotify: (message: string) =>
           author: m.author,
           text: m.text,
           actions: msgActions && msgActions.length > 0 ? msgActions : undefined,
+          clarification: m.clarification,
         }
       })
 
@@ -274,7 +279,7 @@ export function AIAssistantScreen({ onNotify }: { onNotify: (message: string) =>
     }
   }
 
-  const handleSendMessage = async (textToSend: string) => {
+  const handleSendMessage = async (textToSend: string, selection?: FinAiSelection) => {
     const prompt = textToSend.trim()
     if (!prompt || isLoading || isSendingRef.current) return
     isSendingRef.current = true
@@ -285,15 +290,16 @@ export function AIAssistantScreen({ onNotify }: { onNotify: (message: string) =>
     setIsLoading(true)
     setIsTakingLong(false)
     const controller = new AbortController()
-    const idempotencyKey = retryKeyRef.current?.prompt === prompt
+    const retryTag = selection ? JSON.stringify(selection) : prompt
+    const idempotencyKey = retryKeyRef.current?.prompt === retryTag
       ? retryKeyRef.current.key
       : (globalThis.crypto?.randomUUID?.() || `finai-${Date.now()}-${Math.random().toString(36).slice(2)}`)
-    retryKeyRef.current = { prompt, key: idempotencyKey }
+    retryKeyRef.current = { prompt: retryTag, key: idempotencyKey }
     requestAbortRef.current = controller
     slowTimerRef.current = window.setTimeout(() => setIsTakingLong(true), 10000)
 
     try {
-      const res = await finAiAgentApi.sendMessage(prompt, currentConversationId || undefined, controller.signal, idempotencyKey)
+      const res = await finAiAgentApi.sendMessage(prompt, currentConversationId || undefined, controller.signal, idempotencyKey, selection)
       retryKeyRef.current = null
 
       if (res.conversationId && res.conversationId !== currentConversationId) {
@@ -306,6 +312,7 @@ export function AIAssistantScreen({ onNotify }: { onNotify: (message: string) =>
         author: 'assistant',
         text: res.message || 'Tôi đã xử lý yêu cầu của bạn.',
         actions: res.actions && res.actions.length > 0 ? res.actions : undefined,
+        clarification: res.clarification,
       }
       setMessages((prev) => [...prev, assistantMsg])
 
@@ -319,7 +326,10 @@ export function AIAssistantScreen({ onNotify }: { onNotify: (message: string) =>
       }
     } catch (err: unknown) {
       setMessages((prev) => prev.filter((item) => item.id !== userMsg.id))
-      setQuery((draft) => draft || prompt)
+      if (!selection) setQuery((draft) => draft || prompt)
+      if (err instanceof FinAiClientError && err.errorCode === 'AI_DRAFT_STALE') {
+        setMessages((prev) => prev.map((item) => ({ ...item, clarification: null })))
+      }
       if (err instanceof FinAiClientError && err.errorCode === 'REQUEST_CANCELLED') return
       const errMsg = err instanceof FinAiClientError
         ? [err.message, err.requestId && `Mã yêu cầu: ${err.requestId}`].filter(Boolean).join(' ')
@@ -475,6 +485,11 @@ export function AIAssistantScreen({ onNotify }: { onNotify: (message: string) =>
                   )}
                   <div className="message-bubble">
                     {isAssistant ? <FormattedMarkdown content={msg.text} /> : msg.text}
+                    {msg.clarification && (
+                      <FinAiChoices key={msg.clarification.draftId} clarification={msg.clarification}
+                        disabled={isLoading || messages.filter((item) => !String(item.id).startsWith('err-')).at(-1)?.id !== msg.id}
+                        onSelect={handleSendMessage} />
+                    )}
 
                     {/* Hiển thị danh sách Action Proposals nếu có */}
                     {msg.actions && msg.actions.length > 0 && (

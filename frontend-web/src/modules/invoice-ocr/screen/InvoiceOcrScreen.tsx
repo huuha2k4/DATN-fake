@@ -5,6 +5,8 @@ import { DatePicker } from '../../core/components/DatePicker';
 import { ocrApi, type OcrReceiptResult } from '../api/ocrApi';
 import { accountApi, type AccountItem } from '../../account-management/api/accountApi';
 import { transactionApi, type CategoryItem } from '../../cash-flow-management/api/transactionApi';
+import { groupApi, type GroupFundResponse, type GroupResponse } from '../../group/api/groupApi';
+import { getStoredUser } from '../../auth/api/authApi';
 import './InvoiceOcrScreen.css';
 
 function formatIsoToDdMmYyyy(iso?: string): string {
@@ -55,9 +57,12 @@ export function InvoiceOcrScreen({ onCancel, onNotify }: Props) {
   const [loadingReceipts, setLoadingReceipts] = useState(false);
   const [accounts, setAccounts] = useState<AccountItem[]>([]);
   const [categories, setCategories] = useState<CategoryItem[]>([]);
+  const [groups, setGroups] = useState<GroupResponse[]>([]);
+  const [groupFunds, setGroupFunds] = useState<Record<string, GroupFundResponse>>({});
 
   // Form fields
   const [selectedAccountId, setSelectedAccountId] = useState('');
+  const [selectedGroupFundId, setSelectedGroupFundId] = useState('');
   const [selectedCategoryId, setSelectedCategoryId] = useState('');
   const [merchant, setMerchant] = useState('');
   const [date, setDate] = useState(() => new Date().toISOString().split('T')[0]);
@@ -93,8 +98,15 @@ export function InvoiceOcrScreen({ onCancel, onNotify }: Props) {
   }, [categories, selectedCategoryId]);
 
   const selectedAccountObj = useMemo(() => {
+    if (selectedGroupFundId) return undefined;
     return accounts.find((a) => a.id === selectedAccountId) || accounts[0];
-  }, [accounts, selectedAccountId]);
+  }, [accounts, selectedAccountId, selectedGroupFundId]);
+
+  const selectedGroupFund = useMemo(() => {
+    return groups.find((g) => g.id === selectedGroupFundId);
+  }, [groups, selectedGroupFundId]);
+
+  const selectedGroupFundBalance = selectedGroupFundId ? (groupFunds[selectedGroupFundId]?.balance || 0) : 0;
 
   const isSelectedReceiptPaid = Boolean(
     scanResult && (scanResult.transactionId || scanResult.kind === 'paid')
@@ -124,18 +136,30 @@ export function InvoiceOcrScreen({ onCancel, onNotify }: Props) {
   const loadInitialData = async () => {
     setLoadingReceipts(true);
     try {
-      const [accs, cats, receiptsResp] = await Promise.all([
+      const [accs, cats, receiptsResp, groupsRes] = await Promise.all([
         accountApi.getAccounts().catch(() => []),
         transactionApi.getCategories('EXPENSE').catch(() => []),
         ocrApi.getReceipts().catch(() => ({ receipts: [] })),
+        groupApi.getGroups().catch(() => []),
       ]);
       setAccounts(accs);
-      if (accs.length > 0 && !selectedAccountId) {
+      if (accs.length > 0 && !selectedAccountId && !selectedGroupFundId) {
         setSelectedAccountId(accs[0].id);
       }
       setCategories(cats);
       const list = receiptsResp.receipts || [];
       setRecentReceipts(list);
+      setGroups(groupsRes);
+      if (groupsRes.length > 0) {
+        const funds = await Promise.all(
+          groupsRes.map(async (g) => [g.id, await groupApi.getFund(g.id).catch(() => null)] as const)
+        );
+        setGroupFunds(
+          Object.fromEntries(funds.filter((entry): entry is readonly [string, GroupFundResponse] => entry[1] !== null))
+        );
+      } else {
+        setGroupFunds({});
+      }
     } catch {
       onNotify('Không thể nạp dữ liệu tài khoản và danh mục');
     } finally {
@@ -281,8 +305,8 @@ export function InvoiceOcrScreen({ onCancel, onNotify }: Props) {
       onNotify('Hóa đơn này đã được tạo giao dịch trước đó (chỉ xem).');
       return;
     }
-    if (!selectedAccountId) {
-      onNotify('Vui lòng chọn tài khoản thanh toán.');
+    if (!selectedAccountId && !selectedGroupFundId) {
+      onNotify('Vui lòng chọn tài khoản thanh toán hoặc quỹ nhóm.');
       return;
     }
     const numericAmount = parseFloat(amount.replace(/\D/g, ''));
@@ -293,16 +317,41 @@ export function InvoiceOcrScreen({ onCancel, onNotify }: Props) {
 
     setSubmitting(true);
     try {
-      await ocrApi.createTransaction({
-        receiptId: scanResult.id,
-        accountId: selectedAccountId,
-        categoryId: selectedCategoryId || undefined,
-        description: merchant.trim() || 'Hóa đơn OCR',
-        note: note.trim() || undefined,
-        overrideAmount: numericAmount,
-      });
+      if (selectedGroupFundId && selectedGroupFund) {
+        const members = await groupApi.getMembers(selectedGroupFundId).catch(() => []);
+        if (!members.length) {
+          throw new Error('Không tìm thấy thành viên đang hoạt động trong nhóm');
+        }
+        const baseShare = Math.floor(numericAmount / members.length);
+        const remainder = numericAmount - baseShare * members.length;
+        const desc = [merchant.trim(), note.trim()].filter(Boolean).join(' - ') || 'Hóa đơn OCR';
+        await groupApi.createExpense(selectedGroupFundId, {
+          description: desc,
+          amount: numericAmount,
+          currency: selectedGroupFund.baseCurrency || 'VND',
+          paidByUserId: getStoredUser()?.id || members[0].userId,
+          paymentSource: 'GROUP_FUND',
+          categoryId: selectedCategoryId || categories[0]?.id || '',
+          splitMethod: 'EQUAL',
+          expenseDate: date || new Date().toISOString().split('T')[0],
+          splits: members.map((member, index) => ({
+            userId: member.userId,
+            amount: baseShare + (index === 0 ? remainder : 0),
+          })),
+        });
+        onNotify(`Đã ghi nhận hóa đơn ${Number(numericAmount).toLocaleString('vi-VN')} ₫ vào quỹ “${selectedGroupFund.name}”!`);
+      } else {
+        await ocrApi.createTransaction({
+          receiptId: scanResult.id,
+          accountId: selectedAccountId,
+          categoryId: selectedCategoryId || undefined,
+          description: merchant.trim() || 'Hóa đơn OCR',
+          note: note.trim() || undefined,
+          overrideAmount: numericAmount,
+        });
 
-      onNotify(`Đã lưu giao dịch thành công: ${Number(numericAmount).toLocaleString('vi-VN')} ₫`);
+        onNotify(`Đã lưu giao dịch thành công: ${Number(numericAmount).toLocaleString('vi-VN')} ₫`);
+      }
       resetCurrentScan();
       await reloadReceipts();
       setActiveRightTab('HISTORY');
@@ -757,9 +806,10 @@ export function InvoiceOcrScreen({ onCancel, onNotify }: Props) {
                       <span className="text-[11.5px] font-bold text-gray-700 dark:text-slate-300">
                         Tài khoản thanh toán
                       </span>
-                      {selectedAccountObj && (
+                      {(selectedAccountObj || selectedGroupFund) && (
                         <span className="text-[10px] font-bold text-emerald-700 dark:text-emerald-400">
-                          {Number(selectedAccountObj.balance || 0).toLocaleString('vi-VN')} {selectedAccountObj.currencyCode || 'VND'}
+                          {Number(selectedGroupFund ? selectedGroupFundBalance : (selectedAccountObj?.balance || 0)).toLocaleString('vi-VN')}{' '}
+                          {selectedGroupFund ? (selectedGroupFund.baseCurrency || 'VND') : (selectedAccountObj?.currencyCode || 'VND')}
                         </span>
                       )}
                     </div>
@@ -782,11 +832,13 @@ export function InvoiceOcrScreen({ onCancel, onNotify }: Props) {
                     >
                       <div className="flex items-center gap-2.5 min-w-0">
                         <div className="size-6 rounded-lg bg-emerald-100/80 dark:bg-emerald-950 text-[#007F53] dark:text-emerald-300 grid place-items-center shrink-0">
-                          <FinanceIcon name="wallet" size={13} />
+                          <FinanceIcon name={selectedGroupFund ? 'users' : 'wallet'} size={13} />
                         </div>
                         <div className="min-w-0 truncate">
                           <span className="text-xs font-bold text-gray-800 dark:text-white">
-                            {selectedAccountObj?.name || 'Chọn tài khoản'}
+                            {selectedGroupFund
+                              ? `Quỹ chung · ${selectedGroupFund.name}`
+                              : selectedAccountObj?.name || 'Chọn tài khoản'}
                           </span>
                         </div>
                       </div>
@@ -801,16 +853,17 @@ export function InvoiceOcrScreen({ onCancel, onNotify }: Props) {
 
                     {/* Popup Menu */}
                     {isAccountDropdownOpen && (
-                      <div className="absolute top-full left-0 right-0 mt-1 z-50 max-h-56 overflow-y-auto rounded-xl border border-[#d8e3dc] dark:border-slate-700 bg-white dark:bg-[#111827] p-1.5 shadow-xl animate-fadeIn">
+                      <div className="absolute top-full left-0 right-0 mt-1 z-50 max-h-64 overflow-y-auto rounded-xl border border-[#d8e3dc] dark:border-slate-700 bg-white dark:bg-[#111827] p-1.5 shadow-xl animate-fadeIn">
                         <div className="flex flex-col gap-1">
                           {accounts.map((a) => {
-                            const isSelected = a.id === selectedAccountId;
+                            const isSelected = !selectedGroupFundId && a.id === selectedAccountId;
                             return (
                               <button
                                 key={a.id}
                                 type="button"
                                 onClick={() => {
                                   setSelectedAccountId(a.id);
+                                  setSelectedGroupFundId('');
                                   setIsAccountDropdownOpen(false);
                                 }}
                                 className={`flex items-center justify-between rounded-lg px-2.5 py-2 text-left transition text-xs cursor-pointer ${
@@ -829,6 +882,42 @@ export function InvoiceOcrScreen({ onCancel, onNotify }: Props) {
                               </button>
                             );
                           })}
+
+                          {groups.length > 0 && (
+                            <>
+                              <p className="px-2.5 pt-2 pb-1 text-[10px] font-bold uppercase tracking-wide text-[#64748B] dark:text-slate-400">
+                                Quỹ chung của nhóm
+                              </p>
+                              {groups.map((group) => {
+                                const isSelected = selectedGroupFundId === group.id;
+                                const fundBal = groupFunds[group.id]?.balance || 0;
+                                return (
+                                  <button
+                                    key={group.id}
+                                    type="button"
+                                    onClick={() => {
+                                      setSelectedGroupFundId(group.id);
+                                      setSelectedAccountId('');
+                                      setIsAccountDropdownOpen(false);
+                                    }}
+                                    className={`flex items-center justify-between rounded-lg px-2.5 py-2 text-left transition text-xs cursor-pointer ${
+                                      isSelected
+                                        ? 'bg-emerald-50 dark:bg-emerald-950/60 text-[#007F53] dark:text-emerald-300 font-bold border border-emerald-200/80 dark:border-emerald-800/60'
+                                        : 'text-gray-700 dark:text-slate-200 hover:bg-[#F1F5F9] dark:hover:bg-slate-800/80 border border-transparent'
+                                    }`}
+                                  >
+                                    <div className="flex items-center gap-2 min-w-0">
+                                      <FinanceIcon name="users" size={13} className="text-[#007F53] dark:text-emerald-400 shrink-0" />
+                                      <span className="truncate font-semibold">Quỹ · {group.name}</span>
+                                    </div>
+                                    <span className="text-[11px] font-bold text-[#007F53] dark:text-emerald-400 shrink-0">
+                                      {Number(fundBal).toLocaleString('vi-VN')} {group.baseCurrency || 'VND'}
+                                    </span>
+                                  </button>
+                                );
+                              })}
+                            </>
+                          )}
                         </div>
                       </div>
                     )}

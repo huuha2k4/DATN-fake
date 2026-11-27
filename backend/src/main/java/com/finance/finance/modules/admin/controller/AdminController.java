@@ -7,9 +7,10 @@ import com.finance.finance.modules.admin.dto.response.AdminDashboardOverviewResp
 import com.finance.finance.modules.admin.service.AdminService;
 import com.finance.finance.modules.user.dto.response.UserResponse;
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Pageable;
+import com.finance.finance.modules.admin.dto.request.AdminPaging;
+import com.finance.finance.modules.admin.dto.response.AdminPage;
+import com.finance.finance.modules.admin.service.AdminBroadcastService;
+import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
@@ -23,6 +24,7 @@ import java.util.UUID;
 public class AdminController {
 
     private final AdminService adminService;
+    private final AdminBroadcastService broadcasts;
 
     // 1. Tổng quan
     @GetMapping("/dashboard/overview")
@@ -33,22 +35,20 @@ public class AdminController {
 
     // 2. Quản lý Người dùng
     @GetMapping("/users")
-    public ResponseEntity<Page<UserResponse>> listUsers(
-            @RequestParam(value = "search", required = false) String search,
-            @RequestParam(value = "status", required = false) UserStatus status,
-            @RequestParam(value = "tier", required = false) SubscriptionTier tier,
-            @RequestParam(value = "page", defaultValue = "0") int page,
-            @RequestParam(value = "size", defaultValue = "15") int size
-    ) {
-        Pageable pageable = PageRequest.of(page, size);
-        Page<UserResponse> result = adminService.listUsers(search, status, tier, pageable);
-        return ResponseEntity.ok(result);
+    public AdminPage<com.finance.finance.modules.admin.dto.response.AdminUserListItem> listUsers(
+            @RequestParam(required = false) String search,
+            @RequestParam(required = false) UserStatus status,
+            @RequestParam(required = false) SubscriptionTier tier,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "15") int size,
+            @RequestParam(defaultValue = "newest") String sort) {
+        return adminService.listUsers(search, status, tier, new AdminPaging(page, size, sort));
     }
 
     @PutMapping("/users/{userId}")
     public ResponseEntity<UserResponse> updateUser(
             @PathVariable("userId") UUID userId,
-            @RequestBody AdminUpdateUserRequest request
+            @Valid @RequestBody AdminUpdateUserRequest request
     ) {
         UserResponse updated = adminService.updateUser(userId, request);
         return ResponseEntity.ok(updated);
@@ -103,6 +103,16 @@ public class AdminController {
         return ResponseEntity.ok(adminService.getOcrOverview());
     }
 
+    @GetMapping("/ocr/receipts")
+    public AdminPage<com.finance.finance.modules.admin.dto.response.AdminOcrOverviewResponse.AdminOcrItemResponse> listOcrReceipts(
+            @RequestParam(required = false) String search,
+            @RequestParam(required = false) Boolean review,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "8") int size,
+            @RequestParam(defaultValue = "newest") String sort) {
+        return adminService.listOcrReceipts(search, review, new AdminPaging(page, size, sort));
+    }
+
     // 6. Thống kê sử dụng
     @GetMapping("/analytics")
     public ResponseEntity<com.finance.finance.modules.admin.dto.response.AdminAnalyticsResponse> getAnalyticsOverview() {
@@ -111,32 +121,41 @@ public class AdminController {
 
     // 7. Phản hồi & Hỗ trợ
     @GetMapping("/feedbacks")
-    public ResponseEntity<java.util.List<com.finance.finance.modules.admin.dto.response.AdminFeedbackItem>> listFeedbacks(
-            @RequestParam(value = "status", required = false) String status,
-            @RequestParam(value = "category", required = false) String category
-    ) {
-        return ResponseEntity.ok(adminService.listFeedbacks(status, category));
+    public AdminPage<com.finance.finance.modules.admin.dto.response.AdminFeedbackItem> listFeedbacks(
+            @RequestParam(required = false) String search,
+            @RequestParam(required = false) String status,
+            @RequestParam(required = false) String category,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "8") int size,
+            @RequestParam(defaultValue = "newest") String sort) {
+        return adminService.listFeedbacks(search, status, category, new AdminPaging(page, size, sort));
     }
 
     @PostMapping("/feedbacks/{feedbackId}/reply")
     public ResponseEntity<com.finance.finance.modules.admin.dto.response.AdminFeedbackItem> replyFeedback(
             @PathVariable("feedbackId") UUID feedbackId,
+            @RequestHeader("Idempotency-Key") UUID requestId,
             @jakarta.validation.Valid @RequestBody com.finance.finance.modules.admin.dto.request.AdminReplyFeedbackRequest request
     ) {
-        return ResponseEntity.ok(adminService.replyFeedback(feedbackId, request));
+        return ResponseEntity.ok(adminService.replyFeedback(feedbackId, requestId, request));
     }
 
     // 8. Thông báo Hệ thống (Broadcast)
     @GetMapping("/broadcast")
-    public ResponseEntity<java.util.List<com.finance.finance.modules.admin.dto.response.AdminBroadcastLogItem>> listBroadcastLogs() {
-        return ResponseEntity.ok(adminService.listBroadcastLogs());
+    public AdminPage<com.finance.finance.modules.admin.dto.response.AdminBroadcastLogItem> listBroadcastLogs(
+            @RequestParam(required = false) String search,
+            @RequestParam(defaultValue = "false") boolean legacy,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "15") int size,
+            @RequestParam(defaultValue = "newest") String sort) {
+        return broadcasts.history(search, legacy, new AdminPaging(page, size, sort));
     }
 
     @PostMapping("/broadcast")
     public ResponseEntity<com.finance.finance.modules.admin.dto.response.AdminBroadcastLogItem> broadcastNotification(
-            @jakarta.validation.Valid @RequestBody com.finance.finance.modules.admin.dto.request.AdminBroadcastNotificationRequest request
-    ) {
-        return ResponseEntity.ok(adminService.broadcastNotification(request));
+            @RequestHeader("Idempotency-Key") UUID requestId,
+            @Valid @RequestBody com.finance.finance.modules.admin.dto.request.AdminBroadcastNotificationRequest request) {
+        return ResponseEntity.accepted().body(broadcasts.enqueue(requestId, request));
     }
 
     // 8.1. Cấu hình Mẫu Thông báo Tự động (Templates theo chu kỳ / sự kiện)
@@ -162,17 +181,21 @@ public class AdminController {
 
     // 9. Nhật ký Hoạt động Quản trị (Audit Logs)
     @GetMapping("/audit-logs")
-    public ResponseEntity<java.util.List<com.finance.finance.modules.admin.dto.response.AdminAuditLogItem>> listAuditLogs(
-            @RequestParam(value = "action", required = false) String action,
-            @RequestParam(value = "targetEntity", required = false) String targetEntity
-    ) {
-        return ResponseEntity.ok(adminService.listAuditLogs(action, targetEntity));
+    public AdminPage<com.finance.finance.modules.admin.dto.response.AdminAuditLogItem> listAuditLogs(
+            @RequestParam(required = false) String search,
+            @RequestParam(required = false) String action,
+            @RequestParam(required = false) String targetEntity,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "15") int size,
+            @RequestParam(defaultValue = "newest") String sort) {
+        return adminService.listAuditLogs(search, action, targetEntity, new AdminPaging(page, size, sort));
     }
 
     // 10. Giám sát Hệ thống (System Health)
     @GetMapping("/system-health")
     public ResponseEntity<com.finance.finance.modules.admin.dto.response.AdminSystemHealthResponse> getSystemHealth() {
-        return ResponseEntity.ok(adminService.getSystemHealth());
+        return ResponseEntity.ok().cacheControl(org.springframework.http.CacheControl.noStore())
+                .body(adminService.getSystemHealth());
     }
 
     // 11. Cấu hình Hệ thống (System Settings)
@@ -190,6 +213,15 @@ public class AdminController {
     ) {
         String value = body.getOrDefault("value", "");
         return ResponseEntity.ok(adminService.updateSetting(key, value));
+    }
+
+    @GetMapping("/ai/sessions")
+    public AdminPage<com.finance.finance.modules.admin.dto.response.AdminAiSessionItem> listAiSessions(
+            @RequestParam(required = false) String search,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(defaultValue = "newest") String sort) {
+        return adminService.listAiSessions(search, new AdminPaging(page, size, sort));
     }
 
     // 12. Quản lý AI & Thống kê FinAI Engine

@@ -14,7 +14,6 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 
 import java.time.Instant;
-import java.util.Optional;
 
 @Component
 @Order(1)
@@ -24,27 +23,32 @@ public class SuperAdminInitializer implements CommandLineRunner {
 
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
+    private final org.springframework.jdbc.core.JdbcTemplate jdbc;
 
-    @Value("${app.admin.username:admin}")
+    @Value("${app.admin.username:}")
     private String adminUsername;
 
-    @Value("${app.admin.email:admin@finance.com}")
+    @Value("${app.admin.email:}")
     private String adminEmail;
 
-    @Value("${app.admin.password:admin123}")
+    @Value("${app.admin.password:}")
     private String adminPassword;
 
     @Override
+    @org.springframework.transaction.annotation.Transactional
     public void run(String... args) {
-        try {
-            Optional<User> byEmail = userRepository.findByEmail(adminEmail);
-            Optional<User> byUsername = userRepository.findByUsername(adminUsername);
-
-            User adminUser = byEmail.or(() -> byUsername).orElse(null);
-
-            if (adminUser == null) {
-                log.info("Creating Super Admin account: username={}, email={}", adminUsername, adminEmail);
-                adminUser = User.builder()
+        jdbc.execute("SELECT pg_advisory_xact_lock(49281123061401)");
+        if (userRepository.existsBySystemRoleAndDeletedAtIsNull(SystemRole.ADMIN)) {
+            return;
+        }
+        if (adminUsername.isBlank() || adminEmail.isBlank() || adminPassword.length() < 12
+                || adminPassword.isBlank()) {
+            throw new IllegalStateException("Initial admin requires SUPER_ADMIN_USER, SUPER_ADMIN_EMAIL and SUPER_ADMIN_PASSWORD (minimum 12 characters)");
+        }
+        if (userRepository.findByEmail(adminEmail).isPresent() || userRepository.findByUsername(adminUsername).isPresent()) {
+            throw new IllegalStateException("Initial admin identity is already in use");
+        }
+        User adminUser = User.builder()
                         .username(adminUsername)
                         .email(adminEmail)
                         .fullName("Hệ Thống Admin")
@@ -59,33 +63,7 @@ public class SuperAdminInitializer implements CommandLineRunner {
                         .emailVerifiedAt(Instant.now())
                         .failedLoginAttempts(0)
                         .build();
-                userRepository.save(adminUser);
-                log.info("Super Admin account created successfully!");
-            } else {
-                boolean updated = false;
-                if (!adminUsername.equals(adminUser.getUsername())) {
-                    adminUser.setUsername(adminUsername);
-                    updated = true;
-                }
-                if (adminUser.getSystemRole() != SystemRole.ADMIN) {
-                    adminUser.setSystemRole(SystemRole.ADMIN);
-                    updated = true;
-                }
-                if (adminUser.getUserStatus() != UserStatus.ACTIVE) {
-                    adminUser.setUserStatus(UserStatus.ACTIVE);
-                    updated = true;
-                }
-                if (adminUser.getSubscriptionTier() != SubscriptionTier.FREE) {
-                    adminUser.setSubscriptionTier(SubscriptionTier.FREE);
-                    updated = true;
-                }
-                if (updated) {
-                    userRepository.save(adminUser);
-                    log.info("Super Admin account privileges synchronized!");
-                }
-            }
-        } catch (Exception e) {
-            log.error("Failed to initialize Super Admin account: {}", e.getMessage(), e);
-        }
+        userRepository.save(adminUser);
+        log.info("Initial administrator created");
     }
 }

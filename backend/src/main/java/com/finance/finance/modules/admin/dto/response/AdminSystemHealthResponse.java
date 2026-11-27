@@ -12,10 +12,22 @@ import java.util.Map;
 @NoArgsConstructor
 @AllArgsConstructor
 public class AdminSystemHealthResponse {
-    // Trạng thái tổng thể
-    private String status;           // UP, DEGRADED, DOWN
+    private String status;
+    private com.finance.finance.modules.admin.monitoring.ServiceHealthMonitor.Snapshot serviceHealth;
+    private java.util.List<GcInfo> garbageCollectors;
+    public record GcInfo(String name, Long collections, Long timeMs) {}
+    public record HourlyTrafficPoint(String hourLabel, long requests, long failed, Double avgLatencyMs) {}
+    public record PerformanceSample(String timeLabel, Double cpuPercent, Double ramPercent, Double latencyMs) {}
+    public record TrafficSummary(long totalRequests, long failedRequests, Double errorRatePercent, Double avgLatencyMs) {}
+    public record SystemEventItem(String severity, String message, String timestamp) {}
+
     private long uptimeSeconds;
     private String startTime;
+    private java.util.List<HourlyTrafficPoint> hourlyTraffic;
+    private java.util.List<PerformanceSample> performanceHistory;
+    private TrafficSummary traffic24h;
+    private Map<String, Double> serviceErrorRates24h;
+    private java.util.List<SystemEventItem> recentEvents;
 
     // JVM & Bộ nhớ máy chủ thật từ ManagementFactory
     private MemoryInfo memory;
@@ -38,10 +50,13 @@ public class AdminSystemHealthResponse {
     @AllArgsConstructor
     public static class MemoryInfo {
         private long heapUsedMB;
-        private long heapMaxMB;
+        private Long heapMaxMB;
         private long heapCommittedMB;
-        private double heapUsagePercent;
+        private Double heapUsagePercent;
         private long nonHeapUsedMB;
+        private Long systemTotalMB;
+        private Long systemUsedMB;
+        private Double systemUsagePercent;
     }
 
     @Data
@@ -50,8 +65,9 @@ public class AdminSystemHealthResponse {
     @AllArgsConstructor
     public static class CpuInfo {
         private int availableProcessors;
-        private double systemCpuLoad;
-        private double processCpuLoad;
+        private Double systemLoadAverage;
+        private Double processCpuPercent;
+        private Double systemCpuPercent;
         private int activeThreadCount;
         private int peakThreadCount;
         private long totalLoadedClasses;
@@ -65,9 +81,11 @@ public class AdminSystemHealthResponse {
         private String status;        // CONNECTED, ERROR
         private String databaseProductName;
         private String databaseProductVersion;
-        private long pingTimeMs;
-        private int activeConnections;
-        private int maxPoolSize;
+        private Long pingTimeMs;
+        private Integer activeConnections;
+        private Integer idleConnections;
+        private Integer pendingConnections;
+        private Integer maxPoolSize;
     }
 
     @Data
@@ -78,7 +96,7 @@ public class AdminSystemHealthResponse {
         private long totalSpaceGB;
         private long freeSpaceGB;
         private long usableSpaceGB;
-        private double diskUsagePercent;
+        private Double diskUsagePercent;
     }
 }
 

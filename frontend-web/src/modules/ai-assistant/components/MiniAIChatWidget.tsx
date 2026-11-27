@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef, type FormEvent } from 'react'
 import { FinanceIcon } from '../../core/components/FinanceIcon'
-import { FinAiClientError, finAiAgentApi, type FinAiActionResponse } from '../api/finAiAgentApi'
+import { FinAiClientError, finAiAgentApi, type FinAiActionResponse, type FinAiClarification, type FinAiSelection } from '../api/finAiAgentApi'
 import { FinAiActionCard } from './FinAiActionCard'
+import { FinAiChoices } from './FinAiChoices'
 import { FormattedMarkdown } from './FormattedMarkdown'
 import { notifyFinAiActionCompleted } from '../../core/utils/finaiSyncEvents'
 import './MiniAIChatWidget.css'
@@ -11,6 +12,7 @@ interface Message {
   author: 'assistant' | 'user'
   text: string
   actions?: FinAiActionResponse[]
+  clarification?: FinAiClarification | null
 }
 
 interface MiniAIChatWidgetProps {
@@ -184,7 +186,7 @@ export function MiniAIChatWidget({ isOpen, onClose, onOpenFullPage }: MiniAIChat
     }
   }
 
-  const handleSend = async (textToSend?: string) => {
+  const handleSend = async (textToSend?: string, selection?: FinAiSelection) => {
     const prompt = (textToSend || input).trim()
     if (!prompt || isLoading || isSendingRef.current) return
     isSendingRef.current = true
@@ -195,15 +197,16 @@ export function MiniAIChatWidget({ isOpen, onClose, onOpenFullPage }: MiniAIChat
     setIsLoading(true)
     setIsTakingLong(false)
     const controller = new AbortController()
-    const idempotencyKey = retryKeyRef.current?.prompt === prompt
+    const retryTag = selection ? JSON.stringify(selection) : prompt
+    const idempotencyKey = retryKeyRef.current?.prompt === retryTag
       ? retryKeyRef.current.key
       : (globalThis.crypto?.randomUUID?.() || `finai-${Date.now()}-${Math.random().toString(36).slice(2)}`)
-    retryKeyRef.current = { prompt, key: idempotencyKey }
+    retryKeyRef.current = { prompt: retryTag, key: idempotencyKey }
     requestAbortRef.current = controller
     slowTimerRef.current = window.setTimeout(() => setIsTakingLong(true), 10000)
 
     try {
-      const res = await finAiAgentApi.sendMessage(prompt, conversationId || undefined, controller.signal, idempotencyKey)
+      const res = await finAiAgentApi.sendMessage(prompt, conversationId || undefined, controller.signal, idempotencyKey, selection)
       retryKeyRef.current = null
       if (res.conversationId) {
         setConversationId(res.conversationId)
@@ -216,6 +219,7 @@ export function MiniAIChatWidget({ isOpen, onClose, onOpenFullPage }: MiniAIChat
         author: 'assistant',
         text: res.message || 'Mình đã xử lý yêu cầu của bạn.',
         actions: res.actions && res.actions.length > 0 ? res.actions : undefined,
+        clarification: res.clarification,
       }
       setMessages((prev) => [...prev, assistantMsg])
 
@@ -228,7 +232,10 @@ export function MiniAIChatWidget({ isOpen, onClose, onOpenFullPage }: MiniAIChat
       }
     } catch (error) {
       setMessages((prev) => prev.filter((item) => item.id !== userMsg.id))
-      setInput((draft) => draft || prompt)
+      if (!selection) setInput((draft) => draft || prompt)
+      if (error instanceof FinAiClientError && error.errorCode === 'AI_DRAFT_STALE') {
+        setMessages((prev) => prev.map((item) => ({ ...item, clarification: null })))
+      }
       if (error instanceof FinAiClientError && error.errorCode === 'REQUEST_CANCELLED') return
       setMessages((prev) => [
         ...prev,
@@ -322,6 +329,11 @@ export function MiniAIChatWidget({ isOpen, onClose, onOpenFullPage }: MiniAIChat
                   </div>
                 )}
 
+                {m.clarification && (
+                  <FinAiChoices key={m.clarification.draftId} clarification={m.clarification}
+                    disabled={isLoading || messages.filter((item) => !String(item.id).startsWith('err-')).at(-1)?.id !== m.id}
+                    onSelect={handleSend} />
+                )}
                 {/* Các thẻ đề xuất hành động nếu có */}
                 {isAssistant && m.actions && m.actions.length > 0 && (
                   <div className="mini-actions-container">

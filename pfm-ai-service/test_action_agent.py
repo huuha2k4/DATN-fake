@@ -30,6 +30,7 @@ class ActionAgentSchemaTests(unittest.TestCase):
         self.assertEqual({
             "get_transactions", "get_accounts", "get_financial_overview", "get_budgets", "get_goals",
             "get_debts", "get_schedules", "get_groups", "get_group_finances",
+            "get_categories", "get_spending_profile",
             "create_transaction", "create_budget", "create_goal", "contribute_to_goal",
             "create_debt", "record_debt_payment", "update_budget",
             "create_schedule", "update_schedule", "create_account",
@@ -163,6 +164,169 @@ class ActionAgentSchemaTests(unittest.TestCase):
         self.assertIn("create_transaction", transaction.available_tools)
         self.assertIn("create_budget", budget.available_tools)
 
+    @patch("action_agent._model")
+    @patch("action_agent.BackendToolClient")
+    def test_group_fund_request_resolves_real_groups_and_never_offers_personal_write(self, backend, model):
+        prompt = "Tạo cho tôi chi tiêu nhóm 50k ăn tối bằng quỹ nhóm."
+        route = _route_tools(prompt)
+        self.assertIn("create_group_transaction", route.available_tools)
+        self.assertNotIn("create_transaction", route.available_tools)
+        backend.return_value.execute_read.return_value = {
+            "status": "SUCCESS", "data": {"content": [{"id": "group-1", "name": "Phòng trọ"}]},
+        }
+        reply = run_action_chat(prompt, "context", self.temporal.model_dump())
+        self.assertEqual([], reply["proposals"])
+        self.assertEqual("groupId", reply["draft"]["field"])
+        self.assertEqual([{"id": "group-1", "label": "Phòng trọ"}], reply["draft"]["options"])
+        model.assert_not_called()
+
+    @patch("action_agent._model")
+    @patch("action_agent.BackendToolClient")
+    def test_missing_amount_then_multiple_wallets_preserves_amount_and_narrative(self, backend, model):
+        first = run_action_chat("Ghi cho tôi giao dịch ăn trưa.", "context", self.temporal.model_dump())
+        self.assertEqual("amount", first["draft"]["field"])
+        self.assertFalse(first["proposals"])
+        backend.return_value.execute_read.return_value = {
+            "status": "SUCCESS", "data": {"accounts": [
+                {"id": "a", "name": "Tiền mặt"}, {"id": "b", "name": "Vietcombank"},
+            ]},
+        }
+        next_turn = run_action_chat("50k", "context", self.temporal.model_dump(), draft=first["draft"])
+        self.assertEqual("accountId", next_turn["draft"]["field"])
+        self.assertEqual(["Ghi cho tôi giao dịch ăn trưa.", "50k"], next_turn["draft"]["turns"])
+        self.assertEqual(["a", "b"], [choice["id"] for choice in next_turn["draft"]["options"]])
+        self.assertFalse(next_turn["proposals"])
+        model.assert_not_called()
+
+    @patch("action_agent._model")
+    @patch("action_agent.BackendToolClient")
+    def test_transfer_wallet_choices_exclude_explicit_destination(self, backend, model):
+        backend.return_value.execute_read.return_value = {
+            "status": "SUCCESS", "data": {"accounts": [
+                {"id": "dest", "name": "Vietcombank"}, {"id": "cash", "name": "Tiền mặt"}, {"id": "momo", "name": "MoMo"},
+            ]},
+        }
+        result = run_action_chat("Chuyển 500k sang Vietcombank", "context", self.temporal.model_dump())
+        self.assertEqual({"toAccountId": "dest"}, result["draft"]["slots"])
+        self.assertEqual(["cash", "momo"], [option["id"] for option in result["draft"]["options"]])
+        self.assertFalse(result["proposals"])
+        model.assert_not_called()
+
+    @patch("action_agent._model")
+    @patch("action_agent.BackendToolClient")
+    def test_text_followup_can_supply_amount_and_wallet_or_replace_previous_values(self, backend, model):
+        from langchain_core.messages import AIMessage
+
+        cash = "10000000-0000-4000-8000-000000000001"
+        bank = "10000000-0000-4000-8000-000000000002"
+        category = "10000000-0000-4000-8000-000000000003"
+        responses = {
+            "get_accounts": {"accounts": [{"id": cash, "name": "Tiền mặt"}, {"id": bank, "name": "Vietcombank"}]},
+            "get_categories": [{"id": category, "name": "Ăn uống"}],
+        }
+        backend.return_value.execute_read.side_effect = lambda tool, args, deadline: {"data": responses[tool]}
+        initial = run_action_chat("Ghi giao dịch ăn trưa.", "context", self.temporal.model_dump())
+        for amount, wallet, prompt, draft in (
+            (50000, cash, "50k từ ví Tiền mặt", initial["draft"]),
+            (70000, bank, "Đổi thành 70k từ ví Vietcombank", {
+                "route": "transaction_write", "field": "categoryId",
+                "turns": ["Ghi giao dịch ăn trưa.", "50k từ ví Tiền mặt"], "slots": {"accountId": cash},
+            }),
+        ):
+            with self.subTest(prompt=prompt):
+                model.return_value.invoke.side_effect = [
+                    AIMessage(content="", tool_calls=[{"name": "get_categories", "args": {"kind": "EXPENSE"}, "id": "cat"}]),
+                    AIMessage(content="", tool_calls=[{"name": "create_transaction", "id": "write", "args": {
+                        "transactionType": "EXPENSE", "accountId": cash, "categoryId": category,
+                        "amount": amount, "currencyCode": "VND", "transactionDate": self.temporal.currentDate,
+                    }}]),
+                    AIMessage(content="Xem lại giao dịch trước khi xác nhận."),
+                ]
+                reply = run_action_chat(prompt, "context", self.temporal.model_dump(), draft=draft)
+                proposal = reply["proposals"][0]["arguments"]
+                self.assertEqual((amount, wallet), (proposal["amount"], proposal["accountId"]))
+
+    @patch("action_agent._model")
+    @patch("action_agent.BackendToolClient")
+    def test_cancel_draft_has_no_model_call_or_proposal(self, backend, model):
+        initial = run_action_chat("Ghi giao dịch ăn trưa.", "context", self.temporal.model_dump())
+        result = run_action_chat("Hủy yêu cầu", "context", self.temporal.model_dump(), draft=initial["draft"])
+        self.assertFalse(result["proposals"])
+        self.assertNotIn("draft", result)
+        model.assert_not_called()
+        backend.assert_not_called()
+
+    @patch("action_agent._model")
+    @patch("action_agent.BackendToolClient")
+    def test_short_draft_fragments_and_ordinal_remain_in_context(self, backend, model):
+        from langchain_core.messages import AIMessage
+
+        context = self.temporal.model_dump()
+        draft = run_action_chat("Ghi giao dịch ăn trưa.", "context", context)["draft"]
+        for fragment in ("Hôm qua", "Đúng rồi"):
+            reply = run_action_chat(fragment, "context", context, draft=draft)
+            self.assertFalse(reply["proposals"])
+            draft = reply["draft"]
+            self.assertEqual("amount", draft["field"])
+            self.assertEqual(fragment, draft["turns"][-1])
+        backend.return_value.execute_read.return_value = {"data": {"accounts": [
+            {"id": "a", "name": "Tiền mặt"}, {"id": "b", "name": "Vietcombank"},
+        ]}}
+        reply = run_action_chat("1 triệu", "context", context, draft=draft)
+        self.assertEqual("accountId", reply["draft"]["field"])
+        model.return_value.invoke.return_value = AIMessage(content="", tool_calls=[
+            {"name": "request_clarification", "args": {"field": "categoryId", "question": "Bạn muốn chọn danh mục nào?"}, "id": "category"},
+        ])
+        reply = run_action_chat("Cái thứ hai", "context", context, draft=reply["draft"])
+        self.assertFalse(reply["proposals"])
+        self.assertEqual("categoryId", reply["draft"]["field"])
+        self.assertEqual("b", reply["draft"]["slots"]["accountId"])
+
+    @patch("action_agent._model")
+    def test_advice_can_be_adopted_by_an_explicit_budget_request(self, model):
+        from langchain_core.messages import AIMessage
+
+        advice = "Bạn có thể đặt hạn mức 2 triệu cho ăn uống."
+        model.return_value.invoke.return_value = AIMessage(content=advice)
+        prompt = "Tôi nên lập ngân sách ăn uống thế nào?"
+        result = run_action_chat(prompt, "context", self.temporal.model_dump())
+        self.assertFalse(result["proposals"])
+        model.assert_called_once_with(())
+        model.return_value.invoke.return_value = AIMessage(content="", tool_calls=[{
+            "name": "create_budget", "id": "budget", "args": {
+                "name": "Ăn uống", "totalAmount": 2000000, "periodType": "MONTHLY",
+                "startDate": "2026-11-01", "endDate": "2026-11-30", "currencyCode": "VND",
+                "items": [{"categoryId": "10000000-0000-4000-8000-000000000003", "amount": 2000000}],
+            },
+        }])
+        result = run_action_chat("Tạo ngân sách theo gợi ý vừa đề xuất.", "context", self.temporal.model_dump(),
+                                 history=[{"role": "user", "content": prompt}, {"role": "assistant", "content": advice}])
+        self.assertEqual(1, len(result["proposals"]))
+        self.assertEqual(2000000, result["proposals"][0]["arguments"]["totalAmount"])
+
+    @patch("action_agent._model")
+    @patch("action_agent.BackendToolClient")
+    def test_personal_spending_profile_uses_actual_amounts_and_no_write(self, backend, model):
+        backend.return_value.execute_read.return_value = {"data": {
+            "status": "SUCCESS", "summary": {"total_income": 10000000, "total_expense": 9000000},
+            "rule_50_30_20": {"needs_pct": 55, "wants_pct": 35}, "metrics": {"observation_days": 30},
+        }}
+        result = run_action_chat("Đánh giá chi tiêu của tôi theo quy tắc 50/30/20 và cho lời khuyên tiết kiệm.",
+                                 "context", self.temporal.model_dump())
+        self.assertIn("10.000.000", result["message"])
+        self.assertIn("55,0%", result["message"])
+        self.assertIn("chưa phản ánh số tiền đã tiết kiệm", result["message"])
+        self.assertFalse(result["proposals"])
+        self.assertNotIn("draft", result)
+        model.assert_not_called()
+        self.assertEqual("get_spending_profile", backend.return_value.execute_read.call_args.args[0])
+
+    @patch("action_agent._model")
+    def test_empty_casual_response_is_an_error_not_a_proposal(self, model):
+        model.return_value.invoke.return_value = Mock(content="", tool_calls=[], invalid_tool_calls=[], usage_metadata={})
+        with self.assertRaises(ToolRequiredError):
+            run_action_chat("Bạn khỏe không?", "context", self.temporal.model_dump())
+
     def test_capability_questions_never_expose_write_tools(self):
         questions = (
             "Bạn có thể tạo khoản chi tiêu hay là tạo khoản nợ được k",
@@ -241,6 +405,82 @@ class ActionAgentSchemaTests(unittest.TestCase):
                          _route_tools("Tao khoan chi nhom 300 nghin chia deu").reason)
         self.assertEqual("group_fund_write",
                          _route_tools("Nop quy nhom 500 nghin tu vi chinh").reason)
+
+    def test_group_routing_varied_vietnamese_phrasing(self):
+        for prompt in (
+            "Chi tiêu nhóm 50k ăn tối bằng quỹ nhóm.",
+            "Lay 50 nghin tu quy phong tro de tra tien an.",
+            "Ghi tiền ăn tối của cả nhóm, dùng tiền quỹ.",
+            "Tôi ứng tiền cá nhân 200k mua đồ cho nhóm.",
+            "Hôm nay cả phòng ăn hết 300k, ghi vào nhóm giúp tôi.",
+        ):
+            with self.subTest(prompt=prompt):
+                route = _route_tools(prompt)
+                self.assertEqual("group_expense_write", route.reason)
+                self.assertNotIn("create_transaction", route.available_tools)
+        self.assertEqual("group_fund_write", _route_tools("Góp thêm 500k vào quỹ phòng trọ.").reason)
+        self.assertEqual("transaction_write", _route_tools("Ghi chi 50k ăn tối từ ví cá nhân.").reason)
+
+    @patch("action_agent._model")
+    @patch("action_agent.BackendToolClient")
+    def test_group_source_requires_explicit_choice(self, backend, model):
+        backend.return_value.execute_read.return_value = {
+            "status": "SUCCESS", "data": {"content": [{"id": "room", "name": "Phòng trọ"}]},
+        }
+        reply = run_action_chat("Ghi vào nhóm Phòng trọ 300k ăn tối", "context", self.temporal.model_dump())
+        self.assertEqual("paymentSource", reply["draft"]["field"])
+        self.assertEqual(["GROUP_FUND", "PERSONAL_ACCOUNT"], [item["id"] for item in reply["draft"]["options"]])
+        self.assertEqual([], reply["proposals"])
+        selected = run_action_chat("Quỹ nhóm", "context", self.temporal.model_dump(),
+                                   draft=reply["draft"], selected_option="GROUP_FUND")
+        self.assertEqual("splits", selected["draft"]["field"])
+        self.assertEqual("room", selected["draft"]["slots"]["groupId"])
+        self.assertEqual("GROUP_FUND", selected["draft"]["slots"]["paymentSource"])
+        self.assertEqual([], selected["proposals"])
+        model.assert_not_called()
+
+    def test_exact_shares_must_match_named_members_and_stated_amounts(self):
+        from action_agent import _guard_proposal
+        prompt = "Chi nhóm 50k bằng quỹ nhóm, chia An 30k, Bình 20k"
+        results = [
+            ("get_group_finances", {"data": [{"userId": "a", "name": "An"}, {"userId": "b", "name": "Bình"}]}),
+            ("get_categories", {"data": [{"id": "food", "name": "Ăn uống"}]}),
+        ]
+        args = {"groupId": "room", "categoryId": "food", "amount": 50000, "splitMethod": "EXACT",
+                "splits": [{"userId": "a", "amount": 30000}, {"userId": "b", "amount": 20000}]}
+        slots = {"groupId": "room"}
+        self.assertIsNone(_guard_proposal("create_group_transaction", args, prompt, prompt, results, slots, self.temporal))
+        args["splits"] = [{"userId": "a", "amount": 20000}, {"userId": "b", "amount": 30000}]
+        self.assertEqual(("splits", []),
+                         _guard_proposal("create_group_transaction", args, prompt, prompt, results, slots, self.temporal))
+        args["splitMethod"] = "EQUAL"
+        args["splits"] = [{"userId": "a", "amount": 25000}, {"userId": "b", "amount": 25000}]
+        self.assertEqual(("splits", []),
+                         _guard_proposal("create_group_transaction", args, prompt, prompt, results, slots, self.temporal))
+
+    @patch("action_agent._model")
+    @patch("action_agent.BackendToolClient")
+    def test_multi_intent_write_requests_which_should_be_done_first(self, backend, model):
+        result = run_action_chat("Chi nhóm 50k ăn tối bằng quỹ nhóm và chuyển 100k sang MoMo",
+                                 "context", self.temporal.model_dump())
+        self.assertEqual([], result["proposals"])
+        self.assertIn("yêu cầu nào trước", result["message"])
+        backend.assert_not_called()
+        model.assert_not_called()
+
+    @patch("action_agent._model")
+    @patch("action_agent.BackendToolClient")
+    def test_duplicate_named_wallets_are_disambiguated_in_choices(self, backend, model):
+        backend.return_value.execute_read.return_value = {"status": "SUCCESS", "data": {"accounts": [
+            {"id": "wallet-a", "name": "Tiền mặt"}, {"id": "wallet-b", "name": "Tién măt"},
+        ]}}
+        result = run_action_chat("Ghi chi 50k ăn tối từ Tiền mặt", "context", self.temporal.model_dump())
+        self.assertEqual("accountId", result["draft"]["field"])
+        choices = result["draft"]["options"]
+        self.assertEqual(["wallet-a", "wallet-b"], [choice["id"] for choice in choices])
+        self.assertEqual(2, len({choice["label"] for choice in choices}))
+        self.assertTrue(all("mã wallet-" in choice["label"] for choice in choices))
+        model.assert_not_called()
 
     def test_router_uses_recent_context_for_ambiguous_follow_up(self):
         route = _route_tools("Còn cái đó thì sao?", [
@@ -344,7 +584,7 @@ class ActionAgentSchemaTests(unittest.TestCase):
             }}]),
         ]
         client_factory.return_value.execute_read.side_effect = [
-            {"status": "SUCCESS", "tool": "get_accounts", "data": []},
+            {"status": "SUCCESS", "tool": "get_accounts", "data": {"accounts": [{"id": "account", "name": "Ví A"}]}},
             {"status": "SUCCESS", "tool": "get_transactions", "data": {
                 "content": [{"category": {"id": "food", "name": "Ăn uống"}}]
             }},
@@ -460,14 +700,18 @@ class ActionAgentSchemaTests(unittest.TestCase):
         with self.assertRaises(ToolRequiredError):
             run_action_chat("Tháng này tui tiêu bao nhiêu?", "context", self.temporal.model_dump())
 
+    @patch("action_agent.BackendToolClient")
     @patch("action_agent._model")
-    def test_write_request_without_valid_proposal_fails_closed(self, model_factory):
+    def test_write_request_without_valid_proposal_fails_closed(self, model_factory, backend):
         class DummyAIMessage:
             content = "Mình không tạo được."
             tool_calls = []
             usage_metadata = {}
 
         model_factory.return_value.invoke.return_value = DummyAIMessage()
+        backend.return_value.execute_read.return_value = {
+            "status": "SUCCESS", "data": {"accounts": [{"id": "a", "name": "Tiền mặt"}]},
+        }
         with self.assertRaises(ToolRequiredError):
             run_action_chat("Tạo giao dịch chi 50 nghìn", "context", self.temporal.model_dump())
 

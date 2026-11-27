@@ -14,7 +14,6 @@ import java.util.UUID;
 @NoArgsConstructor
 @AllArgsConstructor
 public class CreateSettlementRequest {
-    @NotNull(message = "Người trả không được để trống")
     private UUID fromUserId;
 
     @NotNull(message = "Ví nguồn không được để trống")

@@ -40,7 +40,7 @@ class RequestContextFilterTest {
         assertThat(ctx.getRequestId()).isNotEqualTo("invalid\r\nid!");
         assertThat(ctx.getEndpoint()).isEqualTo("/api/v1/accounts/{id}/summary");
         assertThat(ctx.getEndpoint()).doesNotContain("token=secret-jwt");
-        assertThat(ctx.getIpAddress()).isEqualTo("203.0.113.10");
+        assertThat(ctx.getIpAddress()).isEqualTo("127.0.0.1");
         assertThat(response.getHeader(RequestContextFilter.HEADER_REQUEST_ID)).isEqualTo(ctx.getRequestId());
 
         // MDC and ThreadLocal must be cleaned in finally

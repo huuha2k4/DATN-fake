@@ -1,4 +1,5 @@
 import { api } from '../../core/api/api';
+import { getStoredUser } from '../../auth/api/authApi';
 import { compressImageForUpload } from '../../core/utils/imageCompress';
 
 export type GroupType = 'FAMILY' | 'ROOMMATE' | 'TRAVEL' | 'PROJECT' | 'COUPLE' | 'OTHER';
@@ -234,6 +235,7 @@ export interface CreateExpenseRequest {
 }
 
 export interface CreateSettlementRequest {
+  fromUserId?: string;
   payeeId: string;
   sourceAccountId: string;
   amount: number;
@@ -622,6 +624,7 @@ export const groupApi = {
 
   async createSettlement(groupId: string, req: CreateSettlementRequest): Promise<SettlementResponse> {
     const res = await api.post(`/groups/${groupId}/settlements`, {
+      fromUserId: req.fromUserId || getStoredUser()?.id,
       toUserId: req.payeeId,
       sourceAccountId: req.sourceAccountId,
       amount: req.amount,

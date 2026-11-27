@@ -28,6 +28,8 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.http.*;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 import org.springframework.web.client.RestTemplate;
@@ -57,12 +59,28 @@ public class OcrService {
     private final AccountRepository accountRepository;
     private final CategoryRepository categoryRepository;
     private final FileUploadValidator fileUploadValidator;
+    private final PlatformTransactionManager transactionManager;
 
     @org.springframework.beans.factory.annotation.Autowired(required = false)
     private com.finance.finance.common.upload.AttachmentUrlSigner attachmentUrlSigner;
 
     @org.springframework.beans.factory.annotation.Autowired(required = false)
     private SystemAuditService systemAuditService;
+
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private com.finance.finance.modules.user.repository.UserRepository userRepository;
+
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private com.finance.finance.modules.notification.repository.NotificationRepository notificationRepository;
+
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private com.finance.finance.modules.notification.service.NotificationService notificationService;
+
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private com.finance.finance.modules.admin.repository.NotificationTemplateRepository notificationTemplateRepository;
+
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private com.finance.finance.modules.admin.service.SystemConfigService systemConfigService;
 
     @Value("${app.ai.ocr-service-url}")
     private String aiServiceUrl;
@@ -77,10 +95,15 @@ public class OcrService {
     /**
      * Scan a receipt image via the AI OCR service and persist the result.
      */
-    @Transactional
     public OcrReceiptResponse scanReceipt(UUID userId, MultipartFile file) throws IOException {
-        FileUploadValidator.ValidatedUpload validated =
-                fileUploadValidator.validate(file, FileUploadValidator.Policy.RECEIPT);
+        FileUploadValidator.ValidatedUpload validated;
+        try {
+            validated = fileUploadValidator.validate(file, FileUploadValidator.Policy.RECEIPT);
+        } catch (IllegalArgumentException error) {
+            com.finance.finance.modules.admin.monitoring.RequestObservation.error(
+                    file.getSize() > 10L * 1024 * 1024 ? "FILE_TOO_LARGE" : "INVALID_IMAGE");
+            throw error;
+        }
 
         // --- Save receipt image to uploads/receipts ---
         String imageUrl = null;
@@ -101,6 +124,8 @@ public class OcrService {
         // --- Build multipart request to AI service ---
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.MULTIPART_FORM_DATA);
+        String requestId = com.finance.finance.modules.admin.monitoring.RequestObservation.requestId();
+        if (requestId != null) headers.set("X-Request-Id", requestId);
 
         byte[] bytes = file.getBytes();
         ByteArrayResource fileResource = new ByteArrayResource(bytes) {
@@ -118,20 +143,52 @@ public class OcrService {
         String url = aiServiceUrl + "/ocr/receipt?user_id=" + userId;
         log.info("Calling AI OCR service: {}", url);
 
-        ResponseEntity<AiReceiptResult> aiResponse = restTemplate.exchange(
+        long engineStarted = System.nanoTime();
+        ResponseEntity<AiReceiptResult> aiResponse;
+        try {
+            aiResponse = restTemplate.exchange(
                 url,
                 HttpMethod.POST,
                 requestEntity,
                 AiReceiptResult.class
-        );
+            );
+        } catch (org.springframework.web.client.ResourceAccessException error) {
+            String code = "OCR_SERVICE_UNAVAILABLE";
+            for (Throwable cause = error; cause != null; cause = cause.getCause()) {
+                if (cause instanceof java.net.SocketTimeoutException) {
+                    code = "OCR_TIMEOUT";
+                    break;
+                }
+            }
+            com.finance.finance.modules.admin.monitoring.RequestObservation.error(code);
+            com.finance.finance.modules.admin.monitoring.RequestObservation.ocrEngine(null, engineStarted);
+            throw error;
+        } catch (org.springframework.web.client.RestClientResponseException error) {
+            int upstream = error.getStatusCode().value();
+            String code = switch (upstream) {
+                case 400, 415, 422 -> "INVALID_IMAGE";
+                case 413 -> "FILE_TOO_LARGE";
+                case 503 -> "OCR_SERVICE_UNAVAILABLE";
+                case 504 -> "OCR_TIMEOUT";
+                default -> "OCR_PROCESSING_ERROR";
+            };
+            com.finance.finance.modules.admin.monitoring.RequestObservation.error(code);
+            com.finance.finance.modules.admin.monitoring.RequestObservation.ocrEngine(null, engineStarted);
+            throw error;
+        }
 
         AiReceiptResult result = aiResponse.getBody();
+        com.finance.finance.modules.admin.monitoring.RequestObservation.ocrEngine(
+                result == null ? null : result.getEngine(), engineStarted);
         if (result == null) {
             throw new IllegalStateException("AI service returned empty response");
         }
 
         // --- CỔNG KIỂM TRA: từ chối ảnh không hợp lệ, không lưu DB ---
         if (result.getKind() != null && REJECTED_KINDS.contains(result.getKind())) {
+            com.finance.finance.modules.admin.monitoring.RequestObservation.error("OCR_REJECTED_IMAGE");
+            com.finance.finance.modules.admin.monitoring.RequestObservation.ocrResult(
+                    result.getConfidence(), result.getNeedsReview(), false);
             log.info("Receipt rejected by AI service: kind={}, reason={}", result.getKind(), result.getRejectReason());
             // Xóa ảnh đã lưu tạm (nếu có) vì không cần thiết
             if (imageUrl != null) {
@@ -194,10 +251,98 @@ public class OcrService {
                 .aiCategorySource(cat != null ? cat.getSource() : null)
                 .build();
 
-        receipt = receiptRepository.save(receipt);
-        log.info("Saved receipt id={} with image={} for user={}", receipt.getId(), imageUrl, userId);
+        OcrReceiptResponse response = new TransactionTemplate(transactionManager).execute(transaction ->
+                toResponse(receiptRepository.save(receipt)));
+        checkAndSendOcrLimitWarning(userId);
+        com.finance.finance.modules.admin.monitoring.RequestObservation.ocrResult(
+                result.getConfidence(), result.getNeedsReview(), true);
+        return response;
+    }
 
-        return toResponse(receipt);
+    private void checkAndSendOcrLimitWarning(UUID userId) {
+        if (userRepository == null || notificationService == null || notificationRepository == null) {
+            return;
+        }
+        try {
+            var user = userRepository.findActiveUserById(userId).orElse(null);
+            if (user == null || user.getSubscriptionTier() != com.finance.finance.common.enums.SubscriptionTier.FREE) {
+                return;
+            }
+            var template = notificationTemplateRepository != null
+                    ? notificationTemplateRepository.lockByCode("AUTO_OCR_LIMIT_WARNING").orElse(null)
+                    : null;
+            if (template != null && Boolean.FALSE.equals(template.getIsActive())) {
+                return;
+            }
+
+            long limit = systemConfigService != null
+                    ? systemConfigService.getLong("FREE_TIER_OCR_LIMIT", 10L)
+                    : 10L;
+            if (limit <= 0) {
+                return;
+            }
+
+            java.time.ZoneId zoneVn = java.time.ZoneId.of("Asia/Ho_Chi_Minh");
+            java.time.LocalDateTime monthStartLocal = java.time.LocalDate.now(zoneVn)
+                    .withDayOfMonth(1)
+                    .atStartOfDay();
+            java.time.Instant monthStartInstant = monthStartLocal.atZone(zoneVn).toInstant();
+
+            long usedCount = receiptRepository.countByUserIdAndCreatedAtAfter(userId, monthStartInstant);
+            long warnThreshold = Math.max(1L, limit - 2L);
+            if (usedCount < warnThreshold) {
+                return;
+            }
+            if (notificationRepository.existsByUserIdAndActionUrlAndCreatedAtAfter(userId, "/pricing", monthStartLocal)) {
+                return;
+            }
+
+            String userName = user.getFullName() != null && !user.getFullName().isBlank()
+                    ? user.getFullName()
+                    : (user.getUsername() != null ? user.getUsername() : "bạn");
+            String titleTemplate = template != null && template.getTitle() != null
+                    ? template.getTitle()
+                    : "Cảnh báo hạn mức quét hóa đơn OCR 🧾";
+            String bodyTemplate = template != null && template.getBodyTemplate() != null
+                    ? template.getBodyTemplate()
+                    : "Chào {user_name}, bạn đã sử dụng gần hết lượt quét hóa đơn OCR miễn phí trong tháng. Nâng cấp VIP để không giới hạn lượt quét nhé!";
+
+            String title = titleTemplate
+                    .replace("{user_name}", userName)
+                    .replace("{used_count}", String.valueOf(usedCount))
+                    .replace("{limit_count}", String.valueOf(limit));
+            String body = bodyTemplate
+                    .replace("{user_name}", userName)
+                    .replace("{used_count}", String.valueOf(usedCount))
+                    .replace("{limit_count}", String.valueOf(limit));
+
+            com.finance.finance.common.enums.NotificationPriority priority =
+                    com.finance.finance.common.enums.NotificationPriority.HIGH;
+            if (template != null && template.getPriority() != null) {
+                try {
+                    priority = com.finance.finance.common.enums.NotificationPriority.valueOf(
+                            template.getPriority().trim().toUpperCase(java.util.Locale.ROOT));
+                } catch (IllegalArgumentException ignored) {}
+            }
+
+            notificationService.createNotification(
+                    userId,
+                    com.finance.finance.common.enums.NotificationType.SYSTEM,
+                    priority,
+                    title,
+                    body,
+                    "/pricing",
+                    "Nâng cấp VIP"
+            );
+
+            if (template != null && notificationTemplateRepository != null) {
+                template.setTotalDispatched((template.getTotalDispatched() != null ? template.getTotalDispatched() : 0L) + 1L);
+                template.setLastDispatchedAt(java.time.Instant.now());
+                notificationTemplateRepository.save(template);
+            }
+        } catch (Exception ex) {
+            log.warn("Failed to evaluate OCR limit warning for user {}: {}", userId, ex.getMessage());
+        }
     }
 
     /**
@@ -352,6 +497,7 @@ public class OcrService {
 
     @Data
     public static class AiReceiptResult {
+        private String engine;
 
         @JsonProperty("kind")
         private String kind;

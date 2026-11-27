@@ -16,6 +16,11 @@ import java.util.UUID;
 @AllArgsConstructor
 @Builder
 public class Feedback {
+    @Column(name = "processed_by")
+    private UUID processedBy;
+
+    @Column(name = "processed_at")
+    private Instant processedAt;
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)

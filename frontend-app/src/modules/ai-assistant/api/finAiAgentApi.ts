@@ -59,12 +59,22 @@ export interface FinAiActionResponse {
   error?: string | null;
 }
 
-export type FinAiResponseType = 'MESSAGE' | 'ACTION_REQUIRED' | 'MULTI_ACTION_REQUIRED';
+export type FinAiResponseType = 'MESSAGE' | 'CLARIFICATION' | 'ACTION_REQUIRED' | 'MULTI_ACTION_REQUIRED';
+
+export interface FinAiClarification {
+  draftId: string;
+  field: string;
+  expiresAt: string;
+  options: Array<{ id: string; label: string }>;
+}
+
+export type FinAiSelection = { draftId: string; optionId: string };
 
 export interface FinAiChatResponse {
   type: FinAiResponseType;
   conversationId: string;
   message: string;
+  clarification?: FinAiClarification | null;
   actions: FinAiActionResponse[];
 }
 
@@ -76,6 +86,7 @@ export interface FinAiConversationMessage {
   createdAt: string;
   actionIds?: string[];
   actions?: FinAiActionResponse[];
+  clarification?: FinAiClarification | null;
 }
 
 export interface FinAiConversationResponse {
@@ -157,13 +168,12 @@ async function requestFinAi<T>(path: string, options: RequestInit = {}): Promise
 }
 
 export const finAiAgentApi = {
-  async sendMessage(message: string, conversationId?: string, signal?: AbortSignal, idempotencyKey?: string): Promise<FinAiChatResponse> {
-    const payload: { message: string; conversationId?: string } = {
+  async sendMessage(message: string, conversationId?: string, signal?: AbortSignal, idempotencyKey?: string, selection?: FinAiSelection): Promise<FinAiChatResponse> {
+    const payload = {
       message: message.trim(),
+      ...(conversationId ? { conversationId } : {}),
+      ...selection,
     };
-    if (conversationId) {
-      payload.conversationId = conversationId;
-    }
 
     return requestFinAi<FinAiChatResponse>('/chat', {
       method: 'POST',

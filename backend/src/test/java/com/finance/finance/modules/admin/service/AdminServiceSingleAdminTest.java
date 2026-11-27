@@ -38,7 +38,7 @@ class AdminServiceSingleAdminTest {
                 .email("user@finora.test")
                 .systemRole(SystemRole.USER)
                 .build();
-        when(userRepository.findById(userId)).thenReturn(Optional.of(target));
+        when(userRepository.lockActiveRecord(userId)).thenReturn(Optional.of(target));
 
         AdminUpdateUserRequest req = new AdminUpdateUserRequest();
         req.setSystemRole(SystemRole.ADMIN);
@@ -59,7 +59,7 @@ class AdminServiceSingleAdminTest {
                 .email("admin@finora.test")
                 .systemRole(SystemRole.ADMIN)
                 .build();
-        when(userRepository.findById(adminId)).thenReturn(Optional.of(soleAdmin));
+        when(userRepository.lockActiveRecord(adminId)).thenReturn(Optional.of(soleAdmin));
 
         AdminUpdateUserRequest req = new AdminUpdateUserRequest();
         req.setSystemRole(SystemRole.USER);

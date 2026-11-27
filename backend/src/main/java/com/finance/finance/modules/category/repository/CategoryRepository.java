@@ -48,9 +48,30 @@ public interface CategoryRepository extends JpaRepository<Category, UUID> {
     /**
      * Lấy system categories
      */
-    @Query("SELECT c FROM Category c WHERE c.isSystem = true AND c.deletedAt IS NULL " +
+    @Query("SELECT c FROM Category c WHERE c.isSystem = true AND c.userId IS NULL AND c.deletedAt IS NULL " +
            "ORDER BY c.displayOrder ASC, c.name ASC")
     List<Category> findSystemCategories();
+
+    @org.springframework.data.jpa.repository.Lock(jakarta.persistence.LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT c FROM Category c WHERE c.id = :id AND c.isSystem = true AND c.userId IS NULL AND c.deletedAt IS NULL")
+    Optional<Category> findSystemCategoryForUpdate(@Param("id") UUID id);
+
+    boolean existsByParentIdAndDeletedAtIsNull(UUID parentId);
+
+    @Query("SELECT (COUNT(c) > 0) FROM Category c WHERE LOWER(c.code) = LOWER(:code) AND (CAST(:id AS uuid) IS NULL OR c.id <> :id)")
+    boolean codeUsedByOtherCategory(@Param("code") String code, @Param("id") UUID id);
+
+    @Query(value = "SELECT 1 FROM pg_advisory_xact_lock(49281123061402)", nativeQuery = true)
+    int lockSystemCategoryMutations();
+
+    @Query("""
+            SELECT (COUNT(c) > 0) FROM Category c
+            WHERE c.isSystem = true AND c.userId IS NULL AND c.deletedAt IS NULL AND c.kind = :kind
+              AND LOWER(c.name) = LOWER(:name) AND c.parentId IS NOT DISTINCT FROM :parent
+              AND (CAST(:id AS uuid) IS NULL OR c.id <> :id)
+            """)
+    boolean systemCategoryNameUsed(@Param("name") String name, @Param("kind") CategoryKind kind,
+                                   @Param("parent") UUID parent, @Param("id") UUID id);
 
     /**
      * Lấy custom categories của user

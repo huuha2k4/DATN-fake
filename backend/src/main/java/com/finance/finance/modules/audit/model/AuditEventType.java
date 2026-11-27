@@ -127,6 +127,7 @@ public enum AuditEventType {
     // User & Admin & System
     USER_PROFILE_UPDATED(AuditCategory.USER, AuditFailurePolicy.OPTIONAL_FAIL_OPEN),
     ADMIN_USER_SUSPENDED(AuditCategory.ADMIN, AuditFailurePolicy.MANDATORY_FAIL_CLOSED),
+    ADMIN_RESOURCE_MUTATION(AuditCategory.ADMIN, AuditFailurePolicy.MANDATORY_FAIL_CLOSED),
     ADMIN_USER_REACTIVATED(AuditCategory.ADMIN, AuditFailurePolicy.MANDATORY_FAIL_CLOSED),
     ADMIN_ROLE_CHANGED(AuditCategory.ADMIN, AuditFailurePolicy.MANDATORY_FAIL_CLOSED),
     ADMIN_SUBSCRIPTION_CHANGED(AuditCategory.ADMIN, AuditFailurePolicy.MANDATORY_FAIL_CLOSED),

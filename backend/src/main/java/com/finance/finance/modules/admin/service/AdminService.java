@@ -4,13 +4,10 @@ import com.finance.finance.common.enums.SubscriptionTier;
 import com.finance.finance.common.enums.UserStatus;
 import com.finance.finance.modules.admin.dto.request.AdminUpdateUserRequest;
 import com.finance.finance.modules.admin.dto.response.AdminDashboardOverviewResponse;
-import com.finance.finance.modules.audit.model.AuditActorType;
 import com.finance.finance.modules.audit.model.AuditEventType;
 import com.finance.finance.modules.audit.model.AuditSource;
 import com.finance.finance.modules.audit.service.AuditEventRequest;
 import com.finance.finance.modules.audit.service.SystemAuditService;
-import com.finance.finance.modules.group.repository.GroupRepository;
-import com.finance.finance.modules.ocr.repository.ReceiptRepository;
 import com.finance.finance.modules.transaction.repository.TransactionRepository;
 import com.finance.finance.modules.user.dto.response.UserResponse;
 import com.finance.finance.modules.user.entity.User;
@@ -18,9 +15,10 @@ import com.finance.finance.modules.user.mapper.UserMapper;
 import com.finance.finance.modules.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageImpl;
-import org.springframework.data.domain.Pageable;
+import com.finance.finance.modules.admin.dto.request.AdminPaging;
+import com.finance.finance.modules.admin.dto.response.AdminPage;
+
+import static com.finance.finance.modules.admin.repository.AdminReadQueries.count;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -38,15 +36,12 @@ import java.util.stream.Collectors;
 public class AdminService {
 
     private final UserRepository userRepository;
-    private final GroupRepository groupRepository;
+    private final com.finance.finance.modules.admin.monitoring.ServiceHealthMonitor serviceHealth;
+    private final com.finance.finance.modules.admin.repository.AdminReadQueries adminReads;
+    private final org.springframework.jdbc.core.JdbcTemplate jdbc;
+    private final com.finance.finance.modules.notification.service.NotificationService notifications;
     private final TransactionRepository transactionRepository;
-    private final ReceiptRepository receiptRepository;
     private final com.finance.finance.modules.category.repository.CategoryRepository categoryRepository;
-    private final com.finance.finance.modules.budget.repository.BudgetRepository budgetRepository;
-    private final com.finance.finance.modules.goal.repository.GoalRepository goalRepository;
-    private final com.finance.finance.modules.debt.repository.DebtRepository debtRepository;
-    private final com.finance.finance.modules.notification.repository.NotificationRepository notificationRepository;
-    private final com.finance.finance.modules.admin.repository.AuditLogRepository auditLogRepository;
     private final com.finance.finance.modules.feedback.repository.FeedbackRepository feedbackRepository;
     private final com.finance.finance.modules.admin.repository.NotificationTemplateRepository notificationTemplateRepository;
     private final com.finance.finance.modules.admin.repository.SystemSettingRepository systemSettingRepository;
@@ -56,283 +51,148 @@ public class AdminService {
     private final javax.sql.DataSource dataSource;
     private final UserMapper userMapper;
 
+    private final SystemAuditService systemAuditService;
+    private final com.finance.finance.modules.auth.repository.OAuthAccountRepository oauthAccountRepository;
+
     @org.springframework.beans.factory.annotation.Autowired(required = false)
-    private SystemAuditService systemAuditService;
+    private com.finance.finance.modules.admin.monitoring.SystemMetricsSampler systemMetricsSampler;
 
     private static final ZoneId ZONE_VN = ZoneId.of("Asia/Ho_Chi_Minh");
 
     @Transactional(readOnly = true)
     public AdminDashboardOverviewResponse getDashboardOverview() {
-        List<User> allUsers = userRepository.findAll();
-        long totalUsers = allUsers.stream().filter(u -> u.getDeletedAt() == null).count();
-
-        long activeUsers = allUsers.stream().filter(u -> u.getDeletedAt() == null && u.getUserStatus() == UserStatus.ACTIVE).count();
-        long lockedUsers = allUsers.stream().filter(u -> u.getDeletedAt() == null && (u.getUserStatus() == UserStatus.LOCKED || u.getUserStatus() == UserStatus.DISABLED)).count();
-        long pendingUsers = allUsers.stream().filter(u -> u.getDeletedAt() == null && u.getUserStatus() == UserStatus.PENDING).count();
-
         LocalDate today = LocalDate.now(ZONE_VN);
-        Instant startOfToday = today.atStartOfDay(ZONE_VN).toInstant();
-        Instant startOfMonth = today.withDayOfMonth(1).atStartOfDay(ZONE_VN).toInstant();
-
-        long newUsersToday = allUsers.stream()
-                .filter(u -> u.getDeletedAt() == null && u.getCreatedAt() != null && u.getCreatedAt().isAfter(startOfToday))
-                .count();
-
-        long newUsersThisMonth = allUsers.stream()
-                .filter(u -> u.getDeletedAt() == null && u.getCreatedAt() != null && u.getCreatedAt().isAfter(startOfMonth))
-                .count();
-
-        long freeUsers = allUsers.stream().filter(u -> u.getDeletedAt() == null && (u.getSubscriptionTier() == null || u.getSubscriptionTier() == SubscriptionTier.FREE)).count();
-        long premiumUsers = allUsers.stream().filter(u -> u.getDeletedAt() == null && u.getSubscriptionTier() == SubscriptionTier.PREMIUM).count();
-        long enterpriseUsers = allUsers.stream().filter(u -> u.getDeletedAt() == null && u.getSubscriptionTier() == SubscriptionTier.ENTERPRISE).count();
-
-        long totalGroups = groupRepository.count();
-        long totalTransactions = transactionRepository.count();
-        long totalReceipts = receiptRepository.count();
-
-        // 7-day user registration & activity trends
-        List<AdminDashboardOverviewResponse.DailyMetricPoint> userGrowth = new ArrayList<>();
-        DateTimeFormatter df = DateTimeFormatter.ofPattern("yyyy-MM-dd");
-        for (int i = 6; i >= 0; i--) {
-            LocalDate d = today.minusDays(i);
-            Instant dStart = d.atStartOfDay(ZONE_VN).toInstant();
-            Instant dEnd = d.atTime(LocalTime.MAX).atZone(ZONE_VN).toInstant();
-            long count = allUsers.stream()
-                    .filter(u -> u.getDeletedAt() == null && u.getCreatedAt() != null && !u.getCreatedAt().isBefore(dStart) && !u.getCreatedAt().isAfter(dEnd))
-                    .count();
-            userGrowth.add(new AdminDashboardOverviewResponse.DailyMetricPoint(d.format(df), count));
-        }
+        var totals = adminReads.userMetrics(today);
+        var volumes = adminReads.volumes();
+        var daily = adminReads.registrationTrend(today.minusDays(6), today.plusDays(1));
+        var userGrowth = java.util.stream.IntStream.rangeClosed(0, 6)
+                .mapToObj(i -> today.minusDays(6 - i))
+                .map(date -> new AdminDashboardOverviewResponse.DailyMetricPoint(
+                        date.toString(), daily.getOrDefault(date, 0L))).toList();
 
         // System health metrics
         MemoryMXBean memoryBean = ManagementFactory.getMemoryMXBean();
         long heapUsed = memoryBean.getHeapMemoryUsage().getUsed() / (1024 * 1024);
-        long heapMax = memoryBean.getHeapMemoryUsage().getMax() / (1024 * 1024);
+        long heapMaxBytes = memoryBean.getHeapMemoryUsage().getMax();
 
         Map<String, Object> health = new LinkedHashMap<>();
-        health.put("status", "UP");
-        health.put("database", "CONNECTED");
         health.put("heapMemoryUsedMB", heapUsed);
-        health.put("heapMemoryMaxMB", heapMax);
+        health.put("heapMemoryMaxMB", heapMaxBytes < 0 ? null : heapMaxBytes / (1024 * 1024));
         health.put("uptimeHours", ManagementFactory.getRuntimeMXBean().getUptime() / (1000 * 3600));
 
         return AdminDashboardOverviewResponse.builder()
-                .totalUsers(totalUsers)
-                .activeUsers(activeUsers)
-                .lockedUsers(lockedUsers)
-                .pendingUsers(pendingUsers)
-                .newUsersToday(newUsersToday)
-                .newUsersThisMonth(newUsersThisMonth)
-                .freeUsers(freeUsers)
-                .premiumUsers(premiumUsers)
-                .enterpriseUsers(enterpriseUsers)
-                .totalGroups(totalGroups)
-                .totalTransactions(totalTransactions)
-                .transactionsToday(0)
-                .totalReceiptsScanned(totalReceipts)
+                .totalUsers(count(totals, "total"))
+                .activeUsers(count(totals, "active"))
+                .lockedUsers(count(totals, "locked"))
+                .pendingUsers(count(totals, "pending"))
+                .newUsersToday(count(totals, "new_today"))
+                .newUsersThisMonth(count(totals, "new_month"))
+                .freeUsers(count(totals, "free"))
+                .premiumUsers(count(totals, "premium"))
+                .enterpriseUsers(count(totals, "enterprise"))
+                .totalGroups(count(volumes, "groups"))
+                .totalTransactions(count(volumes, "transactions"))
+                .totalReceiptsScanned(count(volumes, "receipts"))
                 .userGrowth(userGrowth)
-                .transactionActivity(new ArrayList<>())
                 .systemHealth(health)
                 .build();
     }
 
     // ==================== Quản lý Người dùng ====================
 
-    @Transactional(readOnly = true)
-    public Page<UserResponse> listUsers(String search, UserStatus status, SubscriptionTier tier, Pageable pageable) {
-        List<User> list = userRepository.findAll().stream()
-                .filter(u -> u.getDeletedAt() == null)
-                .filter(u -> {
-                    if (search == null || search.isBlank()) return true;
-                    String s = search.trim().toLowerCase();
-                    boolean emailMatch = u.getEmail() != null && u.getEmail().toLowerCase().contains(s);
-                    boolean nameMatch = u.getFullName() != null && u.getFullName().toLowerCase().contains(s);
-                    boolean userMatch = u.getUsername() != null && u.getUsername().toLowerCase().contains(s);
-                    boolean phoneMatch = u.getPhone() != null && u.getPhone().toLowerCase().contains(s);
-                    return emailMatch || nameMatch || userMatch || phoneMatch;
-                })
-                .filter(u -> {
-                    if (status == null) return true;
-                    return u.getUserStatus() == status;
-                })
-                .filter(u -> {
-                    if (tier == null) return true;
-                    return u.getSubscriptionTier() == tier;
-                })
-                .sorted((a, b) -> {
-                    if (a.getCreatedAt() == null || b.getCreatedAt() == null) return 0;
-                    return b.getCreatedAt().compareTo(a.getCreatedAt());
-                })
-                .collect(Collectors.toList());
-
-        int start = (int) pageable.getOffset();
-        int end = Math.min((start + pageable.getPageSize()), list.size());
-        List<User> subList = start <= end ? list.subList(start, end) : Collections.emptyList();
-
-        List<UserResponse> dtos = subList.stream().map(userMapper::toResponse).toList();
-        return new PageImpl<>(dtos, pageable, list.size());
+    @Transactional(readOnly = true, isolation = org.springframework.transaction.annotation.Isolation.REPEATABLE_READ)
+    public AdminPage<com.finance.finance.modules.admin.dto.response.AdminUserListItem> listUsers(
+            String search, UserStatus status, SubscriptionTier tier, AdminPaging page) {
+        return adminReads.users(search, status, tier, page);
     }
 
     @Transactional
     public UserResponse updateUser(UUID userId, AdminUpdateUserRequest request) {
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy người dùng với ID: " + userId));
+        User user = lockUser(userId);
+        UserStatus previousStatus = user.getUserStatus();
 
-        if (request.getFullName() != null && !request.getFullName().isBlank()) {
-            user.setFullName(request.getFullName().trim());
+        if (request.getFullName() != null) {
+            String name = request.getFullName().trim();
+            if (name.isEmpty() || name.length() > 100 || name.chars().anyMatch(Character::isISOControl)) {
+                throw new IllegalArgumentException("Họ tên không hợp lệ");
+            }
+            user.setFullName(name);
         }
-        if (request.getUserStatus() != null) {
-            user.setUserStatus(request.getUserStatus());
+        if (request.getUserStatus() != null && request.getUserStatus() != previousStatus) {
+            requireManageableUser(user);
+            if (Set.of(UserStatus.DELETED, UserStatus.PENDING).contains(request.getUserStatus())
+                    || (request.getUserStatus() == UserStatus.LOCKED && previousStatus != UserStatus.ACTIVE)) {
+                throw new IllegalArgumentException("Không thể chuyển sang trạng thái tài khoản này");
+            }
+            changeStatus(user, request.getUserStatus());
         }
         if (request.getSystemRole() != null && request.getSystemRole() != user.getSystemRole()) {
-            if (systemAuditService != null) {
-                systemAuditService.record(AuditEventRequest.builder()
-                        .eventType(AuditEventType.INVALID_ROLE_ACCESS)
-                        .outcome(com.finance.finance.modules.audit.model.AuditOutcome.DENIED)
-                        .severity(com.finance.finance.modules.audit.model.AuditSeverity.HIGH)
-                        .actorType(AuditActorType.ADMIN)
-                        .subjectUserId(user.getId())
-                        .source(AuditSource.ADMIN_PORTAL)
-                        .resourceType("USER")
-                        .resourceId(user.getId())
-                        .reasonCode("SINGLE_ADMIN_ROLE_LOCKED")
-                        .policyOverride(com.finance.finance.modules.audit.model.AuditFailurePolicy.MANDATORY_REQUIRES_NEW)
-                        .build());
-            }
-            throw new com.finance.finance.common.exception.BusinessException(
-                    "Hệ thống chỉ cho phép duy nhất 1 tài khoản Quản trị viên; không thể thay đổi vai trò ADMIN/USER.",
-                    "SINGLE_ADMIN_ROLE_LOCKED",
-                    org.springframework.http.HttpStatus.FORBIDDEN);
+            denyUserMutation("SINGLE_ADMIN_ROLE_LOCKED");
         }
-        if (request.getSubscriptionTier() != null) {
-            user.setSubscriptionTier(request.getSubscriptionTier());
+        var oldTier = user.getSubscriptionTier();
+        var tier = request.getSubscriptionTier() == null ? oldTier : request.getSubscriptionTier();
+        Integer extension = request.getExtendSubscriptionDays();
+        Instant now = Instant.now();
+        var expiry = user.getSubscriptionExpiresAt();
+        if (extension != null && (extension < 1 || extension > 365 || tier == SubscriptionTier.FREE)) {
+            throw new IllegalArgumentException("Chỉ gia hạn gói trả phí từ 1 đến 365 ngày");
         }
+        if (tier == SubscriptionTier.FREE) {
+            expiry = null;
+        } else if (extension != null) {
+            expiry = (expiry != null && expiry.isAfter(now) ? expiry : now).plus(extension, ChronoUnit.DAYS);
+        } else if (tier != oldTier && (expiry == null || !expiry.isAfter(now))) {
+            throw new IllegalArgumentException("Khi đổi sang gói trả phí cần chọn thời hạn");
+        }
+        user.setSubscriptionTier(tier);
+        user.setSubscriptionExpiresAt(expiry);
         if (request.getEmailVerified() != null) {
             user.setEmailVerified(request.getEmailVerified());
-            if (Boolean.TRUE.equals(request.getEmailVerified()) && user.getEmailVerifiedAt() == null) {
-                user.setEmailVerifiedAt(Instant.now());
-            }
-        }
-        if (request.getExtendSubscriptionDays() != null && request.getExtendSubscriptionDays() > 0) {
-            Instant baseTime = user.getSubscriptionExpiresAt() != null && user.getSubscriptionExpiresAt().isAfter(Instant.now())
-                    ? user.getSubscriptionExpiresAt()
-                    : Instant.now();
-            user.setSubscriptionExpiresAt(baseTime.plus(request.getExtendSubscriptionDays(), ChronoUnit.DAYS));
+            user.setEmailVerifiedAt(Boolean.TRUE.equals(request.getEmailVerified())
+                    ? Objects.requireNonNullElse(user.getEmailVerifiedAt(), now) : null);
         }
 
         user = userRepository.save(user);
         log.info("Admin updated user [{}]: status={}, role={}, tier={}", user.getId(), user.getUserStatus(), user.getSystemRole(), user.getSubscriptionTier());
-        logAudit("USER_UPDATE", "USER", user.getId().toString(), "Cập nhật tài khoản " + user.getEmail() + " (status=" + user.getUserStatus() + ", role=" + user.getSystemRole() + ")");
-        if (systemAuditService != null) {
-            if (request.getSystemRole() != null) {
-                systemAuditService.record(AuditEventRequest.builder()
-                        .eventType(AuditEventType.ADMIN_ROLE_CHANGED)
-                        .actorType(AuditActorType.ADMIN)
-                        .subjectUserId(user.getId())
-                        .source(AuditSource.ADMIN_PORTAL)
-                        .resourceType("USER")
-                        .resourceId(user.getId())
-                        .newValues(Map.of("systemRole", user.getSystemRole().name()))
-                        .build());
-            }
-            if (request.getSubscriptionTier() != null || request.getExtendSubscriptionDays() != null) {
-                systemAuditService.record(AuditEventRequest.builder()
-                        .eventType(AuditEventType.ADMIN_SUBSCRIPTION_CHANGED)
-                        .actorType(AuditActorType.ADMIN)
-                        .subjectUserId(user.getId())
-                        .source(AuditSource.ADMIN_PORTAL)
-                        .resourceType("USER")
-                        .resourceId(user.getId())
-                        .newValues(Map.of("subscriptionTier", user.getSubscriptionTier().name()))
-                        .build());
-            }
+        if (previousStatus != user.getUserStatus()) {
+            auditStatusChange(user, previousStatus, "ADMIN_USER_UPDATE");
+        } else {
+            auditMutation("USER_UPDATE", "USER", userId, userId, Map.of());
         }
         return userMapper.toResponse(user);
     }
 
     @Transactional
     public UserResponse toggleBlockUser(UUID userId) {
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy người dùng với ID: " + userId));
-
-        if (user.getUserStatus() == UserStatus.LOCKED || user.getUserStatus() == UserStatus.DISABLED) {
-            user.setUserStatus(UserStatus.ACTIVE);
-            user.setLockedUntil(null);
-            user.setFailedLoginAttempts(0);
-        } else {
-            user.setUserStatus(UserStatus.LOCKED);
+        User user = lockUser(userId);
+        requireManageableUser(user);
+        UserStatus previous = user.getUserStatus();
+        if (previous != UserStatus.ACTIVE && previous != UserStatus.LOCKED) {
+            denyUserMutation("INVALID_LOCK_TRANSITION");
         }
-
-        user = userRepository.save(user);
-        log.info("Admin toggled block status for user [{}]: new status={}", user.getId(), user.getUserStatus());
-        logAudit(user.getUserStatus() == UserStatus.LOCKED ? "USER_LOCK" : "USER_UNLOCK", "USER", user.getId().toString(), "Thao tác khóa/mở khóa tài khoản: " + user.getEmail());
-        if (systemAuditService != null) {
-            AuditEventType evt = user.getUserStatus() == UserStatus.LOCKED
-                    ? AuditEventType.ADMIN_USER_SUSPENDED
-                    : AuditEventType.ADMIN_USER_REACTIVATED;
-            systemAuditService.record(AuditEventRequest.builder()
-                    .eventType(evt)
-                    .actorType(AuditActorType.ADMIN)
-                    .subjectUserId(user.getId())
-                    .source(AuditSource.ADMIN_PORTAL)
-                    .resourceType("USER")
-                    .resourceId(user.getId())
-                    .newValues(Map.of("userStatus", user.getUserStatus().name()))
-                    .build());
-        }
+        changeStatus(user, previous == UserStatus.LOCKED ? UserStatus.ACTIVE : UserStatus.LOCKED);
+        auditStatusChange(user, previous, "ADMIN_TOGGLE_BLOCK");
         return userMapper.toResponse(user);
     }
 
     @Transactional
     public void deleteUser(UUID userId) {
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy người dùng với ID: " + userId));
-
-        if (user.getSystemRole() == com.finance.finance.common.enums.SystemRole.ADMIN) {
-            long adminCount = userRepository.findAll().stream()
-                    .filter(u -> u.getDeletedAt() == null && u.getSystemRole() == com.finance.finance.common.enums.SystemRole.ADMIN)
-                    .count();
-            if (adminCount <= 1) {
-                throw new com.finance.finance.common.exception.BusinessException("Không thể xóa quản trị viên duy nhất của hệ thống");
-            }
-        }
-
+        User user = lockUser(userId);
+        requireManageableUser(user);
         user.markAsDeleted();
-        userRepository.save(user);
-
-        // Xóa liên kết OAuth để khi đăng ký Google lại thì không bị nhận diện là user cũ
-        try (java.sql.Connection conn = dataSource.getConnection()) {
-            try (java.sql.PreparedStatement ps = conn.prepareStatement("DELETE FROM core.oauth_accounts WHERE user_id = ?")) {
-                ps.setObject(1, userId);
-                ps.executeUpdate();
-            }
-        } catch (Exception ex) {
-            log.warn("Failed to delete oauth_accounts for deleted user [{}]: {}", userId, ex.getMessage());
+        revokeSessions(user);
+        oauthAccountRepository.deleteAllByUserId(userId);
+        for (var type : com.finance.finance.common.enums.TokenType.values()) {
+            authTokenRepository.invalidateUserTokensByType(userId, type, Instant.now());
         }
-
-        // Xóa token đăng nhập cũ
-        try {
-            refreshTokenRepository.revokeAllByUserId(userId, Instant.now());
-            for (com.finance.finance.common.enums.TokenType t : com.finance.finance.common.enums.TokenType.values()) {
-                authTokenRepository.invalidateUserTokensByType(userId, t, Instant.now());
-            }
-        } catch (Exception ex) {
-            log.warn("Failed to revoke tokens for deleted user [{}]: {}", userId, ex.getMessage());
-        }
-
-        log.info("Admin deleted user [{}]: original email={}", user.getId(), user.getEmail());
-        logAudit("USER_DELETE", "USER", user.getId().toString(), "Xóa người dùng khỏi hệ thống (giải phóng email/username): " + user.getEmail());
+        auditMutation("USER_DELETE", "USER", userId, userId, Map.of());
     }
 
     // 3. Quản lý Vai trò & Phân quyền
     @Transactional(readOnly = true)
     public List<com.finance.finance.modules.admin.dto.response.AdminRoleStatResponse> getRoleStatistics() {
-        List<User> allUsers = userRepository.findAll();
-        long adminCount = allUsers.stream()
-                .filter(u -> u.getDeletedAt() == null && u.getSystemRole() == com.finance.finance.common.enums.SystemRole.ADMIN)
-                .count();
-        long userCount = allUsers.stream()
-                .filter(u -> u.getDeletedAt() == null && (u.getSystemRole() == null || u.getSystemRole() == com.finance.finance.common.enums.SystemRole.USER))
-                .count();
+        long adminCount = userRepository.countBySystemRoleAndDeletedAtIsNull(com.finance.finance.common.enums.SystemRole.ADMIN);
+        long userCount = userRepository.countBySystemRoleAndDeletedAtIsNull(com.finance.finance.common.enums.SystemRole.USER);
 
         return List.of(
                 com.finance.finance.modules.admin.dto.response.AdminRoleStatResponse.builder()
@@ -392,11 +252,13 @@ public class AdminService {
     @Transactional
     public com.finance.finance.modules.category.dto.response.CategoryResponse createSystemCategory(
             com.finance.finance.modules.admin.dto.request.AdminSystemCategoryRequest request) {
+        categoryRepository.lockSystemCategoryMutations();
         String code = request.getCode();
         if (code == null || code.isBlank()) {
-            code = "SYS_" + request.getName().trim().toUpperCase().replaceAll("\\s+", "_");
+            code = "SYS_" + UUID.randomUUID().toString().replace("-", "").toUpperCase(Locale.ROOT);
         }
-
+        code = code.trim();
+        validateCategory(request, code, null);
         com.finance.finance.modules.category.entity.Category category = com.finance.finance.modules.category.entity.Category.builder()
                 .name(request.getName().trim())
                 .code(code)
@@ -410,7 +272,7 @@ public class AdminService {
                 .build();
 
         category = categoryRepository.save(category);
-        log.info("Admin created system category: id={}, name={}", category.getId(), category.getName());
+        auditMutation("CATEGORY_CREATE", "CATEGORY", category.getId(), null, Map.of());
 
         return com.finance.finance.modules.category.dto.response.CategoryResponse.builder()
                 .id(category.getId())
@@ -430,8 +292,16 @@ public class AdminService {
     @Transactional
     public com.finance.finance.modules.category.dto.response.CategoryResponse updateSystemCategory(
             UUID categoryId, com.finance.finance.modules.admin.dto.request.AdminSystemCategoryRequest request) {
-        com.finance.finance.modules.category.entity.Category category = categoryRepository.findById(categoryId)
-                .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy danh mục với ID: " + categoryId));
+        categoryRepository.lockSystemCategoryMutations();
+        var category = requireSystemCategory(categoryId);
+        String code = request.getCode() == null || request.getCode().isBlank()
+                ? category.getCode() : request.getCode().trim();
+        validateCategory(request, code, categoryId);
+        if (request.getKind() != category.getKind()
+                && (transactionRepository.existsByCategoryId(categoryId)
+                    || categoryRepository.existsByParentIdAndDeletedAtIsNull(categoryId))) {
+            throw new IllegalArgumentException("Cannot change the kind of a referenced category");
+        }
 
         category.setName(request.getName().trim());
         if (request.getCode() != null && !request.getCode().isBlank()) {
@@ -452,7 +322,7 @@ public class AdminService {
         }
 
         category = categoryRepository.save(category);
-        log.info("Admin updated system category: id={}, name={}", category.getId(), category.getName());
+        auditMutation("CATEGORY_UPDATE", "CATEGORY", categoryId, null, Map.of());
 
         return com.finance.finance.modules.category.dto.response.CategoryResponse.builder()
                 .id(category.getId())
@@ -471,140 +341,96 @@ public class AdminService {
 
     @Transactional
     public void deleteSystemCategory(UUID categoryId) {
-        com.finance.finance.modules.category.entity.Category category = categoryRepository.findById(categoryId)
-                .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy danh mục với ID: " + categoryId));
+        categoryRepository.lockSystemCategoryMutations();
+        var category = requireSystemCategory(categoryId);
+        if (categoryRepository.existsByParentIdAndDeletedAtIsNull(categoryId)) {
+            throw new IllegalArgumentException("Cannot delete a category with active children");
+        }
+        category.markAsDeleted();
+        auditMutation("CATEGORY_DELETE", "CATEGORY", categoryId, null, Map.of());
+    }
 
-        category.setDeletedAt(Instant.now());
-        categoryRepository.save(category);
-        log.info("Admin soft-deleted system category: id={}", categoryId);
+    private com.finance.finance.modules.category.entity.Category requireSystemCategory(UUID id) {
+        return categoryRepository.findSystemCategoryForUpdate(id).orElseThrow(() ->
+                new IllegalArgumentException("System category not found"));
+    }
+
+    private void validateCategory(com.finance.finance.modules.admin.dto.request.AdminSystemCategoryRequest request,
+                                  String code, UUID categoryId) {
+        if (request.getName() == null || request.getName().isBlank() || request.getName().trim().length() > 100
+                || request.getKind() == null || code == null || !code.matches("[A-Za-z0-9][A-Za-z0-9_-]{0,49}")
+                || (request.getIcon() != null && !request.getIcon().trim().matches("[A-Za-z0-9_-]{1,50}"))
+                || (request.getColor() != null && !request.getColor().trim().matches("#[A-Fa-f0-9]{6}"))
+                || (request.getDisplayOrder() != null
+                    && (request.getDisplayOrder() < 0 || request.getDisplayOrder() > Short.MAX_VALUE))) {
+            throw new IllegalArgumentException("Invalid system category fields");
+        }
+        if (categoryRepository.codeUsedByOtherCategory(code, categoryId)) {
+            throw new IllegalArgumentException("Category code already exists");
+        }
+        if (categoryRepository.systemCategoryNameUsed(
+                request.getName().trim(), request.getKind(), request.getParentId(), categoryId)) {
+            throw new IllegalArgumentException("System category name already exists in this group");
+        }
+        Set<UUID> visited = new HashSet<>();
+        if (categoryId != null) {
+            visited.add(categoryId);
+        }
+        for (UUID parentId = request.getParentId(); parentId != null;) {
+            if (!visited.add(parentId)) {
+                throw new IllegalArgumentException("Category hierarchy cannot contain a cycle");
+            }
+            var parent = requireSystemCategory(parentId);
+            if (parent.getKind() != request.getKind()) {
+                throw new IllegalArgumentException("Parent category must have the same kind");
+            }
+            parentId = parent.getParentId();
+        }
     }
 
     // 5. Quản lý OCR Hóa đơn (Receipts)
     @Transactional(readOnly = true)
     public com.finance.finance.modules.admin.dto.response.AdminOcrOverviewResponse getOcrOverview() {
-        List<com.finance.finance.modules.ocr.entity.Receipt> receipts = receiptRepository.findAll();
-        long totalScanned = receipts.size();
-
-        LocalDate today = LocalDate.now(ZONE_VN);
-        Instant startOfToday = today.atStartOfDay(ZONE_VN).toInstant();
-        Instant startOfMonth = today.withDayOfMonth(1).atStartOfDay(ZONE_VN).toInstant();
-
-        long scannedToday = receipts.stream()
-                .filter(r -> r.getCreatedAt() != null && r.getCreatedAt().isAfter(startOfToday))
-                .count();
-
-        long scannedThisMonth = receipts.stream()
-                .filter(r -> r.getCreatedAt() != null && r.getCreatedAt().isAfter(startOfMonth))
-                .count();
-
-        long needReviewCount = receipts.stream()
-                .filter(r -> Boolean.TRUE.equals(r.getNeedsReview()))
-                .count();
-
-        double avgConfidence = receipts.stream()
-                .filter(r -> r.getConfidence() != null)
-                .mapToDouble(r -> r.getConfidence().doubleValue())
-                .average()
-                .orElse(0.85);
-
-        // Map thông tin User để hiển thị người quét hóa đơn
-        Map<UUID, User> userMap = userRepository.findAll().stream()
-                .collect(Collectors.toMap(User::getId, u -> u, (u1, u2) -> u1));
-
-        List<com.finance.finance.modules.admin.dto.response.AdminOcrOverviewResponse.AdminOcrItemResponse> recentItems = receipts.stream()
-                .sorted((a, b) -> {
-                    if (a.getCreatedAt() == null || b.getCreatedAt() == null) return 0;
-                    return b.getCreatedAt().compareTo(a.getCreatedAt());
-                })
-                .limit(50)
-                .map(r -> {
-                    User u = userMap.get(r.getUserId());
-                    return com.finance.finance.modules.admin.dto.response.AdminOcrOverviewResponse.AdminOcrItemResponse.builder()
-                            .id(r.getId())
-                            .userId(r.getUserId())
-                            .userFullName(u != null ? u.getFullName() : "Người dùng")
-                            .userEmail(u != null ? u.getEmail() : "")
-                            .merchantName(r.getMerchantName() != null ? r.getMerchantName() : "Không rõ nhà bán hàng")
-                            .totalAmount(null) // Bảo mật thông tin tài chính cá nhân người dùng
-                            .currency(r.getCurrency())
-                            .transactionDate(r.getTransactionDate())
-                            .confidence(r.getConfidence())
-                            .needsReview(r.getNeedsReview())
-                            .aiCategoryName(r.getAiCategoryName())
-                            .kind(r.getKind())
-                            .createdAt(r.getCreatedAt())
-                            .build();
-                })
-                .collect(Collectors.toList());
-
+        var totals = adminReads.receiptMetrics(LocalDate.now(ZONE_VN));
+        Number confidence = (Number) totals.get("confidence");
         return com.finance.finance.modules.admin.dto.response.AdminOcrOverviewResponse.builder()
-                .totalScanned(totalScanned)
-                .scannedToday(scannedToday)
-                .scannedThisMonth(scannedThisMonth)
-                .needReviewCount(needReviewCount)
-                .averageConfidence(Math.round(avgConfidence * 100.0) / 100.0)
-                .recentReceipts(recentItems)
+                .totalScanned(count(totals, "total"))
+                .scannedToday(count(totals, "new_today"))
+                .scannedThisMonth(count(totals, "new_month"))
+                .needReviewCount(count(totals, "review"))
+                .linkedTransactions(count(totals, "linked_transactions"))
+                .averageConfidence(confidence == null ? null : confidence.doubleValue())
                 .build();
+    }
+
+    @Transactional(readOnly = true, isolation = org.springframework.transaction.annotation.Isolation.REPEATABLE_READ)
+    public AdminPage<com.finance.finance.modules.admin.dto.response.AdminOcrOverviewResponse.AdminOcrItemResponse>
+            listOcrReceipts(String search, Boolean review, AdminPaging page) {
+        return adminReads.receipts(search, review, page);
     }
 
     // 6. Thống kê sử dụng (Usage Analytics & Metrics)
     @Transactional(readOnly = true)
     public com.finance.finance.modules.admin.dto.response.AdminAnalyticsResponse getAnalyticsOverview() {
-        List<User> users = userRepository.findAll().stream()
-                .filter(u -> u.getDeletedAt() == null)
-                .toList();
-
         LocalDate today = LocalDate.now(ZONE_VN);
-        Instant startOfToday = today.atStartOfDay(ZONE_VN).toInstant();
-        Instant startOf7Days = today.minusDays(7).atStartOfDay(ZONE_VN).toInstant();
-        Instant startOf30Days = today.minusDays(30).atStartOfDay(ZONE_VN).toInstant();
-
-        // 1. DAU / WAU / MAU: đo lường thực tế từ thời gian đăng nhập hoặc tạo tài khoản gần nhất
-        long dau = users.stream().filter(u -> (u.getLastLoginAt() != null && u.getLastLoginAt().isAfter(startOfToday)) ||
-                (u.getCreatedAt() != null && u.getCreatedAt().isAfter(startOfToday))).count();
-        long wau = users.stream().filter(u -> (u.getLastLoginAt() != null && u.getLastLoginAt().isAfter(startOf7Days)) ||
-                (u.getCreatedAt() != null && u.getCreatedAt().isAfter(startOf7Days))).count();
-        long mau = users.stream().filter(u -> (u.getLastLoginAt() != null && u.getLastLoginAt().isAfter(startOf30Days)) ||
-                (u.getCreatedAt() != null && u.getCreatedAt().isAfter(startOf30Days))).count();
-
-        // Tỷ lệ quay lại thực tế dựa trên tài khoản Active
-        long activeCount = users.stream().filter(u -> u.getUserStatus() == UserStatus.ACTIVE).count();
-        double retentionRate = users.isEmpty() ? 0 : Math.round(((double) activeCount / users.size()) * 1000.0) / 10.0;
-
-        // 2. Lấy dữ liệu giao dịch thực tế từ Database
-        List<com.finance.finance.modules.transaction.entity.Transaction> allTxs = transactionRepository.findAll();
-        long totalTxs = allTxs.size();
-        long totalGroups = groupRepository.count();
-        long totalReceipts = receiptRepository.count();
-        long totalBudgets = budgetRepository.count();
-        long totalGoals = goalRepository.count();
-        long totalDebts = debtRepository.count();
-
-        // 3. Biểu đồ 14 ngày đếm CHÍNH XÁC số lượng từ Database
-        List<com.finance.finance.modules.admin.dto.response.AdminAnalyticsResponse.DailyActivityPoint> trend = new ArrayList<>();
-        DateTimeFormatter df = DateTimeFormatter.ofPattern("MM-dd");
-        for (int i = 13; i >= 0; i--) {
-            LocalDate d = today.minusDays(i);
-            Instant s = d.atStartOfDay(ZONE_VN).toInstant();
-            Instant e = d.plusDays(1).atStartOfDay(ZONE_VN).toInstant();
-
-            // Đếm user mới đăng ký đúng trong ngày d
-            long newU = users.stream()
-                    .filter(u -> u.getCreatedAt() != null && u.getCreatedAt().isAfter(s) && u.getCreatedAt().isBefore(e))
-                    .count();
-
-            // Đếm giao dịch thực tế xảy ra trong ngày d (theo occurredDate hoặc occurredAt)
-            long txCount = allTxs.stream()
-                    .filter(t -> (t.getOccurredDate() != null && t.getOccurredDate().equals(d)) ||
-                            (t.getOccurredAt() != null && t.getOccurredAt().isAfter(s) && t.getOccurredAt().isBefore(e)))
-                    .count();
-
-            trend.add(com.finance.finance.modules.admin.dto.response.AdminAnalyticsResponse.DailyActivityPoint.builder()
-                    .date(d.format(df))
-                    .newUsers(newU)
-                    .transactionCount(txCount)
-                    .build());
-        }
+        LocalDate start = today.minusDays(13);
+        var totals = adminReads.userMetrics(today);
+        var volumes = adminReads.volumes();
+        long dau = count(totals, "dau");
+        long wau = count(totals, "wau");
+        long mau = count(totals, "mau");
+        long totalTxs = count(volumes, "transactions");
+        long totalGroups = count(volumes, "groups");
+        long totalReceipts = count(volumes, "receipts");
+        long totalBudgets = count(volumes, "budgets");
+        long totalGoals = count(volumes, "goals");
+        long totalDebts = count(volumes, "debts");
+        var registrations = adminReads.registrationTrend(start, today.plusDays(1));
+        var transactions = adminReads.transactionTrend(start, today.plusDays(1));
+        var trend = java.util.stream.IntStream.range(0, 14).mapToObj(start::plusDays)
+                .map(day -> com.finance.finance.modules.admin.dto.response.AdminAnalyticsResponse.DailyActivityPoint.builder()
+                        .date(day.toString()).newUsers(registrations.getOrDefault(day, 0L))
+                        .transactionCount(transactions.getOrDefault(day, 0L)).build()).toList();
 
         // 4. Cơ cấu Tính năng tính toán 100% từ Database thực
         long totalEvents = totalTxs + totalReceipts + totalGroups + totalBudgets + totalGoals + totalDebts;
@@ -644,11 +470,10 @@ public class AdminService {
         );
 
         return com.finance.finance.modules.admin.dto.response.AdminAnalyticsResponse.builder()
-                .totalUsers(users.size())
+                .totalUsers(count(totals, "total"))
                 .activeUsersDAU(dau)
                 .activeUsersWAU(wau)
                 .activeUsersMAU(mau)
-                .retentionRate(retentionRate)
                 .totalTransactions(totalTxs)
                 .totalGroups(totalGroups)
                 .totalReceipts(totalReceipts)
@@ -658,318 +483,208 @@ public class AdminService {
     }
 
     // 7. Quản lý Phản hồi & Hỗ trợ (Feedbacks & Support) - LƯU & ĐỌC DATABASE THẬT
-    @Transactional(readOnly = true)
-    public List<com.finance.finance.modules.admin.dto.response.AdminFeedbackItem> listFeedbacks(String status, String category) {
-        List<com.finance.finance.modules.feedback.entity.Feedback> feedbacks = feedbackRepository.findWithFilters(
-                status != null && !status.isBlank() ? status.trim().toUpperCase() : null,
-                category != null && !category.isBlank() ? category.trim().toUpperCase() : null
-        );
-
-        Map<UUID, User> userMap = userRepository.findAll().stream()
-                .collect(Collectors.toMap(User::getId, u -> u, (u1, u2) -> u1));
-
-        return feedbacks.stream().map(f -> {
-            User u = f.getUserId() != null ? userMap.get(f.getUserId()) : null;
-            return com.finance.finance.modules.admin.dto.response.AdminFeedbackItem.builder()
-                    .id(f.getId())
-                    .userId(f.getUserId())
-                    .userFullName(u != null ? u.getFullName() : "Người dùng")
-                    .userEmail(u != null ? u.getEmail() : "")
-                    .title(f.getTitle())
-                    .content(f.getContent())
-                    .category(f.getCategory())
-                    .priority(f.getPriority())
-                    .status(f.getStatus())
-                    .adminReply(f.getAdminReply())
-                    .repliedAt(f.getRepliedAt())
-                    .createdAt(f.getCreatedAt())
-                    .build();
-        }).collect(Collectors.toList());
+    @Transactional(readOnly = true, isolation = org.springframework.transaction.annotation.Isolation.REPEATABLE_READ)
+    public AdminPage<com.finance.finance.modules.admin.dto.response.AdminFeedbackItem> listFeedbacks(
+            String search, String status, String category, AdminPaging page) {
+        return adminReads.feedback(search, status, category, page);
     }
 
     @Transactional
     public com.finance.finance.modules.admin.dto.response.AdminFeedbackItem replyFeedback(
-            UUID feedbackId, com.finance.finance.modules.admin.dto.request.AdminReplyFeedbackRequest request) {
-        com.finance.finance.modules.feedback.entity.Feedback feedback = feedbackRepository.findById(feedbackId)
-                .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy phản hồi với ID: " + feedbackId));
-
-        feedback.setAdminReply(request.getReply().trim());
-        feedback.setRepliedAt(Instant.now());
-        if (request.getStatus() != null && !request.getStatus().isBlank()) {
-            feedback.setStatus(request.getStatus().trim().toUpperCase());
-        } else {
-            feedback.setStatus("RESOLVED");
+            UUID feedbackId, UUID requestId, com.finance.finance.modules.admin.dto.request.AdminReplyFeedbackRequest request) {
+        var feedback = feedbackRepository.lockForAdmin(feedbackId)
+                .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy phản hồi"));
+        var actor = (User) org.springframework.security.core.context.SecurityContextHolder.getContext()
+                .getAuthentication().getPrincipal();
+        String reply = request.getReply() == null ? "" : request.getReply().trim();
+        String status = AdminBroadcastService.option(request.getStatus(), "RESOLVED",
+                Set.of("PENDING", "IN_PROGRESS", "RESOLVED", "REJECTED"));
+        String hash = feedbackRequestHash(status, reply);
+        var history = jdbc.query("""
+                SELECT feedback_id, processed_by, request_hash FROM core.feedback_history WHERE id = ?
+                """, (rs,n) -> new FeedbackReplay(rs.getObject("feedback_id", UUID.class),
+                        rs.getObject("processed_by", UUID.class), rs.getString("request_hash")), requestId);
+        if (!history.isEmpty()) {
+            if (!history.getFirst().equals(new FeedbackReplay(feedbackId, actor.getId(), hash))) {
+                throw new IllegalArgumentException("Khóa phản hồi đã được dùng cho nội dung khác");
+            }
+            return feedbackItem(feedback);
         }
-        feedback = feedbackRepository.save(feedback);
-        logAudit("FEEDBACK_REPLY", "FEEDBACK", feedbackId.toString(), "Admin trả lời phản hồi: " + feedback.getTitle());
+        if (request.getExpectedUpdatedAt() == null || !request.getExpectedUpdatedAt().equals(feedback.getUpdatedAt())) {
+            throw new com.finance.finance.common.exception.BusinessException(
+                    "Phản hồi đã thay đổi, vui lòng tải lại", "FEEDBACK_CHANGED", org.springframework.http.HttpStatus.CONFLICT);
+        }
+        String previous = feedback.getStatus();
+        boolean statusChanged = !previous.equals(status);
+        if (statusChanged && (!Set.of("PENDING", "IN_PROGRESS").contains(previous) || "PENDING".equals(status))) {
+            throw new IllegalArgumentException("Không thể chuyển sang trạng thái này");
+        }
+        boolean replyChanged = !reply.isBlank() && !reply.equals(feedback.getAdminReply());
+        if (!statusChanged && !replyChanged) return feedbackItem(feedback);
 
-        User u = feedback.getUserId() != null ? userRepository.findById(feedback.getUserId()).orElse(null) : null;
+        Instant now = Instant.now();
+        feedback.setStatus(status);
+        feedback.setProcessedBy(actor.getId());
+        feedback.setProcessedAt(now);
+        if (replyChanged) {
+            feedback.setAdminReply(reply);
+            feedback.setRepliedAt(now);
+        }
+        jdbc.update("""
+                INSERT INTO core.feedback_history (id, feedback_id, processed_by, previous_status, next_status, request_hash)
+                VALUES (?, ?, ?, ?, ?, ?)
+                """, requestId, feedbackId, actor.getId(), previous, status, hash);
+        if (feedback.getUserId() != null && (replyChanged || Set.of("RESOLVED", "REJECTED").contains(status))) {
+            notifications.createNotification(feedback.getUserId(), com.finance.finance.common.enums.NotificationType.SYSTEM,
+                    com.finance.finance.common.enums.NotificationPriority.NORMAL, "Có cập nhật về phản hồi của bạn",
+                    replyChanged ? "Finora đã gửi phản hồi. Mở mục Hỗ trợ & Góp ý để xem chi tiết."
+                            : "Finora đã cập nhật kết quả xử lý. Mở mục Hỗ trợ & Góp ý để xem chi tiết.",
+                    "/feedback", "Xem phản hồi");
+        }
+        auditMutation("FEEDBACK_UPDATE", "FEEDBACK", feedbackId, feedback.getUserId(),
+                Map.of("previousStatus", previous, "nextStatus", status, "replyChanged", replyChanged));
+        return feedbackItem(feedbackRepository.saveAndFlush(feedback));
+    }
+
+    private static String feedbackRequestHash(String status, String reply) {
+        try {
+            return HexFormat.of().formatHex(java.security.MessageDigest.getInstance("SHA-256")
+                    .digest((status + "\n" + reply).getBytes(java.nio.charset.StandardCharsets.UTF_8)));
+        } catch (java.security.NoSuchAlgorithmException ex) {
+            throw new IllegalStateException("SHA-256 unavailable", ex);
+        }
+    }
+
+    private record FeedbackReplay(UUID feedbackId, UUID actor, String hash) { }
+
+    private com.finance.finance.modules.admin.dto.response.AdminFeedbackItem feedbackItem(
+            com.finance.finance.modules.feedback.entity.Feedback feedback) {
+        var user = feedback.getUserId() == null ? null : userRepository.findActiveUserById(feedback.getUserId()).orElse(null);
         return com.finance.finance.modules.admin.dto.response.AdminFeedbackItem.builder()
-                .id(feedback.getId())
-                .userId(feedback.getUserId())
-                .userFullName(u != null ? u.getFullName() : "Người dùng")
-                .userEmail(u != null ? u.getEmail() : "")
-                .title(feedback.getTitle())
-                .content(feedback.getContent())
-                .category(feedback.getCategory())
-                .priority(feedback.getPriority())
-                .status(feedback.getStatus())
-                .adminReply(feedback.getAdminReply())
-                .repliedAt(feedback.getRepliedAt())
-                .createdAt(feedback.getCreatedAt())
-                .build();
-    }
-
-    // 8. Quản lý Thông báo Tổng (Broadcast Notifications) - LƯU VÀO DB THẬT
-    @Transactional(readOnly = true)
-    public List<com.finance.finance.modules.admin.dto.response.AdminBroadcastLogItem> listBroadcastLogs() {
-        // Chỉ lấy thông báo HỆ THỐNG thuần túy (tránh load toàn bộ bảng và tránh lỗi enum lạ ở thông báo cá nhân)
-        List<com.finance.finance.modules.notification.entity.Notification> systemNotifications =
-                notificationRepository.findSystemNotifications().stream()
-                .filter(n -> n.getTitle() != null)
-                .filter(n -> {
-                    String title = n.getTitle().toLowerCase();
-                    String body = n.getBody() != null ? n.getBody().toLowerCase() : "";
-                    boolean isPersonalAction = title.contains("nhóm") || body.contains("nhóm") ||
-                            title.contains("lời mời") || body.contains("lời mời") ||
-                            title.contains("nhiệm vụ") || body.contains("nhiệm vụ") ||
-                            title.contains("xin tiền") || body.contains("xin tiền") ||
-                            title.contains("vay") || title.contains("nợ");
-                    return !isPersonalAction;
-                })
-                .toList();
-
-        // Gom nhóm theo title để tạo danh sách log phát
-        Map<String, List<com.finance.finance.modules.notification.entity.Notification>> grouped = systemNotifications.stream()
-                .collect(Collectors.groupingBy(com.finance.finance.modules.notification.entity.Notification::getTitle));
-
-        return grouped.entrySet().stream().map(entry -> {
-            com.finance.finance.modules.notification.entity.Notification first = entry.getValue().get(0);
-            return com.finance.finance.modules.admin.dto.response.AdminBroadcastLogItem.builder()
-                    .id(first.getId())
-                    .title(first.getTitle())
-                    .body(first.getBody())
-                    .targetAudience("ALL")
-                    .priority(first.getPriority() != null ? first.getPriority().name() : "NORMAL")
-                    .actionUrl(first.getActionUrl())
-                    .actionText(first.getActionText())
-                    .recipientCount(entry.getValue().size())
-                    .createdBy("Hệ Thống Admin")
-                    .createdAt(first.getCreatedAt() != null ? first.getCreatedAt().atZone(ZONE_VN).toInstant() : Instant.now())
-                    .build();
-        }).sorted((a, b) -> b.getCreatedAt().compareTo(a.getCreatedAt())).collect(Collectors.toList());
-    }
-
-    @Transactional
-    public com.finance.finance.modules.admin.dto.response.AdminBroadcastLogItem broadcastNotification(
-            com.finance.finance.modules.admin.dto.request.AdminBroadcastNotificationRequest request) {
-        List<User> allUsers = userRepository.findAll().stream()
-                .filter(u -> u.getDeletedAt() == null && u.getUserStatus() == UserStatus.ACTIVE)
-                .toList();
-
-        List<User> targets;
-        String audience = request.getTargetAudience() != null ? request.getTargetAudience().trim().toUpperCase() : "ALL";
-        if ("PREMIUM_ONLY".equals(audience)) {
-            targets = allUsers.stream().filter(u -> u.getSubscriptionTier() == SubscriptionTier.PREMIUM || u.getSubscriptionTier() == SubscriptionTier.ENTERPRISE).toList();
-        } else if ("FREE_ONLY".equals(audience)) {
-            targets = allUsers.stream().filter(u -> u.getSubscriptionTier() == SubscriptionTier.FREE).toList();
-        } else {
-            targets = allUsers;
-        }
-
-        com.finance.finance.common.enums.NotificationPriority priorityEnum = com.finance.finance.common.enums.NotificationPriority.NORMAL;
-        if ("HIGH".equalsIgnoreCase(request.getPriority()) || "URGENT".equalsIgnoreCase(request.getPriority())) {
-            priorityEnum = com.finance.finance.common.enums.NotificationPriority.HIGH;
-        } else if ("LOW".equalsIgnoreCase(request.getPriority())) {
-            priorityEnum = com.finance.finance.common.enums.NotificationPriority.LOW;
-        }
-
-        List<com.finance.finance.modules.notification.entity.Notification> notificationsToSave = new ArrayList<>();
-        for (User u : targets) {
-            notificationsToSave.add(com.finance.finance.modules.notification.entity.Notification.builder()
-                    .userId(u.getId())
-                    .type(com.finance.finance.common.enums.NotificationType.SYSTEM)
-                    .priority(priorityEnum)
-                    .title(request.getTitle().trim())
-                    .body(request.getBody().trim())
-                    .actionUrl(request.getActionUrl())
-                    .actionText(request.getActionText())
-                    .isRead(false)
-                    .build());
-        }
-
-        if (!notificationsToSave.isEmpty()) {
-            notificationRepository.saveAll(notificationsToSave);
-        }
-
-        logAudit("BROADCAST_SEND", "NOTIFICATION", UUID.randomUUID().toString(), "Phát thông báo: " + request.getTitle() + " tới " + targets.size() + " tài khoản");
-
-        return com.finance.finance.modules.admin.dto.response.AdminBroadcastLogItem.builder()
-                .id(UUID.randomUUID())
-                .title(request.getTitle().trim())
-                .body(request.getBody().trim())
-                .targetAudience(audience)
-                .priority(request.getPriority() != null ? request.getPriority() : "NORMAL")
-                .actionUrl(request.getActionUrl())
-                .actionText(request.getActionText())
-                .recipientCount(targets.size())
-                .createdBy("Hệ Thống Admin")
-                .createdAt(Instant.now())
-                .build();
+                .id(feedback.getId()).userId(feedback.getUserId()).userFullName(user == null ? null : user.getFullName())
+                .userEmail(user == null ? null : user.getEmail()).title(feedback.getTitle()).content(feedback.getContent())
+                .category(feedback.getCategory()).priority(feedback.getPriority()).status(feedback.getStatus())
+                .adminReply(feedback.getAdminReply()).repliedAt(feedback.getRepliedAt()).createdAt(feedback.getCreatedAt())
+                .updatedAt(feedback.getUpdatedAt()).processedAt(feedback.getProcessedAt())
+                .processedBy(feedback.getProcessedBy()).build();
     }
 
     // 8.1. Mẫu Thông báo Tự động theo Chu kỳ & Sự kiện (Automation Notification Templates)
-    @Transactional
+    @Transactional(readOnly = true)
     public List<com.finance.finance.modules.admin.dto.response.NotificationTemplateResponse> listNotificationTemplates() {
-        // Đếm số lượng thông báo THẬT trong core.notifications theo (title, type) bằng native query nhẹ, không deserialize enum thừa
-        List<Object[]> notificationSummaries = notificationRepository.findAllTitleAndTypeSummaries();
-
-        return notificationTemplateRepository.findAll().stream()
-                .map(t -> {
-                    // Đảm bảo template báo cáo tuần luôn hiển thị đúng lịch 08:00 sáng Thứ Hai
-                    if ("AUTO_WEEKLY_REPORT".equals(t.getCode()) || "WEEKLY_SPENDING_REPORT".equals(t.getTriggerEvent())) {
-                        if (!"0 0 8 ? * MON".equals(t.getScheduleCron())) {
-                            t.setScheduleCron("0 0 8 ? * MON");
-                            t.setTitle("📊 Báo cáo tài chính tuần của bạn đã sẵn sàng!");
-                            notificationTemplateRepository.save(t);
-                        }
-                    }
-
-                    String tplTitle = t.getTitle() != null ? t.getTitle() : "";
-                    String tplTitleLower = tplTitle.toLowerCase();
-                    String tplCode = t.getCode() != null ? t.getCode() : "";
-
-                    // Đếm chính xác số lượng thông báo thật đã gửi trong DB
-                    long realDispatchedCount = notificationSummaries.stream()
-                            .filter(row -> {
-                                String nTitle = row[0] != null ? row[0].toString() : "";
-                                String nType = row[1] != null ? row[1].toString() : "";
-                                if (nTitle.isEmpty()) return false;
-                                return (!tplTitleLower.isEmpty() && (nTitle.toLowerCase().contains(tplTitleLower) || tplTitleLower.contains(nTitle.toLowerCase()))) ||
-                                        (nTitle.contains("Chào mừng bạn") && tplCode.contains("WELCOME")) ||
-                                        (nTitle.contains("Đầu tháng") && tplCode.contains("MONTHLY")) ||
-                                        ((nTitle.contains("Báo cáo tài chính") || "WEEKLY_SUMMARY".equals(nType)) && tplCode.contains("WEEKLY")) ||
-                                        (nTitle.contains("Gói cước") && tplCode.contains("VIP")) ||
-                                        (nTitle.contains("chưa ghi nhận") && tplCode.contains("DAILY")) ||
-                                        (nTitle.contains("quét hóa đơn") && tplCode.contains("OCR"));
-                            })
-                            .count();
-
-                    return com.finance.finance.modules.admin.dto.response.NotificationTemplateResponse.builder()
-                            .id(t.getId())
-                            .code(t.getCode())
-                            .title(t.getTitle())
-                            .bodyTemplate(t.getBodyTemplate())
-                            .triggerEvent(t.getTriggerEvent())
-                            .scheduleCron(t.getScheduleCron())
-                            .targetAudience(t.getTargetAudience())
-                            .priority(t.getPriority())
-                            .isActive(t.getIsActive())
-                            .totalDispatched(realDispatchedCount)
-                            .lastDispatchedAt(t.getLastDispatchedAt())
-                            .createdAt(t.getCreatedAt())
-                            .build();
-                })
-                .collect(Collectors.toList());
+        return notificationTemplateRepository.findAll(org.springframework.data.domain.Sort.by("code"))
+                .stream().map(this::templateItem).toList();
     }
 
     @Transactional
     public com.finance.finance.modules.admin.dto.response.NotificationTemplateResponse updateNotificationTemplate(
             UUID templateId, com.finance.finance.modules.admin.dto.request.UpdateNotificationTemplateRequest request) {
-        com.finance.finance.modules.admin.entity.NotificationTemplate template = notificationTemplateRepository.findById(templateId)
-                .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy mẫu thông báo với ID: " + templateId));
+        var template = editableTemplate(templateId);
+        if (request.getScheduleCron() != null && !request.getScheduleCron().isBlank()) {
+            if (template.getScheduleCron() == null || !template.getScheduleCron().equals(request.getScheduleCron().trim())) {
+                throw new IllegalArgumentException("Lịch gửi cố định theo scheduler");
+            }
+        }
+        if (request.getTargetAudience() != null && !request.getTargetAudience().isBlank()) {
+            String audience = request.getTargetAudience().trim();
+            if (!List.of("ALL", "FREE_ONLY", "PREMIUM_ONLY").contains(audience)) {
+                throw new IllegalArgumentException("Đối tượng nhận không hợp lệ");
+            }
+            template.setTargetAudience(audience);
+        }
+        if (request.getPriority() != null && !request.getPriority().isBlank()) {
+            String priority = request.getPriority().trim().toUpperCase(java.util.Locale.ROOT);
+            if (!List.of("LOW", "NORMAL", "HIGH", "URGENT").contains(priority)) {
+                throw new IllegalArgumentException("Mức độ ưu tiên không hợp lệ");
+            }
+            template.setPriority(priority);
+        }
 
         template.setTitle(request.getTitle().trim());
         template.setBodyTemplate(request.getBodyTemplate().trim());
-        if (request.getTargetAudience() != null) template.setTargetAudience(request.getTargetAudience().trim().toUpperCase());
-        if (request.getPriority() != null) template.setPriority(request.getPriority().trim().toUpperCase());
         if (request.getIsActive() != null) template.setIsActive(request.getIsActive());
-
-        template = notificationTemplateRepository.save(template);
-        logAudit("TEMPLATE_UPDATE", "NOTIFICATION_TEMPLATE", template.getId().toString(), "Cập nhật mẫu thông báo tự động: " + template.getTitle());
-
-        return com.finance.finance.modules.admin.dto.response.NotificationTemplateResponse.builder()
-                .id(template.getId())
-                .code(template.getCode())
-                .title(template.getTitle())
-                .bodyTemplate(template.getBodyTemplate())
-                .triggerEvent(template.getTriggerEvent())
-                .scheduleCron(template.getScheduleCron())
-                .targetAudience(template.getTargetAudience())
-                .priority(template.getPriority())
-                .isActive(template.getIsActive())
-                .totalDispatched(template.getTotalDispatched())
-                .lastDispatchedAt(template.getLastDispatchedAt())
-                .createdAt(template.getCreatedAt())
-                .build();
+        auditMutation("TEMPLATE_UPDATE", "NOTIFICATION_TEMPLATE", templateId, null, Map.of());
+        return templateItem(template);
     }
 
     @Transactional
     public com.finance.finance.modules.admin.dto.response.NotificationTemplateResponse toggleNotificationTemplate(UUID templateId) {
-        com.finance.finance.modules.admin.entity.NotificationTemplate template = notificationTemplateRepository.findById(templateId)
-                .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy mẫu thông báo với ID: " + templateId));
-
+        var template = editableTemplate(templateId);
         template.setIsActive(!Boolean.TRUE.equals(template.getIsActive()));
-        template = notificationTemplateRepository.save(template);
-        logAudit("TEMPLATE_TOGGLE", "NOTIFICATION_TEMPLATE", template.getId().toString(), "Bật/Tắt mẫu tự động: " + template.getTitle() + " (active=" + template.getIsActive() + ")");
-
-        return com.finance.finance.modules.admin.dto.response.NotificationTemplateResponse.builder()
-                .id(template.getId())
-                .code(template.getCode())
-                .title(template.getTitle())
-                .bodyTemplate(template.getBodyTemplate())
-                .triggerEvent(template.getTriggerEvent())
-                .scheduleCron(template.getScheduleCron())
-                .targetAudience(template.getTargetAudience())
-                .priority(template.getPriority())
-                .isActive(template.getIsActive())
-                .totalDispatched(template.getTotalDispatched())
-                .lastDispatchedAt(template.getLastDispatchedAt())
-                .createdAt(template.getCreatedAt())
-                .build();
+        auditMutation("TEMPLATE_TOGGLE", "NOTIFICATION_TEMPLATE", templateId, null, Map.of());
+        return templateItem(template);
     }
 
-    // 9. Nhật ký Hoạt động Quản trị (Audit Logs) - LƯU VÀO DATABASE THẬT
-    @Transactional
-    public void logAudit(String action, String targetEntity, String targetId, String description) {
-        try {
-            com.finance.finance.modules.admin.entity.AuditLog logItem = com.finance.finance.modules.admin.entity.AuditLog.builder()
-                    .adminUsername("admin")
-                    .adminFullName("Hệ Thống Admin")
-                    .action(action)
-                    .targetEntity(targetEntity)
-                    .targetId(targetId)
-                    .description(description)
-                    .ipAddress("127.0.0.1")
-                    .status("SUCCESS")
-                    .build();
-            auditLogRepository.save(logItem);
-            log.info("Audit persisted to database: action={}, target={}", action, targetEntity);
-        } catch (Exception e) {
-            log.error("Failed to persist audit log: {}", e.getMessage());
+    private com.finance.finance.modules.admin.entity.NotificationTemplate editableTemplate(UUID id) {
+        return notificationTemplateRepository.lockById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy mẫu thông báo"));
+    }
+
+    private com.finance.finance.modules.admin.dto.response.NotificationTemplateResponse templateItem(
+            com.finance.finance.modules.admin.entity.NotificationTemplate t) {
+        return com.finance.finance.modules.admin.dto.response.NotificationTemplateResponse.builder()
+                .id(t.getId()).code(t.getCode()).title(t.getTitle()).bodyTemplate(t.getBodyTemplate())
+                .triggerEvent(t.getTriggerEvent()).scheduleCron(t.getScheduleCron())
+                .targetAudience(t.getTargetAudience()).priority(t.getPriority())
+                .isActive(t.getIsActive()).editable(true)
+                .totalDispatched(t.getTotalDispatched())
+                .lastDispatchedAt(t.getLastDispatchedAt()).createdAt(t.getCreatedAt()).build();
+    }
+
+
+    private User lockUser(UUID id) {
+        return userRepository.lockActiveRecord(id).orElseThrow(() ->
+                new IllegalArgumentException("User not found"));
+    }
+
+    private void requireManageableUser(User user) {
+        var auth = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
+        if (user.isAdmin() || (auth != null && auth.getPrincipal() instanceof User actor
+                && actor.getId().equals(user.getId()))) {
+            denyUserMutation("PROTECTED_ADMIN_ACCOUNT");
         }
     }
 
-    @Transactional(readOnly = true)
-    public List<com.finance.finance.modules.admin.dto.response.AdminAuditLogItem> listAuditLogs(String action, String targetEntity) {
-        List<com.finance.finance.modules.admin.entity.AuditLog> logs = auditLogRepository.findWithFilters(
-                action != null && !action.isBlank() ? action.trim().toUpperCase() : null,
-                targetEntity != null && !targetEntity.isBlank() ? targetEntity.trim().toUpperCase() : null
-        );
+    private void denyUserMutation(String reason) {
+        throw new com.finance.finance.common.exception.BusinessException(
+                "Không thể thực hiện thao tác với trạng thái tài khoản này",
+                reason, org.springframework.http.HttpStatus.FORBIDDEN);
+    }
 
-        return logs.stream().map(l -> com.finance.finance.modules.admin.dto.response.AdminAuditLogItem.builder()
-                .id(l.getId())
-                .adminUsername(l.getAdminUsername())
-                .adminFullName(l.getAdminFullName())
-                .action(l.getAction())
-                .targetEntity(l.getTargetEntity())
-                .targetId(l.getTargetId())
-                .description(l.getDescription())
-                .ipAddress(l.getIpAddress())
-                .status(l.getStatus())
-                .createdAt(l.getCreatedAt())
-                .build()
-        ).collect(Collectors.toList());
+    private void changeStatus(User user, UserStatus status) {
+        user.setUserStatus(status);
+        revokeSessions(user);
+        if (status == UserStatus.ACTIVE) {
+            user.setLockedUntil(null);
+            user.setFailedLoginAttempts(0);
+        }
+    }
+
+    private void revokeSessions(User user) {
+        user.setSessionVersion(user.getSessionVersion() + 1);
+        refreshTokenRepository.revokeAllByUserId(user.getId(), Instant.now());
+    }
+
+    private void auditStatusChange(User user, UserStatus previous, String reason) {
+        var event = user.getUserStatus() == UserStatus.ACTIVE
+                ? AuditEventType.ADMIN_USER_REACTIVATED : AuditEventType.ADMIN_USER_SUSPENDED;
+        systemAuditService.record(AuditEventRequest.builder().eventType(event)
+                .source(AuditSource.ADMIN_PORTAL).resourceType("USER").resourceId(user.getId())
+                .subjectUserId(user.getId()).reasonCode(reason)
+                .oldValues(Map.of("userStatus", previous.name()))
+                .newValues(Map.of("userStatus", user.getUserStatus().name())).build());
+    }
+
+    private void auditMutation(String action, String resource, UUID id, UUID subject, Map<String, Object> metadata) {
+        systemAuditService.record(AuditEventRequest.builder().eventType(AuditEventType.ADMIN_RESOURCE_MUTATION)
+                .source(AuditSource.ADMIN_PORTAL).resourceType(resource).resourceId(id)
+                .subjectUserId(subject).reasonCode(action).metadata(metadata).build());
+    }
+
+    @Transactional(readOnly = true, isolation = org.springframework.transaction.annotation.Isolation.REPEATABLE_READ)
+    public AdminPage<com.finance.finance.modules.admin.dto.response.AdminAuditLogItem> listAuditLogs(
+            String search, String action, String targetEntity, AdminPaging page) {
+        return adminReads.legacyAudit(search, action, targetEntity, page);
     }
 
     // 10. Giám sát Hệ thống (System Health & Infrastructure Monitor) - THẬT 100%
@@ -977,9 +692,11 @@ public class AdminService {
         // 1. JVM Memory thật
         MemoryMXBean memoryBean = ManagementFactory.getMemoryMXBean();
         long heapUsed = memoryBean.getHeapMemoryUsage().getUsed() / (1024 * 1024);
-        long heapMax = memoryBean.getHeapMemoryUsage().getMax() / (1024 * 1024);
+        long heapMaxBytes = memoryBean.getHeapMemoryUsage().getMax();
+        Long heapMax = heapMaxBytes > 0 ? heapMaxBytes / (1024 * 1024) : null;
         long heapCommitted = memoryBean.getHeapMemoryUsage().getCommitted() / (1024 * 1024);
-        double heapPercent = heapMax > 0 ? Math.round(((double) heapUsed / heapMax) * 1000.0) / 10.0 : 0;
+        Double heapPercent = heapMaxBytes > 0
+                ? Math.round((double) memoryBean.getHeapMemoryUsage().getUsed() / heapMaxBytes * 1000.0) / 10.0 : null;
         long nonHeapUsed = memoryBean.getNonHeapMemoryUsage().getUsed() / (1024 * 1024);
 
         // 2. CPU & Threading thật
@@ -992,67 +709,126 @@ public class AdminService {
         java.lang.management.OperatingSystemMXBean osBean = ManagementFactory.getOperatingSystemMXBean();
         double systemLoad = osBean.getSystemLoadAverage();
 
-        // 3. PostgreSQL Database thật thông qua JDBC DataSource
-        long pingStart = System.currentTimeMillis();
-        String dbStatus = "CONNECTED";
-        String dbProduct = "PostgreSQL";
-        String dbVersion = "";
-        long pingTime = 0;
-
-        try (java.sql.Connection conn = dataSource.getConnection()) {
-            java.sql.DatabaseMetaData meta = conn.getMetaData();
-            dbProduct = meta.getDatabaseProductName();
-            dbVersion = meta.getDatabaseProductVersion();
-            try (java.sql.Statement stmt = conn.createStatement();
-                 java.sql.ResultSet rs = stmt.executeQuery("SELECT 1")) {
-                if (rs.next()) {
-                    pingTime = System.currentTimeMillis() - pingStart;
-                }
+        var infrastructure = serviceHealth.snapshot();
+        var postgres = infrastructure.services().stream().filter(s -> "POSTGRESQL".equals(s.name()))
+                .findFirst().orElseThrow();
+        String dbStatus = "UP".equals(postgres.status()) ? "CONNECTED" : postgres.status();
+        double processLoad = osBean instanceof com.sun.management.OperatingSystemMXBean cpu
+                ? cpu.getProcessCpuLoad() : -1;
+        double systemCpuLoad = osBean instanceof com.sun.management.OperatingSystemMXBean cpu
+                ? cpu.getCpuLoad() : -1;
+        Long sysTotalMB = null;
+        Long sysUsedMB = null;
+        Double sysUsagePct = null;
+        if (osBean instanceof com.sun.management.OperatingSystemMXBean sunOs) {
+            long totalMem = sunOs.getTotalMemorySize();
+            long freeMem = sunOs.getFreeMemorySize();
+            if (totalMem > 0) {
+                sysTotalMB = totalMem / (1024 * 1024);
+                sysUsedMB = Math.max(0L, totalMem - freeMem) / (1024 * 1024);
+                sysUsagePct = Math.round((double) (totalMem - freeMem) / totalMem * 1000.0) / 10.0;
             }
-        } catch (Exception e) {
-            dbStatus = "ERROR: " + e.getMessage();
-            pingTime = System.currentTimeMillis() - pingStart;
-            log.error("Database health check error: {}", e.getMessage());
         }
+        var collectors = ManagementFactory.getGarbageCollectorMXBeans().stream()
+                .map(gc -> new com.finance.finance.modules.admin.dto.response.AdminSystemHealthResponse.GcInfo(
+                        gc.getName(), gc.getCollectionCount() < 0 ? null : gc.getCollectionCount(),
+                        gc.getCollectionTime() < 0 ? null : gc.getCollectionTime())).toList();
 
         // 4. Ổ cứng (Disk Space) máy chủ thật
         java.io.File rootDrive = new java.io.File(".");
-        long totalSpace = rootDrive.getTotalSpace() / (1024 * 1024 * 1024);
-        long freeSpace = rootDrive.getFreeSpace() / (1024 * 1024 * 1024);
+        long totalBytes = rootDrive.getTotalSpace();
+        long freeBytes = rootDrive.getFreeSpace();
+        long totalSpace = totalBytes / (1024 * 1024 * 1024);
+        long freeSpace = freeBytes / (1024 * 1024 * 1024);
         long usableSpace = rootDrive.getUsableSpace() / (1024 * 1024 * 1024);
-        long usedSpace = totalSpace - freeSpace;
-        double diskUsagePercent = totalSpace > 0 ? Math.round(((double) usedSpace / totalSpace) * 1000.0) / 10.0 : 0;
+        Double diskUsagePercent = totalBytes > 0
+                ? Math.round((double) (totalBytes - freeBytes) / totalBytes * 1000.0) / 10.0 : null;
 
         // 5. Uptime thật của Spring Boot Application
         long uptimeMillis = ManagementFactory.getRuntimeMXBean().getUptime();
         long startTimeMillis = ManagementFactory.getRuntimeMXBean().getStartTime();
         String startTimeFormatted = Instant.ofEpochMilli(startTimeMillis).atZone(ZONE_VN).format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
 
+        var pool = dataSource instanceof com.zaxxer.hikari.HikariDataSource hikari ? hikari : null;
+        var poolMetrics = pool == null ? null : pool.getHikariPoolMXBean();
+
+        // 6. Thống kê lưu lượng & tỷ lệ lỗi 24h thật từ ops.service_request_metrics
+        var hourlyTraffic = buildHourlyTraffic24h();
+        long totalReq24h = hourlyTraffic.stream().mapToLong(
+                com.finance.finance.modules.admin.dto.response.AdminSystemHealthResponse.HourlyTrafficPoint::requests).sum();
+        long failedReq24h = hourlyTraffic.stream().mapToLong(
+                com.finance.finance.modules.admin.dto.response.AdminSystemHealthResponse.HourlyTrafficPoint::failed).sum();
+        Double errorRate24h = totalReq24h > 0
+                ? Math.round((failedReq24h * 10000.0) / totalReq24h) / 100.0
+                : 0.0;
+
+        Double avgLatency24h = null;
+        try {
+            Double dbAvgMs = jdbc.queryForObject("""
+                    SELECT avg(duration_ms) FROM ops.service_request_metrics
+                    WHERE started_at >= NOW() - INTERVAL '24 hours' AND outcome <> 'REJECTED'
+                    """, Double.class);
+            if (dbAvgMs != null) {
+                avgLatency24h = Math.round(dbAvgMs * 10.0) / 10.0;
+            }
+        } catch (Exception ignored) {}
+        if (avgLatency24h == null) {
+            var probeLatencies = infrastructure.services().stream()
+                    .map(com.finance.finance.modules.admin.monitoring.ServiceHealthMonitor.ServiceResult::latencyMs)
+                    .filter(Objects::nonNull)
+                    .mapToLong(Long::longValue)
+                    .toArray();
+            if (probeLatencies.length > 0) {
+                double sum = 0;
+                for (long l : probeLatencies) sum += l;
+                avgLatency24h = Math.round((sum / probeLatencies.length) * 10.0) / 10.0;
+            }
+        }
+
+        Map<String, Double> serviceErrorRates = computeServiceErrorRates24h(infrastructure);
+        var recentEvents = buildRecentSystemEvents(infrastructure);
+        var perfHistory = systemMetricsSampler != null
+                ? systemMetricsSampler.history()
+                : List.<com.finance.finance.modules.admin.dto.response.AdminSystemHealthResponse.PerformanceSample>of();
+
         return com.finance.finance.modules.admin.dto.response.AdminSystemHealthResponse.builder()
-                .status("CONNECTED".equals(dbStatus) ? "UP" : "DEGRADED")
+                .status(infrastructure.status())
+                .serviceHealth(infrastructure)
+                .garbageCollectors(collectors)
                 .uptimeSeconds(uptimeMillis / 1000)
                 .startTime(startTimeFormatted)
+                .hourlyTraffic(hourlyTraffic)
+                .performanceHistory(perfHistory)
+                .traffic24h(new com.finance.finance.modules.admin.dto.response.AdminSystemHealthResponse.TrafficSummary(
+                        totalReq24h, failedReq24h, errorRate24h, avgLatency24h))
+                .serviceErrorRates24h(serviceErrorRates)
+                .recentEvents(recentEvents)
                 .memory(com.finance.finance.modules.admin.dto.response.AdminSystemHealthResponse.MemoryInfo.builder()
                         .heapUsedMB(heapUsed)
                         .heapMaxMB(heapMax)
                         .heapCommittedMB(heapCommitted)
                         .heapUsagePercent(heapPercent)
                         .nonHeapUsedMB(nonHeapUsed)
+                        .systemTotalMB(sysTotalMB)
+                        .systemUsedMB(sysUsedMB)
+                        .systemUsagePercent(sysUsagePct)
                         .build())
                 .cpu(com.finance.finance.modules.admin.dto.response.AdminSystemHealthResponse.CpuInfo.builder()
                         .availableProcessors(availableProcessors)
-                        .systemCpuLoad(systemLoad >= 0 ? Math.round(systemLoad * 10.0) / 10.0 : 0.0)
+                        .processCpuPercent(processLoad < 0 ? null : Math.round(processLoad * 1000.0) / 10.0)
+                        .systemCpuPercent(systemCpuLoad < 0 ? null : Math.round(systemCpuLoad * 1000.0) / 10.0)
+                        .systemLoadAverage(systemLoad >= 0 ? Math.round(systemLoad * 10.0) / 10.0 : null)
                         .activeThreadCount(activeThreads)
                         .peakThreadCount(peakThreads)
                         .totalLoadedClasses(loadedClasses)
                         .build())
                 .database(com.finance.finance.modules.admin.dto.response.AdminSystemHealthResponse.DatabaseHealthInfo.builder()
                         .status(dbStatus)
-                        .databaseProductName(dbProduct)
-                        .databaseProductVersion(dbVersion)
-                        .pingTimeMs(pingTime)
-                        .activeConnections(1)
-                        .maxPoolSize(10)
+                        .pingTimeMs(postgres.latencyMs())
+                        .activeConnections(poolMetrics == null ? null : poolMetrics.getActiveConnections())
+                        .idleConnections(poolMetrics == null ? null : poolMetrics.getIdleConnections())
+                        .pendingConnections(poolMetrics == null ? null : poolMetrics.getThreadsAwaitingConnection())
+                        .maxPoolSize(pool == null ? null : pool.getMaximumPoolSize())
                         .build())
                 .disk(com.finance.finance.modules.admin.dto.response.AdminSystemHealthResponse.DiskInfo.builder()
                         .totalSpaceGB(totalSpace)
@@ -1070,42 +846,178 @@ public class AdminService {
                 .build();
     }
 
+    private List<com.finance.finance.modules.admin.dto.response.AdminSystemHealthResponse.HourlyTrafficPoint> buildHourlyTraffic24h() {
+        Map<String, long[]> buckets = new LinkedHashMap<>();
+        Map<String, Double> avgLatencies = new HashMap<>();
+        ZonedDateTime nowHour = ZonedDateTime.now(ZONE_VN).truncatedTo(ChronoUnit.HOURS);
+        DateTimeFormatter hourFmt = DateTimeFormatter.ofPattern("HH:00");
+        DateTimeFormatter keyFmt = DateTimeFormatter.ofPattern("yyyy-MM-dd HH");
+
+        List<ZonedDateTime> hours = new ArrayList<>(24);
+        for (int i = 23; i >= 0; i--) {
+            ZonedDateTime slot = nowHour.minusHours(i);
+            hours.add(slot);
+            buckets.put(slot.format(keyFmt), new long[]{0L, 0L});
+        }
+
+        try {
+            var rows = jdbc.queryForList("""
+                    SELECT to_char(date_trunc('hour', started_at AT TIME ZONE 'Asia/Ho_Chi_Minh'), 'YYYY-MM-DD HH24') AS bucket,
+                           count(*) AS reqs,
+                           count(*) FILTER (WHERE outcome = 'FAILED') AS failed,
+                           avg(duration_ms) FILTER (WHERE outcome <> 'REJECTED') AS avg_ms
+                    FROM ops.service_request_metrics
+                    WHERE started_at >= NOW() - INTERVAL '24 hours'
+                    GROUP BY 1
+                    ORDER BY 1
+                    """);
+            for (var row : rows) {
+                String key = Objects.toString(row.get("bucket"), "");
+                if (buckets.containsKey(key)) {
+                    long reqs = row.get("reqs") instanceof Number n ? n.longValue() : 0L;
+                    long failed = row.get("failed") instanceof Number n ? n.longValue() : 0L;
+                    buckets.put(key, new long[]{reqs, failed});
+                    if (row.get("avg_ms") instanceof Number n) {
+                        avgLatencies.put(key, Math.round(n.doubleValue() * 10.0) / 10.0);
+                    }
+                }
+            }
+        } catch (Exception ignored) {}
+
+        List<com.finance.finance.modules.admin.dto.response.AdminSystemHealthResponse.HourlyTrafficPoint> result = new ArrayList<>(24);
+        for (ZonedDateTime slot : hours) {
+            String key = slot.format(keyFmt);
+            long[] counts = buckets.get(key);
+            result.add(new com.finance.finance.modules.admin.dto.response.AdminSystemHealthResponse.HourlyTrafficPoint(
+                    slot.format(hourFmt), counts[0], counts[1], avgLatencies.get(key)));
+        }
+        return result;
+    }
+
+    private Map<String, Double> computeServiceErrorRates24h(
+            com.finance.finance.modules.admin.monitoring.ServiceHealthMonitor.Snapshot infrastructure) {
+        Map<String, Double> rates = new LinkedHashMap<>();
+        for (var svc : infrastructure.services()) {
+            rates.put(svc.name(), "UP".equals(svc.status()) ? 0.0 : null);
+        }
+        try {
+            var rows = jdbc.queryForList("""
+                    SELECT CASE
+                             WHEN operation IN ('OCR_SCAN', 'OCR_TRANSACTION') THEN 'OCR'
+                             ELSE 'FINAI'
+                           END AS svc,
+                           count(*) AS total,
+                           count(*) FILTER (WHERE outcome = 'FAILED') AS failed
+                    FROM ops.service_request_metrics
+                    WHERE started_at >= NOW() - INTERVAL '24 hours'
+                    GROUP BY 1
+                    """);
+            for (var row : rows) {
+                String svc = Objects.toString(row.get("svc"), "");
+                long total = row.get("total") instanceof Number n ? n.longValue() : 0L;
+                long failed = row.get("failed") instanceof Number n ? n.longValue() : 0L;
+                if (total > 0) {
+                    rates.put(svc, Math.round((failed * 10000.0) / total) / 100.0);
+                }
+            }
+        } catch (Exception ignored) {}
+        return rates;
+    }
+
+    private List<com.finance.finance.modules.admin.dto.response.AdminSystemHealthResponse.SystemEventItem> buildRecentSystemEvents(
+            com.finance.finance.modules.admin.monitoring.ServiceHealthMonitor.Snapshot infrastructure) {
+        List<com.finance.finance.modules.admin.dto.response.AdminSystemHealthResponse.SystemEventItem> events = new ArrayList<>();
+        DateTimeFormatter tsFmt = DateTimeFormatter.ofPattern("HH:mm dd/MM/yyyy");
+        String checkedLabel = infrastructure.checkedAt().atZone(ZONE_VN).format(tsFmt);
+
+        for (var svc : infrastructure.services()) {
+            if ("DOWN".equals(svc.status()) || "DEGRADED".equals(svc.status())) {
+                String ts = svc.checkedAt().atZone(ZONE_VN).format(tsFmt);
+                events.add(new com.finance.finance.modules.admin.dto.response.AdminSystemHealthResponse.SystemEventItem(
+                        "ERROR",
+                        "Dịch vụ " + svc.name() + " gặp sự cố (" + (svc.errorCode() != null ? svc.errorCode() : svc.status()) + ")",
+                        ts));
+            }
+        }
+
+        try {
+            var errRows = jdbc.queryForList("""
+                    SELECT operation, error_code, started_at
+                    FROM ops.service_request_metrics
+                    WHERE outcome = 'FAILED' AND started_at >= NOW() - INTERVAL '24 hours'
+                    ORDER BY started_at DESC
+                    LIMIT 3
+                    """);
+            for (var row : errRows) {
+                String op = Objects.toString(row.get("operation"), "REQUEST");
+                String code = Objects.toString(row.get("error_code"), "ERROR");
+                Object started = row.get("started_at");
+                String ts = started instanceof java.sql.Timestamp t
+                        ? t.toInstant().atZone(ZONE_VN).format(tsFmt)
+                        : (started instanceof OffsetDateTime o ? o.atZoneSameInstant(ZONE_VN).format(tsFmt) : checkedLabel);
+                events.add(new com.finance.finance.modules.admin.dto.response.AdminSystemHealthResponse.SystemEventItem(
+                        "WARN", "Lỗi xử lý " + op + " (" + code + ")", ts));
+            }
+        } catch (Exception ignored) {}
+
+        if ("UP".equals(infrastructure.status())) {
+            events.add(new com.finance.finance.modules.admin.dto.response.AdminSystemHealthResponse.SystemEventItem(
+                    "INFO", "Kiểm tra sức khỏe hệ thống (Health Check) thành công", checkedLabel));
+        }
+        for (var svc : infrastructure.services()) {
+            if ("UP".equals(svc.status()) && List.of("BACKEND", "POSTGRESQL", "FINAI", "OCR").contains(svc.name())) {
+                String label = switch (svc.name()) {
+                    case "BACKEND" -> "Dịch vụ Spring Boot đã phản hồi ổn định";
+                    case "POSTGRESQL" -> "Kết nối PostgreSQL bình thường";
+                    case "FINAI" -> "FinAI Service sẵn sàng phản hồi";
+                    case "OCR" -> "OCR Pipeline hoạt động bình thường";
+                    default -> svc.name() + " ổn định";
+                };
+                events.add(new com.finance.finance.modules.admin.dto.response.AdminSystemHealthResponse.SystemEventItem(
+                        "INFO", label, svc.checkedAt().atZone(ZONE_VN).format(tsFmt)));
+            }
+        }
+        return events.stream().limit(6).toList();
+    }
+
     // 11. Cấu hình Hệ thống (System Settings) - LƯU VÀO DATABASE THẬT
     @Transactional(readOnly = true)
     public List<com.finance.finance.modules.admin.dto.response.SystemSettingItem> listSettings(String group) {
-        List<com.finance.finance.modules.admin.entity.SystemSetting> settings;
-        if (group != null && !group.isBlank()) {
-            settings = systemSettingRepository.findByGroupOrderByKeyAsc(group.trim().toUpperCase());
-        } else {
-            settings = systemSettingRepository.findAll();
-        }
-
-        return settings.stream().map(s -> com.finance.finance.modules.admin.dto.response.SystemSettingItem.builder()
-                .key(s.getKey())
-                .value(s.getValue())
-                .group(s.getGroup())
-                .description(s.getDescription())
-                .updatedAt(s.getUpdatedAt())
-                .build()
-        ).sorted(Comparator.comparing(com.finance.finance.modules.admin.dto.response.SystemSettingItem::getKey)).collect(Collectors.toList());
+        var keys = Arrays.stream(AdminSettingDefinition.values()).map(Enum::name).toList();
+        return systemSettingRepository.findAllById(keys).stream()
+                .filter(s -> group == null || group.isBlank() || group.trim().equalsIgnoreCase(s.getGroup()))
+                .map(this::settingItem).sorted(Comparator.comparing(
+                        com.finance.finance.modules.admin.dto.response.SystemSettingItem::getKey)).toList();
     }
 
     @Transactional
     public com.finance.finance.modules.admin.dto.response.SystemSettingItem updateSetting(String key, String value) {
-        com.finance.finance.modules.admin.entity.SystemSetting setting = systemSettingRepository.findById(key)
-                .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy cấu hình với mã: " + key));
+        var definition = AdminSettingDefinition.lookup(key);
+        if (definition == null) throw new IllegalArgumentException("Cấu hình không được phép chỉnh sửa");
+        String normalized = definition.normalize(value);
+        var setting = systemSettingRepository.findById(key)
+                .orElseThrow(() -> new IllegalArgumentException("Cấu hình chưa được khởi tạo"));
+        if (!Objects.equals(setting.getValue(), normalized)) {
+            setting.setValue(normalized);
+            setting = systemSettingRepository.saveAndFlush(setting);
+            auditMutation("SETTINGS_UPDATE", "SYSTEM_SETTING", null, null, Map.of("settingKey", key));
+        }
+        return settingItem(setting);
+    }
 
-        setting.setValue(value.trim());
-        setting = systemSettingRepository.save(setting);
-        logAudit("SETTINGS_UPDATE", "SYSTEM_SETTING", key, "Cập nhật cấu hình: " + key + " = " + value);
-
+    private com.finance.finance.modules.admin.dto.response.SystemSettingItem settingItem(
+            com.finance.finance.modules.admin.entity.SystemSetting setting) {
+        var definition = AdminSettingDefinition.valueOf(setting.getKey());
         return com.finance.finance.modules.admin.dto.response.SystemSettingItem.builder()
-                .key(setting.getKey())
-                .value(setting.getValue())
-                .group(setting.getGroup())
-                .description(setting.getDescription())
-                .updatedAt(setting.getUpdatedAt())
-                .build();
+                .key(setting.getKey()).value(setting.getValue()).group(setting.getGroup())
+                .description(setting.getDescription()).updatedAt(setting.getUpdatedAt())
+                .editable(definition.editable).type(definition.type).min(definition.min).max(definition.max)
+                .applies(definition.editable ? "IMMEDIATE" : "READ_ONLY").effect(definition.effect).build();
+    }
+
+    @Transactional(readOnly = true, isolation = org.springframework.transaction.annotation.Isolation.REPEATABLE_READ)
+    public AdminPage<com.finance.finance.modules.admin.dto.response.AdminAiSessionItem> listAiSessions(String search, AdminPaging page) {
+        return adminReads.aiSessions(search, page);
     }
 
     public Object getAiAdminStats() {

@@ -4,15 +4,27 @@ import com.finance.finance.common.enums.SubscriptionTier;
 import com.finance.finance.common.enums.SystemRole;
 import com.finance.finance.common.enums.UserStatus;
 import lombok.Data;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.Size;
 
 @Data
 public class AdminUpdateUserRequest {
+    @Size(max = 100)
     private String fullName;
     private UserStatus userStatus;
     private SystemRole systemRole;
     private SubscriptionTier subscriptionTier;
-    private Integer extendSubscriptionDays; // Gia hạn số ngày (ví dụ: 30, 90, 365)
+    @Min(1)
+    @Max(365)
+    private Integer extendSubscriptionDays;
     private Boolean emailVerified;
+    @Size(max = 500)
     private String note;
+
+    @com.fasterxml.jackson.annotation.JsonAnySetter
+    public void rejectUnknownField(String name, Object value) {
+        throw new IllegalArgumentException("Unexpected user update field");
+    }
 }
 

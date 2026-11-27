@@ -11,5 +11,7 @@ import java.util.UUID;
 public interface OAuthAccountRepository extends JpaRepository<OAuthAccount, UUID> {
     Optional<OAuthAccount> findByProviderAndProviderUserId(String provider, String providerUserId);
     Optional<OAuthAccount> findByUserIdAndProvider(UUID userId, String provider);
+
+    void deleteAllByUserId(UUID userId);
 }
 

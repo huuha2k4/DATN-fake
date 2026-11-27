@@ -15,6 +15,25 @@ public class SystemConfigService {
 
     private final SystemSettingRepository systemSettingRepository;
 
+    public boolean maintenanceEnabled() {
+        return getBoolean("MAINTENANCE_MODE", false);
+    }
+
+    public void requireApplicationAccess(com.finance.finance.modules.user.entity.User user) {
+        if ((user == null || !user.isAdmin()) && maintenanceEnabled()) {
+            throw new com.finance.finance.common.exception.BusinessException(
+                    "Finora đang bảo trì. Vui lòng thử lại sau.", "MAINTENANCE_MODE",
+                    org.springframework.http.HttpStatus.SERVICE_UNAVAILABLE);
+        }
+    }
+
+    public void requireRegistrationAllowed() {
+        requireApplicationAccess(null);
+        if (!getBoolean("ALLOW_REGISTRATION", true)) {
+            throw new com.finance.finance.common.exception.BusinessException("Hệ thống đang tạm ngưng đăng ký");
+        }
+    }
+
     public String getString(String key, String defaultValue) {
         try {
             Optional<SystemSetting> setting = systemSettingRepository.findById(key);

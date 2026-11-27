@@ -2,6 +2,7 @@ package com.finance.finance.modules.finai.tool;
 
 import com.finance.finance.common.enums.*;
 import com.finance.finance.common.exception.BusinessException;
+import com.finance.finance.modules.analytics.client.AiAnalyticsClient;
 import com.finance.finance.modules.account.dto.response.AccountListResponse;
 import com.finance.finance.modules.account.dto.response.AccountResponse;
 import com.finance.finance.modules.account.dto.response.AccountSummaryResponse;
@@ -80,12 +81,17 @@ public class FinAiToolExecutor {
     private final CategoryRepository categoryRepository;
     private final BudgetRepository budgetRepository;
     private final Validator validator;
+    private final AiAnalyticsClient analyticsClient;
 
     public record PreparedAction(String title, String description, Map<String, Object> preview) {}
 
     public Object executeRead(UUID userId, String toolName, Map<String, Object> args) {
         registry.validate(toolName, args, FinAiToolMode.READ);
         Object data = switch (toolName) {
+            case "get_categories" -> categoryRepository.findByUserIdOrSystemAndKind(
+                    userId, enumValue(args, "kind", CategoryKind.class, null)).stream()
+                    .map(category -> Map.of("id", category.getId(), "name", category.getName())).toList();
+            case "get_spending_profile" -> spendingProfile(userId);
             case "get_transactions" -> readTransactions(userId, args);
             case "get_accounts" -> readAccounts(userId, args);
             case "get_financial_overview" -> readOverview(userId, args);
@@ -108,6 +114,18 @@ public class FinAiToolExecutor {
         envelope.put("tool", toolName);
         envelope.put("data", data);
         return envelope;
+    }
+
+    private Map<String, Object> spendingProfile(UUID userId) {
+        Object profile = analyticsClient.get("/api/behavior/profile", userId, Map.of());
+        if (!(profile instanceof Map<?, ?> data) || data.get("status") == null || "ERROR".equals(data.get("status"))) {
+            throw new BusinessException("Chưa thể lấy dữ liệu phân tích chi tiêu.", "AI_PROVIDER_UNAVAILABLE", HttpStatus.SERVICE_UNAVAILABLE);
+        }
+        Map<String, Object> result = new LinkedHashMap<>();
+        for (String field : List.of("status", "summary", "rule_50_30_20", "top_categories", "metrics", "findings")) {
+            if (data.containsKey(field)) result.put(field, data.get(field));
+        }
+        return result;
     }
 
     private Object readTransactions(UUID userId, Map<String, Object> args) {
@@ -321,7 +339,16 @@ public class FinAiToolExecutor {
                 yield result;
             }
             case "expenses" -> groupExpenseService.getExpenses(groupId, pageable, userId);
-            case "members" -> groupService.getMembers(groupId, userId);
+            case "members" -> groupService.getMembers(groupId, userId).stream().map(member -> {
+                Map<String, Object> safe = new LinkedHashMap<>();
+                safe.put("userId", member.getUserId());
+                safe.put("role", member.getRole());
+                if (member.getUser() != null) {
+                    safe.put("name", member.getUser().getDisplayName() != null
+                            ? member.getUser().getDisplayName() : member.getUser().getFullName());
+                }
+                return safe;
+            }).toList();
             case "balances" -> groupExpenseService.getBalances(groupId, userId);
             case "fund" -> Map.of("fund", groupFundService.getFund(groupId, userId),
                     "contributions", groupFundService.getContributions(groupId, userId));
@@ -752,8 +779,9 @@ public class FinAiToolExecutor {
         CreateExpenseRequest request = groupExpenseRequest(userId, args);
         validateBean(request);
         if (request.getExpenseDate().isAfter(LocalDate.now())) throw schema("expenseDate cannot be in the future");
-        if (categoryRepository.findByIdAndUserIdOrSystem(request.getCategoryId(), userId).isEmpty())
-            throw forbiddenResource("categoryId");
+        Category category = categoryRepository.findByIdAndUserIdOrSystem(request.getCategoryId(), userId)
+                .filter(c -> c.getKind() == CategoryKind.EXPENSE)
+                .orElseThrow(() -> forbiddenResource("categoryId"));
         Set<UUID> memberIds = groupService.getMembers(groupId, userId).stream()
                 .map(MemberResponse::getUserId).collect(java.util.stream.Collectors.toSet());
         Set<UUID> splitIds = new HashSet<>();
@@ -764,6 +792,12 @@ public class FinAiToolExecutor {
             splitTotal = splitTotal.add(split.getAmount());
         }
         if (splitTotal.compareTo(request.getAmount()) != 0) throw schema("Split amounts must equal expense amount");
+        if ("EQUAL".equals(request.getSplitMethod())) {
+            var shares = request.getSplits().stream().map(CreateExpenseRequest.ExpenseSplitDto::getAmount)
+                    .sorted().toList();
+            if (shares.getLast().subtract(shares.getFirst()).compareTo(BigDecimal.ONE) > 0)
+                throw schema("Equal split amounts may only differ by rounding");
+        }
         String sourceName;
         if ("PERSONAL_ACCOUNT".equals(request.getPaymentSource())) {
             if (request.getSourceAccountId() == null) throw schema("sourceAccountId is required for PERSONAL_ACCOUNT");
@@ -778,6 +812,7 @@ public class FinAiToolExecutor {
         preview.put("entityType", "GROUP_EXPENSE"); preview.put("entityName", group.getName());
         preview.put("groupId", groupId); preview.put("amount", request.getAmount()); preview.put("currency", "VND");
         preview.put("accountName", sourceName); preview.put("date", request.getExpenseDate());
+        preview.put("paymentSource", request.getPaymentSource()); preview.put("categoryName", category.getName());
         preview.put("splitMethod", request.getSplitMethod()); preview.put("splitCount", request.getSplits().size());
         preview.put("balanceImpact", true); preview.put("note", request.getDescription());
         return new PreparedAction("Tạo khoản chi nhóm " + group.getName(), request.getDescription(), preview);
@@ -1170,7 +1205,15 @@ public class FinAiToolExecutor {
 
     private CreateSpendRequestRequest childSpendRequest(UUID userId, Map<String, Object> a) {
         String description = string(a, "description", null, 300);
-        UUID categoryId = resolveCategoryWithDescription(userId, a.get("categoryId"), description, true);
+        Object rawCategory = a.get("categoryId");
+        UUID categoryId;
+        try {
+            categoryId = rawCategory == null ? null : UUID.fromString(rawCategory.toString());
+        } catch (IllegalArgumentException ignored) {
+            categoryId = null;
+        }
+        if (categoryId == null) categoryId = resolveCategoryWithDescription(userId, rawCategory, description, true);
+        if (categoryRepository.findByIdAndUserIdOrSystem(categoryId, userId).isEmpty()) throw forbiddenResource("categoryId");
         CreateSpendRequestRequest request = new CreateSpendRequestRequest();
         request.setAmount(decimal(a, "amount", null));
         request.setCategoryId(categoryId);

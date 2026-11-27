@@ -198,23 +198,25 @@ export function UserAvatar({ onOpenProfile, onOpenChangePassword, onOpenFeedback
               <span>Đổi mật khẩu</span>
             </button>
 
-            {/* Chức năng: Phản hồi & Trợ giúp */}
-            <button
-              type="button"
-              className="menu-item-row"
-              role="menuitem"
-              onClick={() => {
-                setDropdownOpen(false);
-                if (onOpenFeedback) {
-                  onOpenFeedback();
-                } else {
-                  navigate('/feedback');
-                }
-              }}
-            >
-              <span className="menu-item-icon"><FinanceIcon name="message-square" size={17} /></span>
-              <span>Phản hồi & Trợ giúp</span>
-            </button>
+            {/* Chức năng: Phản hồi & Trợ giúp (chỉ dành cho người dùng thường) */}
+            {!isActuallyAdmin && (
+              <button
+                type="button"
+                className="menu-item-row"
+                role="menuitem"
+                onClick={() => {
+                  setDropdownOpen(false);
+                  if (onOpenFeedback) {
+                    onOpenFeedback();
+                  } else {
+                    navigate('/feedback');
+                  }
+                }}
+              >
+                <span className="menu-item-icon"><FinanceIcon name="message-square" size={17} /></span>
+                <span>Phản hồi & Trợ giúp</span>
+              </button>
+            )}
 
             <div className="menu-divider" />
 

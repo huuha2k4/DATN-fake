@@ -76,6 +76,7 @@ function AppContent() {
   const [showBalanceForecast, setShowBalanceForecast] = React.useState(false);
   const [showNotifications, setShowNotifications] = React.useState(false);
   const [showProfile, setShowProfile] = React.useState(false);
+  const [openFeedbackInbox, setOpenFeedbackInbox] = React.useState(false);
   const [isProfileSubPageOpen, setIsProfileSubPageOpen] = React.useState(false);
   const [isGroupDetailOpen, setIsGroupDetailOpen] = React.useState(false);
   const [showOnboardingWizard, setShowOnboardingWizard] = React.useState(false);
@@ -429,6 +430,9 @@ function AppContent() {
               setShowDebts(true);
             } else if (target.action === 'add-transaction') {
               setShowAddTransaction(true);
+            } else if (target.action === 'feedback') {
+              setOpenFeedbackInbox(true);
+              setShowProfile(true);
             } else if (target.action === 'security') {
               setShowProfile(true);
             }
@@ -444,6 +448,7 @@ function AppContent() {
       <View style={{ flex: 1, backgroundColor: isDark ? themeColors.background : '#FFFFFF' }}>
         <View style={styles.content}>
           <ProfileScreen
+            initiallyShowFeedback={openFeedbackInbox}
             onLogout={async () => {
               try {
                 await authApi.logout();
@@ -476,7 +481,10 @@ function AppContent() {
               setShowProfile(false);
               setShowAiAssistant(true);
             }}
-            onSubPageChange={setIsProfileSubPageOpen}
+            onSubPageChange={(open) => {
+              setIsProfileSubPageOpen(open);
+              if (!open) setOpenFeedbackInbox(false);
+            }}
           />
         </View>
         {!isProfileSubPageOpen && (

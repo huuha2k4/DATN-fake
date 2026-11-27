@@ -1,4 +1,5 @@
 import { api } from '../../core/api/api';
+import type { ServiceHealth } from './monitoringApi';
 
 export interface DailyMetricPoint {
   date: string;
@@ -17,15 +18,11 @@ export interface AdminDashboardOverview {
   enterpriseUsers: number;
   totalGroups: number;
   totalTransactions: number;
-  transactionsToday: number;
   totalReceiptsScanned: number;
   userGrowth: DailyMetricPoint[];
-  transactionActivity: DailyMetricPoint[];
   systemHealth: {
-    status: string;
-    database: string;
     heapMemoryUsedMB: number;
-    heapMemoryMaxMB: number;
+    heapMemoryMaxMB: number | null;
     uptimeHours: number;
   };
 }
@@ -37,7 +34,7 @@ export interface AdminUserItem {
   fullName: string;
   emailVerified: boolean;
   phone?: string | null;
-  userStatus: 'ACTIVE' | 'PENDING' | 'LOCKED' | 'DISABLED' | 'DELETED';
+  userStatus: 'ACTIVE' | 'PENDING' | 'LOCKED' | 'DISABLED' | 'INACTIVE' | 'DELETED';
   systemRole: 'USER' | 'ADMIN';
   subscriptionTier: 'FREE' | 'PREMIUM' | 'ENTERPRISE';
   subscriptionExpiresAt?: string | null;
@@ -63,6 +60,133 @@ export interface AdminUpdateUserPayload {
   emailVerified?: boolean;
 }
 
+export interface AdminPage<T> {
+  content: T[];
+  number: number;
+  size: number;
+  totalElements: number;
+  totalPages: number;
+}
+
+export type AdminPageParams = { page: number; size: number; search?: string; sort?: 'newest' | 'oldest' };
+
+export interface AdminFeedbackItem {
+  id: string;
+  userId: string;
+  userFullName: string;
+  userEmail: string;
+  userAvatar?: string;
+  title: string;
+  content: string;
+  category: string;
+  status: string;
+  priority: string;
+  adminReply?: string;
+  repliedAt?: string;
+  createdAt: string;
+  updatedAt: string;
+  processedAt?: string;
+  processedBy?: string;
+}
+
+export interface AdminBroadcastItem {
+  id: string;
+  title: string;
+  body: string | null;
+  targetAudience: string | null;
+  priority: string | null;
+  actionUrl?: string;
+  actionText?: string;
+  recipientCount: number | null;
+  expectedCount: number | null;
+  readCount: number | null;
+  status: 'QUEUED' | 'PROCESSING' | 'COMPLETED' | 'LEGACY';
+  legacy: boolean;
+  createdBy: string | null;
+  createdAt: string | null;
+}
+
+export interface LegacyAuditItem {
+  id: string;
+  adminUsername: string;
+  adminFullName: string;
+  action: string;
+  targetEntity: string;
+  targetId: string;
+  description: string;
+  ipAddress: string;
+  status: string;
+  createdAt: string;
+}
+
+export interface AdminOcrItem {
+  id: string;
+  confidence: number | null;
+  needsReview: boolean;
+  createdAt: string;
+}
+
+export interface AdminAiSession {
+  id: string;
+  messageCount: number;
+  createdAt: string | null;
+  updatedAt: string | null;
+}
+
+export interface AdminAiStats {
+  status: string;
+  totalSessions: number;
+  totalMessages: number;
+  algorithms: Array<{ name: string; type: string; engine: string; status: string; desc: string }>;
+}
+
+export interface AdminCategoryItem {
+  id: string;
+  name: string;
+  code?: string;
+  kind: 'INCOME' | 'EXPENSE';
+  icon?: string;
+  color?: string;
+  parentId: string | null;
+  displayOrder: number;
+  isSystem: boolean;
+}
+
+export interface AdminSetting {
+  key: string;
+  value: string;
+  group: string;
+  description: string;
+  updatedAt: string;
+  type: 'BOOLEAN' | 'INTEGER' | 'DECIMAL' | 'DURATION';
+  min: number | null;
+  max: number | null;
+  editable: boolean;
+  applies: 'IMMEDIATE' | 'READ_ONLY';
+  effect: string;
+}
+
+export interface AdminNotificationTemplate {
+  id: string;
+  code: string;
+  title: string;
+  bodyTemplate: string;
+  triggerEvent: string;
+  scheduleCron: string | null;
+  targetAudience: string | null;
+  priority: string | null;
+  isActive: boolean | null;
+  editable: boolean;
+  totalDispatched: number | null;
+  lastDispatchedAt: string | null;
+  createdAt: string;
+}
+
+async function getAdminPage<T>(path: string, params: AdminPageParams, signal?: AbortSignal): Promise<AdminPage<T>> {
+  const response = await api.get(path, { params, signal });
+  return response.data?.data ?? response.data;
+}
+
 export const adminApi = {
   // 1. Tổng quan
   async getDashboardOverview(): Promise<AdminDashboardOverview> {
@@ -71,15 +195,8 @@ export const adminApi = {
   },
 
   // 2. Quản lý Người dùng
-  async listUsers(params: {
-    search?: string;
-    status?: string;
-    tier?: string;
-    page?: number;
-    size?: number;
-  }): Promise<AdminUserPageResponse> {
-    const res = await api.get('/admin/users', { params });
-    return res.data?.data || res.data;
+  listUsers(params: AdminPageParams & { status?: string; tier?: string }, signal?: AbortSignal) {
+    return getAdminPage<AdminUserItem>('/admin/users', params, signal);
   },
 
   async updateUser(userId: string, payload: AdminUpdateUserPayload): Promise<AdminUserItem> {
@@ -111,7 +228,7 @@ export const adminApi = {
   },
 
   // 4. Danh mục Hệ thống
-  async getSystemCategories(): Promise<any[]> {
+  async getSystemCategories(): Promise<AdminCategoryItem[]> {
     const res = await api.get('/admin/categories');
     return res.data?.data || res.data;
   },
@@ -124,7 +241,7 @@ export const adminApi = {
     color?: string;
     parentId?: string | null;
     displayOrder?: number;
-  }): Promise<any> {
+  }): Promise<AdminCategoryItem> {
     const res = await api.post('/admin/categories', payload);
     return res.data?.data || res.data;
   },
@@ -137,7 +254,7 @@ export const adminApi = {
     color?: string;
     parentId?: string | null;
     displayOrder?: number;
-  }): Promise<any> {
+  }): Promise<AdminCategoryItem> {
     const res = await api.put(`/admin/categories/${categoryId}`, payload);
     return res.data?.data || res.data;
   },
@@ -147,30 +264,24 @@ export const adminApi = {
   },
 
   // 5. Quản lý OCR Hóa đơn
-  async getOcrOverview(): Promise<{
+  async getOcrOverview(signal?: AbortSignal): Promise<{
     totalScanned: number;
     scannedToday: number;
     scannedThisMonth: number;
     needReviewCount: number;
-    averageConfidence: number;
-    recentReceipts: Array<{
-      id: string;
-      userId: string;
-      userFullName: string;
-      userEmail: string;
-      merchantName: string;
-      totalAmount: number;
-      currency: string;
-      transactionDate: string;
-      confidence: number;
-      needsReview: boolean;
-      aiCategoryName?: string;
-      kind: string;
-      createdAt: string;
-    }>;
+    averageConfidence: number | null;
+    linkedTransactions: number;
   }> {
-    const res = await api.get('/admin/ocr/overview');
+    const res = await api.get('/admin/ocr/overview', { signal });
     return res.data?.data || res.data;
+  },
+
+  listOcrReceipts(params: AdminPageParams & { review?: boolean }, signal?: AbortSignal) {
+    return getAdminPage<AdminOcrItem>('/admin/ocr/receipts', params, signal);
+  },
+
+  listAiSessions(params: AdminPageParams, signal?: AbortSignal) {
+    return getAdminPage<AdminAiSession>('/admin/ai/sessions', params, signal);
   },
 
   // 6. Thống kê sử dụng
@@ -179,7 +290,6 @@ export const adminApi = {
     activeUsersDAU: number;
     activeUsersWAU: number;
     activeUsersMAU: number;
-    retentionRate: number;
     totalTransactions: number;
     totalGroups: number;
     totalReceipts: number;
@@ -200,45 +310,18 @@ export const adminApi = {
   },
 
   // 7. Phản hồi & Hỗ trợ
-  async listFeedbacks(params?: { status?: string; category?: string }): Promise<Array<{
-    id: string;
-    userId: string;
-    userFullName: string;
-    userEmail: string;
-    userAvatar?: string;
-    title: string;
-    content: string;
-    category: string;
-    status: string;
-    priority: string;
-    adminReply?: string;
-    repliedAt?: string;
-    createdAt: string;
-  }>> {
-    const res = await api.get('/admin/feedbacks', { params });
-    return res.data?.data || res.data;
+  listFeedbacks(params: AdminPageParams & { status?: string; category?: string }, signal?: AbortSignal) {
+    return getAdminPage<AdminFeedbackItem>('/admin/feedbacks', params, signal);
   },
 
-  async replyFeedback(feedbackId: string, payload: { reply: string; status?: string }): Promise<any> {
-    const res = await api.post(`/admin/feedbacks/${feedbackId}/reply`, payload);
-    return res.data?.data || res.data;
+  async replyFeedback(feedbackId: string, payload: { reply: string; status: string; expectedUpdatedAt: string }, requestId: string): Promise<AdminFeedbackItem> {
+    const res = await api.post(`/admin/feedbacks/${feedbackId}/reply`, payload, { headers: { 'Idempotency-Key': requestId } });
+    return res.data?.data ?? res.data;
   },
 
   // 8. Thông báo Hệ thống (Broadcast)
-  async listBroadcastLogs(): Promise<Array<{
-    id: string;
-    title: string;
-    body: string;
-    targetAudience: string;
-    priority: string;
-    actionUrl?: string;
-    actionText?: string;
-    recipientCount: number;
-    createdBy: string;
-    createdAt: string;
-  }>> {
-    const res = await api.get('/admin/broadcast');
-    return res.data?.data || res.data;
+  listBroadcastLogs(params: AdminPageParams & { legacy?: boolean }, signal?: AbortSignal) {
+    return getAdminPage<AdminBroadcastItem>('/admin/broadcast', params, signal);
   },
 
   async broadcastNotification(payload: {
@@ -248,26 +331,13 @@ export const adminApi = {
     priority?: string;
     actionUrl?: string;
     actionText?: string;
-  }): Promise<any> {
-    const res = await api.post('/admin/broadcast', payload);
+  }, requestId: string): Promise<AdminBroadcastItem> {
+    const res = await api.post('/admin/broadcast', payload, { headers: { 'Idempotency-Key': requestId } });
     return res.data?.data || res.data;
   },
 
   // 8.1 Mẫu thông báo tự động (Templates)
-  async listNotificationTemplates(): Promise<Array<{
-    id: string;
-    code: string;
-    title: string;
-    bodyTemplate: string;
-    triggerEvent: string;
-    scheduleCron?: string;
-    targetAudience: string;
-    priority: string;
-    isActive: boolean;
-    totalDispatched: number;
-    lastDispatchedAt?: string;
-    createdAt: string;
-  }>> {
+  async listNotificationTemplates(): Promise<AdminNotificationTemplate[]> {
     const res = await api.get('/admin/notification-templates');
     return res.data?.data || res.data;
   },
@@ -278,31 +348,19 @@ export const adminApi = {
     targetAudience?: string;
     priority?: string;
     isActive?: boolean;
-  }): Promise<any> {
+  }): Promise<AdminNotificationTemplate> {
     const res = await api.put(`/admin/notification-templates/${templateId}`, payload);
     return res.data?.data || res.data;
   },
 
-  async toggleNotificationTemplate(templateId: string): Promise<any> {
+  async toggleNotificationTemplate(templateId: string): Promise<AdminNotificationTemplate> {
     const res = await api.post(`/admin/notification-templates/${templateId}/toggle`);
     return res.data?.data || res.data;
   },
 
   // 9. Nhật ký Hoạt động (Audit Logs)
-  async listAuditLogs(params?: { action?: string; targetEntity?: string }): Promise<Array<{
-    id: string;
-    adminUsername: string;
-    adminFullName: string;
-    action: string;
-    targetEntity: string;
-    targetId: string;
-    description: string;
-    ipAddress: string;
-    status: string;
-    createdAt: string;
-  }>> {
-    const res = await api.get('/admin/audit-logs', { params });
-    return res.data?.data || res.data;
+  listAuditLogs(params: AdminPageParams & { action?: string; targetEntity?: string }, signal?: AbortSignal) {
+    return getAdminPage<LegacyAuditItem>('/admin/audit-logs', params, signal);
   },
 
   // 9b. Nhật ký Hệ thống (ops.audit_logs — yêu cầu mật khẩu .env tại Backend)
@@ -317,14 +375,8 @@ export const adminApi = {
 
   async listSystemAuditLogs(
     unlockToken: string,
-    params?: {
-      category?: string;
-      outcome?: string;
-      severity?: string;
-      search?: string;
-      page?: number;
-      size?: number;
-    }
+    params: AdminPageParams & { category?: string; outcome?: string; severity?: string },
+    signal?: AbortSignal,
   ): Promise<{
     content: Array<{
       id: string;
@@ -347,10 +399,10 @@ export const adminApi = {
       correlationId?: string;
       httpMethod?: string;
       endpoint?: string;
-      changedFields?: Record<string, any>;
-      oldValues?: Record<string, any>;
-      newValues?: Record<string, any>;
-      metadata?: Record<string, any>;
+      changedFields?: Record<string, unknown>;
+      oldValues?: Record<string, unknown>;
+      newValues?: Record<string, unknown>;
+      metadata?: Record<string, unknown>;
       reasonCode?: string;
       errorCode?: string;
     }>;
@@ -361,6 +413,7 @@ export const adminApi = {
   }> {
     const res = await api.get('/admin/system-audit/logs', {
       params,
+      signal,
       headers: {
         'X-System-Audit-Token': unlockToken,
       },
@@ -369,68 +422,71 @@ export const adminApi = {
   },
 
   // 10. Giám sát Hệ thống (System Health)
-  async getSystemHealth(): Promise<{
+  async getSystemHealth(signal?: AbortSignal): Promise<{
     status: string;
+    serviceHealth: ServiceHealth;
+    garbageCollectors: { name: string; collections: number | null; timeMs: number | null }[];
     uptimeSeconds: number;
     startTime: string;
+    hourlyTraffic?: { hourLabel: string; requests: number; failed: number; avgLatencyMs: number | null }[];
+    performanceHistory?: { timeLabel: string; cpuPercent: number | null; ramPercent: number | null; latencyMs: number | null }[];
+    traffic24h?: { totalRequests: number; failedRequests: number; errorRatePercent: number | null; avgLatencyMs: number | null };
+    serviceErrorRates24h?: Record<string, number | null>;
+    recentEvents?: { severity: string; message: string; timestamp: string }[];
     memory: {
       heapUsedMB: number;
-      heapMaxMB: number;
+      heapMaxMB: number | null;
       heapCommittedMB: number;
-      heapUsagePercent: number;
+      heapUsagePercent: number | null;
       nonHeapUsedMB: number;
+      systemTotalMB?: number | null;
+      systemUsedMB?: number | null;
+      systemUsagePercent?: number | null;
     };
     cpu: {
       availableProcessors: number;
-      systemCpuLoad: number;
-      processCpuLoad: number;
+      systemLoadAverage: number | null;
+      processCpuPercent: number | null;
+      systemCpuPercent?: number | null;
       activeThreadCount: number;
       peakThreadCount: number;
       totalLoadedClasses: number;
     };
     database: {
       status: string;
-      databaseProductName: string;
-      databaseProductVersion: string;
-      pingTimeMs: number;
-      activeConnections: number;
-      maxPoolSize: number;
+      databaseProductName: string | null;
+      databaseProductVersion: string | null;
+      pingTimeMs: number | null;
+      activeConnections: number | null;
+      idleConnections: number | null;
+      pendingConnections: number | null;
+      maxPoolSize: number | null;
     };
     disk: {
       totalSpaceGB: number;
       freeSpaceGB: number;
       usableSpaceGB: number;
-      diskUsagePercent: number;
+      diskUsagePercent: number | null;
     };
     runtime: Record<string, string>;
   }> {
-    const res = await api.get('/admin/system-health');
+    const res = await api.get('/admin/system-health', { signal });
     return res.data?.data || res.data;
   },
 
   // 11. Cấu hình Hệ thống (System Settings)
-  async listSettings(group?: string): Promise<Array<{
-    id: string;
-    settingKey: string;
-    settingValue: string;
-    settingGroup: string;
-    description: string;
-    dataType: 'BOOLEAN' | 'NUMBER' | 'STRING' | 'JSON';
-    isEncrypted: boolean;
-    updatedAt: string;
-    updatedBy?: string | null;
-  }>> {
+  async listSettings(group?: string): Promise<AdminSetting[]> {
     const res = await api.get('/admin/settings', { params: { group } });
     return res.data?.data || res.data;
   },
 
-  async updateSetting(key: string, value: string): Promise<any> {
+  async updateSetting(key: string, value: string): Promise<AdminSetting> {
     const res = await api.put(`/admin/settings/${key}`, { value });
     return res.data?.data || res.data;
   },
 
   // 12. Thống kê FinAI Engine
-  async getAiAdminStats(): Promise<any> {
+  async getAiAdminStats(): Promise<AdminAiStats> {
     const res = await api.get('/admin/ai/stats');
     return res.data?.data || res.data;
   },

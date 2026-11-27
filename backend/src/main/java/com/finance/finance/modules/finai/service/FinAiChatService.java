@@ -17,6 +17,8 @@ import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
 
 import java.time.Instant;
+import java.time.Duration;
+import java.text.Normalizer;
 import java.util.*;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -25,6 +27,8 @@ import java.util.stream.Collectors;
 @Service
 @RequiredArgsConstructor
 public class FinAiChatService {
+    private static final Duration DRAFT_TTL = Duration.ofMinutes(30);
+    private record StoredDraft(FinAiClarification view, FinAiAgentClient.AgentDraft state) {}
     private final AiChatSessionRepository sessions;
     private final AiChatMessageRepository messages;
     private final FinAiActionService actionService;
@@ -42,18 +46,35 @@ public class FinAiChatService {
         long readStarted = System.nanoTime();
         AiChatSession session = resolveSession(userId, request);
         List<AiChatMessage> existing = request.getConversationId() == null ? List.of()
-                : messages.findBySessionIdOrderByCreatedAtAsc(session.getId());
+                : messages.findTop20BySessionIdOrderByCreatedAtDesc(session.getId()).reversed();
         List<FinAiAgentClient.HistoryItem> history = existing.stream()
-                .skip(Math.max(0, existing.size() - 20L))
                 .map(m -> new FinAiAgentClient.HistoryItem(m.getAuthor(), m.getText())).toList();
+        StoredDraft activeDraft = existing.isEmpty() ? null : activeDraft(existing.getLast());
+        String submittedMessage = request.getMessage();
+        if (request.getDraftId() != null || request.getOptionId() != null) {
+            if (activeDraft == null || !activeDraft.view().draftId().equals(request.getDraftId())) throw staleDraft();
+            submittedMessage = activeDraft.view().options().stream()
+                    .filter(option -> option.id().equals(request.getOptionId()))
+                    .findFirst().map(FinAiClarification.Option::label).orElseThrow(FinAiChatService::staleDraft);
+        }
         log.info("[FINAI_PIPELINE] stage=conversation_db_read durationMs={}", (System.nanoTime() - readStarted) / 1_000_000);
         UUID conversationId = session.getId() == null ? UUID.randomUUID() : session.getId();
-        FinAiAgentClient.AgentResponse ai = agentClient.chat(conversationId, request.getMessage(),
-                contextTokens.issue(userId), history, FinAiTemporalContext.now(timezone));
+        Instant expectedVersion = session.getUpdatedAt();
+        String contextToken = contextTokens.issue(userId);
+        FinAiTemporalContext temporalContext = FinAiTemporalContext.now(timezone);
+        FinAiAgentClient.AgentResponse ai = activeDraft == null
+                ? agentClient.chat(conversationId, submittedMessage, contextToken, history, temporalContext)
+                : agentClient.chat(conversationId, submittedMessage, contextToken, history, temporalContext,
+                        activeDraft.state(), request.getOptionId());
+        verifyScope(request, activeDraft, ai);
+        String acceptedMessage = submittedMessage;
         long writeStarted = System.nanoTime();
         FinAiChatResponse savedResponse = new TransactionTemplate(transactionManager).execute(status -> {
-            AiChatSession saved = request.getConversationId() == null ? sessions.save(session) : session;
-            FinAiChatResponse response = persistTurn(userId, request, saved, ai);
+            AiChatSession saved = request.getConversationId() == null ? sessions.save(session)
+                    : sessions.findOwnedForUpdate(conversationId, userId).orElseThrow(FinAiChatService::staleDraft);
+            if (expectedVersion != null && !expectedVersion.equals(saved.getUpdatedAt())) throw staleDraft();
+            if (request.getDraftId() != null && !activeDraft.view().expiresAt().isAfter(Instant.now())) throw staleDraft();
+            FinAiChatResponse response = persistTurn(userId, acceptedMessage, saved, ai, activeDraft);
             idempotencyService.completeFinAiChat(idempotencyKey, userId, response, response.getConversationId());
             return response;
         });
@@ -61,8 +82,16 @@ public class FinAiChatService {
         return savedResponse;
     }
 
-    private FinAiChatResponse persistTurn(UUID userId, FinAiChatRequest request, AiChatSession session, FinAiAgentClient.AgentResponse ai) {
-        messages.save(AiChatMessage.builder().sessionId(session.getId()).author("user").text(request.getMessage()).kind("normal").build());
+    private FinAiChatResponse persistTurn(UUID userId, String userMessage, AiChatSession session,
+                                          FinAiAgentClient.AgentResponse ai, StoredDraft previousDraft) {
+        if (ai.getMessage() == null || ai.getMessage().isBlank()) throw invalidAgentResponse();
+        if (ai.getDraft() != null && ai.getProposals() != null && !ai.getProposals().isEmpty()) throw invalidAgentResponse();
+        Instant now = Instant.now().truncatedTo(java.time.temporal.ChronoUnit.MICROS);
+        Instant previous = session.getUpdatedAt().truncatedTo(java.time.temporal.ChronoUnit.MICROS);
+        Instant userCreatedAt = now.isAfter(previous) ? now : previous.plusNanos(1_000);
+        Instant assistantCreatedAt = userCreatedAt.plusNanos(1_000);
+        messages.save(AiChatMessage.builder().sessionId(session.getId()).author("user").text(userMessage)
+                .kind("normal").createdAt(userCreatedAt).build());
         List<FinAiActionResponse> pending = new ArrayList<>();
         if (ai.getProposals() != null) {
             if (ai.getProposals().size() > 5) throw new BusinessException("Too many proposed actions", "FINAI_TOOL_LIMIT", HttpStatus.BAD_REQUEST);
@@ -71,26 +100,85 @@ public class FinAiChatService {
                 pending.add(actionService.createPending(userId, session.getId(), proposal.getPlanId(), proposal.getToolName(), proposal.getArguments()));
             }
         }
-        String type = pending.isEmpty() ? "MESSAGE" : pending.size() == 1 ? "ACTION_REQUIRED" : "MULTI_ACTION_REQUIRED";
-        String metaJson = null;
+        StoredDraft draft = storedDraft(ai.getDraft());
+        boolean interrupted = ai.isPreserveDraft() && draft == null && pending.isEmpty() && previousDraft != null
+                && previousDraft.view().expiresAt().isAfter(Instant.now());
+        if (interrupted) draft = previousDraft;
+        String type = draft != null && !interrupted ? "CLARIFICATION" : pending.isEmpty() ? "MESSAGE"
+                : pending.size() == 1 ? "ACTION_REQUIRED" : "MULTI_ACTION_REQUIRED";
+        Map<String, Object> metadata = new LinkedHashMap<>();
+        if (draft != null) metadata.put("draft", draft);
         if (!pending.isEmpty()) {
-            try {
-                List<UUID> actionIds = pending.stream().map(FinAiActionResponse::getActionId).toList();
-                metaJson = objectMapper.writeValueAsString(Map.of("actionIds", actionIds));
-            } catch (Exception e) {
-                log.warn("Failed to serialize metadata actionIds for chat message", e);
-            }
+            metadata.put("actionIds", pending.stream().map(FinAiActionResponse::getActionId).toList());
+        }
+        String metaJson;
+        try {
+            metaJson = metadata.isEmpty() ? null : objectMapper.writeValueAsString(metadata);
+        } catch (com.fasterxml.jackson.core.JsonProcessingException error) {
+            throw invalidAgentResponse();
         }
 
         messages.save(AiChatMessage.builder()
                 .sessionId(session.getId())
                 .author("assistant")
                 .text(ai.getMessage())
-                .kind(pending.isEmpty() ? "normal" : "action_required")
+                .kind(draft != null ? "clarification" : pending.isEmpty() ? "normal" : "action_required")
+                .createdAt(assistantCreatedAt)
                 .metadataJson(metaJson)
                 .build());
-        session.setUpdatedAt(Instant.now()); sessions.save(session);
-        return FinAiChatResponse.builder().type(type).conversationId(session.getId()).message(ai.getMessage()).actions(pending).build();
+        session.setUpdatedAt(assistantCreatedAt);
+        sessions.save(session);
+        return FinAiChatResponse.builder().type(type).conversationId(session.getId()).message(ai.getMessage())
+                .clarification(draft == null ? null : draft.view()).actions(pending).build();
+    }
+
+    private StoredDraft storedDraft(FinAiAgentClient.AgentDraft state) {
+        if (state == null) return null;
+        if (state.route() == null || state.field() == null || !state.field().matches("[A-Za-z][A-Za-z0-9_]{0,59}")
+                || state.turns() == null || state.turns().isEmpty() || state.turns().size() > 8
+                || state.turns().stream().anyMatch(turn -> turn == null || turn.length() > 4000)) {
+            throw invalidAgentResponse();
+        }
+        List<FinAiClarification.Option> choices = state.options() == null ? List.of() : state.options().stream()
+                .filter(option -> option != null && option.id() != null && option.id().matches("[A-Za-z0-9_-]{1,64}")
+                        && option.label() != null && !option.label().isBlank() && option.label().length() <= 200)
+                .distinct().limit(24).toList();
+        return new StoredDraft(new FinAiClarification(UUID.randomUUID(), state.field(), Instant.now().plus(DRAFT_TTL), choices),
+                new FinAiAgentClient.AgentDraft(state.route(), state.field(), state.turns(),
+                        state.slots() == null ? Map.of() : state.slots(), choices));
+    }
+
+    private StoredDraft activeDraft(AiChatMessage message) {
+        if (!"clarification".equals(message.getKind()) || message.getMetadataJson() == null) return null;
+        try {
+            StoredDraft draft = objectMapper.treeToValue(objectMapper.readTree(message.getMetadataJson()).get("draft"), StoredDraft.class);
+            return draft != null && draft.view() != null && draft.view().expiresAt().isAfter(Instant.now()) ? draft : null;
+        } catch (Exception error) {
+            return null;
+        }
+    }
+
+    private static void verifyScope(FinAiChatRequest request, StoredDraft draft, FinAiAgentClient.AgentResponse ai) {
+        if (ai.getProposals() == null || ai.getProposals().isEmpty()) return;
+        String evidence = request.getDraftId() == null ? request.getMessage()
+                : String.join(" ", draft.state().turns());
+        String folded = Normalizer.normalize(evidence.toLowerCase(Locale.ROOT), Normalizer.Form.NFD)
+                .replaceAll("\\p{M}", "").replace('đ', 'd');
+        boolean groupExpense = folded.matches("(?s).*\\b(?:chi tieu nhom|chi nhom|giao dich nhom|"
+                + "quy (?:cua )?(?:nhom|chung|phong tro|gia dinh)|tien quy|chi ho|ca phong|"
+                + "ghi vao nhom|group (?:expense|fund))\\b.*");
+        for (var proposal : ai.getProposals()) {
+            if (groupExpense && "create_transaction".equals(proposal.getToolName())) throw invalidAgentResponse();
+        }
+    }
+
+    private static BusinessException invalidAgentResponse() {
+        return new BusinessException("FinAI trả về phản hồi không hợp lệ.", "AI_INTERNAL_ERROR", HttpStatus.BAD_GATEWAY);
+    }
+
+    private static BusinessException staleDraft() {
+        return new BusinessException("Hội thoại đã thay đổi hoặc lựa chọn đã hết hạn. Vui lòng tải lại hội thoại.",
+                "AI_DRAFT_STALE", HttpStatus.CONFLICT);
     }
 
     public FinAiConversationResponse getConversation(UUID userId, UUID conversationId) {
@@ -133,6 +221,7 @@ public class FinAiChatService {
                 }
             }
 
+            StoredDraft draft = m == rawMsgs.getLast() ? activeDraft(m) : null;
             history.add(FinAiConversationResponse.Message.builder()
                     .id(m.getId())
                     .author(m.getAuthor())
@@ -141,6 +230,7 @@ public class FinAiChatService {
                     .createdAt(m.getCreatedAt())
                     .actionIds(msgActionIds.isEmpty() ? null : msgActionIds)
                     .actions(msgActions.isEmpty() ? null : msgActions)
+                    .clarification(draft == null ? null : draft.view())
                     .build());
         }
 

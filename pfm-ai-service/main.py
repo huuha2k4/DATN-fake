@@ -62,7 +62,20 @@ async def require_internal_authentication(request, call_next):
                 "message": "Internal service authentication failed",
                 "requestId": request_id,
             }, headers={"X-Request-Id": request_id})
-    response = await call_next(request)
+    if request.url.path == "/api/v1/agent/chat":
+        from operation_observation import Observation, current
+        observation = Observation()
+        token = current.set(observation)
+        try:
+            response = await call_next(request)
+            try:
+                response.headers["X-Finora-Ai-Metrics"] = observation.header()
+            except Exception:
+                logging.getLogger("finora.monitoring").warning("FinAI observation serialization failed")
+        finally:
+            current.reset(token)
+    else:
+        response = await call_next(request)
     response.headers["X-Request-Id"] = request_id
     if request.url.path.startswith(("/api/forecast", "/api/behavior", "/api/anomal", "/api/recommend")):
         logging.getLogger("finora.analytics").info(
@@ -70,6 +83,12 @@ async def require_internal_authentication(request, call_next):
             request.url.path, response.status_code, (time.perf_counter() - started) * 1000.0,
         )
     return response
+
+
+@app.get("/internal-health")
+def internal_health():
+    """Process responsiveness only. This endpoint never invokes the model."""
+    return {"status": "UP"}
 
 HTML_CHAT_UI = """<!DOCTYPE html>
 <html lang="vi">
@@ -754,6 +773,8 @@ class ActionChatRequest(BaseModel):
     contextToken: str
     temporalContext: dict[str, str]
     history: list[ActionHistoryItem] = []
+    draft: dict[str, Any] | None = None
+    selectedOption: str | None = None
 
 
 class ActionProposal(BaseModel):
@@ -765,6 +786,8 @@ class ActionProposal(BaseModel):
 class ActionChatResponse(BaseModel):
     message: str
     proposals: list[ActionProposal] = []
+    draft: dict[str, Any] | None = None
+    preserveDraft: bool = False
 
 
 @app.post("/api/v1/agent/chat", response_model=ActionChatResponse)
@@ -791,6 +814,8 @@ async def action_agent_chat(request: ActionChatRequest, raw_request: Request,
             history=[item.model_dump() for item in request.history],
             request_id=raw_request.state.request_id,
             deadline=deadline,
+            draft=request.draft,
+            selected_option=request.selectedOption,
         ), timeout=budget)
         return ActionChatResponse(**result)
     except GeminiRateLimitError as exc:
@@ -829,7 +854,7 @@ async def action_agent_chat(request: ActionChatRequest, raw_request: Request,
             "message": "FinAI chưa thể truy xuất dữ liệu tài chính lúc này.",
             "requestId": raw_request.state.request_id,
             "retryable": True,
-        })
+        }, headers={"X-Finora-Ai-Error": "AI_TOOL_ERROR"})
     except Exception:
         return JSONResponse(status_code=502, content={
             "errorCode": "AI_INTERNAL_ERROR",
@@ -1110,70 +1135,57 @@ def api_get_recommendations(user_id: str = "test_user_01"):
 
 @app.get("/api/ai/admin/stats")
 def get_ai_admin_stats():
-    """Endpoint quản trị AI: Trả về trạng thái mô hình, số liệu chat sessions, thông số LLM"""
-    import os
+    """Return stored chat counts and an unprobed algorithm inventory."""
     db = SessionLocal()
     try:
-        total_sessions = db.query(AIChatSession).count()
-        total_messages = db.query(AIChatMessage).count()
-        recent_sessions = db.query(AIChatSession).order_by(AIChatSession.updated_at.desc()).limit(10).all()
+        if db.bind.dialect.name == "postgresql":
+            from sqlalchemy import text
 
-        current_model = os.getenv("LOCAL_MODEL_NAME", "gemini-flash-lite-latest") if os.getenv("USE_LOCAL_LLM", "false").lower() == "true" else "gemini-flash-lite-latest"
-        provider = "Ollama (Local LLM)" if os.getenv("USE_LOCAL_LLM", "false").lower() == "true" else "Google Gemini API"
-
-        sessions_data = []
-        for s in recent_sessions:
-            msg_count = db.query(AIChatMessage).filter(AIChatMessage.session_id == s.id).count()
-            user_obj = db.query(User).filter(User.id == s.user_id).first()
-            sessions_data.append({
-                "id": str(s.id),
-                "title": s.title,
-                "userId": str(s.user_id),
-                "userName": user_obj.full_name if user_obj and user_obj.full_name else (user_obj.email if user_obj else "Người dùng"),
-                "userEmail": user_obj.email if user_obj else "N/A",
-                "messageCount": msg_count,
-                "createdAt": s.created_at.isoformat() if s.created_at else None,
-                "updatedAt": s.updated_at.isoformat() if s.updated_at else None
-            })
-
+            total_sessions, total_messages = db.execute(text("""
+                SELECT
+                    (SELECT count(*) FROM core.ai_chat_sessions s
+                      JOIN core.users u ON u.id = s.user_id WHERE u.deleted_at IS NULL),
+                    (SELECT count(*) FROM core.ai_chat_messages m
+                      JOIN core.ai_chat_sessions s ON s.id = m.session_id
+                      JOIN core.users u ON u.id = s.user_id WHERE u.deleted_at IS NULL)
+            """)).one()
+        else:
+            total_sessions = db.query(AIChatSession).count()
+            total_messages = db.query(AIChatMessage).count()
         return {
-            "status": "HEALTHY",
-            "provider": provider,
-            "activeModel": current_model,
-            "temperature": 0.2,
+            "status": "RESPONDING",
             "totalSessions": total_sessions,
             "totalMessages": total_messages,
             "algorithms": [
                 {
                     "name": "FinAI Chatbot Copilot",
                     "type": "LLM ReAct Agent + Function Calling",
-                    "engine": "LangChain + Gemini Flash-Lite",
-                    "status": "ONLINE",
+                    "engine": "LLM",
+                    "status": "NOT_CHECKED",
                     "desc": "Tự động gọi công cụ truy vấn Database thời gian thực"
                 },
                 {
                     "name": "Financial Forecaster",
                     "type": "Time Series Forecasting",
                     "engine": "Facebook Prophet",
-                    "status": "ONLINE",
+                    "status": "NOT_CHECKED",
                     "desc": "Dự phóng dòng tiền & số dư tài khoản đến cuối tháng"
                 },
                 {
                     "name": "Anomaly Detector",
                     "type": "Unsupervised Machine Learning",
                     "engine": "Isolation Forest (Scikit-Learn)",
-                    "status": "ONLINE",
+                    "status": "NOT_CHECKED",
                     "desc": "Phát hiện giao dịch chi tiêu bất thường theo thời gian thực"
                 },
                 {
                     "name": "Behavior Profiler & Persona",
                     "type": "Statistical Rule Engine",
                     "engine": "50/30/20 Rule + Radar Scoring",
-                    "status": "ONLINE",
+                    "status": "NOT_CHECKED",
                     "desc": "Phân tích thói quen và chấm điểm phong cách tài chính"
                 }
             ],
-            "recentSessions": sessions_data
         }
     finally:
         db.close()
