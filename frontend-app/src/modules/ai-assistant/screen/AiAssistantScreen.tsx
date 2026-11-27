@@ -388,14 +388,20 @@ export function AiAssistantScreen({ onBack }: Props) {
       };
       setMessages((prev) => [...prev, aiMsg]);
     } catch (error: unknown) {
-      setMessages((prev) => prev.filter((item) => item.id !== userMsg.id));
-      if (!selection) setInputQuery((draft) => draft || textToSend);
+      if (error instanceof FinAiHttpError && error.errorCode === 'REQUEST_CANCELLED') {
+        setMessages((prev) => prev.filter((item) => item.id !== userMsg.id));
+        if (!selection) setInputQuery((draft) => draft || textToSend);
+        return;
+      }
       if (error instanceof FinAiHttpError && error.errorCode === 'AI_DRAFT_STALE') {
         setMessages((prev) => prev.map((item) => ({ ...item, clarification: null })));
       }
-      if (error instanceof FinAiHttpError && error.errorCode === 'REQUEST_CANCELLED') return;
+      const isBusinessNotice = error instanceof FinAiHttpError && (error.errorCode === 'BUSINESS_CONFLICT' || error.errorCode === 'INVALID_REQUEST');
+      if (isBusinessNotice) {
+        retryKeyRef.current = null;
+      }
       const text = error instanceof FinAiHttpError
-        ? [error.message, error.requestId && `Mã yêu cầu: ${error.requestId}`].filter(Boolean).join(' ')
+        ? [error.message, !isBusinessNotice && error.requestId && `Mã yêu cầu: ${error.requestId}`].filter(Boolean).join(' ')
         : 'FinAI đang tạm gián đoạn. Vui lòng thử lại sau.';
       setMessages((prev) => [...prev, { id: `err-${Date.now()}`, author: 'assistant', text }]);
     } finally {
@@ -627,15 +633,6 @@ export function AiAssistantScreen({ onBack }: Props) {
               <Text accessibilityLiveRegion="polite" style={[styles.typingText, isDark && { color: themeColors.accentGreen }]}>
                 {isTakingLong ? 'FinAI vẫn đang xử lý yêu cầu của bạn...' : 'FinAI đang suy nghĩ...'}
               </Text>
-              <Pressable
-                onPress={handleCancelWait}
-                accessibilityRole="button"
-                accessibilityLabel="Hủy chờ phản hồi FinAI"
-                hitSlop={8}
-                style={({ pressed }) => [styles.cancelWaitBtn, pressed && styles.pressed]}
-              >
-                <Text style={[styles.cancelWaitText, isDark && { color: themeColors.textSecondary }]}>Hủy chờ</Text>
-              </Pressable>
             </View>
           </View>
         )}
@@ -664,23 +661,37 @@ export function AiAssistantScreen({ onBack }: Props) {
             multiline
             maxLength={500}
           />
-          <Pressable
-            onPress={() => handleSend()}
-            disabled={!inputQuery.trim() || isLoading}
-            style={({ pressed }) => [
-              styles.sendBtn,
-              inputQuery.trim() && !isLoading ? styles.sendBtnActive : styles.sendBtnDisabled,
-              inputQuery.trim() && !isLoading && isDark && { backgroundColor: themeColors.accentGreen },
-              !inputQuery.trim() && isDark && { backgroundColor: themeColors.surfaceSubtle },
-              pressed && styles.pressed,
-            ]}
-          >
-            {isLoading ? (
-              <ActivityIndicator size="small" color="#FFFFFF" />
-            ) : (
+          {isLoading && requestAbortRef.current ? (
+            <Pressable
+              onPress={handleCancelWait}
+              accessibilityRole="button"
+              accessibilityLabel="Dừng phản hồi FinAI"
+              style={({ pressed }) => [
+                styles.sendBtn,
+                styles.stopBtn,
+                isDark && styles.stopBtnDark,
+                pressed && styles.pressed,
+              ]}
+            >
+              <View style={[styles.stopSquare, isDark && styles.stopSquareDark]} />
+            </Pressable>
+          ) : (
+            <Pressable
+              onPress={() => handleSend()}
+              disabled={!inputQuery.trim() || isLoading}
+              accessibilityRole="button"
+              accessibilityLabel="Gửi tin nhắn"
+              style={({ pressed }) => [
+                styles.sendBtn,
+                inputQuery.trim() && !isLoading ? styles.sendBtnActive : styles.sendBtnDisabled,
+                inputQuery.trim() && !isLoading && isDark && { backgroundColor: themeColors.accentGreen },
+                !inputQuery.trim() && isDark && { backgroundColor: themeColors.surfaceSubtle },
+                pressed && styles.pressed,
+              ]}
+            >
               <Text style={styles.sendIcon}>↑</Text>
-            )}
-          </Pressable>
+            </Pressable>
+          )}
         </View>
       </View>
 
@@ -1095,6 +1106,21 @@ const styles = StyleSheet.create({
   },
   sendBtnDisabled: {
     backgroundColor: '#CBD5E1',
+  },
+  stopBtn: {
+    backgroundColor: '#0F172A',
+  },
+  stopBtnDark: {
+    backgroundColor: '#F1F5F9',
+  },
+  stopSquare: {
+    width: 11,
+    height: 11,
+    borderRadius: 2.5,
+    backgroundColor: '#FFFFFF',
+  },
+  stopSquareDark: {
+    backgroundColor: '#0F172A',
   },
   sendIcon: {
     color: '#FFFFFF',

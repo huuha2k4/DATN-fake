@@ -325,14 +325,20 @@ export function AIAssistantScreen({ onNotify }: { onNotify: (message: string) =>
         })
       }
     } catch (err: unknown) {
-      setMessages((prev) => prev.filter((item) => item.id !== userMsg.id))
-      if (!selection) setQuery((draft) => draft || prompt)
+      if (err instanceof FinAiClientError && err.errorCode === 'REQUEST_CANCELLED') {
+        setMessages((prev) => prev.filter((item) => item.id !== userMsg.id))
+        if (!selection) setQuery((draft) => draft || prompt)
+        return
+      }
       if (err instanceof FinAiClientError && err.errorCode === 'AI_DRAFT_STALE') {
         setMessages((prev) => prev.map((item) => ({ ...item, clarification: null })))
       }
-      if (err instanceof FinAiClientError && err.errorCode === 'REQUEST_CANCELLED') return
+      const isBusinessNotice = err instanceof FinAiClientError && (err.errorCode === 'BUSINESS_CONFLICT' || err.errorCode === 'INVALID_REQUEST')
+      if (isBusinessNotice) {
+        retryKeyRef.current = null
+      }
       const errMsg = err instanceof FinAiClientError
-        ? [err.message, err.requestId && `Mã yêu cầu: ${err.requestId}`].filter(Boolean).join(' ')
+        ? [err.message, !isBusinessNotice && err.requestId && `Mã yêu cầu: ${err.requestId}`].filter(Boolean).join(' ')
         : 'FinAI đang tạm gián đoạn. Vui lòng thử lại sau.'
       setMessages((prev) => [
         ...prev,
@@ -521,9 +527,6 @@ export function AIAssistantScreen({ onNotify }: { onNotify: (message: string) =>
                 <div className="typing-dot" />
                 <div className="typing-dot" />
                 <span role="status">{isTakingLong ? 'FinAI vẫn đang xử lý yêu cầu của bạn...' : 'FinAI đang suy nghĩ...'}</span>
-                <button type="button" className="btn-cancel-ai-wait" onClick={handleCancelWait}>
-                  Hủy chờ
-                </button>
               </div>
             </div>
           )}
@@ -547,14 +550,27 @@ export function AIAssistantScreen({ onNotify }: { onNotify: (message: string) =>
               placeholder="Nhập câu hỏi hoặc ra lệnh (ví dụ: 'Ăn trưa 45k ví Momo', 'Tạo ngân sách 2 triệu')..."
               className="ai-textarea"
             />
-            <button
-              type="submit"
-              disabled={!query.trim() || isLoading}
-              className="btn-send-message"
-              title="Gửi tin nhắn (Enter)"
-            >
-              <FinanceIcon name="arrow" size={18} />
-            </button>
+            {isLoading && requestAbortRef.current ? (
+              <button
+                type="button"
+                onClick={handleCancelWait}
+                className="btn-send-message btn-stop-message"
+                title="Dừng phản hồi"
+                aria-label="Dừng phản hồi"
+              >
+                <span className="stop-square-icon" aria-hidden="true" />
+              </button>
+            ) : (
+              <button
+                type="submit"
+                disabled={!query.trim() || isLoading}
+                className="btn-send-message"
+                title="Gửi tin nhắn (Enter)"
+                aria-label="Gửi tin nhắn"
+              >
+                <FinanceIcon name="arrow" size={18} />
+              </button>
+            )}
           </form>
           <p className="ai-input-hint">
             Nhấn Enter để gửi, Shift + Enter để xuống dòng. Các hành động ghi dữ liệu luôn cần bạn xác nhận trước khi thực hiện.

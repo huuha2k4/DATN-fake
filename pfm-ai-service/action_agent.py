@@ -1662,13 +1662,19 @@ def _guard_proposal(name: str, args: dict, message: str, business_text: str,
                 if not evidence or not share.is_finite() or evidence[0] != share:
                     return "splits", []
     if name == "create_debt":
+        chosen_debt_type = slots.get("debtType")
         direction = _fold_text(business_text)
-        if re.search(r"\b(cho vay|lend)\b", direction):
+        if chosen_debt_type in {"BORROWING", "LENDING"}:
+            args["debtType"] = chosen_debt_type
+        elif re.search(r"\b(cho vay|cho muon|lend)\b", direction):
             args["debtType"] = "LENDING"
-        elif re.search(r"\b(di vay|vay|borrow)\b", direction):
+        elif re.search(r"\b(di vay|vay|di muon|muon|borrow)\b", direction):
             args["debtType"] = "BORROWING"
         else:
-            return "debtType", []
+            return "debtType", [
+                {"id": "BORROWING", "label": "Đi vay"},
+                {"id": "LENDING", "label": "Cho vay"},
+            ]
 
     day_field = {"create_transaction": "transactionDate", "create_group_transaction": "expenseDate"}.get(name)
     if day_field:
@@ -1733,10 +1739,20 @@ def run_action_chat(message: str, context_token: str, temporal_context: dict[str
         route.request_type != "write" and re.search(r"\b(bao nhieu|the nao|o dau|so sanh|phan tich)\b", latest)
     ))
     slot_prefix = re.match(r"(?:doi|sua|chuyen sang|(?:tu )?vi|nhom|danh muc|chia)\b", latest)
-    short_fragment = len(message.split()) <= 12 and route.request_type == "casual" and (
-        not latest.endswith("?") or len(message.split()) < 4
+    explicit_read_query = bool(re.search(
+        r"\b(xem|liet ke|kiem tra|thong ke|bao cao|tong hop|danh sach|bao nhieu|the nao|o dau|so sanh|phan tich|du bao)\b",
+        latest,
+    ))
+    short_fragment = len(message.split()) <= 12 and (
+        (route.request_type == "casual" and (not latest.endswith("?") or len(message.split()) < 4))
+        or (route.request_type == "simple_read" and len(message.split()) <= 8 and not latest.endswith("?") and not explicit_read_query)
     )
-    continuing = bool(draft and not cancelled and (selected_option or (not new_topic and
+    debt_direction_answer = bool(
+        draft and draft.get("field") == "debtType"
+        and not latest.endswith("?") and not explicit_read_query
+        and re.search(r"\b(cho vay|cho muon|di vay|vay|di muon|muon|borrow|lend)\b", latest)
+    )
+    continuing = bool(draft and not cancelled and (selected_option or debt_direction_answer or (not new_topic and
         (short_fragment
          or (route.request_type != "write" and re.match(r"^\d", latest) and stated_amounts(message))
          or slot_prefix)

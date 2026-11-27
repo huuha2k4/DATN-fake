@@ -402,6 +402,36 @@ body.dark .mini-typing-label {
   cursor: not-allowed;
 }
 
+.mini-ai-btn-stop {
+  background: #0f172a;
+  color: #ffffff;
+}
+
+.mini-ai-btn-stop:hover:not(:disabled) {
+  background: #dc2626;
+  transform: scale(1.05);
+}
+
+.mini-stop-square {
+  width: 11px;
+  height: 11px;
+  border-radius: 3px;
+  background: currentColor;
+  display: block;
+}
+
+html.dark .mini-ai-btn-stop,
+body.dark .mini-ai-btn-stop {
+  background: #f1f5f9;
+  color: #0f172a;
+}
+
+html.dark .mini-ai-btn-stop:hover:not(:disabled),
+body.dark .mini-ai-btn-stop:hover:not(:disabled) {
+  background: #ef4444;
+  color: #ffffff;
+}
+
 /* ==============================================================
    DARK MODE - ĐỒNG BỘ HOÀN TOÀN THEO TONE DARK FINORA (#0B0F19, #111827, #1E293B)
    ============================================================== */

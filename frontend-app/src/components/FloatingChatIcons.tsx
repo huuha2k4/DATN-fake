@@ -53,6 +53,7 @@ import { authStorage } from '../modules/auth/api/authApi';
 import { userProfileApi } from '../modules/profile/api/userProfileApi';
 import {
   finAiAgentApi,
+  FinAiHttpError,
   type FinAiActionResponse,
 } from '../modules/ai-assistant/api/finAiAgentApi';
 import { FinAiActionCard } from '../modules/ai-assistant/components/FinAiActionCard';
@@ -327,8 +328,18 @@ export function FloatingChatIcons({
   ]);
   const [aiInputText, setAiInputText] = useState('');
   const [aiLoading, setAiLoading] = useState(false);
+  const [aiTakingLong, setAiTakingLong] = useState(false);
   const [aiConversationId, setAiConversationId] = useState<string | undefined>(undefined);
   const aiChatScrollRef = useRef<any>(null);
+  const aiAbortRef = useRef<AbortController | null>(null);
+  const aiSlowTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      aiAbortRef.current?.abort();
+      if (aiSlowTimerRef.current) clearTimeout(aiSlowTimerRef.current);
+    };
+  }, []);
 
   // Animation mọc từ icon nổi lên
   const animValue = useRef(new Animated.Value(0)).current;
@@ -695,6 +706,11 @@ export function FloatingChatIcons({
     }
   };
 
+  // Dừng chờ phản hồi FinAI
+  const handleCancelAiWait = () => {
+    aiAbortRef.current?.abort();
+  };
+
   // Gửi tin nhắn AI
   const handleSendAiMessage = async (textToSend?: string) => {
     const prompt = (textToSend || aiInputText).trim();
@@ -708,13 +724,18 @@ export function FloatingChatIcons({
     setAiMessages((prev) => [...prev, userMsg]);
     if (!textToSend) setAiInputText('');
     setAiLoading(true);
+    setAiTakingLong(false);
+
+    const controller = new AbortController();
+    aiAbortRef.current = controller;
+    aiSlowTimerRef.current = setTimeout(() => setAiTakingLong(true), 10000);
 
     setTimeout(() => {
       aiChatScrollRef.current?.scrollToEnd({ animated: true });
     }, 100);
 
     try {
-      const res = await finAiAgentApi.sendMessage(prompt, aiConversationId);
+      const res = await finAiAgentApi.sendMessage(prompt, aiConversationId, controller.signal);
       if (res.conversationId) {
         setAiConversationId(res.conversationId);
       }
@@ -725,14 +746,27 @@ export function FloatingChatIcons({
         actions: res.actions && res.actions.length > 0 ? res.actions : undefined,
       };
       setAiMessages((prev) => [...prev, aiReply]);
-    } catch {
+    } catch (error: unknown) {
+      if (error instanceof FinAiHttpError && error.errorCode === 'REQUEST_CANCELLED') {
+        setAiMessages((prev) => prev.filter((item) => item.id !== userMsg.id));
+        setAiInputText((draft) => draft || prompt);
+        return;
+      }
+      const isBusinessNotice = error instanceof FinAiHttpError && (error.errorCode === 'BUSINESS_CONFLICT' || error.errorCode === 'INVALID_REQUEST');
+      const errorText = error instanceof FinAiHttpError
+        ? [error.message, !isBusinessNotice && error.requestId && `Mã yêu cầu: ${error.requestId}`].filter(Boolean).join(' ')
+        : 'Có lỗi kết nối tạm thời với FinAI. Vui lòng thử lại sau ít giây.';
       const errorReply: MiniChatMessage = {
         id: `err-${Date.now()}`,
         sender: 'ai',
-        text: 'Có lỗi kết nối tạm thời với FinAI. Vui lòng thử lại sau ít giây.',
+        text: errorText,
       };
       setAiMessages((prev) => [...prev, errorReply]);
     } finally {
+      if (aiSlowTimerRef.current) clearTimeout(aiSlowTimerRef.current);
+      aiSlowTimerRef.current = null;
+      aiAbortRef.current = null;
+      setAiTakingLong(false);
       setAiLoading(false);
       setTimeout(() => {
         aiChatScrollRef.current?.scrollToEnd({ animated: true });
@@ -1003,8 +1037,11 @@ export function FloatingChatIcons({
                   {aiLoading && (
                     <View style={[styles.messageRow, styles.messageRowAi]}>
                       <Image source={finAiAvatarImg} style={styles.msgAvatarImg} resizeMode="contain" />
-                      <View style={[styles.msgBubble, isDark ? styles.msgBubbleAi : styles.msgBubbleAiLight, { paddingVertical: 10 }]}>
-                        <ActivityIndicator size="small" color="#059669" />
+                      <View style={[styles.msgBubble, isDark ? styles.msgBubbleAi : styles.msgBubbleAiLight, styles.aiTypingBubble]}>
+                        <ActivityIndicator size="small" color={isDark ? '#34D399' : '#059669'} />
+                        <Text style={[styles.aiTypingText, isDark && { color: '#A7F3D0' }]}>
+                          {aiTakingLong ? 'FinAI vẫn đang xử lý...' : 'FinAI đang suy nghĩ...'}
+                        </Text>
                       </View>
                     </View>
                   )}
@@ -1052,16 +1089,29 @@ export function FloatingChatIcons({
                     returnKeyType="send"
                   />
 
-                  <Pressable
-                    style={[
-                      styles.sendBtnRound,
-                      !aiInputText.trim() && { opacity: 0.6 },
-                    ]}
-                    onPress={() => handleSendAiMessage()}
-                    disabled={!aiInputText.trim() || aiLoading}
-                  >
-                    <Send size={14} color="#FFFFFF" />
-                  </Pressable>
+                  {aiLoading && aiAbortRef.current ? (
+                    <Pressable
+                      style={[styles.sendBtnRound, styles.stopBtnRound, isDark && styles.stopBtnRoundDark]}
+                      onPress={handleCancelAiWait}
+                      accessibilityRole="button"
+                      accessibilityLabel="Dừng phản hồi FinAI"
+                    >
+                      <View style={[styles.stopSquareIcon, isDark && styles.stopSquareIconDark]} />
+                    </Pressable>
+                  ) : (
+                    <Pressable
+                      style={[
+                        styles.sendBtnRound,
+                        !aiInputText.trim() && { opacity: 0.6 },
+                      ]}
+                      onPress={() => handleSendAiMessage()}
+                      disabled={!aiInputText.trim() || aiLoading}
+                      accessibilityRole="button"
+                      accessibilityLabel="Gửi tin nhắn"
+                    >
+                      <Send size={14} color="#FFFFFF" />
+                    </Pressable>
+                  )}
                 </View>
               </View>
             )}
@@ -2448,6 +2498,32 @@ const styles = StyleSheet.create({
     backgroundColor: '#34D399',
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  stopBtnRound: {
+    backgroundColor: '#0F172A',
+  },
+  stopBtnRoundDark: {
+    backgroundColor: '#F1F5F9',
+  },
+  stopSquareIcon: {
+    width: 10,
+    height: 10,
+    borderRadius: 2.5,
+    backgroundColor: '#FFFFFF',
+  },
+  stopSquareIconDark: {
+    backgroundColor: '#0F172A',
+  },
+  aiTypingBubble: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingVertical: 10,
+  },
+  aiTypingText: {
+    fontSize: 12.5,
+    fontWeight: '600',
+    color: '#059669',
   },
 
   loadingBox: {

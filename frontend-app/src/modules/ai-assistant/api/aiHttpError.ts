@@ -7,6 +7,7 @@ const messages: Record<string, string> = {
   AUTHENTICATION_ERROR: 'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.',
   AUTHORIZATION_ERROR: 'Bạn không có quyền thực hiện yêu cầu này.',
   INVALID_REQUEST: 'Yêu cầu không hợp lệ. Vui lòng kiểm tra lại nội dung.',
+  BUSINESS_CONFLICT: 'Không thể thực hiện yêu cầu do xung đột dữ liệu.',
   AI_REQUEST_IN_PROGRESS: 'FinAI vẫn đang xử lý câu hỏi này. Vui lòng chờ trước khi thử lại.',
   AI_DRAFT_STALE: 'Lựa chọn đã hết hạn hoặc hội thoại đã thay đổi. Vui lòng mở lại hội thoại.',
 };
@@ -21,16 +22,24 @@ const approvedServerMessages: Record<string, readonly string[]> = {
   AI_INTERNAL_ERROR: ['FinAI trả về phản hồi không hợp lệ.'],
 };
 
+function isSafeUserMessage(value: unknown): value is string {
+  if (typeof value !== 'string') return false;
+  const trimmed = value.trim();
+  if (!trimmed || trimmed.length > 300) return false;
+  return !/\b(Exception|StackTrace|org\.springframework|java\.|sql|SELECT\s+\*)/i.test(trimmed);
+}
+
 export function getAiHttpError(status: number, body: unknown, requestHeader?: string | null, retryHeader?: string | null) {
   const data = body && typeof body === 'object' ? body as Record<string, unknown> : {};
   const candidate = data.errorCode;
   const fallback = status === 401 ? 'AUTHENTICATION_ERROR'
     : status === 403 || status === 404 ? 'AUTHORIZATION_ERROR'
-      : status === 400 || status === 422 ? 'INVALID_REQUEST'
-        : status === 429 ? 'AI_RATE_LIMITED'
-          : [408, 504, 524].includes(status) ? 'AI_TIMEOUT'
-            : status === 502 || status === 503 || status >= 520 ? 'AI_PROVIDER_UNAVAILABLE'
-              : 'AI_INTERNAL_ERROR';
+      : status === 409 ? 'BUSINESS_CONFLICT'
+        : status === 400 || status === 422 ? 'INVALID_REQUEST'
+          : status === 429 ? 'AI_RATE_LIMITED'
+            : [408, 504, 524].includes(status) ? 'AI_TIMEOUT'
+              : status === 502 || status === 503 || status >= 520 ? 'AI_PROVIDER_UNAVAILABLE'
+                : 'AI_INTERNAL_ERROR';
   const code = typeof candidate === 'string' && Object.prototype.hasOwnProperty.call(messages, candidate)
     ? candidate : fallback;
   const requestId = [data.requestId, requestHeader].find(
@@ -38,8 +47,11 @@ export function getAiHttpError(status: number, body: unknown, requestHeader?: st
   );
   const retry = Number(data.retryAfterSeconds ?? retryHeader);
   const retryAfterSeconds = Number.isSafeInteger(retry) && retry > 0 ? retry : undefined;
-  const message = typeof data.message === 'string' && approvedServerMessages[code]?.includes(data.message)
-    ? data.message
-    : messages[code];
+  const rawMessage = isSafeUserMessage(data.message) ? data.message.trim() : null;
+  const message = (status === 400 || status === 409 || status === 422) && rawMessage
+    ? rawMessage
+    : typeof data.message === 'string' && approvedServerMessages[code]?.includes(data.message)
+      ? data.message
+      : messages[code];
   return { code, message, requestId, retryAfterSeconds };
 }

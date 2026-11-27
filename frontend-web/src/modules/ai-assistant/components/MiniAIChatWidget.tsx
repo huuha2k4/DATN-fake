@@ -231,19 +231,25 @@ export function MiniAIChatWidget({ isOpen, onClose, onOpenFullPage }: MiniAIChat
         })
       }
     } catch (error) {
-      setMessages((prev) => prev.filter((item) => item.id !== userMsg.id))
-      if (!selection) setInput((draft) => draft || prompt)
+      if (error instanceof FinAiClientError && error.errorCode === 'REQUEST_CANCELLED') {
+        setMessages((prev) => prev.filter((item) => item.id !== userMsg.id))
+        if (!selection) setInput((draft) => draft || prompt)
+        return
+      }
       if (error instanceof FinAiClientError && error.errorCode === 'AI_DRAFT_STALE') {
         setMessages((prev) => prev.map((item) => ({ ...item, clarification: null })))
       }
-      if (error instanceof FinAiClientError && error.errorCode === 'REQUEST_CANCELLED') return
+      const isBusinessNotice = error instanceof FinAiClientError && (error.errorCode === 'BUSINESS_CONFLICT' || error.errorCode === 'INVALID_REQUEST')
+      if (isBusinessNotice) {
+        retryKeyRef.current = null
+      }
       setMessages((prev) => [
         ...prev,
         {
           id: `err-${Date.now()}`,
           author: 'assistant',
           text: error instanceof FinAiClientError
-            ? [error.message, error.requestId && `Mã yêu cầu: ${error.requestId}`].filter(Boolean).join(' ')
+            ? [error.message, !isBusinessNotice && error.requestId && `Mã yêu cầu: ${error.requestId}`].filter(Boolean).join(' ')
             : 'FinAI đang tạm gián đoạn. Vui lòng thử lại sau.',
         },
       ])
@@ -360,10 +366,9 @@ export function MiniAIChatWidget({ isOpen, onClose, onOpenFullPage }: MiniAIChat
             </div>
             <div className="mini-typing-bubble">
               <span className="mini-dot" />
-              <span role="status" className="mini-typing-label">{isTakingLong ? 'Vẫn đang xử lý...' : 'Đang suy nghĩ...'}</span>
-              <button type="button" className="mini-cancel-wait" onClick={() => requestAbortRef.current?.abort()}>Hủy chờ</button>
               <span className="mini-dot" />
               <span className="mini-dot" />
+              <span role="status" className="mini-typing-label">{isTakingLong ? 'FinAI vẫn đang xử lý...' : 'FinAI đang suy nghĩ...'}</span>
             </div>
           </div>
         )}
@@ -386,9 +391,27 @@ export function MiniAIChatWidget({ isOpen, onClose, onOpenFullPage }: MiniAIChat
           className="mini-ai-input"
           autoFocus
         />
-        <button type="submit" disabled={!input.trim() || isLoading} className="mini-ai-btn-send">
-          <FinanceIcon name="arrow" size={15} />
-        </button>
+        {isLoading && requestAbortRef.current ? (
+          <button
+            type="button"
+            onClick={() => requestAbortRef.current?.abort()}
+            className="mini-ai-btn-send mini-ai-btn-stop"
+            title="Dừng phản hồi"
+            aria-label="Dừng phản hồi"
+          >
+            <span className="mini-stop-square" aria-hidden="true" />
+          </button>
+        ) : (
+          <button
+            type="submit"
+            disabled={!input.trim() || isLoading}
+            className="mini-ai-btn-send"
+            title="Gửi tin nhắn"
+            aria-label="Gửi tin nhắn"
+          >
+            <FinanceIcon name="arrow" size={15} />
+          </button>
+        )}
       </form>
     </div>
   )

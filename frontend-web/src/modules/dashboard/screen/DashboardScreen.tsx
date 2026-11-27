@@ -406,11 +406,11 @@ export function DashboardScreen({ onNotify, onAddTransaction }: Props) {
               <button
                 type="button"
                 onClick={() => setIsBalanceHidden(!isBalanceHidden)}
-                className="inline-flex min-h-[36px] min-w-[36px] items-center justify-center rounded-lg text-white/70 hover:bg-white/10 hover:text-white transition cursor-pointer"
+                className="inline-flex min-h-[36px] min-w-[36px] items-center justify-center rounded-lg text-white/80 hover:bg-white/15 hover:text-white transition cursor-pointer"
                 title={isBalanceHidden ? 'Hiện số dư' : 'Ẩn số dư'}
                 aria-label={isBalanceHidden ? 'Hiện số dư' : 'Ẩn số dư'}
               >
-                <FinanceIcon name="more" size={16} />
+                <FinanceIcon name={isBalanceHidden ? 'eye-off' : 'eye'} size={18} />
               </button>
               <span className="wallet-icon-box">
                 <FinanceIcon name="wallet" size={20} />
