@@ -536,12 +536,13 @@ body.dark .mini-ai-input:focus {
    ======================================================== */
 @media (max-width: 768px) {
   .mini-ai-chat-window {
-    right: 12px;
-    bottom: 84px;
-    width: calc(100vw - 24px);
-    max-width: 420px;
-    height: 75vh;
-    max-height: 580px;
+    left: 10px;
+    right: 10px;
+    bottom: 68px;
+    width: auto;
+    max-width: none;
+    height: min(74dvh, 560px);
+    max-height: calc(100dvh - 84px);
     border-radius: 18px;
   }
 

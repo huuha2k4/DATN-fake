@@ -381,3 +381,17 @@
     justify-content: center;
   }
 }
+
+@media (max-width: 640px) {
+  .profile-page,
+  .profile-container {
+    padding: 14px 12px 48px !important;
+  }
+
+  .profile-hero-card,
+  .profile-card,
+  .profile-section-card {
+    padding: 18px 16px !important;
+    border-radius: 16px !important;
+  }
+}

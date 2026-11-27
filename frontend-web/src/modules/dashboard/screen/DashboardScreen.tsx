@@ -419,11 +419,11 @@ export function DashboardScreen({ onNotify, onAddTransaction }: Props) {
           </div>
 
           <div className="my-2">
-            <div className="text-3xl sm:text-[34px] font-black text-white tracking-tight flex items-baseline gap-1">
+            <div className="text-2xl sm:text-[34px] font-black text-white tracking-tight flex items-baseline gap-1 flex-wrap">
               {isBalanceHidden ? '••••••••' : isLoading ? '...' : (
                 <>
                   <span>{Math.round(totalAssets).toLocaleString('vi-VN')}</span>
-                  <span className="text-[#34d399] font-extrabold text-2xl sm:text-[28px]">₫</span>
+                  <span className="text-[#34d399] font-extrabold text-xl sm:text-[28px]">₫</span>
                 </>
               )}
             </div>

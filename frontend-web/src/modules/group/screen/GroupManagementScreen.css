@@ -364,5 +364,15 @@ html.dark .group-page .rounded-xl.border-\[\#edf3ee\] {
   border-color: #1E293B !important;
 }
 
+@media (max-width: 640px) {
+  .group-page {
+    overflow-x: clip;
+  }
+
+  .group-page table {
+    font-size: 12px;
+  }
+}
+
 
 

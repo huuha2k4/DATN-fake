@@ -63,12 +63,15 @@ html {
   min-width: 320px;
   min-height: 100%;
   background: #F8FAFC;
+  overflow-x: clip;
 }
 
 body {
   min-width: 320px;
   min-height: 100vh;
   margin: 0;
+  overflow-x: clip;
+  -webkit-text-size-adjust: 100%;
 }
 
 @layer base {
@@ -103,6 +106,15 @@ select:focus-visible {
 
 #root {
   min-height: 100vh;
+  overflow-x: clip;
+}
+
+@media (max-width: 768px) {
+  html::-webkit-scrollbar,
+  body::-webkit-scrollbar {
+    width: 4px;
+    height: 4px;
+  }
 }
 
 /* Hide number input spinners globally for cleaner fintech inputs */

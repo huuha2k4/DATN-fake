@@ -1478,22 +1478,29 @@ html.dark .desktop-sidebar-toggle:hover {
   }
 
   /* Main Shell fills full width */
+  .dashboard-layout {
+    width: 100%;
+    max-width: 100%;
+    overflow-x: clip;
+  }
+
   .main-shell {
     margin-left: 0 !important;
     width: 100% !important;
-    max-width: 100vw !important;
-    overflow-x: hidden;
+    max-width: 100% !important;
+    min-width: 0;
+    overflow-x: clip;
   }
 
   /* Tránh tràn ngang toàn diện trên mobile */
   html, body {
-    max-width: 100vw;
-    overflow-x: hidden;
+    max-width: 100%;
+    overflow-x: clip;
   }
 
   .finance-app {
-    max-width: 100vw;
-    overflow-x: hidden;
+    max-width: 100%;
+    overflow-x: clip;
   }
 
   /* Topbar optimized for small screens */
@@ -1505,7 +1512,7 @@ html.dark .desktop-sidebar-toggle:hover {
 
   .header-page-title {
     font-size: 15px !important;
-    max-width: calc(100% - 165px);
+    max-width: 100%;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -1513,11 +1520,12 @@ html.dark .desktop-sidebar-toggle:hover {
 
   .topbar-actions {
     gap: 6px;
+    flex-shrink: 0;
   }
 
   .topbar-actions .icon-button {
-    width: 36px;
-    height: 36px;
+    width: 34px;
+    height: 34px;
     padding: 0;
   }
 
@@ -1649,17 +1657,17 @@ html.dark .desktop-sidebar-toggle:hover {
     gap: 6px;
   }
 
-  .button-primary {
+  .topbar .button-primary {
     width: 36px;
     padding: 0;
   }
 
-  .button-primary span {
+  .topbar .button-primary span {
     display: none;
   }
 
   .dashboard-content {
-    padding: 22px 14px 92px;
+    padding: 16px 12px 84px !important;
   }
 
   .welcome-row {

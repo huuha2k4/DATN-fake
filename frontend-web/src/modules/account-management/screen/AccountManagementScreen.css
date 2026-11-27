@@ -476,4 +476,20 @@ html.dark .wallet-management-page div.border-dashed.bg-white {
   color: #94A3B8 !important;
 }
 
+@media (max-width: 640px) {
+  .wallet-management-page {
+    overflow-x: clip;
+  }
+
+  .wallet-stat-card {
+    padding: 16px;
+    min-height: auto;
+    border-radius: 16px;
+  }
+
+  .net-worth-hero-card {
+    border-radius: 16px;
+  }
+}
+
 

@@ -50,14 +50,14 @@ export function DashboardHeaderSection({ onNotify, onOpenProfile, onOpenChangePa
   const isDark = theme === 'dark';
 
   return (
-    <header className="topbar sticky top-0 z-30 flex min-h-16 items-center justify-between gap-3 !pl-3.5 !pr-6 backdrop-blur">
+    <header className="topbar sticky top-0 z-30 flex min-h-14 sm:min-h-16 items-center justify-between gap-2 sm:gap-3 px-2.5 sm:pl-3.5 sm:pr-6 backdrop-blur">
       {/* Left: Nút thu vào / đẩy ra cột sidebar và tiêu đề trang */}
-      <div className="flex items-center gap-2 py-2 min-w-0 flex-1">
+      <div className="flex items-center gap-1.5 sm:gap-2 py-2 min-w-0 flex-1">
         {/* Nút đóng/mở trên Mobile */}
         {onToggleSidebar && (
           <button
             type="button"
-            className="mobile-sidebar-toggle flex md:hidden items-center justify-center p-2 rounded-xl text-[#244034] hover:bg-[#eaf3ee] dark:text-[#cbd5e1] dark:hover:bg-[#1F2937] transition-colors"
+            className="mobile-sidebar-toggle shrink-0 flex md:hidden items-center justify-center p-1.5 rounded-xl text-[#244034] hover:bg-[#eaf3ee] dark:text-[#cbd5e1] dark:hover:bg-[#1F2937] transition-colors"
             onClick={onToggleSidebar}
             aria-label="Mở menu danh mục"
           >
@@ -69,7 +69,7 @@ export function DashboardHeaderSection({ onNotify, onOpenProfile, onOpenChangePa
         {onToggleSidebar && (
           <button
             type="button"
-            className="desktop-sidebar-toggle hidden md:flex items-center justify-center size-8 p-1 text-[#43574c] hover:text-[#007F53] hover:bg-[#eef5f1] dark:text-[#94a3b8] dark:hover:text-white dark:hover:bg-[#1e293b] rounded-lg transition-colors cursor-pointer"
+            className="desktop-sidebar-toggle shrink-0 hidden md:flex items-center justify-center size-8 p-1 text-[#43574c] hover:text-[#007F53] hover:bg-[#eef5f1] dark:text-[#94a3b8] dark:hover:text-white dark:hover:bg-[#1e293b] rounded-lg transition-colors cursor-pointer"
             onClick={onToggleSidebar}
             title={isSidebarCollapsed ? 'Mở rộng thanh điều hướng' : 'Thu gọn thanh điều hướng'}
             aria-label={isSidebarCollapsed ? 'Mở rộng thanh điều hướng' : 'Thu gọn thanh điều hướng'}
@@ -78,20 +78,20 @@ export function DashboardHeaderSection({ onNotify, onOpenProfile, onOpenChangePa
           </button>
         )}
 
-        <div className="flex flex-col justify-center">
-          <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
-            <h1 className="header-page-title text-[15px] sm:text-[19px] font-bold tracking-tight leading-tight m-0 line-clamp-1">
+        <div className="flex flex-col justify-center min-w-0 flex-1">
+          <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+            <h1 className="header-page-title text-[15px] sm:text-[19px] font-bold tracking-tight leading-tight m-0 truncate">
               {currentInfo.title}
             </h1>
             {isWalletPage && (
-              <span id="wallet-count-pill" className="inline-flex items-center gap-1.5 rounded-full bg-[#E6F4EA] dark:bg-emerald-950/60 px-2.5 py-0.5 text-[11px] font-semibold text-[#007F53] dark:text-emerald-300">
+              <span id="wallet-count-pill" className="hidden sm:inline-flex shrink-0 items-center gap-1.5 rounded-full bg-[#E6F4EA] dark:bg-emerald-950/60 px-2.5 py-0.5 text-[11px] font-semibold text-[#007F53] dark:text-emerald-300">
                 <span className="size-2 rounded-full bg-[#10b981]" />
                 <span id="wallet-count-text">{walletCount ?? 0} nguồn tiền đang theo dõi</span>
               </span>
             )}
           </div>
           {currentInfo.subtitle && (
-            <p className="text-[12px] text-[#71847a] dark:text-slate-400 font-normal hidden sm:block mt-0.5 m-0">
+            <p className="text-[12px] text-[#71847a] dark:text-slate-400 font-normal hidden sm:block mt-0.5 m-0 truncate">
               {currentInfo.subtitle}
             </p>
           )}
@@ -99,7 +99,7 @@ export function DashboardHeaderSection({ onNotify, onOpenProfile, onOpenChangePa
       </div>
 
       {/* Right: Theme Toggle, Notifications & Profile Avatar */}
-      <div className="topbar-actions flex items-center gap-2.5">
+      <div className="topbar-actions shrink-0 flex items-center gap-1.5 sm:gap-2.5">
         <button
           className="icon-button theme-toggle-btn"
           type="button"

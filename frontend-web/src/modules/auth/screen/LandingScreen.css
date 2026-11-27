@@ -1962,6 +1962,44 @@ html.dark .faq-mint-aura {
   }
 }
 
+@media (max-width: 480px) {
+  .landing-page {
+    overflow-x: clip;
+  }
+
+  .landing-navbar-inner {
+    gap: 6px;
+  }
+
+  .brand-name {
+    font-size: 17px;
+  }
+
+  .brand-subtext {
+    display: none;
+  }
+
+  .btn-nav-login,
+  .btn-nav-cta {
+    padding: 6px 10px;
+    font-size: 12px;
+  }
+
+  .hero-modern-h1 {
+    font-size: 24px;
+  }
+
+  .hero-modern-desc {
+    font-size: 14px;
+    margin-bottom: 22px;
+  }
+
+  .finai-h2,
+  .faq-heading {
+    font-size: 22px;
+  }
+}
+
 .plat-badge-link {
   text-decoration: none;
   transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;

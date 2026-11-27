@@ -408,25 +408,103 @@ body.dark .btn-cancel-ai-wait:hover {
 .typing-dot:nth-child(1) { animation-delay: -0.32s; }
 .typing-dot:nth-child(2) { animation-delay: -0.16s; }
 
-@media (max-width: 640px) {
+@media (max-width: 768px) {
   .ai-copilot-container {
     flex-direction: column;
+    height: calc(100dvh - 56px);
   }
 
   .ai-copilot-container .ai-sidebar {
     width: 100%;
-    max-height: 136px;
+    max-height: 112px;
     border-right: none;
+    border-bottom: 1px solid #e2e8f0;
+  }
+
+  .ai-copilot-container .ai-sidebar-header {
+    height: auto;
+    padding: 8px 12px;
+  }
+
+  .ai-copilot-container .btn-new-chat-prominent {
+    height: 36px;
+    font-size: 0.82rem;
+  }
+
+  .ai-copilot-container .ai-sidebar-body {
+    padding: 6px 10px;
+  }
+
+  .ai-copilot-container .ai-sidebar-footer {
+    display: none;
   }
 
   .ai-copilot-container .ai-main-chat-area {
     min-height: 0;
   }
 
-  .ai-copilot-container .ai-input-wrapper,
-  .ai-copilot-container .ai-messages-scrollview,
   .ai-copilot-container .ai-chat-header {
-    padding-inline: 12px;
+    padding: 10px 12px;
+    gap: 8px;
+  }
+
+  .ai-copilot-container .ai-header-title {
+    font-size: 0.95rem;
+  }
+
+  .ai-copilot-container .ai-header-status {
+    font-size: 0.72rem;
+  }
+
+  .ai-copilot-container .btn-create-session {
+    padding: 6px 10px;
+    font-size: 0.75rem;
+    white-space: nowrap;
+  }
+
+  .ai-copilot-container .ai-messages-scrollview {
+    padding: 12px;
+  }
+
+  .ai-copilot-container .welcome-hero-box {
+    padding: 16px 8px;
+  }
+
+  .ai-copilot-container .welcome-title {
+    font-size: 1.15rem;
+  }
+
+  .ai-copilot-container .welcome-desc {
+    font-size: 0.84rem;
+    margin-bottom: 18px;
+  }
+
+  .ai-copilot-container .quick-prompts-grid {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+
+  .ai-copilot-container .message-bubble {
+    max-width: 92%;
+    font-size: 0.88rem;
+    padding: 10px 13px;
+  }
+
+  .ai-copilot-container .ai-input-wrapper {
+    padding: 10px 12px 14px;
+  }
+
+  .ai-copilot-container .ai-input-card {
+    padding: 6px 8px 6px 14px;
+    min-height: 46px;
+  }
+
+  .ai-copilot-container .ai-textarea {
+    font-size: 0.9rem;
+  }
+
+  .ai-copilot-container .ai-input-hint {
+    font-size: 0.68rem;
   }
 }
 

@@ -179,6 +179,30 @@ html.dark .fab-tooltip {
   border: 1px solid #1E293B;
 }
 
+@media (max-width: 640px) {
+  .floating-actions-dock {
+    bottom: 16px;
+    right: 14px;
+    gap: 8px;
+  }
+
+  .fab-trigger {
+    width: 42px;
+    height: 42px;
+  }
+
+  .fab-item {
+    width: 38px;
+    height: 38px;
+  }
+}
+
+@media (hover: none) {
+  .fab-tooltip {
+    display: none;
+  }
+}
+
 html.dark .fab-tooltip::after {
   border-color: transparent transparent transparent rgba(10, 23, 34, 0.95);
 }

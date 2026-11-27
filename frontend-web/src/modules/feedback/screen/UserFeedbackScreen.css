@@ -905,3 +905,21 @@ html[data-theme='dark'] .empty-icon-wrap {
   background: #163246 !important;
   color: #10b981 !important;
 }
+
+@media (max-width: 640px) {
+  .feedback-page {
+    padding: 14px 12px 72px !important;
+  }
+
+  .feedback-search-input,
+  .feedback-filter-bar > * {
+    min-width: 0 !important;
+    width: 100%;
+  }
+
+  .feedback-card,
+  .feedback-form-card {
+    padding: 16px !important;
+    border-radius: 16px !important;
+  }
+}

@@ -449,3 +449,29 @@ html.dark .chart-legend-expense {
   background-color: #5eead4 !important;
 }
 
+@media (max-width: 640px) {
+  .overview-balance-card,
+  .overview-white-card,
+  .overview-main-panel,
+  .overview-account-card {
+    padding: 16px;
+    border-radius: 16px;
+    min-height: auto;
+  }
+
+  .overview-balance-card .wallet-icon-box,
+  .overview-white-card .icon-box-mint,
+  .overview-white-card .icon-box-red,
+  .overview-account-card .acc-icon-box {
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+  }
+
+  .net-savings-pill-box {
+    padding: 12px 14px;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+}
+

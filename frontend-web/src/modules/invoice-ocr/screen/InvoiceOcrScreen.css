@@ -687,3 +687,19 @@ html.dark .ocr-filter-pill.is-active {
   box-shadow: 0 2px 6px rgba(7, 84, 63, 0.35);
 }
 
+@media (max-width: 640px) {
+  .ocr-screen,
+  .ocr-card,
+  .ocr-upload-card,
+  .ocr-result-card {
+    padding: 14px 12px !important;
+    border-radius: 16px !important;
+  }
+
+  .ocr-filter-pills {
+    overflow-x: auto;
+    max-width: 100%;
+    flex-wrap: nowrap;
+  }
+}
+
