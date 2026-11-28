@@ -272,7 +272,7 @@ export function MiniAIChatWidget({ isOpen, onClose, onOpenFullPage }: MiniAIChat
             <img src="/finai-avatar.jpg" alt="FinAI" className="mini-ai-avatar-img" />
           </span>
           <div>
-            <h4 className="mini-ai-title">FinAI Copilot</h4>
+            <h4 className="mini-ai-title">FinAI Agent</h4>
             <span className="mini-ai-badge">Trợ lý tài chính thông minh</span>
           </div>
         </div>

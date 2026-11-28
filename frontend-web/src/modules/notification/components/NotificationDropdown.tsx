@@ -130,9 +130,52 @@ function formatRelativeTime(dateStr: string): string {
   }
 }
 
+type NotificationTab = 'ALL' | 'GROUP' | 'TRANSACTION' | 'SYSTEM';
+
+function matchesNotificationTab(typeRaw: string | undefined, tab: NotificationTab): boolean {
+  if (tab === 'ALL') return true;
+  const type = (typeRaw || '').toUpperCase();
+  if (tab === 'GROUP') {
+    return (
+      type.includes('GROUP') ||
+      type.includes('FUND') ||
+      type.includes('MEMBER') ||
+      type.includes('KID') ||
+      type.includes('CHILD') ||
+      type.includes('CHORE')
+    );
+  }
+  if (tab === 'TRANSACTION') {
+    return (
+      type.includes('TRANSACTION') ||
+      type.includes('EXPENSE') ||
+      type.includes('INCOME') ||
+      type.includes('BUDGET') ||
+      type.includes('DEBT') ||
+      type.includes('GOAL') ||
+      type.includes('RECURRING')
+    );
+  }
+  if (tab === 'SYSTEM') {
+    return (
+      type.includes('SYSTEM') ||
+      type.includes('ADMIN') ||
+      type.includes('BROADCAST') ||
+      type.includes('SECURITY') ||
+      type.includes('AUTH') ||
+      type.includes('REPORT') ||
+      type.includes('INSIGHT') ||
+      type.includes('FEATURE') ||
+      type.includes('ANOMALY') ||
+      type.includes('SUMMARY')
+    );
+  }
+  return true;
+}
+
 export function NotificationDropdown({ onNotify }: NotificationDropdownProps) {
   const [isOpen, setIsOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState<'ALL' | 'UNREAD' | 'HIGH'>('ALL');
+  const [activeTab, setActiveTab] = useState<NotificationTab>('ALL');
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [unreadCount, setUnreadCount] = useState<number>(0);
   const [loading, setLoading] = useState(false);
@@ -198,11 +241,7 @@ export function NotificationDropdown({ onNotify }: NotificationDropdownProps) {
   }, []);
 
   // Filter list by tab
-  const filteredList = notifications.filter((item) => {
-    if (activeTab === 'UNREAD') return !item.is_read;
-    if (activeTab === 'HIGH') return item.priority === 'HIGH';
-    return true;
-  });
+  const filteredList = notifications.filter((item) => matchesNotificationTab(item.type, activeTab));
 
   // Mark 1 as read & open detail modal
   const handleItemClick = async (item: NotificationItem) => {
@@ -282,27 +321,21 @@ export function NotificationDropdown({ onNotify }: NotificationDropdownProps) {
 
           {/* Filter Tabs */}
           <div className="notification-tabs">
-            <button
-              type="button"
-              className={`notification-tab-btn ${activeTab === 'ALL' ? 'is-active' : ''}`}
-              onClick={() => setActiveTab('ALL')}
-            >
-              Tất cả ({notifications.length})
-            </button>
-            <button
-              type="button"
-              className={`notification-tab-btn ${activeTab === 'UNREAD' ? 'is-active' : ''}`}
-              onClick={() => setActiveTab('UNREAD')}
-            >
-              Chưa đọc ({unreadCount})
-            </button>
-            <button
-              type="button"
-              className={`notification-tab-btn ${activeTab === 'HIGH' ? 'is-active' : ''}`}
-              onClick={() => setActiveTab('HIGH')}
-            >
-              Quan trọng ({notifications.filter((n) => n.priority === 'HIGH').length})
-            </button>
+            {([
+              ['ALL', 'Tất cả'],
+              ['GROUP', 'Nhóm'],
+              ['TRANSACTION', 'Giao dịch'],
+              ['SYSTEM', 'Hệ thống'],
+            ] as const).map(([key, label]) => (
+              <button
+                key={key}
+                type="button"
+                className={`notification-tab-btn ${activeTab === key ? 'is-active' : ''}`}
+                onClick={() => setActiveTab(key)}
+              >
+                {label}
+              </button>
+            ))}
           </div>
 
           {/* Notifications Scroll List */}
@@ -314,10 +347,12 @@ export function NotificationDropdown({ onNotify }: NotificationDropdownProps) {
                 </div>
                 <p className="notification-empty-title">Không có thông báo nào</p>
                 <p className="notification-empty-desc">
-                  {activeTab === 'UNREAD'
-                    ? 'Bạn đã đọc hết tất cả thông báo.'
-                    : activeTab === 'HIGH'
-                    ? 'Không có thông báo mức độ ưu tiên cao.'
+                  {activeTab === 'GROUP'
+                    ? 'Chưa có thông báo nào liên quan đến nhóm.'
+                    : activeTab === 'TRANSACTION'
+                    ? 'Chưa có thông báo giao dịch, ngân sách hoặc công nợ.'
+                    : activeTab === 'SYSTEM'
+                    ? 'Chưa có thông báo hệ thống nào.'
                     : 'Hộp thư thông báo của bạn hiện đang trống.'}
                 </p>
               </div>

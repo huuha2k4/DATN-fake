@@ -346,7 +346,7 @@ export default function AppScreen() {
       </div>
 
       {/* Floating Action Buttons */}
-      {location.pathname !== '/scan-invoice' && (
+      {location.pathname !== '/scan-invoice' && location.pathname !== '/ai-assistant' && (
         <FloatingActions 
           onAddTransaction={() => navigate('/add-transaction')}
           onOpenInvoiceScanner={() => navigate('/scan-invoice')}

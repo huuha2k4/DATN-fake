@@ -644,9 +644,9 @@ export function GoalsManagementScreen({ onNotify }: Props) {
   };
 
   return (
-    <main className="goals-management-page mx-auto w-full max-w-6xl space-y-6 pb-12 pt-2">
+    <main className="goals-management-page mx-auto w-full max-w-6xl space-y-6 px-3 sm:px-6 pb-24 sm:pb-12 pt-3">
       {/* 2. 3 Ô THỐNG KÊ TRÊN CÙNG: Tổng tích lũy, Theo mục tiêu, Tiết kiệm tự do (Chuẩn 100% theo ảnh) */}
-      <section className="grid gap-4 sm:grid-cols-3" aria-label="Thống kê mục tiêu & tích lũy">
+      <section className="grid grid-cols-1 gap-4 sm:grid-cols-3" aria-label="Thống kê mục tiêu & tích lũy">
         {/* Ô 1: Tổng tiền đã tích lũy */}
         <article className="flex min-h-[105px] items-center justify-between rounded-2xl border border-gray-100 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 sm:p-5 shadow-xs">
           <div className="flex items-center gap-3.5 min-w-0">

@@ -310,7 +310,7 @@ def forecast_category_spending(
         days_remaining = max(0, total_days_in_month - days_passed)
 
         # Tính tổng chi tiêu đã phát sinh từ đầu tháng đến hết ngày hôm nay
-        current_spent = (
+        current_spent = float(
             db.query(func.sum(Transaction.amount))
             .filter(
                 Transaction.user_id == user_id,
@@ -341,7 +341,7 @@ def forecast_category_spending(
             .first()
         )
 
-        budget_limit = budget_item.limit_amount if budget_item else None
+        budget_limit = float(budget_item.limit_amount) if (budget_item and budget_item.limit_amount is not None) else None
         risk_level = "AN TOÀN"
         if budget_limit:
             if projected_total_month > budget_limit:

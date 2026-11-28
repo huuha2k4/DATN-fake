@@ -963,7 +963,7 @@ export function LandingScreen({ onAuthenticated }: LandingScreenProps) {
               <ul>
                 <li><button type="button" className="footer-link-btn" onClick={() => openLegalModal('guide')}>Hướng dẫn sử dụng</button></li>
                 <li><a href="#faq">Câu hỏi thường gặp</a></li>
-                <li><a href="mailto:finora.3congian@gmail.com">Liên hệ hỗ trợ</a></li>
+                <li><a href="mailto:lienhe@3congian.top">Liên hệ hỗ trợ</a></li>
               </ul>
             </div>
 
@@ -981,7 +981,7 @@ export function LandingScreen({ onAuthenticated }: LandingScreenProps) {
               <h4>Liên hệ</h4>
               <p className="contact-item">
                 <Mail size={16} className="contact-lucide-icon" />
-                <a href="mailto:finora.3congian@gmail.com" className="footer-contact-link">finora.3congian@gmail.com</a>
+                <a href="mailto:lienhe@3congian.top" className="footer-contact-link">lienhe@3congian.top</a>
               </p>
               <p className="contact-item">
                 <Globe size={16} className="contact-lucide-icon" />

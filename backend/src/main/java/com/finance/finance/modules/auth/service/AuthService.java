@@ -474,7 +474,7 @@ public class AuthService {
         log.info("Forgot password request for email: {}", email);
 
         // Find user by email
-        userRepository.findByEmail(email).ifPresent(user -> {
+        userRepository.findByEmailAndDeletedAtIsNull(email).ifPresent(user -> {
             // Invalidate old password reset tokens
             authTokenRepository.invalidateUserTokensByType(user.getId(), com.finance.finance.common.enums.TokenType.PASSWORD_RESET, Instant.now());
 
@@ -501,7 +501,7 @@ public class AuthService {
         AuthToken authToken = null;
 
         if (email != null && !email.isBlank()) {
-            User user = userRepository.findByEmail(email.trim().toLowerCase()).orElse(null);
+            User user = userRepository.findByEmailAndDeletedAtIsNull(email.trim().toLowerCase()).orElse(null);
             if (user != null) {
                 authToken = authTokenRepository.findByUserIdAndTokenAndTokenType(
                         user.getId(), cleanToken, com.finance.finance.common.enums.TokenType.PASSWORD_RESET
@@ -537,7 +537,7 @@ public class AuthService {
         AuthToken authToken = null;
 
         if (request.getEmail() != null && !request.getEmail().isBlank()) {
-            User user = userRepository.findByEmail(request.getEmail().trim().toLowerCase()).orElse(null);
+            User user = userRepository.findByEmailAndDeletedAtIsNull(request.getEmail().trim().toLowerCase()).orElse(null);
             if (user != null) {
                 authToken = authTokenRepository.findByUserIdAndTokenAndTokenType(
                         user.getId(), token, com.finance.finance.common.enums.TokenType.PASSWORD_RESET
@@ -603,7 +603,7 @@ public class AuthService {
         AuthToken authToken = null;
 
         if (request.getEmail() != null && !request.getEmail().isBlank()) {
-            User user = userRepository.findByEmail(request.getEmail().trim().toLowerCase()).orElse(null);
+            User user = userRepository.findByEmailAndDeletedAtIsNull(request.getEmail().trim().toLowerCase()).orElse(null);
             if (user != null) {
                 authToken = authTokenRepository.findByUserIdAndTokenAndTokenType(
                         user.getId(), token, com.finance.finance.common.enums.TokenType.EMAIL_VERIFICATION
@@ -650,7 +650,7 @@ public class AuthService {
     public MessageResponse resendVerification(String email) {
         log.info("Resending verification OTP email to: {}", email);
 
-        User user = userRepository.findByEmail(email.trim().toLowerCase())
+        User user = userRepository.findByEmailAndDeletedAtIsNull(email.trim().toLowerCase())
                 .orElseThrow(() -> new UserNotFoundException("Không tìm thấy người dùng với email này"));
 
         // Check if already verified

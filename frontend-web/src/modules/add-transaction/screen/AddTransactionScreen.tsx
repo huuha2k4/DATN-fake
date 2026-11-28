@@ -451,11 +451,11 @@ export function AddTransactionScreen({ onCancel, onNotify, onOpenInvoiceScanner 
   return (
     <main className="mx-auto flex min-h-[calc(100vh-68px)] lg:h-[calc(100vh-68px)] lg:max-h-[calc(100vh-68px)] w-full flex-1 flex-col bg-[#F8FAFC] dark:bg-[#0B0F19] p-3 text-[#0F172A] dark:text-slate-100 sm:p-4 lg:p-5 overflow-y-auto lg:overflow-hidden">
       {/* Two-Column Responsive Workspace: fills 100% height without trailing empty space */}
-      <div className="grid w-full flex-1 gap-4 lg:grid-cols-12 items-stretch min-h-0">
+      <div className="grid grid-cols-1 w-full flex-1 gap-4 lg:grid-cols-12 items-stretch min-h-0">
         {/* LEFT COLUMN: Main Form Container (chiếm tỷ lệ rộng 58% - 66%) */}
-        <div className="lg:col-span-7 xl:col-span-7 2xl:col-span-8 flex flex-col h-full justify-between rounded-2xl border border-[#E2E8F0] dark:border-white/10 bg-white dark:bg-[#111827] shadow-md overflow-hidden min-h-0">
+        <div className="min-w-0 lg:col-span-7 xl:col-span-7 2xl:col-span-8 flex flex-col h-full justify-between rounded-2xl border border-[#E2E8F0] dark:border-white/10 bg-white dark:bg-[#111827] shadow-md overflow-hidden min-h-0">
           {/* HERO BANNER: Type Toggle & Big Amount Display */}
-          <div className={`relative px-6 py-4 text-white transition-all duration-300 shrink-0 overflow-hidden ${
+          <div className={`relative px-3.5 sm:px-6 py-4 text-white transition-all duration-300 shrink-0 overflow-hidden ${
               type === 'EXPENSE'
                 ? 'bg-gradient-to-br from-[#dc2626] via-[#b91c1c] to-[#991b1b]'
                 : type === 'INCOME'
@@ -478,45 +478,45 @@ export function AddTransactionScreen({ onCancel, onNotify, onOpenInvoiceScanner 
             {/* Top Bar: 3-Way Toggle on the Left, OCR Scanner on the Right */}
             <div className="relative z-10 flex flex-wrap items-center justify-between gap-3">
               {/* Segmented 3-Way Pill Switch on Left */}
-              <div className="flex h-9 w-full sm:w-auto max-w-sm items-center rounded-xl bg-black/20 p-0.5 backdrop-blur-md border border-white/20 shadow-inner">
+              <div className={`grid ${isChildAccount ? 'grid-cols-2' : 'grid-cols-3'} sm:flex h-9 w-full sm:w-auto sm:max-w-sm items-center rounded-xl bg-black/20 p-0.5 backdrop-blur-md border border-white/20 shadow-inner overflow-hidden`}>
                 <button
                   type="button"
                   onClick={() => setType('EXPENSE')}
-                  className={`h-full flex-1 rounded-lg px-3 text-xs font-bold transition flex items-center justify-center gap-1.5 whitespace-nowrap ${
+                  className={`h-full min-w-0 sm:flex-1 rounded-lg px-1.5 sm:px-3 text-[11px] sm:text-xs font-bold transition flex items-center justify-center gap-1 sm:gap-1.5 whitespace-nowrap ${
                     type === 'EXPENSE'
                       ? 'bg-white text-rose-600 shadow-md'
                       : 'text-white/85 hover:text-white hover:bg-white/10'
                   }`}
                 >
                   <FinanceIcon name="expense" size={13} color={type === 'EXPENSE' ? '#e11d48' : 'currentColor'} />
-                  <span>Tiền chi</span>
+                  <span className="truncate">Tiền chi</span>
                 </button>
 
                 <button
                   type="button"
                   onClick={() => setType('INCOME')}
-                  className={`h-full flex-1 rounded-lg px-3 text-xs font-bold transition flex items-center justify-center gap-1.5 whitespace-nowrap ${
+                  className={`h-full min-w-0 sm:flex-1 rounded-lg px-1.5 sm:px-3 text-[11px] sm:text-xs font-bold transition flex items-center justify-center gap-1 sm:gap-1.5 whitespace-nowrap ${
                     type === 'INCOME'
                       ? 'bg-white text-emerald-700 shadow-md'
                       : 'text-white/85 hover:text-white hover:bg-white/10'
                   }`}
                 >
                   <FinanceIcon name="income" size={13} color={type === 'INCOME' ? '#007F53' : 'currentColor'} />
-                  <span>Tiền thu</span>
+                  <span className="truncate">Tiền thu</span>
                 </button>
 
                 {!isChildAccount && (
                   <button
                     type="button"
                     onClick={() => setType('TRANSFER')}
-                    className={`h-full flex-1 rounded-lg px-3.5 text-xs font-bold transition flex items-center justify-center gap-1.5 whitespace-nowrap ${
+                    className={`h-full min-w-0 sm:flex-1 rounded-lg px-1.5 sm:px-3.5 text-[11px] sm:text-xs font-bold transition flex items-center justify-center gap-1 sm:gap-1.5 whitespace-nowrap ${
                       type === 'TRANSFER'
                         ? 'bg-white text-sky-700 shadow-md'
                         : 'text-white/85 hover:text-white hover:bg-white/10'
                     }`}
                   >
                     <FinanceIcon name="arrows" size={13} color={type === 'TRANSFER' ? '#0284c7' : 'currentColor'} />
-                    <span>Chuyển ví</span>
+                    <span className="truncate">Chuyển ví</span>
                   </button>
                 )}
               </div>
@@ -606,12 +606,12 @@ export function AddTransactionScreen({ onCancel, onNotify, onOpenInvoiceScanner 
           </div>
 
           {/* FORM BODY: Scrollable body so footer buttons & inputs are accessible on all screens */}
-          <form onSubmit={handleSubmit} className="flex flex-1 flex-col justify-between overflow-hidden min-h-0">
-            <div className="flex-1 p-4 sm:p-5 flex flex-col gap-3.5 overflow-y-auto">
+          <form onSubmit={handleSubmit} className="flex flex-1 flex-col justify-between overflow-hidden min-h-0 min-w-0">
+            <div className="flex-1 p-3.5 sm:p-5 flex flex-col gap-3.5 overflow-y-auto min-w-0">
               {/* Row 1: Source Account & Category Selection */}
-              <div className="grid gap-4 sm:grid-cols-2">
+              <div className="grid grid-cols-1 gap-3.5 sm:gap-4 sm:grid-cols-2">
                 {/* Account / Wallet Dropdown Picker */}
-                <div className="relative" ref={accountPickerRef}>
+                <div className="relative min-w-0" ref={accountPickerRef}>
                   <label className="mb-1.5 flex items-center justify-between text-xs font-bold text-[#0F172A] dark:text-slate-200">
                     <span>{type === 'TRANSFER' ? 'Từ tài khoản (Nguồn)' : 'Nguồn tiền thanh toán'}</span>
                     {(selectedAccountObj || selectedGroupFund) && (

@@ -44,7 +44,7 @@ type TabType = 'ALL' | 'GROUP' | 'TRANSACTION' | 'SYSTEM';
 
 const TABS: { key: TabType; label: string }[] = [
   { key: 'ALL', label: 'Tất cả' },
-  { key: 'GROUP', label: 'Quỹ nhóm' },
+  { key: 'GROUP', label: 'Nhóm' },
   { key: 'TRANSACTION', label: 'Giao dịch' },
   { key: 'SYSTEM', label: 'Hệ thống' },
 ];

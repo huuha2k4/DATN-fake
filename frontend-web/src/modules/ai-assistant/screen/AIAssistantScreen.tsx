@@ -53,6 +53,7 @@ export function AIAssistantScreen({ onNotify }: { onNotify: (message: string) =>
   const [isLoading, setIsLoading] = useState(false)
   const [isTakingLong, setIsTakingLong] = useState(false)
   const [actionProcessingId, setActionProcessingId] = useState<string | null>(null)
+  const [mobileHistoryOpen, setMobileHistoryOpen] = useState(false)
 
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const pollingRef = useRef<{ [actionId: string]: any }>({})
@@ -371,9 +372,22 @@ export function AIAssistantScreen({ onNotify }: { onNotify: (message: string) =>
   return (
     <div className="ai-copilot-container">
       {/* SIDEBAR BÊN TRÁI: QUẢN LÝ CUỘC TRÒ CHUYỆN */}
-      <aside className="ai-sidebar">
+      {mobileHistoryOpen && (
+        <div
+          className="ai-sidebar-backdrop"
+          onClick={() => setMobileHistoryOpen(false)}
+        />
+      )}
+      <aside className={`ai-sidebar ${mobileHistoryOpen ? 'is-mobile-open' : ''}`}>
         <div className="ai-sidebar-header">
-          <button type="button" onClick={handleNewChat} className="btn-new-chat-prominent">
+          <button
+            type="button"
+            onClick={() => {
+              handleNewChat()
+              setMobileHistoryOpen(false)
+            }}
+            className="btn-new-chat-prominent"
+          >
             <FinanceIcon name="plus" size={17} />
             <span>Cuộc trò chuyện mới</span>
           </button>
@@ -387,7 +401,10 @@ export function AIAssistantScreen({ onNotify }: { onNotify: (message: string) =>
               return (
                 <div
                   key={item.conversationId}
-                  onClick={() => handleSelectConversation(item)}
+                  onClick={() => {
+                    handleSelectConversation(item)
+                    setMobileHistoryOpen(false)
+                  }}
                   className={`session-item-row ${isActive ? 'active' : ''}`}
                 >
                   <div className="session-title-wrap">
@@ -440,14 +457,25 @@ export function AIAssistantScreen({ onNotify }: { onNotify: (message: string) =>
               </div>
             </div>
           </div>
-          <button
-            type="button"
-            onClick={handleNewChat}
-            className="btn-create-session"
-          >
-            <FinanceIcon name="plus" size={14} />
-            <span>Tạo phiên mới</span>
-          </button>
+          <div className="flex items-center gap-2 shrink-0">
+            <button
+              type="button"
+              onClick={() => setMobileHistoryOpen(true)}
+              className="btn-mobile-history"
+              title="Lịch sử hội thoại"
+              aria-label="Mở lịch sử hội thoại"
+            >
+              <FinanceIcon name="clock" size={15} />
+            </button>
+            <button
+              type="button"
+              onClick={handleNewChat}
+              className="btn-create-session"
+            >
+              <FinanceIcon name="plus" size={14} />
+              <span>Tạo phiên mới</span>
+            </button>
+          </div>
         </header>
 
         {/* Vùng hiển thị tin nhắn hoặc Màn hình chào mừng */}
@@ -547,7 +575,7 @@ export function AIAssistantScreen({ onNotify }: { onNotify: (message: string) =>
                 }
               }}
               rows={1}
-              placeholder="Nhập câu hỏi hoặc ra lệnh (ví dụ: 'Ăn trưa 45k ví Momo', 'Tạo ngân sách 2 triệu')..."
+              placeholder="Hỏi hoặc ra lệnh cho FinAI..."
               className="ai-textarea"
             />
             {isLoading && requestAbortRef.current ? (
@@ -572,9 +600,6 @@ export function AIAssistantScreen({ onNotify }: { onNotify: (message: string) =>
               </button>
             )}
           </form>
-          <p className="ai-input-hint">
-            Nhấn Enter để gửi, Shift + Enter để xuống dòng. Các hành động ghi dữ liệu luôn cần bạn xác nhận trước khi thực hiện.
-          </p>
         </div>
       </main>
     </div>

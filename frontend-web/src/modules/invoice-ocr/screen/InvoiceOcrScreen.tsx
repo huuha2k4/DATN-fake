@@ -671,6 +671,9 @@ export function InvoiceOcrScreen({ onCancel, onNotify }: Props) {
                       }}
                       readOnly={isSelectedReceiptPaid}
                       disabled={isSelectedReceiptPaid}
+                      style={{
+                        width: `${Math.max(1, (amount ? Number(amount.replace(/\D/g, '')).toLocaleString('vi-VN') : '0').length)}ch`,
+                      }}
                       className="ocr-amount-input"
                     />
                     <span className="ocr-amount-currency">

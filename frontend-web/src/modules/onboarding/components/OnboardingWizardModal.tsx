@@ -352,7 +352,7 @@ export function OnboardingWizardModal({ isOpen, onClose, userName }: OnboardingW
                 <div className="feature-item-card">
                   <span className="feature-item-icon">🤖</span>
                   <div>
-                    <div className="feature-item-title">FinAI Copilot thông minh</div>
+                    <div className="feature-item-title">FinAI Agent thông minh</div>
                     <p className="feature-item-desc">
                       Trò chuyện trực tiếp để tra cứu phân tích dòng tiền, thói quen tiêu dùng và dự phóng số dư 30 ngày tới.
                     </p>

@@ -557,7 +557,7 @@ export function OnboardingWizardModal({
                     <Text style={styles.featureIcon}>🤖</Text>
                     <View style={{ flex: 1 }}>
                       <Text style={[styles.featureTitle, { color: isDark ? '#F9FAFB' : '#111827' }]}>
-                        FinAI Copilot thông minh
+                        FinAI Agent thông minh
                       </Text>
                       <Text style={[styles.featureDesc, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
                         Chat tự nhiên để tra cứu số dư, hỏi phân tích và nhận dự báo dòng tiền 30 ngày tới.

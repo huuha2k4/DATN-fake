@@ -160,23 +160,59 @@ function HourlyTrafficChart({
 }: {
   hourly: { hourLabel: string; requests: number; failed: number }[];
 }) {
-  const maxReq = Math.max(1, ...hourly.map((h) => h.requests));
-  const labelIndices = [0, 4, 8, 12, 16, 20];
+  // Chuẩn hóa cố định 24 khung giờ từ 00:00 -> 23:00 để trục thời gian 0h-24h trực quan, dễ đọc
+  const byHour = new Map<number, { requests: number; failed: number }>();
+  for (const slot of hourly) {
+    const match = String(slot.hourLabel || '').match(/^(\d{1,2})/);
+    if (!match) continue;
+    const h = Number(match[1]);
+    if (h >= 0 && h < 24) {
+      const prev = byHour.get(h) ?? { requests: 0, failed: 0 };
+      byHour.set(h, {
+        requests: prev.requests + (slot.requests || 0),
+        failed: prev.failed + (slot.failed || 0),
+      });
+    }
+  }
+  const ordered = Array.from({ length: 24 }, (_, hour) => {
+    const stats = byHour.get(hour) ?? { requests: 0, failed: 0 };
+    return {
+      hour,
+      hourLabel: `${String(hour).padStart(2, '0')}:00`,
+      requests: stats.requests,
+      failed: stats.failed,
+    };
+  });
+
+  const maxReq = Math.max(1, ...ordered.map((h) => h.requests));
+  const axisLabels = ['00:00', '04:00', '08:00', '12:00', '16:00', '20:00', '24:00'];
+
   return (
     <div className="space-y-2">
-      <div className="flex items-end gap-1 h-36 pt-2">
-        {hourly.map((slot) => {
-          const pct = slot.requests > 0 ? Math.max(6, Math.round((slot.requests / maxReq) * 100)) : 3;
+      <div className="flex items-center justify-end gap-3 text-[11px] text-[var(--admin-ink-muted)]">
+        <span className="inline-flex items-center gap-1.5">
+          <span className="size-2 rounded-full bg-emerald-500" />
+          Bình thường
+        </span>
+        <span className="inline-flex items-center gap-1.5">
+          <span className="size-2 rounded-full bg-amber-500" />
+          Có lỗi
+        </span>
+      </div>
+      <div className="flex items-end gap-1 h-36 pt-2 border-b border-[var(--admin-border)]">
+        {ordered.map((slot) => {
+          const pct = slot.requests > 0 ? Math.max(8, Math.round((slot.requests / maxReq) * 100)) : 3;
+          const nextHour = slot.hour === 23 ? '24:00' : `${String(slot.hour + 1).padStart(2, '0')}:00`;
           return (
             <div
               key={slot.hourLabel}
-              title={`${slot.hourLabel}: ${metric(slot.requests)} yêu cầu (${metric(slot.failed)} lỗi)`}
+              title={`${slot.hourLabel} – ${nextHour}: ${metric(slot.requests)} yêu cầu (${metric(slot.failed)} lỗi)`}
               className="flex-1 h-full flex items-end"
             >
               <div
                 className={`w-full rounded-t transition-all ${
                   slot.failed > 0
-                    ? 'bg-amber-500/80 hover:bg-amber-500'
+                    ? 'bg-amber-500/85 hover:bg-amber-500'
                     : slot.requests > 0
                     ? 'bg-emerald-500/85 hover:bg-emerald-600'
                     : 'bg-emerald-500/15'
@@ -188,8 +224,8 @@ function HourlyTrafficChart({
         })}
       </div>
       <div className="flex items-center justify-between text-[10px] tabular-nums text-[var(--admin-ink-muted)]">
-        {labelIndices.map((idx) => (
-          <span key={idx}>{hourly[idx]?.hourLabel ?? ''}</span>
+        {axisLabels.map((label) => (
+          <span key={label}>{label}</span>
         ))}
       </div>
     </div>
@@ -405,10 +441,10 @@ export const AdminSystemHealthScreen: React.FC = () => {
         </AdminSurface>
 
         <AdminSurface
-          icon="chart-bar"
+          icon="chart"
           headerVariant="mint"
           title="Lưu lượng yêu cầu"
-          action={<AdminBadge dot={false} tone="slate">24 giờ</AdminBadge>}
+          action={<AdminBadge dot={false} tone="slate">0h – 24h</AdminBadge>}
         >
           <div className="space-y-2">
             <div className="text-xs text-[var(--admin-ink-secondary)]">
@@ -530,7 +566,7 @@ export const AdminSystemHealthScreen: React.FC = () => {
                           : 'bg-emerald-500/15 text-emerald-600'
                       }`}
                     >
-                      <FinanceIcon name={ev.severity === 'INFO' ? 'check' : 'alert'} size={12} />
+                      <FinanceIcon name={ev.severity === 'INFO' ? 'check' : 'alert-triangle'} size={12} />
                     </span>
                     <span className="truncate font-medium text-[var(--admin-ink)]">{ev.message}</span>
                   </div>
@@ -542,7 +578,7 @@ export const AdminSystemHealthScreen: React.FC = () => {
         </AdminSurface>
 
         <AdminSurface
-          icon="chart-bar"
+          icon="chart"
           headerVariant="mint"
           title="Tỷ lệ lỗi & thời gian phản hồi"
           action={<AdminBadge dot={false} tone="slate">24 giờ</AdminBadge>}
@@ -554,14 +590,26 @@ export const AdminSystemHealthScreen: React.FC = () => {
               {
                 label: 'Tỷ lệ lỗi (Error Rate)',
                 value: metric(traffic24h?.errorRatePercent ?? 0, '%'),
-                icon: 'alert',
-                tone: (traffic24h?.errorRatePercent ?? 0) > 0 ? 'rose' : 'rose',
+                icon: 'alert-triangle',
+                tone: 'rose',
               },
               {
                 label: 'Thời gian phản hồi TB',
                 value: metric(traffic24h?.avgLatencyMs, ' ms'),
                 icon: 'clock',
                 tone: 'sky',
+              },
+              {
+                label: 'Yêu cầu thành công',
+                value: metric(Math.max(0, (traffic24h?.totalRequests ?? 0) - (traffic24h?.failedRequests ?? 0))),
+                icon: 'check',
+                tone: 'emerald',
+              },
+              {
+                label: 'Yêu cầu thất bại',
+                value: metric(traffic24h?.failedRequests ?? 0),
+                icon: 'alert-triangle',
+                tone: 'amber',
               },
             ]}
           />

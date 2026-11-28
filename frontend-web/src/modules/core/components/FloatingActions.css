@@ -181,14 +181,14 @@ html.dark .fab-tooltip {
 
 @media (max-width: 640px) {
   .floating-actions-dock {
-    bottom: 16px;
-    right: 14px;
+    bottom: calc(18px + env(safe-area-inset-bottom, 0px));
+    right: 16px;
     gap: 8px;
   }
 
   .fab-trigger {
-    width: 42px;
-    height: 42px;
+    width: 44px;
+    height: 44px;
   }
 
   .fab-item {
@@ -215,11 +215,4 @@ html.dark .fab-trigger {
 html.dark .fab-trigger.open {
   background: #334155;
   box-shadow: 0 6px 18px rgba(0, 0, 0, 0.5);
-}
-
-@media (max-width: 768px) {
-  .floating-actions-dock {
-    bottom: 80px;
-    right: 18px;
-  }
 }

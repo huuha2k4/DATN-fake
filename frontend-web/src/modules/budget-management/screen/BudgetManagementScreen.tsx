@@ -521,10 +521,10 @@ export function BudgetManagementScreen({ onNotify }: Props) {
   };
 
   return (
-    <main className="budget-management-page mx-auto flex min-h-[calc(100vh-64px)] w-full max-w-[1560px] flex-col gap-6 bg-[#F8FAFC] px-3 pb-24 pt-4 text-[#0F172A] sm:gap-6 sm:px-[22px] lg:px-[34px] lg:pb-10 lg:pt-6" aria-label="Quản lý ngân sách">
+    <main className="budget-management-page mx-auto flex min-h-[calc(100vh-64px)] w-full min-w-0 max-w-[1560px] flex-col gap-6 overflow-x-clip bg-[#F8FAFC] px-3 pb-24 pt-4 text-[#0F172A] sm:gap-6 sm:px-[22px] lg:px-[34px] lg:pb-10 lg:pt-6" aria-label="Quản lý ngân sách">
 
       {/* 4 Cards thống kê tổng quan của tháng đang chọn */}
-      <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4" aria-label="Thống kê ngân sách">
+      <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4" aria-label="Thống kê ngân sách">
         {/* Card 1: Tổng hạn mức tháng */}
         <article className="budget-stat-card flex min-h-[135px] flex-col justify-between rounded-2xl border border-[#E2E8F0] bg-white p-5 shadow-sm">
           <div className="flex items-start justify-between">
@@ -603,8 +603,8 @@ export function BudgetManagementScreen({ onNotify }: Props) {
       </section>
 
       {/* Thanh công cụ: Chọn tháng, Bộ lọc & Nút Thêm ngân sách */}
-      <section className="flex flex-col gap-4" aria-label="Danh sách hạn mức ngân sách">
-        <div className="flex flex-col justify-between gap-3 md:flex-row md:items-center">
+      <section className="flex flex-col gap-4 min-w-0" aria-label="Danh sách hạn mức ngân sách">
+        <div className="flex flex-col justify-between gap-3 md:flex-row md:items-center min-w-0">
           {/* Trái: Tiêu đề gọn gàng giống App */}
           <div className="shrink-0">
             <h2 className="text-base sm:text-lg font-bold text-[#0F172A]">Ngân Sách Chi Tiêu</h2>
@@ -612,9 +612,9 @@ export function BudgetManagementScreen({ onNotify }: Props) {
           </div>
 
           {/* Phải: Cụm bộ lọc, Chọn tháng (ở giữa), Nút Thêm ngân sách */}
-          <div className="flex flex-nowrap items-center gap-2 py-0.5">
+          <div className="flex flex-wrap items-center gap-2 py-0.5 min-w-0 max-w-full">
             {/* Bộ lọc trạng thái kiểu pill xanh chuẩn theme */}
-            <div className="budget-filter-box inline-flex h-9 shrink-0 items-center rounded-xl bg-[#F1F5F9] p-1 gap-1">
+            <div className="budget-filter-box inline-flex h-9 max-w-full overflow-x-auto no-scrollbar items-center rounded-xl bg-[#F1F5F9] p-1 gap-1">
               {([
                 ['all', 'Tất cả'],
                 ['safe', 'An toàn'],
@@ -664,7 +664,7 @@ export function BudgetManagementScreen({ onNotify }: Props) {
                     className="fixed inset-0 z-40"
                     onClick={() => setIsMonthDropdownOpen(false)}
                   />
-                  <div className="absolute right-0 top-full mt-1.5 z-50 w-44 rounded-2xl border border-[#e2eae4] dark:border-slate-700 bg-white dark:bg-slate-900 p-1.5 shadow-xl transition-all max-h-60 overflow-y-auto">
+                  <div className="absolute left-0 md:left-auto md:right-0 top-full mt-1.5 z-50 w-44 rounded-2xl border border-[#e2eae4] dark:border-slate-700 bg-white dark:bg-slate-900 p-1.5 shadow-xl transition-all max-h-60 overflow-y-auto">
                     <div className="px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-[#64748B] dark:text-slate-400">
                       Chọn kỳ ngân sách
                     </div>
@@ -736,7 +736,7 @@ export function BudgetManagementScreen({ onNotify }: Props) {
             <p className="mt-1 text-xs text-[#64748B]">Hãy bấm nút &quot;+ Thêm ngân sách&quot; để thiết lập hạn mức cho từng danh mục chi tiêu.</p>
           </div>
         ) : (
-          <div className="grid gap-3">
+          <div className="grid grid-cols-1 gap-3 min-w-0">
             {filteredItems.map((item) => {
               const pct = Math.round(item.percentageUsed || 0);
               const isOver = pct > 100;
@@ -759,13 +759,13 @@ export function BudgetManagementScreen({ onNotify }: Props) {
                 <div
                   key={item.id}
                   onClick={() => handleOpenDetail(item)}
-                  className="budget-item-card group flex w-full cursor-pointer flex-col items-start gap-3 rounded-2xl border border-[#E2E8F0] bg-white p-4 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md hover:border-[#007F53]/40"
+                  className="budget-item-card group flex w-full min-w-0 cursor-pointer flex-col items-start gap-3 overflow-hidden rounded-2xl border border-[#E2E8F0] bg-white p-4 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md hover:border-[#007F53]/40"
                 >
-                  <div className="flex w-full items-center justify-between gap-3">
+                  <div className="flex w-full min-w-0 items-start sm:items-center justify-between gap-2.5 sm:gap-3">
                     {/* Trái: Icon & Tên danh mục */}
-                    <div className="flex min-w-0 items-center gap-3">
+                    <div className="flex min-w-0 flex-1 items-start sm:items-center gap-3">
                       <span
-                        className="budget-cat-icon-box grid size-11 shrink-0 place-items-center rounded-xl transition"
+                        className="budget-cat-icon-box grid size-10 sm:size-11 shrink-0 place-items-center rounded-xl transition"
                         style={{
                           backgroundColor: catTheme.bgLight,
                           borderColor: catTheme.border,
@@ -776,11 +776,16 @@ export function BudgetManagementScreen({ onNotify }: Props) {
                       >
                         <FinanceIcon name={catIcon} size={20} />
                       </span>
-                      <div className="min-w-0">
-                        <span className="budget-item-title block truncate text-sm font-semibold text-[#0F172A] group-hover:text-[#007F53]">
-                          {item.name || catName}
-                        </span>
-                        <span className="budget-item-sub mt-0.5 block truncate text-xs text-[#64748B]">
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center justify-between gap-2 sm:block">
+                          <span className="budget-item-title block truncate text-sm font-semibold text-[#0F172A] group-hover:text-[#007F53]">
+                            {item.name || catName}
+                          </span>
+                          <span className={`inline-flex shrink-0 sm:hidden rounded-full px-2 py-0.5 text-[10px] font-bold ${statusBg} ${statusColor}`}>
+                            {statusLabel}
+                          </span>
+                        </div>
+                        <span className="budget-item-sub mt-0.5 block text-xs text-[#64748B] sm:truncate">
                           {item.name && item.name !== catName && (
                             <span
                               className="budget-item-tag font-semibold mr-1.5"
@@ -791,11 +796,14 @@ export function BudgetManagementScreen({ onNotify }: Props) {
                           )}
                           Đã dùng {spent.toLocaleString('vi-VN')} đ / {limit.toLocaleString('vi-VN')} đ
                         </span>
+                        <span className="budget-item-rem mt-1 block sm:hidden text-xs text-[#64748B]">
+                          Còn lại: <strong className={rem >= 0 ? 'text-[#16a34a] budget-val-safe' : 'text-[#dc2626] budget-val-over'}>{rem.toLocaleString('vi-VN')} đ</strong>
+                        </span>
                       </div>
                     </div>
 
-                    {/* Phải: Trạng thái & Số tiền còn lại */}
-                    <div className="shrink-0 text-right">
+                    {/* Phải (Desktop >= sm): Trạng thái & Số tiền còn lại */}
+                    <div className="hidden sm:block shrink-0 text-right">
                       <span className={`inline-flex rounded-full px-2.5 py-0.5 text-[10px] font-bold ${statusBg} ${statusColor}`}>
                         {statusLabel}
                       </span>

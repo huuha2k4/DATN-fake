@@ -72,7 +72,7 @@ export function PrivacyPolicyModal({ isOpen, onClose }: PrivacyPolicyModalProps)
           <div className="privacy-sec-card">
             <h4>5. Liên hệ & Giải quyết vấn đề</h4>
             <p>
-              Nếu có bất kỳ thắc mắc hoặc yêu cầu hỗ trợ, bảo mật dữ liệu, bạn có thể liên hệ trực tiếp với chúng tôi qua email: <strong>finora.3congian@gmail.com</strong>.
+              Nếu có bất kỳ thắc mắc hoặc yêu cầu hỗ trợ, bảo mật dữ liệu, bạn có thể liên hệ trực tiếp với chúng tôi qua email: <strong>lienhe@3congian.top</strong>.
             </p>
           </div>
         </div>

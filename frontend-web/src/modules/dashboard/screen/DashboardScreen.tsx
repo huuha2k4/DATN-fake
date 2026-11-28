@@ -526,35 +526,35 @@ export function DashboardScreen({ onNotify, onAddTransaction }: Props) {
       </section>
 
       {/* 2. KHU VỰC GIỮA: DÒNG TIỀN THEO TUẦN & GIAO DỊCH GẦN ĐÂY */}
-      <section className="grid items-stretch gap-6 xl:grid-cols-[minmax(0,1.18fr)_minmax(380px,0.82fr)] mb-8">
+      <section className="grid grid-cols-1 items-stretch gap-5 sm:gap-6 xl:grid-cols-[minmax(0,1.18fr)_minmax(380px,0.82fr)] mb-8">
         {/* Biểu đồ: Dòng tiền theo tuần */}
-        <article className="overview-main-panel">
+        <article className="overview-main-panel min-w-0">
           <div>
-            <div className="flex items-start justify-between">
-              <div>
-                <h2 className="text-lg font-bold text-[#0F172A] text-headline">Dòng tiền theo tuần</h2>
+            <div className="flex flex-wrap items-start justify-between gap-2">
+              <div className="min-w-0">
+                <h2 className="text-base sm:text-lg font-bold text-[#0F172A] text-headline">Dòng tiền theo tuần</h2>
                 <p className="text-xs text-[#64748B] text-sub mt-0.5">
                   Đối chiếu Thu nhập vs Chi tiêu chu kỳ 4 tuần Tháng {currentMonthNum}
                 </p>
               </div>
-              <div className="flex items-center gap-4 text-xs font-semibold">
-                <span className="flex items-center gap-1.5 text-[#0F172A] text-headline">
-                  <span className="size-2.5 rounded-full chart-legend-income" /> Thu nhập
+              <div className="flex items-center gap-3 sm:gap-4 text-xs font-semibold shrink-0">
+                <span className="flex items-center gap-1.5 text-[#0F172A] text-headline whitespace-nowrap">
+                  <span className="size-2.5 rounded-full chart-legend-income shrink-0" /> Thu nhập
                 </span>
-                <span className="flex items-center gap-1.5 text-[#0F172A] text-headline">
-                  <span className="size-2.5 rounded-full chart-legend-expense" /> Chi tiêu
+                <span className="flex items-center gap-1.5 text-[#0F172A] text-headline whitespace-nowrap">
+                  <span className="size-2.5 rounded-full chart-legend-expense shrink-0" /> Chi tiêu
                 </span>
               </div>
             </div>
 
             {/* Vùng vẽ các cột (Cột Thu nhập xanh lá đậm và Cột Chi tiêu xanh ngọc nhạt/bạc hà bo tròn đỉnh) */}
-            <div className="mt-8 flex min-h-[220px] items-end justify-around gap-4 border-b border-[#E2E8F0] pb-4 dark:border-[#1E293B]">
+            <div className="mt-6 sm:mt-8 flex min-h-[200px] sm:min-h-[220px] items-end justify-around gap-1.5 sm:gap-4 border-b border-[#E2E8F0] pb-4 dark:border-[#1E293B]">
               {weeksData.map((week) => (
-                <div key={week.label} className="flex flex-col items-center gap-3">
-                  <div className="flex h-40 items-end justify-center gap-2">
+                <div key={week.label} className="flex flex-col items-center gap-2 sm:gap-3 min-w-0 flex-1">
+                  <div className="flex h-36 sm:h-40 items-end justify-center gap-1 sm:gap-2">
                     {/* Cột Thu nhập: Xanh đậm bo tròn chuẩn theo ảnh mẫu */}
                     <div
-                      className="w-5 sm:w-6 rounded-t-full chart-bar-income transition-all duration-500 relative group cursor-pointer"
+                      className="w-3.5 sm:w-6 rounded-t-full chart-bar-income transition-all duration-500 relative group cursor-pointer"
                       style={{ height: week.income > 0 ? `${Math.max(6, week.incomePercent)}%` : '0%' }}
                     >
                       {week.income > 0 && (
@@ -565,7 +565,7 @@ export function DashboardScreen({ onNotify, onAddTransaction }: Props) {
                     </div>
                     {/* Cột Chi tiêu: Xanh mint / ngọc nhạt bo tròn chuẩn theo ảnh mẫu */}
                     <div
-                      className="w-5 sm:w-6 rounded-t-full chart-bar-expense transition-all duration-500 relative group cursor-pointer"
+                      className="w-3.5 sm:w-6 rounded-t-full chart-bar-expense transition-all duration-500 relative group cursor-pointer"
                       style={{ height: week.expense > 0 ? `${Math.max(6, week.expensePercent)}%` : '0%' }}
                     >
                       {week.expense > 0 && (
@@ -576,10 +576,10 @@ export function DashboardScreen({ onNotify, onAddTransaction }: Props) {
                     </div>
                   </div>
                   <div className="text-center">
-                    <strong className={`block text-xs font-bold ${week.isCurrent ? 'text-[#007F53] dark:text-emerald-400' : 'text-[#0F172A] text-headline'}`}>
-                      {week.label} {week.isCurrent ? '(Nay)' : ''}
+                    <strong className={`block text-[11px] sm:text-xs font-bold leading-tight ${week.isCurrent ? 'text-[#007F53] dark:text-emerald-400' : 'text-[#0F172A] text-headline'}`}>
+                      {week.label}{week.isCurrent ? ' (Nay)' : ''}
                     </strong>
-                    <span className="text-[11px] text-[#64748B] text-sub">{week.date}</span>
+                    <span className="text-[10px] sm:text-[11px] text-[#64748B] text-sub whitespace-nowrap">{week.date}</span>
                   </div>
                 </div>
               ))}
@@ -588,22 +588,22 @@ export function DashboardScreen({ onNotify, onAddTransaction }: Props) {
 
           {/* Dòng tiền thuần tích lũy (Net Savings) */}
           <div className="net-savings-pill-box mt-5">
-            <span className="flex items-center gap-2 text-[#0F172A] text-headline font-bold text-xs">
-              <FinanceIcon name="trend" size={17} className="text-[#007F53] dark:text-emerald-400" />
-              Dòng tiền thuần tích lũy (Net Savings):
+            <span className="flex items-center gap-2 text-[#0F172A] text-headline font-bold text-xs min-w-0">
+              <FinanceIcon name="trend" size={16} className="text-[#007F53] dark:text-emerald-400 shrink-0" />
+              <span className="leading-snug">Dòng tiền thuần tích lũy:</span>
             </span>
-            <strong className={`text-sm font-black ${monthSummary.netCashFlow >= 0 ? 'text-[#007F53] dark:text-emerald-400' : 'text-[#dc2626] dark:text-rose-400'}`}>
+            <strong className={`text-sm font-black shrink-0 whitespace-nowrap ${monthSummary.netCashFlow >= 0 ? 'text-[#007F53] dark:text-emerald-400' : 'text-[#dc2626] dark:text-rose-400'}`}>
               {monthSummary.netCashFlow >= 0 ? '+' : ''}{Math.round(monthSummary.netCashFlow).toLocaleString('vi-VN')} ₫
             </strong>
           </div>
         </article>
 
         {/* Cột phải: Giao dịch gần đây */}
-        <article className="overview-main-panel">
+        <article className="overview-main-panel min-w-0">
           <div>
             <div className="flex items-center justify-between pb-3">
               <div>
-                <h2 className="text-lg font-bold text-[#0F172A] text-headline">Giao dịch gần đây</h2>
+                <h2 className="text-base sm:text-lg font-bold text-[#0F172A] text-headline">Giao dịch gần đây</h2>
                 <p className="text-xs text-[#64748B] text-sub mt-0.5">
                   {transactions.length} hoạt động tài chính mới nhất
                 </p>
@@ -621,34 +621,34 @@ export function DashboardScreen({ onNotify, onAddTransaction }: Props) {
                 visibleTransactions.map((tx) => {
                   const isIncome = tx.transactionType === 'INCOME';
                   return (
-                    <div key={tx.id} className="py-3 flex items-center justify-between text-xs">
-                      <div className="flex items-center gap-3 min-w-0 pr-2">
+                    <div key={tx.id} className="py-3 flex items-center justify-between gap-2 text-xs min-w-0">
+                      <div className="flex items-center gap-2.5 sm:gap-3 min-w-0 flex-1">
                         <span
-                          className={`size-10 grid place-items-center rounded-xl shrink-0 ${
+                          className={`size-9 sm:size-10 grid place-items-center rounded-xl shrink-0 ${
                             isIncome
                               ? 'tx-icon-income'
                               : 'tx-icon-expense'
                           }`}
                         >
-                          {renderTransactionCategoryIcon(tx.category?.icon, isIncome, 18, tx.category?.name)}
+                          {renderTransactionCategoryIcon(tx.category?.icon, isIncome, 17, tx.category?.name)}
                         </span>
-                        <div className="min-w-0">
+                        <div className="min-w-0 flex-1">
                           <p className="font-bold text-[#0F172A] text-headline truncate text-[13px]">
                             {tx.description || tx.category?.name || 'Giao dịch'}
                           </p>
-                          <div className="flex items-center gap-1.5 text-[11px] text-[#64748B] text-sub mt-0.5">
-                            <span className="tx-category-badge rounded px-2 py-0.5 font-semibold text-[11px]">
+                          <div className="flex flex-wrap items-center gap-1.5 text-[11px] text-[#64748B] text-sub mt-0.5">
+                            <span className="tx-category-badge rounded px-1.5 sm:px-2 py-0.5 font-semibold text-[10px] sm:text-[11px] truncate max-w-[120px]">
                               {tx.category?.name || (isIncome ? 'Thu nhập' : 'Chi tiêu')}
                             </span>
-                            <span>{formatDisplayDate(tx.transactionDate)}</span>
+                            <span className="whitespace-nowrap">{formatDisplayDate(tx.transactionDate)}</span>
                           </div>
                         </div>
                       </div>
                       <div className="text-right shrink-0">
-                        <strong className={`font-black text-sm block ${isIncome ? 'tx-amount-income' : 'tx-amount-expense'}`}>
+                        <strong className={`font-black text-[13px] sm:text-sm block whitespace-nowrap ${isIncome ? 'tx-amount-income' : 'tx-amount-expense'}`}>
                           {isIncome ? '+' : '-'}{formatVND(tx.amount)}
                         </strong>
-                        <span className="text-[11px] text-[#64748B] text-sub">{tx.accountName || 'Ví'}</span>
+                        <span className="text-[10px] sm:text-[11px] text-[#64748B] text-sub block truncate max-w-[90px] sm:max-w-none ml-auto">{tx.accountName || 'Ví'}</span>
                       </div>
                     </div>
                   );
@@ -670,12 +670,12 @@ export function DashboardScreen({ onNotify, onAddTransaction }: Props) {
 
       {/* 3. HÀNG DƯỚI: TÀI KHOẢN & NGUỒN TIỀN (TÀI SẢN THANH KHOẢN) */}
       <section>
-        <div className="mb-4 flex items-center justify-between">
-          <h2 className="flex items-center gap-2 text-base font-bold text-[#0F172A] text-headline">
-            <FinanceIcon name="bank" size={18} className="text-[#007F53] dark:text-emerald-400" />
-            Tài khoản &amp; Nguồn tiền (Tài sản thanh khoản)
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+          <h2 className="flex items-center gap-2 text-sm sm:text-base font-bold text-[#0F172A] text-headline">
+            <FinanceIcon name="bank" size={18} className="text-[#007F53] dark:text-emerald-400 shrink-0" />
+            <span>Tài khoản &amp; Nguồn tiền</span>
           </h2>
-          <span className="rounded-full bg-[#E6F4EA] px-3 py-1 text-xs font-bold text-[#007F53] dark:bg-emerald-950/60 dark:text-emerald-300">
+          <span className="rounded-full bg-[#E6F4EA] px-2.5 sm:px-3 py-1 text-[11px] sm:text-xs font-bold text-[#007F53] dark:bg-emerald-950/60 dark:text-emerald-300 whitespace-nowrap">
             {accounts.length} tài khoản liên kết
           </span>
         </div>

@@ -144,7 +144,7 @@ export function TermsOfServiceScreen() {
             <ul>
               <li><strong>Tính chính xác:</strong> Bạn cam kết cung cấp thông tin email và thông tin cá nhân chính xác, đầy đủ và duy trì cập nhật thông tin này trong suốt quá trình sử dụng.</li>
               <li><strong>Bảo mật mật khẩu:</strong> Bạn có trách nhiệm tự bảo mật mật khẩu tài khoản và mã xác thực OTP của mình. Mọi thao tác thực hiện từ tài khoản của bạn được mặc định xem là do chính bạn thực hiện.</li>
-              <li><strong>Thông báo vi phạm:</strong> Nếu phát hiện bất kỳ dấu hiệu truy cập trái phép hoặc mất an toàn thông tin nào, bạn cần lập tức đổi mật khẩu và thông báo ngay cho đội ngũ hỗ trợ qua email <strong>finora.3congian@gmail.com</strong>.</li>
+              <li><strong>Thông báo vi phạm:</strong> Nếu phát hiện bất kỳ dấu hiệu truy cập trái phép hoặc mất an toàn thông tin nào, bạn cần lập tức đổi mật khẩu và thông báo ngay cho đội ngũ hỗ trợ qua email <strong>lienhe@3congian.top</strong>.</li>
             </ul>
           </section>
 
@@ -223,7 +223,7 @@ export function TermsOfServiceScreen() {
               </div>
               <div className="contact-row">
                 <span className="contact-label">Email hỗ trợ & xử lý điều khoản:</span>
-                <span className="contact-val highlight">finora.3congian@gmail.com</span>
+                <span className="contact-val highlight">lienhe@3congian.top</span>
               </div>
             </div>
           </section>

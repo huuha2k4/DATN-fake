@@ -235,7 +235,7 @@ export function LegalTermsModal({ isOpen, onClose, initialTab = 'terms' }: Legal
               <div className="privacy-sec-card">
                 <h4>4. Liên hệ &amp; Giải quyết tranh chấp</h4>
                 <p>
-                  Mọi thắc mắc về điều khoản dịch vụ xin vui lòng gửi email về: <strong>finora.3congian@gmail.com</strong>.
+                  Mọi thắc mắc về điều khoản dịch vụ xin vui lòng gửi email về: <strong>lienhe@3congian.top</strong>.
                 </p>
               </div>
             </>
@@ -270,7 +270,7 @@ export function LegalTermsModal({ isOpen, onClose, initialTab = 'terms' }: Legal
               <div className="privacy-sec-card">
                 <h4>3. Email liên hệ hỗ trợ</h4>
                 <p>
-                  Email chính thức: <strong>finora.3congian@gmail.com</strong>.
+                  Email chính thức: <strong>lienhe@3congian.top</strong>.
                 </p>
               </div>
             </>

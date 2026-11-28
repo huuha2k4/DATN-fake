@@ -249,23 +249,25 @@ html.dark .ocr-amount-title {
 
 .ocr-amount-input-row {
   display: flex;
-  align-items: center;
+  align-items: baseline;
   justify-content: center;
-  gap: 4px;
+  gap: 6px;
+  max-width: 100%;
 }
 
 .ocr-amount-input {
   background: transparent;
   text-align: center;
-  font-size: 34px;
+  font-size: clamp(26px, 7vw, 34px);
   font-weight: 900;
   color: #007F53;
   border: none;
   outline: none;
   padding: 0;
   margin: 0;
+  min-width: 1ch;
+  max-width: calc(100% - 28px);
   letter-spacing: -0.02em;
-  max-width: 290px;
   transition: color 0.2s ease;
 }
 

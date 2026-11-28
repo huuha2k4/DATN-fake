@@ -408,39 +408,77 @@ body.dark .btn-cancel-ai-wait:hover {
 .typing-dot:nth-child(1) { animation-delay: -0.32s; }
 .typing-dot:nth-child(2) { animation-delay: -0.16s; }
 
+.btn-mobile-history {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  border: 1px solid #e2e8f0;
+  background: #f8fafc;
+  color: #475569;
+  cursor: pointer;
+}
+
+.ai-sidebar-backdrop {
+  display: none;
+}
+
 @media (max-width: 768px) {
   .ai-copilot-container {
+    position: relative;
     flex-direction: column;
     height: calc(100dvh - 56px);
   }
 
+  .btn-mobile-history {
+    display: inline-flex;
+  }
+
+  .ai-sidebar-backdrop {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 45;
+    background: rgba(15, 23, 42, 0.45);
+    backdrop-filter: blur(2px);
+  }
+
   .ai-copilot-container .ai-sidebar {
-    width: 100%;
-    max-height: 112px;
-    border-right: none;
-    border-bottom: 1px solid #e2e8f0;
+    position: fixed;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    width: min(290px, 84vw);
+    max-height: none;
+    z-index: 50;
+    transform: translateX(-105%);
+    transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+    box-shadow: 6px 0 24px rgba(15, 23, 42, 0.2);
+  }
+
+  .ai-copilot-container .ai-sidebar.is-mobile-open {
+    transform: translateX(0);
   }
 
   .ai-copilot-container .ai-sidebar-header {
     height: auto;
-    padding: 8px 12px;
+    padding: 12px;
   }
 
   .ai-copilot-container .btn-new-chat-prominent {
-    height: 36px;
-    font-size: 0.82rem;
+    height: 38px;
+    font-size: 0.84rem;
   }
 
   .ai-copilot-container .ai-sidebar-body {
-    padding: 6px 10px;
-  }
-
-  .ai-copilot-container .ai-sidebar-footer {
-    display: none;
+    padding: 8px 10px;
   }
 
   .ai-copilot-container .ai-main-chat-area {
     min-height: 0;
+    flex: 1;
   }
 
   .ai-copilot-container .ai-chat-header {
@@ -467,21 +505,32 @@ body.dark .btn-cancel-ai-wait:hover {
   }
 
   .ai-copilot-container .welcome-hero-box {
-    padding: 16px 8px;
+    margin: 0 auto;
+    padding: 12px 4px 20px;
+  }
+
+  .ai-copilot-container .welcome-logo-badge {
+    width: 52px;
+    height: 52px;
+    margin-bottom: 10px;
   }
 
   .ai-copilot-container .welcome-title {
-    font-size: 1.15rem;
+    font-size: 1.1rem;
   }
 
   .ai-copilot-container .welcome-desc {
-    font-size: 0.84rem;
-    margin-bottom: 18px;
+    font-size: 0.82rem;
+    margin-bottom: 16px;
   }
 
   .ai-copilot-container .quick-prompts-grid {
     grid-template-columns: 1fr;
     gap: 8px;
+  }
+
+  .ai-copilot-container .prompt-card-btn {
+    padding: 11px 13px;
   }
 
   .ai-copilot-container .message-bubble {
@@ -501,10 +550,7 @@ body.dark .btn-cancel-ai-wait:hover {
 
   .ai-copilot-container .ai-textarea {
     font-size: 0.9rem;
-  }
-
-  .ai-copilot-container .ai-input-hint {
-    font-size: 0.68rem;
+    overflow: hidden;
   }
 }
 

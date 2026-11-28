@@ -145,10 +145,53 @@ function formatRelativeTime(dateStr: string): string {
   }
 }
 
+type NotificationTab = 'ALL' | 'GROUP' | 'TRANSACTION' | 'SYSTEM';
+
+function matchesNotificationTab(typeRaw: string | undefined, tab: NotificationTab): boolean {
+  if (tab === 'ALL') return true;
+  const type = (typeRaw || '').toUpperCase();
+  if (tab === 'GROUP') {
+    return (
+      type.includes('GROUP') ||
+      type.includes('FUND') ||
+      type.includes('MEMBER') ||
+      type.includes('KID') ||
+      type.includes('CHILD') ||
+      type.includes('CHORE')
+    );
+  }
+  if (tab === 'TRANSACTION') {
+    return (
+      type.includes('TRANSACTION') ||
+      type.includes('EXPENSE') ||
+      type.includes('INCOME') ||
+      type.includes('BUDGET') ||
+      type.includes('DEBT') ||
+      type.includes('GOAL') ||
+      type.includes('RECURRING')
+    );
+  }
+  if (tab === 'SYSTEM') {
+    return (
+      type.includes('SYSTEM') ||
+      type.includes('ADMIN') ||
+      type.includes('BROADCAST') ||
+      type.includes('SECURITY') ||
+      type.includes('AUTH') ||
+      type.includes('REPORT') ||
+      type.includes('INSIGHT') ||
+      type.includes('FEATURE') ||
+      type.includes('ANOMALY') ||
+      type.includes('SUMMARY')
+    );
+  }
+  return true;
+}
+
 export function NotificationScreen({ onNotify }: NotificationScreenProps) {
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
-  const [activeTab, setActiveTab] = useState<'ALL' | 'UNREAD' | 'HIGH' | 'BUDGET' | 'GOAL' | 'DEBT'>('ALL');
+  const [activeTab, setActiveTab] = useState<NotificationTab>('ALL');
   const [loading, setLoading] = useState(true);
   const [viewingItem, setViewingItem] = useState<NotificationItem | null>(null);
 
@@ -190,16 +233,12 @@ export function NotificationScreen({ onNotify }: NotificationScreenProps) {
     onNotify('Đã đánh dấu tất cả thông báo là đã đọc');
   };
 
-  const filteredNotifications = notifications.filter((item) => {
-    if (activeTab === 'UNREAD') return !item.is_read;
-    if (activeTab === 'HIGH') return item.priority === 'HIGH';
-    if (activeTab === 'BUDGET') return item.type.includes('BUDGET');
-    if (activeTab === 'GOAL') return item.type.includes('GOAL');
-    if (activeTab === 'DEBT') return item.type.includes('DEBT');
-    return true;
-  });
+  const filteredNotifications = notifications.filter((item) => matchesNotificationTab(item.type, activeTab));
 
   const highPriorityCount = notifications.filter((n) => n.priority === 'HIGH').length;
+  const groupCount = notifications.filter((n) => matchesNotificationTab(n.type, 'GROUP')).length;
+  const transactionCount = notifications.filter((n) => matchesNotificationTab(n.type, 'TRANSACTION')).length;
+  const systemCount = notifications.filter((n) => matchesNotificationTab(n.type, 'SYSTEM')).length;
 
   return (
     <main className="mx-auto flex min-h-[calc(100vh-64px)] w-full max-w-5xl flex-col gap-5 p-4 sm:p-6 lg:p-8">
@@ -272,72 +311,25 @@ export function NotificationScreen({ onNotify }: NotificationScreenProps) {
 
       {/* Filter Tabs */}
       <div className="flex flex-wrap items-center gap-1.5 border-b border-[#E2E8F0] dark:border-slate-800 pb-2">
-        <button
-          type="button"
-          onClick={() => setActiveTab('ALL')}
-          className={`h-8 px-3.5 rounded-full text-xs font-semibold transition ${
-            activeTab === 'ALL'
-              ? 'bg-[#007F53] text-white shadow-xs'
-              : 'bg-white dark:bg-slate-800 text-gray-600 dark:text-slate-300 hover:bg-gray-100 dark:hover:bg-slate-700'
-          }`}
-        >
-          Tất cả ({notifications.length})
-        </button>
-        <button
-          type="button"
-          onClick={() => setActiveTab('UNREAD')}
-          className={`h-8 px-3.5 rounded-full text-xs font-semibold transition ${
-            activeTab === 'UNREAD'
-              ? 'bg-[#007F53] text-white shadow-xs'
-              : 'bg-white dark:bg-slate-800 text-gray-600 dark:text-slate-300 hover:bg-gray-100 dark:hover:bg-slate-700'
-          }`}
-        >
-          Chưa đọc ({unreadCount})
-        </button>
-        <button
-          type="button"
-          onClick={() => setActiveTab('HIGH')}
-          className={`h-8 px-3.5 rounded-full text-xs font-semibold transition ${
-            activeTab === 'HIGH'
-              ? 'bg-[#007F53] text-white shadow-xs'
-              : 'bg-white dark:bg-slate-800 text-gray-600 dark:text-slate-300 hover:bg-gray-100 dark:hover:bg-slate-700'
-          }`}
-        >
-          Quan trọng ({highPriorityCount})
-        </button>
-        <button
-          type="button"
-          onClick={() => setActiveTab('BUDGET')}
-          className={`h-8 px-3.5 rounded-full text-xs font-semibold transition ${
-            activeTab === 'BUDGET'
-              ? 'bg-[#007F53] text-white shadow-xs'
-              : 'bg-white dark:bg-slate-800 text-gray-600 dark:text-slate-300 hover:bg-gray-100 dark:hover:bg-slate-700'
-          }`}
-        >
-          Ngân sách
-        </button>
-        <button
-          type="button"
-          onClick={() => setActiveTab('GOAL')}
-          className={`h-8 px-3.5 rounded-full text-xs font-semibold transition ${
-            activeTab === 'GOAL'
-              ? 'bg-[#007F53] text-white shadow-xs'
-              : 'bg-white dark:bg-slate-800 text-gray-600 dark:text-slate-300 hover:bg-gray-100 dark:hover:bg-slate-700'
-          }`}
-        >
-          Mục tiêu
-        </button>
-        <button
-          type="button"
-          onClick={() => setActiveTab('DEBT')}
-          className={`h-8 px-3.5 rounded-full text-xs font-semibold transition ${
-            activeTab === 'DEBT'
-              ? 'bg-[#007F53] text-white shadow-xs'
-              : 'bg-white dark:bg-slate-800 text-gray-600 dark:text-slate-300 hover:bg-gray-100 dark:hover:bg-slate-700'
-          }`}
-        >
-          Công nợ
-        </button>
+        {([
+          ['ALL', `Tất cả (${notifications.length})`],
+          ['GROUP', `Nhóm (${groupCount})`],
+          ['TRANSACTION', `Giao dịch (${transactionCount})`],
+          ['SYSTEM', `Hệ thống (${systemCount})`],
+        ] as const).map(([key, label]) => (
+          <button
+            key={key}
+            type="button"
+            onClick={() => setActiveTab(key)}
+            className={`h-8 px-3.5 rounded-full text-xs font-semibold transition ${
+              activeTab === key
+                ? 'bg-[#007F53] text-white shadow-xs'
+                : 'bg-white dark:bg-slate-800 text-gray-600 dark:text-slate-300 hover:bg-gray-100 dark:hover:bg-slate-700'
+            }`}
+          >
+            {label}
+          </button>
+        ))}
       </div>
 
       {/* Notification List */}

@@ -9,6 +9,7 @@ import { useMonitoringData } from '../hooks/useMonitoringData';
 import { metric } from '../components/monitoringFormat';
 import { AdminPageFooter } from '../components/AdminPageFooter';
 import { adminApi, type AdminUserItem } from '../api/adminApi';
+import { userApi } from '../../user/api/userApi';
 import { FinanceIcon } from '../../core/components/FinanceIcon';
 import { AdminConfirmDialog as ConfirmDeleteModal } from '../components/AdminConfirmDialog';
 
@@ -19,6 +20,40 @@ const AVATAR_TONES = [
   'bg-emerald-600 text-white',
   'bg-amber-600 text-white',
 ] as const;
+
+function AdminUserAvatar({
+  avatarUrl,
+  name,
+  tone,
+}: {
+  avatarUrl?: string | null;
+  name: string;
+  tone: string;
+}) {
+  const [imgFailed, setImgFailed] = useState(false);
+  const resolvedUrl = avatarUrl && avatarUrl.trim() ? userApi.getAvatarUrl(avatarUrl) : null;
+  const showImage = Boolean(resolvedUrl) && !imgFailed;
+
+  return (
+    <div
+      className={`size-8 rounded-full font-semibold text-xs grid place-items-center shrink-0 overflow-hidden ${
+        showImage ? 'bg-[var(--admin-surface-subtle)]' : tone
+      }`}
+    >
+      {showImage ? (
+        <img
+          src={resolvedUrl!}
+          alt=""
+          referrerPolicy="no-referrer"
+          className="size-full object-cover"
+          onError={() => setImgFailed(true)}
+        />
+      ) : (
+        (name || 'U').charAt(0).toUpperCase()
+      )}
+    </div>
+  );
+}
 
 function formatDateVN(iso?: string | null): string {
   if (!iso) return '—';
@@ -268,13 +303,11 @@ function UserDirectory({ active }: { active: boolean }) {
                     <tr key={u.id}>
                       <td>
                         <div className="flex items-center gap-3 min-w-0">
-                          <div className={`size-8 rounded-full font-semibold text-xs grid place-items-center shrink-0 overflow-hidden ${u.avatarUrl ? 'bg-[var(--admin-surface-subtle)]' : avatarTone}`}>
-                            {u.avatarUrl ? (
-                              <img src={u.avatarUrl} alt="" className="size-full object-cover" />
-                            ) : (
-                              (u.fullName || u.username || 'U').charAt(0).toUpperCase()
-                            )}
-                          </div>
+                          <AdminUserAvatar
+                            avatarUrl={u.avatarUrl}
+                            name={u.fullName || u.username || 'U'}
+                            tone={avatarTone}
+                          />
                           <div className="min-w-0">
                             <div className="font-semibold text-[var(--admin-ink)] truncate">
                               {u.fullName || u.username}

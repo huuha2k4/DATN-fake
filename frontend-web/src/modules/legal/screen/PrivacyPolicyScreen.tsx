@@ -287,7 +287,7 @@ export function PrivacyPolicyScreen() {
               </div>
               <div className="contact-row">
                 <span className="contact-label">Email hỗ trợ & giải quyết vấn đề:</span>
-                <span className="contact-val highlight">finora.3congian@gmail.com</span>
+                <span className="contact-val highlight">lienhe@3congian.top</span>
               </div>
               <div className="contact-row">
                 <span className="contact-label">Kênh phản hồi trực tuyến:</span>

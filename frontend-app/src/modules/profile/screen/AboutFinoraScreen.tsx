@@ -197,7 +197,7 @@ export function AboutFinoraScreen({ onBack }: AboutFinoraScreenProps) {
                     <Image source={ICON_AI_ROBOT} style={styles.iconImage3D} resizeMode="contain" />
                   </View>
                   <View style={{ flex: 1 }}>
-                    <Text style={[styles.featureProTitle, isDark && { color: themeColors.textPrimary }]}>FinAI Copilot & Dự Báo Số Dư</Text>
+                    <Text style={[styles.featureProTitle, isDark && { color: themeColors.textPrimary }]}>FinAI Agent & Dự Báo Số Dư</Text>
                     <Text style={[styles.featureBadgePro, isDark && { color: themeColors.accentGreen }]}>Học máy Machine Learning</Text>
                   </View>
                 </View>
