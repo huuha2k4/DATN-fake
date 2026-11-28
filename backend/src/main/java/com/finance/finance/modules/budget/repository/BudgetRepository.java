@@ -108,6 +108,22 @@ public interface BudgetRepository extends JpaRepository<Budget, UUID> {
         @Param("budgetId") UUID budgetId
     );
 
+    @Query("SELECT b FROM Budget b " +
+           "WHERE b.userId = :userId AND b.deletedAt IS NULL " +
+           "AND b.periodType = :periodType " +
+           "AND ((b.startDate BETWEEN :startDate AND :endDate) " +
+           "     OR (b.endDate BETWEEN :startDate AND :endDate) " +
+           "     OR (:startDate BETWEEN b.startDate AND b.endDate)) " +
+           "AND (:budgetId IS NULL OR b.id != :budgetId) " +
+           "ORDER BY b.startDate DESC")
+    List<Budget> findOverlappingBudgets(
+        @Param("userId") UUID userId,
+        @Param("periodType") BudgetPeriodType periodType,
+        @Param("startDate") LocalDate startDate,
+        @Param("endDate") LocalDate endDate,
+        @Param("budgetId") UUID budgetId
+    );
+
     /**
      * Cập nhật spent amount và các calculated fields
      */

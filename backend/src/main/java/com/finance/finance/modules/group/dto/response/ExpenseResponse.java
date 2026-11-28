@@ -23,6 +23,7 @@ public class ExpenseResponse {
     private String currency;
     private UUID paidByUserId;
     private String paymentSource;
+    private String financialPurpose;
     private UUID categoryId;
     private String splitMethod;
     private LocalDate expenseDate;

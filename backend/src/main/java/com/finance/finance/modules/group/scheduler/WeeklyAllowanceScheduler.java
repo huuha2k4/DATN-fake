@@ -156,7 +156,7 @@ public class WeeklyAllowanceScheduler {
     }
 
     private void processGroupFundAllowance(ChildWallet wallet, BigDecimal amount, UUID categoryId) {
-        GroupFund fund = groupFundRepository.findByGroupId(wallet.getGroupId())
+        GroupFund fund = groupFundRepository.findByGroupIdForUpdate(wallet.getGroupId())
                 .orElseThrow(() -> new IllegalStateException(
                         "Nhóm chưa có quỹ chung để cấp tiền tiêu vặt cho ví " + wallet.getChildName()));
         
@@ -177,6 +177,7 @@ public class WeeklyAllowanceScheduler {
                 .paidByUserId(null) // System auto
                 .createdByUserId(null) // System auto
                 .paymentSource("GROUP_FUND")
+                .financialPurpose(com.finance.finance.common.enums.GroupExpensePurpose.FUND_EXPENSE)
                 .categoryId(categoryId)
                 .splitMethod(com.finance.finance.common.enums.SplitMethod.EQUAL)
                 .expenseDate(LocalDate.now())

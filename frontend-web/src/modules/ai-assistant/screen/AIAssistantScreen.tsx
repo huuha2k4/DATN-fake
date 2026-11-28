@@ -1,5 +1,18 @@
-import React, { useState, useEffect, useRef, type FormEvent } from 'react'
-import { FinanceIcon } from '../../core/components/FinanceIcon'
+import React, { useState, useEffect, useRef, useMemo, type FormEvent } from 'react'
+import {
+  Zap,
+  ShieldCheck,
+  BarChart3,
+  TrendingUp,
+  Search,
+  ChevronDown,
+  ChevronRight,
+  MoreHorizontal,
+  MessageSquare,
+  Plus,
+  ArrowRight,
+  Clock,
+} from 'lucide-react'
 import { FormattedMarkdown } from '../components/FormattedMarkdown'
 import { FinAiActionCard } from '../components/FinAiActionCard'
 import { FinAiChoices } from '../components/FinAiChoices'
@@ -24,29 +37,62 @@ interface Message {
 
 const quickQuestions = [
   {
+    icon: Zap,
     title: 'Thêm giao dịch nhanh',
     subtitle: 'Tạo giao dịch chi tiêu hoặc thu nhập',
     prompt: 'Tôi vừa chi 50.000đ ăn sáng bằng tiền mặt, hãy tạo giao dịch này.',
   },
   {
+    icon: ShieldCheck,
     title: 'Thiết lập ngân sách',
     subtitle: 'Đề xuất hạn mức chi tiêu theo danh mục',
     prompt: 'Tạo ngân sách Ăn uống 2 triệu cho tháng này.',
   },
   {
+    icon: BarChart3,
     title: 'Tổng chi tiêu tháng này',
     subtitle: 'Đã tiêu bao nhiêu tiền và nhóm nào nhiều nhất?',
     prompt: 'Tháng này tôi đã chi tiêu hết bao nhiêu tiền? Danh mục nào chiếm nhiều nhất?',
   },
   {
+    icon: TrendingUp,
     title: 'Dự báo số dư tài khoản',
     subtitle: 'Dự đoán số dư cuối tháng bằng mô hình AI',
     prompt: 'Dự báo số dư tài khoản của tôi đến cuối tháng còn lại bao nhiêu?',
   },
 ]
 
+function isSameLocalDay(dateStr?: string): boolean {
+  if (!dateStr) return true
+  const d = new Date(dateStr)
+  if (Number.isNaN(d.getTime())) return true
+  const now = new Date()
+  return (
+    d.getFullYear() === now.getFullYear() &&
+    d.getMonth() === now.getMonth() &&
+    d.getDate() === now.getDate()
+  )
+}
+
+function formatConversationTime(dateStr?: string, isToday = false): string {
+  if (!dateStr) return 'Vừa xong'
+  const d = new Date(dateStr)
+  if (Number.isNaN(d.getTime())) return 'Vừa xong'
+  if (isToday) {
+    return d.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })
+  }
+  return d.toLocaleDateString('vi-VN', {
+    day: '2-digit',
+    month: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+  })
+}
+
 export function AIAssistantScreen({ onNotify }: { onNotify: (message: string) => void }) {
   const [query, setQuery] = useState('')
+  const [searchHistory, setSearchHistory] = useState('')
+  const [earlierExpanded, setEarlierExpanded] = useState(true)
   const [messages, setMessages] = useState<Message[]>([])
   const [conversations, setConversations] = useState<FinAiConversationSummary[]>([])
   const [currentConversationId, setCurrentConversationId] = useState<string | null>(null)
@@ -61,6 +107,24 @@ export function AIAssistantScreen({ onNotify }: { onNotify: (message: string) =>
   const slowTimerRef = useRef<number | null>(null)
   const isSendingRef = useRef(false)
   const retryKeyRef = useRef<{ prompt: string; key: string } | null>(null)
+
+  const { todayConversations, earlierConversations } = useMemo(() => {
+    const keyword = searchHistory.trim().toLowerCase()
+    const filtered = keyword
+      ? conversations.filter((c) => (c.title || '').toLowerCase().includes(keyword))
+      : conversations
+
+    const today: FinAiConversationSummary[] = []
+    const earlier: FinAiConversationSummary[] = []
+    filtered.forEach((item) => {
+      if (isSameLocalDay(item.updatedAt || item.createdAt)) {
+        today.push(item)
+      } else {
+        earlier.push(item)
+      }
+    })
+    return { todayConversations: today, earlierConversations: earlier }
+  }, [conversations, searchHistory])
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -92,7 +156,6 @@ export function AIAssistantScreen({ onNotify }: { onNotify: (message: string) =>
   useEffect(() => {
     loadConversations()
 
-    // Lắng nghe sự kiện cập nhật conversation từ component khác
     const handleConversationUpdated = () => {
       loadConversations()
     }
@@ -106,7 +169,6 @@ export function AIAssistantScreen({ onNotify }: { onNotify: (message: string) =>
   const handleNewChat = () => {
     if (isSendingRef.current) return
     retryKeyRef.current = null
-    // Clear active polling
     Object.values(pollingRef.current).forEach((timer) => clearInterval(timer))
     pollingRef.current = {}
 
@@ -118,7 +180,7 @@ export function AIAssistantScreen({ onNotify }: { onNotify: (message: string) =>
     requestAbortRef.current?.abort()
   }
 
-  // Khôi phục một cuộc trò chuyện cũ (Recovery full messages & action states)
+  // Khôi phục một cuộc trò chuyện cũ
   const handleSelectConversation = async (item: FinAiConversationSummary) => {
     if (isSendingRef.current || isLoading) return
     retryKeyRef.current = null
@@ -126,15 +188,7 @@ export function AIAssistantScreen({ onNotify }: { onNotify: (message: string) =>
     setIsLoading(true)
     try {
       const conv = await finAiAgentApi.getConversation(item.conversationId)
-
-      // Map messages and attach actions to assistant message
-      const actionsMap = new Map<string, FinAiActionResponse>()
-      ;(conv.actions || []).forEach((act) => {
-        actionsMap.set(act.actionId, act)
-      })
-
       const rawActions = conv.actions || []
-
       const actionMap = new Map<string, FinAiActionResponse>()
       rawActions.forEach((act) => actionMap.set(act.actionId, act))
 
@@ -157,7 +211,6 @@ export function AIAssistantScreen({ onNotify }: { onNotify: (message: string) =>
 
       setMessages(mappedMsgs)
 
-      // Check if any action is EXECUTING to restore polling
       rawActions.forEach((act) => {
         if (act.status === 'EXECUTING' || act.status === 'CONFIRMED') {
           startPollingAction(act.actionId)
@@ -175,7 +228,7 @@ export function AIAssistantScreen({ onNotify }: { onNotify: (message: string) =>
     if (pollingRef.current[actionId]) return
 
     let pollCount = 0
-    const maxPolls = 15 // 15 * 2s = 30s
+    const maxPolls = 15
     const timer = setInterval(async () => {
       pollCount++
       try {
@@ -208,7 +261,6 @@ export function AIAssistantScreen({ onNotify }: { onNotify: (message: string) =>
     pollingRef.current[actionId] = timer
   }
 
-  // Update action state across local messages
   const updateActionState = (updatedAction: FinAiActionResponse) => {
     setMessages((prev) =>
       prev.map((msg) => {
@@ -223,7 +275,6 @@ export function AIAssistantScreen({ onNotify }: { onNotify: (message: string) =>
     )
   }
 
-  // Confirm Action
   const handleConfirmAction = async (actionId: string) => {
     setActionProcessingId(actionId)
     try {
@@ -243,7 +294,6 @@ export function AIAssistantScreen({ onNotify }: { onNotify: (message: string) =>
         onNotify(res.error || 'Thực hiện hành động thất bại.')
       }
     } catch (err: any) {
-      // Check status from backend instead of assuming complete failure
       try {
         const recovered = await finAiAgentApi.getAction(actionId)
         updateActionState(recovered)
@@ -265,7 +315,6 @@ export function AIAssistantScreen({ onNotify }: { onNotify: (message: string) =>
     }
   }
 
-  // Cancel Action
   const handleCancelAction = async (actionId: string) => {
     setActionProcessingId(actionId)
     try {
@@ -292,15 +341,22 @@ export function AIAssistantScreen({ onNotify }: { onNotify: (message: string) =>
     setIsTakingLong(false)
     const controller = new AbortController()
     const retryTag = selection ? JSON.stringify(selection) : prompt
-    const idempotencyKey = retryKeyRef.current?.prompt === retryTag
-      ? retryKeyRef.current.key
-      : (globalThis.crypto?.randomUUID?.() || `finai-${Date.now()}-${Math.random().toString(36).slice(2)}`)
+    const idempotencyKey =
+      retryKeyRef.current?.prompt === retryTag
+        ? retryKeyRef.current.key
+        : globalThis.crypto?.randomUUID?.() || `finai-${Date.now()}-${Math.random().toString(36).slice(2)}`
     retryKeyRef.current = { prompt: retryTag, key: idempotencyKey }
     requestAbortRef.current = controller
     slowTimerRef.current = window.setTimeout(() => setIsTakingLong(true), 10000)
 
     try {
-      const res = await finAiAgentApi.sendMessage(prompt, currentConversationId || undefined, controller.signal, idempotencyKey, selection)
+      const res = await finAiAgentApi.sendMessage(
+        prompt,
+        currentConversationId || undefined,
+        controller.signal,
+        idempotencyKey,
+        selection
+      )
       retryKeyRef.current = null
 
       if (res.conversationId && res.conversationId !== currentConversationId) {
@@ -317,7 +373,6 @@ export function AIAssistantScreen({ onNotify }: { onNotify: (message: string) =>
       }
       setMessages((prev) => [...prev, assistantMsg])
 
-      // If any returned action is executing immediately, poll it
       if (res.actions) {
         res.actions.forEach((act) => {
           if (act.status === 'EXECUTING' || act.status === 'CONFIRMED') {
@@ -334,13 +389,18 @@ export function AIAssistantScreen({ onNotify }: { onNotify: (message: string) =>
       if (err instanceof FinAiClientError && err.errorCode === 'AI_DRAFT_STALE') {
         setMessages((prev) => prev.map((item) => ({ ...item, clarification: null })))
       }
-      const isBusinessNotice = err instanceof FinAiClientError && (err.errorCode === 'BUSINESS_CONFLICT' || err.errorCode === 'INVALID_REQUEST')
+      const isBusinessNotice =
+        err instanceof FinAiClientError &&
+        (err.errorCode === 'BUSINESS_CONFLICT' || err.errorCode === 'INVALID_REQUEST')
       if (isBusinessNotice) {
         retryKeyRef.current = null
       }
-      const errMsg = err instanceof FinAiClientError
-        ? [err.message, !isBusinessNotice && err.requestId && `Mã yêu cầu: ${err.requestId}`].filter(Boolean).join(' ')
-        : 'FinAI đang tạm gián đoạn. Vui lòng thử lại sau.'
+      const errMsg =
+        err instanceof FinAiClientError
+          ? [err.message, !isBusinessNotice && err.requestId && `Mã yêu cầu: ${err.requestId}`]
+              .filter(Boolean)
+              .join(' ')
+          : 'FinAI đang tạm gián đoạn. Vui lòng thử lại sau.'
       setMessages((prev) => [
         ...prev,
         {
@@ -359,7 +419,6 @@ export function AIAssistantScreen({ onNotify }: { onNotify: (message: string) =>
     }
   }
 
-  // Gửi tin nhắn từ input form
   const handleSubmit = async (e?: FormEvent) => {
     if (e) e.preventDefault()
     await handleSendMessage(query)
@@ -369,14 +428,40 @@ export function AIAssistantScreen({ onNotify }: { onNotify: (message: string) =>
     handleSendMessage(promptText)
   }
 
+  const renderConversationItem = (item: FinAiConversationSummary, isToday: boolean) => {
+    const isActive = currentConversationId === item.conversationId
+    return (
+      <div
+        key={item.conversationId}
+        onClick={() => {
+          handleSelectConversation(item)
+          setMobileHistoryOpen(false)
+        }}
+        className={`session-item-row ${isActive ? 'active' : ''}`}
+      >
+        <div className="session-title-wrap">
+          <span className="session-icon-circle">
+            <MessageSquare size={15} strokeWidth={2} />
+          </span>
+          <div className="session-info">
+            <span className="session-title-text">{item.title || 'Cuộc trò chuyện mới'}</span>
+            <span className="session-time-text">
+              {formatConversationTime(item.updatedAt || item.createdAt, isToday)}
+            </span>
+          </div>
+        </div>
+        <span className="session-more-dots" aria-hidden="true">
+          <MoreHorizontal size={16} />
+        </span>
+      </div>
+    )
+  }
+
   return (
     <div className="ai-copilot-container">
       {/* SIDEBAR BÊN TRÁI: QUẢN LÝ CUỘC TRÒ CHUYỆN */}
       {mobileHistoryOpen && (
-        <div
-          className="ai-sidebar-backdrop"
-          onClick={() => setMobileHistoryOpen(false)}
-        />
+        <div className="ai-sidebar-backdrop" onClick={() => setMobileHistoryOpen(false)} />
       )}
       <aside className={`ai-sidebar ${mobileHistoryOpen ? 'is-mobile-open' : ''}`}>
         <div className="ai-sidebar-header">
@@ -388,98 +473,88 @@ export function AIAssistantScreen({ onNotify }: { onNotify: (message: string) =>
             }}
             className="btn-new-chat-prominent"
           >
-            <FinanceIcon name="plus" size={17} />
+            <Plus size={17} strokeWidth={2.4} />
             <span>Cuộc trò chuyện mới</span>
           </button>
+
+          <div className="ai-sidebar-search">
+            <Search size={15} className="ai-sidebar-search-icon" />
+            <input
+              type="text"
+              value={searchHistory}
+              onChange={(e) => setSearchHistory(e.target.value)}
+              placeholder="Tìm trong hội thoại..."
+              className="ai-sidebar-search-input"
+            />
+          </div>
         </div>
 
         <div className="ai-sidebar-body">
-          <span className="ai-section-title">Lịch sử hội thoại</span>
-          {conversations.length > 0 ? (
-            conversations.map((item) => {
-              const isActive = currentConversationId === item.conversationId
-              return (
-                <div
-                  key={item.conversationId}
-                  onClick={() => {
-                    handleSelectConversation(item)
-                    setMobileHistoryOpen(false)
-                  }}
-                  className={`session-item-row ${isActive ? 'active' : ''}`}
-                >
-                  <div className="session-title-wrap">
-                    <span className="session-icon text-emerald-600 dark:text-emerald-400">
-                      <FinanceIcon name="message-square" size={16} />
-                    </span>
-                    <div className="session-info">
-                      <span className="session-title-text">{item.title}</span>
-                      <span className="session-time-text">
-                        {item.updatedAt
-                          ? new Date(item.updatedAt).toLocaleDateString('vi-VN', {
-                              hour: '2-digit',
-                              minute: '2-digit',
-                              day: '2-digit',
-                              month: '2-digit',
-                            })
-                          : 'Vừa xong'}
-                      </span>
-                    </div>
+          {todayConversations.length === 0 && earlierConversations.length === 0 ? (
+            <div className="ai-sidebar-empty">
+              {searchHistory.trim()
+                ? 'Không tìm thấy cuộc trò chuyện phù hợp.'
+                : 'Chưa có lịch sử trò chuyện nào.'}
+            </div>
+          ) : (
+            <>
+              {todayConversations.length > 0 && (
+                <div className="ai-history-group">
+                  <div className="ai-section-title">Hôm nay</div>
+                  <div className="ai-history-list">
+                    {todayConversations.map((item) => renderConversationItem(item, true))}
                   </div>
                 </div>
-              )
-            })
-          ) : (
-            <div style={{ padding: '20px 14px', textAlign: 'center', color: '#94a3b8', fontSize: '0.8rem' }}>
-              Chưa có lịch sử trò chuyện nào.
-            </div>
-          )}
-        </div>
+              )}
 
-        <div className="ai-sidebar-footer">
-          <FinanceIcon name="shield" size={15} />
-          <span>FinAI Agent · An toàn bảo mật</span>
+              {earlierConversations.length > 0 && (
+                <div className="ai-history-group">
+                  <button
+                    type="button"
+                    onClick={() => setEarlierExpanded((prev) => !prev)}
+                    className="ai-section-toggle"
+                  >
+                    <span>Trước đó</span>
+                    {earlierExpanded ? <ChevronDown size={15} /> : <ChevronRight size={15} />}
+                  </button>
+                  {earlierExpanded && (
+                    <div className="ai-history-list">
+                      {earlierConversations.map((item) => renderConversationItem(item, false))}
+                    </div>
+                  )}
+                </div>
+              )}
+            </>
+          )}
         </div>
       </aside>
 
       {/* KHUNG TRÒ CHUYỆN TRUNG TÂM (MAIN CHAT AREA) */}
       <main className="ai-main-chat-area">
-        {/* Header trên cùng */}
-        <header className="ai-chat-header">
-          <div className="ai-chat-header-left">
-            <div className="ai-avatar-badge">
-              <img src="/finai-avatar.jpg" alt="FinAI" className="ai-avatar-img" />
-            </div>
-            <div>
-              <h2 className="ai-header-title">FinAI Agent</h2>
-              <div className="ai-header-status">
-                <span className="status-dot" />
-                <span>Trực tuyến · Trợ lý tài chính thông minh</span>
-              </div>
-            </div>
-          </div>
-          <div className="flex items-center gap-2 shrink-0">
-            <button
-              type="button"
-              onClick={() => setMobileHistoryOpen(true)}
-              className="btn-mobile-history"
-              title="Lịch sử hội thoại"
-              aria-label="Mở lịch sử hội thoại"
-            >
-              <FinanceIcon name="clock" size={15} />
-            </button>
-            <button
-              type="button"
-              onClick={handleNewChat}
-              className="btn-create-session"
-            >
-              <FinanceIcon name="plus" size={14} />
-              <span>Tạo phiên mới</span>
-            </button>
-          </div>
-        </header>
+        {/* Mobile-only top toolbar to toggle conversation drawer */}
+        <div className="ai-mobile-bar">
+          <button
+            type="button"
+            onClick={() => setMobileHistoryOpen(true)}
+            className="btn-mobile-history"
+            title="Lịch sử hội thoại"
+            aria-label="Mở lịch sử hội thoại"
+          >
+            <Clock size={15} />
+            <span>Lịch sử</span>
+          </button>
+          <button
+            type="button"
+            onClick={handleNewChat}
+            className="btn-mobile-new-chat"
+          >
+            <Plus size={14} />
+            <span>Phiên mới</span>
+          </button>
+        </div>
 
         {/* Vùng hiển thị tin nhắn hoặc Màn hình chào mừng */}
-        <div className="ai-messages-scrollview">
+        <div className={`ai-messages-scrollview ${messages.length === 0 ? 'is-empty' : ''}`}>
           {messages.length === 0 ? (
             <div className="welcome-hero-box">
               <div className="welcome-logo-badge">
@@ -487,79 +562,98 @@ export function AIAssistantScreen({ onNotify }: { onNotify: (message: string) =>
               </div>
               <h1 className="welcome-title">Xin chào! Tôi có thể giúp gì cho bạn hôm nay?</h1>
               <p className="welcome-desc">
-                FinAI có thể tra cứu chi tiêu, dự báo số dư và <strong>trực tiếp chuẩn bị giao dịch, ngân sách</strong> theo yêu cầu của bạn.
+                FinAI có thể tra cứu chi tiêu, dự báo số dư và{' '}
+                <strong>trực tiếp chuẩn bị giao dịch, ngân sách</strong> theo yêu cầu của bạn.
               </p>
 
               <div className="quick-prompts-grid">
-                {quickQuestions.map((q, idx) => (
-                  <button
-                    key={idx}
-                    type="button"
-                    onClick={() => handleSelectQuickPrompt(q.prompt)}
-                    className="prompt-card-btn"
-                  >
-                    <span className="prompt-card-title">{q.title}</span>
-                    <span className="prompt-card-sub">{q.subtitle}</span>
-                  </button>
-                ))}
+                {quickQuestions.map((q, idx) => {
+                  const IconComponent = q.icon
+                  return (
+                    <button
+                      key={idx}
+                      type="button"
+                      onClick={() => handleSelectQuickPrompt(q.prompt)}
+                      className="prompt-card-btn"
+                    >
+                      <span className="prompt-card-icon">
+                        <IconComponent size={18} strokeWidth={2.1} />
+                      </span>
+                      <div className="prompt-card-copy">
+                        <span className="prompt-card-title">{q.title}</span>
+                        <span className="prompt-card-sub">{q.subtitle}</span>
+                      </div>
+                    </button>
+                  )
+                })}
               </div>
             </div>
           ) : (
-            messages.map((msg) => {
-              const isAssistant = msg.author === 'assistant'
-              return (
-                <div
-                  key={msg.id}
-                  className={`chat-row ${isAssistant ? 'assistant-row' : 'user-row'}`}
-                >
-                  {isAssistant && (
-                    <div className="message-avatar assistant-avatar">
-                      <img src="/finai-avatar.jpg" alt="FinAI" className="ai-avatar-img" />
-                    </div>
-                  )}
-                  <div className="message-bubble">
-                    {isAssistant ? <FormattedMarkdown content={msg.text} /> : msg.text}
-                    {msg.clarification && (
-                      <FinAiChoices key={msg.clarification.draftId} clarification={msg.clarification}
-                        disabled={isLoading || messages.filter((item) => !String(item.id).startsWith('err-')).at(-1)?.id !== msg.id}
-                        onSelect={handleSendMessage} />
-                    )}
-
-                    {/* Hiển thị danh sách Action Proposals nếu có */}
-                    {msg.actions && msg.actions.length > 0 && (
-                      <div className="action-cards-container">
-                        {msg.actions.map((act) => (
-                          <FinAiActionCard
-                            key={act.actionId}
-                            action={act}
-                            onConfirm={handleConfirmAction}
-                            onCancel={handleCancelAction}
-                            isProcessing={actionProcessingId === act.actionId}
-                          />
-                        ))}
+            <div className="ai-messages-inner">
+              {messages.map((msg) => {
+                const isAssistant = msg.author === 'assistant'
+                return (
+                  <div
+                    key={msg.id}
+                    className={`chat-row ${isAssistant ? 'assistant-row' : 'user-row'}`}
+                  >
+                    {isAssistant && (
+                      <div className="message-avatar assistant-avatar">
+                        <img src="/finai-avatar.jpg" alt="FinAI" className="ai-avatar-img" />
                       </div>
                     )}
+                    <div className="message-bubble">
+                      {isAssistant ? <FormattedMarkdown content={msg.text} /> : msg.text}
+                      {msg.clarification && (
+                        <FinAiChoices
+                          key={msg.clarification.draftId}
+                          clarification={msg.clarification}
+                          disabled={
+                            isLoading ||
+                            messages.filter((item) => !String(item.id).startsWith('err-')).at(-1)?.id !==
+                              msg.id
+                          }
+                          onSelect={handleSendMessage}
+                        />
+                      )}
+
+                      {msg.actions && msg.actions.length > 0 && (
+                        <div className="action-cards-container">
+                          {msg.actions.map((act) => (
+                            <FinAiActionCard
+                              key={act.actionId}
+                              action={act}
+                              onConfirm={handleConfirmAction}
+                              onCancel={handleCancelAction}
+                              isProcessing={actionProcessingId === act.actionId}
+                            />
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )
+              })}
+
+              {isLoading && requestAbortRef.current && (
+                <div className="chat-row assistant-row typing-row">
+                  <div className="message-avatar assistant-avatar">
+                    <img src="/finai-avatar.jpg" alt="FinAI" className="ai-avatar-img" />
+                  </div>
+                  <div className="ai-typing-indicator">
+                    <div className="typing-dot" />
+                    <div className="typing-dot" />
+                    <div className="typing-dot" />
+                    <span role="status">
+                      {isTakingLong ? 'FinAI vẫn đang xử lý yêu cầu của bạn...' : 'FinAI đang suy nghĩ...'}
+                    </span>
                   </div>
                 </div>
-              )
-            })
-          )}
+              )}
 
-          {isLoading && requestAbortRef.current && (
-            <div className="chat-row assistant-row typing-row">
-              <div className="message-avatar assistant-avatar">
-                <img src="/finai-avatar.jpg" alt="FinAI" className="ai-avatar-img" />
-              </div>
-              <div className="ai-typing-indicator">
-                <div className="typing-dot" />
-                <div className="typing-dot" />
-                <div className="typing-dot" />
-                <span role="status">{isTakingLong ? 'FinAI vẫn đang xử lý yêu cầu của bạn...' : 'FinAI đang suy nghĩ...'}</span>
-              </div>
+              <div ref={messagesEndRef} />
             </div>
           )}
-
-          <div ref={messagesEndRef} />
         </div>
 
         {/* Khung nhập liệu phía dưới */}
@@ -596,7 +690,7 @@ export function AIAssistantScreen({ onNotify }: { onNotify: (message: string) =>
                 title="Gửi tin nhắn (Enter)"
                 aria-label="Gửi tin nhắn"
               >
-                <FinanceIcon name="arrow" size={18} />
+                <ArrowRight size={18} strokeWidth={2.2} />
               </button>
             )}
           </form>

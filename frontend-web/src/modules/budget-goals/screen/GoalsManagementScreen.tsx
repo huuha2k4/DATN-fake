@@ -644,9 +644,9 @@ export function GoalsManagementScreen({ onNotify }: Props) {
   };
 
   return (
-    <main className="goals-management-page mx-auto w-full max-w-6xl space-y-6 px-3 sm:px-6 pb-24 sm:pb-12 pt-3">
+    <main className="goals-management-page mx-auto flex w-full max-w-6xl flex-col gap-5 px-3 pb-24 pt-3 sm:px-6 sm:pb-12 lg:h-[calc(100vh-76px)] lg:overflow-hidden lg:pb-5 lg:pt-4">
       {/* 2. 3 Ô THỐNG KÊ TRÊN CÙNG: Tổng tích lũy, Theo mục tiêu, Tiết kiệm tự do (Chuẩn 100% theo ảnh) */}
-      <section className="grid grid-cols-1 gap-4 sm:grid-cols-3" aria-label="Thống kê mục tiêu & tích lũy">
+      <section className="grid shrink-0 grid-cols-1 gap-4 sm:grid-cols-3" aria-label="Thống kê mục tiêu & tích lũy">
         {/* Ô 1: Tổng tiền đã tích lũy */}
         <article className="flex min-h-[105px] items-center justify-between rounded-2xl border border-gray-100 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 sm:p-5 shadow-xs">
           <div className="flex items-center gap-3.5 min-w-0">
@@ -707,19 +707,20 @@ export function GoalsManagementScreen({ onNotify }: Props) {
         </article>
       </section>
 
-      {/* 3. BÊN DƯỚI CHIA ĐÔI CÓ ĐƯỜNG PHÂN CÁCH Ở GIỮA */}
+      {/* 3. BÊN DƯỚI CHIA 2 KHUNG TRẮNG CUỘN ĐỘC LẬP */}
       {isLoading ? (
-        <div className="flex flex-col items-center justify-center py-20 gap-3">
+        <div className="flex flex-1 flex-col items-center justify-center py-20 gap-3">
           <div className="size-8 border-3 border-emerald-600 border-t-transparent rounded-full animate-spin" />
           <p className="text-xs text-gray-500">Đang tải dữ liệu...</p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start relative">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 items-stretch relative lg:flex-1 lg:min-h-0">
           {/* CỘT TRÁI: MỤC TIÊU TÀI CHÍNH */}
-          <section className="space-y-4">
-            <div className="flex items-center justify-between pb-1">
-              <span className="text-sm font-bold text-gray-700 dark:text-gray-200">
-                Mục tiêu ({goalsList.length})
+          <section className="flex flex-col gap-3.5 rounded-3xl border border-[#E2E8F0] dark:border-slate-800 bg-white dark:bg-slate-900 p-4 sm:p-5 shadow-xs lg:h-full lg:min-h-0 lg:overflow-hidden">
+            <div className="flex shrink-0 items-center justify-between pb-1">
+              <span className="inline-flex items-center gap-2 text-sm font-bold text-[#0F172A] dark:text-gray-100">
+                <FinanceIcon name="target" size={18} color="#007F53" />
+                <span>Mục tiêu ({goalsList.length})</span>
               </span>
               <button
                 type="button"
@@ -732,7 +733,7 @@ export function GoalsManagementScreen({ onNotify }: Props) {
             </div>
 
             {goalsList.length === 0 ? (
-              <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-gray-200 dark:border-gray-700 bg-white dark:bg-slate-900 py-12 text-center p-4">
+              <div className="flex flex-1 flex-col items-center justify-center rounded-2xl border border-dashed border-gray-200 dark:border-gray-700 bg-[#F8FAFC] dark:bg-slate-900/60 py-12 text-center p-4">
                 <img src="/goal_cat_shopping_3d.png" alt="Mục tiêu trống" className="size-14 object-contain mb-2.5 opacity-80" />
                 <h4 className="text-xs font-bold text-gray-700 dark:text-gray-300">Chưa có mục tiêu nào</h4>
                 <p className="text-[11px] text-gray-400 mt-0.5 mb-3">Đặt mục tiêu mua sắm, du lịch, học tập...</p>
@@ -745,7 +746,7 @@ export function GoalsManagementScreen({ onNotify }: Props) {
                 </button>
               </div>
             ) : (
-              <div className="space-y-3.5">
+              <div className="goals-pane-scroll flex-1 space-y-3 lg:min-h-0 lg:overflow-y-auto lg:pr-1.5">
                 {goalsList.map((g) => {
                   const current = Number(g.currentAmount) || 0;
                   const target = Number(g.targetAmount) || 0;
@@ -814,11 +815,12 @@ export function GoalsManagementScreen({ onNotify }: Props) {
             )}
           </section>
 
-          {/* CỘT PHẢI: KHOẢN TIẾT KIỆM (CÓ ĐƯỜNG KẺ CHIA Ở GIỮA TRÊN MÀN HÌNH LỚN) */}
-          <section className="space-y-4 lg:pl-8 lg:border-l lg:border-gray-200 dark:lg:border-slate-800">
-            <div className="flex items-center justify-between pb-1">
-              <span className="text-sm font-bold text-gray-700 dark:text-gray-200">
-                Tiết kiệm ({savingsList.length})
+          {/* CỘT PHẢI: KHOẢN TIẾT KIỆM */}
+          <section className="flex flex-col gap-3.5 rounded-3xl border border-[#E2E8F0] dark:border-slate-800 bg-white dark:bg-slate-900 p-4 sm:p-5 shadow-xs lg:h-full lg:min-h-0 lg:overflow-hidden">
+            <div className="flex shrink-0 items-center justify-between pb-1">
+              <span className="inline-flex items-center gap-2 text-sm font-bold text-[#0F172A] dark:text-gray-100">
+                <FinanceIcon name="piggy-bank" size={18} color="#007F53" />
+                <span>Tiết kiệm ({savingsList.length})</span>
               </span>
               <button
                 type="button"
@@ -831,7 +833,7 @@ export function GoalsManagementScreen({ onNotify }: Props) {
             </div>
 
             {savingsList.length === 0 ? (
-              <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-gray-200 dark:border-gray-700 bg-white dark:bg-slate-900 py-12 text-center p-4">
+              <div className="flex flex-1 flex-col items-center justify-center rounded-2xl border border-dashed border-gray-200 dark:border-gray-700 bg-[#F8FAFC] dark:bg-slate-900/60 py-12 text-center p-4">
                 <img src="/saving_cat_free_3d.png" alt="Tiết kiệm trống" className="size-14 object-contain mb-2.5 opacity-80" />
                 <h4 className="text-xs font-bold text-gray-700 dark:text-gray-300">Chưa có khoản tiết kiệm nào</h4>
                 <p className="text-[11px] text-gray-400 mt-0.5 mb-3">Tạo quỹ dự phòng khẩn cấp, tiết kiệm tự do...</p>
@@ -844,7 +846,7 @@ export function GoalsManagementScreen({ onNotify }: Props) {
                 </button>
               </div>
             ) : (
-              <div className="space-y-3">
+              <div className="goals-pane-scroll flex-1 space-y-3 lg:min-h-0 lg:overflow-y-auto lg:pr-1.5">
                 {savingsList.map((s) => {
                   const current = Number(s.currentAmount) || 0;
                   const imgSrc = getSavingIconSrc(s.icon, s.name);

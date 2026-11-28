@@ -69,9 +69,9 @@ public class FinAiToolRegistry {
         registerRead(registry, "get_groups", "List financial groups accessible to the authenticated member.",
                 Map.of("page", Map.of("type", "integer", "minimum", 1),
                         "pageSize", Map.of("type", "integer", "minimum", 1, "maximum", 50)));
-        registerReadRequired(registry, "get_group_finances", "Read an accessible group's expenses, balances, fund, settlements, statistics or child wallets.",
+        registerReadRequired(registry, "get_group_finances", "Read an accessible group's fund, contribution obligations, expenses, reimbursements, balances, settlements or child wallets.",
                 Map.of("groupId", Map.of("type", "string", "format", "uuid"),
-                        "section", Map.of("type", "string", "enum", List.of("overview", "members", "expenses", "balances", "fund", "settlements", "child_wallets")),
+                        "section", Map.of("type", "string", "enum", List.of("overview", "members", "expenses", "balances", "fund", "contribution_periods", "reimbursements", "settlements", "child_wallets")),
                         "year", Map.of("type", "integer", "minimum", 2000, "maximum", 2100),
                         "month", Map.of("type", "integer", "minimum", 1, "maximum", 12),
                         "status", Map.of("type", "string", "maxLength", 30),
@@ -250,34 +250,36 @@ public class FinAiToolRegistry {
                         Map.entry("isIncludedInTotal", Map.of("type", "boolean"))
                 ), List.of("name", "accountType", "initialBalance")), Map.of("type", "object")));
         registry.put("create_group_transaction", definition(
-                "create_group_transaction", "Propose a group expense with explicit member splits.", FinAiToolMode.WRITE,
+                "create_group_transaction", "Propose a group expense with an explicit funding source and financial purpose; confirmation is mandatory.", FinAiToolMode.WRITE,
                 set("groupId", "description", "amount", "paymentSource", "sourceAccountId", "categoryId",
-                        "splitMethod", "expenseDate", "notes", "splits"),
-                set("groupId", "description", "amount", "paymentSource", "categoryId", "splitMethod", "expenseDate", "splits"),
+                        "financialPurpose", "splitMethod", "expenseDate", "notes", "splits"),
+                set("groupId", "description", "amount", "paymentSource", "categoryId", "expenseDate"),
                 objectSchema(Map.ofEntries(
                         Map.entry("groupId", Map.of("type", "string", "format", "uuid")),
                         Map.entry("description", Map.of("type", "string", "minLength", 1, "maxLength", 300)),
                         Map.entry("amount", Map.of("type", "number", "exclusiveMinimum", 0)),
                         Map.entry("paymentSource", Map.of("type", "string", "enum", List.of("GROUP_FUND", "PERSONAL_ACCOUNT"))),
+                        Map.entry("financialPurpose", Map.of("type", "string", "enum", List.of("MEMBER_SPLIT", "FUND_EXPENSE", "FUND_REIMBURSEMENT", "VOLUNTARY_SPEND"))),
                         Map.entry("sourceAccountId", Map.of("type", "string", "format", "uuid")),
                         Map.entry("categoryId", Map.of("type", "string", "format", "uuid")),
                         Map.entry("splitMethod", Map.of("type", "string", "enum", List.of("EQUAL", "EXACT"))),
                         Map.entry("expenseDate", Map.of("type", "string", "format", "date")),
                         Map.entry("notes", Map.of("type", "string", "maxLength", 1000)),
-                        Map.entry("splits", Map.of("type", "array", "minItems", 1, "maxItems", 100,
+                        Map.entry("splits", Map.of("type", "array", "minItems", 0, "maxItems", 100,
                                 "items", Map.of("type", "object", "required", List.of("userId", "amount"),
                                         "properties", Map.of("userId", Map.of("type", "string", "format", "uuid"),
                                                 "amount", Map.of("type", "number", "minimum", 0)), "additionalProperties", false)))
-                ), List.of("groupId", "description", "amount", "paymentSource", "categoryId", "splitMethod", "expenseDate", "splits")), Map.of("type", "object")));
+                ), List.of("groupId", "description", "amount", "paymentSource", "categoryId", "expenseDate")), Map.of("type", "object")));
         registry.put("contribute_group_fund", definition(
                 "contribute_group_fund", "Propose moving money from an owned account into an accessible group fund.", FinAiToolMode.WRITE,
-                set("groupId", "sourceAccountId", "amount", "contributedAt", "note"),
+                set("groupId", "sourceAccountId", "amount", "contributedAt", "note", "periodId"),
                 set("groupId", "sourceAccountId", "amount", "contributedAt"),
                 objectSchema(Map.of(
                         "groupId", Map.of("type", "string", "format", "uuid"),
                         "sourceAccountId", Map.of("type", "string", "format", "uuid"),
                         "amount", Map.of("type", "number", "exclusiveMinimum", 0),
                         "contributedAt", Map.of("type", "string", "format", "date"),
+                        "periodId", Map.of("type", "string", "format", "uuid"),
                         "note", Map.of("type", "string", "maxLength", 1000)
                 ), List.of("groupId", "sourceAccountId", "amount", "contributedAt")), Map.of("type", "object")));
         registry.put("create_child_spend", definition(

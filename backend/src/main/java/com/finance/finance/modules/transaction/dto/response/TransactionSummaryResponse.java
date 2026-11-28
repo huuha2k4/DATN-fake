@@ -40,6 +40,9 @@ public class TransactionSummaryResponse {
         private BigDecimal totalIncome;
         private BigDecimal totalExpense;
         private BigDecimal netCashFlow;
+        private BigDecimal walletCashIn;
+        private BigDecimal walletCashOut;
+        private BigDecimal walletNetCashFlow;
         private BigDecimal averageDailyExpense;
         private Integer transactionCount;
         private LargestExpenseDto largestExpense;

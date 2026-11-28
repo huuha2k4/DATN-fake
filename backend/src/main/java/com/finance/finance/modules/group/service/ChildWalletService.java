@@ -332,7 +332,7 @@ public class ChildWalletService {
 
         // Xử lý trừ tiền từ nguồn thực tế và lưu vết lịch sử giao dịch
         if ("GROUP_FUND".equalsIgnoreCase(source)) {
-            GroupFund fund = groupFundRepository.findByGroupId(groupId)
+            GroupFund fund = groupFundRepository.findByGroupIdForUpdate(groupId)
                     .orElseThrow(() -> new IllegalStateException("Nhóm chưa có quỹ chung"));
             if (fund.getBalance().compareTo(request.getAmount()) < 0) {
                 throw new IllegalArgumentException("Số dư quỹ nhóm không đủ để cấp cho bé");
@@ -354,6 +354,7 @@ public class ChildWalletService {
                     .paidByUserId(currentUserId)
                     .createdByUserId(currentUserId)
                     .paymentSource("GROUP_FUND")
+                    .financialPurpose(com.finance.finance.common.enums.GroupExpensePurpose.FUND_EXPENSE)
                     .categoryId(categoryId)
                     .splitMethod(com.finance.finance.common.enums.SplitMethod.EQUAL)
                     .expenseDate(LocalDateTime.now().toLocalDate())

@@ -5,6 +5,9 @@ import com.finance.finance.common.enums.ActivityType;
 import com.finance.finance.common.enums.GroupStatus;
 import com.finance.finance.common.enums.GroupType;
 import com.finance.finance.common.enums.MemberRole;
+import com.finance.finance.common.enums.GroupExpensePurpose;
+import com.finance.finance.common.enums.ContributionPeriodStatus;
+import com.finance.finance.common.enums.FundReimbursementStatus;
 import com.finance.finance.modules.audit.model.AuditEventType;
 import com.finance.finance.modules.audit.service.AuditEventRequest;
 import com.finance.finance.modules.audit.service.SystemAuditService;
@@ -45,6 +48,11 @@ public class GroupService {
     private final com.finance.finance.modules.group.repository.GroupInvitationRepository invitationRepository;
     private final com.finance.finance.modules.notification.service.NotificationService notificationService;
     private final GroupFundRepository groupFundRepository;
+    private final GroupFinanceConfigRepository groupFinanceConfigRepository;
+    private final ContributionPeriodRepository contributionPeriodRepository;
+    private final FundReimbursementRepository fundReimbursementRepository;
+    private final MemberContributionObligationRepository memberContributionObligationRepository;
+    private final GroupFundContributionRepository groupFundContributionRepository;
     private final com.finance.finance.common.service.EmailService emailService;
 
     @org.springframework.beans.factory.annotation.Autowired(required = false)
@@ -78,6 +86,12 @@ public class GroupService {
                 .groupId(group.getId())
                 .currency(group.getBaseCurrency())
                 .build());
+
+        boolean memberSplits = groupType == GroupType.ROOMMATE || groupType == GroupType.TRAVEL;
+        groupFinanceConfigRepository.save(com.finance.finance.modules.group.entity.GroupFinanceConfig.builder()
+                .groupId(group.getId()).useSharedFund(true).useContributionPeriods(true)
+                .allowMemberSplits(memberSplits).allowDebtSimplification(memberSplits)
+                .allowFundReimbursements(true).build());
 
         // Add creator as owner member
         GroupMember ownerMember = GroupMember.builder()
@@ -119,14 +133,7 @@ public class GroupService {
         // cannot infer the group type, capacity, or invitation count.
         validateMemberAccess(groupId, currentUserId);
 
-        if (group.getGroupType() == GroupType.COUPLE) {
-            long currentMembers = groupMemberRepository.findByGroupId(groupId).size();
-            long pendingInvitations = invitationRepository.countByGroupIdAndStatus(groupId,
-                    com.finance.finance.modules.group.entity.GroupInvitation.InvitationStatus.PENDING);
-            if (currentMembers + pendingInvitations >= 2) {
-                throw new IllegalArgumentException("Nhóm Cặp đôi chỉ có tối đa 2 thành viên");
-            }
-        }
+        // Capacity is enforced in inviteMember and acceptInvitation, not when a member reads their group.
         return buildGroupDetailResponse(group, currentUserId);
     }
 
@@ -191,13 +198,23 @@ public class GroupService {
         Group group = findGroupOrThrow(groupId);
         validateOwnerAccess(groupId, currentUserId);
 
-        // Check for unsettled balances
-        BigDecimal totalExpenses = groupExpenseRepository.sumAmountByGroupId(groupId);
-        BigDecimal totalSettlements = groupSettlementRepository.sumConfirmedAmountByGroupId(groupId);
-        
-        if (totalExpenses != null && totalSettlements != null && 
-            totalExpenses.compareTo(totalSettlements) != 0) {
-            throw new IllegalStateException("Cannot delete group with unsettled balances");
+        var fund = groupFundRepository.findByGroupId(groupId).orElse(null);
+        if (fund != null && fund.getBalance().signum() != 0) {
+            throw new IllegalStateException("Không thể xóa nhóm khi quỹ vẫn còn số dư");
+        }
+        if (contributionPeriodRepository.findFirstByGroupIdAndStatus(groupId, ContributionPeriodStatus.ACTIVE).isPresent()) {
+            throw new IllegalStateException("Không thể xóa nhóm khi còn kỳ đóng quỹ đang hoạt động");
+        }
+        if (groupSettlementRepository.countPendingByGroupId(groupId) > 0) {
+            throw new IllegalStateException("Không thể xóa nhóm khi còn thanh toán đang chờ xác nhận");
+        }
+        if (fundReimbursementRepository.existsByGroupIdAndStatusIn(groupId,
+                List.of(FundReimbursementStatus.PENDING, FundReimbursementStatus.PARTIAL))) {
+            throw new IllegalStateException("Không thể xóa nhóm khi quỹ còn nghĩa vụ hoàn trả");
+        }
+        if (groupMemberRepository.findByGroupId(groupId).stream()
+                .anyMatch(member -> calculateMemberBalance(groupId, member.getUserId()).signum() != 0)) {
+            throw new IllegalStateException("Không thể xóa nhóm khi công nợ thành viên chưa cân bằng");
         }
 
         // Soft delete
@@ -228,10 +245,28 @@ public class GroupService {
             throw new IllegalStateException("Bạn còn số dư chưa quyết toán trong nhóm, vui lòng thanh toán trước khi rời nhóm.");
         }
 
+        validateNoOpenFundObligations(groupId, currentUserId);
+
         groupMemberRepository.delete(member);
 
         logActivity(groupId, currentUserId, ActivityType.MEMBER_LEFT,
                 "Thành viên tự rời nhóm", Map.of("userId", currentUserId.toString()));
+    }
+
+    private void validateNoOpenFundObligations(UUID groupId, UUID memberId) {
+        contributionPeriodRepository.findFirstByGroupIdAndStatus(groupId, ContributionPeriodStatus.ACTIVE)
+                .flatMap(period -> memberContributionObligationRepository.findByPeriodIdAndUserId(period.getId(), memberId))
+                .ifPresent(obligation -> {
+                    BigDecimal confirmed = groupFundContributionRepository
+                            .sumConfirmedByPeriodAndUser(obligation.getPeriodId(), memberId);
+                    if (!obligation.isExempt() && confirmed.compareTo(obligation.getRequiredAmount()) < 0) {
+                        throw new IllegalStateException("Thành viên còn nghĩa vụ đóng quỹ chưa hoàn tất");
+                    }
+                });
+        if (fundReimbursementRepository.existsByGroupIdAndBeneficiaryUserIdAndStatusIn(groupId, memberId,
+                List.of(FundReimbursementStatus.PENDING, FundReimbursementStatus.PARTIAL))) {
+            throw new IllegalStateException("Thành viên còn khoản ứng chưa được hoàn đủ");
+        }
     }
 
     // ==================== Members Management ====================
@@ -544,6 +579,7 @@ public class GroupService {
         if (balance.abs().compareTo(BigDecimal.ZERO) > 0) {
             throw new ResourceNotFoundException("Cannot remove member with unsettled balance");
         }
+        validateNoOpenFundObligations(groupId, userId);
 
         groupMemberRepository.delete(member);
 
@@ -598,14 +634,18 @@ public class GroupService {
         // Calculate: total paid - total owed
         BigDecimal totalPaid = groupExpenseRepository.findByGroupId(groupId, Pageable.unpaged())
                 .stream()
-                .filter(expense -> expense.getPaidByUserId().equals(userId))
+                .filter(expense -> expense.getPaidByUserId().equals(userId)
+                        && expense.getFinancialPurpose() == GroupExpensePurpose.MEMBER_SPLIT
+                        && expense.getDeletedAt() == null)
                 .map(expense -> expense.getAmount())
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
         BigDecimal totalOwed = expenseSplitRepository.sumByGroupIdAndUserId(groupId, userId);
         if (totalOwed == null) totalOwed = BigDecimal.ZERO;
 
-        return totalPaid.subtract(totalOwed);
+        BigDecimal sent = groupSettlementRepository.sumConfirmedSentByGroupAndUser(groupId, userId);
+        BigDecimal received = groupSettlementRepository.sumConfirmedReceivedByGroupAndUser(groupId, userId);
+        return totalPaid.subtract(totalOwed).add(sent).subtract(received);
     }
 
     private void logActivity(UUID groupId, UUID userId, ActivityType activityType, 
@@ -767,6 +807,7 @@ public class GroupService {
                 .groupId(member.getGroupId())
                 .userId(member.getUserId())
                 .role(member.getRole().name())
+                .childProfile(Boolean.TRUE.equals(member.getIsChildProfile()))
                 .contributionRatio(member.getContributionRatio())
                 .balance(balance)
                 .joinedAt(member.getJoinedAt())

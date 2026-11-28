@@ -15,6 +15,7 @@ import com.finance.finance.modules.budget.exception.DuplicateCategoryInBudgetExc
 import com.finance.finance.modules.budget.exception.OverlappingBudgetException;
 import com.finance.finance.modules.budget.repository.BudgetItemRepository;
 import com.finance.finance.modules.budget.repository.BudgetRepository;
+import com.finance.finance.modules.category.entity.Category;
 import com.finance.finance.modules.category.repository.CategoryRepository;
 import com.finance.finance.modules.transaction.repository.TransactionRepository;
 import lombok.RequiredArgsConstructor;
@@ -26,6 +27,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -55,10 +57,18 @@ public class BudgetService {
             throw new IllegalArgumentException("Ngày kết thúc phải sau ngày bắt đầu");
         }
 
-        // Check overlapping budgets
-        if (budgetRepository.existsOverlappingBudget(userId, request.getPeriodType(), 
-                request.getStartDate(), request.getEndDate(), null)) {
-            throw new OverlappingBudgetException("Đã tồn tại ngân sách cho khoảng thời gian này");
+        // Check overlapping budgets (auto-clean empty 0đ shells that have no items)
+        List<Budget> overlapping = budgetRepository.findOverlappingBudgets(userId, request.getPeriodType(),
+                request.getStartDate(), request.getEndDate(), null);
+        for (Budget existing : overlapping) {
+            boolean isEmptyShell = (existing.getTotalAmount() == null || existing.getTotalAmount().signum() <= 0)
+                    && budgetItemRepository.findAllByBudgetId(existing.getId()).isEmpty();
+            if (isEmptyShell) {
+                existing.setDeletedAt(LocalDateTime.now());
+                budgetRepository.save(existing);
+            } else {
+                throw new OverlappingBudgetException("Đã tồn tại ngân sách cho khoảng thời gian này");
+            }
         }
 
         // Validate total amount matches sum of items
@@ -126,6 +136,77 @@ public class BudgetService {
                     .build());
         }
         return mapToResponse(budget, false);
+    }
+
+    /**
+     * Kiểm tra xung đột cho FinAI create_budget:
+     * - Bỏ qua ngân sách rỗng (0 đ, 0 danh mục)
+     * - Nếu đã có ngân sách trong kỳ nhưng chưa có danh mục người dùng muốn tạo -> cho phép gộp thêm vào ngân sách đó
+     * - Chỉ báo lỗi nếu danh mục đó đã tồn tại trong ngân sách kỳ này
+     */
+    @Transactional(readOnly = true)
+    public Optional<String> findFinAiBudgetConflictMessage(UUID userId, CreateBudgetRequest request) {
+        List<Budget> overlapping = budgetRepository.findOverlappingBudgets(
+                userId, request.getPeriodType(), request.getStartDate(), request.getEndDate(), null);
+        for (Budget existing : overlapping) {
+            List<BudgetItem> existingItems = budgetItemRepository.findAllByBudgetId(existing.getId());
+            boolean isEmptyShell = (existing.getTotalAmount() == null || existing.getTotalAmount().signum() <= 0)
+                    && existingItems.isEmpty();
+            if (isEmptyShell) continue;
+
+            if (request.getItems() != null) {
+                for (CreateBudgetRequest.BudgetItemRequest itemReq : request.getItems()) {
+                    boolean dup = existingItems.stream()
+                            .anyMatch(ei -> ei.getCategoryId().equals(itemReq.getCategoryId()));
+                    if (dup) {
+                        String catName = categoryRepository.findByIdAndUserIdOrSystem(itemReq.getCategoryId(), userId)
+                                .map(Category::getName)
+                                .orElse("danh mục này");
+                        return Optional.of("Danh mục " + catName + " đã có hạn mức trong " + existing.getName()
+                                + " rồi. Bạn có thể yêu cầu mình cập nhật hạn mức mới hoặc kiểm tra trong mục Quản lý Ngân sách!");
+                    }
+                }
+            }
+        }
+        return Optional.empty();
+    }
+
+    /**
+     * Tạo ngân sách mới hoặc gộp thêm danh mục vào ngân sách cùng kỳ đã có (dùng cho FinAI).
+     */
+    @Transactional
+    public BudgetResponse createOrMergeBudget(UUID userId, CreateBudgetRequest request) {
+        List<Budget> overlapping = budgetRepository.findOverlappingBudgets(
+                userId, request.getPeriodType(), request.getStartDate(), request.getEndDate(), null);
+        Budget nonEmptyExisting = null;
+        for (Budget existing : overlapping) {
+            List<BudgetItem> existingItems = budgetItemRepository.findAllByBudgetId(existing.getId());
+            boolean isEmptyShell = (existing.getTotalAmount() == null || existing.getTotalAmount().signum() <= 0)
+                    && existingItems.isEmpty();
+            if (isEmptyShell) {
+                existing.setDeletedAt(LocalDateTime.now());
+                budgetRepository.save(existing);
+            } else if (nonEmptyExisting == null) {
+                nonEmptyExisting = existing;
+            }
+        }
+
+        if (nonEmptyExisting == null) {
+            return createBudget(userId, request);
+        }
+
+        if (request.getItems() != null) {
+            for (CreateBudgetRequest.BudgetItemRequest itemReq : request.getItems()) {
+                BudgetItemRequest addReq = BudgetItemRequest.builder()
+                        .categoryId(itemReq.getCategoryId())
+                        .amount(itemReq.getAmount())
+                        .alertThresholdPercentage(itemReq.getAlertThresholdPercentage() != null
+                                ? itemReq.getAlertThresholdPercentage() : 80)
+                        .build();
+                addBudgetItem(userId, nonEmptyExisting.getId(), addReq);
+            }
+        }
+        return getBudgetById(userId, nonEmptyExisting.getId());
     }
 
     /**

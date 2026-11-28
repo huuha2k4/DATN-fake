@@ -15,9 +15,10 @@ import com.finance.finance.modules.group.repository.GroupFundRepository;
 import com.finance.finance.modules.group.repository.GroupMemberRepository;
 import com.finance.finance.modules.group.repository.GroupRepository;
 import com.finance.finance.modules.group.repository.TransactionCommentRepository;
+import com.finance.finance.modules.group.repository.GroupFinanceConfigRepository;
+import com.finance.finance.modules.group.repository.FundReimbursementRepository;
+import com.finance.finance.modules.group.repository.GroupSettlementRepository;
 import com.finance.finance.modules.notification.service.NotificationService;
-import com.finance.finance.modules.transaction.entity.Transaction;
-import com.finance.finance.modules.transaction.repository.TransactionRepository;
 import com.finance.finance.modules.transaction.service.TransactionService;
 import com.finance.finance.modules.user.repository.UserRepository;
 import org.junit.jupiter.api.Test;
@@ -50,8 +51,10 @@ class GroupExpenseServiceSyncTest {
     @Mock CategoryRepository categoryRepository;
     @Mock UserRepository userRepository;
     @Mock NotificationService notificationService;
-    @Mock TransactionRepository transactionRepository;
     @Mock ObjectMapper objectMapper;
+    @Mock GroupFinanceConfigRepository groupFinanceConfigRepository;
+    @Mock FundReimbursementRepository fundReimbursementRepository;
+    @Mock GroupSettlementRepository groupSettlementRepository;
 
     @InjectMocks GroupExpenseService service;
 
@@ -70,12 +73,9 @@ class GroupExpenseServiceSyncTest {
                 .groupId(groupId)
                 .description("Ăn tối nhóm")
                 .amount(new BigDecimal("200000"))
+                .financialPurpose(com.finance.finance.common.enums.GroupExpensePurpose.VOLUNTARY_SPEND)
+                .paidByUserId(userId)
                 .personalTransactionId(personalTxId)
-                .build();
-        Transaction personalTx = Transaction.builder()
-                .id(personalTxId)
-                .userId(userId)
-                .amount(new BigDecimal("200000"))
                 .build();
 
         UpdateExpenseRequest request = new UpdateExpenseRequest();
@@ -84,8 +84,9 @@ class GroupExpenseServiceSyncTest {
         when(groupMemberRepository.findByGroupIdAndUserId(groupId, userId)).thenReturn(Optional.of(admin));
         when(groupExpenseRepository.findByIdAndNotDeleted(expenseId)).thenReturn(Optional.of(expense));
         when(groupExpenseRepository.save(any(GroupExpense.class))).thenAnswer(inv -> inv.getArgument(0));
-        when(transactionRepository.findById(personalTxId)).thenReturn(Optional.of(personalTx));
-        when(transactionRepository.save(any(Transaction.class))).thenThrow(new IllegalStateException("Sync failed"));
+        when(transactionService.updateGroupExpenseTransaction(
+                org.mockito.ArgumentMatchers.eq(userId), org.mockito.ArgumentMatchers.eq(personalTxId), any()))
+                .thenThrow(new IllegalStateException("Sync failed"));
 
         assertThrows(IllegalStateException.class, () -> service.updateExpense(groupId, expenseId, request, userId));
     }

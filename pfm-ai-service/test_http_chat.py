@@ -1,17 +1,21 @@
+"""Opt-in smoke test for a configured, running legacy chat service."""
+import os
+
+import pytest
 import requests
-import json
-import sys
 
-sys.stdout.reconfigure(encoding='utf-8')
 
-payload = {
-    "question": "số dư của tôi còn bao nhiêu",
-    "user_id": "b5f7482d-74a0-4582-8fa2-9c586211a583"
-}
-
-res = requests.post("http://127.0.0.1:8000/api/chat", json=payload, timeout=30)
-print("Status:", res.status_code)
-data = res.json()
-print("Answer:")
-print(data.get("answer"))
+@pytest.mark.integration
+@pytest.mark.skipif(
+    not os.getenv("FINORA_LEGACY_CHAT_URL") or not os.getenv("FINORA_ANALYTICS_FIXTURE_USER"),
+    reason="Requires FINORA_LEGACY_CHAT_URL and a seeded FINORA_ANALYTICS_FIXTURE_USER",
+)
+def test_live_legacy_chat():
+    response = requests.post(
+        os.environ["FINORA_LEGACY_CHAT_URL"],
+        json={"question": "số dư của tôi còn bao nhiêu", "user_id": os.environ["FINORA_ANALYTICS_FIXTURE_USER"]},
+        timeout=30,
+    )
+    response.raise_for_status()
+    assert response.json().get("answer"), "The live chat returned an empty answer"
 

@@ -521,10 +521,10 @@ export function BudgetManagementScreen({ onNotify }: Props) {
   };
 
   return (
-    <main className="budget-management-page mx-auto flex min-h-[calc(100vh-64px)] w-full min-w-0 max-w-[1560px] flex-col gap-6 overflow-x-clip bg-[#F8FAFC] px-3 pb-24 pt-4 text-[#0F172A] sm:gap-6 sm:px-[22px] lg:px-[34px] lg:pb-10 lg:pt-6" aria-label="Quản lý ngân sách">
+    <main className="budget-management-page mx-auto flex min-h-[calc(100vh-64px)] w-full min-w-0 max-w-[1560px] flex-col gap-4 overflow-x-clip bg-[#F8FAFC] px-3 pb-24 pt-4 text-[#0F172A] sm:px-[22px] lg:h-[calc(100vh-76px)] lg:overflow-hidden lg:px-[34px] lg:pb-5 lg:pt-5" aria-label="Quản lý ngân sách">
 
       {/* 4 Cards thống kê tổng quan của tháng đang chọn */}
-      <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4" aria-label="Thống kê ngân sách">
+      <section className="grid shrink-0 grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4" aria-label="Thống kê ngân sách">
         {/* Card 1: Tổng hạn mức tháng */}
         <article className="budget-stat-card flex min-h-[135px] flex-col justify-between rounded-2xl border border-[#E2E8F0] bg-white p-5 shadow-sm">
           <div className="flex items-start justify-between">
@@ -603,8 +603,8 @@ export function BudgetManagementScreen({ onNotify }: Props) {
       </section>
 
       {/* Thanh công cụ: Chọn tháng, Bộ lọc & Nút Thêm ngân sách */}
-      <section className="flex flex-col gap-4 min-w-0" aria-label="Danh sách hạn mức ngân sách">
-        <div className="flex flex-col justify-between gap-3 md:flex-row md:items-center min-w-0">
+      <section className="flex flex-col gap-3 min-w-0 lg:flex-1 lg:min-h-0" aria-label="Danh sách hạn mức ngân sách">
+        <div className="flex shrink-0 flex-col justify-between gap-3 md:flex-row md:items-center min-w-0">
           {/* Trái: Tiêu đề gọn gàng giống App */}
           <div className="shrink-0">
             <h2 className="text-base sm:text-lg font-bold text-[#0F172A]">Ngân Sách Chi Tiêu</h2>
@@ -721,22 +721,40 @@ export function BudgetManagementScreen({ onNotify }: Props) {
           </div>
         </div>
 
-        {/* Danh sách các hạn mức ngân sách nhỏ của từng danh mục */}
-        {isLoading ? (
-          <div className="grid place-items-center rounded-2xl border border-[#E2E8F0] bg-white py-16 text-sm text-[#64748B]">
-            <span className="inline-block size-6 animate-spin rounded-full border-2 border-[#007F53] border-t-transparent" />
-            <p className="mt-2">Đang tải hạn mức ngân sách...</p>
-          </div>
-        ) : filteredItems.length === 0 ? (
-          <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-[#cbd5e1] bg-white py-14 text-center">
-            <span className="grid size-12 place-items-center rounded-2xl bg-[#F1F5F9] text-[#64748B]">
-              <FinanceIcon name="wallet" size={24} />
+        {/* Danh sách các hạn mức ngân sách nhỏ của từng danh mục (Khung trắng trượt độc lập) */}
+        <div className="flex flex-col rounded-3xl border border-[#E2E8F0] dark:border-slate-800 bg-white dark:bg-slate-900 shadow-xs lg:flex-1 lg:min-h-0 lg:overflow-hidden">
+          <div className="flex shrink-0 items-center justify-between border-b border-[#F1F5F9] dark:border-slate-800 px-5 py-3">
+            <div className="flex items-center gap-2.5">
+              <span className="grid size-8 place-items-center rounded-xl bg-emerald-50 dark:bg-emerald-950/60 text-[#007F53] dark:text-emerald-400">
+                <FinanceIcon name="wallet" size={16} />
+              </span>
+              <div>
+                <h3 className="m-0 text-sm font-bold text-[#0F172A] dark:text-slate-100">Ngân sách Chi tiêu</h3>
+                <p className="m-0 text-[11px] text-[#64748B] dark:text-slate-400">Định mức theo từng danh mục</p>
+              </div>
+            </div>
+            <span className="rounded-full bg-[#F1F5F9] dark:bg-slate-800 px-2.5 py-1 text-[11px] font-semibold text-[#475569] dark:text-slate-300">
+              {filteredItems.length} danh mục
             </span>
-            <p className="mt-3 text-sm font-semibold text-[#0F172A]">Chưa có hạn mức ngân sách nào trong tháng này</p>
-            <p className="mt-1 text-xs text-[#64748B]">Hãy bấm nút &quot;+ Thêm ngân sách&quot; để thiết lập hạn mức cho từng danh mục chi tiêu.</p>
           </div>
-        ) : (
-          <div className="grid grid-cols-1 gap-3 min-w-0">
+
+          {isLoading ? (
+            <div className="grid flex-1 place-items-center py-16 text-sm text-[#64748B]">
+              <div className="flex flex-col items-center">
+                <span className="inline-block size-6 animate-spin rounded-full border-2 border-[#007F53] border-t-transparent" />
+                <p className="mt-2">Đang tải hạn mức ngân sách...</p>
+              </div>
+            </div>
+          ) : filteredItems.length === 0 ? (
+            <div className="flex flex-1 flex-col items-center justify-center py-14 text-center px-4">
+              <span className="grid size-12 place-items-center rounded-2xl bg-[#F1F5F9] text-[#64748B]">
+                <FinanceIcon name="wallet" size={24} />
+              </span>
+              <p className="mt-3 text-sm font-semibold text-[#0F172A] dark:text-slate-100">Chưa có hạn mức ngân sách nào trong tháng này</p>
+              <p className="mt-1 text-xs text-[#64748B]">Hãy bấm nút &quot;+ Thêm ngân sách&quot; để thiết lập hạn mức cho từng danh mục chi tiêu.</p>
+            </div>
+          ) : (
+            <div className="budget-pane-scroll flex-1 space-y-2.5 p-3.5 sm:p-4 min-w-0 lg:min-h-0 lg:overflow-y-auto">
             {filteredItems.map((item) => {
               const pct = Math.round(item.percentageUsed || 0);
               const isOver = pct > 100;
@@ -818,8 +836,9 @@ export function BudgetManagementScreen({ onNotify }: Props) {
                 </div>
               );
             })}
-          </div>
-        )}
+            </div>
+          )}
+        </div>
       </section>
 
       {/* Modal Thêm ngân sách hỗ trợ 2 chế độ: Gộp danh mục & Bảng cả tháng */}

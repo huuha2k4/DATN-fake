@@ -299,7 +299,7 @@ export default function AppScreen() {
         }} 
       />
       
-      <div className={`main-shell ${isSidebarCollapsed ? 'sidebar-collapsed' : ''}`}>
+      <div className={`main-shell ${isSidebarCollapsed ? 'sidebar-collapsed' : ''} ${['/ai-assistant', '/groups', '/debts', '/budget', '/goals'].includes(location.pathname) ? 'viewport-locked' : ''}`}>
         <DashboardHeaderSection 
           onNotify={setNotice} 
           onOpenProfile={() => navigate('/profile')}

@@ -1,6 +1,7 @@
 import { api } from '../../core/api/api';
 import { getStoredUser } from '../../auth/api/authApi';
 import { compressImageForUpload } from '../../core/utils/imageCompress';
+import { invalidateQueryCache } from '../../core/utils/queryCache';
 
 export type GroupType = 'FAMILY' | 'ROOMMATE' | 'TRAVEL' | 'PROJECT' | 'COUPLE' | 'OTHER';
 export type MemberRole = 'OWNER' | 'ADMIN' | 'MEMBER' | 'VIEWER' | 'CHILD';
@@ -27,6 +28,7 @@ export interface GroupResponse {
 }
 
 export interface GroupMemberResponse {
+  childProfile?: boolean;
   id: string;
   groupId: string;
   userId: string;
@@ -53,6 +55,7 @@ export interface ExpenseSplitItem {
 }
 
 export interface GroupExpenseResponse {
+  financialPurpose?: CreateExpenseRequest['financialPurpose'];
   id: string;
   groupId: string;
   description: string;
@@ -144,6 +147,82 @@ export interface GroupFundContributionResponse {
   contributedAt: string;
   createdAt?: string;
   note?: string;
+  periodId?: string;
+  sourceType?: 'MANAGED_ACCOUNT' | 'EXTERNAL_TRANSFER' | 'CASH' | 'OTHER';
+  status?: 'PENDING' | 'CONFIRMED' | 'REJECTED' | 'CANCELLED';
+  confirmedAt?: string;
+  rejectionReason?: string;
+}
+
+export interface GroupFinanceConfigResponse {
+  groupId: string;
+  useSharedFund: boolean;
+  useContributionPeriods: boolean;
+  allowMemberSplits: boolean;
+  allowDebtSimplification: boolean;
+  allowFundReimbursements: boolean;
+  version: number;
+}
+
+export interface ContributionMemberProgress {
+  avatarUrl?: string;
+  userId: string;
+  fullName: string;
+  requiredAmount: number;
+  confirmedAmount: number;
+  pendingAmount: number;
+  outstandingAmount: number;
+  excessAmount: number;
+  exempt: boolean;
+  overdue: boolean;
+  status: 'UNPAID' | 'PARTIAL' | 'PAID' | 'OVERPAID' | 'EXEMPT';
+}
+
+export interface ContributionPeriodResponse {
+  id: string;
+  groupId: string;
+  name: string;
+  description?: string;
+  startDate: string;
+  dueDate: string;
+  allocationMethod: 'EQUAL' | 'EXACT' | 'PERCENTAGE' | 'VOLUNTARY';
+  frequency: 'ONCE' | 'WEEKLY' | 'MONTHLY' | 'QUARTERLY';
+  status: 'DRAFT' | 'ACTIVE' | 'CLOSED' | 'CANCELLED';
+  requiredTotal: number;
+  fundraisingTarget?: number;
+  confirmedAmount: number;
+  completedObligationAmount: number;
+  pendingAmount: number;
+  outstandingAmount: number;
+  excessAmount: number;
+  obligationProgressPercent: number;
+  fundraisingProgressPercent?: number;
+  completedMembers: number;
+  incompleteMembers: number;
+  members: ContributionMemberProgress[];
+}
+
+export type ContributionPeriodInput = {
+  name: string; description?: string; startDate: string; dueDate: string;
+  allocationMethod: ContributionPeriodResponse['allocationMethod'];
+  frequency: ContributionPeriodResponse['frequency']; fundraisingTarget?: number;
+  members: { userId: string; amount: number; percentage?: number; exempt: boolean; exemptionReason?: string }[];
+};
+
+export type ContributionPeriodPreview = { requiredTotal: number; amounts: Record<string, number> };
+
+export interface FundReimbursementResponse {
+  walletAuthorized: boolean;
+  authorizedAccountId?: string | null;
+  id: string;
+  groupId: string;
+  expenseId: string;
+  beneficiaryUserId: string;
+  totalAmount: number;
+  reimbursedAmount: number;
+  remainingAmount: number;
+  status: 'PENDING' | 'PARTIAL' | 'COMPLETED' | 'CANCELLED';
+  createdAt: string;
 }
 
 export interface GroupCommentResponse {
@@ -168,7 +247,7 @@ export interface SettlementResponse {
   payeeId?: string;
   amount: number;
   currency: string;
-  status: 'PENDING' | 'CONFIRMED' | 'REJECTED';
+  status: 'PENDING' | 'CONFIRMED' | 'REJECTED' | 'CANCELLED';
   settlementDate: string;
   notes?: string;
   fromUser?: { fullName: string };
@@ -221,9 +300,10 @@ export interface CreateExpenseRequest {
   currency?: string;
   paidByUserId: string;
   paymentSource: 'GROUP_FUND' | 'PERSONAL_ACCOUNT';
+  financialPurpose?: 'MEMBER_SPLIT' | 'FUND_EXPENSE' | 'FUND_REIMBURSEMENT' | 'VOLUNTARY_SPEND';
   sourceAccountId?: string;
   categoryId?: string;
-  splitMethod: SplitMethod;
+  splitMethod?: SplitMethod;
   expenseDate?: string;
   notes?: string;
   splits?: {
@@ -404,7 +484,46 @@ export interface CreateChoreRequest {
   icon?: string;
 }
 
+export interface ReimbursementPayment {
+  id: string;
+  amount: number;
+  paidAt: string;
+  note?: string;
+  wallet: boolean;
+}
+
 export const groupApi = {
+  async previewContributionPeriod(groupId: string, payload: ContributionPeriodInput): Promise<ContributionPeriodPreview> {
+    const res = await api.post(`/groups/${groupId}/contribution-periods/preview`, payload);
+    return res.data?.data ?? res.data;
+  },
+  async remindContributionPeriod(groupId: string, periodId: string): Promise<void> {
+    await api.post(`/groups/${groupId}/contribution-periods/${periodId}/remind`);
+  },
+  async adjustContributionObligation(groupId: string, periodId: string, userId: string, payload: { amount: number; exempt: boolean; reason: string }): Promise<ContributionPeriodResponse> {
+    const res = await api.put(`/groups/${groupId}/contribution-periods/${periodId}/obligations/${userId}`, payload);
+    return res.data?.data ?? res.data;
+  },
+  async reviewSettlement(groupId: string, id: string, action: 'cancel' | 'reject', reason?: string): Promise<void> {
+    await api.post(`/groups/${groupId}/settlements/${id}/${action}`, action === 'reject' ? { reason } : undefined);
+  },
+  async closeContributionPeriod(groupId: string, periodId: string): Promise<ContributionPeriodResponse> {
+    const res = await api.post(`/groups/${groupId}/contribution-periods/${periodId}/close`, undefined);
+    return res.data?.data ?? res.data;
+  },
+  async setReimbursementWallet(groupId: string, id: string, accountId: string | null): Promise<FundReimbursementResponse> {
+    const res = await api.put(`/groups/${groupId}/fund/reimbursements/${id}/wallet-consent`, { accountId });
+    return res.data?.data ?? res.data;
+  },
+  async getReimbursementHistory(groupId: string, id: string): Promise<ReimbursementPayment[]> {
+    const res = await api.get(`/groups/${groupId}/fund/reimbursements/${id}/payments`);
+    return res.data?.data ?? res.data;
+  },
+  async payReimbursement(groupId: string, id: string, payload: { amount: number; useAuthorizedWallet: boolean; note?: string }, key: string): Promise<FundReimbursementResponse> {
+    const res = await api.post(`/groups/${groupId}/fund/reimbursements/${id}/payments`, payload, { headers: { 'Idempotency-Key': key } });
+    if (payload.useAuthorizedWallet) invalidateQueryCache(['transactions:', 'accounts:', 'reports:']);
+    return res.data?.data ?? res.data;
+  },
   // 1. Quản lý nhóm
   async getGroups(): Promise<GroupResponse[]> {
     try {
@@ -541,6 +660,7 @@ export const groupApi = {
 
   async createExpense(groupId: string, req: CreateExpenseRequest): Promise<GroupExpenseResponse> {
     const res = await api.post(`/groups/${groupId}/expenses`, req);
+    invalidateQueryCache(['transactions:', 'accounts:', 'budgets:', 'reports:']);
     return res.data?.data || res.data;
   },
 
@@ -554,6 +674,13 @@ export const groupApi = {
 
   async deleteExpense(groupId: string, expenseId: string): Promise<void> {
     await api.delete(`/groups/${groupId}/expenses/${expenseId}`);
+    invalidateQueryCache(['transactions:', 'accounts:', 'budgets:', 'reports:']);
+  },
+
+  async updateExpense(groupId: string, expenseId: string, payload: { description: string; notes: string }): Promise<GroupExpenseResponse> {
+    const result = await api.put(`/groups/${groupId}/expenses/${expenseId}`, payload);
+    invalidateQueryCache(['transactions:', 'reports:']);
+    return result.data?.data ?? result.data;
   },
 
   async getBalances(groupId: string): Promise<GroupBalanceResponse | null> {
@@ -582,14 +709,59 @@ export const groupApi = {
     } catch { return null; }
   },
 
-  async contributeToFund(groupId: string, req: { sourceAccountId: string; amount: number; contributedAt: string; note?: string }): Promise<GroupFundResponse> {
-    const res = await api.post(`/groups/${groupId}/fund/contributions`, req);
+  async contributeToFund(groupId: string, req: { sourceAccountId: string; periodId?: string; amount: number; contributedAt: string; note?: string }, key: string = crypto.randomUUID()): Promise<GroupFundResponse> {
+    const res = await api.post(`/groups/${groupId}/fund/contributions`, req, { headers: { 'Idempotency-Key': key } });
+    invalidateQueryCache(['transactions:', 'accounts:', 'reports:']);
     return res.data?.data || res.data;
   },
 
   async getFundContributions(groupId: string): Promise<GroupFundContributionResponse[]> {
     const res = await api.get(`/groups/${groupId}/fund/contributions`);
     return res.data?.data || res.data || [];
+  },
+
+  async getFinanceConfig(groupId: string): Promise<GroupFinanceConfigResponse> {
+    const res = await api.get(`/groups/${groupId}/finance-config`);
+    return res.data?.data || res.data;
+  },
+
+  async updateFinanceConfig(groupId: string, req: Omit<GroupFinanceConfigResponse, 'groupId' | 'version'>): Promise<GroupFinanceConfigResponse> {
+    const res = await api.put(`/groups/${groupId}/finance-config`, req);
+    return res.data?.data || res.data;
+  },
+
+  async getActiveContributionPeriod(groupId: string): Promise<ContributionPeriodResponse | null> {
+    const res = await api.get(`/groups/${groupId}/contribution-periods/active`, { validateStatus: status => status === 200 || status === 204 });
+    return res.status === 204 ? null : (res.data?.data || res.data);
+  },
+
+  async getContributionPeriods(groupId: string): Promise<ContributionPeriodResponse[]> {
+    const res = await api.get(`/groups/${groupId}/contribution-periods?page=0&size=50`);
+    const data = res.data?.data || res.data;
+    return Array.isArray(data) ? data : data?.content || [];
+  },
+
+  async createContributionPeriod(groupId: string, req: ContributionPeriodInput): Promise<ContributionPeriodResponse> {
+    const res = await api.post(`/groups/${groupId}/contribution-periods`, req, { headers: { 'Idempotency-Key': crypto.randomUUID() } });
+    return res.data?.data || res.data;
+  },
+
+  async submitExternalContribution(groupId: string, req: {
+    periodId?: string; sourceType: 'EXTERNAL_TRANSFER' | 'CASH' | 'OTHER'; amount: number; contributedAt: string; note?: string;
+  }, key: string = crypto.randomUUID()): Promise<GroupFundContributionResponse> {
+    const res = await api.post(`/groups/${groupId}/fund/contribution-requests`, req, { headers: { 'Idempotency-Key': key } });
+    return res.data?.data || res.data;
+  },
+
+  async reviewContribution(groupId: string, contributionId: string, decision: 'confirm' | 'reject', reason?: string): Promise<GroupFundContributionResponse> {
+    const res = await api.post(`/groups/${groupId}/fund/contributions/${contributionId}/${decision}`, { reason });
+    return res.data?.data || res.data;
+  },
+
+  async getFundReimbursements(groupId: string): Promise<FundReimbursementResponse[]> {
+    const res = await api.get(`/groups/${groupId}/fund/reimbursements?page=0&size=50`);
+    const data = res.data?.data || res.data;
+    return Array.isArray(data) ? data : data?.content || [];
   },
 
   async getComments(groupId: string, commentableType: 'GROUP_EXPENSE' | 'FUND_CONTRIBUTION', commentableId: string): Promise<GroupCommentResponse[]> {
@@ -622,7 +794,7 @@ export const groupApi = {
     }
   },
 
-  async createSettlement(groupId: string, req: CreateSettlementRequest): Promise<SettlementResponse> {
+  async createSettlement(groupId: string, req: CreateSettlementRequest, key: string = crypto.randomUUID()): Promise<SettlementResponse> {
     const res = await api.post(`/groups/${groupId}/settlements`, {
       fromUserId: req.fromUserId || getStoredUser()?.id,
       toUserId: req.payeeId,
@@ -631,12 +803,13 @@ export const groupApi = {
       currency: req.currency,
       notes: req.notes,
       settlementDate: new Date().toISOString().slice(0, 10),
-    });
+    }, { headers: { 'Idempotency-Key': key } });
     return res.data?.data || res.data;
   },
 
   async confirmSettlement(groupId: string, settlementId: string, receivingAccountId: string): Promise<void> {
     await api.post(`/groups/${groupId}/settlements/${settlementId}/confirm`, { receivingAccountId });
+    invalidateQueryCache(['transactions:', 'accounts:', 'reports:']);
   },
 
   // 5. Ví trẻ em trong nhóm gia đình

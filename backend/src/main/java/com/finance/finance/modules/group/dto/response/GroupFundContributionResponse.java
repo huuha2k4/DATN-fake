@@ -13,9 +13,14 @@ import java.util.UUID;
 public class GroupFundContributionResponse {
     private UUID id;
     private UUID contributorUserId;
+    private UUID periodId;
     private String contributorName;
     private BigDecimal amount;
     private LocalDate contributedAt;
     private LocalDateTime createdAt;
     private String note;
+    private String sourceType;
+    private String status;
+    private LocalDateTime confirmedAt;
+    private String rejectionReason;
 }

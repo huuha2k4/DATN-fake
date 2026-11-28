@@ -83,25 +83,11 @@ body {
 
   button:focus-visible,
   a:focus-visible,
-  input:focus-visible,
+  input:not([id="hero-amount-input"]):focus-visible,
   select:focus-visible {
     outline: 2px solid #2b9873;
     outline-offset: 2px;
   }
-}
-
-button,
-input,
-select {
-  font: inherit;
-}
-
-button:focus-visible,
-a:focus-visible,
-input:not([id="hero-amount-input"]):focus-visible,
-select:focus-visible {
-  outline: 2px solid #2b9873;
-  outline-offset: 2px;
 }
 
 #root {

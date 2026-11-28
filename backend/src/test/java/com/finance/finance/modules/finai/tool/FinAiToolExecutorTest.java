@@ -46,6 +46,7 @@ class FinAiToolExecutorTest {
     @Mock GroupService groups;
     @Mock GroupExpenseService groupExpenses;
     @Mock GroupFundService groupFunds;
+    @Mock com.finance.finance.modules.group.service.GroupFinanceConfigService groupFinanceConfigService;
     @Mock GroupSettlementService settlements;
     @Mock ChildWalletService childWallets;
     @Mock ChildWalletRepository childWalletRepository;
@@ -259,8 +260,8 @@ class FinAiToolExecutorTest {
         UUID categoryId = UUID.randomUUID();
         when(groups.getGroupDetail(groupId, user)).thenReturn(
                 com.finance.finance.modules.group.dto.response.GroupDetailResponse.builder().id(groupId).name("Nhóm test").build());
-        when(groups.getMembers(groupId, user)).thenReturn(java.util.List.of(
-                com.finance.finance.modules.group.dto.response.MemberResponse.builder().groupId(groupId).userId(user).build()));
+        when(groupFinanceConfigService.get(groupId, user)).thenReturn(
+                com.finance.finance.modules.group.dto.response.GroupFinanceConfigResponse.builder().useSharedFund(true).build());
         when(categoryRepository.findByIdAndUserIdOrSystem(categoryId, user)).thenReturn(java.util.Optional.of(
                 com.finance.finance.modules.category.entity.Category.builder().id(categoryId).name("Khác")
                         .kind(com.finance.finance.common.enums.CategoryKind.EXPENSE).build()));
@@ -286,6 +287,8 @@ class FinAiToolExecutorTest {
         UUID accountId = UUID.randomUUID();
         when(groups.getGroupDetail(groupId, user)).thenReturn(
                 com.finance.finance.modules.group.dto.response.GroupDetailResponse.builder().id(groupId).name("Nhóm test").build());
+        when(groupFinanceConfigService.get(groupId, user)).thenReturn(
+                com.finance.finance.modules.group.dto.response.GroupFinanceConfigResponse.builder().useSharedFund(true).build());
         when(groupFunds.getFund(groupId, user)).thenReturn(
                 com.finance.finance.modules.group.dto.response.GroupFundResponse.builder()
                         .groupId(groupId).currency("VND").balance(java.math.BigDecimal.ZERO).build());

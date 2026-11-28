@@ -376,3 +376,26 @@ html.dark .group-page .rounded-xl.border-\[\#edf3ee\] {
 
 
 
+
+/* Subtle custom scrollbar for independent left/right split panes */
+.group-pane-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(148, 163, 184, 0.45) transparent;
+}
+.group-pane-scroll::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+.group-pane-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+.group-pane-scroll::-webkit-scrollbar-thumb {
+  background-color: rgba(148, 163, 184, 0.45);
+  border-radius: 9999px;
+}
+.group-pane-scroll::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(100, 116, 139, 0.7);
+}
+html.dark .group-pane-scroll {
+  scrollbar-color: rgba(71, 85, 105, 0.6) transparent;
+}

@@ -19,6 +19,34 @@ import java.util.UUID;
 
 @Repository
 public interface TransactionRepository extends JpaRepository<Transaction, UUID> {
+    String REPORT_FILTER = """
+            from core.personal_report_entries r where r.user_id = :userId
+              and (cast(:accountId as uuid) is null or r.account_id = :accountId)
+              and r.occurred_date between :fromDate and :toDate
+            """;
+
+    @Query(value = "select coalesce(sum(r.amount) filter (where r.type='INCOME'),0), " +
+            "coalesce(sum(r.amount) filter (where r.type='EXPENSE'),0), count(*) " + REPORT_FILTER, nativeQuery = true)
+    Object[] getRecognizedSummary(@Param("userId") UUID userId, @Param("fromDate") LocalDate fromDate,
+                                  @Param("toDate") LocalDate toDate, @Param("accountId") UUID accountId);
+
+    @Query(value = "select r.category_id, sum(r.amount), count(*), avg(r.amount) " + REPORT_FILTER +
+            "and r.type='EXPENSE' and r.category_id is not null group by r.category_id order by sum(r.amount) desc", nativeQuery = true)
+    List<Object[]> getRecognizedCategories(@Param("userId") UUID userId, @Param("fromDate") LocalDate fromDate,
+                                            @Param("toDate") LocalDate toDate, @Param("accountId") UUID accountId);
+
+    @Query(value = "select to_char(r.occurred_date, :pattern), " +
+            "coalesce(sum(r.amount) filter (where r.type='INCOME'),0), " +
+            "coalesce(sum(r.amount) filter (where r.type='EXPENSE'),0), count(*) " + REPORT_FILTER +
+            "group by 1 order by 1", nativeQuery = true)
+    List<Object[]> getRecognizedPeriods(@Param("userId") UUID userId, @Param("fromDate") LocalDate fromDate,
+                                        @Param("toDate") LocalDate toDate, @Param("accountId") UUID accountId,
+                                        @Param("pattern") String pattern);
+
+    @Query(value = "select r.amount, r.description, r.occurred_date " + REPORT_FILTER +
+            "and r.type='EXPENSE' order by r.amount desc, r.id limit 1", nativeQuery = true)
+    List<Object[]> getLargestRecognizedCost(@Param("userId") UUID userId, @Param("fromDate") LocalDate fromDate,
+                                            @Param("toDate") LocalDate toDate, @Param("accountId") UUID accountId);
     
     /**
      * Find transaction by ID and user (ensure user owns the transaction)
@@ -274,12 +302,11 @@ public interface TransactionRepository extends JpaRepository<Transaction, UUID> 
     /**
      * Tính tổng chi tiêu thực tế của user theo danh mục trong khoảng thời gian
      */
-    @Query("SELECT COALESCE(SUM(t.baseAmount), 0) FROM Transaction t " +
-           "WHERE t.userId = :userId " +
-           "AND t.categoryId = :categoryId " +
-           "AND t.type = 'EXPENSE' " +
-           "AND t.occurredDate BETWEEN :startDate AND :endDate " +
-           "AND t.deletedAt IS NULL")
+    @Query(value = """
+            select coalesce(sum(amount), 0) from core.personal_report_entries
+            where user_id = :userId and category_id = :categoryId and type = 'EXPENSE'
+              and occurred_date between :startDate and :endDate
+            """, nativeQuery = true)
     BigDecimal sumSpentByUserIdAndCategoryAndDateRange(
         @Param("userId") UUID userId,
         @Param("categoryId") UUID categoryId,
@@ -290,12 +317,11 @@ public interface TransactionRepository extends JpaRepository<Transaction, UUID> 
     /**
      * Đếm số giao dịch chi tiêu theo danh mục trong khoảng thời gian
      */
-    @Query("SELECT COUNT(t) FROM Transaction t " +
-           "WHERE t.userId = :userId " +
-           "AND t.categoryId = :categoryId " +
-           "AND t.type = 'EXPENSE' " +
-           "AND t.occurredDate BETWEEN :startDate AND :endDate " +
-           "AND t.deletedAt IS NULL")
+    @Query(value = """
+            select count(*) from core.personal_report_entries
+            where user_id = :userId and category_id = :categoryId and type = 'EXPENSE'
+              and occurred_date between :startDate and :endDate
+            """, nativeQuery = true)
     long countTransactionsByUserIdAndCategoryAndDateRange(
         @Param("userId") UUID userId,
         @Param("categoryId") UUID categoryId,

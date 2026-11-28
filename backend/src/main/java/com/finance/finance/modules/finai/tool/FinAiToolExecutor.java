@@ -73,6 +73,9 @@ public class FinAiToolExecutor {
     private final GroupExpenseService groupExpenseService;
     private final GroupFundService groupFundService;
     private final GroupSettlementService groupSettlementService;
+    private final ContributionPeriodService contributionPeriodService;
+    private final FundReimbursementService fundReimbursementService;
+    private final GroupFinanceConfigService groupFinanceConfigService;
     private final ChildWalletService childWalletService;
     private final ChildManagementService childManagementService;
     private final ChildWalletRepository childWalletRepository;
@@ -336,6 +339,8 @@ public class FinAiToolExecutor {
                 result.put("group", groupService.getGroupDetail(groupId, userId));
                 result.put("balances", groupExpenseService.getBalances(groupId, userId));
                 result.put("monthlyStatistics", groupFundService.getMonthlyStatistics(groupId, year, month, userId));
+                result.put("financeConfig", groupFinanceConfigService.get(groupId, userId));
+                result.put("activeContributionPeriod", contributionPeriodService.getActive(groupId, userId));
                 yield result;
             }
             case "expenses" -> groupExpenseService.getExpenses(groupId, pageable, userId);
@@ -343,6 +348,7 @@ public class FinAiToolExecutor {
                 Map<String, Object> safe = new LinkedHashMap<>();
                 safe.put("userId", member.getUserId());
                 safe.put("role", member.getRole());
+                safe.put("childProfile", member.isChildProfile());
                 if (member.getUser() != null) {
                     safe.put("name", member.getUser().getDisplayName() != null
                             ? member.getUser().getDisplayName() : member.getUser().getFullName());
@@ -354,6 +360,8 @@ public class FinAiToolExecutor {
                     "contributions", groupFundService.getContributions(groupId, userId));
             case "settlements" -> groupSettlementService.getSettlements(groupId,
                     string(args, "status", null, 30), pageable, userId);
+            case "contribution_periods" -> contributionPeriodService.list(groupId, pageable, userId);
+            case "reimbursements" -> fundReimbursementService.list(groupId, pageable, userId);
             case "child_wallets" -> childWalletService.getWallets(groupId, pageable, userId);
             default -> throw schema("section is unsupported");
         };
@@ -509,7 +517,7 @@ public class FinAiToolExecutor {
         prepareWrite(userId, toolName, args); // full ownership and stale-condition revalidation
         return switch (toolName) {
             case "create_transaction" -> transactionService.createTransaction(userId, transactionRequest(userId, args));
-            case "create_budget" -> budgetService.createBudget(userId, budgetRequest(userId, args));
+            case "create_budget" -> budgetService.createOrMergeBudget(userId, budgetRequest(userId, args));
             case "create_goal" -> goalService.createGoal(userId, goalRequest(userId, args));
             case "contribute_to_goal" -> goalService.contribute(userId, uuid(args, "goalId", true), contributionRequest(userId, args));
             case "create_debt" -> debtService.createDebt(userId, debtRequest(userId, args));
@@ -599,8 +607,9 @@ public class FinAiToolExecutor {
             itemPreview.add(Map.of("categoryId", category.getId(), "category", category.getName(), "amount", item.getAmount()));
         }
         if (sum.compareTo(request.getTotalAmount()) != 0) throw schema("Sum of item amounts must equal totalAmount");
-        if (budgetRepository.existsOverlappingBudget(userId, request.getPeriodType(), request.getStartDate(), request.getEndDate(), null))
-            throw new BusinessException("Bạn đã có một ngân sách cho khoảng thời gian này rồi. Vui lòng kiểm tra lại trong mục Quản lý Ngân sách!", "FINAI_STALE_PROPOSAL", HttpStatus.CONFLICT);
+        Optional<String> conflictMessage = budgetService.findFinAiBudgetConflictMessage(userId, request);
+        if (conflictMessage.isPresent())
+            throw new BusinessException(conflictMessage.get(), "FINAI_STALE_PROPOSAL", HttpStatus.CONFLICT);
         Map<String, Object> preview = new LinkedHashMap<>();
         preview.put("name", request.getName()); preview.put("periodType", request.getPeriodType());
         preview.put("startDate", request.getStartDate()); preview.put("endDate", request.getEndDate());
@@ -778,25 +787,34 @@ public class FinAiToolExecutor {
         var group = groupService.getGroupDetail(groupId, userId); // membership check
         CreateExpenseRequest request = groupExpenseRequest(userId, args);
         validateBean(request);
+        var config = groupFinanceConfigService.get(groupId, userId);
+        if (("FUND_EXPENSE".equals(request.getFinancialPurpose()) && !config.isUseSharedFund())
+                || ("MEMBER_SPLIT".equals(request.getFinancialPurpose()) && !config.isAllowMemberSplits())
+                || ("FUND_REIMBURSEMENT".equals(request.getFinancialPurpose()) && !config.isAllowFundReimbursements())) {
+            throw conflict("Nhóm chưa bật nghiệp vụ tài chính đã chọn");
+        }
         if (request.getExpenseDate().isAfter(LocalDate.now())) throw schema("expenseDate cannot be in the future");
         Category category = categoryRepository.findByIdAndUserIdOrSystem(request.getCategoryId(), userId)
                 .filter(c -> c.getKind() == CategoryKind.EXPENSE)
                 .orElseThrow(() -> forbiddenResource("categoryId"));
-        Set<UUID> memberIds = groupService.getMembers(groupId, userId).stream()
-                .map(MemberResponse::getUserId).collect(java.util.stream.Collectors.toSet());
-        Set<UUID> splitIds = new HashSet<>();
-        BigDecimal splitTotal = BigDecimal.ZERO;
-        for (CreateExpenseRequest.ExpenseSplitDto split : request.getSplits()) {
-            if (!memberIds.contains(split.getUserId())) throw forbiddenResource("splits.userId");
-            if (!splitIds.add(split.getUserId())) throw schema("Duplicate member in splits");
-            splitTotal = splitTotal.add(split.getAmount());
-        }
-        if (splitTotal.compareTo(request.getAmount()) != 0) throw schema("Split amounts must equal expense amount");
-        if ("EQUAL".equals(request.getSplitMethod())) {
-            var shares = request.getSplits().stream().map(CreateExpenseRequest.ExpenseSplitDto::getAmount)
-                    .sorted().toList();
-            if (shares.getLast().subtract(shares.getFirst()).compareTo(BigDecimal.ONE) > 0)
-                throw schema("Equal split amounts may only differ by rounding");
+        if ("MEMBER_SPLIT".equals(request.getFinancialPurpose())) {
+            Set<UUID> memberIds = groupService.getMembers(groupId, userId).stream()
+                    .filter(member -> !member.isChildProfile())
+                    .map(MemberResponse::getUserId).collect(java.util.stream.Collectors.toSet());
+            Set<UUID> splitIds = new HashSet<>();
+            BigDecimal splitTotal = BigDecimal.ZERO;
+            for (CreateExpenseRequest.ExpenseSplitDto split : request.getSplits()) {
+                if (!memberIds.contains(split.getUserId())) throw forbiddenResource("splits.userId");
+                if (!splitIds.add(split.getUserId())) throw schema("Duplicate member in splits");
+                splitTotal = splitTotal.add(split.getAmount());
+            }
+            if (splitTotal.compareTo(request.getAmount()) != 0) throw schema("Split amounts must equal expense amount");
+            if ("EQUAL".equals(request.getSplitMethod())) {
+                var shares = request.getSplits().stream().map(CreateExpenseRequest.ExpenseSplitDto::getAmount)
+                        .sorted().toList();
+                if (shares.getLast().subtract(shares.getFirst()).compareTo(BigDecimal.ONE) > 0)
+                    throw schema("Equal split amounts may only differ by rounding");
+            }
         }
         String sourceName;
         if ("PERSONAL_ACCOUNT".equals(request.getPaymentSource())) {
@@ -813,6 +831,7 @@ public class FinAiToolExecutor {
         preview.put("groupId", groupId); preview.put("amount", request.getAmount()); preview.put("currency", "VND");
         preview.put("accountName", sourceName); preview.put("date", request.getExpenseDate());
         preview.put("paymentSource", request.getPaymentSource()); preview.put("categoryName", category.getName());
+        preview.put("financialPurpose", request.getFinancialPurpose());
         preview.put("splitMethod", request.getSplitMethod()); preview.put("splitCount", request.getSplits().size());
         preview.put("balanceImpact", true); preview.put("note", request.getDescription());
         return new PreparedAction("Tạo khoản chi nhóm " + group.getName(), request.getDescription(), preview);
@@ -824,6 +843,13 @@ public class FinAiToolExecutor {
         var fund = groupFundService.getFund(groupId, userId);
         ContributeGroupFundRequest request = groupFundContributionRequest(userId, args);
         validateBean(request);
+        if (!groupFinanceConfigService.get(groupId, userId).isUseSharedFund()) throw conflict("Nhóm đã tắt quỹ chung");
+        if (request.getPeriodId() != null) {
+            var period = contributionPeriodService.get(groupId, request.getPeriodId(), userId);
+            if (!"ACTIVE".equals(period.getStatus())) throw conflict("Kỳ này đã kết thúc");
+            if (period.getMembers().stream().noneMatch(member -> member.getUserId().equals(userId))
+                    && !"VOLUNTARY".equals(period.getAllocationMethod())) throw forbiddenResource("periodId");
+        }
         if (request.getContributedAt().isAfter(LocalDate.now())) throw schema("contributedAt cannot be in the future");
         Account account = ownedAccount(userId, request.getSourceAccountId(), "sourceAccountId");
         if (!fund.getCurrency().equalsIgnoreCase(account.getCurrencyCode()))
@@ -833,6 +859,7 @@ public class FinAiToolExecutor {
         preview.put("groupId", groupId); preview.put("amount", request.getAmount());
         preview.put("currency", fund.getCurrency()); preview.put("accountName", account.getName());
         preview.put("date", request.getContributedAt()); preview.put("balanceImpact", true);
+        preview.put("periodId", request.getPeriodId());
         preview.put("warning", "Xác nhận sẽ trừ ví nguồn và tăng số dư quỹ nhóm trong cùng giao dịch.");
         preview.put("note", request.getNote());
         return new PreparedAction("Nộp quỹ nhóm " + group.getName(), request.getAmount().toPlainString() + " " + fund.getCurrency(), preview);
@@ -1174,8 +1201,12 @@ public class FinAiToolExecutor {
 
     @SuppressWarnings("unchecked")
     private CreateExpenseRequest groupExpenseRequest(UUID userId, Map<String, Object> a) {
+        String paymentSource = string(a, "paymentSource", null, 30);
+        String financialPurpose = string(a, "financialPurpose",
+                "GROUP_FUND".equals(paymentSource) ? "FUND_EXPENSE" : "MEMBER_SPLIT", 32);
         Object rawSplits = a.get("splits");
-        if (!(rawSplits instanceof List<?> list) || list.isEmpty()) throw schema("splits must be a non-empty array");
+        List<?> list = rawSplits instanceof List<?> values ? values : List.of();
+        if ("MEMBER_SPLIT".equals(financialPurpose) && list.isEmpty()) throw schema("MEMBER_SPLIT requires splits");
         List<CreateExpenseRequest.ExpenseSplitDto> splits = new ArrayList<>();
         for (Object raw : list) {
             if (!(raw instanceof Map<?, ?> map)) throw schema("Each split must be an object");
@@ -1187,10 +1218,12 @@ public class FinAiToolExecutor {
         }
         CreateExpenseRequest request = new CreateExpenseRequest();
         request.setDescription(string(a, "description", null, 300)); request.setAmount(decimal(a, "amount", null));
-        request.setPaidByUserId(userId); request.setPaymentSource(string(a, "paymentSource", null, 30));
+        request.setPaidByUserId(userId); request.setPaymentSource(paymentSource);
+        request.setFinancialPurpose(financialPurpose);
         request.setSourceAccountId(uuid(a, "sourceAccountId", false)); request.setCategoryId(uuid(a, "categoryId", true));
         request.setSplitMethod(string(a, "splitMethod", null, 20)); request.setExpenseDate(date(a, "expenseDate", null));
-        request.setNotes(string(a, "notes", null, 1000)); request.setSplits(splits);
+        request.setNotes(string(a, "notes", null, 1000));
+        request.setSplits("MEMBER_SPLIT".equals(request.getFinancialPurpose()) ? splits : List.of());
         return request;
     }
 
@@ -1198,6 +1231,7 @@ public class FinAiToolExecutor {
         UUID accountId = uuid(a, "sourceAccountId", true);
         ownedAccount(userId, accountId, "sourceAccountId");
         ContributeGroupFundRequest request = new ContributeGroupFundRequest();
+        request.setPeriodId(uuid(a, "periodId", false));
         request.setSourceAccountId(accountId); request.setAmount(decimal(a, "amount", null));
         request.setContributedAt(date(a, "contributedAt", null)); request.setNote(string(a, "note", null, 1000));
         return request;

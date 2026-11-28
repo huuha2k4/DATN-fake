@@ -13,7 +13,11 @@ export interface DepositFundModalProps {
   accounts: AccountItem[];
   groupName?: string;
   currentFundAmount?: number;
-  onSubmit: (data: { sourceAccountId: string; amount: number; note?: string }) => Promise<void>;
+  period?: { id: string; name: string } | null;
+  onSubmit: (data: {
+    sourceType: 'MANAGED_ACCOUNT' | 'CASH' | 'EXTERNAL_TRANSFER';
+    sourceAccountId: string; periodId?: string; amount: number; note?: string; key: string;
+  }) => Promise<void>;
 }
 
 const QUICK_AMOUNTS = [50000, 100000, 200000, 500000];
@@ -28,6 +32,7 @@ export const DepositFundModal: React.FC<DepositFundModalProps> = ({
   accounts,
   groupName = 'Nhóm',
   currentFundAmount = 0,
+  period,
   onSubmit,
 }) => {
   const insets = useSafeAreaInsets();
@@ -36,9 +41,21 @@ export const DepositFundModal: React.FC<DepositFundModalProps> = ({
   const [selectedAccountId, setSelectedAccountId] = useState<string>('');
   const [note, setNote] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const sourceType = 'MANAGED_ACCOUNT' as const;
+  const [periodId, setPeriodId] = useState('');
+  const submission = React.useRef<{ signature: string; key: string; busy: boolean } | null>(null);
   const [showAccountDropdown, setShowAccountDropdown] = useState(false);
+  const [showPeriodDropdown, setShowPeriodDropdown] = useState(false);
   const [isAmountFocused, setIsAmountFocused] = useState(false);
   const scrollRef = React.useRef<any>(null);
+
+  useEffect(() => {
+    if (visible && period?.id) {
+      setPeriodId(period.id);
+    } else if (visible && !period) {
+      setPeriodId('');
+    }
+  }, [visible, period?.id]);
 
   useEffect(() => {
     if (accounts.length > 0 && !selectedAccountId) {
@@ -47,29 +64,37 @@ export const DepositFundModal: React.FC<DepositFundModalProps> = ({
   }, [accounts, selectedAccountId]);
 
   const handleSubmit = async () => {
+    if (submission.current?.busy) return;
     const amountNum = parseInt(amount.replace(/\D/g, '') || '0', 10);
-    if (amountNum <= 0) {
+    if (!Number.isSafeInteger(amountNum) || amountNum <= 0) {
       Alert.alert('Thông báo', 'Vui lòng nhập số tiền muốn nộp vào quỹ');
       return;
     }
-    if (!selectedAccountId) {
+    if (sourceType === 'MANAGED_ACCOUNT' && !accounts.some((account) => account.id === selectedAccountId)) {
       Alert.alert('Thông báo', 'Vui lòng chọn ví/tài khoản nguồn trích tiền');
       return;
     }
 
+    const payload = {
+      sourceType, sourceAccountId: selectedAccountId, amount: amountNum,
+      periodId: periodId === period?.id ? periodId || undefined : undefined,
+      note: note.trim() || undefined,
+    };
+    const signature = JSON.stringify(payload);
+    const key = submission.current?.signature === signature ? submission.current.key : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    submission.current = { signature, key, busy: true };
     setSubmitting(true);
     try {
-      await onSubmit({
-        sourceAccountId: selectedAccountId,
-        amount: amountNum,
-        note: note.trim() || undefined,
-      });
+      await onSubmit({ ...payload, key });
+      submission.current = null;
+      setPeriodId('');
       setAmount('');
       setNote('');
       onClose();
     } catch (err: any) {
       Alert.alert('Lỗi', err?.message || 'Không thể nộp quỹ');
     } finally {
+      if (submission.current) submission.current.busy = false;
       setSubmitting(false);
     }
   };
@@ -207,7 +232,49 @@ export const DepositFundModal: React.FC<DepositFundModalProps> = ({
               </View>
             </View>
 
-            {/* Chọn nguồn trích tiền (Thả xuống chuẩn Quản lý nợ) */}
+            {period && (
+              <View style={styles.sectionBox}>
+                <Text style={[styles.sectionLabel, isDark && { color: themeColors.textSecondary }]}>Kỳ đóng quỹ</Text>
+                <Pressable
+                  onPress={() => setShowPeriodDropdown(true)}
+                  style={[
+                    styles.dropdownSelectorCard,
+                    isDark && {
+                      backgroundColor: themeColors.surfaceSubtle,
+                      borderColor: themeColors.cardBorder,
+                    },
+                  ]}
+                >
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 }}>
+                    <View
+                      style={{
+                        width: 32,
+                        height: 32,
+                        borderRadius: 10,
+                        backgroundColor: isDark ? 'rgba(16, 185, 129, 0.16)' : '#ECFDF5',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                      }}
+                    >
+                      <FinanceIcon
+                        name={periodId === period.id ? 'calendar' : 'spark'}
+                        size={16}
+                        color={isDark ? themeColors.accentGreen : '#059669'}
+                      />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={[styles.dropdownTitle, isDark && { color: themeColors.textPrimary }]} numberOfLines={1}>
+                        {periodId === period.id ? period.name : 'Đóng góp ngoài kỳ'}
+                      </Text>
+                      <Text style={[styles.dropdownSub, isDark && { color: themeColors.textSecondary }]}>
+                        {periodId === period.id ? 'Tính vào tiến độ kỳ hiện tại' : 'Cộng trực tiếp vào quỹ chung'}
+                      </Text>
+                    </View>
+                  </View>
+                  <FinanceIcon name="chevron-down" size={18} color={isDark ? themeColors.accentGreen : '#059669'} />
+                </Pressable>
+              </View>
+            )}
             <View style={styles.sectionBox}>
               <Text style={[styles.sectionLabel, isDark && { color: themeColors.textSecondary }]}>Nguồn tiền trích</Text>
               {(() => {
@@ -282,6 +349,99 @@ export const DepositFundModal: React.FC<DepositFundModalProps> = ({
           </ScrollView>
         </View>
       </KeyboardAvoidingView>
+
+          {/* OVERLAY POPUP CHỌN KỲ ĐÓNG QUỸ */}
+          {showPeriodDropdown && period && (
+            <View style={styles.pickerModalBackdrop}>
+              <Pressable
+                style={StyleSheet.absoluteFillObject}
+                onPress={() => setShowPeriodDropdown(false)}
+              />
+              <View
+                style={[
+                  styles.pickerModalBox,
+                  isDark && {
+                    backgroundColor: themeColors.surface,
+                    borderColor: themeColors.cardBorder,
+                    borderWidth: 1,
+                  },
+                ]}
+              >
+                <View
+                  style={[
+                    styles.pickerModalHeader,
+                    isDark && { borderBottomColor: themeColors.divider },
+                  ]}
+                >
+                  <Text style={[styles.pickerModalTitle, isDark && { color: themeColors.textPrimary }]}>Chọn kỳ đóng quỹ</Text>
+                  <Pressable onPress={() => setShowPeriodDropdown(false)} hitSlop={10}>
+                    <FinanceIcon name="close" size={18} color={isDark ? themeColors.textSecondary : '#64748B'} />
+                  </Pressable>
+                </View>
+
+                {[
+                  { id: period.id, name: period.name, sub: 'Tính vào tiến độ kỳ hiện tại', icon: 'calendar' as const },
+                  { id: '', name: 'Đóng góp ngoài kỳ', sub: 'Cộng trực tiếp vào quỹ chung', icon: 'spark' as const },
+                ].map((opt) => {
+                  const isSelected = periodId === opt.id;
+                  return (
+                    <Pressable
+                      key={opt.id || 'outside'}
+                      onPress={() => {
+                        setPeriodId(opt.id);
+                        setShowPeriodDropdown(false);
+                      }}
+                      style={[
+                        styles.pickerItemRow,
+                        isDark && { borderBottomColor: themeColors.divider },
+                        isSelected && (isDark ? { backgroundColor: themeColors.surfaceSubtle } : styles.pickerItemRowActive),
+                      ]}
+                    >
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 }}>
+                        <View
+                          style={{
+                            width: 34,
+                            height: 34,
+                            borderRadius: 10,
+                            backgroundColor: isSelected
+                              ? isDark
+                                ? 'rgba(16, 185, 129, 0.2)'
+                                : '#DCFCE7'
+                              : isDark
+                              ? themeColors.surfaceSubtle
+                              : '#F1F5F9',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                          }}
+                        >
+                          <FinanceIcon
+                            name={opt.icon}
+                            size={16}
+                            color={isSelected ? (isDark ? themeColors.accentGreen : '#059669') : '#64748B'}
+                          />
+                        </View>
+                        <View style={{ flex: 1 }}>
+                          <Text
+                            style={[
+                              styles.pickerItemText,
+                              isDark && { color: themeColors.textPrimary },
+                              isSelected && (isDark ? { color: themeColors.accentGreen, fontWeight: '800' } : styles.pickerItemTextActive),
+                            ]}
+                          >
+                            {opt.name}
+                          </Text>
+                          <Text style={[styles.pickerItemSub, isDark && { color: themeColors.textSecondary }]}>
+                            {opt.sub}
+                          </Text>
+                        </View>
+                      </View>
+                      {isSelected && <FinanceIcon name="check" size={16} color={isDark ? themeColors.accentGreen : '#059669'} />}
+                    </Pressable>
+                  );
+                })}
+              </View>
+            </View>
+          )}
 
           {/* OVERLAY POPUP CHỌN TÀI KHOẢN (Chuẩn Dropdown Quản lý nợ) */}
           {showAccountDropdown && (

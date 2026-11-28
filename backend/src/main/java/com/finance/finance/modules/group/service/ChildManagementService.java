@@ -266,7 +266,7 @@ public class ChildManagementService {
 
         if (isMoneyRequest) {
             if ("GROUP_FUND".equalsIgnoreCase(fundSource)) {
-                GroupFund fund = groupFundRepository.findByGroupId(groupId)
+                GroupFund fund = groupFundRepository.findByGroupIdForUpdate(groupId)
                         .orElseThrow(() -> new IllegalStateException("Nhóm chưa có quỹ chung"));
                 if (fund.getBalance().compareTo(spendRequest.getAmount()) < 0) {
                     throw new IllegalArgumentException("Số dư quỹ nhóm không đủ để cấp cho bé");
@@ -288,6 +288,7 @@ public class ChildManagementService {
                         .paidByUserId(currentUserId)
                         .createdByUserId(currentUserId)
                         .paymentSource("GROUP_FUND")
+                        .financialPurpose(com.finance.finance.common.enums.GroupExpensePurpose.FUND_EXPENSE)
                         .categoryId(familyCategory)
                         .splitMethod(SplitMethod.EQUAL)
                         .expenseDate(LocalDateTime.now().toLocalDate())
@@ -607,7 +608,7 @@ public class ChildManagementService {
 
         // Trừ tiền nguồn thanh toán phần thưởng và ghi nhận lịch sử thu chi
         if ("GROUP_FUND".equalsIgnoreCase(source)) {
-            GroupFund fund = groupFundRepository.findByGroupId(groupId)
+            GroupFund fund = groupFundRepository.findByGroupIdForUpdate(groupId)
                     .orElseThrow(() -> new IllegalStateException("Nhóm chưa có quỹ chung"));
             if (fund.getBalance().compareTo(reward) < 0) {
                 throw new IllegalArgumentException("Số dư quỹ nhóm không đủ để thưởng cho bé");
@@ -628,6 +629,7 @@ public class ChildManagementService {
                     .paidByUserId(currentUserId)
                     .createdByUserId(currentUserId)
                     .paymentSource("GROUP_FUND")
+                    .financialPurpose(com.finance.finance.common.enums.GroupExpensePurpose.FUND_EXPENSE)
                     .categoryId(familyCategory)
                     .splitMethod(SplitMethod.EQUAL)
                     .expenseDate(LocalDateTime.now().toLocalDate())

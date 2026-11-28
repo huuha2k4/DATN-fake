@@ -15,7 +15,7 @@ import math
 import time
 import unicodedata
 import uuid
-from datetime import date, datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 from email.utils import parsedate_to_datetime
 from dataclasses import dataclass
 from functools import lru_cache
@@ -164,7 +164,7 @@ class GetGroupsArgs(BaseModel):
 class GetGroupFinancesArgs(BaseModel):
     model_config = ConfigDict(extra="forbid")
     groupId: str
-    section: Literal["overview", "members", "expenses", "balances", "fund", "settlements", "child_wallets"]
+    section: Literal["overview", "members", "expenses", "balances", "fund", "contribution_periods", "reimbursements", "settlements", "child_wallets"]
     year: int | None = Field(None, ge=2000, le=2100)
     month: int | None = Field(None, ge=1, le=12)
     status: str | None = Field(None, max_length=30)
@@ -407,22 +407,31 @@ class CreateGroupTransactionArgs(BaseModel):
     description: str = Field(min_length=1, max_length=300)
     amount: float = Field(gt=0)
     paymentSource: Literal["GROUP_FUND", "PERSONAL_ACCOUNT"]
+    financialPurpose: Literal["MEMBER_SPLIT", "FUND_EXPENSE", "FUND_REIMBURSEMENT", "VOLUNTARY_SPEND"] | None = None
     sourceAccountId: str | None = None
     categoryId: str
-    splitMethod: Literal["EQUAL", "EXACT"]
+    splitMethod: Literal["EQUAL", "EXACT"] | None = None
     expenseDate: str
     notes: str | None = Field(None, max_length=1000)
-    splits: list[GroupExpenseSplitArgs] = Field(min_length=1, max_length=100)
+    splits: list[GroupExpenseSplitArgs] = Field(default_factory=list, max_length=100)
 
     @model_validator(mode="after")
     def validate_group_expense(self):
+        if self.financialPurpose is None:
+            self.financialPurpose = "FUND_EXPENSE" if self.paymentSource == "GROUP_FUND" else "MEMBER_SPLIT"
         if self.paymentSource == "PERSONAL_ACCOUNT" and not self.sourceAccountId:
             raise ValueError("PERSONAL_ACCOUNT requires sourceAccountId")
         if self.paymentSource == "GROUP_FUND" and self.sourceAccountId:
             raise ValueError("GROUP_FUND must not include sourceAccountId")
+        if self.financialPurpose == "FUND_EXPENSE" and self.paymentSource != "GROUP_FUND":
+            raise ValueError("FUND_EXPENSE requires GROUP_FUND")
+        if self.financialPurpose != "FUND_EXPENSE" and self.paymentSource != "PERSONAL_ACCOUNT":
+            raise ValueError("This financial purpose requires PERSONAL_ACCOUNT")
+        if self.financialPurpose == "MEMBER_SPLIT" and (not self.splits or not self.splitMethod):
+            raise ValueError("MEMBER_SPLIT requires splits and a split method")
         if len({item.userId for item in self.splits}) != len(self.splits):
             raise ValueError("duplicate member in splits")
-        if abs(sum(item.amount for item in self.splits) - self.amount) > 0.01:
+        if self.financialPurpose == "MEMBER_SPLIT" and abs(sum(item.amount for item in self.splits) - self.amount) > 0.01:
             raise ValueError("split amounts must equal amount")
         return self
 
@@ -430,6 +439,7 @@ class CreateGroupTransactionArgs(BaseModel):
 class ContributeGroupFundArgs(BaseModel):
     model_config = ConfigDict(extra="forbid")
     groupId: str
+    periodId: str | None = None
     sourceAccountId: str
     amount: float = Field(gt=0)
     contributedAt: str
@@ -520,7 +530,7 @@ For multi-step requests, perform needed READ calls first, then propose at most f
 Do not claim a write succeeded unless a later backend status explicitly says COMPLETED.
 Wave-1 WRITE rules: create_goal and create_debt do not move wallet balances. For an installment debt, preserve the explicitly requested installment count and payment day: nextPaymentDate is the first future installment date, dueDate is the final installment date, and paymentAmount is the per-installment amount. Do not substitute startDate/currentDate for an explicit payment day. contribute_to_goal and record_debt_payment may omit the account field to record progress/payment without changing a wallet; only include sourceAccountId/accountId when the user selected a wallet or the request clearly identifies one from get_accounts. update_budget must copy budgetId and version from get_budgets. contribute_to_goal must copy goalId from get_goals. record_debt_payment must copy debtId from get_debts. Never invent these IDs or versions.
 Wave-2 WRITE rules: create_account requires an explicit initial balance; it changes total assets without creating a history transaction. create_schedule TRANSACTION must copy account/category IDs from reads, while REMINDER needs reminderMessage and can never auto-execute. update_schedule must copy scheduleId from get_schedules and only change fields the user requested.
-Wave-3 WRITE rules: resolve groupId with get_groups and member userIds with get_group_finances section=members. create_group_transaction requires split amounts totaling the expense and must use an owned account or an accessible group fund. contribute_group_fund requires an owned sourceAccountId. For child wallet actions, resolve groupId with get_groups and walletId with get_group_finances section=child_wallets; create_child_spend records transactions directly on the child wallet while deposit_child_wallet tops up the child wallet. Never invent group, child wallet, or member IDs.
+Group finance: resolve groupId with get_groups. MEMBER_SPLIT alone requires split amounts totaling the expense and members from get_group_finances. FUND_EXPENSE uses the shared fund. FUND_REIMBURSEMENT and VOLUNTARY_SPEND use an owned wallet without splits. For obligations, distinguish confirmed contributions from pending and missing amounts. For amounts the fund owes the user, read reimbursements and filter by beneficiary. Never invent group, period, member, or child wallet IDs.
 Always speak as "mình" or "FinAI" and address the user as "bạn". Never refer to yourself as "tôi", "em", or address the user as "anh/chị".
 Respond naturally and concisely in the user's language, with VND amounts formatted clearly and all dates shown to the user formatted strictly as DD/MM/YYYY (e.g. 25/11/2026, never YYYY-MM-DD), while still passing YYYY-MM-DD to tool arguments when required.
 For spending, count EXPENSE only; never count TRANSFER as spending unless the user explicitly asks about transfers.
@@ -570,6 +580,17 @@ def _format_dates_ddmmyyyy(text: str) -> str:
 
 
 def _runtime_prompt(context: TemporalContext) -> str:
+    cur_month_start = date.fromisoformat(context.currentMonthStart)
+    next_month_start = date(
+        cur_month_start.year + (1 if cur_month_start.month == 12 else 0),
+        1 if cur_month_start.month == 12 else cur_month_start.month + 1,
+        1,
+    )
+    next_month_end = date(
+        next_month_start.year + (1 if next_month_start.month == 12 else 0),
+        1 if next_month_start.month == 12 else next_month_start.month + 1,
+        1,
+    ) - timedelta(days=1)
     return f"""Authoritative request time (never infer another date or month):
 - timezone: {context.timezone}
 - current datetime: {context.currentDateTime}
@@ -579,6 +600,7 @@ def _runtime_prompt(context: TemporalContext) -> str:
 - next week: {context.nextWeekStart} through {context.nextWeekEnd}
 - this month for completed cashflow: {context.currentMonthStart} through {context.currentDate}
 - this full calendar month: {context.currentMonthStart} through {context.currentMonthEnd}
+- next full calendar month: {next_month_start.isoformat()} through {next_month_end.isoformat()}
 - upcoming 30 days: {context.currentDate} through {context.upcoming30DaysEnd}
 - previous month: {context.previousMonthStart} through {context.previousMonthEnd}
 - last 3 calendar months including current: {context.lastThreeMonthsStart} through {context.currentDate}
@@ -1012,8 +1034,8 @@ def _social_answer(text: str) -> str:
     return "Chào bạn! Hôm nay mình có thể giúp gì cho bạn?"
 
 
-GROUP_FUND_SOURCE = r"\b(?:quy (?:cua )?(?:nhom|chung|phong tro|gia dinh)|tien quy|group fund)\b"
-PERSONAL_GROUP_SOURCE = r"\b(?:vi ca nhan|chi ho|chi giup|ung (?:tien )?(?:ca nhan|truoc)|personal account)\b"
+GROUP_FUND_SOURCE = r"\b(?:quy (?:cua )?(?:nhom|chung|phong tro|gia dinh|cap doi|du lich|du an)|tien quy|group fund)\b"
+PERSONAL_GROUP_SOURCE = r"\b(?:vi ca nhan|chi ho|chi giup|tu nguyen tra|ung (?:tien|truoc|ca nhan|\d+)|personal account)\b"
 GROUP_CONTRIBUTION = r"\b(?:(?:nop|dong|gop)(?: them)?(?: tien)? (?:vao )?quy|contribute.*fund|fund contribution)\b"
 GROUP_SOURCES = (
     (GROUP_FUND_SOURCE, "GROUP_FUND", "Quỹ nhóm"),
@@ -1023,6 +1045,8 @@ GROUP_SOURCES = (
 
 def _group_source(message: str, business_text: str) -> str | None:
     for candidate in (_fold_text(message), _fold_text(business_text)):
+        if re.search(r"\bung\b", candidate) and re.search(r"\bquy\b.*\bhoan tra\b", candidate):
+            return "PERSONAL_ACCOUNT"
         if re.search(rf"\b(?:khong|khong phai|bo)\s+(?:dung\s+|su dung\s+|bang\s+|tu\s+)?(?:{GROUP_FUND_SOURCE}|{PERSONAL_GROUP_SOURCE})", candidate):
             return None
         found = [identifier for pattern, identifier, _ in GROUP_SOURCES if re.search(pattern, candidate)]
@@ -1033,6 +1057,28 @@ def _group_source(message: str, business_text: str) -> str | None:
 
 def _group_source_choices() -> list[dict[str, str]]:
     return [{"id": identifier, "label": label} for _, identifier, label in GROUP_SOURCES]
+
+
+def _personal_group_purpose_choices() -> list[dict[str, str]]:
+    return [
+        {"id": "VOLUNTARY_SPEND", "label": "Tự nguyện chi"},
+        {"id": "FUND_REIMBURSEMENT", "label": "Ứng tiền, quỹ hoàn trả"},
+        {"id": "MEMBER_SPLIT", "label": "Chia tiền thành viên"},
+    ]
+
+
+def _group_expense_purpose(source: str, text: str, selected: str | None = None) -> str | None:
+    if source == "GROUP_FUND":
+        return "FUND_EXPENSE"
+    if selected in {item["id"] for item in _personal_group_purpose_choices()}:
+        return selected
+    if re.search(r"\btu nguyen\b|\bkhong (?:can |yeu cau )?hoan tra\b", text):
+        return "VOLUNTARY_SPEND"
+    if re.search(r"\bquy\b.*\bhoan tra\b|\bhoan tra\b.*\bquy\b", text):
+        return "FUND_REIMBURSEMENT"
+    if re.search(r"\b(?:chia|toan bo thanh vien|tat ca thanh vien|split)\b", text):
+        return "MEMBER_SPLIT"
+    return None
 
 
 def _route_tools(message: str, history: list[dict[str, str]] | None = None) -> ToolRoute:
@@ -1064,12 +1110,12 @@ def _route_tools(message: str, history: list[dict[str, str]] | None = None) -> T
     group_signal = bool(re.search(r"\b(nhom|group|family)\b", folded))
     group_fund_contribution_signal = bool(re.search(GROUP_CONTRIBUTION, folded)
         or re.search(r"\b(?:nop|dong|gop)(?: them)?\b[^.!?]*\bvao quy\b", folded))
-    group_context = group_signal or bool(re.search(
+    group_context = group_signal or bool(re.search(r"\b(gia dinh|cap doi|phong tro|du lich)\b", folded)) or bool(re.search(
         rf"{GROUP_FUND_SOURCE}|\b(?:chi ho|chi giup|ca phong)\b", folded))
     group_expense_signal = group_context and bool(re.search(
-        r"\b(?:chi|tieu|expense|giao dich nhom|group transaction|an|mua|tra tien|thanh toan)\b", folded))
+        r"\b(?:chi|tieu|expense|giao dich nhom|group transaction|an|mua|tra tien|thanh toan|ung|chia deu)\b", folded))
     group_payment_command = bool(re.match(r"(?:hay\s+|cho toi\s+)?lay\b", folded)
-                                 or re.search(r"\b(?:ung tien|ghi vao nhom)\b", folded))
+                                 or re.search(r"\b(?:ung (?:tien|\d+)|tu nguyen tra|ghi vao nhom|toi chi)\b", folded))
     advisory = bool(re.search(r"\b(co nen|toi nen|minh nen|tu van|lam sao|the nao|should i|how (?:do|should))\b", folded))
     terse_transaction = bool(re.match(r"(?:hay\s+|cho toi\s+)?(?:chi|chuyen|thu|tra no|thu lai)\b", folded)) and not (
         folded.endswith("?") or re.search(r"\b(bao nhieu|o dau|khi nao|the nao)\b", folded)
@@ -1124,6 +1170,8 @@ def _route_tools(message: str, history: list[dict[str, str]] | None = None) -> T
     if child_spend_signal or (create_signal and child_signal):
         return ToolRoute(("get_groups", "get_group_finances", "get_transactions", "get_categories", "create_child_spend"),
                          "write", 6, 6, "child_wallet_spend_write")
+    if group_context and re.search(r"\b(bao nhieu|ai chua|ai dang no|ai no ai)\b", folded):
+        return ToolRoute(("get_groups", "get_group_finances"), "group_read", 4, 5, "group_context")
     if group_fund_contribution_signal:
         return ToolRoute(("get_groups", "get_group_finances", "get_accounts", "contribute_group_fund"),
                          "write", 6, 6, "group_fund_write")
@@ -1482,7 +1530,8 @@ def _route_guidance(route: ToolRoute) -> str:
     if route.reason == "group_expense_write":
         return ("Routing constraint: use create_group_transaction only. Resolve the group, read its members and "
                 "expense categories, and preserve the stated funding source. If paying from GROUP_FUND, never include a "
-                "personal wallet. Ask when source, recipients or split method are missing. Do not assume an equal split.")
+                "personal wallet or splits. For personal payments use the explicit financialPurpose. Only ask for "
+                "recipients and split details for MEMBER_SPLIT. Do not assume an equal split.")
     if route.reason == "spending_profile":
         return ("Read the spending profile before answering. State the observed period/coverage. Compare needs and "
                 "wants to 50% and 30%. Describe net cashflow as the remaining amount, not money actually saved; "
@@ -1605,7 +1654,7 @@ def _guard_proposal(name: str, args: dict, message: str, business_text: str,
 
     if name == "create_group_transaction":
         text = _fold_text(business_text)
-        source = _group_source(message, business_text)
+        source = slots.get("paymentSource") or _group_source(message, business_text)
         if not source:
             return "paymentSource", _group_source_choices()
         args["paymentSource"] = source
@@ -1613,54 +1662,75 @@ def _guard_proposal(name: str, args: dict, message: str, business_text: str,
             args.pop("sourceAccountId", None)
         if slots.get("groupId") != args.get("groupId"):
             return "groupId", dialog_options("groupId", results)
-        if not re.search(r"\b(chia|toan bo thanh vien|tat ca thanh vien|split)\b", text):
-            return "splits", []
-        split_turn = next((turn for turn in reversed(text.splitlines()) if re.search(r"\bchia\b", turn)), "")
-        split_text = re.split(r"\bchia\b", split_turn, maxsplit=1)[-1]
-        split_method = args.get("splitMethod")
-        if "chia deu" in split_turn and split_method != "EQUAL":
-            return "splits", []
-        if "chia deu" not in split_turn and stated_amounts(split_text) and split_method != "EXACT":
-            return "splits", []
-        members = [
-            member for tool, result in results if tool == "get_group_finances"
-            for member in dialog_rows(result, "members")
-            if member.get("userId")
-        ]
-        trusted_ids = {str(member["userId"]) for member in members}
-        raw_splits = args.get("splits")
-        if not isinstance(raw_splits, list) or not all(isinstance(split, dict) for split in raw_splits):
-            return "splits", []
-        proposed = {str(split.get("userId")) for split in raw_splits}
-        if not proposed or not proposed.issubset(trusted_ids):
-            return "splits", []
-        if re.search(r"\b(ca nhom|tat ca|toan bo thanh vien|all members)\b", text):
-            if proposed != trusted_ids:
+        purpose = _group_expense_purpose(source, text, slots.get("financialPurpose"))
+        if purpose is None:
+            return "financialPurpose", _personal_group_purpose_choices()
+        args["financialPurpose"] = purpose
+        if purpose == "MEMBER_SPLIT":
+            if not re.search(r"\b(chia|toan bo thanh vien|tat ca thanh vien|split)\b", text):
                 return "splits", []
+            split_turn = next((turn for turn in reversed(text.splitlines()) if re.search(r"\bchia\b", turn)), "")
+            split_text = re.split(r"\bchia\b", split_turn, maxsplit=1)[-1]
+            split_method = args.get("splitMethod")
+            if "chia deu" in split_turn and split_method != "EQUAL":
+                return "splits", []
+            if "chia deu" not in split_turn and stated_amounts(split_text) and split_method != "EXACT":
+                return "splits", []
+            members = [
+                member for tool, result in results if tool == "get_group_finances"
+                for member in dialog_rows(result, "members")
+                if member.get("userId") and not member.get("childProfile")
+            ]
+            trusted_ids = {str(member["userId"]) for member in members}
+            raw_splits = args.get("splits")
+            if not isinstance(raw_splits, list) or not all(isinstance(split, dict) for split in raw_splits):
+                return "splits", []
+            proposed = {str(split.get("userId")) for split in raw_splits}
+            if not proposed or not proposed.issubset(trusted_ids):
+                return "splits", []
+            count = re.search(r"\bchia deu (\d+|hai|ba|bon|nam|sau|bay|tam|chin) (?:nguoi|thanh vien)\b", text)
+            explicit_count = (
+                int(count[1]) if count and count[1].isdigit()
+                else {"hai": 2, "ba": 3, "bon": 4, "nam": 5, "sau": 6, "bay": 7, "tam": 8, "chin": 9}.get(count[1]) if count else None
+            )
+            if re.search(r"\b(ca nhom|tat ca|toan bo thanh vien|all members)\b", text) or explicit_count == len(trusted_ids):
+                if proposed != trusted_ids:
+                    return "splits", []
+            else:
+                labels = {str(member["userId"]): member["name"] for member in members if isinstance(member.get("name"), str)}
+                specified = {identifier for identifier, label in labels.items()
+                             if choose(business_text, [{"id": identifier, "label": label}])}
+                if not specified or proposed != specified:
+                    return "splits", []
+                if len({_fold_text(labels[identifier]) for identifier in specified}) != len(specified):
+                    return "splits", []
+            if split_method == "EXACT":
+                # Anchor each amount to its named recipient. A correct total alone
+                # cannot detect swapped shares or amounts invented by the model.
+                for split in raw_splits:
+                    member = next((row for row in members if str(row["userId"]) == str(split.get("userId"))), {})
+                    label = member.get("name")
+                    if not isinstance(label, str):
+                        return "splits", []
+                    hit = re.search(rf"(?<!\w){re.escape(_fold_text(label))}\s*(?:[:=]\s*)?(\d[\d.,]*(?:\s*(?:trieu|tr|nghin|ngan|k|vnd|dong|d)\b)?)", split_text)
+                    evidence = stated_amounts(hit[1].rstrip(",.")) if hit else []
+                    try:
+                        share = Decimal(str(split.get("amount")))
+                    except InvalidOperation:
+                        return "splits", []
+                    if not evidence or not share.is_finite() or evidence[0] != share:
+                        return "splits", []
         else:
-            labels = {str(member["userId"]): member["name"] for member in members if isinstance(member.get("name"), str)}
-            specified = {identifier for identifier, label in labels.items()
-                         if choose(business_text, [{"id": identifier, "label": label}])}
-            if not specified or proposed != specified:
-                return "splits", []
-            if len({_fold_text(labels[identifier]) for identifier in specified}) != len(specified):
-                return "splits", []
-        if split_method == "EXACT":
-            # Anchor each amount to its named recipient. A correct total alone
-            # cannot detect swapped shares or amounts invented by the model.
-            for split in raw_splits:
-                member = next((row for row in members if str(row["userId"]) == str(split.get("userId"))), {})
-                label = member.get("name")
-                if not isinstance(label, str):
-                    return "splits", []
-                hit = re.search(rf"(?<!\w){re.escape(_fold_text(label))}\s*(?:[:=]\s*)?(\d[\d.,]*(?:\s*(?:trieu|tr|nghin|ngan|k|vnd|dong|d)\b)?)", split_text)
-                evidence = stated_amounts(hit[1].rstrip(",.")) if hit else []
-                try:
-                    share = Decimal(str(split.get("amount")))
-                except InvalidOperation:
-                    return "splits", []
-                if not evidence or not share.is_finite() or evidence[0] != share:
-                    return "splits", []
+            args.pop("splits", None)
+            args.pop("splitMethod", None)
+    if name == "contribute_group_fund":
+        if args.get("groupId") != slots.get("groupId"):
+            return "groupId", dialog_options("groupId", results)
+        period = slots.get("periodId")
+        if period and period != "outside":
+            args["periodId"] = period
+        else:
+            args.pop("periodId", None)
     if name == "create_debt":
         chosen_debt_type = slots.get("debtType")
         direction = _fold_text(business_text)
@@ -1829,7 +1899,7 @@ def run_action_chat(message: str, context_token: str, temporal_context: dict[str
         except ValueError as exc:
             raise ToolExecutionError("Spending profile unavailable") from exc
         return without_model({"message": answer, "proposals": []}, "grounded_spending_profile")
-    if route.reason == "group_expense_write":
+    if route.reason in {"group_expense_write", "group_fund_write"}:
         preflight("get_groups", {"page": 1, "pageSize": 50})
         choices = dialog_options("groupId", dialog_results)
         group_id = slots.get("groupId")
@@ -1841,13 +1911,31 @@ def run_action_chat(message: str, context_token: str, temporal_context: dict[str
                 return without_model({"message": "Bạn chưa có nhóm phù hợp để ghi khoản chi này.", "proposals": []}, "no_group")
             return without_model(clarification(route.reason, "groupId", turns, choices=choices, slots=slots), "missing_group")
         slots["groupId"] = group_id
-        source = _group_source(message, business_text)
+    if route.reason == "group_fund_write":
+        result = backend.execute_read("get_group_finances", {"groupId": group_id, "section": "contribution_periods"}, deadline)
+        if isinstance(result, dict) and result.get("status") == "ERROR":
+            raise ToolExecutionError("Could not verify active contribution period")
+        active_periods = [row for row in dialog_rows(result, "content") if row.get("status") == "ACTIVE" and row.get("id")]
+        choices = [{"id": "outside", "label": "Đóng góp ngoài kỳ"}] + [
+            {"id": str(row["id"]), "label": str(row["name"])} for row in active_periods
+        ]
+        chosen = slots.get("periodId") or choose(business_text, choices)
+        if chosen not in {choice["id"] for choice in choices}:
+            if active_periods:
+                return without_model(clarification(route.reason, "periodId", turns, choices=choices,
+                    slots=slots, question="Bạn muốn nộp vào kỳ đang mở hay đóng góp ngoài kỳ?"), "missing_contribution_period")
+            chosen = "outside"
+        slots["periodId"] = chosen
+    if route.reason == "group_expense_write":
+        source = slots.get("paymentSource") or _group_source(message, business_text)
         if not source:
             return without_model(clarification(route.reason, "paymentSource", turns,
                                                choices=_group_source_choices(), slots=slots), "missing_payment_source")
-        if re.search(r"\bchia\b[^\n]*(?:\d\s*%|phan tram|ty le)", latest) or (
-            not re.search(r"\b(?:chia|toan bo thanh vien|tat ca thanh vien|split)\b", _fold_text(business_text))
-        ):
+        purpose = _group_expense_purpose(source, _fold_text(business_text), slots.get("financialPurpose"))
+        if purpose is None:
+            return without_model(clarification(route.reason, "financialPurpose", turns,
+                choices=_personal_group_purpose_choices(), slots=slots, question="Bạn muốn tự nguyện chi, yêu cầu quỹ hoàn trả hay chia tiền?"), "missing_financial_purpose")
+        if purpose == "MEMBER_SPLIT" and re.search(r"\bchia\b[^\n]*(?:\d\s*%|phan tram|ty le)", latest):
             return without_model(clarification(route.reason, "splits", turns, slots=slots), "missing_split_details")
     if route.reason == "transaction_write":
         preflight("get_accounts", {

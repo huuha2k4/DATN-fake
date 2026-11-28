@@ -46,6 +46,9 @@ public class GroupController {
     private final ChildDataSharingService childDataSharingService;
     private final GroupActivityService activityService;
     private final GroupFundService groupFundService;
+    private final GroupFinanceConfigService financeConfigService;
+    private final ContributionPeriodService contributionPeriodService;
+    private final FundReimbursementService fundReimbursementService;
 
     // ============================================================
     // 1. GROUPS & MEMBERS MANAGEMENT (12 endpoints)
@@ -76,10 +79,12 @@ public class GroupController {
         return ResponseEntity.ok(groupFundService.getFund(groupId, currentUser.getId()));
     }
 
+    @Idempotent(resourceType = "group-fund-contribution")
     @PostMapping("/{groupId}/fund/contributions")
     public ResponseEntity<GroupFundResponse> contributeToFund(
             @PathVariable UUID groupId, @Valid @RequestBody ContributeGroupFundRequest request,
-            @AuthenticationPrincipal User currentUser) {
+            @AuthenticationPrincipal User currentUser,
+            @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey) {
         return ResponseEntity.status(HttpStatus.CREATED).body(groupFundService.contribute(groupId, request, currentUser.getId()));
     }
 
@@ -99,6 +104,131 @@ public class GroupController {
         int targetYear = (year != null && year > 2000) ? year : now.getYear();
         int targetMonth = (month != null && month >= 1 && month <= 12) ? month : now.getMonthValue();
         return ResponseEntity.ok(groupFundService.getMonthlyStatistics(groupId, targetYear, targetMonth, currentUser.getId()));
+    }
+
+    @GetMapping("/{groupId}/finance-config")
+    public ResponseEntity<GroupFinanceConfigResponse> getFinanceConfig(
+            @PathVariable UUID groupId, @AuthenticationPrincipal User currentUser) {
+        return ResponseEntity.ok(financeConfigService.get(groupId, currentUser.getId()));
+    }
+
+    @PutMapping("/{groupId}/finance-config")
+    public ResponseEntity<GroupFinanceConfigResponse> updateFinanceConfig(
+            @PathVariable UUID groupId, @Valid @RequestBody UpdateGroupFinanceConfigRequest request,
+            @AuthenticationPrincipal User currentUser) {
+        return ResponseEntity.ok(financeConfigService.update(groupId, request, currentUser.getId()));
+    }
+
+    @Idempotent(resourceType = "contribution-period")
+    @PostMapping("/{groupId}/contribution-periods")
+    public ResponseEntity<ContributionPeriodResponse> createContributionPeriod(
+            @PathVariable UUID groupId, @Valid @RequestBody CreateContributionPeriodRequest request,
+            @AuthenticationPrincipal User currentUser,
+            @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey) {
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(contributionPeriodService.create(groupId, request, currentUser.getId()));
+    }
+
+    @GetMapping("/{groupId}/contribution-periods")
+    public ResponseEntity<Page<ContributionPeriodResponse>> listContributionPeriods(
+            @PathVariable UUID groupId, Pageable pageable, @AuthenticationPrincipal User currentUser) {
+        return ResponseEntity.ok(contributionPeriodService.list(groupId, pageable, currentUser.getId()));
+    }
+
+    @PostMapping("/{groupId}/contribution-periods/preview")
+    public ResponseEntity<ContributionPeriodService.Preview> previewContributionPeriod(
+            @PathVariable UUID groupId, @Valid @RequestBody CreateContributionPeriodRequest request,
+            @AuthenticationPrincipal User currentUser) {
+        return ResponseEntity.ok(contributionPeriodService.preview(groupId, request, currentUser.getId()));
+    }
+
+    @GetMapping("/{groupId}/contribution-periods/active")
+    public ResponseEntity<ContributionPeriodResponse> getActiveContributionPeriod(
+            @PathVariable UUID groupId, @AuthenticationPrincipal User currentUser) {
+        ContributionPeriodResponse response = contributionPeriodService.getActive(groupId, currentUser.getId());
+        return response == null ? ResponseEntity.noContent().build() : ResponseEntity.ok(response);
+    }
+
+    @GetMapping("/{groupId}/contribution-periods/{periodId}")
+    public ResponseEntity<ContributionPeriodResponse> getContributionPeriod(
+            @PathVariable UUID groupId, @PathVariable UUID periodId, @AuthenticationPrincipal User currentUser) {
+        return ResponseEntity.ok(contributionPeriodService.get(groupId, periodId, currentUser.getId()));
+    }
+
+    @PostMapping("/{groupId}/contribution-periods/{periodId}/close")
+    public ResponseEntity<ContributionPeriodResponse> closeContributionPeriod(
+            @PathVariable UUID groupId, @PathVariable UUID periodId, @AuthenticationPrincipal User currentUser) {
+        return ResponseEntity.ok(contributionPeriodService.close(groupId, periodId, currentUser.getId()));
+    }
+
+    @Idempotent(resourceType = "group-fund-contribution")
+    @PostMapping("/{groupId}/fund/contribution-requests")
+    public ResponseEntity<GroupFundContributionResponse> submitExternalContribution(
+            @PathVariable UUID groupId, @Valid @RequestBody ContributeGroupFundRequest request,
+            @AuthenticationPrincipal User currentUser,
+            @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(
+                groupFundService.submitExternalContribution(groupId, request, currentUser.getId(), idempotencyKey));
+    }
+
+    @PostMapping("/{groupId}/contribution-periods/{periodId}/remind")
+    public ResponseEntity<Void> remindContributionPeriod(
+            @PathVariable UUID groupId, @PathVariable UUID periodId, @AuthenticationPrincipal User currentUser) {
+        contributionPeriodService.remind(groupId, periodId, currentUser.getId());
+        return ResponseEntity.noContent().build();
+    }
+
+    @PutMapping("/{groupId}/contribution-periods/{periodId}/obligations/{memberId}")
+    public ResponseEntity<ContributionPeriodResponse> adjustContributionObligation(
+            @PathVariable UUID groupId, @PathVariable UUID periodId, @PathVariable UUID memberId,
+            @Valid @RequestBody AdjustContributionObligationRequest request, @AuthenticationPrincipal User currentUser) {
+        return ResponseEntity.ok(contributionPeriodService.adjust(groupId, periodId, memberId, request, currentUser.getId()));
+    }
+
+    @PostMapping("/{groupId}/fund/contributions/{contributionId}/confirm")
+    public ResponseEntity<GroupFundContributionResponse> confirmContribution(
+            @PathVariable UUID groupId, @PathVariable UUID contributionId, @AuthenticationPrincipal User currentUser) {
+        return ResponseEntity.ok(groupFundService.confirmContribution(groupId, contributionId, currentUser.getId()));
+    }
+
+    @PostMapping("/{groupId}/fund/contributions/{contributionId}/reject")
+    public ResponseEntity<GroupFundContributionResponse> rejectContribution(
+            @PathVariable UUID groupId, @PathVariable UUID contributionId,
+            @Valid @RequestBody ReviewContributionRequest request, @AuthenticationPrincipal User currentUser) {
+        return ResponseEntity.ok(groupFundService.rejectContribution(
+                groupId, contributionId, request.getReason(), currentUser.getId()));
+    }
+
+    @GetMapping("/{groupId}/fund/reimbursements")
+    public ResponseEntity<Page<FundReimbursementResponse>> listFundReimbursements(
+            @PathVariable UUID groupId, Pageable pageable, @AuthenticationPrincipal User currentUser) {
+        return ResponseEntity.ok(fundReimbursementService.list(groupId, pageable, currentUser.getId()));
+    }
+
+    @Idempotent(resourceType = "fund-reimbursement-payment")
+    @PostMapping("/{groupId}/fund/reimbursements/{reimbursementId}/payments")
+    public ResponseEntity<FundReimbursementResponse> reimburseFromFund(
+            @PathVariable UUID groupId, @PathVariable UUID reimbursementId,
+            @Valid @RequestBody ReimburseFundRequest request, @AuthenticationPrincipal User currentUser,
+            @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey) {
+        return ResponseEntity.ok(fundReimbursementService.reimburse(
+                groupId, reimbursementId, request, idempotencyKey, currentUser.getId()));
+    }
+
+    @GetMapping("/{groupId}/fund/reimbursements/{reimbursementId}/payments")
+    public ResponseEntity<java.util.List<FundReimbursementResponse.Payment>> reimbursementHistory(
+            @PathVariable UUID groupId, @PathVariable UUID reimbursementId, @AuthenticationPrincipal User currentUser) {
+        return ResponseEntity.ok(fundReimbursementService.history(groupId, reimbursementId, currentUser.getId()));
+    }
+
+    public record ReimbursementWalletConsent(UUID accountId) {}
+
+    @PutMapping("/{groupId}/fund/reimbursements/{reimbursementId}/wallet-consent")
+    public ResponseEntity<FundReimbursementResponse> authorizeReimbursementWallet(
+            @PathVariable UUID groupId, @PathVariable UUID reimbursementId,
+            @RequestBody ReimbursementWalletConsent request, @AuthenticationPrincipal User currentUser) {
+        return ResponseEntity.ok(fundReimbursementService.authorizeWallet(
+                groupId, reimbursementId, request.accountId(), currentUser.getId()));
     }
 
     @GetMapping("/{groupId}")
@@ -308,6 +438,7 @@ public class GroupController {
     // 3. SETTLEMENTS (4 endpoints)
     // ============================================================
 
+    @Idempotent(resourceType = "group-settlement")
     @PostMapping("/{groupId}/settlements")
     public ResponseEntity<SettlementResponse> createSettlement(
             @PathVariable UUID groupId,
@@ -345,6 +476,12 @@ public class GroupController {
             @AuthenticationPrincipal User currentUser) {
         SettlementResponse response = settlementService.rejectSettlement(groupId, settlementId, request, currentUser.getId());
         return ResponseEntity.ok(response);
+    }
+
+    @PostMapping("/{groupId}/settlements/{settlementId}/cancel")
+    public ResponseEntity<SettlementResponse> cancelSettlement(
+            @PathVariable UUID groupId, @PathVariable UUID settlementId, @AuthenticationPrincipal User currentUser) {
+        return ResponseEntity.ok(settlementService.cancelSettlement(groupId, settlementId, currentUser.getId()));
     }
 
     // ============================================================

@@ -17,6 +17,7 @@ public class MemberResponse {
     private UUID groupId;
     private UUID userId;
     private String role;
+    private boolean childProfile;
     private BigDecimal contributionRatio;
     private BigDecimal balance;
     private BigDecimal totalPaid;

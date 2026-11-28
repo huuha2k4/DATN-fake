@@ -14,6 +14,9 @@ import java.util.UUID;
 
 @Repository
 public interface GroupRepository extends JpaRepository<Group, UUID> {
+    @org.springframework.data.jpa.repository.Lock(jakarta.persistence.LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT g FROM Group g WHERE g.id = :id AND g.deletedAt IS NULL")
+    Optional<Group> findByIdForUpdate(@Param("id") UUID id);
     
     @Query("SELECT g FROM Group g WHERE g.id = :id AND g.deletedAt IS NULL")
     Optional<Group> findByIdAndNotDeleted(@Param("id") UUID id);

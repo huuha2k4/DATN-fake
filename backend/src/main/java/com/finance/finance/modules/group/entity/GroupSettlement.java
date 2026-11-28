@@ -74,4 +74,12 @@ public class GroupSettlement {
 
     @Column(name = "rejection_reason")
     private String rejectionReason;
+
+    @Column(name = "cancelled_at")
+    private LocalDateTime cancelledAt;
+
+    @Version
+    @Column(nullable = false)
+    @Builder.Default
+    private Long version = 0L;
 }

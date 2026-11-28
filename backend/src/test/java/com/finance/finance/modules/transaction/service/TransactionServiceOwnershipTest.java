@@ -15,7 +15,7 @@ import com.finance.finance.modules.goal.repository.GoalRepository;
 import com.finance.finance.modules.group.repository.ChildWalletRepository;
 import com.finance.finance.modules.group.repository.GroupExpenseRepository;
 import com.finance.finance.modules.group.repository.GroupFundContributionRepository;
-import com.finance.finance.modules.group.repository.GroupFundRepository;
+import com.finance.finance.modules.group.repository.FundReimbursementPaymentRepository;
 import com.finance.finance.modules.group.repository.GroupSettlementRepository;
 import com.finance.finance.modules.notification.service.NotificationService;
 import com.finance.finance.modules.ocr.repository.ReceiptRepository;
@@ -65,7 +65,7 @@ class TransactionServiceOwnershipTest {
     @Mock DebtRepository debtRepository;
     @Mock GroupExpenseRepository groupExpenseRepository;
     @Mock GroupFundContributionRepository groupFundContributionRepository;
-    @Mock GroupFundRepository groupFundRepository;
+    @Mock FundReimbursementPaymentRepository groupReimbursementPayments;
     @Mock GroupSettlementRepository groupSettlementRepository;
     @Mock ScheduleOccurrenceRepository scheduleOccurrenceRepository;
 
@@ -227,13 +227,9 @@ class TransactionServiceOwnershipTest {
         java.time.LocalDate from = java.time.LocalDate.of(2026, 11, 1);
         java.time.LocalDate to = java.time.LocalDate.of(2026, 11, 30);
 
-        when(transactionRepository.getSummary(userId, from, to, null, false))
+        when(transactionRepository.getRecognizedSummary(userId, from, to, null))
                 .thenReturn(new Object[]{BigDecimal.ZERO, new BigDecimal("300000"), 2L});
-        when(transactionRepository.findLargestExpenses(any(), any(), any(), any(), any(Pageable.class)))
-                .thenReturn(java.util.List.of());
-        when(transactionRepository.getMostFrequentCategories(any(), any(), any(), any(Pageable.class)))
-                .thenReturn(java.util.List.of());
-        when(transactionRepository.groupByCategory(userId, TransactionType.EXPENSE, from, to, null, false))
+        when(transactionRepository.getRecognizedCategories(userId, from, to, null))
                 .thenReturn(java.util.List.of(
                         new Object[]{cat1, new BigDecimal("200000"), 1L, new BigDecimal("200000")},
                         new Object[]{cat2, new BigDecimal("100000"), 1L, new BigDecimal("100000")}

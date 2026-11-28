@@ -54,7 +54,11 @@ import { KidWalletTab, CreateChildWalletModal, ChildWalletDetailModal } from '..
 import { GroupBalancesTab } from '../components/balances';
 import { GroupSettingsTab } from '../components/settings';
 import { DepositFundModal } from '../components/fund';
-import { ChildWalletResponse, CreateChildWalletRequest } from '../api/groupApi';
+import { FinanceSettings } from '../components/fund/FinanceSettings';
+import { ContributionPeriods } from '../components/fund/ContributionPeriods';
+import { FundOperations } from '../components/fund/FundOperations';
+import { SettlementOperations, type DebtTarget } from '../components/balances/SettlementOperations';
+import { ChildWalletResponse, CreateChildWalletRequest, type GroupFinanceConfigResponse, type ContributionPeriodResponse, type FundReimbursementResponse } from '../api/groupApi';
 import { useAppTheme } from '../../../context/ThemeContext';
 
 const GROUP_ICONS: Record<string, any> = {
@@ -342,6 +346,11 @@ export function GroupScreen({
   }, [detailTab, childWallets, initialKidSubTab, initialKidWalletId, onConsumeInitialNav]);
   const [groupNotificationEnabled, setGroupNotificationEnabled] = useState(true);
   const [depositFundModalVisible, setDepositFundModalVisible] = useState(false);
+  const [financeConfig, setFinanceConfig] = useState<GroupFinanceConfigResponse | null>(null);
+  const [activeContributionPeriod, setActiveContributionPeriod] = useState<ContributionPeriodResponse | null>(null);
+  const [fundReimbursements, setFundReimbursements] = useState<FundReimbursementResponse[]>([]);
+  const [settlementTarget, setSettlementTarget] = useState<DebtTarget | null>(null);
+  const [expPurpose, setExpPurpose] = useState<'FUND_EXPENSE' | 'MEMBER_SPLIT' | 'FUND_REIMBURSEMENT' | 'VOLUNTARY_SPEND'>('FUND_EXPENSE');
   const [viewingExpense, setViewingExpense] = useState<GroupExpenseResponse | null>(null);
   const [viewingContribution, setViewingContribution] = useState<GroupFundContributionResponse | null>(null);
   const [txTypeFilter, setTxTypeFilter] = useState<'ALL' | 'INCOME' | 'EXPENSE'>('ALL');
@@ -743,7 +752,7 @@ export function GroupScreen({
   const loadGroupDetailData = async (groupId: string) => {
     setLoadingDetail(true);
     try {
-      const [expList, memList, bal, fund, contributions, msgList, wallets, pendingInvs] = await Promise.all([
+      const [expList, memList, bal, fund, contributions, msgList, wallets, pendingInvs, cfg, activePeriod, reimbList] = await Promise.all([
         groupApi.getExpenses(groupId),
         groupApi.getMembers(groupId),
         groupApi.getBalances(groupId),
@@ -752,6 +761,9 @@ export function GroupScreen({
         groupApi.getMessages(groupId),
         groupApi.getChildWallets(groupId),
         groupApi.getSentPendingInvitations(groupId).catch(() => []),
+        groupApi.getFinanceConfig(groupId).catch(() => null),
+        groupApi.getActiveContributionPeriod(groupId).catch(() => null),
+        groupApi.getFundReimbursements(groupId).catch(() => []),
       ]);
       setExpenses(expList);
       setMembers(memList);
@@ -761,6 +773,9 @@ export function GroupScreen({
       setMessages(sortMessagesChronologically(msgList));
       setChildWallets(wallets || []);
       setSentPendingInvitations(pendingInvs || []);
+      setFinanceConfig(cfg);
+      setActiveContributionPeriod(activePeriod);
+      setFundReimbursements(reimbList || []);
       loadMonthlyFundStats(groupId, selectedMonth);
 
       // Nạp danh sách ví cá nhân & danh mục cho modal thêm giao dịch
@@ -1251,18 +1266,20 @@ export function GroupScreen({
       const isRealUUID = (id?: string) =>
         id && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
 
+      const resolvedPurpose = expPaymentSource === 'GROUP_FUND' ? 'FUND_EXPENSE' : expPurpose;
       const req: CreateExpenseRequest = {
         description: expDescription.trim(),
         amount: cleanAmount,
         currency: 'VND',
         paidByUserId: currentUser?.id || selectedGroup.ownerId,
         paymentSource: expPaymentSource,
+        financialPurpose: resolvedPurpose,
         sourceAccountId: expPaymentSource === 'PERSONAL_ACCOUNT' && isRealUUID(expAccountId) ? expAccountId : undefined,
         categoryId: isRealUUID(expCategoryId) ? expCategoryId : undefined,
-        splitMethod: 'EQUAL',
+        splitMethod: resolvedPurpose === 'MEMBER_SPLIT' ? 'EQUAL' : undefined,
         expenseDate: finalDate,
         notes: expNotes.trim() || undefined,
-        splits,
+        splits: resolvedPurpose === 'MEMBER_SPLIT' ? splits : undefined,
       };
 
       await groupApi.createExpense(selectedGroup.id, req);
@@ -1387,30 +1404,7 @@ export function GroupScreen({
 
   // Xác nhận thanh toán dứt điểm nợ
   const handleSettleDebt = (debt: { toUserId: string; toUserName: string; amount: number }) => {
-    if (!selectedGroup) return;
-    Alert.alert(
-      'Xác nhận trả nợ',
-      `Bạn có xác nhận đã thanh toán ${formatVND(debt.amount)} đ cho ${debt.toUserName} không?`,
-      [
-        { text: 'Chưa', style: 'cancel' },
-        {
-          text: 'Xác nhận trả',
-          onPress: async () => {
-            try {
-              await groupApi.createSettlement(selectedGroup.id, {
-                payeeId: debt.toUserId,
-                amount: debt.amount,
-                notes: 'Thanh toán nợ qua Finora Mobile',
-              });
-              await loadGroupDetailData(selectedGroup.id);
-              Alert.alert('Thành công', 'Đã tạo yêu cầu thanh toán công nợ thành công!');
-            } catch (err: any) {
-              Alert.alert('Lỗi', err?.message || 'Không thể thanh toán nợ.');
-            }
-          },
-        },
-      ]
-    );
+    setSettlementTarget({ toUserId: debt.toUserId, toUserName: debt.toUserName, amount: debt.amount });
   };
 
   if (selectedGroup) {
@@ -1421,10 +1415,7 @@ export function GroupScreen({
 
     // Cân đối nợ chỉ có ở nhóm: Ở ghép/Phòng trọ (ROOMMATE), Du lịch (TRAVEL), Dự án (PROJECT), Khác (OTHER)
     // KHÔNG có ở: Gia đình (FAMILY) và Cặp đôi (COUPLE)
-    const hasBalancesTab = selectedGroup.groupType === 'ROOMMATE' ||
-      selectedGroup.groupType === 'TRAVEL' ||
-      selectedGroup.groupType === 'PROJECT' ||
-      selectedGroup.groupType === 'OTHER';
+    const hasBalancesTab = Boolean(financeConfig?.allowMemberSplits || financeConfig?.allowDebtSimplification);
 
     return (
       <View
@@ -2860,6 +2851,200 @@ export function GroupScreen({
                     </View>
                   </View>
 
+                  {(financeConfig?.useContributionPeriods || activeContributionPeriod) && (
+                    <ContributionPeriods
+                      key={selectedGroup.id}
+                      groupId={selectedGroup.id}
+                      members={members}
+                      active={activeContributionPeriod}
+                      manager={!!isAdmin}
+                      refresh={async () => {
+                        setActiveContributionPeriod(await groupApi.getActiveContributionPeriod(selectedGroup.id));
+                      }}
+                    >
+                      {activeContributionPeriod && (
+                        <View accessibilityRole="summary">
+                      <View style={localFinanceStyles.periodHeader}>
+                        <View style={{ flex: 1 }}>
+                          <Text style={[localFinanceStyles.periodEyebrow, isDark && { color: '#6EE7B7' }]}>KỲ ĐÓNG QUỸ</Text>
+                          <Text style={[localFinanceStyles.periodTitle, isDark && { color: themeColors.textPrimary }]} numberOfLines={1}>{activeContributionPeriod.name}</Text>
+                          <Text style={[localFinanceStyles.periodDue, isDark && { color: themeColors.textMuted }]}>Hạn {new Date(`${activeContributionPeriod.dueDate}T00:00:00`).toLocaleDateString('vi-VN')}</Text>
+                        </View>
+                        <Text style={[localFinanceStyles.periodPercent, isDark && { color: '#6EE7B7' }]}>{activeContributionPeriod.obligationProgressPercent.toLocaleString('vi-VN')}%</Text>
+                      </View>
+                      <View style={[localFinanceStyles.progressTrack, isDark && { backgroundColor: '#1E293B' }]} accessibilityRole="progressbar" accessibilityValue={{ min: 0, max: 100, now: Math.min(100, activeContributionPeriod.obligationProgressPercent) }}>
+                        <View style={[localFinanceStyles.progressFill, { width: `${Math.min(100, activeContributionPeriod.obligationProgressPercent)}%` }]} />
+                      </View>
+                      {activeContributionPeriod.fundraisingProgressPercent != null && (
+                        <Text style={{ color: themeColors.textSecondary, marginTop: 8, fontSize: 12 }}>
+                          Tiến độ huy động {activeContributionPeriod.fundraisingProgressPercent.toLocaleString('vi-VN')}%
+                        </Text>
+                      )}
+                      <View style={localFinanceStyles.periodStats}>
+                        <View>
+                          <Text style={localFinanceStyles.statLabel}>Đã xác nhận</Text>
+                          <Text style={[localFinanceStyles.statValue, isDark && { color: themeColors.textPrimary }]}>{formatVND(activeContributionPeriod.confirmedAmount)} đ</Text>
+                        </View>
+                        <View>
+                          <Text style={localFinanceStyles.statLabel}>Còn thiếu</Text>
+                          <Text style={[localFinanceStyles.statValue, isDark && { color: themeColors.textPrimary }]}>{formatVND(activeContributionPeriod.outstandingAmount)} đ</Text>
+                        </View>
+                      </View>
+                      {activeContributionPeriod.members.map((member) => {
+                        const avatar = member.avatarUrl ? userProfileApi.formatAvatarUrl(member.avatarUrl) : null;
+                        const progress = member.requiredAmount > 0 ? Math.min(100, Math.max(0, ((member.requiredAmount - member.outstandingAmount) / member.requiredAmount) * 100)) : 0;
+                        return (
+                          <View key={member.userId} style={[localFinanceStyles.memberRow, isDark && { borderTopColor: '#1E293B' }]}>
+                            {avatar ? (
+                              <Image source={{ uri: avatar }} style={{ width: 28, height: 28, borderRadius: 14 }} />
+                            ) : (
+                              <Text style={{ color: themeColors.accentGreen, width: 28, textAlign: 'center', fontWeight: '700' }}>{member.fullName.trim().charAt(0)}</Text>
+                            )}
+                            <View style={{ flex: 1 }}>
+                              <Text style={[localFinanceStyles.memberName, { color: themeColors.textPrimary }]}>{member.fullName}</Text>
+                              <Text style={[localFinanceStyles.memberAmount, { color: themeColors.textSecondary }]}>Đã đóng {formatVND(member.confirmedAmount)} / {formatVND(member.requiredAmount)} đ</Text>
+                              <Text style={[localFinanceStyles.memberAmount, { color: themeColors.textSecondary }]}>Còn thiếu {formatVND(member.outstandingAmount)} đ · Chờ {formatVND(member.pendingAmount)} đ</Text>
+                              {member.requiredAmount > 0 && (
+                                <View style={[localFinanceStyles.progressTrack, isDark && { backgroundColor: '#1E293B' }]} accessibilityRole="progressbar" accessibilityLabel={`Tiến độ của ${member.fullName}`} accessibilityValue={{ min: 0, max: 100, now: Math.round(progress) }}>
+                                  <View style={[localFinanceStyles.progressFill, { width: `${progress}%` }]} />
+                                </View>
+                              )}
+                            </View>
+                            <Text style={[localFinanceStyles.statusPill, (member.status === 'PAID' || member.status === 'OVERPAID' || member.status === 'EXEMPT') ? localFinanceStyles.statusDone : member.overdue ? localFinanceStyles.statusLate : localFinanceStyles.statusPending]}>
+                              {({ UNPAID: 'Chưa đóng', PARTIAL: 'Đóng một phần', PAID: 'Đã đủ', OVERPAID: 'Đóng vượt', EXEMPT: 'Miễn đóng' })[member.status]}
+                            </Text>
+                          </View>
+                        );
+                      })}
+                      {(() => {
+                        const myRow = currentUser?.id
+                          ? activeContributionPeriod.members.find(
+                              (m) => String(m.userId).toLowerCase() === String(currentUser.id).toLowerCase()
+                            )
+                          : undefined;
+                        const isDone = Boolean(
+                          myRow &&
+                            (myRow.status === 'PAID' ||
+                              myRow.status === 'OVERPAID' ||
+                              myRow.status === 'EXEMPT' ||
+                              (myRow.requiredAmount > 0 && myRow.outstandingAmount <= 0))
+                        );
+                        const isPendingApproval = Boolean(
+                          !isDone && myRow && myRow.pendingAmount > 0 && myRow.outstandingAmount <= myRow.pendingAmount
+                        );
+                        if (isDone) {
+                          return (
+                            <View
+                              style={{
+                                marginTop: 12,
+                                minHeight: 42,
+                                borderRadius: 12,
+                                backgroundColor: isDark ? 'rgba(16, 185, 129, 0.16)' : '#ECFDF5',
+                                borderWidth: 1,
+                                borderColor: isDark ? 'rgba(16, 185, 129, 0.35)' : '#A7F3D0',
+                                flexDirection: 'row',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                gap: 8,
+                                paddingHorizontal: 12,
+                              }}
+                            >
+                              <FinanceIcon name="check" size={16} color={isDark ? '#6EE7B7' : '#007F53'} />
+                              <Text style={{ color: isDark ? '#6EE7B7' : '#007F53', fontSize: 13, fontWeight: '700' }}>
+                                {myRow?.status === 'EXEMPT' ? 'Bạn được miễn đóng kỳ này' : 'Bạn đã đóng đủ quỹ kỳ này'}
+                              </Text>
+                            </View>
+                          );
+                        }
+                        if (isPendingApproval) {
+                          return (
+                            <View
+                              style={{
+                                marginTop: 12,
+                                minHeight: 42,
+                                borderRadius: 12,
+                                backgroundColor: isDark ? 'rgba(245, 158, 11, 0.16)' : '#FFFBEB',
+                                borderWidth: 1,
+                                borderColor: isDark ? 'rgba(245, 158, 11, 0.35)' : '#FDE68A',
+                                flexDirection: 'row',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                gap: 8,
+                                paddingHorizontal: 12,
+                              }}
+                            >
+                              <FinanceIcon name="clock" size={16} color={isDark ? '#FCD34D' : '#B45309'} />
+                              <Text style={{ color: isDark ? '#FCD34D' : '#B45309', fontSize: 13, fontWeight: '700' }}>
+                                Đang chờ duyệt đóng quỹ kỳ này
+                              </Text>
+                            </View>
+                          );
+                        }
+                        return (
+                          <Pressable
+                            onPress={() => setDepositFundModalVisible(true)}
+                            style={{
+                              marginTop: 12,
+                              minHeight: 42,
+                              borderRadius: 12,
+                              backgroundColor: '#007F53',
+                              flexDirection: 'row',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              gap: 8,
+                            }}
+                          >
+                            <FinanceIcon name="wallet" size={16} color="#FFFFFF" />
+                            <Text style={{ color: '#FFFFFF', fontSize: 13, fontWeight: '700' }}>
+                              {myRow?.status === 'PARTIAL' ? 'Đóng nốt quỹ kỳ này' : 'Đóng quỹ kỳ này ngay'}
+                            </Text>
+                          </Pressable>
+                        );
+                      })()}
+                        </View>
+                      )}
+                    </ContributionPeriods>
+                  )}
+
+                  {fundReimbursements.some((item) => item.status === 'PENDING' || item.status === 'PARTIAL') && (
+                    <View style={localFinanceStyles.reimbursementNotice}>
+                      <Text style={localFinanceStyles.reimbursementText}>
+                        {fundReimbursements.filter((item) => item.status === 'PENDING' || item.status === 'PARTIAL').length} khoản cần hoàn từ quỹ · {formatVND(fundReimbursements.filter((item) => item.status === 'PENDING' || item.status === 'PARTIAL').reduce((sum, item) => sum + item.remainingAmount, 0))} đ
+                      </Text>
+                    </View>
+                  )}
+
+                  {(financeConfig?.allowFundReimbursements || fundReimbursements.length > 0 || fundContributions.some((c) => c.status === 'PENDING')) && (
+                    <FundOperations
+                      key={selectedGroup.id}
+                      groupId={selectedGroup.id}
+                      userId={currentUser?.id}
+                      canManage={!!isAdmin}
+                      balance={fundData?.balance ?? 0}
+                      contributions={fundContributions}
+                      reimbursements={fundReimbursements}
+                      accounts={personalAccounts.filter((account) => account.currencyCode === selectedGroup.baseCurrency)}
+                      memberName={(id) => {
+                        const member = members.find((item) => item.userId === id);
+                        return member?.user?.fullName || member?.fullName || member?.nickname || 'Thành viên';
+                      }}
+                      expenseName={(id) => expenses.find((item) => item.id === id)?.description ?? 'Khoản chi của nhóm'}
+                      refresh={async () => {
+                        const [fund, contributions, period, reimbursements] = await Promise.all([
+                          groupApi.getFund(selectedGroup.id),
+                          groupApi.getFundContributions(selectedGroup.id),
+                          groupApi.getActiveContributionPeriod(selectedGroup.id),
+                          groupApi.getFundReimbursements(selectedGroup.id),
+                        ]);
+                        setFundData(fund);
+                        setFundContributions(contributions);
+                        setActiveContributionPeriod(period);
+                        setFundReimbursements(reimbursements);
+                        void loadMonthlyFundStats(selectedGroup.id, selectedMonth);
+                      }}
+                    />
+                  )}
+
                   {/* 3. BIỂU ĐỒ CHI TIÊU THEO DANH MỤC */}
                   <View
                     style={[
@@ -3669,6 +3854,23 @@ export function GroupScreen({
               />
             )}
 
+            {detailTab === 'BALANCES' && hasBalancesTab && (
+              <SettlementOperations
+                groupId={selectedGroup.id}
+                userId={currentUser?.id}
+                accounts={personalAccounts.filter((a) => a.currencyCode === selectedGroup.baseCurrency)}
+                target={settlementTarget}
+                memberName={(id) => {
+                  const member = members.find((item) => item.userId === id);
+                  return member?.user?.fullName || member?.fullName || member?.nickname || 'Thành viên';
+                }}
+                clearTarget={() => setSettlementTarget(null)}
+                refreshBalances={async () => {
+                  await loadGroupDetailData(selectedGroup.id);
+                }}
+              />
+            )}
+
             {/* TAB: THÀNH VIÊN & QUẢN LÝ NHÓM */}
             {detailTab === 'MEMBERS' && (
               <GroupMembersTab
@@ -3731,6 +3933,16 @@ export function GroupScreen({
             {detailTab === 'SETTINGS' && (
               <GroupSettingsTab
                 group={selectedGroup}
+                financeSettingsSection={
+                  financeConfig ? (
+                    <FinanceSettings
+                      key={selectedGroup.id}
+                      config={financeConfig}
+                      canManage={!!isAdmin}
+                      onSaved={setFinanceConfig}
+                    />
+                  ) : undefined
+                }
                 isOwner={selectedGroup.ownerId === currentUser?.id || selectedGroup.myRole === 'OWNER'}
                 isAdmin={selectedGroup.myRole === 'ADMIN'}
                 notificationEnabled={groupNotificationEnabled}
@@ -3862,7 +4074,10 @@ export function GroupScreen({
                   <Text style={[styles.inputLabel, isDark && { color: themeColors.textSecondary }]}>Nguồn thanh toán *</Text>
                   <View style={{ flexDirection: 'row', gap: 10, marginBottom: 10 }}>
                     <Pressable
-                      onPress={() => setExpPaymentSource('GROUP_FUND')}
+                      onPress={() => {
+                        setExpPaymentSource('GROUP_FUND');
+                        setExpPurpose('FUND_EXPENSE');
+                      }}
                       style={[
                         styles.sourceSelectBtn,
                         isDark && {
@@ -3892,7 +4107,12 @@ export function GroupScreen({
                       </Text>
                     </Pressable>
                     <Pressable
-                      onPress={() => setExpPaymentSource('PERSONAL_ACCOUNT')}
+                      onPress={() => {
+                        setExpPaymentSource('PERSONAL_ACCOUNT');
+                        if (expPurpose === 'FUND_EXPENSE') {
+                          setExpPurpose(financeConfig?.allowMemberSplits ? 'MEMBER_SPLIT' : financeConfig?.allowFundReimbursements ? 'FUND_REIMBURSEMENT' : 'VOLUNTARY_SPEND');
+                        }
+                      }}
                       style={[
                         styles.sourceSelectBtn,
                         isDark && {
@@ -3987,6 +4207,54 @@ export function GroupScreen({
                       })()
                     )}
                   </View>
+
+                  {expPaymentSource === 'PERSONAL_ACCOUNT' && (
+                    <View style={{ marginBottom: 14 }}>
+                      <Text style={[styles.inputLabel, isDark && { color: themeColors.textSecondary }]}>Mục đích khoản chi</Text>
+                      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+                        {financeConfig?.allowMemberSplits !== false && (
+                          <Pressable
+                            onPress={() => setExpPurpose('MEMBER_SPLIT')}
+                            style={[
+                              localFinanceStyles.purposeChip,
+                              isDark && { backgroundColor: themeColors.surfaceSubtle, borderColor: themeColors.cardBorder },
+                              expPurpose === 'MEMBER_SPLIT' && localFinanceStyles.purposeChipActive,
+                            ]}
+                          >
+                            <Text style={[localFinanceStyles.purposeChipText, isDark && { color: themeColors.textSecondary }, expPurpose === 'MEMBER_SPLIT' && localFinanceStyles.purposeChipTextActive]}>
+                              Chia đều thành viên
+                            </Text>
+                          </Pressable>
+                        )}
+                        {financeConfig?.allowFundReimbursements && (
+                          <Pressable
+                            onPress={() => setExpPurpose('FUND_REIMBURSEMENT')}
+                            style={[
+                              localFinanceStyles.purposeChip,
+                              isDark && { backgroundColor: themeColors.surfaceSubtle, borderColor: themeColors.cardBorder },
+                              expPurpose === 'FUND_REIMBURSEMENT' && localFinanceStyles.purposeChipActive,
+                            ]}
+                          >
+                            <Text style={[localFinanceStyles.purposeChipText, isDark && { color: themeColors.textSecondary }, expPurpose === 'FUND_REIMBURSEMENT' && localFinanceStyles.purposeChipTextActive]}>
+                              Ứng tiền, quỹ hoàn trả
+                            </Text>
+                          </Pressable>
+                        )}
+                        <Pressable
+                          onPress={() => setExpPurpose('VOLUNTARY_SPEND')}
+                          style={[
+                            localFinanceStyles.purposeChip,
+                            isDark && { backgroundColor: themeColors.surfaceSubtle, borderColor: themeColors.cardBorder },
+                            expPurpose === 'VOLUNTARY_SPEND' && localFinanceStyles.purposeChipActive,
+                          ]}
+                        >
+                          <Text style={[localFinanceStyles.purposeChipText, isDark && { color: themeColors.textSecondary }, expPurpose === 'VOLUNTARY_SPEND' && localFinanceStyles.purposeChipTextActive]}>
+                            Tự nguyện chi
+                          </Text>
+                        </Pressable>
+                      </View>
+                    </View>
+                  )}
 
                   {/* 4. Danh mục chi thả xuống (Popup Bottom Sheet mượt mà chuẩn Quản lý nợ) */}
                   <View style={{ marginBottom: 14 }}>
@@ -5798,14 +6066,20 @@ export function GroupScreen({
           accounts={personalAccounts}
           groupName={selectedGroup?.name}
           currentFundAmount={fundData?.balance ?? monthlyStats?.fundBalance ?? 0}
+          period={activeContributionPeriod ? { id: activeContributionPeriod.id, name: activeContributionPeriod.name } : null}
           onSubmit={async (data) => {
             if (!selectedGroup) return;
-            await groupApi.contributeToFund(selectedGroup.id, {
-              sourceAccountId: data.sourceAccountId,
-              amount: data.amount,
-              contributedAt: new Date().toISOString(),
-              note: data.note,
-            });
+            await groupApi.contributeToFund(
+              selectedGroup.id,
+              {
+                sourceAccountId: data.sourceAccountId,
+                periodId: data.periodId,
+                amount: data.amount,
+                contributedAt: new Date().toISOString(),
+                note: data.note,
+              },
+              data.key
+            );
             await loadGroupDetailData(selectedGroup.id);
             Alert.alert('Thành công', `Đã nộp ${new Intl.NumberFormat('vi-VN').format(data.amount)} đ vào quỹ nhóm!`);
           }}
@@ -6480,3 +6754,144 @@ export function GroupScreen({
   );
 }
 
+const localFinanceStyles = StyleSheet.create({
+  periodCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    padding: 16,
+  },
+  periodCardDark: {
+    backgroundColor: '#111827',
+    borderColor: '#1E293B',
+  },
+  periodHeader: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
+  periodEyebrow: {
+    fontSize: 10.5,
+    fontWeight: '800',
+    letterSpacing: 0.6,
+    color: '#007F53',
+  },
+  periodTitle: {
+    marginTop: 2,
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#0F172A',
+  },
+  periodDue: {
+    marginTop: 2,
+    fontSize: 12,
+    color: '#64748B',
+  },
+  periodPercent: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: '#007F53',
+  },
+  progressTrack: {
+    marginTop: 10,
+    height: 7,
+    borderRadius: 999,
+    backgroundColor: '#E2E8F0',
+    overflow: 'hidden',
+  },
+  progressFill: {
+    height: '100%',
+    borderRadius: 999,
+    backgroundColor: '#007F53',
+  },
+  periodStats: {
+    marginTop: 12,
+    marginBottom: 8,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
+  statLabel: {
+    fontSize: 11.5,
+    color: '#64748B',
+  },
+  statValue: {
+    marginTop: 2,
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#0F172A',
+  },
+  memberRow: {
+    marginTop: 10,
+    paddingTop: 10,
+    borderTopWidth: 1,
+    borderTopColor: '#F1F5F9',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  memberName: {
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  memberAmount: {
+    marginTop: 1,
+    fontSize: 11.5,
+  },
+  statusPill: {
+    paddingHorizontal: 9,
+    paddingVertical: 4,
+    borderRadius: 999,
+    fontSize: 11,
+    fontWeight: '700',
+    overflow: 'hidden',
+  },
+  statusDone: {
+    backgroundColor: '#ECFDF5',
+    color: '#007F53',
+  },
+  statusLate: {
+    backgroundColor: '#FEE2E2',
+    color: '#B91C1C',
+  },
+  statusPending: {
+    backgroundColor: '#FEF3C7',
+    color: '#B45309',
+  },
+  reimbursementNotice: {
+    backgroundColor: '#FFFBEB',
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#FDE68A',
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+  },
+  reimbursementText: {
+    color: '#B45309',
+    fontSize: 12.5,
+    fontWeight: '700',
+  },
+  purposeChip: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    backgroundColor: '#F8FAFC',
+  },
+  purposeChipActive: {
+    borderColor: '#007F53',
+    backgroundColor: '#ECFDF5',
+  },
+  purposeChipText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#475569',
+  },
+  purposeChipTextActive: {
+    color: '#007F53',
+    fontWeight: '700',
+  },
+});

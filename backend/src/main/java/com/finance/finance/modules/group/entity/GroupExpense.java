@@ -1,6 +1,7 @@
 package com.finance.finance.modules.group.entity;
 
 import com.finance.finance.common.enums.SplitMethod;
+import com.finance.finance.common.enums.GroupExpensePurpose;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -44,6 +45,11 @@ public class GroupExpense {
     @Column(name = "payment_source", nullable = false, length = 20)
     @Builder.Default
     private String paymentSource = "PERSONAL_ACCOUNT";
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "financial_purpose", nullable = false, length = 32)
+    @Builder.Default
+    private GroupExpensePurpose financialPurpose = GroupExpensePurpose.MEMBER_SPLIT;
 
     @Column(name = "source_account_id")
     private UUID sourceAccountId;

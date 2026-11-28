@@ -7,6 +7,8 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
+import org.springframework.data.jpa.repository.Lock;
+import jakarta.persistence.LockModeType;
 import org.springframework.stereotype.Repository;
 
 import java.math.BigDecimal;
@@ -43,4 +45,18 @@ public interface GroupSettlementRepository extends JpaRepository<GroupSettlement
     List<GroupSettlement> findByGroupIdAndFromUserIdOrToUserId(UUID groupId, UUID fromUserId, UUID toUserId);
 
     Optional<GroupSettlement> findByOutgoingTransactionIdOrIncomingTransactionId(UUID outgoingTransactionId, UUID incomingTransactionId);
+    List<GroupSettlement> findByGroupIdAndStatus(UUID groupId, SettlementStatus status);
+    boolean existsByGroupIdAndStatus(UUID groupId, SettlementStatus status);
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT gs FROM GroupSettlement gs WHERE gs.id = :id AND gs.groupId = :groupId")
+    Optional<GroupSettlement> findLockedByIdAndGroupId(@Param("id") UUID id, @Param("groupId") UUID groupId);
+
+    @Query("SELECT COALESCE(SUM(gs.amount), 0) FROM GroupSettlement gs " +
+           "WHERE gs.groupId = :groupId AND gs.status = 'CONFIRMED' AND gs.fromUserId = :userId")
+    BigDecimal sumConfirmedSentByGroupAndUser(@Param("groupId") UUID groupId, @Param("userId") UUID userId);
+
+    @Query("SELECT COALESCE(SUM(gs.amount), 0) FROM GroupSettlement gs " +
+           "WHERE gs.groupId = :groupId AND gs.status = 'CONFIRMED' AND gs.toUserId = :userId")
+    BigDecimal sumConfirmedReceivedByGroupAndUser(@Param("groupId") UUID groupId, @Param("userId") UUID userId);
 }

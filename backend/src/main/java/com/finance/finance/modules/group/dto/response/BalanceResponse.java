@@ -18,6 +18,7 @@ public class BalanceResponse {
     private List<SimplifiedDebt> simplifiedDebts;
     private BigDecimal totalGroupExpenses;
     private Boolean isFullySettled;
+    private String debtStrategy;
 
     @Data
     @NoArgsConstructor

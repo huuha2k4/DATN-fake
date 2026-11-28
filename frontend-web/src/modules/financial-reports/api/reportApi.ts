@@ -35,6 +35,9 @@ export interface SummaryStats {
   totalIncome: number;
   totalExpense: number;
   netCashFlow: number;
+  walletCashIn?: number;
+  walletCashOut?: number;
+  walletNetCashFlow?: number;
   averageDailyExpense: number;
   transactionCount: number;
   largestExpense?: LargestExpense;

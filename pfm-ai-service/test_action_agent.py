@@ -421,6 +421,29 @@ class ActionAgentSchemaTests(unittest.TestCase):
         self.assertEqual("group_fund_write", _route_tools("Góp thêm 500k vào quỹ phòng trọ.").reason)
         self.assertEqual("transaction_write", _route_tools("Ghi chi 50k ăn tối từ ví cá nhân.").reason)
 
+    def test_group_acceptance_prompts_are_routed_by_business_purpose(self):
+        from action_agent import _fold_text, _group_expense_purpose, _group_source
+        for prompt in (
+            "Tháng này tôi còn phải đóng bao nhiêu tiền quỹ gia đình?",
+            "Ai chưa đóng quỹ phòng trọ?",
+            "Nhóm du lịch hiện tại ai đang nợ ai?",
+            "Quỹ gia đình còn phải hoàn trả tôi bao nhiêu?",
+        ):
+            with self.subTest(prompt=prompt):
+                route = _route_tools(prompt)
+                self.assertEqual("group_read", route.request_type)
+                self.assertEqual(("get_groups", "get_group_finances"), route.available_tools)
+        self.assertEqual("group_fund_write", _route_tools("Tôi muốn nộp thêm 500 nghìn vào quỹ gia đình.").reason)
+        for prompt, expected in (
+            ("Tôi chi 300 nghìn tiền ăn từ quỹ cặp đôi.", "FUND_EXPENSE"),
+            ("Tôi tự nguyện trả 300 nghìn tiền ăn cho gia đình bằng ví cá nhân.", "VOLUNTARY_SPEND"),
+            ("Tôi ứng 500 nghìn mua đồ gia đình, quỹ hoàn trả cho tôi.", "FUND_REIMBURSEMENT"),
+            ("Tôi ứng 600 nghìn cho nhóm du lịch, chia đều bốn người.", "MEMBER_SPLIT"),
+        ):
+            with self.subTest(prompt=prompt):
+                self.assertEqual("group_expense_write", _route_tools(prompt).reason)
+                self.assertEqual(expected, _group_expense_purpose(_group_source(prompt, prompt), _fold_text(prompt)))
+
     @patch("action_agent._model")
     @patch("action_agent.BackendToolClient")
     def test_group_source_requires_explicit_choice(self, backend, model):
@@ -431,17 +454,17 @@ class ActionAgentSchemaTests(unittest.TestCase):
         self.assertEqual("paymentSource", reply["draft"]["field"])
         self.assertEqual(["GROUP_FUND", "PERSONAL_ACCOUNT"], [item["id"] for item in reply["draft"]["options"]])
         self.assertEqual([], reply["proposals"])
-        selected = run_action_chat("Quỹ nhóm", "context", self.temporal.model_dump(),
-                                   draft=reply["draft"], selected_option="GROUP_FUND")
-        self.assertEqual("splits", selected["draft"]["field"])
+        selected = run_action_chat("Ví cá nhân", "context", self.temporal.model_dump(),
+                                   draft=reply["draft"], selected_option="PERSONAL_ACCOUNT")
+        self.assertEqual("financialPurpose", selected["draft"]["field"])
         self.assertEqual("room", selected["draft"]["slots"]["groupId"])
-        self.assertEqual("GROUP_FUND", selected["draft"]["slots"]["paymentSource"])
+        self.assertEqual("PERSONAL_ACCOUNT", selected["draft"]["slots"]["paymentSource"])
         self.assertEqual([], selected["proposals"])
         model.assert_not_called()
 
     def test_exact_shares_must_match_named_members_and_stated_amounts(self):
         from action_agent import _guard_proposal
-        prompt = "Chi nhóm 50k bằng quỹ nhóm, chia An 30k, Bình 20k"
+        prompt = "Chi nhóm 50k bằng ví cá nhân, chia An 30k, Bình 20k"
         results = [
             ("get_group_finances", {"data": [{"userId": "a", "name": "An"}, {"userId": "b", "name": "Bình"}]}),
             ("get_categories", {"data": [{"id": "food", "name": "Ăn uống"}]}),

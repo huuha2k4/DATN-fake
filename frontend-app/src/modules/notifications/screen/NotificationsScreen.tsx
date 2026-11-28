@@ -21,6 +21,7 @@ interface NotificationsScreenProps {
   onNavigate?: (target: {
     tab?: 'home' | 'transactions' | 'group' | 'profile' | 'budget' | 'goals';
     groupTarget?: {
+      financeTarget?: { kind: 'period' | 'contribution' | 'reimbursement' | 'settlement'; id: string };
       groupId?: string;
       groupName?: string;
       tab?: 'OVERVIEW' | 'EXPENSES' | 'CHAT' | 'BALANCES' | 'MEMBERS' | 'KIDS' | 'SETTINGS';
@@ -129,6 +130,10 @@ export function NotificationsScreen({ onBack, onNavigate }: NotificationsScreenP
     const urlParams = parseActionUrlParams(notif.actionUrl);
     const data = notif.data || {};
     const groupId = data.groupId || data.group_id || urlParams.groupId;
+    const financeTarget = (
+      [['period', urlParams.periodId], ['contribution', urlParams.contributionId],
+       ['reimbursement', urlParams.reimbursementId], ['settlement', urlParams.settlementId]] as const
+    ).find(([, id]) => Boolean(id));
     const walletId = data.walletId || data.childWalletId || urlParams.walletId;
 
     // Trích xuất tên nhóm từ nội dung hoặc tiêu đề nếu chưa có groupId
@@ -269,6 +274,15 @@ export function NotificationsScreen({ onBack, onNavigate }: NotificationsScreenP
       return;
     }
 
+    if (groupId && financeTarget && actionUrl.startsWith('/groups?')) {
+      onNavigate({ tab: 'group', groupTarget: {
+        groupId,
+        tab: financeTarget[0] === 'settlement' ? 'BALANCES' : 'OVERVIEW',
+        financeTarget: { kind: financeTarget[0], id: financeTarget[1] },
+      } });
+      return;
+    }
+
     // 8. Nhóm: Nộp quỹ, Quỹ chung, Số dư nhóm
     if (
       type.includes('FUND') ||
@@ -281,7 +295,7 @@ export function NotificationsScreen({ onBack, onNavigate }: NotificationsScreenP
         groupTarget: {
           groupId,
           groupName,
-          tab: 'BALANCES',
+          tab: urlParams.tab === 'OVERVIEW' ? 'OVERVIEW' : 'BALANCES',
         },
       });
       return;

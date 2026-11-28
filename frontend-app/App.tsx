@@ -82,6 +82,7 @@ function AppContent() {
   const [showOnboardingWizard, setShowOnboardingWizard] = React.useState(false);
   const [showCompleteProfile, setShowCompleteProfile] = React.useState(false);
   const [groupNavTarget, setGroupNavTarget] = React.useState<{
+    financeTarget?: { kind: 'period' | 'contribution' | 'reimbursement' | 'settlement'; id: string };
     groupId?: string;
     groupName?: string;
     tab?: 'OVERVIEW' | 'EXPENSES' | 'CHAT' | 'BALANCES' | 'MEMBERS' | 'KIDS' | 'SETTINGS';
@@ -612,6 +613,7 @@ function AppContent() {
         }}
         initialGroupId={groupNavTarget?.groupId}
         initialGroupName={groupNavTarget?.groupName}
+        initialFinanceTarget={groupNavTarget?.financeTarget}
         initialTab={groupNavTarget?.tab}
         initialKidWalletId={groupNavTarget?.kidWalletId}
         initialKidSubTab={groupNavTarget?.kidSubTab}

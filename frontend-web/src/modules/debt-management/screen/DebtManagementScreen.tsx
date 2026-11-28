@@ -469,61 +469,84 @@ export function DebtManagementScreen({ onNotify }: Props) {
   };
 
   return (
-    <div className="debt-page-container">
-      {/* Top Banner Stats */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
-        <div className="debt-stat-card border-rose-200 bg-rose-50/70">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-bold uppercase tracking-wider text-[#e11d48]">Khoản nợ (Đi vay)</span>
-            <span className="grid size-8 place-items-center rounded-lg bg-rose-100 text-[#e11d48]">
-              <FinanceIcon name="expense" size={16} />
+    <div className="debt-page-container flex flex-col gap-4 lg:h-[calc(100vh-76px)] lg:overflow-hidden">
+      {/* Top Banner Stats (Pinned) */}
+      <div className="grid shrink-0 grid-cols-1 gap-3.5 sm:grid-cols-2">
+        <div className="flex items-center gap-4 rounded-2xl border border-rose-200/80 bg-gradient-to-br from-rose-50/90 via-white to-rose-50/40 p-4 shadow-2xs dark:border-rose-900/50 dark:from-rose-950/35 dark:via-slate-900 dark:to-rose-950/20">
+          <span className="grid size-12 shrink-0 place-items-center rounded-full bg-rose-100 text-[#e11d48] dark:bg-rose-900/60 dark:text-rose-300">
+            <FinanceIcon name="borrowing" size={22} />
+          </span>
+          <div className="min-w-0">
+            <span className="block text-xs font-bold text-[#334155] dark:text-rose-200/90">
+              Khoản nợ (Đi vay)
+            </span>
+            <p className="m-0 mt-0.5 truncate text-xl font-extrabold tabular-nums text-[#e11d48] dark:text-rose-400">
+              {formatCurrency(summary?.total_borrowing || 0)}
+            </p>
+            <span className="block text-[11px] text-[#64748B] dark:text-slate-400">
+              Tổng số tiền cần trả
             </span>
           </div>
-          <p className="mt-2 text-2xl font-black text-[#e11d48]">
-            {formatCurrency(summary?.total_borrowing || 0)}
-          </p>
-          <span className="text-[11px] text-[#64748B]">Tổng số tiền cần trả</span>
         </div>
 
-        <div className="debt-stat-card border-emerald-200 bg-emerald-50/40">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold uppercase tracking-wider text-emerald-800">Cho vay (Thu hồi)</span>
-            <span className="grid size-8 place-items-center rounded-lg bg-emerald-100 text-[#007F53]">
-              <FinanceIcon name="income" size={16} />
+        <div className="flex items-center gap-4 rounded-2xl border border-emerald-200/80 bg-gradient-to-br from-emerald-50/90 via-white to-emerald-50/40 p-4 shadow-2xs dark:border-emerald-900/50 dark:from-emerald-950/35 dark:via-slate-900 dark:to-emerald-950/20">
+          <span className="grid size-12 shrink-0 place-items-center rounded-full bg-emerald-100 text-[#007F53] dark:bg-emerald-900/60 dark:text-emerald-300">
+            <FinanceIcon name="lending" size={22} />
+          </span>
+          <div className="min-w-0">
+            <span className="block text-xs font-bold text-[#334155] dark:text-emerald-200/90">
+              Cho vay (Thu hồi)
+            </span>
+            <p className="m-0 mt-0.5 truncate text-xl font-extrabold tabular-nums text-[#007F53] dark:text-emerald-400">
+              {formatCurrency(summary?.total_lending || 0)}
+            </p>
+            <span className="block text-[11px] text-[#64748B] dark:text-slate-400">
+              Tổng số tiền sẽ thu về
             </span>
           </div>
-          <p className="mt-2 text-2xl font-black text-[#007F53]">
-            {formatCurrency(summary?.total_lending || 0)}
-          </p>
-          <span className="text-[11px] text-[#64748B]">Tổng số tiền sẽ thu về</span>
         </div>
       </div>
 
-      {/* Control Bar: Filters & Actions */}
-      <div className="debt-filter-bar">
-        <div className="flex flex-wrap items-center gap-2">
+      {/* Control Bar: Filters & Actions (Pinned) */}
+      <div className="flex shrink-0 flex-wrap items-center justify-between gap-3">
+        <div className="flex flex-wrap items-center gap-2.5">
           {/* Tabs Loại nợ */}
-          <div className="flex rounded-xl bg-gray-100 p-1 border border-gray-200 text-xs font-bold">
+          <div className="inline-flex rounded-full border border-[#E2E8F0] bg-white p-1 text-xs font-bold shadow-2xs dark:border-slate-700 dark:bg-slate-900">
             <button
               type="button"
               onClick={() => setActiveTab('ALL')}
-              className={`rounded-lg px-3 py-1.5 transition ${activeTab === 'ALL' ? 'bg-white text-[#007F53] shadow-xs' : 'text-gray-600 hover:text-gray-900'}`}
+              className={`inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 transition ${
+                activeTab === 'ALL'
+                  ? 'bg-[#007F53] text-white shadow-2xs'
+                  : 'text-[#475569] hover:text-[#0F172A] dark:text-slate-300'
+              }`}
             >
-              Tất cả
+              <FinanceIcon name="list" size={13} />
+              <span>Tất cả</span>
             </button>
             <button
               type="button"
               onClick={() => setActiveTab('BORROWING')}
-              className={`rounded-lg px-3 py-1.5 transition ${activeTab === 'BORROWING' ? 'bg-white text-rose-700 shadow-xs' : 'text-gray-600 hover:text-gray-900'}`}
+              className={`inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 transition ${
+                activeTab === 'BORROWING'
+                  ? 'bg-rose-600 text-white shadow-2xs'
+                  : 'text-[#475569] hover:text-rose-600 dark:text-slate-300'
+              }`}
             >
-              Đi vay
+              <FinanceIcon name="arrow-down" size={13} />
+              <span>Đi vay</span>
             </button>
             <button
               type="button"
               onClick={() => setActiveTab('LENDING')}
-              className={`rounded-lg px-3 py-1.5 transition ${activeTab === 'LENDING' ? 'bg-white text-emerald-800 shadow-xs' : 'text-gray-600 hover:text-gray-900'}`}
+              className={`inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 transition ${
+                activeTab === 'LENDING'
+                  ? 'bg-[#007F53] text-white shadow-2xs'
+                  : 'text-[#475569] hover:text-[#007F53] dark:text-slate-300'
+              }`}
             >
-              Cho vay
+              <FinanceIcon name="arrow-up" size={13} />
+              <span>Cho vay</span>
             </button>
           </div>
 
@@ -531,134 +554,167 @@ export function DebtManagementScreen({ onNotify }: Props) {
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value as any)}
-            className="h-9 rounded-xl border border-gray-200 bg-white px-3 text-xs font-semibold text-[#0F172A] outline-none"
+            className="h-9 rounded-full border border-[#E2E8F0] bg-white px-4 text-xs font-semibold text-[#0F172A] shadow-2xs outline-none focus:border-[#007F53] dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
           >
             <option value="ALL">Mọi trạng thái</option>
-            <option value="ACTIVE">Đang thực hiện (Chưa trả hết)</option>
-            <option value="PAID_OFF">Đã hoàn tất (Trả hết)</option>
+            <option value="ACTIVE">Đang trả (Chưa hoàn tất)</option>
+            <option value="PAID_OFF">Đã hoàn tất</option>
           </select>
         </div>
 
         <button
           type="button"
           onClick={() => setIsCreateModalOpen(true)}
-          className="inline-flex h-9 items-center gap-1.5 rounded-xl bg-[#007F53] px-4 text-xs font-bold text-white shadow-sm hover:bg-[#009663] transition active:scale-[0.98]"
+          className="inline-flex h-9 items-center gap-1.5 rounded-full bg-[#007F53] px-4 text-xs font-bold text-white shadow-sm transition hover:bg-[#006341] active:scale-[0.98]"
         >
           <FinanceIcon name="plus" size={14} />
           <span>Thêm khoản nợ mới</span>
         </button>
       </div>
 
-      {/* Main List */}
-      {isLoading ? (
-        <div className="grid place-items-center py-20 text-xs font-semibold text-gray-500">
-          <FinanceIcon name="refresh" size={24} className="animate-spin text-[#007F53] mb-2" />
-          <span>Đang tải dữ liệu công nợ...</span>
-        </div>
-      ) : debts.length === 0 ? (
-        <div className="grid place-items-center py-20 rounded-2xl border border-dashed border-gray-200 bg-white text-center">
-          <span className="grid size-12 place-items-center rounded-2xl bg-emerald-50 text-[#007F53] mb-3">
-            <FinanceIcon name="wallet" size={24} />
-          </span>
-          <h3 className="text-sm font-bold text-[#0F172A]">Chưa có khoản nợ nào</h3>
-          <p className="mt-1 text-xs text-[#64748B] max-w-sm">
-            Ghi chép lại các khoản bạn đi vay hoặc cho vay, chia theo từng tháng/tuần và tự động nhắc nhở trả nợ đúng hẹn.
-          </p>
-          <button
-            type="button"
-            onClick={() => setIsCreateModalOpen(true)}
-            className="mt-4 rounded-xl bg-[#007F53] px-4 py-2 text-xs font-bold text-white shadow-sm"
-          >
-            + Tạo khoản nợ đầu tiên
-          </button>
-        </div>
-      ) : (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {debts.map((item) => {
-            const isBorrowing = item.debt_type === 'BORROWING';
-            const partnerName = isBorrowing ? item.creditor_name || 'Người cho vay' : item.debtor_name || 'Người vay';
-            const isPaid = item.status === 'PAID_OFF' || item.status === 'PAID' || item.remaining <= 0;
-
-            return (
-              <div
-                key={item.id}
-                onClick={() => handleOpenDetail(item.id)}
-                className="group relative cursor-pointer flex flex-col justify-between rounded-2xl border border-[#E2E8F0] bg-white p-5 shadow-xs hover:shadow-md hover:border-[#007F53]/40 transition"
+      {/* Main Scrollable List Card */}
+      <div className="flex flex-1 flex-col rounded-3xl border border-[#E2E8F0] bg-white shadow-xs dark:border-slate-800 dark:bg-slate-900 lg:min-h-0 lg:overflow-hidden">
+        {isLoading ? (
+          <div className="grid flex-1 place-items-center py-20 text-xs font-semibold text-gray-500">
+            <div className="flex flex-col items-center">
+              <FinanceIcon name="refresh" size={24} className="mb-2 animate-spin text-[#007F53]" />
+              <span>Đang tải dữ liệu công nợ...</span>
+            </div>
+          </div>
+        ) : debts.length === 0 ? (
+          <div className="grid flex-1 place-items-center p-10 text-center">
+            <div className="flex flex-col items-center">
+              <span className="mb-3 grid size-12 place-items-center rounded-2xl bg-emerald-50 text-[#007F53] dark:bg-emerald-950/60 dark:text-emerald-400">
+                <FinanceIcon name="wallet" size={24} />
+              </span>
+              <h3 className="m-0 text-sm font-bold text-[#0F172A] dark:text-slate-100">Chưa có khoản nợ nào</h3>
+              <p className="mt-1 max-w-sm text-xs text-[#64748B] dark:text-slate-400">
+                Ghi chép lại các khoản bạn đi vay hoặc cho vay, chia theo từng tháng/tuần và tự động nhắc nhở trả nợ đúng hẹn.
+              </p>
+              <button
+                type="button"
+                onClick={() => setIsCreateModalOpen(true)}
+                className="mt-4 rounded-xl bg-[#007F53] px-4 py-2 text-xs font-bold text-white shadow-sm"
               >
-                <div>
-                  <div className="flex items-start justify-between gap-2 pb-3 border-b border-gray-100">
-                    <div className="flex items-center gap-2.5 min-w-0">
-                      <span className={`debt-type-badge-icon ${isBorrowing ? 'borrowing' : 'lending'}`}>
-                        <FinanceIcon name={isBorrowing ? 'borrowing' : 'lending'} size={15} />
-                      </span>
-                      <div className="min-w-0">
-                        <span className={`debt-type-label ${isBorrowing ? 'borrowing' : 'lending'}`}>
+                + Tạo khoản nợ đầu tiên
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div className="debt-pane-scroll flex-1 space-y-2.5 p-3 sm:p-4 lg:min-h-0 lg:overflow-y-auto">
+            {debts.map((item) => {
+              const isBorrowing = item.debt_type === 'BORROWING';
+              const partnerName = isBorrowing ? item.creditor_name || 'Người cho vay' : item.debtor_name || 'Người vay';
+              const isPaid = item.status === 'PAID_OFF' || item.status === 'PAID' || item.remaining <= 0;
+              const pct = Math.min(100, Math.max(0, Math.round(item.percentage_paid || 0)));
+              const dueLabel =
+                item.payment_frequency && item.payment_frequency !== 'ONE_TIME'
+                  ? `Kỳ tới: ${formatDate(item.next_payment_date || item.due_date, 'Không có')}`
+                  : `Hạn trả: ${formatDate(item.due_date, 'Không có')}`;
+
+              return (
+                <div
+                  key={item.id}
+                  onClick={() => handleOpenDetail(item.id)}
+                  className="group grid cursor-pointer grid-cols-1 items-center gap-3 rounded-2xl border border-[#E2E8F0]/90 bg-white px-4 py-3 transition hover:border-[#007F53]/40 hover:bg-slate-50/70 dark:border-slate-800 dark:bg-slate-900/80 dark:hover:bg-slate-800/60 lg:grid-cols-[minmax(220px,1.7fr)_minmax(105px,0.9fr)_minmax(105px,0.9fr)_minmax(170px,1.5fr)_auto_auto] lg:gap-4"
+                >
+                  {/* Col 1: Icon + Type Badge + Name + Due Date */}
+                  <div className="flex min-w-0 items-center gap-3">
+                    <span className={`debt-type-badge-icon ${isBorrowing ? 'borrowing' : 'lending'}`}>
+                      <FinanceIcon name={isBorrowing ? 'borrowing' : 'lending'} size={16} />
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2">
+                        <span
+                          className={`shrink-0 rounded-full px-2 py-0.5 text-[10.5px] font-bold ${
+                            isBorrowing
+                              ? 'bg-rose-50 text-[#e11d48] dark:bg-rose-950/60 dark:text-rose-300'
+                              : 'bg-emerald-50 text-[#007F53] dark:bg-emerald-950/60 dark:text-emerald-300'
+                          }`}
+                        >
                           {isBorrowing ? 'Đi vay' : 'Cho vay'}
                         </span>
-                        <h4 className="truncate text-sm font-bold text-[#0F172A]">{partnerName}</h4>
+                        <h4 className="m-0 truncate text-[13.5px] font-bold text-[#0F172A] dark:text-slate-100">
+                          {partnerName}
+                        </h4>
+                      </div>
+                      <div className="mt-1 flex items-center gap-1 text-[11px] text-[#64748B] dark:text-slate-400">
+                        <FinanceIcon name="calendar" size={11} className="shrink-0 opacity-75" />
+                        <span className="truncate">{dueLabel}</span>
                       </div>
                     </div>
+                  </div>
 
-                    <span className={`shrink-0 rounded-lg px-2.5 py-0.75 text-[10.5px] font-bold border transition ${isPaid
-                      ? 'bg-emerald-50 text-emerald-700 border-emerald-200/60 dark:bg-emerald-950/60 dark:text-emerald-300 dark:border-emerald-800/60'
-                      : 'bg-amber-50 text-amber-700 border-amber-200/60 dark:bg-amber-950/60 dark:text-amber-300 dark:border-amber-800/60'
-                      }`}>
-                      {isPaid ? 'Đã hoàn tất' : 'Đang nợ'}
+                  {/* Col 2: Tổng nợ */}
+                  <div className="flex items-center justify-between lg:block">
+                    <span className="block text-[11px] font-medium text-[#64748B] dark:text-slate-400">Tổng nợ</span>
+                    <strong className="mt-0.5 block text-[13px] font-extrabold tabular-nums text-[#0F172A] dark:text-slate-100">
+                      {formatCurrency(item.principal_amount)}
+                    </strong>
+                  </div>
+
+                  {/* Col 3: Còn lại */}
+                  <div className="flex items-center justify-between lg:block">
+                    <span className="block text-[11px] font-medium text-[#64748B] dark:text-slate-400">Còn lại</span>
+                    <strong
+                      className={`mt-0.5 block text-[13px] font-extrabold tabular-nums ${
+                        isPaid
+                          ? 'text-[#007F53] dark:text-emerald-400'
+                          : isBorrowing
+                            ? 'text-[#e11d48] dark:text-rose-400'
+                            : 'text-[#007F53] dark:text-emerald-400'
+                      }`}
+                    >
+                      {formatCurrency(item.remaining)}
+                    </strong>
+                  </div>
+
+                  {/* Col 4: Tiến độ trả */}
+                  <div className="min-w-0">
+                    <span className="mb-1 block text-[11px] font-medium text-[#64748B] dark:text-slate-400">
+                      Tiến độ trả
                     </span>
+                    <div className="flex items-center gap-2.5">
+                      <div className="flex-1">
+                        <ProgressBar percent={pct} colorClass={isBorrowing ? 'borrowing' : 'lending'} />
+                      </div>
+                      <span className="w-9 shrink-0 text-right text-xs font-extrabold tabular-nums text-[#0F172A] dark:text-slate-100">
+                        {pct}%
+                      </span>
+                    </div>
                   </div>
 
-                  <div className="mt-3.5 space-y-2">
-                    <div className="flex justify-between text-xs">
-                      <span className="debt-field-label">Tổng nợ:</span>
-                      <strong className="debt-field-value">{formatCurrency(item.principal_amount)}</strong>
-                    </div>
+                  {/* Col 5: Status Pill */}
+                  <div className="flex items-center justify-between gap-2 lg:contents">
+                    <span
+                      className={`inline-flex shrink-0 items-center justify-center rounded-xl border px-3 py-1.5 text-[11px] font-bold ${
+                        isPaid
+                          ? 'border-emerald-200/70 bg-emerald-50 text-[#007F53] dark:border-emerald-800/60 dark:bg-emerald-950/50 dark:text-emerald-300'
+                          : 'border-amber-200/70 bg-amber-50 text-amber-700 dark:border-amber-800/60 dark:bg-amber-950/50 dark:text-amber-300'
+                      }`}
+                    >
+                      {isPaid ? 'Đã hoàn tất' : 'Đang trả'}
+                    </span>
 
-                    <div className="flex justify-between text-xs">
-                      <span className="debt-field-label">Còn lại cần thanh toán:</span>
-                      <strong className={`debt-amount-highlight ${isBorrowing ? 'borrowing' : 'lending'}`}>
-                        {formatCurrency(item.remaining)}
-                      </strong>
-                    </div>
-
-                    {item.next_payment_amount && item.next_payment_amount > 0 && !isPaid ? (
-                      <div className="flex justify-between text-xs rounded-lg bg-emerald-50/50 p-1.5 border border-emerald-100">
-                        <span className="text-emerald-800 font-medium">Kỳ tới cần trả:</span>
-                        <strong className="text-emerald-800 font-bold">{formatCurrency(item.next_payment_amount)}</strong>
-                      </div>
-                    ) : null}
-
-                    <div className="mt-2">
-                      <div className="flex justify-between text-[11px] mb-1">
-                        <span className="debt-field-label">Tiến độ trả:</span>
-                        <span className="debt-field-value font-bold">{item.percentage_paid || 0}%</span>
-                      </div>
-                      <ProgressBar
-                        percent={item.percentage_paid || 0}
-                        colorClass={isBorrowing ? 'borrowing' : 'lending'}
-                      />
-                    </div>
+                    {/* Col 6: Chi tiết button */}
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleOpenDetail(item.id);
+                      }}
+                      className="inline-flex h-8 shrink-0 items-center gap-1 rounded-full border border-[#CBD5E1] bg-white px-3.5 text-[11.5px] font-bold text-[#007F53] transition hover:border-[#007F53] hover:bg-emerald-50/60 dark:border-slate-700 dark:bg-slate-800 dark:text-emerald-400 dark:hover:bg-slate-700"
+                    >
+                      <span>Chi tiết</span>
+                      <span>→</span>
+                    </button>
                   </div>
                 </div>
-
-                <div className="debt-card-footer">
-                  <span className="debt-card-footer-due">
-                    {item.payment_frequency && item.payment_frequency !== 'ONE_TIME' ? (
-                      <>
-                        Kỳ tới: <strong>{formatDate(item.next_payment_date || item.due_date, 'Không có')}</strong>
-                      </>
-                    ) : (
-                      <>
-                        Hạn trả: <strong>{formatDate(item.due_date, 'Không có')}</strong>
-                      </>
-                    )}
-                  </span>
-                  <span className="debt-card-footer-action">Chi tiết →</span>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      )}
+              );
+            })}
+          </div>
+        )}
+      </div>
 
       {/* MODAL TẠO KHOẢN NỢ MỚI */}
       {isCreateModalOpen && (

@@ -348,6 +348,26 @@ html.dark .desktop-sidebar-toggle:hover {
   transition: margin-left 0.25s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
+@media (min-width: 1024px) {
+  .main-shell.viewport-locked {
+    height: 100dvh;
+    min-height: 0;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .main-shell.viewport-locked > .topbar {
+    flex-shrink: 0;
+  }
+
+  .main-shell.viewport-locked > :not(.topbar) {
+    flex: 1 1 0%;
+    min-height: 0;
+    height: 100% !important;
+  }
+}
+
 .topbar {
   position: sticky;
   z-index: 30;

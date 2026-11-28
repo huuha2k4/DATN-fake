@@ -30,11 +30,13 @@ public class CreateExpenseRequest {
     @NotBlank(message = "Nguồn tiền không được để trống")
     private String paymentSource;
 
+    /** MEMBER_SPLIT, FUND_EXPENSE, FUND_REIMBURSEMENT, or VOLUNTARY_SPEND. */
+    private String financialPurpose;
+
     private UUID sourceAccountId;
 
     private UUID categoryId;
 
-    @NotBlank(message = "Phương thức chia không được để trống")
     private String splitMethod; // EQUAL, PERCENTAGE, EXACT, SHARES
 
     @NotNull(message = "Ngày chi phí không được để trống")
@@ -47,7 +49,6 @@ public class CreateExpenseRequest {
     private LocationDto location;
 
     @Valid
-    @NotEmpty(message = "Danh sách phân chia không được để trống")
     private List<ExpenseSplitDto> splits;
 
     @Data

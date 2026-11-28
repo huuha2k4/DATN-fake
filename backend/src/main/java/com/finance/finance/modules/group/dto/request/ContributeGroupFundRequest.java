@@ -8,7 +8,10 @@ import java.util.UUID;
 
 @Data
 public class ContributeGroupFundRequest {
-    @NotNull private UUID sourceAccountId;
+    private UUID sourceAccountId;
+    private UUID periodId;
+    @Pattern(regexp = "MANAGED_ACCOUNT|EXTERNAL_TRANSFER|CASH|OTHER")
+    private String sourceType = "MANAGED_ACCOUNT";
     @NotNull @DecimalMin("0.01") private BigDecimal amount;
     @NotNull private LocalDate contributedAt;
     @Size(max = 1000) private String note;

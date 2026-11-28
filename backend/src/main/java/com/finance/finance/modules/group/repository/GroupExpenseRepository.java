@@ -16,6 +16,12 @@ import java.util.UUID;
 
 @Repository
 public interface GroupExpenseRepository extends JpaRepository<GroupExpense, UUID> {
+    @Query("""
+            select e.paidByUserId, sum(e.amount) from GroupExpense e where e.groupId = :groupId
+                and e.deletedAt is null and e.financialPurpose = 'MEMBER_SPLIT' and e.paymentSource = 'PERSONAL_ACCOUNT'
+            group by e.paidByUserId
+            """)
+    List<Object[]> sumMemberPayments(@Param("groupId") UUID groupId);
     
     @Query("SELECT ge FROM GroupExpense ge WHERE ge.id = :id AND ge.deletedAt IS NULL")
     Optional<GroupExpense> findByIdAndNotDeleted(@Param("id") UUID id);

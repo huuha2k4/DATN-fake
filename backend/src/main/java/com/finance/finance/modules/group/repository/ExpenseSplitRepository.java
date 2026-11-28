@@ -20,9 +20,26 @@ public interface ExpenseSplitRepository extends JpaRepository<ExpenseSplit, UUID
     List<ExpenseSplit> findByExpenseIdIn(@Param("expenseIds") List<UUID> expenseIds);
     
     @Query("SELECT SUM(es.amount) FROM ExpenseSplit es " +
-           "WHERE es.expenseId IN (SELECT ge.id FROM GroupExpense ge WHERE ge.groupId = :groupId) " +
+           "WHERE es.expenseId IN (SELECT ge.id FROM GroupExpense ge WHERE ge.groupId = :groupId " +
+           "AND ge.deletedAt IS NULL AND ge.financialPurpose = 'MEMBER_SPLIT') " +
            "AND es.userId = :userId")
     BigDecimal sumByGroupIdAndUserId(@Param("groupId") UUID groupId, @Param("userId") UUID userId);
+
+    @Query("""
+            select s.userId, sum(s.amount) from ExpenseSplit s join GroupExpense e on e.id = s.expenseId
+            where e.groupId = :groupId and e.deletedAt is null and e.financialPurpose = 'MEMBER_SPLIT'
+            group by s.userId
+            """)
+    List<Object[]> sumMemberSplits(@Param("groupId") UUID groupId);
+
+    @Query("""
+            select s.userId, e.paidByUserId, sum(s.amount)
+            from ExpenseSplit s join GroupExpense e on e.id = s.expenseId
+            where e.groupId = :groupId and e.deletedAt is null and e.financialPurpose = 'MEMBER_SPLIT'
+              and s.userId <> e.paidByUserId
+            group by s.userId, e.paidByUserId
+            """)
+    List<Object[]> sumMemberDebts(@Param("groupId") UUID groupId);
     
     @Modifying
     @Query("DELETE FROM ExpenseSplit es WHERE es.expenseId = :expenseId")

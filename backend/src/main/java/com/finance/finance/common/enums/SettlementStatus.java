@@ -17,5 +17,7 @@ public enum SettlementStatus {
     /**
      * Đã từ chối
      */
-    REJECTED
+    REJECTED,
+
+    CANCELLED
 }

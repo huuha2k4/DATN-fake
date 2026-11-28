@@ -4,6 +4,7 @@ import { subscribeFinAiActionCompleted } from '../../core/utils/finaiSyncEvents'
 import { subscribeQueryRevalidated } from '../../core/utils/queryCache';
 import { accountApi, type AccountItem, type AccountSummary } from '../../account-management/api/accountApi';
 import { transactionApi, type TransactionItem } from '../../cash-flow-management/api/transactionApi';
+import { reportApi } from '../../financial-reports/api/reportApi';
 import { budgetApi, type BudgetResponse } from '../../budget-management/api/budgetApi';
 import { debtApi, type DebtListSummary } from '../../debt-management/api/debtApi';
 import { groupApi } from '../../group/api/groupApi';
@@ -58,10 +59,9 @@ export function DashboardScreen({ onNotify, onAddTransaction }: Props) {
   const [currentBudget, setCurrentBudget] = useState<BudgetResponse | null>(null);
   const [, setDebtSummary] = useState<DebtListSummary | null>(null);
   const [isBalanceHidden, setIsBalanceHidden] = useState(false);
-  const [prevMonthBalance, setPrevMonthBalance] = useState<number | null>(null);
 
   // Tính ngày bắt đầu và kết thúc của tháng hiện tại và tháng trước liền kề
-  const { fromDate, toDate, prevFromDate, prevToDate, yearNum, monthNum, prevMonthNum } = useMemo(() => {
+  const { fromDate, toDate, yearNum, monthNum, prevMonthNum } = useMemo(() => {
     const [yStr, mStr] = currentMonthKey.split('-');
     const y = parseInt(yStr, 10);
     const m = parseInt(mStr, 10);
@@ -71,13 +71,10 @@ export function DashboardScreen({ onNotify, onAddTransaction }: Props) {
     const prevDateObj = new Date(y, m - 2, 1);
     const prevY = prevDateObj.getFullYear();
     const prevM = prevDateObj.getMonth() + 1;
-    const prevLastDay = new Date(prevY, prevM, 0).getDate();
 
     return {
       fromDate: `${yStr}-${mStr}-01`,
       toDate: `${yStr}-${mStr}-${String(lastDay).padStart(2, '0')}`,
-      prevFromDate: `${prevY}-${String(prevM).padStart(2, '0')}-01`,
-      prevToDate: `${prevY}-${String(prevM).padStart(2, '0')}-${String(prevLastDay).padStart(2, '0')}`,
       yearNum: y,
       monthNum: m,
       prevMonthNum: prevM,
@@ -147,20 +144,13 @@ export function DashboardScreen({ onNotify, onAddTransaction }: Props) {
         });
         // Giao dịch thuộc tháng hiện tại (currentMonthKey)
         const currentMonthTxs = childTransactions.filter((item) => item.transactionDate.startsWith(currentMonthKey));
-        const prevMonthTxs = childTransactions.filter((item) => {
-          const prevKey = `${yearNum}-${String(prevMonthNum).padStart(2, '0')}`;
-          return item.transactionDate.startsWith(prevKey);
-        });
 
         const totalIncome = currentMonthTxs.filter((item) => item.transactionType === 'INCOME').reduce((sum, item) => sum + item.amount, 0);
         const totalExpense = currentMonthTxs.filter((item) => item.transactionType === 'EXPENSE').reduce((sum, item) => sum + item.amount, 0);
 
-        const prevIncome = prevMonthTxs.filter((item) => item.transactionType === 'INCOME').reduce((sum, item) => sum + item.amount, 0);
-        const prevExpense = prevMonthTxs.filter((item) => item.transactionType === 'EXPENSE').reduce((sum, item) => sum + item.amount, 0);
 
         setTransactions(currentMonthTxs);
         setMonthSummary({ totalIncome, totalExpense, netCashFlow: totalIncome - totalExpense, transactionCount: currentMonthTxs.length });
-        setPrevMonthBalance(prevIncome - prevExpense);
         setCurrentBudget(null);
         return;
       }
@@ -169,7 +159,7 @@ export function DashboardScreen({ onNotify, onAddTransaction }: Props) {
         accListRes,
         accSummaryRes,
         txListRes,
-        prevTxRes,
+        reportRes,
         budgetRes,
         debtRes,
       ] = await Promise.allSettled([
@@ -183,12 +173,7 @@ export function DashboardScreen({ onNotify, onAddTransaction }: Props) {
           sortBy: 'transaction_date',
           sortOrder: 'desc',
         }),
-        transactionApi.getTransactions({
-          fromDate: prevFromDate,
-          toDate: prevToDate,
-          page: 1,
-          pageSize: 10,
-        }),
+        reportApi.getSummary({ fromDate, toDate }),
         budgetApi.getBudgets({ year: yearNum, month: monthNum }),
         debtApi.getDebts(),
       ]);
@@ -201,39 +186,14 @@ export function DashboardScreen({ onNotify, onAddTransaction }: Props) {
       }
 
       if (txListRes.status === 'fulfilled') {
-        const txData = txListRes.value;
-        const list = txData.transactions || [];
-        setTransactions(list);
-
-        if (txData.summary) {
-          setMonthSummary(txData.summary);
-        } else {
-          const income = list
-            .filter((t) => t.transactionType === 'INCOME')
-            .reduce((s, t) => s + (t.amount || 0), 0);
-          const expense = list
-            .filter((t) => t.transactionType === 'EXPENSE')
-            .reduce((s, t) => s + (t.amount || 0), 0);
-          setMonthSummary({
-            totalIncome: income,
-            totalExpense: expense,
-            netCashFlow: income - expense,
-            transactionCount: list.length,
-          });
-        }
+        setTransactions(txListRes.value.transactions || []);
       }
-
-      if (prevTxRes.status === 'fulfilled') {
-        const prevTxData = prevTxRes.value;
-        if (prevTxData.summary) {
-          // Lưu lại dòng tiền tháng trước
-          setPrevMonthBalance(prevTxData.summary.netCashFlow);
-        } else {
-          const prevList = prevTxData.transactions || [];
-          const pInc = prevList.filter((t) => t.transactionType === 'INCOME').reduce((s, t) => s + (t.amount || 0), 0);
-          const pExp = prevList.filter((t) => t.transactionType === 'EXPENSE').reduce((s, t) => s + (t.amount || 0), 0);
-          setPrevMonthBalance(pInc - pExp);
-        }
+      if (reportRes.status === 'fulfilled') {
+        const { totalIncome, totalExpense, transactionCount, walletNetCashFlow } = reportRes.value.summary;
+        const walletNetFromLedger = txListRes.status === 'fulfilled' ? txListRes.value.summary?.netCashFlow : undefined;
+        setMonthSummary({ totalIncome, totalExpense, transactionCount, netCashFlow: walletNetCashFlow ?? walletNetFromLedger ?? 0 });
+      } else {
+        onNotify('Không thể tải số liệu thu chi tháng');
       }
 
       if (budgetRes.status === 'fulfilled') {

@@ -75,7 +75,7 @@ public class TransactionService {
     private final com.finance.finance.modules.debt.repository.DebtRepository debtRepository;
     private final com.finance.finance.modules.group.repository.GroupExpenseRepository groupExpenseRepository;
     private final com.finance.finance.modules.group.repository.GroupFundContributionRepository groupFundContributionRepository;
-    private final com.finance.finance.modules.group.repository.GroupFundRepository groupFundRepository;
+    private final com.finance.finance.modules.group.repository.FundReimbursementPaymentRepository groupReimbursementPayments;
     private final com.finance.finance.modules.group.repository.GroupSettlementRepository groupSettlementRepository;
     private final com.finance.finance.modules.schedule.repository.ScheduleOccurrenceRepository scheduleOccurrenceRepository;
     
@@ -308,11 +308,21 @@ public class TransactionService {
      */
     @Transactional
     public TransactionResponse updateTransaction(UUID userId, UUID transactionId, UpdateTransactionRequest request) {
+        return updateTransaction(userId, transactionId, request, false);
+    }
+
+    @Transactional
+    public TransactionResponse updateGroupExpenseTransaction(UUID userId, UUID transactionId, UpdateTransactionRequest request) {
+        return updateTransaction(userId, transactionId, request, true);
+    }
+
+    private TransactionResponse updateTransaction(UUID userId, UUID transactionId, UpdateTransactionRequest request, boolean groupExpense) {
         log.info("Updating transaction: {}, user: {}", transactionId, userId);
         
         // Find transaction
         Transaction transaction = transactionRepository.findByIdAndUserId(transactionId, userId)
                 .orElseThrow(() -> new TransactionNotFoundException("Transaction not found: " + transactionId));
+        if (!groupExpense) requireStandaloneTransaction(transactionId);
         
         // Check version for optimistic locking if provided
         if (request.getVersion() != null && !transaction.getVersion().equals(request.getVersion())) {
@@ -363,9 +373,6 @@ public class TransactionService {
             // Sync Debt Payment if this transaction was linked to a debt repayment or collection
             syncLinkedDebtOnUpdate(updated);
 
-            // Sync Group entities (expense, fund, settlement)
-            syncLinkedGroupOnUpdate(updated);
-
             // Sync Schedule occurrence if linked
             syncLinkedScheduleOnUpdate(updated);
             
@@ -396,11 +403,21 @@ public class TransactionService {
      */
     @Transactional
     public void deleteTransaction(UUID userId, UUID transactionId, Long version) {
+        deleteTransaction(userId, transactionId, version, false);
+    }
+
+    @Transactional
+    public void deleteGroupExpenseTransaction(UUID userId, UUID transactionId) {
+        deleteTransaction(userId, transactionId, null, true);
+    }
+
+    private void deleteTransaction(UUID userId, UUID transactionId, Long version, boolean groupExpense) {
         log.info("Deleting transaction: {}, user: {}", transactionId, userId);
         
         // Find transaction
         Transaction transaction = transactionRepository.findByIdAndUserId(transactionId, userId)
                 .orElseThrow(() -> new TransactionNotFoundException("Transaction not found: " + transactionId));
+        if (!groupExpense) requireStandaloneTransaction(transactionId);
         
         // Check version
         if (version != null && !transaction.getVersion().equals(version)) {
@@ -423,9 +440,6 @@ public class TransactionService {
 
         // Sync Debt Payment if linked
         syncLinkedDebtOnDelete(transaction);
-
-        // Sync Group entities on transaction delete
-        syncLinkedGroupOnDelete(transaction);
 
         // Sync Schedule occurrence on transaction delete
         syncLinkedScheduleOnDelete(transaction);
@@ -764,84 +778,13 @@ public class TransactionService {
         });
     }
 
-    private void syncLinkedGroupOnUpdate(Transaction tx) {
-        // 1. Group expense
-        groupExpenseRepository.findByPersonalTransactionId(tx.getId()).ifPresent(expense -> {
-            if (tx.getAmount() != null) {
-                expense.setAmount(tx.getAmount());
-            }
-            if (tx.getDescriptionRaw() != null && !tx.getDescriptionRaw().isBlank()) {
-                expense.setDescription(tx.getDescriptionRaw());
-            }
-            if (tx.getOccurredDate() != null) {
-                expense.setExpenseDate(tx.getOccurredDate());
-            }
-            if (tx.getAccountId() != null) {
-                expense.setSourceAccountId(tx.getAccountId());
-            }
-            groupExpenseRepository.save(expense);
-            log.info("Synced GroupExpense {} after Transaction {} update", expense.getId(), tx.getId());
-        });
-
-        // 2. Group fund contribution
-        groupFundContributionRepository.findByPersonalTransactionId(tx.getId()).ifPresent(contrib -> {
-            BigDecimal oldAmount = contrib.getAmount() != null ? contrib.getAmount() : BigDecimal.ZERO;
-            BigDecimal newAmount = tx.getAmount() != null ? tx.getAmount() : BigDecimal.ZERO;
-            contrib.setAmount(newAmount);
-            if (tx.getOccurredDate() != null) {
-                contrib.setContributedAt(tx.getOccurredDate());
-            }
-            groupFundContributionRepository.save(contrib);
-
-            if (contrib.getFundId() != null) {
-                groupFundRepository.findById(contrib.getFundId()).ifPresent(fund -> {
-                    BigDecimal curBalance = fund.getBalance() != null ? fund.getBalance() : BigDecimal.ZERO;
-                    BigDecimal newBalance = curBalance.subtract(oldAmount).add(newAmount);
-                    fund.setBalance(newBalance.compareTo(BigDecimal.ZERO) < 0 ? BigDecimal.ZERO : newBalance);
-                    groupFundRepository.save(fund);
-                });
-            }
-            log.info("Synced GroupFundContribution {} after Transaction {} update", contrib.getId(), tx.getId());
-        });
-
-        // 3. Group settlement
-        groupSettlementRepository.findByOutgoingTransactionIdOrIncomingTransactionId(tx.getId(), tx.getId()).ifPresent(st -> {
-            if (tx.getAmount() != null) {
-                st.setAmount(tx.getAmount());
-                groupSettlementRepository.save(st);
-            }
-            log.info("Synced GroupSettlement {} after Transaction {} update", st.getId(), tx.getId());
-        });
-    }
-
-    private void syncLinkedGroupOnDelete(Transaction tx) {
-        groupExpenseRepository.findByPersonalTransactionId(tx.getId()).ifPresent(expense -> {
-            expense.setPersonalTransactionId(null);
-            groupExpenseRepository.save(expense);
-        });
-
-        groupFundContributionRepository.findByPersonalTransactionId(tx.getId()).ifPresent(contrib -> {
-            BigDecimal amount = contrib.getAmount() != null ? contrib.getAmount() : BigDecimal.ZERO;
-            if (contrib.getFundId() != null) {
-                groupFundRepository.findById(contrib.getFundId()).ifPresent(fund -> {
-                    BigDecimal curBalance = fund.getBalance() != null ? fund.getBalance() : BigDecimal.ZERO;
-                    BigDecimal newBalance = curBalance.subtract(amount);
-                    fund.setBalance(newBalance.compareTo(BigDecimal.ZERO) < 0 ? BigDecimal.ZERO : newBalance);
-                    groupFundRepository.save(fund);
-                });
-            }
-            groupFundContributionRepository.delete(contrib);
-        });
-
-        groupSettlementRepository.findByOutgoingTransactionIdOrIncomingTransactionId(tx.getId(), tx.getId()).ifPresent(st -> {
-            if (tx.getId().equals(st.getOutgoingTransactionId())) {
-                st.setOutgoingTransactionId(null);
-            }
-            if (tx.getId().equals(st.getIncomingTransactionId())) {
-                st.setIncomingTransactionId(null);
-            }
-            groupSettlementRepository.save(st);
-        });
+    private void requireStandaloneTransaction(UUID id) {
+        if (groupExpenseRepository.findByPersonalTransactionId(id).isPresent()
+                || groupFundContributionRepository.findByPersonalTransactionId(id).isPresent()
+                || groupSettlementRepository.findByOutgoingTransactionIdOrIncomingTransactionId(id, id).isPresent()
+                || groupReimbursementPayments.existsByPersonalTransactionId(id)) {
+            throw new IllegalStateException("Hãy xử lý giao dịch liên kết trong màn hình tài chính nhóm");
+        }
     }
 
     private void syncLinkedScheduleOnUpdate(Transaction tx) {
@@ -987,7 +930,7 @@ public class TransactionService {
         BigDecimal totalIncome = BigDecimal.ZERO;
         BigDecimal totalExpense = BigDecimal.ZERO;
         Long transactionCount = 0L;
-        Object raw = transactionRepository.getSummary(userId, fromDate, toDate, accountId, false);
+        Object raw = transactionRepository.getRecognizedSummary(userId, fromDate, toDate, accountId);
         Object[] summaryData = null;
         if (raw instanceof Object[] arr) {
             if (arr.length > 0 && arr[0] instanceof Object[] nested) {
@@ -1004,37 +947,43 @@ public class TransactionService {
         
         // Calculate net cash flow
         BigDecimal netCashFlow = totalIncome.subtract(totalExpense);
+        Object[] walletTotals = transactionRepository.getSummary(userId, fromDate, toDate, accountId, null);
+        if (walletTotals != null && walletTotals.length > 0 && walletTotals[0] instanceof Object[] nested) walletTotals = nested;
+        BigDecimal walletIn = walletTotals != null && walletTotals.length >= 2 ? toBigDecimal(walletTotals[0]) : BigDecimal.ZERO;
+        BigDecimal walletOut = walletTotals != null && walletTotals.length >= 2 ? toBigDecimal(walletTotals[1]) : BigDecimal.ZERO;
         
         // Calculate average daily expense
         long days = java.time.temporal.ChronoUnit.DAYS.between(fromDate, toDate) + 1;
         BigDecimal averageDailyExpense = days > 0 ? totalExpense.divide(BigDecimal.valueOf(days), 2, RoundingMode.HALF_UP) : BigDecimal.ZERO;
         
         // Get largest expense
-        List<Transaction> largestExpenses = transactionRepository.findLargestExpenses(
-                userId, fromDate, toDate, accountId, PageRequest.of(0, 1));
+        List<Object[]> largestExpenses = transactionRepository.getLargestRecognizedCost(userId, fromDate, toDate, accountId);
         TransactionSummaryResponse.LargestExpenseDto largestExpense = null;
         if (!largestExpenses.isEmpty()) {
-            Transaction largest = largestExpenses.get(0);
+            Object[] largest = largestExpenses.get(0);
             largestExpense = TransactionSummaryResponse.LargestExpenseDto.builder()
-                    .amount(largest.getAmount())
-                    .description(largest.getDescriptionRaw())
-                    .date(largest.getOccurredDate())
+                    .amount(toBigDecimal(largest[0]))
+                    .description((String) largest[1])
+                    .date(LocalDate.parse(largest[2].toString()))
                     .build();
         }
         
         // Get most frequent category
-        List<Object[]> frequentCategories = transactionRepository.getMostFrequentCategories(
-                userId, fromDate, toDate, PageRequest.of(0, 1));
+        List<Object[]> categoryData = transactionRepository.getRecognizedCategories(userId, fromDate, toDate, accountId);
+        var topCategory = categoryData.stream().max(java.util.Comparator.comparingLong(row -> ((Number) row[2]).longValue()));
         TransactionSummaryResponse.MostFrequentCategoryDto mostFrequentCategory = null;
-        if (!frequentCategories.isEmpty()) {
-            Object[] categoryData = frequentCategories.get(0);
-            UUID catId = (UUID) categoryData[0];
-            String catName = catId != null ? categoryRepository.findById(catId).map(Category::getName).orElse("") : "";
+        // Resolve the top category from the same batch as the category breakdown.
+        var categoryIds = categoryData.stream().map(row -> (UUID) row[0]).filter(Objects::nonNull).collect(Collectors.toSet());
+        Map<UUID, String> categoryNameMap = categoryIds.isEmpty() ? Map.of() :
+                categoryRepository.findAllById(categoryIds).stream().collect(Collectors.toMap(Category::getId, Category::getName));
+        if (topCategory.isPresent()) {
+            Object[] row = topCategory.get();
+            UUID catId = (UUID) row[0];
             mostFrequentCategory = TransactionSummaryResponse.MostFrequentCategoryDto.builder()
                     .id(catId)
-                    .name(catName)
-                    .count(((Long) categoryData[1]).intValue())
-                    .totalAmount(BigDecimal.ZERO)
+                    .name(categoryNameMap.getOrDefault(catId, ""))
+                    .count(((Number) row[2]).intValue())
+                    .totalAmount(toBigDecimal(row[1]))
                     .build();
         }
         
@@ -1043,6 +992,9 @@ public class TransactionService {
                 .totalIncome(totalIncome)
                 .totalExpense(totalExpense)
                 .netCashFlow(netCashFlow)
+                .walletCashIn(walletIn)
+                .walletCashOut(walletOut)
+                .walletNetCashFlow(walletIn.subtract(walletOut))
                 .averageDailyExpense(averageDailyExpense)
                 .transactionCount(transactionCount.intValue())
                 .largestExpense(largestExpense)
@@ -1050,8 +1002,6 @@ public class TransactionService {
                 .build();
         
         // Get by category
-        List<Object[]> categoryData = transactionRepository.groupByCategory(
-                userId, TransactionType.EXPENSE, fromDate, toDate, accountId, false);
         
         // Tính tổng thực tế của các danh mục để tỷ lệ phần trăm cộng lại luôn chuẩn 100%
         BigDecimal sumCategoryAmount = categoryData.stream()
@@ -1061,16 +1011,6 @@ public class TransactionService {
                 ? sumCategoryAmount
                 : (totalExpense != null ? totalExpense : BigDecimal.ZERO);
         
-        // Batch fetch category names in 1 query (fix N+1 query in summary)
-        Set<UUID> categoryIds = categoryData.stream()
-                .map(data -> (UUID) data[0])
-                .filter(java.util.Objects::nonNull)
-                .collect(Collectors.toSet());
-        Map<UUID, String> categoryNameMap = categoryIds.isEmpty()
-                ? Map.of()
-                : categoryRepository.findAllById(categoryIds).stream()
-                        .collect(Collectors.toMap(Category::getId, Category::getName, (a, b) -> a));
-
         List<TransactionSummaryResponse.CategoryItemDto> byCategory = categoryData.stream()
                 .map(data -> {
                     UUID catId = (UUID) data[0];
@@ -1096,9 +1036,8 @@ public class TransactionService {
         List<TransactionSummaryResponse.PeriodItemDto> byPeriod = new ArrayList<>();
         try {
             boolean isDaily = "day".equalsIgnoreCase(groupBy);
-            List<Object[]> flowData = isDaily 
-                    ? transactionRepository.getDailyFlow(userId, fromDate, toDate, accountId, false)
-                    : transactionRepository.getMonthlyFlow(userId, fromDate, toDate, accountId, false);
+            List<Object[]> flowData = transactionRepository.getRecognizedPeriods(userId, fromDate, toDate, accountId,
+                    isDaily ? "YYYY-MM-DD" : "YYYY-MM");
             for (Object[] item : flowData) {
                 String dateStr = (String) item[0];
                 BigDecimal inc = toBigDecimal(item[1]);

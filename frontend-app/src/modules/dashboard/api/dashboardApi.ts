@@ -115,11 +115,12 @@ export async function fetchDashboardData(forceRefresh = false): Promise<Dashboar
     }
   };
 
-  const [accountsRes, currentTxRes, prevTxRes, budgetSummaryRes] = await Promise.allSettled([
+  const [accountsRes, currentTxRes, prevTxRes, budgetSummaryRes, reportRes] = await Promise.allSettled([
     fetchWithTimeout(`${API_BASE_URL}/accounts/summary?base_currency=VND`),
     fetchWithTimeout(`${API_BASE_URL}/transactions?fromDate=${fromDate}&toDate=${toDate}&page=1&pageSize=10&sortBy=transaction_date&sortOrder=desc`),
     fetchWithTimeout(`${API_BASE_URL}/transactions?fromDate=${prevFromDate}&toDate=${prevToDate}&page=1&pageSize=50`),
     fetchWithTimeout(`${API_BASE_URL}/budgets/summary?period=current_month`),
+    fetchWithTimeout(`${API_BASE_URL}/transactions/summary?fromDate=${fromDate}&toDate=${toDate}`),
   ]);
 
   // 1. Số dư
@@ -129,25 +130,15 @@ export async function fetchDashboardData(forceRefresh = false): Promise<Dashboar
   }
 
   // 2. Thu chi tháng hiện tại & Danh sách giao dịch gần nhất
-  let monthlyIncome = 0;
-  let monthlyExpense = 0;
+  const report = reportRes.status === 'fulfilled' ? reportRes.value?.summary : null;
+  const monthlyIncome = Number(report?.totalIncome ?? 0);
+  const monthlyExpense = Number(report?.totalExpense ?? 0);
+  const walletSummary = currentTxRes.status === 'fulfilled' ? currentTxRes.value?.summary : null;
   let recentList: DashboardTransaction[] = [];
 
   if (currentTxRes.status === 'fulfilled' && currentTxRes.value) {
     const txData = currentTxRes.value;
-    if (txData.summary) {
-      monthlyIncome = Number(txData.summary.totalIncome || 0);
-      monthlyExpense = Number(txData.summary.totalExpense || 0);
-    }
     const rawList = Array.isArray(txData.transactions) ? txData.transactions : [];
-    
-    // Nếu summary chưa tính sẵn thì tự cộng
-    if (!txData.summary && rawList.length > 0) {
-      for (const t of rawList) {
-        if (t.transactionType === 'INCOME') monthlyIncome += Number(t.amount || 0);
-        else if (t.transactionType === 'EXPENSE') monthlyExpense += Number(t.amount || 0);
-      }
-    }
 
     recentList = rawList.slice(0, 5).map((t: any) => {
       const visual = getCategoryVisual(t.category?.name || t.description, t.transactionType);
@@ -171,7 +162,7 @@ export async function fetchDashboardData(forceRefresh = false): Promise<Dashboar
   // Số dư đầu kỳ (cuối tháng trước) = Số dư hiện tại - Dòng tiền ròng tháng này (monthlyIncome - monthlyExpense)
   // % Tăng trưởng = (Dòng tiền ròng tháng này / Số dư đầu kỳ) * 100
   let balanceGrowthRate: number | null = null;
-  const currentNetCashFlow = monthlyIncome - monthlyExpense;
+  const currentNetCashFlow = Number(report?.walletNetCashFlow ?? walletSummary?.netCashFlow ?? 0);
   const prevMonthEstimatedBalance = totalBalance - currentNetCashFlow;
 
   if (prevMonthEstimatedBalance > 0) {
@@ -215,7 +206,7 @@ export async function fetchDashboardData(forceRefresh = false): Promise<Dashboar
   const daysInMonth = lastDay;
   const currentDay = now.getDate();
   const daysLeft = Math.max(1, daysInMonth - currentDay);
-  const dailyBurnRate = currentDay > 0 ? monthlyExpense / currentDay : 0;
+  const dailyBurnRate = currentDay > 0 ? Number(report?.walletCashOut ?? walletSummary?.totalExpense ?? 0) / currentDay : 0;
   const estimatedRemainingExpense = dailyBurnRate * daysLeft;
   const predictedEndOfMonthBalance = Math.max(0, Math.round(totalBalance - estimatedRemainingExpense));
 

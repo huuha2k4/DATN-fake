@@ -25,6 +25,7 @@ export interface GroupSettingsTabProps {
   onGroupUpdated: (updatedGroup: GroupResponse) => void;
   onGroupDeleted: () => void;
   onLeaveGroup: () => void;
+  financeSettingsSection?: React.ReactNode;
 }
 
 const GROUP_TYPE_OPTIONS: { key: GroupType; label: string; icon: string; desc: string }[] = [
@@ -45,6 +46,7 @@ export const GroupSettingsTab: React.FC<GroupSettingsTabProps> = ({
   onGroupUpdated,
   onGroupDeleted,
   onLeaveGroup,
+  financeSettingsSection,
 }) => {
   const { isDark, colors: themeColors } = useAppTheme();
   const isLeader = isOwner || isAdmin;
@@ -508,6 +510,8 @@ export const GroupSettingsTab: React.FC<GroupSettingsTabProps> = ({
           )}
         </View>
       </View>
+
+      {financeSettingsSection}
 
       {/* 3. KHU VỰC NGUY HIỂM: RỜI NHÓM HOẶC GIẢI TÁN NHÓM */}
       <View
